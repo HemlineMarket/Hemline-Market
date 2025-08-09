@@ -1,5 +1,53 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hemline Market</title>
+
 <h1>Hemline Market</h1>
-<p>Coming soon.</p></p></h1></title>
+
+<div id="signedOut">
+<input id="email" type="email" placeholder="Email" />
+<button id="send">Send Magic Link</button>
+<p id="msg"></p>
+</div>
+
+<div id="signedIn" style="display:none;">
+<p id="who"></p>
+<button id="signout">Sign out</button>
+</div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// TODO: paste your values from Supabase → Project Settings → API
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const $ = (id) => document.getElementById(id);
+const showIn = (email) => { $("signedOut").style.display="none"; $("signedIn").style.display="block"; $("who").textContent = `Signed in as ${email}`; };
+const showOut = () => { $("signedIn").style.display="none"; $("signedOut").style.display="block"; $("msg").textContent = ""; };
+
+// Send Magic Link
+$("send").onclick = async () => {
+const email = $("email").value.trim();
+const { error } = await supabase.auth.signInWithOtp({
+email,
+options: { emailRedirectTo: window.location.href }
+});
+$("msg").textContent = error ? error.message : "Check your email for the sign-in link.";
+};
+
+// On load: show current session (after redirect)
+(async () => {
+const { data: { session } } = await supabase.auth.getSession();
+if (session?.user?.email) showIn(session.user.email);
+})();
+
+// Sign out
+$("signout").onclick = async () => {
+await supabase.auth.signOut();
+showOut();
+};
+</script>
