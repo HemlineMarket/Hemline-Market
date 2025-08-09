@@ -15,9 +15,19 @@
 <p id="who"></p>
 <button id="signout">Sign out</button>
 
-<h3>Upload an image</h3>
-<input id="file" type="file" accept="image/*" />
-<button id="uploadBtn">Upload</button>
+<hr>
+
+<h3>Create a listing</h3>
+<input id="title" placeholder="Title (e.g., Italian Wool Dobby)" />
+<input id="price" type="number" step="0.01" placeholder="Price (USD)" />
+<input id="yardage" type="number" step="0.25" placeholder="Yards (optional)" />
+<button id="createListingBtn">Create listing</button>
+<p id="listingMsg"></p>
+
+<h3>Attach an image to this listing</h3>
+<p id="attachHint" style="color:#666;">Create a listing first, then upload.</p>
+<input id="file" type="file" accept="image/*" disabled />
+<button id="uploadBtn" disabled>Upload</button>
 <p id="uploadMsg"></p>
 </div>
 
@@ -28,12 +38,15 @@ const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 const $ = (id) => document.getElementById(id);
+let currentListingId = null;
+
+const enableUpload = () => { $("file").disabled = false; $("uploadBtn").disabled = false; $("attachHint").textContent = `Listing ready: ${currentListingId}`; };
+
 const showIn = (email) => { $("signedOut").style.display="none"; $("signedIn").style.display="block"; $("who").textContent = `Signed in as ${email}`; };
 const showOut = () => { $("signedIn").style.display="none"; $("signedOut").style.display="block"; $("msg").textContent=""; };
 
-// Send magic link
+// Magic Link
 $("send").onclick = async () => {
 const email = $("email").value.trim();
 const { error } = await supabase.auth.signInWithOtp({
@@ -43,20 +56,45 @@ options: { emailRedirectTo: window.location.href }
 $("msg").textContent = error ? error.message : "Check your email for the link.";
 };
 
-// On load: show session if present
+// Session on load
 (async () => {
 const { data: { session } } = await supabase.auth.getSession();
 if (session?.user?.email) showIn(session.user.email);
 })();
 
-// Sign out
-$("signout").onclick = async () => {
-await supabase.auth.signOut();
-showOut();
+$("signout").onclick = async () => { await supabase.auth.signOut(); showOut(); };
+
+// Create listing (title + price + yards)
+$("createListingBtn").onclick = async () => {
+const { data: { user } } = await supabase.auth.getUser();
+if (!user) { $("listingMsg").textContent = "You must be signed in."; return; }
+
+const title = $("title").value.trim();
+const price = parseFloat($("price").value);
+const yards = $("yardage").value ? parseFloat($("yardage").value) : null;
+
+if (!title) { $("listingMsg").textContent = "Title required."; return; }
+if (isNaN(price) || price < 0) { $("listingMsg").textContent = "Enter a valid price."; return; }
+
+const price_cents = Math.round(price * 100);
+
+const { data, error } = await supabase
+.from("listings")
+.insert({ seller_id: user.id, title, price_cents, yardage: yards })
+.select("id")
+.single();
+
+if (error) { $("listingMsg").textContent = `Error: ${error.message}`; return; }
+
+currentListingId = data.id;
+$("listingMsg").textContent = `Listing created: ${currentListingId}`;
+enableUpload();
 };
 
-// Upload logic + public URL
+// Upload image and link to listing_images
 $("uploadBtn").onclick = async () => {
+if (!currentListingId) { $("uploadMsg").textContent = "Create a listing first."; return; }
+
 const { data: { user } } = await supabase.auth.getUser();
 if (!user) { $("uploadMsg").textContent = "You must be signed in."; return; }
 
@@ -64,18 +102,20 @@ const file = $("file").files[0];
 if (!file) { $("uploadMsg").textContent = "Choose a file first."; return; }
 
 const filePath = `${user.id}/${Date.now()}-${file.name}`;
-const { error } = await supabase.storage.from("listing-images").upload(filePath, file);
+const { error: upErr } = await supabase.storage.from("listing-images").upload(filePath, file);
+if (upErr) { $("uploadMsg").textContent = `Error: ${upErr.message}`; return; }
 
-if (error) {
-$("uploadMsg").textContent = `Error: ${error.message}`;
-return;
-}
+// Public URL
+const { data: pub } = supabase.storage.from("listing-images").getPublicUrl(filePath);
+const publicUrl = pub?.publicUrl ?? "";
 
-const { data: publicData } = supabase.storage.from("listing-images").getPublicUrl(filePath);
-if (publicData?.publicUrl) {
-$("uploadMsg").innerHTML = `Uploaded: <a href="${publicData.publicUrl}" target="_blank" rel="noopener">Open image</a>`;
-} else {
-$("uploadMsg").textContent = `Uploaded to ${filePath}`;
-}
+// Record in listing_images
+const { error: liErr } = await supabase
+.from("listing_images")
+.insert({ listing_id: currentListingId, storage_path: filePath, public_url: publicUrl, sort_order: 0 });
+
+if (liErr) { $("uploadMsg").textContent = `Saved file but DB error: ${liErr.message}`; return; }
+
+$("uploadMsg").innerHTML = `Uploaded: <a href="${publicUrl}" target="_blank" rel="noopener">Open image</a>`;
 };
 </script>
