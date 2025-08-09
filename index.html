@@ -33,6 +33,7 @@ const $ = (id) => document.getElementById(id);
 const showIn = (email) => { $("signedOut").style.display="none"; $("signedIn").style.display="block"; $("who").textContent = `Signed in as ${email}`; };
 const showOut = () => { $("signedIn").style.display="none"; $("signedOut").style.display="block"; $("msg").textContent=""; };
 
+// Send magic link
 $("send").onclick = async () => {
 const email = $("email").value.trim();
 const { error } = await supabase.auth.signInWithOtp({
@@ -42,36 +43,39 @@ options: { emailRedirectTo: window.location.href }
 $("msg").textContent = error ? error.message : "Check your email for the link.";
 };
 
+// On load: show session if present
 (async () => {
 const { data: { session } } = await supabase.auth.getSession();
 if (session?.user?.email) showIn(session.user.email);
 })();
 
+// Sign out
 $("signout").onclick = async () => {
 await supabase.auth.signOut();
 showOut();
 };
 
-// Upload logic
+// Upload logic + public URL
 $("uploadBtn").onclick = async () => {
 const { data: { user } } = await supabase.auth.getUser();
-if (!user) {
-$("uploadMsg").textContent = "You must be signed in.";
-return;
-}
-const file = $("file").files[0];
-if (!file) {
-$("uploadMsg").textContent = "Choose a file first.";
-return;
-}
-const filePath = `${user.id}/${Date.now()}-${file.name}`;
-const { error } = await supabase
-.storage
-.from("listing-images")
-.upload(filePath, file);
+if (!user) { $("uploadMsg").textContent = "You must be signed in."; return; }
 
-$("uploadMsg").textContent = error
-? `Error: ${error.message}`
-: `Uploaded to ${filePath}`;
+const file = $("file").files[0];
+if (!file) { $("uploadMsg").textContent = "Choose a file first."; return; }
+
+const filePath = `${user.id}/${Date.now()}-${file.name}`;
+const { error } = await supabase.storage.from("listing-images").upload(filePath, file);
+
+if (error) {
+$("uploadMsg").textContent = `Error: ${error.message}`;
+return;
+}
+
+const { data: publicData } = supabase.storage.from("listing-images").getPublicUrl(filePath);
+if (publicData?.publicUrl) {
+$("uploadMsg").innerHTML = `Uploaded: <a href="${publicData.publicUrl}" target="_blank" rel="noopener">Open image</a>`;
+} else {
+$("uploadMsg").textContent = `Uploaded to ${filePath}`;
+}
 };
 </script>
