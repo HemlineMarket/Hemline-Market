@@ -19,33 +19,29 @@
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// TODO: paste your values from Supabase → Project Settings → API
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmZzZSIsInJlZiI6ImNsa2l6a3Nidn..."; // paste full key here
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const $ = (id) => document.getElementById(id);
 const showIn = (email) => { $("signedOut").style.display="none"; $("signedIn").style.display="block"; $("who").textContent = `Signed in as ${email}`; };
-const showOut = () => { $("signedIn").style.display="none"; $("signedOut").style.display="block"; $("msg").textContent = ""; };
+const showOut = () => { $("signedIn").style.display="none"; $("signedOut").style.display="block"; $("msg").textContent=""; };
 
-// Send Magic Link
 $("send").onclick = async () => {
 const email = $("email").value.trim();
 const { error } = await supabase.auth.signInWithOtp({
 email,
 options: { emailRedirectTo: window.location.href }
 });
-$("msg").textContent = error ? error.message : "Check your email for the sign-in link.";
+$("msg").textContent = error ? error.message : "Check your email for the link.";
 };
 
-// On load: show current session (after redirect)
 (async () => {
 const { data: { session } } = await supabase.auth.getSession();
 if (session?.user?.email) showIn(session.user.email);
 })();
 
-// Sign out
 $("signout").onclick = async () => {
 await supabase.auth.signOut();
 showOut();
