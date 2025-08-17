@@ -32,7 +32,6 @@
     const urls = [];
     for (let i = 0; i < max; i++) {
       const f = files[i];
-      // optional guardrails
       if (f.size > 8 * 1024 * 1024) throw new Error(`${f.name} is over 8MB. Pick a smaller file.`);
       const safeName = f.name.replace(/[^\w.\-]/g, "_");
       const path = `listings/${Date.now()}_${i}_${safeName}`;
@@ -58,19 +57,20 @@
       const image_urls = files.length ? await uploadImages(files) : [];
 
       const payload = {
-        title: document.getElementById("title").value.trim(),
-        description: document.getElementById("description").value.trim(),
-        price: Number(document.getElementById("price").value),
-        category: document.getElementById("category").value || null,
-        color: document.getElementById("color").value || null,
-        item_type: document.getElementById("item_type").value || null,
-        image_urls
+        p_title: document.getElementById("title").value.trim(),
+        p_description: document.getElementById("description").value.trim(),
+        p_price: Number(document.getElementById("price").value),
+        p_category: document.getElementById("category").value || null,
+        p_color: document.getElementById("color").value || null,
+        p_item_type: document.getElementById("item_type").value || null,
+        p_image_urls: image_urls
       };
 
-      if (!payload.title) throw new Error("Title is required.");
-      if (!Number.isFinite(payload.price)) throw new Error("Price must be a number.");
+      if (!payload.p_title) throw new Error("Title is required.");
+      if (!Number.isFinite(payload.p_price)) throw new Error("Price must be a number.");
 
-      const { error } = await supabase.from("listings").insert([payload]).select("id").single();
+      // Call secured DB function (acts like a backend endpoint)
+      const { data, error } = await supabase.rpc("create_listing", payload);
       if (error) throw new Error(error.message);
 
       ok.style.display = "block";
