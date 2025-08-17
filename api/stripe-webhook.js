@@ -27,7 +27,9 @@ module.exports = async (req, res) => {
     const sig = req.headers['stripe-signature'];
 
     // ----- TEST BYPASS (no Stripe needed) -----
-    const bypassKey = req.headers['x-test-bypass'];
+    // allow header OR query string (?x-test-bypass=...)
+const url = new URL(req.url, `https://${req.headers.host}`);
+const bypassKey = req.headers['x-test-bypass'] || url.searchParams.get('x-test-bypass');
     let event = null;
 
     if (bypassKey && bypassKey === process.env.TEST_WEBHOOK_BYPASS_KEY) {
