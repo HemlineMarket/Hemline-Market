@@ -23,8 +23,8 @@ export default async function handler(req, res) {
         "line_items[0][price_data][product_data][name]": "Fabric Listing",
         "line_items[0][price_data][unit_amount]": amount.toString(),
         "line_items[0][quantity]": "1",
-        success_url: `${process.env.SITE_URL}/success`,
-        cancel_url: `${process.env.SITE_URL}/cancel`,
+        success_url: `${process.env.SITE_URL}/success.html`,
+        cancel_url: `${process.env.SITE_URL}/cancel.html`,
       }),
     });
 
