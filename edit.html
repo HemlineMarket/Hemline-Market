@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edit Listing</title>
+<body style="font-family:system-ui;margin:24px"><a href="/browse.html">← Back</a><h1>Edit Listing</h1>
+<form id=f><input id=title placeholder="Title" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px"><br><br>
+<textarea id=desc placeholder="Description" style="width:100%;height:120px;padding:10px;border:1px solid #d1d5db;border-radius:10px"></textarea><br><br>
+<input id=price type=number step=0.01 placeholder="Price (USD)" style="padding:10px;border:1px solid #d1d5db;border-radius:10px"> 
+<input id=color placeholder="Color" style="padding:10px;border:1px solid #d1d5db;border-radius:10px"> 
+<select id=cat style="padding:10px;border:1px solid #d1d5db;border-radius:10px"><option value="">—</option><option>Wool — suiting</option><option>Wool — coating</option><option>Cotton — shirting</option><option>Cotton — twill/denim</option><option>Linen</option><option>Silk — charmeuse</option><option>Silk — twill</option><option>Rayon/Viscose</option><option>Jersey/Knits</option><option>Leather/Suede</option><option>Notions</option><option>Other</option></select>
+<select id=type style="padding:10px;border:1px solid #d1d5db;border-radius:10px"><option value="">—</option><option>Fabric</option><option>Notions</option><option>Handmade</option></select><br><br>
+<label>Images (paste full URLs, comma-separated)</label><br><input id=imgs placeholder="https://... , https://..." style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px"><br><br>
+<button id=save type=submit>Save Changes</button> <span id=msg></span></form>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/js/env.js"></script>
+<script>
+const qs=new URLSearchParams(location.search);const id=qs.get("id");const M=document.getElementById("msg");
+const s=window.supabase.createClient(window.HEMLINE_ENV.SUPABASE_URL,window.HEMLINE_ENV.SUPABASE_ANON_KEY);
+if(!id){M.textContent="Missing id";document.getElementById("save").disabled=true;}
+async function load(){const {data,e}=await s.from("listings").select("title,description,price,price_cents,category,item_type,color,image_urls").eq("id",id).single();
+ if(e){M.textContent="Error: "+e.message;return;}
+ title.value=data.title||""; desc.value=data.description||""; price.value=(data.price!=null?data.price:(data.price_cents?data.price_cents/100:""))||"";
+ cat.value=data.category||""; type.value=data.item_type||""; color.value=data.color||""; imgs.value=(Array.isArray(data.image_urls)?data.image_urls.join(", "):"");}
+document.getElementById("f").addEventListener("submit",async(ev)=>{ev.preventDefault(); M.textContent="Saving…";
+ const urls=imgs.value.split(",").map(x=>x.trim()).filter(Boolean);
+ const {e}=await s.rpc("update_listing",{p_id:id,p_title:title.value.trim(),p_description:desc.value.trim(),p_price:Number(price.value)||0,p_category:cat.value||null,p_color:color.value||null,p_item_type:type.value||null,p_image_urls:urls});
+ M.textContent=e?("Error: "+e.message):"Saved."; if(!e) setTimeout(()=>location.href="/listing.html?id="+encodeURIComponent(id),600);
+});
+load();
+</script>
+</body>
