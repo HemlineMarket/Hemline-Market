@@ -1,0 +1,1 @@
+-- put the exact SQL you ran for Step 1 here (listings table, trigger, and policies)
