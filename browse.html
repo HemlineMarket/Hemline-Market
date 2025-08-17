@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hemline — Browse Listings</title>
+  <style>
+    :root{--gap:14px}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px}
+    header{display:flex; flex-wrap:wrap; gap:var(--gap); align-items:center; margin-bottom:18px}
+    h1{margin:0 12px 0 0; font-size:22px}
+    .filters{display:flex; flex-wrap:wrap; gap:var(--gap)}
+    select,input{padding:10px; border:1px solid #d1d5db; border-radius:10px; font-size:14px}
+    button{padding:10px 12px; border-radius:10px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer}
+    .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:var(--gap)}
+    .card{border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; background:#fff; display:flex; flex-direction:column}
+    .thumb{aspect-ratio:4/3; width:100%; object-fit:cover; background:#f1f5f9}
+    .meta{padding:12px}
+    .title{font-weight:600; font-size:14px; line-height:1.3; margin:0 0 6px}
+    .row{display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#475569}
+    .muted{color:#64748b; font-size:12px; margin-top:2px}
+    .empty{padding:18px; border:1px dashed #cbd5e1; border-radius:12px; background:#f8fafc}
+    .badge{display:inline-block; font-size:11px; padding:2px 8px; border:1px solid #e2e8f0; border-radius:999px; color:#334155; background:#f1f5f9}
+    a.card-link{color:inherit; text-decoration:none}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Browse Listings</h1>
+    <div class="filters">
+      <select id="f_category">
+        <option value="">All categories</option>
+        <option>Wool — suiting</option>
+        <option>Wool — coating</option>
+        <option>Cotton — shirting</option>
+        <option>Cotton — twill/denim</option>
+        <option>Linen</option>
+        <option>Silk — charmeuse</option>
+        <option>Silk — twill</option>
+        <option>Rayon/Viscose</option>
+        <option>Jersey/Knits</option>
+        <option>Leather/Suede</option>
+        <option>Notions</option>
+        <option>Other</option>
+      </select>
+      <select id="f_type">
+        <option value="">All types</option>
+        <option>Fabric</option>
+        <option>Notions</option>
+        <option>Handmade</option>
+      </select>
+      <input id="f_color" placeholder="Color (e.g., navy)" />
+      <button id="apply">Apply</button>
+      <button id="clear">Clear</button>
+    </div>
+  </header>
+
+  <div id="results" class="grid"></div>
+  <div id="empty" class="empty" style="display:none">No listings match these filters yet.</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/js/env.js"></script>
+  <script>
+    const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.HEMLINE_ENV || {};
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const resultsEl = document.getElementById("results");
+    const emptyEl = document.getElementById("empty");
+    const fCategory = document.getElementById("f_category");
+    const fType = document.getElementById("f_type");
+    const fColor = document.getElementById("f_color");
+    const btnApply = document.getElementById("apply");
+    const btnClear = document.getElementById("clear");
+
+    function fmtPrice(row){
+      if (row.price != null && Number.isFinite(Number(row.price))) {
+        return `$${Number(row.price).toFixed(2)}`;
+      }
+      if (row.price_cents != null && Number.isFinite(Number(row.price_cents))) {
+        return `$${(Number(row.price_cents)/100).toFixed(2)}`;
+      }
+      return "—";
+    }
+
+    function firstImage(row){
+      const arr = Array.isArray(row.image_urls) ? row.image_urls : [];
+      return arr.length ? arr[0] : null;
+    }
+
+    function cardHTML(row){
+      const img = firstImage(row) || "https://placehold.co/600x450/png?text=No+Image";
+      const price = fmtPrice(row);
+      const cat = row.category || "";
+      const type = row.item_type || "";
+      return `
+        <a class="card-link" href="/listing.html?id=${encodeURIComponent(row.id)}">
+          <article class="card">
+            <img class="thumb" src="${img}" alt="">
+            <div class="meta">
+              <h2 class="title">${escapeHtml(row.title || "Untitled")}</h2>
+              <div class="row">
+                <div>${price}</div>
+                <div>${cat ? `<span class="badge">${escapeHtml(cat)}</span>` : ""}</div>
+              </div>
+              ${type ? `<div class="muted">${escapeHtml(type)}${row.color ? " · " + escapeHtml(row.color) : ""}</div>` : ""}
+            </div>
+          </article>
+        </a>
+      `;
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function loadListings(){
+      resultsEl.innerHTML = "";
+      emptyEl.style.display = "none";
+
+      let query = supabase.from("listings")
+        .select("id,title,price,price_cents,category,item_type,color,image_urls,created_at")
+        .order("created_at", { ascending:false })
+        .limit(60);
+
+      const cat = fCategory.value.trim();
+      const typ = fType.value.trim();
+      const col = fColor.value.trim();
+
+      if (cat) query = query.eq("category", cat);
+      if (typ) query = query.eq("item_type", typ);
+      if (col) query = query.ilike("color", `%${col}%`);
+
+      const { data, error } = await query;
+      if (error) {
+        resultsEl.innerHTML = `<div class="empty">Error loading listings: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+
+      if (!data || !data.length) {
+        emptyEl.style.display = "block";
+        return;
+      }
+
+      resultsEl.innerHTML = data.map(cardHTML).join("");
+    }
+
+    btnApply.addEventListener("click", loadListings);
+    btnClear.addEventListener("click", () => {
+      fCategory.value = ""; fType.value = ""; fColor.value = "";
+      loadListings();
+    });
+
+    loadListings();
+  </script>
+</body>
+</html>
