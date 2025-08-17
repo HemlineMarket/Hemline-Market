@@ -1,5 +1,5 @@
 // Stripe webhook for Hemline Market (CommonJS, Vercel-compatible)
-// Includes a TEST bypass so you can simulate an event without Stripe Webhooks.
+// Allows a secure test bypass via header or query for GET requests.
 
 const Stripe = require('stripe');
 
@@ -17,8 +17,19 @@ async function getRawBody(req) {
 
 module.exports = async (req, res) => {
   try {
-    if (req.method !== 'POST') {
-      res.setHeader('Allow', 'POST');
+    // Build URL safely for query parsing
+    const host = req.headers.host || 'localhost';
+    const url = new URL(req.url || '/', `https://${host}`);
+
+    // Bypass secret may come from header OR query string (?x-test-bypass=...)
+    const bypassFromHeader = req.headers['x-test-bypass'];
+    const bypassFromQuery  = url.searchParams.get('x-test-bypass');
+    const bypassSecret     = process.env.TEST_WEBHOOK_BYPASS_KEY || '';
+    const isBypass         = !!bypassSecret && (bypassFromHeader === bypassSecret || bypassFromQuery === bypassSecret);
+
+    // Allow GET only when using the bypass secret; otherwise require POST
+    if (req.method !== 'POST' && !(req.method === 'GET' && isBypass)) {
+      res.setHeader('Allow', 'POST, GET');
       return res.status(405).send('Method Not Allowed');
     }
 
@@ -26,14 +37,10 @@ module.exports = async (req, res) => {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
     const sig = req.headers['stripe-signature'];
 
-    // ----- TEST BYPASS (no Stripe needed) -----
-    // allow header OR query string (?x-test-bypass=...)
-const url = new URL(req.url, `https://${req.headers.host}`);
-const bypassKey = req.headers['x-test-bypass'] || url.searchParams.get('x-test-bypass');
     let event = null;
 
-    if (bypassKey && bypassKey === process.env.TEST_WEBHOOK_BYPASS_KEY) {
-      // Simulate a checkout.session.completed payload
+    if (isBypass) {
+      // Simulate a checkout.session.completed payload for testing
       event = {
         id: 'evt_test_bypass',
         type: 'checkout.session.completed',
@@ -57,7 +64,7 @@ const bypassKey = req.headers['x-test-bypass'] || url.searchParams.get('x-test-b
         }
       };
     } else {
-      // Normal path: verify Stripe signature (if you have a webhook secret)
+      // Normal Stripe path (POST) — verify signature if we have a signing secret
       const rawBody = await getRawBody(req);
 
       if (endpointSecret && sig) {
@@ -68,7 +75,7 @@ const bypassKey = req.headers['x-test-bypass'] || url.searchParams.get('x-test-b
           return res.status(400).send(`Webhook Error: ${err.message}`);
         }
       } else {
-        // No signing secret yet: accept JSON for now (not for production)
+        // No signing secret yet: accept JSON for initial setup only
         try {
           event = JSON.parse(rawBody.toString('utf8'));
         } catch (err) {
@@ -77,9 +84,8 @@ const bypassKey = req.headers['x-test-bypass'] || url.searchParams.get('x-test-b
         }
       }
     }
-    // ----- END BYPASS -----
 
-    // Handle the event(s) you care about
+    // Handle successful checkout
     if (event && event.type === 'checkout.session.completed') {
       const session = event.data.object || {};
 
@@ -88,7 +94,7 @@ const bypassKey = req.headers['x-test-bypass'] || url.searchParams.get('x-test-b
         stripe_payment_intent: session.payment_intent || null,
         stripe_checkout_session: session.id || null,
         buyer_email: (session.customer_details && session.customer_details.email) || null,
-        buyer_id: null, // can be filled later via metadata if you pass auth uid
+        buyer_id: null, // can be filled later via metadata (auth uid)
         seller_id: (session.metadata && session.metadata.seller_id) || null,
         listing_id: (session.metadata && session.metadata.listing_id) || null,
         listing_snapshot: (() => {
