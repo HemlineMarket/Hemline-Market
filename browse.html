@@ -3,15 +3,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Hemline — Browse</title>
 <link rel="stylesheet" href="/css/tokens.css">
-<link rel="stylesheet" href="/css/components.css">
-<link rel="stylesheet" href="/css/layout.css">
-<style>
-h1{font-size:var(--fs-700);margin-bottom:var(--space-4);}
-.grid-browse{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--space-5);}
-</style>
+<link rel="stylesheet" href="/css/main.css">
 </head><body>
 
-<!-- Site navbar -->
+<!-- Navbar -->
 <nav class="navbar">
   <div>
     <a href="/index.html"><strong>Hemline</strong></a>
@@ -24,14 +19,32 @@ h1{font-size:var(--fs-700);margin-bottom:var(--space-4);}
   </div>
 </nav>
 
-<div class="container-lg">
+<div class="container-md">
   <h1>Browse Fabrics</h1>
-  <div id="content" class="grid-browse">
-    Loading…
+  <p class="muted">Explore available fabrics and handmade sewing items.</p>
+  <div class="grid-3">
+    <div class="card">
+      <img src="https://via.placeholder.com/400x250" alt="Sample fabric">
+      <h3>Cotton Sateen</h3>
+      <p class="muted">100% cotton, 2 yards</p>
+      <a class="btn btn-primary" href="#">Add to Cart</a>
+    </div>
+    <div class="card">
+      <img src="https://via.placeholder.com/400x250" alt="Sample fabric">
+      <h3>Wool Dobby</h3>
+      <p class="muted">Luxury suiting, 1.5 yards</p>
+      <a class="btn btn-primary" href="#">Add to Cart</a>
+    </div>
+    <div class="card">
+      <img src="https://via.placeholder.com/400x250" alt="Sample fabric">
+      <h3>Silk Crepe</h3>
+      <p class="muted">Ivory, 3 yards</p>
+      <a class="btn btn-primary" href="#">Add to Cart</a>
+    </div>
   </div>
 </div>
 
-<!-- Site footer -->
+<!-- Footer -->
 <footer class="container-md" style="margin-top:var(--space-7);">
   <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);">
     <p class="muted" style="margin:0;">© <span id="y"></span> Hemline Market</p>
@@ -44,37 +57,4 @@ h1{font-size:var(--fs-700);margin-bottom:var(--space-4);}
   <script>document.getElementById("y").textContent = new Date().getFullYear();</script>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/js/env.js"></script>
-<script>
-const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.HEMLINE_ENV||{};
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const el = document.getElementById("content");
-
-function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-
-function fmtPrice(row){
-  if (row.price!=null && Number.isFinite(Number(row.price))) return "$"+Number(row.price).toFixed(2);
-  if (row.price_cents!=null && Number.isFinite(Number(row.price_cents))) return "$"+(Number(row.price_cents)/100).toFixed(2);
-  return "—";
-}
-
-async function load(){
-  const { data, error } = await supabase.from("listings")
-    .select("id,title,price,price_cents,image_urls")
-    .order("created_at",{ascending:false});
-  if(error){ el.innerHTML = "Error: "+esc(error.message); return; }
-
-  el.innerHTML = data.map(row=>{
-    const img = Array.isArray(row.image_urls)&&row.image_urls.length ? esc(row.image_urls[0]) : "https://placehold.co/400x300/png?text=No+Image";
-    return `
-      <a class="card stack" href="/listing.html?id=${encodeURIComponent(row.id)}">
-        <img src="${img}" alt="" style="width:100%;border-radius:var(--radius-md);">
-        <h2>${esc(row.title||"Untitled")}</h2>
-        <div class="price">${fmtPrice(row)}</div>
-      </a>`;
-  }).join("");
-}
-load();
-</script>
 </body></html>
