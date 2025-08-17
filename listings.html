@@ -23,10 +23,10 @@
   <div id="content">Loading…</div>
 </div>
 
-<!-- Footer -->
-<footer class="container-md" style="margin-top:var(--space-7);">
-  <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);">
-    <p class="muted" style="margin:0;">© <span id="y"></span> Hemline Market</p>
+<!-- Footer (cleaned: no inline styles) -->
+<footer class="container-md mt-7">
+  <div class="card cluster items-center justify-between gap-4">
+    <p class="muted">© <span id="y"></span> Hemline Market</p>
     <div class="cluster">
       <a class="btn" href="/seller.html">Seller</a>
       <a class="btn" href="/orders.html">Orders</a>
@@ -45,7 +45,7 @@ const q = new URLSearchParams(location.search);
 const id = q.get("id");
 const el = document.getElementById("content");
 
-if(id){ document.getElementById("editLink").href="/edit.html?id="+encodeURIComponent(id); }
+if(id){ /* edit link lives on browse page; left out here intentionally */ }
 
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function fmtPrice(row){
@@ -55,7 +55,7 @@ function fmtPrice(row){
 }
 
 async function load(){
-  if(!id){ el.innerHTML = "<div class='muted'>Missing listing id.</div>"; return; }
+  if(!id){ el.innerHTML = "<p class='muted'>Missing listing id.</p>"; return; }
   const { data, error } = await supabase.from("listings")
     .select("id,title,description,price,price_cents,category,item_type,color,image_urls,created_at")
     .eq("id", id).single();
@@ -66,18 +66,20 @@ async function load(){
   const gallery = imgs.map(src=>`<img src="${esc(src)}" alt="">`).join("");
 
   el.innerHTML = `
-    <div class="grid-2">
-      <div>${gallery}</div>
-      <div>
-        <h1 style="margin:0 0 6px">${esc(data.title||"Untitled")}</h1>
-        <div class="price">${fmtPrice(data)}</div>
-        <p class="muted" style="margin:8px 0">
-          ${data.category ? `<span class="badge">${esc(data.category)}</span>` : ""}
-          ${data.item_type ? ` <span class="badge">${esc(data.item_type)}</span>` : ""}
-          ${data.color ? ` <span class="badge">${esc(data.color)}</span>` : ""}
-        </p>
-        <p>${esc(data.description||"")}</p>
-        <p class="muted">Created: ${new Date(data.created_at).toLocaleString()}</p>
+    <div class="card">
+      <div class="grid-2">
+        <div>${gallery}</div>
+        <div class="stack">
+          <h1>${esc(data.title||"Untitled")}</h1>
+          <div class="price">${fmtPrice(data)}</div>
+          <p class="cluster">
+            ${data.category ? `<span class="badge">${esc(data.category)}</span>` : ""}
+            ${data.item_type ? `<span class="badge">${esc(data.item_type)}</span>` : ""}
+            ${data.color ? `<span class="badge">${esc(data.color)}</span>` : ""}
+          </p>
+          <p>${esc(data.description||"")}</p>
+          <p class="muted">Created: ${new Date(data.created_at).toLocaleString()}</p>
+        </div>
       </div>
     </div>`;
 }
