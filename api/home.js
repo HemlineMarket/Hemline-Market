@@ -1,4 +1,4 @@
-export default function handler(req, res) {
+module.exports = (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.status(200).send(`<!doctype html>
 <html lang="en">
@@ -14,4 +14,4 @@ export default function handler(req, res) {
   <p><a href="/index.html">Go to index.html</a></p>
 </body>
 </html>`);
-}
+};
