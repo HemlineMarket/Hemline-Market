@@ -1,99 +1,66 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hemline — New Listing</title>
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; line-height:1.3;}
-    .card{max-width:720px; padding:20px; border:1px solid #e5e7eb; border-radius:16px; box-shadow:0 1px 2px rgba(0,0,0,.04)}
-    .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
-    label{font-weight:600; font-size:14px}
-    input,select,textarea,button{width:100%; padding:10px; border-radius:10px; border:1px solid #d1d5db; font-size:14px}
-    textarea{min-height:110px; resize:vertical}
-    .muted{color:#6b7280; font-size:12px}
-    .preview{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px}
-    .preview img{height:90px; border-radius:10px; border:1px solid #e5e7eb; object-fit:cover}
-    .actions{display:flex; gap:12px; margin-top:14px}
-    .success{color:#065f46; background:#ecfdf5; padding:10px 12px; border-radius:10px; border:1px solid #a7f3d0; display:none}
-    .error{color:#991b1b; background:#fef2f2; padding:10px 12px; border-radius:10px; border:1px solid #fecaca; display:none}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Create a Listing</h1>
-    <p class="muted">MVP: no sign-in required. We’ll lock this down later.</p>
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Listing</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px}
+.wrap{max-width:900px;margin:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+img{width:100%;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border:1px solid #e2e8f0;border-radius:999px;background:#f1f5f9}
+.muted{color:#64748b}
+.price{font-weight:700;font-size:20px}
+a{color:#0f172a}
+@media (max-width:780px){.grid{grid-template-columns:1fr}}
+</style>
+</head><body>
+<div class="wrap">
+  <p><a href="/browse.html">← Back to Browse</a></p>
+  <div id="content">Loading…</div>
+</div>
 
-    <form id="listing-form">
-      <div class="row">
-        <div>
-          <label for="title">Title</label>
-          <input id="title" name="title" required placeholder="e.g., Super 110s Merino — Navy, 2 yards" />
-        </div>
-        <div>
-          <label for="price">Price (USD)</label>
-          <input id="price" name="price" type="number" min="0" step="0.01" required />
-        </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/env.js"></script>
+<script>
+const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.HEMLINE_ENV||{};
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const q = new URLSearchParams(location.search);
+const id = q.get("id");
+const el = document.getElementById("content");
+
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmtPrice(row){
+  if (row.price!=null && Number.isFinite(Number(row.price))) return "$"+Number(row.price).toFixed(2);
+  if (row.price_cents!=null && Number.isFinite(Number(row.price_cents))) return "$"+(Number(row.price_cents)/100).toFixed(2);
+  return "—";
+}
+
+async function load(){
+  if(!id){ el.innerHTML = "<div class='muted'>Missing listing id.</div>"; return; }
+  const { data, error } = await supabase.from("listings")
+    .select("id,title,description,price,price_cents,category,item_type,color,image_urls,created_at")
+    .eq("id", id).single();
+  if(error){ el.innerHTML = "Error: "+esc(error.message); return; }
+
+  const imgs = Array.isArray(data.image_urls) && data.image_urls.length ? data.image_urls
+              : ["https://placehold.co/800x600/png?text=No+Image"];
+  const gallery = imgs.map(src=>`<img src="${esc(src)}" alt="">`).join("");
+
+  el.innerHTML = `
+    <div class="grid">
+      <div>${gallery}</div>
+      <div>
+        <h1 style="margin:0 0 6px">${esc(data.title||"Untitled")}</h1>
+        <div class="price">${fmtPrice(data)}</div>
+        <p class="muted" style="margin:8px 0">
+          ${data.category ? `<span class="badge">${esc(data.category)}</span>` : ""}
+          ${data.item_type ? ` <span class="badge">${esc(data.item_type)}</span>` : ""}
+          ${data.color ? ` <span class="badge">${esc(data.color)}</span>` : ""}
+        </p>
+        <p>${esc(data.description||"")}</p>
+        <p class="muted">Created: ${new Date(data.created_at).toLocaleString()}</p>
       </div>
-
-      <label for="description">Description</label>
-      <textarea id="description" name="description" placeholder="Condition, width, yardage, handfeel..."></textarea>
-
-      <div class="row">
-        <div>
-          <label for="category">Category</label>
-          <select id="category" name="category">
-            <option value="">—</option>
-            <option>Wool — suiting</option>
-            <option>Wool — coating</option>
-            <option>Cotton — shirting</option>
-            <option>Cotton — twill/denim</option>
-            <option>Linen</option>
-            <option>Silk — charmeuse</option>
-            <option>Silk — twill</option>
-            <option>Rayon/Viscose</option>
-            <option>Jersey/Knits</option>
-            <option>Leather/Suede</option>
-            <option>Notions</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div>
-          <label for="item_type">Type</label>
-          <select id="item_type" name="item_type">
-            <option value="">—</option>
-            <option>Fabric</option>
-            <option>Notions</option>
-            <option>Handmade</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
-          <label for="color">Color</label>
-          <input id="color" name="color" placeholder="e.g., navy" />
-        </div>
-        <div>
-          <label for="images">Images (up to 6)</label>
-          <input id="images" name="images" type="file" accept="image/*" multiple />
-          <div id="preview" class="preview"></div>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button id="submitBtn" type="submit">Save Listing</button>
-        <button id="resetBtn" type="reset">Reset</button>
-      </div>
-
-      <div id="ok" class="success">Saved. View will come next.</div>
-      <div id="fail" class="error">Something went wrong. Try again.</div>
-    </form>
-  </div>
-
-  <!-- Libs and hooks (js logic comes next step) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/js/env.js"></script>
-  <script src="/js/listings-form.js"></script>
-</body>
-</html>
+    </div>`;
+}
+load();
+</script>
+</body></html>
