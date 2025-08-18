@@ -1,123 +1,43 @@
-<!doctype html><html lang="en"><head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Listing</title>
-<link rel="stylesheet" href="/css/tokens.css">
-<link rel="stylesheet" href="/css/main.css">
-</head><body>
-
-<!-- Navbar -->
-<nav class="navbar" aria-label="Primary">
-  <div>
-    <a href="/index.html"><strong>Hemline</strong></a>
-  </div>
-  <div>
-    <a href="/browse.html">Browse</a>
-    <a href="/seller.html">Seller</a>
-    <a href="/orders.html">Orders</a>
-    <a href="/checkout.html">Checkout</a>
-  </div>
-</nav>
-
-<main class="container-md" id="main">
-  <!-- Page header -->
-  <header class="page-header">
-    <div class="cluster">
-      <a href="/browse.html" class="btn" aria-label="Back to Browse">← Back</a>
-      <h1 id="listingTitle" class="m-0">Listing</h1>
-    </div>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Listings - Hemline Market</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#fafafa;color:#111}
+    header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+    header h1{font-size:20px;margin:0}
+    nav a{color:#fff;text-decoration:none;margin-left:20px;font-size:15px}
+    nav a:hover{text-decoration:underline}
+    main{max-width:900px;margin:40px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    img{width:100%;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover}
+    .price{font-weight:700;font-size:18px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hemline Market</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="listings.html">Listings</a>
+      <a href="signup.html">Sign Up</a>
+    </nav>
   </header>
 
-  <!-- Listing content renders here -->
-  <section id="content" aria-live="polite">Loading…</section>
-</main>
-
-<!-- Footer (now includes Privacy/Terms) -->
-<footer class="container-md mt-7">
-  <div class="card cluster items-center justify-between gap-4">
-    <p class="muted m-0">© <span id="y"></span> Hemline Market</p>
-    <div class="cluster">
-      <a class="btn" href="/privacy.html">Privacy</a>
-      <a class="btn" href="/terms.html">Terms</a>
-      <a class="btn" href="/checkout.html">Checkout</a>
-    </div>
-  </div>
-  <script>document.getElementById("y").textContent = new Date().getFullYear();</script>
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/js/env.js"></script>
-<script>
-const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.HEMLINE_ENV || {};
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// read id from URL ?id=...
-const params = new URLSearchParams(location.search);
-const id = params.get("id");
-const el = document.getElementById("content");
-const titleEl = document.getElementById("listingTitle");
-
-function esc(s){
-  return String(s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function fmtPrice(row){
-  if (row?.price != null && Number.isFinite(Number(row.price))) return "$"+Number(row.price).toFixed(2);
-  if (row?.price_cents != null && Number.isFinite(Number(row.price_cents))) return "$"+(Number(row.price_cents)/100).toFixed(2);
-  return "—";
-}
-
-async function load(){
-  if(!id){
-    el.innerHTML = "<p class='muted'>Missing listing id.</p>";
-    return;
-  }
-
-  const { data, error } = await supabase.from("listings")
-    .select("id,title,description,price,price_cents,category,item_type,color,image_urls,created_at")
-    .eq("id", id).single();
-
-  if(error){
-    el.innerHTML = "<div class='card'><p class='muted'>"+esc(error.message)+"</p></div>";
-    return;
-  }
-
-  // Set page h1 to the listing title
-  titleEl.textContent = data?.title ? data.title : "Listing";
-
-  const imgs = Array.isArray(data.image_urls) && data.image_urls.length
-    ? data.image_urls
-    : ["https://placehold.co/800x600/png?text=No+Image"];
-
-  const gallery = imgs.map(src => `
-    <div class="media-cover">
-      <img src="${esc(src)}" alt="${esc(data.title||'Listing image')}" loading="lazy" decoding="async">
-    </div>`).join("");
-
-  el.innerHTML = `
-    <article class="card">
-      <div class="grid-2">
-        <div class="stack" aria-label="Gallery">
-          ${gallery}
-        </div>
-        <div class="stack" aria-label="Details">
-          <h2 class="m-0">${esc(data.title||"Untitled")}</h2>
-          <p class="price">${fmtPrice(data)}</p>
-          <p class="cluster">
-            ${data.category ? `<span class="badge">${esc(data.category)}</span>` : ""}
-            ${data.item_type ? `<span class="badge">${esc(data.item_type)}</span>` : ""}
-            ${data.color ? `<span class="badge">${esc(data.color)}</span>` : ""}
-          </p>
-          <p>${esc(data.description||"")}</p>
-          <p class="muted">Created: ${new Date(data.created_at).toLocaleString()}</p>
-          <div class="cluster">
-            <a class="btn" href="/browse.html">Back to Browse</a>
-            <a class="btn btn-primary" href="/checkout.html">Buy Now</a>
-          </div>
-        </div>
+  <main>
+    <h2>Available Fabrics</h2>
+    <div class="grid">
+      <div>
+        <img src="https://picsum.photos/400/300?random=1" alt="Fabric sample"/>
+        <p class="price">$25/yard</p>
       </div>
-    </article>`;
-}
-
-load();
-</script>
-</body></html>
+      <div>
+        <img src="https://picsum.photos/400/300?random=2" alt="Fabric sample"/>
+        <p class="price">$32/yard</p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
