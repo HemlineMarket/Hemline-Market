@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+
+  <title>Listing — Hemline Market</title>
+  <meta name="description" content="View a single fabric listing with photos, details, and price on Hemline Market."/>
+  <link rel="canonical" href="https://www.hemlinemarket.com/listing.html"/>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://www.hemlinemarket.com/listing.html"/>
+  <meta property="og:title" content="Listing — Hemline Market"/>
+  <meta property="og:description" content="See full details and photos for a Hemline Market listing."/>
+  <meta property="og:image" content="https://www.hemlinemarket.com/comingsoon.jpg"/>
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="Listing — Hemline Market"/>
+  <meta name="twitter:description" content="See full details and photos for a Hemline Market listing."/>
+  <meta name="twitter:image" content="https://www.hemlinemarket.com/comingsoon.jpg"/>
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media (max-width:780px){.grid{grid-template-columns:1fr}}
+    .gallery img{width:100%;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover;margin-bottom:10px}
+    .badge{display:inline-block;font-size:11px;padding:2px 8px;border:1px solid #e2e8f0;border-radius:999px;background:#f1f5f9}
+    .price{font-weight:700;font-size:20px}
+    .warn{border:1px solid #f59e0b;background:#fffbeb;color:#92400e;padding:12px 14px;border-radius:10px;margin-bottom:12px}
+    .muted small{display:inline-block;margin-left:6px}
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar" aria-label="Primary">
+  <div>
+    <a href="/index.html"><strong>Hemline</strong></a>
+  </div>
+  <div>
+    <a href="/browse.html">Browse</a>
+    <a href="/seller.html">Seller</a>
+    <a href="/orders.html">Orders</a>
+    <a href="/checkout.html">Checkout</a>
+  </div>
+</nav>
+
+<main class="container-md" id="main">
+  <p style="margin:0 0 12px">
+    <a href="/browse.html">← Back to Browse</a>
+  </p>
+
+  <div id="envWarn" class="warn" style="display:none"></div>
+  <div id="content" class="card" style="padding:0"></div>
+</main>
+
+<!-- Footer -->
+<footer class="container-md mt-7">
+  <div class="card cluster items-center justify-between gap-4">
+    <p class="muted m-0">© <span id="y"></span> Hemline Market</p>
+    <div class="cluster">
+      <a class="btn" href="/about.html">About</a>
+      <a class="btn" href="/contact.html">Contact</a>
+      <a class="btn" href="/faq.html">FAQ</a>
+      <a class="btn" href="/privacy.html">Privacy</a>
+      <a class="btn" href="/terms.html">Terms</a>
+      <a class="btn" href="/shipping.html">Shipping</a>
+      <a class="btn" href="/returns.html">Returns</a>
+    </div>
+  </div>
+  <script>document.getElementById("y").textContent = new Date().getFullYear();</script>
+</footer>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/env.js"></script>
+<script>
+(function(){
+  const q = new URLSearchParams(location.search);
+  const id = q.get('id');
+  const content = document.getElementById('content');
+  const warn = document.getElementById('envWarn');
+
+  const env = (window.HEMLINE_ENV||{});
+  const url = env.SUPABASE_URL;
+  const key = env.SUPABASE_ANON_KEY;
+
+  function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function fmtPrice(row){
+    if (row.price!=null && Number.isFinite(Number(row.price))) return "$"+Number(row.price).toFixed(2);
+    if (row.price_cents!=null && Number.isFinite(Number(row.price_cents))) return "$"+(Number(row.price_cents)/100).toFixed(2);
+    return "—";
+  }
+
+  if(!id){
+    content.innerHTML = `<div class="card" style="padding:16px"><p class="muted">Missing listing id.</p></div>`;
+    return;
+  }
+
+  if(!url || !key){
+    warn.style.display='block';
+    warn.textContent = 'Note: Supabase keys are not configured; showing a demo listing.';
+    const demo = {
+      title: 'Demo Silk Crepe',
+      description: 'Ivory, 3 yards. Soft hand, perfect for blouses.',
+      price_cents: 6900,
+      category: 'Fabric',
+      item_type: 'Silk Crepe',
+      color: 'Ivory',
+      image_urls: [
+        'https://via.placeholder.com/1000x700?text=Silk+Crepe+1',
+        'https://via.placeholder.com/1000x700?text=Silk+Crepe+2'
+      ],
+      created_at: new Date().toISOString()
+    };
+    render(demo);
+    return;
+  }
+
+  const supabase = window.supabase.createClient(url, key);
+  content.innerHTML = `<div class="card" style="padding:16px"><p class="muted">Loading listing…</p></div>`;
+
+  supabase.from('listings')
+    .select('id,title,description,price,price_cents,category,item_type,color,image_urls,created_at')
+    .eq('id', id)
+    .single()
+    .then(({ data, error })=>{
+      if(error){ content.innerHTML = `<div class="card" style="padding:16px"><p class="warn">Error: ${esc(error.message)}</p></div>`; return; }
+      if(!data){ content.innerHTML = `<div class="card" style="padding:16px"><p class="muted">Listing not found.</p></div>`; return; }
+      render(data);
+    });
+
+  function render(row){
+    const imgs = (Array.isArray(row.image_urls) && row.image_urls.length)
+      ? row.image_urls
+      : ['https://via.placeholder.com/1000x700?text=No+Image'];
+
+    const gallery = imgs.map(src=>`<img src="${esc(src)}" alt="">`).join('');
+
+    content.innerHTML = `
+      <div class="grid" style="padding:16px">
+        <div class="gallery">${gallery}</div>
+        <div class="stack">
+          <h1 style="margin:0 0 6px">${esc(row.title||'Untitled')}</h1>
+          <div class="price">${fmtPrice(row)}</div>
+          <p class="muted" style="margin:8px 0">
+            ${row.category ? `<span class="badge">${esc(row.category)}</span>` : ""}
+            ${row.item_type ? ` <span class="badge">${esc(row.item_type)}</span>` : ""}
+            ${row.color ? ` <span class="badge">${esc(row.color)}</span>` : ""}
+          </p>
+          <p>${esc(row.description||'')}</p>
+          <div class="cluster">
+            <a class="btn btn-primary" href="/checkout.html">Add to Cart</a>
+            <a class="btn" href="/browse.html">Keep Browsing</a>
+          </div>
+          <p class="muted" style="margin-top:10px">Created: ${row.created_at ? new Date(row.created_at).toLocaleString() : '—'}</p>
+        </div>
+      </div>
+    `;
+    // Update head title dynamically if possible
+    try{ document.title = (row.title? `${row.title} — Hemline Market` : document.title); }catch(e){}
+  }
+})();
+</script>
+</body>
+</html>
