@@ -5,69 +5,105 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Seller Dashboard</title>
   <style>
-    :root{--bg:#ffffff;--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--card:#f8fafc}
+    :root{--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--card:#f8fafc}
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-    a{text-decoration:none;color:inherit}
-    .wrap{max-width:1040px;margin:0 auto;padding:20px}
-    .header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
-    .brand{font-weight:700;letter-spacing:.3px}
-    .nav a{padding:10px 12px;border-radius:10px}
-    .nav a:hover{background:var(--card)}
-    .h1{font-size:28px;margin:20px 0 6px}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--ink)}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:1000px;margin:0 auto;padding:20px}
+    header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+    nav a{padding:10px 12px;border-radius:10px}
+    nav a:hover{background:var(--card)}
+    h1{font-size:28px;margin:18px 0 8px}
     .muted{color:var(--muted);margin:0 0 18px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
-    .tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:block;transition:transform .08s ease, box-shadow .08s ease}
-    .tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.06)}
-    .tile h2{margin:8px 0 4px;font-size:18px}
-    .tile p{margin:0;color:var(--muted);font-size:14px}
-    .icon{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:#fff;font-weight:700}
-    .footer{border-top:1px solid var(--line);margin-top:24px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    button{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#fff;cursor:pointer}
+    #log{white-space:pre-wrap;background:#fff;border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:12px;min-height:56px}
+    #preview{display:none;margin-top:12px;max-width:320px;border:1px solid var(--line);border-radius:10px}
+    #linkWrap{display:none;margin-top:8px;word-break:break-all}
   </style>
 </head>
 <body>
-  <header class="wrap header">
+  <header class="wrap">
     <a class="brand" href="/">Hemline Market</a>
-    <nav class="nav">
+    <nav>
       <a href="/">Home</a>
       <a href="/listings.html">Browse</a>
-      <a href="/account.html">Account</a>
+      <a href="/seller.html"><strong>Seller</strong></a>
     </nav>
   </header>
 
   <main class="wrap">
-    <h1 class="h1">Seller Dashboard</h1>
+    <h1>Seller Dashboard</h1>
     <p class="muted">Post fabrics, manage listings, and track your shop.</p>
 
-    <section class="grid">
-      <a class="tile" href="#">
-        <div class="icon">+</div>
-        <h2>New Listing</h2>
-        <p>Add a fabric with photos, price, and details.</p>
-      </a>
-
-      <a class="tile" href="#">
-        <div class="icon">📦</div>
-        <h2>My Listings</h2>
-        <p>Edit, hide, or delete existing listings.</p>
-      </a>
-
-      <a class="tile" href="#">
-        <div class="icon">💳</div>
-        <h2>Payouts</h2>
-        <p>Sales summary and payout status. (Coming soon)</p>
-      </a>
-
-      <a class="tile" href="#">
-        <div class="icon">⚙️</div>
-        <h2>Settings</h2>
-        <p>Shop name, avatar, and preferences. (Coming soon)</p>
-      </a>
+    <!-- Image Uploader (working, shows public URL + preview) -->
+    <section class="card">
+      <h2 style="margin:0 0 8px">Upload Fabric Image</h2>
+      <div class="row">
+        <input type="file" id="fileInput" accept="image/*"/>
+        <button id="uploadBtn">Upload</button>
+      </div>
+      <div id="log">Ready. Choose a file and click Upload.</div>
+      <p id="linkWrap">Public URL:
+        <a id="publicLink" href="#" target="_blank" rel="noopener noreferrer"></a>
+      </p>
+      <img id="preview" alt="Uploaded preview"/>
     </section>
   </main>
 
-  <footer class="wrap footer">
-    <small>© Hemline Market</small>
-  </footer>
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script>
+    // Exact project values you confirmed working
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const logEl = document.getElementById('log');
+    const linkWrap = document.getElementById('linkWrap');
+    const publicLink = document.getElementById('publicLink');
+    const preview = document.getElementById('preview');
+
+    function log(msg){ logEl.textContent = String(msg); }
+    function append(msg){ logEl.textContent += "\\n" + String(msg); }
+
+    uploadBtn.addEventListener('click', async () => {
+      linkWrap.style.display = 'none';
+      preview.style.display = 'none';
+      publicLink.removeAttribute('href');
+      publicLink.textContent = '';
+
+      const file = fileInput.files[0];
+      if(!file){ log("⚠️ Please choose an image first."); return; }
+
+      const path = `listings/${Date.now()}-${file.name}`;
+      log("Uploading to " + path + " …");
+
+      try {
+        const { data, error } = await supabase
+          .storage
+          .from("listing-images")
+          .upload(path, file, { upsert: false });
+
+        if (error) { append("❌ Upload failed: " + error.message); return; }
+
+        const { data: pub } = supabase.storage.from("listing-images").getPublicUrl(path);
+        const url = pub?.publicUrl;
+        append("✅ Uploaded successfully.");
+        if (url) {
+          linkWrap.style.display = 'block';
+          publicLink.href = url;
+          publicLink.textContent = url;
+          preview.src = url;
+          preview.style.display = 'block';
+        }
+      } catch (e) {
+        append("❌ JS error: " + e.message);
+      }
+    });
+  </script>
 </body>
 </html>
