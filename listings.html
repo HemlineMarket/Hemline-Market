@@ -79,7 +79,6 @@
     async function loadListings(){
       const { data: { user } } = await supabase.auth.getUser();
 
-      // gate UI by auth
       setNav(!!user);
       form.style.display = user ? "block" : "none";
 
@@ -91,14 +90,13 @@
 
       statusEl.textContent = "Loading your listings…";
 
-      // IMPORTANT: use seller_id (your schema)
       const { data, error } = await supabase
         .from("listings")
         .select("id,title,description,price,image_url")
-        .eq("seller_id", user.id)
-        .order("created_at", { ascending: false });
+        .eq("seller_id", user.id);
 
       if (error){
+        console.error("Supabase error:", error);
         statusEl.textContent = "Error loading listings: " + error.message;
         listingsEl.innerHTML = "";
         return;
@@ -128,7 +126,7 @@
       if (!user){ alert("Sign in first."); return; }
 
       const { error } = await supabase.from("listings").insert([{
-        seller_id: user.id,                           // <- your column
+        seller_id: user.id,
         title: document.getElementById("title").value,
         description: document.getElementById("description").value,
         price: document.getElementById("price").value || null,
@@ -137,9 +135,9 @@
 
       if (error){
         alert("Error: " + error.message);
+        console.error("Insert error:", error);
         return;
       }
-      // reset and reload
       e.target.reset();
       loadListings();
     });
