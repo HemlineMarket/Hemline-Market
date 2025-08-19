@@ -39,13 +39,11 @@
     <h2>Your Listings</h2>
     <p id="status" class="muted">Loading…</p>
 
-    <!-- Debug area -->
     <details style="margin:12px 0;">
       <summary>Debug</summary>
       <pre id="debug"></pre>
     </details>
 
-    <!-- Add Listing (requires sign-in) -->
     <form id="listing-form" style="display:none;">
       <input type="text" id="title" placeholder="Title" required />
       <textarea id="description" placeholder="Description"></textarea>
@@ -62,7 +60,6 @@
 
     const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
@@ -73,31 +70,41 @@
     const accountLink = document.getElementById("account-link");
     const signoutLink = document.getElementById("signout-link");
 
-    function log(msg, obj){
-      const line = obj ? `${msg} ${JSON.stringify(obj, null, 2)}` : msg;
-      console.log(line);
-      debugEl.textContent += line + "\\n";
-    }
+    const log = (m, o) => { const line = o ? `${m} ${JSON.stringify(o,null,2)}` : m; console.log(line); debugEl.textContent += line + "\n"; };
 
     function setNav(signedIn){
-      if (signinLink) signinLink.style.display = signedIn ? "none" : "inline";
-      if (accountLink) accountLink.style.display = signedIn ? "inline" : "none";
-      if (signoutLink) signoutLink.style.display = signedIn ? "inline" : "none";
+      signinLink.style.display = signedIn ? "none" : "inline";
+      accountLink.style.display = signedIn ? "inline" : "none";
+      signoutLink.style.display = signedIn ? "inline" : "none";
     }
 
-    signoutLink?.addEventListener("click", async (e) => {
+    signoutLink.addEventListener("click", async (e) => {
       e.preventDefault();
       await supabase.auth.signOut();
       location.reload();
     });
 
+    // getUser with timeout + getSession fallback
+    async function getCurrentUser(){
+      log("Step 1: getUser (with timeout)");
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("getUser timeout")), 1500));
+      try {
+        const result = await Promise.race([supabase.auth.getUser(), timeout]);
+        if (result?.data?.user) return result.data.user;
+      } catch (e) {
+        log("getUser error/timeout:", { message: e.message });
+      }
+      log("Step 1b: fallback getSession()");
+      const { data, error } = await supabase.auth.getSession();
+      if (error) { log("getSession error:", error); return null; }
+      return data?.session?.user ?? null;
+    }
+
     async function loadListings(){
       try {
-        log("Step 1: getUser()");
-        const { data: { user }, error: userErr } = await supabase.auth.getUser();
-        if (userErr) { log("getUser error:", userErr); statusEl.textContent = "Auth error"; return; }
+        const user = await getCurrentUser();
+        log("Step 1c: resolved user", user ? { id: user.id, email: user.email } : null);
 
-        log("Step 1.1: user", user ? { id: user.id, email: user.email } : null);
         setNav(!!user);
         form.style.display = user ? "block" : "none";
 
@@ -108,8 +115,8 @@
         }
 
         statusEl.textContent = "Loading your listings…";
+        log("Step 2: query listings", { seller_id: user.id });
 
-        log("Step 2: query listings for seller_id", { seller_id: user.id });
         const { data, error } = await supabase
           .from("listings")
           .select("id,title,description,price,image_url")
@@ -140,9 +147,8 @@
           </div>
         `).join("");
       } catch (e) {
-        console.error(e);
         log("Fatal JS error:", { message: e.message, stack: e.stack });
-        statusEl.textContent = "Unexpected error. See Debug.";
+        statusEl.textContent = "Unexpected error. See Debug box.";
       }
     }
 
