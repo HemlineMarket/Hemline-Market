@@ -97,7 +97,7 @@
       log("Public: fetching listings (no auth)");
       const { data, error } = await supabase
         .from("listings")
-        .select("id,title,description,price,image_url");
+        .select("id,title,description,price,image_urls");  // <- array column
       if (error){
         log("Public select error:", error);
         statusEl.textContent = "Error loading listings: " + error.message;
@@ -107,37 +107,47 @@
       statusEl.textContent = data?.length ? "" : "No listings yet.";
     }
 
+    function firstImage(l){
+      if (l?.image_url) return l.image_url;
+      if (Array.isArray(l?.image_urls) && l.image_urls.length) return l.image_urls[0];
+      return null;
+    }
+
     function renderListings(data){
-      listingsEl.innerHTML = (data ?? []).map(l => `
-        <div class="card">
-          ${l.image_url ? `<img src="${l.image_url}" alt="${l.title}">` : ""}
-          <p><strong>${l.title ?? "Untitled"}</strong></p>
-          ${l.description ? `<p>${l.description}</p>` : ""}
-          ${l.price != null ? `<p class="price">$${Number(l.price).toFixed(2)}</p>` : ""}
-        </div>
-      `).join("");
+      listingsEl.innerHTML = (data ?? []).map(l => {
+        const img = firstImage(l);
+        return `
+          <div class="card">
+            ${img ? `<img src="${img}" alt="${l.title}">` : ""}
+            <p><strong>${l.title ?? "Untitled"}</strong></p>
+            ${l.description ? `<p>${l.description}</p>` : ""}
+            ${l.price != null ? `<p class="price">$${Number(l.price).toFixed(2)}</p>` : ""}
+          </div>
+        `;
+      }).join("");
     }
 
     async function init(){
-      // 1) Show listings immediately (public policy you enabled)
+      // 1) Load listings publicly
       await loadPublicListings();
 
-      // 2) Try to detect session to show "Add Listing" form
+      // 2) Show add form only if signed in
       const user = await tryGetUser();
       setNav(!!user);
       form.style.display = user ? "block" : "none";
 
-      // 3) Handle create (requires auth)
+      // 3) Handle create (insert image into image_urls[])
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const u = user || (await tryGetUser());
         if (!u) { alert("Sign in first."); return; }
+        const url = document.getElementById("image_url").value || null;
         const { error } = await supabase.from("listings").insert([{
           seller_id: u.id,
           title: document.getElementById("title").value,
           description: document.getElementById("description").value,
           price: document.getElementById("price").value || null,
-          image_url: document.getElementById("image_url").value || null
+          image_urls: url ? [url] : null
         }]);
         if (error){ alert("Error: " + error.message); return; }
         e.target.reset();
