@@ -5,20 +5,46 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Account</title>
   <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .wrap{max-width:900px;margin:24px auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    label{display:block;margin-top:12px;font-weight:600}
+    input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px}
+    button{margin-top:16px;padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer}
+    .muted{color:#64748b}
+    .row{display:flex;gap:12px;align-items:center}
+  </style>
 </head>
 <body>
   <nav>
     <a href="/">Home</a>
     <a href="/listings.html">Listings</a>
-    <a href="/auth.html" id="signin-link" style="display:none;">Sign In</a>
-    <a href="/account.html" id="account-link">Account</a>
+    <a href="/account.html">Account</a>
     <a href="#" id="signout-link">Sign Out</a>
   </nav>
 
-  <h1>Account</h1>
-  <p id="whoami">Loading…</p>
+  <div class="wrap">
+    <h1>Account</h1>
+    <p id="whoami" class="muted">Loading…</p>
 
-  <!-- Inline module: protect route + show user and sign out -->
+    <form id="profile-form" style="display:none;">
+      <div class="row">
+        <strong>Profile</strong>
+        <span id="status" class="muted"></span>
+      </div>
+
+      <label for="username">Username</label>
+      <input id="username" placeholder="your-handle"/>
+
+      <label for="full_name">Full name</label>
+      <input id="full_name" placeholder="Your Name"/>
+
+      <label for="avatar_url">Avatar URL (optional)</label>
+      <input id="avatar_url" placeholder="https://…"/>
+
+      <button type="submit">Save profile</button>
+    </form>
+  </div>
+
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -27,26 +53,79 @@
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const who = document.getElementById("whoami");
+    const form = document.getElementById("profile-form");
+    const statusEl = document.getElementById("status");
     const signoutLink = document.getElementById("signout-link");
-    const signinLink = document.getElementById("signin-link");
 
-    async function guard() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        // not signed in → go to auth page
-        window.location.href = "/auth.html";
-        return;
-      }
+    const username = document.getElementById("username");
+    const full_name = document.getElementById("full_name");
+    const avatar_url = document.getElementById("avatar_url");
+
+    // 1) Require auth
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = "/auth.html";
+    } else {
       who.textContent = `Signed in as ${user.email}`;
-      if (signinLink) signinLink.style.display = "none";
     }
 
-    await guard();
+    // 2) Ensure a profile row exists (idempotent)
+    async function ensureProfile() {
+      statusEl.textContent = "Syncing…";
+      // Try to fetch
+      let { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
+      // If missing, insert a blank row (trigger should also have done this)
+      if (!profile) {
+        const { error: insertErr } = await supabase
+          .from("profiles")
+          .insert([{ user_id: user.id }]);
+        if (insertErr) {
+          statusEl.textContent = `Error: ${insertErr.message}`;
+          return;
+        }
+        // Re-fetch
+        ({ data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle());
+      }
+
+      // Populate form
+      username.value = profile?.username ?? "";
+      full_name.value = profile?.full_name ?? "";
+      avatar_url.value = profile?.avatar_url ?? "";
+      form.style.display = "block";
+      statusEl.textContent = "Ready";
+    }
+
+    await ensureProfile();
+
+    // 3) Save profile
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      statusEl.textContent = "Saving…";
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          username: username.value || null,
+          full_name: full_name.value || null,
+          avatar_url: avatar_url.value || null
+        })
+        .eq("user_id", user.id);
+      statusEl.textContent = error ? `Error: ${error.message}` : "Saved";
+    });
+
+    // 4) Sign out
     signoutLink?.addEventListener("click", async (e) => {
       e.preventDefault();
       await supabase.auth.signOut();
-      window.location.href = "/"; // back home after sign out
+      window.location.href = "/";
     });
   </script>
 </body>
