@@ -1,52 +1,58 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Listings</title>
-  <style>
-    :root { --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa; --accent:#111827; --badge:#0ea5e9; }
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
-    .wrap { max-width: 900px; margin: auto; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Listings</title>
+<style>
+  :root { --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa; --accent:#111827; --badge:#0ea5e9; }
+  body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
+  .wrap { max-width: 900px; margin:auto; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 
-    .listing-card {
-      position: relative; border-radius:12px; overflow: hidden; background:#fff;
-      border:1px solid var(--line); box-shadow:0 2px 6px rgba(0,0,0,.05);
-      transition: transform .2s ease, box-shadow .2s ease;
-      opacity:0; transform: translateY(8px);
-    }
-    .listing-card.show { opacity:1; transform: translateY(0); animation: fadeUp .38s ease both; }
-    @keyframes fadeUp { from {opacity:0;transform:translateY(8px)} to {opacity:1;transform:translateY(0)} }
-    @media (prefers-reduced-motion: reduce) { .listing-card, .listing-card.show { transition:none; animation:none; opacity:1; transform:none; } }
+  .listing-card {
+    position:relative; border-radius:12px; overflow:hidden; background:#fff;
+    border:1px solid var(--line); box-shadow:0 2px 6px rgba(0,0,0,.05);
+    transition:transform .2s ease, box-shadow .2s ease;
+    opacity:0; transform:translateY(8px);
+  }
+  .listing-card.show { opacity:1; transform:translateY(0); animation:fadeUp .38s ease both; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  @media (prefers-reduced-motion: reduce){ .listing-card,.listing-card.show{ transition:none; animation:none; opacity:1; transform:none; } }
 
-    .listing-card:hover { transform: translateY(-4px) scale(1.02); box-shadow:0 6px 16px rgba(0,0,0,.15); }
-    .imgwrap { position:relative; }
-    .listing-card img { width:100%; height:240px; object-fit:cover; display:block; }
+  .listing-card:hover { transform:translateY(-4px) scale(1.02); box-shadow:0 6px 16px rgba(0,0,0,.15); }
+  .imgwrap { position:relative; background:#f8fafc; }
+  .listing-card img { width:100%; height:240px; object-fit:cover; display:block; }
 
-    /* Date badge */
-    .badge {
-      position:absolute; left:8px; top:8px;
-      background:rgba(14,165,233,.95); color:#fff;
-      padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
-      border:1px solid rgba(255,255,255,.5); box-shadow:0 2px 6px rgba(0,0,0,.08);
-    }
+  /* Date badge */
+  .badge {
+    position:absolute; left:8px; top:8px;
+    background:rgba(14,165,233,.95); color:#fff;
+    padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
+    border:1px solid rgba(255,255,255,.5); box-shadow:0 2px 6px rgba(0,0,0,.08);
+  }
 
-    .info { padding:12px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; }
-    .title { font-weight:600; line-height:1.2; margin:0; }
+  .info { padding:12px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; }
+  .title { font-weight:600; line-height:1.2; margin:0; }
 
-    /* Luxe price: lighter $ symbol, strong numerals */
-    .price { font-weight:800; letter-spacing:.2px; color:var(--accent); font-size:22px; line-height:1; white-space:nowrap; }
-    .price .cur { opacity:.55; font-weight:600; margin-right:1px; }
+  /* Luxe price */
+  .price { font-weight:800; letter-spacing:.2px; color:var(--accent); font-size:22px; line-height:1; white-space:nowrap; }
+  .price .cur { opacity:.55; font-weight:600; margin-right:1px; }
 
-    /* Heart / fav */
-    .fav {
-      position:absolute; top:8px; right:8px; cursor:pointer; font-size:20px;
-      color:#cbd5e1; transition: transform .2s ease, color .2s ease; user-select:none;
-    }
-    .fav.active { color:#e11d48; }
-    .fav.pop { transform: scale(1.4); }
-  </style>
+  /* Heart / fav */
+  .fav { position:absolute; top:8px; right:8px; cursor:pointer; font-size:20px;
+         color:#cbd5e1; transition:transform .2s ease, color .2s ease; user-select:none; }
+  .fav.active { color:#e11d48; }
+  .fav.pop { transform:scale(1.4); }
+
+  /* Placeholder (shown when image fails) */
+  .ph {
+    width:100%; height:240px; display:grid; place-items:center;
+    background:linear-gradient(135deg,#f3f4f6 10%, #eef2f7 90%);
+    color:#64748b; font-weight:600;
+  }
+  .ph .dot { width:52px; height:52px; border-radius:14px; border:1px solid #e5e7eb; display:grid; place-items:center; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.05); }
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -54,66 +60,107 @@
     <div id="listings" class="grid"></div>
   </div>
 
-  <script>
-    // Utility: humanize dates; supports item.created_at or item.date (ISO)
-    function humanizeDate(iso) {
-      if (!iso) return "New arrival";
-      const dt = new Date(iso);
-      if (isNaN(dt)) return "New arrival";
-      const now = new Date();
-      const msPerDay = 24*60*60*1000;
-      const diffDays = Math.floor((now - dt) / msPerDay);
-      if (diffDays <= 1) return "New arrival";
-      if (diffDays < 7) return `${diffDays} days ago`;
-      return dt.toLocaleDateString();
-    }
+<script>
+  // Classy inline SVG icon as data URL (fallback image)
+  const PLACEHOLDER_SVG = encodeURIComponent(`
+    <svg xmlns='http://www.w3.org/2000/svg' width='160' height='120' viewBox='0 0 160 120'>
+      <defs>
+        <linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
+          <stop offset='0' stop-color='#e5e7eb'/>
+          <stop offset='1' stop-color='#f3f4f6'/>
+        </linearGradient>
+      </defs>
+      <rect width='160' height='120' fill='url(#g)'/>
+      <rect x='28' y='20' width='104' height='72' rx='10' fill='#fff' stroke='#e5e7eb'/>
+      <circle cx='58' cy='50' r='10' fill='#e5e7eb'/>
+      <path d='M40 80l22-22 14 12 16-18 28 28H40z' fill='#e5e7eb'/>
+    </svg>
+  `);
+  const PLACEHOLDER_URL = `data:image/svg+xml;charset=utf-8,${PLACEHOLDER_SVG}`;
 
-    async function loadListings(){
-      // NOTE: Works whether your data has price (string) or price_cents (number).
-      // If you’re using Supabase elsewhere, this still renders fine for a JSON mirror.
-      const { data } = await fetch('/listings.json').then(r => r.json());
-      const container = document.getElementById('listings');
-      container.innerHTML = '';
+  function humanizeDate(iso) {
+    if (!iso) return "New arrival";
+    const dt = new Date(iso); if (isNaN(dt)) return "New arrival";
+    const now = new Date(); const d = Math.floor((now - dt)/(24*60*60*1000));
+    if (d <= 1) return "New arrival";
+    if (d < 7) return `${d} days ago`;
+    return dt.toLocaleDateString();
+  }
 
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function imgWithFallback(src, alt=''){
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.src = src;
+    img.alt = alt;
+    img.onerror = () => {
+      // replace broken image with elegant placeholder once
+      if (img.dataset.failed) return;
+      img.dataset.failed = '1';
+      // swap the <img> for a styled placeholder block
+      const wrap = img.parentElement;
+      const ph = document.createElement('div');
+      ph.className = 'ph';
+      ph.innerHTML = `<div class="dot">🧵</div>`;
+      wrap.replaceChild(ph, img);
+    };
+    return img;
+  }
 
-      data.forEach((item, idx) => {
-        const price = (typeof item.price_cents === 'number')
-          ? (item.price_cents/100).toFixed(2)
-          : (item.price || '0.00');
+  async function loadListings(){
+    // Your JSON mirror; no change to data source
+    const { data } = await fetch('/listings.json').then(r => r.json());
+    const container = document.getElementById('listings');
+    container.innerHTML = '';
 
-        const when = humanizeDate(item.created_at || item.date);
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        const card = document.createElement('div');
-        card.className = 'listing-card';
-        card.innerHTML = `
-          <div class="imgwrap">
-            <img src="${item.image_url}" alt="${item.title || ''}">
-            <div class="badge">${when}</div>
-            <div class="fav" onclick="toggleFav(this)">♥</div>
-          </div>
-          <div class="info">
-            <h3 class="title">${item.title || ''}</h3>
-            <div class="price"><span class="cur">$</span>${price}</div>
-          </div>
-        `;
-        container.appendChild(card);
+    (data || []).forEach((item, idx) => {
+      const price = (typeof item.price_cents === 'number')
+        ? (item.price_cents/100).toFixed(2)
+        : (item.price || '0.00');
+      const when = humanizeDate(item.created_at || item.date);
 
-        if (!reduceMotion) {
-          setTimeout(() => card.classList.add('show'), 60 * idx);
-        } else {
-          card.classList.add('show');
-        }
+      const card = document.createElement('div');
+      card.className = 'listing-card';
+
+      const imgwrap = document.createElement('div');
+      imgwrap.className = 'imgwrap';
+      imgwrap.appendChild(imgWithFallback(item.image_url, item.title || ''));
+
+      const badge = document.createElement('div');
+      badge.className = 'badge';
+      badge.textContent = when;
+      imgwrap.appendChild(badge);
+
+      const fav = document.createElement('div');
+      fav.className = 'fav';
+      fav.textContent = '♥';
+      fav.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        fav.classList.toggle('active');
+        fav.classList.add('pop');
+        setTimeout(()=>fav.classList.remove('pop'), 200);
       });
-    }
+      imgwrap.appendChild(fav);
 
-    function toggleFav(el){
-      el.classList.toggle('active');
-      el.classList.add('pop');
-      setTimeout(() => el.classList.remove('pop'), 200);
-    }
+      const info = document.createElement('div');
+      info.className = 'info';
+      info.innerHTML = `
+        <h3 class="title">${item.title || ''}</h3>
+        <div class="price"><span class="cur">$</span>${price}</div>
+      `;
 
-    loadListings();
-  </script>
+      card.appendChild(imgwrap);
+      card.appendChild(info);
+      container.appendChild(card);
+
+      if (!reduceMotion) setTimeout(()=>card.classList.add('show'), 60*idx);
+      else card.classList.add('show');
+    });
+  }
+
+  loadListings();
+</script>
 </body>
 </html>
