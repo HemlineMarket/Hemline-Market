@@ -5,44 +5,27 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Account</title>
   <link rel="stylesheet" href="styles.css"/>
-  <style>
-    .wrap{max-width:900px;margin:24px auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-    label{display:block;margin-top:12px;font-weight:600}
-    input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px}
-    button{margin-top:16px;padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer}
-    .muted{color:#64748b}
-    .row{display:flex;gap:12px;align-items:center}
-  </style>
 </head>
 <body>
-  <nav>
-    <a href="/">Home</a>
-    <a href="/listings.html">Listings</a>
-    <a href="/account.html">Account</a>
-    <a href="#" id="signout-link">Sign Out</a>
-  </nav>
-
   <div class="wrap">
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="listings.html">Listings</a>
+      <a href="account.html">Account</a>
+      <a href="#" id="signout">Sign Out</a>
+    </nav>
+
     <h1>Account</h1>
-    <p id="whoami" class="muted">Loading…</p>
+    <p id="signedin"></p>
 
-    <form id="profile-form" style="display:none;">
-      <div class="row">
-        <strong>Profile</strong>
-        <span id="status" class="muted"></span>
-      </div>
-
-      <label for="username">Username</label>
-      <input id="username" placeholder="your-handle"/>
-
-      <label for="full_name">Full name</label>
-      <input id="full_name" placeholder="Your Name"/>
-
-      <label for="avatar_url">Avatar URL (optional)</label>
-      <input id="avatar_url" placeholder="https://…"/>
-
-      <button type="submit">Save profile</button>
+    <h2>Profile</h2>
+    <form id="profile-form">
+      <label>Username</label>
+      <input type="text" id="username" />
+      <button type="submit">Save Profile</button>
     </form>
+
+    <p id="status"></p>
   </div>
 
   <script type="module">
@@ -52,80 +35,46 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const who = document.getElementById("whoami");
+    const signedin = document.getElementById("signedin");
+    const usernameInput = document.getElementById("username");
+    const status = document.getElementById("status");
     const form = document.getElementById("profile-form");
-    const statusEl = document.getElementById("status");
-    const signoutLink = document.getElementById("signout-link");
 
-    const username = document.getElementById("username");
-    const full_name = document.getElementById("full_name");
-    const avatar_url = document.getElementById("avatar_url");
-
-    // 1) Require auth
+    // Load user session
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      window.location.href = "/auth.html";
-    } else {
-      who.textContent = `Signed in as ${user.email}`;
-    }
+    if (user) {
+      signedin.textContent = "Signed in as " + user.email;
 
-    // 2) Ensure a profile row exists (idempotent)
-    async function ensureProfile() {
-      statusEl.textContent = "Syncing…";
-      // Try to fetch
-      let { data: profile, error } = await supabase
+      // Load profile
+      const { data, error } = await supabase
         .from("profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .select("username")
+        .eq("id", user.id)
+        .single();
 
-      // If missing, insert a blank row (trigger should also have done this)
-      if (!profile) {
-        const { error: insertErr } = await supabase
-          .from("profiles")
-          .insert([{ user_id: user.id }]);
-        if (insertErr) {
-          statusEl.textContent = `Error: ${insertErr.message}`;
-          return;
-        }
-        // Re-fetch
-        ({ data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle());
+      if (!error && data) {
+        usernameInput.value = data.username || "";
       }
-
-      // Populate form
-      username.value = profile?.username ?? "";
-      full_name.value = profile?.full_name ?? "";
-      avatar_url.value = profile?.avatar_url ?? "";
-      form.style.display = "block";
-      statusEl.textContent = "Ready";
+    } else {
+      signedin.textContent = "Not signed in";
     }
 
-    await ensureProfile();
-
-    // 3) Save profile
+    // Save profile
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      statusEl.textContent = "Saving…";
+      if (!user) return;
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          username: username.value || null,
-          full_name: full_name.value || null,
-          avatar_url: avatar_url.value || null
-        })
-        .eq("user_id", user.id);
-      statusEl.textContent = error ? `Error: ${error.message}` : "Saved";
+        .upsert({ id: user.id, username: usernameInput.value });
+
+      status.textContent = error ? "Error: " + error.message : "Saved!";
     });
 
-    // 4) Sign out
-    signoutLink?.addEventListener("click", async (e) => {
-      e.preventDefault();
+    // Sign out
+    document.getElementById("signout").addEventListener("click", async () => {
       await supabase.auth.signOut();
-      window.location.href = "/";
+      window.location.href = "auth.html";
     });
   </script>
 </body>
