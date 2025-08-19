@@ -1,162 +1,17 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Listings</title>
-  <style>
-    :root{--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--card:#f8fafc}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--ink)}
-    .wrap{max-width:1100px;margin:0 auto;padding:20px}
-    header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:14px}
-    nav a{padding:8px 10px;border-radius:10px;color:inherit;text-decoration:none}
-    nav a:hover{background:var(--card)}
-    h1{margin:0}
-    .filters{display:grid;grid-template-columns:1fr 120px 120px 160px 110px;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px}
-    .filters input,.filters select,.filters button{padding:10px;border:1px solid var(--line);border-radius:10px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:14px}
-    .card{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
-    .card img{width:100%;height:200px;object-fit:cover;display:block}
-    .meta{padding:10px}
-    .title{font-weight:600}
-    .price{color:#0f172a;font-weight:700}
-    .muted{color:var(--muted);font-size:13px}
-  </style>
-  <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+<style>
+  .fav {
+    position:absolute;top:8px;right:8px;
+    cursor:pointer;font-size:20px;
+    color:#cbd5e1;transition:transform 0.2s ease, color 0.2s ease;
+  }
+  .fav.active { color:#e11d48; }
+  .fav.pop { transform:scale(1.4); }
+</style>
 
-    const supabaseUrl = "https://clkizksbvxjkoatdajgd.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-    const db = createClient(supabaseUrl, supabaseKey);
-
-    const $ = (id) => document.getElementById(id);
-    const money = (cents) => `$${(Number(cents||0)/100).toFixed(2)}`;
-
-    async function loadListings() {
-      const q = $("q").value.trim();
-      const min = $("min").value.trim();
-      const max = $("max").value.trim();
-      const sort = $("sort").value;
-
-      let query = db.from("listings").select("*");
-
-      // keyword on title or description
-      if (q) {
-        // ilike on either field using or() syntax
-        query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
-      }
-      // numeric filters (price_cents)
-      if (min) {
-        const minCents = Math.round(parseFloat(min) * 100);
-        if (!isNaN(minCents)) query = query.gte("price_cents", minCents);
-      }
-      if (max) {
-        const maxCents = Math.round(parseFloat(max) * 100);
-        if (!isNaN(maxCents)) query = query.lte("price_cents", maxCents);
-      }
-
-      // sorting
-      if (sort === "price_asc") query = query.order("price_cents", { ascending: true });
-      else if (sort === "price_desc") query = query.order("price_cents", { ascending: false });
-      else query = query.order("created_at", { ascending: false }); // newest
-
-      // limit for now
-      query = query.limit(60);
-
-      $("status").textContent = "Loading…";
-      $("grid").innerHTML = "";
-
-      const { data, error } = await query;
-      if (error) {
-        $("status").textContent = "Error: " + error.message;
-        return;
-      }
-      if (!data || data.length === 0) {
-        $("status").textContent = "No results.";
-        return;
-      }
-
-      $("status").textContent = `Showing ${data.length} item${data.length>1?"s":""}.`;
-      const grid = $("grid");
-      data.forEach(row => {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <img src="${row.image_url}" alt="${row.title}">
-          <div class="meta">
-            <div class="title">${row.title}</div>
-            <div class="price">${money(row.price_cents)}</div>
-            <div class="muted">${new Date(row.created_at).toLocaleDateString()}</div>
-          </div>
-        `;
-        grid.appendChild(card);
-      });
-    }
-
-    function initFromURL() {
-      const params = new URLSearchParams(location.search);
-      $("q").value = params.get("q") || "";
-      $("min").value = params.get("min") || "";
-      $("max").value = params.get("max") || "";
-      $("sort").value = params.get("sort") || "new";
-    }
-
-    function persistToURL() {
-      const params = new URLSearchParams();
-      if ($("q").value) params.set("q", $("q").value);
-      if ($("min").value) params.set("min", $("min").value);
-      if ($("max").value) params.set("max", $("max").value);
-      if ($("sort").value && $("sort").value !== "new") params.set("sort", $("sort").value);
-      const next = `${location.pathname}?${params.toString()}`;
-      history.replaceState(null, "", next);
-    }
-
-    function submitFilters(ev){
-      ev?.preventDefault();
-      persistToURL();
-      loadListings();
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      initFromURL();
-      $("filterForm").addEventListener("submit", submitFilters);
-      $("resetBtn").addEventListener("click", () => {
-        $("q").value = ""; $("min").value = ""; $("max").value = ""; $("sort").value = "new";
-        submitFilters();
-      });
-      loadListings();
-    });
-  </script>
-</head>
-<body>
-  <div class="wrap">
-    <header>
-      <h1>Fabric Listings</h1>
-      <nav>
-        <a href="/">Home</a>
-        <a href="/seller-dashboard.html">Seller</a>
-      </nav>
-    </header>
-
-    <!-- Filters -->
-    <form id="filterForm" class="filters">
-      <input id="q" placeholder="Search title or description…"/>
-      <input id="min" type="number" min="0" step="0.01" placeholder="Min $"/>
-      <input id="max" type="number" min="0" step="0.01" placeholder="Max $"/>
-      <select id="sort">
-        <option value="new">Newest</option>
-        <option value="price_asc">Price: Low → High</option>
-        <option value="price_desc">Price: High → Low</option>
-      </select>
-      <button type="submit">Apply</button>
-    </form>
-
-    <div id="status" class="muted" style="margin-top:10px">Loading…</div>
-    <div id="grid" class="grid"></div>
-    <div style="margin-top:8px">
-      <button id="resetBtn" style="padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff">Reset</button>
-    </div>
-  </div>
-</body>
-</html>
+<script>
+  function toggleFav(el){
+    el.classList.toggle('active');
+    el.classList.add('pop');
+    setTimeout(()=>el.classList.remove('pop'),200);
+  }
+</script>
