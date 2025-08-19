@@ -5,13 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Listings</title>
   <style>
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin: 24px; }
-    .wrap { max-width: 900px; margin: auto; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    img { width: 100%; border-radius: 12px; border: 1px solid #e5e7eb; object-fit: cover; }
-    .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
-    .title { font-weight: 600; margin-top: 8px; }
-    .price { font-size: 18px; font-weight: 700; color: #111827; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin: 24px; background:#fff; color:#0f172a; }
+    .wrap { max-width: 1000px; margin: auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap: 16px; }
+    .card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background:#fff; }
+    .card img { width: 100%; height: 200px; object-fit: cover; display:block; }
+    .meta { padding: 12px; }
+    .title { font-weight: 600; margin-top: 0; margin-bottom: 6px; }
+    .price { font-size: 18px; font-weight: 700; }
+    .muted { color:#64748b; font-size: 13px; }
+    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    nav a { color:inherit; text-decoration:none; padding:8px 10px; border-radius:10px; }
+    nav a:hover { background:#f8fafc; }
   </style>
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -20,21 +25,39 @@
     const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const money = (cents) => `$${(Number(cents||0)/100).toFixed(2)}`;
+
     async function loadListings() {
-      const { data, error } = await supabase.from("listings").select("*").order("id", { ascending: false });
+      const { data, error } = await supabase
+        .from("listings")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      const grid = document.getElementById("grid");
+      const status = document.getElementById("status");
+      grid.innerHTML = "";
+
       if (error) {
-        console.error(error);
+        status.textContent = "Error: " + error.message;
         return;
       }
-      const grid = document.getElementById("grid");
-      grid.innerHTML = "";
+      if (!data || data.length === 0) {
+        status.textContent = "No listings yet.";
+        return;
+      }
+
+      status.textContent = `Showing ${data.length} listing${data.length>1?"s":""}.`;
+
       data.forEach(item => {
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
-          <img src="${item.image_url}" alt="Listing image">
-          <div class="title">${item.title}</div>
-          <div class="price">$${item.price}</div>
+          <img src="${item.image_url}" alt="${item.title}">
+          <div class="meta">
+            <div class="title">${item.title}</div>
+            <div class="price">${money(item.price_cents)}</div>
+            <div class="muted">${new Date(item.created_at).toLocaleString()}</div>
+          </div>
         `;
         grid.appendChild(card);
       });
@@ -45,7 +68,14 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Fabric Listings</h1>
+    <header>
+      <h1 style="margin:0">Fabric Listings</h1>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/seller-dashboard.html">Seller</a>
+      </nav>
+    </header>
+    <div id="status" class="muted">Loading…</div>
     <div id="grid" class="grid"></div>
   </div>
 </body>
