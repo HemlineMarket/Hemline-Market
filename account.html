@@ -8,35 +8,15 @@
 </head>
 <body>
   <div class="wrap">
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="listings.html">Listings</a>
-      <a href="account.html">Account</a>
-      <a href="#" id="signout">Sign Out</a>
-    </nav>
+    <h1>My Account</h1>
+    <p id="status">Loading...</p>
 
-    <h1>Account</h1>
-    <p id="signedin"></p>
-
-    <h2>Profile</h2>
-    <form id="profile-form">
+    <form id="profile-form" style="display:none;">
       <label>Full name</label>
       <input type="text" id="full_name" />
 
-      <label>Username</label>
-      <input type="text" id="username" />
-
       <button type="submit">Save Profile</button>
     </form>
-    <p id="status"></p>
-
-    <h2>Change Password</h2>
-    <form id="pw-form">
-      <label>New password</label>
-      <input type="password" id="newpw" />
-      <button type="submit">Update Password</button>
-    </form>
-    <p id="pw-status"></p>
   </div>
 
   <script type="module">
@@ -44,83 +24,59 @@
 
     const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const signedin = document.getElementById("signedin");
-    const usernameInput = document.getElementById("username");
-    const fullNameInput = document.getElementById("full_name");
     const status = document.getElementById("status");
     const form = document.getElementById("profile-form");
+    const fullNameInput = document.getElementById("full_name");
 
-    const pwForm = document.getElementById("pw-form");
-    const newpw = document.getElementById("newpw");
-    const pwStatus = document.getElementById("pw-status");
-
-    // Require session
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      window.location.href = "auth.html";
-    } else {
-      signedin.textContent = "Signed in as " + user.email;
-    }
-
-    // Load or create profile (by user_id)
     async function loadProfile() {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("username, full_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        status.textContent = "Error loading profile: " + error.message;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        status.textContent = "Not signed in.";
         return;
       }
-      if (!profile) {
-        const { error: insErr } = await supabase
-          .from("profiles")
-          .insert([{ user_id: user.id }]);
-        if (insErr) {
-          status.textContent = "Error creating profile: " + insErr.message;
-          return;
-        }
-        usernameInput.value = "";
-        fullNameInput.value = "";
-      } else {
-        usernameInput.value = profile.username || "";
-        fullNameInput.value = profile.full_name || "";
+
+      // Fetch existing profile row
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        status.textContent = "Error: " + error.message;
+        return;
+      }
+
+      // Show form
+      form.style.display = "block";
+      status.textContent = "Signed in as " + user.email;
+
+      // Pre-fill name if exists
+      if (data) {
+        fullNameInput.value = data.full_name || "";
       }
     }
-    await loadProfile();
 
     // Save profile
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      status.textContent = "Saving…";
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        status.textContent = "Not signed in.";
+        return;
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          username: usernameInput.value || null,
-          full_name: fullNameInput.value || null
-        })
-        .eq("user_id", user.id);
+        .upsert({ user_id: user.id, full_name: fullNameInput.value });
+
       status.textContent = error ? "Error: " + error.message : "Saved!";
     });
 
-    // Change password
-    pwForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      pwStatus.textContent = "Updating…";
-      const { error } = await supabase.auth.updateUser({ password: newpw.value });
-      pwStatus.textContent = error ? "Error: " + error.message : "Password updated";
-      if (!error) newpw.value = "";
-    });
-
-    // Sign out
-    document.getElementById("signout").addEventListener("click", async () => {
-      await supabase.auth.signOut();
-      window.location.href = "auth.html";
-    });
+    loadProfile();
   </script>
 </body>
 </html>
