@@ -1,36 +1,84 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Image Upload Test</title>
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;margin:24px}
-    #status{margin-top:12px}
-    code{background:#f1f5f9;padding:2px 6px;border-radius:6px}
+    #log{white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-top:12px}
+    button{padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#111827;color:#fff}
+    input{margin-right:8px}
   </style>
 </head>
 <body>
   <h1>Upload Fabric Image (Test)</h1>
 
-  <div id="auth"></div>
+  <div>
+    <input type="file" id="fileInput" accept="image/*"/>
+    <button id="uploadBtn">Upload</button>
+  </div>
 
-  <input type="file" id="fileInput" accept="image/*"/>
-  <button id="uploadBtn">Upload</button>
+  <div id="log">Loading…</div>
 
-  <p id="status"></p>
+  <!-- UMD build so we avoid any module issues -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script>
+    const logEl = document.getElementById('log');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInput = document.getElementById('fileInput');
 
-  <script type="module">
-    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+    function log(msg){ logEl.textContent = String(msg); }
+    function append(msg){ logEl.textContent += '\n' + String(msg); }
 
-    const supabase = createClient(
-      "https://kzqrfzvobsxbkppuexru.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTYzNjE3NjAxMSwiZXhwIjoyMDM4NzAwMDAwLCJzdWIiOiJhbm9uIn0.OH1ZjYwWTj0t1t2Tdrp91WhKhm7wKtuK2_Kj0IOizHU"
-    );
+    // Initialize Supabase (values you provided)
+    const supabaseUrl = "https://kzqrfzvobsxbkppuexru.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTYzNjE3NjAxMSwiZXhwIjoyMDM4NzAwMDAwLCJzdWIiOiJhbm9uIn0.OH1ZjYwWTj0t1t2Tdrp91WhKhm7wKtuK2_Kj0IOizHU";
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    const statusEl = document.getElementById("status");
-    const authEl = document.getElementById("auth");
+    // Ensure an auth session (anonymous) so "authenticated" storage policy works
+    async function ensureSession(){
+      try{
+        const { data: { session } } = await supabase.auth.getSession();
+        if(!session){
+          log("Signing in anonymously…");
+          const { error } = await supabase.auth.signInAnonymously();
+          if(error){ log("❌ Auth error: " + error.message); return false; }
+        }
+        const { data: userData } = await supabase.auth.getUser();
+        append("Signed in as: " + (userData?.user?.id || "unknown"));
+        return true;
+      }catch(e){
+        log("❌ Init error: " + e.message);
+        return false;
+      }
+    }
 
-    function show(msg){ statusEl.textContent = msg; }
+    uploadBtn.addEventListener('click', async () => {
+      log("Upload clicked.");
+      const ok = await ensureSession();
+      if(!ok) return;
 
-    // 1
+      const file = fileInput.files[0];
+      if(!file){ append("Pick a file first."); return; }
+
+      append("Uploading…");
+      const path = `test/${Date.now()}-${file.name}`;
+      try{
+        const { data, error } = await supabase.storage.from("listing-images").upload(path, file, { upsert: false });
+        if(error){
+          append("❌ Upload failed: " + error.message);
+        }else{
+          const { data: pub } = supabase.storage.from("listing-images").getPublicUrl(path);
+          append("✅ Uploaded to: " + (pub?.publicUrl || data.path));
+        }
+      }catch(e){
+        append("❌ JS error: " + e.message);
+      }
+    });
+
+    // Initial status
+    log("Ready. Choose a file and click Upload.");
+  </script>
+</body>
+</html>
