@@ -16,11 +16,16 @@
     opacity:0; transform:translateY(8px); }
   .listing-card.show { opacity:1; transform:translateY(0); animation:fadeUp .38s ease both; }
   @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  @media (prefers-reduced-motion: reduce){ .listing-card,.listing-card.show{ transition:none; animation:none; opacity:1; transform:none; } }
   .listing-card:hover { transform:translateY(-4px) scale(1.02); box-shadow:0 6px 16px rgba(0,0,0,.15); }
 
-  .imgwrap { position:relative; background:#f8fafc; }
+  .imgwrap { position:relative; background:#f8fafc; overflow:hidden; }
   .listing-card img { width:100%; height:240px; object-fit:cover; display:block; }
+
+  .overlay { position:absolute; inset:0; background:rgba(0,0,0,.45); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:600; font-size:15px;
+    opacity:0; transition:opacity .25s ease; }
+  .imgwrap:hover .overlay { opacity:1; }
+
   .badge { position:absolute; left:8px; top:8px; background:rgba(14,165,233,.95); color:#fff;
     padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
     border:1px solid rgba(255,255,255,.5); box-shadow:0 2px 6px rgba(0,0,0,.08); }
@@ -29,7 +34,7 @@
   .price { font-weight:800; letter-spacing:.2px; color:var(--accent); font-size:22px; line-height:1; white-space:nowrap; }
   .price .cur { opacity:.55; font-weight:600; margin-right:1px; }
   .fav { position:absolute; top:8px; right:8px; cursor:pointer; font-size:20px;
-         color:#cbd5e1; transition:transform .2s ease, color .2s ease; user-select:none; }
+         color:#cbd5e1; transition:transform 0.2s ease, color 0.2s ease; user-select:none; }
   .fav.active { color:#e11d48; }
   .fav.pop { transform:scale(1.4); }
   .ph { width:100%; height:240px; display:grid; place-items:center;
@@ -38,7 +43,6 @@
   .ph .dot { width:52px; height:52px; border-radius:14px; border:1px solid #e5e7eb; display:grid; place-items:center;
     background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.05); }
 
-  /* empty state */
   .empty { text-align:center; padding:60px 20px; color:#64748b; }
   .empty svg { width:80px; height:80px; margin-bottom:16px; opacity:.7; }
   .empty h2 { font-size:20px; margin:0 0 8px; color:var(--ink); }
@@ -95,6 +99,8 @@
       const fav=document.createElement('div'); fav.className='fav'; fav.textContent='♥';
       fav.addEventListener('click',e=>{e.stopPropagation();fav.classList.toggle('active');fav.classList.add('pop');setTimeout(()=>fav.classList.remove('pop'),200);});
       imgwrap.appendChild(fav);
+      const overlay=document.createElement('div'); overlay.className='overlay'; overlay.textContent=item.quickpeek||"View details";
+      imgwrap.appendChild(overlay);
       const info=document.createElement('div'); info.className='info';
       info.innerHTML=`<h3 class="title">${item.title||''}</h3><div class="price"><span class="cur">$</span>${price}</div>`;
       card.appendChild(imgwrap); card.appendChild(info); container.appendChild(card);
