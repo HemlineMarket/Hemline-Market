@@ -20,7 +20,6 @@
     img{width:100%;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover}
     .price{font-weight:700;font-size:18px}
     .muted{color:#64748b}
-    pre{background:#f6f8fa;border:1px solid #e5e7eb;border-radius:8px;padding:10px;overflow:auto}
   </style>
 </head>
 <body>
@@ -38,11 +37,6 @@
   <main>
     <h2>All Listings</h2>
     <p id="status" class="muted">Loading…</p>
-
-    <details style="margin:12px 0;">
-      <summary>Debug</summary>
-      <pre id="debug"></pre>
-    </details>
 
     <!-- Add Listing (visible only when signed in) -->
     <form id="listing-form" style="display:none;">
@@ -66,12 +60,9 @@
     const statusEl = document.getElementById("status");
     const form = document.getElementById("listing-form");
     const listingsEl = document.getElementById("listings");
-    const debugEl = document.getElementById("debug");
     const signinLink = document.getElementById("signin-link");
     const accountLink = document.getElementById("account-link");
     const signoutLink = document.getElementById("signout-link");
-
-    const log = (m, o) => { const line = o ? `${m} ${JSON.stringify(o,null,2)}` : m; console.log(line); debugEl.textContent += line + "\\n"; };
 
     function setNav(signedIn){
       signinLink.style.display = signedIn ? "none" : "inline";
@@ -94,12 +85,10 @@
     }
 
     async function loadPublicListings(){
-      log("Public: fetching listings (no auth)");
       const { data, error } = await supabase
         .from("listings")
         .select("id,title,description,price,image_urls");  // <- array column
       if (error){
-        log("Public select error:", error);
         statusEl.textContent = "Error loading listings: " + error.message;
         return;
       }
@@ -108,7 +97,6 @@
     }
 
     function firstImage(l){
-      if (l?.image_url) return l.image_url;
       if (Array.isArray(l?.image_urls) && l.image_urls.length) return l.image_urls[0];
       return null;
     }
@@ -128,16 +116,13 @@
     }
 
     async function init(){
-      // 1) Load listings publicly
-      await loadPublicListings();
+      await loadPublicListings();                       // show immediately
 
-      // 2) Show add form only if signed in
-      const user = await tryGetUser();
+      const user = await tryGetUser();                  // gate form by auth
       setNav(!!user);
       form.style.display = user ? "block" : "none";
 
-      // 3) Handle create (insert image into image_urls[])
-      form.addEventListener("submit", async (e) => {
+      form.addEventListener("submit", async (e) => {    // insert uses image_urls[]
         e.preventDefault();
         const u = user || (await tryGetUser());
         if (!u) { alert("Sign in first."); return; }
