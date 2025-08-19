@@ -1,81 +1,42 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Image Upload Test</title>
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;margin:24px;max-width:720px}
-    #log{white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-top:12px;min-height:100px}
-    button{padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#111827;color:#fff}
-    input{margin-right:8px}
-  </style>
-</head>
-<body>
-  <h1>Upload Fabric Image (Test)</h1>
-
-  <div>
-    <input type="file" id="fileInput" accept="image/*"/>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Upload Fabric Image (Test)</title>
+  </head>
+  <body>
+    <h1>Upload Fabric Image (Test)</h1>
+    <input type="file" id="fileInput"/>
     <button id="uploadBtn">Upload</button>
-  </div>
+    <pre id="output"></pre>
 
-  <div id="log">Ready. Choose a file and click Upload.</div>
+    <script type="module">
+      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-  <!-- UMD build (no ES modules) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <script>
-    const logEl = document.getElementById('log');
-    const fileInput = document.getElementById('fileInput');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const log = (m) => { logEl.textContent = String(m); };
-    const append = (m) => { logEl.textContent += '\\n' + String(m); };
+      const supabaseUrl = "https://clkizksbvxjkoatdajgd.supabase.co";
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Your exact project values
-    const SUPABASE_URL = "https://kzqrfzvobsxbkppuexru.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYvWTjOlt12Tdpr91WKhKm7wNtuK2_Kj0lOiZHU";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const bucket = "listing-images";
 
-    async function ensureAnonSession(){
-      try{
-        const { data: { session } } = await supabase.auth.getSession();
-        if(!session){
-          log('Signing in anonymously…');
-          const { error } = await supabase.auth.signInAnonymously();
-          if(error){ append('❌ Auth error: ' + error.message); return false; }
-          append('✅ Signed in.');
+      document.getElementById("uploadBtn").onclick = async () => {
+        const file = document.getElementById("fileInput").files[0];
+        if (!file) {
+          document.getElementById("output").textContent = "❌ No file selected";
+          return;
+        }
+        const filePath = `test/${Date.now()}-${file.name}`;
+
+        const { error } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, file);
+
+        if (error) {
+          document.getElementById("output").textContent = "❌ Upload error: " + error.message;
         } else {
-          append('Using existing session.');
+          document.getElementById("output").textContent = "✅ Uploaded to " + filePath;
         }
-        return true;
-      }catch(e){
-        append('❌ Auth JS error: ' + e.message);
-        return false;
-      }
-    }
-
-    uploadBtn.addEventListener('click', async () => {
-      log('Upload clicked.');
-      const ok = await ensureAnonSession();
-      if(!ok) return;
-
-      const file = fileInput.files[0];
-      if(!file){ append('⚠️ Pick an image file first.'); return; }
-
-      const path = `test/${Date.now()}-${file.name}`;
-      append('Uploading to ' + path + ' …');
-
-      try{
-        const { data, error } = await supabase.storage.from('listing-images').upload(path, file, { upsert: false });
-        if(error){
-          append('❌ Upload failed: ' + (error.message || JSON.stringify(error)));
-        }else{
-          const { data: pub } = supabase.storage.from('listing-images').getPublicUrl(path);
-          append('✅ Uploaded. Public URL: ' + (pub?.publicUrl || data.path));
-        }
-      }catch(e){
-        append('❌ Upload JS error: ' + e.message);
-      }
-    });
-  </script>
-</body>
+      };
+    </script>
+  </body>
 </html>
