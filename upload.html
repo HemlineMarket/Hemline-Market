@@ -30,39 +30,18 @@
     const log = (msg) => { logEl.textContent = String(msg); };
     const append = (msg) => { logEl.textContent += '\\n' + String(msg); };
 
-    // Your Supabase project values (from your screenshot)
+    // Your Supabase project values
     const SUPABASE_URL = "https://kzqrfzvobsxbkppuexru.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTYzNjE3NjAxMSwiZXhwIjoyMDM4NzAwMDAwLCJzdWIiOiJhbm9uIn0.OH1ZjYwWTj0t1t2Tdrp91WhKhm7wKtuK2_Kj0IOizHU";
-
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    async function ensureSession(){
-      try{
-        const { data: { session } } = await supabase.auth.getSession();
-        if(!session){
-          log("Signing in anonymously…");
-          const { error } = await supabase.auth.signInAnonymously();
-          if(error){ append("❌ Auth error: " + error.message); return false; }
-        }
-        const { data: u } = await supabase.auth.getUser();
-        append("Signed in as: " + (u?.user?.id || "unknown"));
-        return true;
-      }catch(e){
-        append("❌ Init error: " + e.message);
-        return false;
-      }
-    }
 
     uploadBtn.addEventListener('click', async () => {
       log("Upload clicked.");
-      const ok = await ensureSession();
-      if(!ok) return;
-
       const file = fileInput.files[0];
       if(!file){ append("Pick a file first."); return; }
 
-      append("Uploading…");
       const path = `test/${Date.now()}-${file.name}`;
+      append("Uploading to " + path + " …");
       try{
         const { data, error } = await supabase.storage.from("listing-images").upload(path, file, { upsert: false });
         if(error){
