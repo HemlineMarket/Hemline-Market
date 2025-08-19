@@ -3,144 +3,50 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Listings - Hemline Market</title>
+  <title>Hemline — Listings</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#fafafa;color:#111}
-    header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
-    header h1{font-size:20px;margin:0}
-    nav a{color:#fff;text-decoration:none;margin-left:20px;font-size:15px}
-    nav a:hover{text-decoration:underline}
-    main{max-width:900px;margin:40px auto;padding:0 16px}
-    form{background:#fff;padding:16px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:24px}
-    form input,form textarea{width:100%;margin-bottom:12px;padding:8px;border:1px solid #ccc;border-radius:8px}
-    form button{background:#111;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer}
-    form button:hover{background:#333}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px}
-    img{width:100%;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover}
-    .price{font-weight:700;font-size:18px}
-    .muted{color:#64748b}
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin: 24px; }
+    .wrap { max-width: 900px; margin: auto; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    img { width: 100%; border-radius: 12px; border: 1px solid #e5e7eb; object-fit: cover; }
+    .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+    .title { font-weight: 600; margin-top: 8px; }
+    .price { font-size: 18px; font-weight: 700; color: #111827; }
   </style>
-</head>
-<body>
-  <header>
-    <h1>Hemline Market</h1>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="listings.html">Listings</a>
-      <a href="auth.html" id="signin-link">Sign In</a>
-      <a href="account.html" id="account-link" style="display:none;">Account</a>
-      <a href="#" id="signout-link" style="display:none;">Sign Out</a>
-    </nav>
-  </header>
-
-  <main>
-    <h2>All Listings</h2>
-    <p id="status" class="muted">Loading…</p>
-
-    <!-- Add Listing (visible only when signed in) -->
-    <form id="listing-form" style="display:none;">
-      <input type="text" id="title" placeholder="Title" required />
-      <textarea id="description" placeholder="Description"></textarea>
-      <input type="number" id="price" placeholder="Price" step="0.01" required />
-      <input type="url" id="image_url" placeholder="Image URL (https://...)" />
-      <button type="submit">Add Listing</button>
-    </form>
-
-    <div class="grid" id="listings"></div>
-  </main>
-
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseUrl = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const statusEl = document.getElementById("status");
-    const form = document.getElementById("listing-form");
-    const listingsEl = document.getElementById("listings");
-    const signinLink = document.getElementById("signin-link");
-    const accountLink = document.getElementById("account-link");
-    const signoutLink = document.getElementById("signout-link");
-
-    function setNav(signedIn){
-      signinLink.style.display = signedIn ? "none" : "inline";
-      accountLink.style.display = signedIn ? "inline" : "none";
-      signoutLink.style.display = signedIn ? "inline" : "none";
-    }
-
-    signoutLink.addEventListener("click", async (e) => {
-      e.preventDefault();
-      await supabase.auth.signOut();
-      location.reload();
-    });
-
-    async function tryGetUser() {
-      try {
-        const t = new Promise((_,rej)=>setTimeout(()=>rej(new Error("getUser timeout")),1200));
-        const r = await Promise.race([supabase.auth.getUser(), t]);
-        return r?.data?.user ?? null;
-      } catch { return null; }
-    }
-
-    async function loadPublicListings(){
-      const { data, error } = await supabase
-        .from("listings")
-        .select("id,title,description,price,image_urls");  // <- array column
-      if (error){
-        statusEl.textContent = "Error loading listings: " + error.message;
+    async function loadListings() {
+      const { data, error } = await supabase.from("listings").select("*").order("id", { ascending: false });
+      if (error) {
+        console.error(error);
         return;
       }
-      renderListings(data);
-      statusEl.textContent = data?.length ? "" : "No listings yet.";
-    }
-
-    function firstImage(l){
-      if (Array.isArray(l?.image_urls) && l.image_urls.length) return l.image_urls[0];
-      return null;
-    }
-
-    function renderListings(data){
-      listingsEl.innerHTML = (data ?? []).map(l => {
-        const img = firstImage(l);
-        return `
-          <div class="card">
-            ${img ? `<img src="${img}" alt="${l.title}">` : ""}
-            <p><strong>${l.title ?? "Untitled"}</strong></p>
-            ${l.description ? `<p>${l.description}</p>` : ""}
-            ${l.price != null ? `<p class="price">$${Number(l.price).toFixed(2)}</p>` : ""}
-          </div>
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      data.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <img src="${item.image_url}" alt="Listing image">
+          <div class="title">${item.title}</div>
+          <div class="price">$${item.price}</div>
         `;
-      }).join("");
-    }
-
-    async function init(){
-      await loadPublicListings();                       // show immediately
-
-      const user = await tryGetUser();                  // gate form by auth
-      setNav(!!user);
-      form.style.display = user ? "block" : "none";
-
-      form.addEventListener("submit", async (e) => {    // insert uses image_urls[]
-        e.preventDefault();
-        const u = user || (await tryGetUser());
-        if (!u) { alert("Sign in first."); return; }
-        const url = document.getElementById("image_url").value || null;
-        const { error } = await supabase.from("listings").insert([{
-          seller_id: u.id,
-          title: document.getElementById("title").value,
-          description: document.getElementById("description").value,
-          price: document.getElementById("price").value || null,
-          image_urls: url ? [url] : null
-        }]);
-        if (error){ alert("Error: " + error.message); return; }
-        e.target.reset();
-        await loadPublicListings();
+        grid.appendChild(card);
       });
     }
 
-    init();
+    loadListings();
   </script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Fabric Listings</h1>
+    <div id="grid" class="grid"></div>
+  </div>
 </body>
 </html>
