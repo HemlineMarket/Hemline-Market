@@ -6,7 +6,7 @@
   <title>Hemline — Image Upload Test</title>
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;margin:24px;max-width:720px}
-    #log{white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-top:12px;min-height:80px}
+    #log{white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-top:12px;min-height:100px}
     button{padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#111827;color:#fff}
     input{margin-right:8px}
   </style>
@@ -27,37 +27,53 @@
     const logEl = document.getElementById('log');
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadBtn');
-    const log = (msg) => { logEl.textContent = String(msg); };
-    const append = (msg) => { logEl.textContent += '\\n' + String(msg); };
+    const log = (m) => { logEl.textContent = String(m); };
+    const append = (m) => { logEl.textContent += '\\n' + String(m); };
 
-    // ✅ EXACT values from your Supabase API page
+    // Your exact project values
     const SUPABASE_URL = "https://kzqrfzvobsxbkppuexru.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYvWTjOlt12Tdpr91WKhKm7wNtuK2_Kj0lOiZHU";
-
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    async function ensureAnonSession(){
+      try{
+        const { data: { session } } = await supabase.auth.getSession();
+        if(!session){
+          log('Signing in anonymously…');
+          const { error } = await supabase.auth.signInAnonymously();
+          if(error){ append('❌ Auth error: ' + error.message); return false; }
+          append('✅ Signed in.');
+        } else {
+          append('Using existing session.');
+        }
+        return true;
+      }catch(e){
+        append('❌ Auth JS error: ' + e.message);
+        return false;
+      }
+    }
+
     uploadBtn.addEventListener('click', async () => {
-      log("Upload clicked.");
+      log('Upload clicked.');
+      const ok = await ensureAnonSession();
+      if(!ok) return;
+
       const file = fileInput.files[0];
-      if(!file){ append("⚠️ Pick an image file first."); return; }
+      if(!file){ append('⚠️ Pick an image file first.'); return; }
 
       const path = `test/${Date.now()}-${file.name}`;
-      append("Uploading to " + path + " …");
+      append('Uploading to ' + path + ' …');
 
       try{
-        const { data, error } = await supabase
-          .storage
-          .from("listing-images")
-          .upload(path, file, { upsert: false });
-
+        const { data, error } = await supabase.storage.from('listing-images').upload(path, file, { upsert: false });
         if(error){
-          append("❌ Upload failed: " + error.message);
+          append('❌ Upload failed: ' + (error.message || JSON.stringify(error)));
         }else{
-          const { data: pub } = supabase.storage.from("listing-images").getPublicUrl(path);
-          append("✅ Uploaded. Public URL: " + (pub?.publicUrl || data.path));
+          const { data: pub } = supabase.storage.from('listing-images').getPublicUrl(path);
+          append('✅ Uploaded. Public URL: ' + (pub?.publicUrl || data.path));
         }
       }catch(e){
-        append("❌ JS error: " + e.message);
+        append('❌ Upload JS error: ' + e.message);
       }
     });
   </script>
