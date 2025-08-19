@@ -13,15 +13,27 @@
     nav a{padding:8px 10px;border-radius:10px;color:inherit;text-decoration:none}
     nav a:hover{background:var(--card)}
     h1{margin:0}
-    .filters{display:grid;grid-template-columns:1fr 120px 120px 160px 110px;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px}
+
+    .filters{display:grid;grid-template-columns:1fr 110px 110px 160px 150px 100px;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px}
     .filters input,.filters select,.filters button{padding:10px;border:1px solid var(--line);border-radius:10px}
+    .filters label{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:14px}
-    .card{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+    .card{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;cursor:pointer}
+    .imgbox{position:relative;background:#fff}
     .card img{width:100%;height:200px;object-fit:cover;display:block}
+    .fav{position:absolute;right:10px;top:10px;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:999px;padding:6px 9px;font-size:16px;line-height:1}
+    .fav.on{background:#fee2e2;border-color:#fecaca}
     .meta{padding:10px}
     .title{font-weight:600}
     .price{color:#0f172a;font-weight:700}
     .muted{color:var(--muted);font-size:13px}
+
+    .strip{display:grid;grid-auto-flow:column;grid-auto-columns:120px;gap:10px;overflow-x:auto;padding-bottom:6px}
+    .thumb{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+    .thumb img{width:120px;height:80px;object-fit:cover;display:block}
+    .thumb .tmeta{padding:6px;font-size:12px}
+    .section{margin-top:22px}
     .err{color:#b91c1c}
   </style>
 </head>
@@ -45,6 +57,7 @@
         <option value="price_asc">Price: Low → High</option>
         <option value="price_desc">Price: High → Low</option>
       </select>
+      <label><input id="favOnly" type="checkbox"/> Favorites only</label>
       <button type="submit">Apply</button>
     </form>
 
@@ -53,24 +66,32 @@
     <div style="margin-top:8px">
       <button id="resetBtn" style="padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff">Reset</button>
     </div>
+
+    <!-- Recently viewed -->
+    <div class="section">
+      <h3 style="margin:14px 0 8px">Recently viewed</h3>
+      <div id="recentStrip" class="strip"></div>
+    </div>
   </div>
 
-  <!-- Use the UMD build (no modules) -->
+  <!-- Supabase (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script>
+    // ---- CONFIG ----
     const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
     const $ = id => document.getElementById(id);
     const money = cents => `$${(Number(cents||0)/100).toFixed(2)}`;
 
+    // ---- URL state helpers ----
     function initFromURL() {
       const p = new URLSearchParams(location.search);
       $("q").value = p.get("q") || "";
       $("min").value = p.get("min") || "";
       $("max").value = p.get("max") || "";
       $("sort").value = p.get("sort") || "new";
+      $("favOnly").checked = p.get("fav") === "1";
     }
     function persistToURL() {
       const p = new URLSearchParams();
@@ -78,14 +99,57 @@
       if ($("min").value) p.set("min",$("min").value);
       if ($("max").value) p.set("max",$("max").value);
       if ($("sort").value && $("sort").value!=="new") p.set("sort",$("sort").value);
+      if ($("favOnly").checked) p.set("fav","1");
       history.replaceState(null,"",`${location.pathname}?${p.toString()}`);
     }
 
+    // ---- Favorites & Recently viewed (localStorage) ----
+    const FAV_KEY = "hm_favorites_v1";
+    const RECENT_KEY = "hm_recent_v1";
+
+    function getFavs(){ try{return new Set(JSON.parse(localStorage.getItem(FAV_KEY)||"[]"));}catch{return new Set();} }
+    function saveFavs(set){ localStorage.setItem(FAV_KEY, JSON.stringify(Array.from(set))); }
+    function toggleFav(id){
+      const favs = getFavs();
+      if (favs.has(id)) favs.delete(id); else favs.add(id);
+      saveFavs(favs);
+    }
+    function isFav(id){ return getFavs().has(id); }
+
+    function pushRecent(item){
+      try{
+        const list = JSON.parse(localStorage.getItem(RECENT_KEY)||"[]");
+        const filtered = list.filter(x=>x.id!==item.id);
+        filtered.unshift({ id:item.id, image_url:item.image_url, title:item.title, price_cents:item.price_cents });
+        localStorage.setItem(RECENT_KEY, JSON.stringify(filtered.slice(0,12)));
+        renderRecent();
+      }catch{}
+    }
+    function renderRecent(){
+      const strip = $("recentStrip");
+      strip.innerHTML = "";
+      let items = [];
+      try{ items = JSON.parse(localStorage.getItem(RECENT_KEY)||"[]"); }catch{}
+      if (!items.length){ strip.innerHTML = '<div class="muted">No recent items yet.</div>'; return; }
+      for(const r of items){
+        const div = document.createElement("div");
+        div.className = "thumb";
+        div.innerHTML = `
+          <img src="${r.image_url}" alt="${r.title}">
+          <div class="tmeta">${r.title}</div>
+        `;
+        strip.appendChild(div);
+      }
+    }
+
+    // ---- Fetch & render ----
     async function loadListings() {
       const q = $("q").value.trim();
       const min = $("min").value.trim();
       const max = $("max").value.trim();
       const sort = $("sort").value;
+      const favOnly = $("favOnly").checked;
+      const favs = getFavs();
 
       let query = db.from("listings").select("*");
 
@@ -108,23 +172,39 @@
 
       const { data, error } = await query.limit(60);
       if (error) { $("status").className="err"; $("status").textContent = "Error: "+error.message; return; }
-      if (!data || data.length===0) { $("status").textContent = "No results."; return; }
+      let rows = data || [];
+      if (favOnly) rows = rows.filter(r=>favs.has(r.id));
 
       $("status").className="muted";
-      $("status").textContent = `Showing ${data.length} item${data.length>1?"s":""}.`;
+      $("status").textContent = `Showing ${rows.length} item${rows.length>1?"s":""}.`;
 
       const grid = $("grid");
-      for (const row of data) {
+      for (const row of rows) {
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
-          <img src="${row.image_url}" alt="${row.title}">
+          <div class="imgbox">
+            <img src="${row.image_url}" alt="${row.title}">
+            <button class="fav ${isFav(row.id)?'on':''}" aria-label="Favorite" title="Favorite">${isFav(row.id)?'❤️':'🤍'}</button>
+          </div>
           <div class="meta">
             <div class="title">${row.title}</div>
             <div class="price">${money(row.price_cents)}</div>
             <div class="muted">${new Date(row.created_at).toLocaleDateString()}</div>
           </div>
         `;
+        // toggle favorite
+        card.querySelector(".fav").addEventListener("click",(ev)=>{
+          ev.stopPropagation();
+          toggleFav(row.id);
+          const btn = ev.currentTarget;
+          const on = isFav(row.id);
+          btn.classList.toggle("on", on);
+          btn.textContent = on ? "❤️" : "🤍";
+        });
+        // mark as recently viewed when clicked
+        card.addEventListener("click", ()=> pushRecent(row));
+
         grid.appendChild(card);
       }
     }
@@ -134,7 +214,8 @@
     window.addEventListener("DOMContentLoaded", () => {
       initFromURL();
       $("filterForm").addEventListener("submit", submitFilters);
-      $("resetBtn").addEventListener("click", () => { $("q").value=""; $("min").value=""; $("max").value=""; $("sort").value="new"; submitFilters(); });
+      $("resetBtn").addEventListener("click", () => { $("q").value=""; $("min").value=""; $("max").value=""; $("sort").value="new"; $("favOnly").checked=false; submitFilters(); });
+      renderRecent();
       loadListings();
     });
   </script>
