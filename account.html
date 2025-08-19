@@ -20,8 +20,12 @@
 
     <h2>Profile</h2>
     <form id="profile-form">
+      <label>Full name</label>
+      <input type="text" id="full_name" />
+
       <label>Username</label>
       <input type="text" id="username" />
+
       <button type="submit">Save Profile</button>
     </form>
     <p id="status"></p>
@@ -44,6 +48,7 @@
 
     const signedin = document.getElementById("signedin");
     const usernameInput = document.getElementById("username");
+    const fullNameInput = document.getElementById("full_name");
     const status = document.getElementById("status");
     const form = document.getElementById("profile-form");
 
@@ -51,7 +56,7 @@
     const newpw = document.getElementById("newpw");
     const pwStatus = document.getElementById("pw-status");
 
-    // Get session (guard)
+    // Require session
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       window.location.href = "auth.html";
@@ -63,7 +68,7 @@
     async function loadProfile() {
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, full_name")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -80,8 +85,10 @@
           return;
         }
         usernameInput.value = "";
+        fullNameInput.value = "";
       } else {
         usernameInput.value = profile.username || "";
+        fullNameInput.value = profile.full_name || "";
       }
     }
     await loadProfile();
@@ -92,12 +99,15 @@
       status.textContent = "Saving…";
       const { error } = await supabase
         .from("profiles")
-        .update({ username: usernameInput.value || null })
+        .update({
+          username: usernameInput.value || null,
+          full_name: fullNameInput.value || null
+        })
         .eq("user_id", user.id);
       status.textContent = error ? "Error: " + error.message : "Saved!";
     });
 
-    // Change password (no email)
+    // Change password
     pwForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       pwStatus.textContent = "Updating…";
