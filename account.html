@@ -24,8 +24,15 @@
       <input type="text" id="username" />
       <button type="submit">Save Profile</button>
     </form>
-
     <p id="status"></p>
+
+    <h2>Change Password</h2>
+    <form id="pw-form">
+      <label>New password</label>
+      <input type="password" id="newpw" />
+      <button type="submit">Update Password</button>
+    </form>
+    <p id="pw-status"></p>
   </div>
 
   <script type="module">
@@ -40,7 +47,11 @@
     const status = document.getElementById("status");
     const form = document.getElementById("profile-form");
 
-    // Get session
+    const pwForm = document.getElementById("pw-form");
+    const newpw = document.getElementById("newpw");
+    const pwStatus = document.getElementById("pw-status");
+
+    // Get session (guard)
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       window.location.href = "auth.html";
@@ -48,7 +59,7 @@
       signedin.textContent = "Signed in as " + user.email;
     }
 
-    // Load profile using user_id (matches our table schema)
+    // Load or create profile (by user_id)
     async function loadProfile() {
       const { data: profile, error } = await supabase
         .from("profiles")
@@ -60,9 +71,7 @@
         status.textContent = "Error loading profile: " + error.message;
         return;
       }
-
       if (!profile) {
-        // create blank row if missing (trigger usually does this)
         const { error: insErr } = await supabase
           .from("profiles")
           .insert([{ user_id: user.id }]);
@@ -75,10 +84,9 @@
         usernameInput.value = profile.username || "";
       }
     }
-
     await loadProfile();
 
-    // Save profile (update by user_id)
+    // Save profile
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       status.textContent = "Saving…";
@@ -86,8 +94,16 @@
         .from("profiles")
         .update({ username: usernameInput.value || null })
         .eq("user_id", user.id);
-
       status.textContent = error ? "Error: " + error.message : "Saved!";
+    });
+
+    // Change password (no email)
+    pwForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      pwStatus.textContent = "Updating…";
+      const { error } = await supabase.auth.updateUser({ password: newpw.value });
+      pwStatus.textContent = error ? "Error: " + error.message : "Password updated";
+      if (!error) newpw.value = "";
     });
 
     // Sign out
