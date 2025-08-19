@@ -5,23 +5,33 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const signinLink = document.getElementById("signin-link");
-const accountLink = document.getElementById("account-link");
-const signoutLink = document.getElementById("signout-link");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const message = document.getElementById("message");
 
-async function refresh() {
-  const { data: { user } } = await supabase.auth.getUser();
-  const signedIn = !!user;
-  if (signinLink) signinLink.style.display = signedIn ? "none" : "inline";
-  if (accountLink) accountLink.style.display = signedIn ? "inline" : "none";
-  if (signoutLink) signoutLink.style.display = signedIn ? "inline" : "none";
-}
-
-refresh();
-supabase.auth.onAuthStateChange(() => refresh());
-
-signoutLink?.addEventListener("click", async (e) => {
+// Sign in
+document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  await supabase.auth.signOut();
-  location.reload();
+  const { error } = await supabase.auth.signInWithPassword({
+    email: emailInput.value,
+    password: passwordInput.value,
+  });
+  message.textContent = error ? error.message : "Signed in!";
+});
+
+// Sign up
+document.getElementById("signup").addEventListener("click", async () => {
+  const { error } = await supabase.auth.signUp({
+    email: emailInput.value,
+    password: passwordInput.value,
+  });
+  message.textContent = error ? error.message : "Signed up! Check your email.";
+});
+
+// Magic link
+document.getElementById("magic").addEventListener("click", async () => {
+  const { error } = await supabase.auth.signInWithOtp({
+    email: emailInput.value,
+  });
+  message.textContent = error ? error.message : "Magic link sent!";
 });
