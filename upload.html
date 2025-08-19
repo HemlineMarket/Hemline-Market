@@ -1,29 +1,80 @@
-<script type="module">
-  import { createClient } from 'https://esm.sh/@supabase/supabase-js'
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Hemline — Image Upload Test</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;margin:24px;max-width:720px}
+    #log{white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-top:12px;min-height:80px}
+    button{padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#111827;color:#fff}
+    input{margin-right:8px}
+  </style>
+</head>
+<body>
+  <h1>Upload Fabric Image (Test)</h1>
 
-  const SUPABASE_URL = "https://kzqrfzvobxsbkppuexru.supabase.co"
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...." // your full key
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  <div>
+    <input type="file" id="fileInput" accept="image/*"/>
+    <button id="uploadBtn">Upload</button>
+  </div>
 
-  document.getElementById('uploadBtn').addEventListener('click', async () => {
-    const file = document.getElementById('fileInput').files[0]
-    const status = document.getElementById('status')
+  <div id="log">Ready. Choose a file and click Upload.</div>
 
-    if (!file) {
-      status.textContent = "⚠️ Please choose a file first."
-      return
+  <!-- UMD build (no ES modules) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script>
+    const logEl = document.getElementById('log');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const log = (msg) => { logEl.textContent = String(msg); };
+    const append = (msg) => { logEl.textContent += '\\n' + String(msg); };
+
+    // Your Supabase project values (from your screenshot)
+    const SUPABASE_URL = "https://kzqrfzvobsxbkppuexru.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTYzNjE3NjAxMSwiZXhwIjoyMDM4NzAwMDAwLCJzdWIiOiJhbm9uIn0.OH1ZjYwWTj0t1t2Tdrp91WhKhm7wKtuK2_Kj0IOizHU";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function ensureSession(){
+      try{
+        const { data: { session } } = await supabase.auth.getSession();
+        if(!session){
+          log("Signing in anonymously…");
+          const { error } = await supabase.auth.signInAnonymously();
+          if(error){ append("❌ Auth error: " + error.message); return false; }
+        }
+        const { data: u } = await supabase.auth.getUser();
+        append("Signed in as: " + (u?.user?.id || "unknown"));
+        return true;
+      }catch(e){
+        append("❌ Init error: " + e.message);
+        return false;
+      }
     }
 
-    status.textContent = "⏳ Uploading..."
+    uploadBtn.addEventListener('click', async () => {
+      log("Upload clicked.");
+      const ok = await ensureSession();
+      if(!ok) return;
 
-    const { data, error } = await supabase.storage
-      .from('listing-images')
-      .upload(`uploads/${Date.now()}-${file.name}`, file, { upsert: true })
+      const file = fileInput.files[0];
+      if(!file){ append("Pick a file first."); return; }
 
-    if (error) {
-      status.textContent = "❌ Error: " + error.message
-    } else {
-      status.textContent = "✅ Uploaded: " + data.path
-    }
-  })
-</script>
+      append("Uploading…");
+      const path = `test/${Date.now()}-${file.name}`;
+      try{
+        const { data, error } = await supabase.storage.from("listing-images").upload(path, file, { upsert: false });
+        if(error){
+          append("❌ Upload failed: " + error.message);
+        }else{
+          const { data: pub } = supabase.storage.from("listing-images").getPublicUrl(path);
+          append("✅ Uploaded to: " + (pub?.publicUrl || data.path));
+        }
+      }catch(e){
+        append("❌ JS error: " + e.message);
+      }
+    });
+  </script>
+</body>
+</html>
