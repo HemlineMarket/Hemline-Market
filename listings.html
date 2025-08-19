@@ -20,6 +20,7 @@
     img{width:100%;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover}
     .price{font-weight:700;font-size:18px}
     .muted{color:#64748b}
+    pre{background:#f6f8fa;border:1px solid #e5e7eb;border-radius:8px;padding:10px;overflow:auto}
   </style>
 </head>
 <body>
@@ -38,6 +39,12 @@
     <h2>Your Listings</h2>
     <p id="status" class="muted">Loading…</p>
 
+    <!-- Debug area -->
+    <details style="margin:12px 0;">
+      <summary>Debug</summary>
+      <pre id="debug"></pre>
+    </details>
+
     <!-- Add Listing (requires sign-in) -->
     <form id="listing-form" style="display:none;">
       <input type="text" id="title" placeholder="Title" required />
@@ -55,14 +62,22 @@
 
     const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusEl = document.getElementById("status");
     const form = document.getElementById("listing-form");
     const listingsEl = document.getElementById("listings");
+    const debugEl = document.getElementById("debug");
     const signinLink = document.getElementById("signin-link");
     const accountLink = document.getElementById("account-link");
     const signoutLink = document.getElementById("signout-link");
+
+    function log(msg, obj){
+      const line = obj ? `${msg} ${JSON.stringify(obj, null, 2)}` : msg;
+      console.log(line);
+      debugEl.textContent += line + "\\n";
+    }
 
     function setNav(signedIn){
       if (signinLink) signinLink.style.display = signedIn ? "none" : "inline";
@@ -77,70 +92,59 @@
     });
 
     async function loadListings(){
-      const { data: { user } } = await supabase.auth.getUser();
+      try {
+        log("Step 1: getUser()");
+        const { data: { user }, error: userErr } = await supabase.auth.getUser();
+        if (userErr) { log("getUser error:", userErr); statusEl.textContent = "Auth error"; return; }
 
-      setNav(!!user);
-      form.style.display = user ? "block" : "none";
+        log("Step 1.1: user", user ? { id: user.id, email: user.email } : null);
+        setNav(!!user);
+        form.style.display = user ? "block" : "none";
 
-      if (!user){
-        statusEl.innerHTML = 'Please sign in to see your listings.';
-        listingsEl.innerHTML = "";
-        return;
+        if (!user){
+          statusEl.innerHTML = 'Please sign in to see your listings.';
+          listingsEl.innerHTML = "";
+          return;
+        }
+
+        statusEl.textContent = "Loading your listings…";
+
+        log("Step 2: query listings for seller_id", { seller_id: user.id });
+        const { data, error } = await supabase
+          .from("listings")
+          .select("id,title,description,price,image_url")
+          .eq("seller_id", user.id);
+
+        if (error){
+          log("Select error:", error);
+          statusEl.textContent = "Error loading listings: " + error.message;
+          listingsEl.innerHTML = "";
+          return;
+        }
+
+        log("Step 3: data", data);
+
+        if (!data || data.length === 0){
+          statusEl.textContent = "No listings yet. Add one below.";
+          listingsEl.innerHTML = "";
+          return;
+        }
+
+        statusEl.textContent = "";
+        listingsEl.innerHTML = data.map(l => `
+          <div class="card">
+            ${l.image_url ? `<img src="${l.image_url}" alt="${l.title}">` : ""}
+            <p><strong>${l.title ?? "Untitled"}</strong></p>
+            ${l.description ? `<p>${l.description}</p>` : ""}
+            ${l.price != null ? `<p class="price">$${Number(l.price).toFixed(2)}</p>` : ""}
+          </div>
+        `).join("");
+      } catch (e) {
+        console.error(e);
+        log("Fatal JS error:", { message: e.message, stack: e.stack });
+        statusEl.textContent = "Unexpected error. See Debug.";
       }
-
-      statusEl.textContent = "Loading your listings…";
-
-      const { data, error } = await supabase
-        .from("listings")
-        .select("id,title,description,price,image_url")
-        .eq("seller_id", user.id);
-
-      if (error){
-        console.error("Supabase error:", error);
-        statusEl.textContent = "Error loading listings: " + error.message;
-        listingsEl.innerHTML = "";
-        return;
-      }
-
-      if (!data || data.length === 0){
-        statusEl.textContent = "No listings yet. Add one below.";
-        listingsEl.innerHTML = "";
-        return;
-      }
-
-      statusEl.textContent = "";
-      listingsEl.innerHTML = data.map(l => `
-        <div class="card">
-          ${l.image_url ? `<img src="${l.image_url}" alt="${l.title}">` : ""}
-          <p><strong>${l.title ?? "Untitled"}</strong></p>
-          ${l.description ? `<p>${l.description}</p>` : ""}
-          ${l.price != null ? `<p class="price">$${Number(l.price).toFixed(2)}</p>` : ""}
-        </div>
-      `).join("");
     }
-
-    // Handle create
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user){ alert("Sign in first."); return; }
-
-      const { error } = await supabase.from("listings").insert([{
-        seller_id: user.id,
-        title: document.getElementById("title").value,
-        description: document.getElementById("description").value,
-        price: document.getElementById("price").value || null,
-        image_url: document.getElementById("image_url").value || null
-      }]);
-
-      if (error){
-        alert("Error: " + error.message);
-        console.error("Insert error:", error);
-        return;
-      }
-      e.target.reset();
-      loadListings();
-    });
 
     loadListings();
     supabase.auth.onAuthStateChange(() => loadListings());
