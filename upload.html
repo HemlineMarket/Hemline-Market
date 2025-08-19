@@ -1,42 +1,30 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <title>Upload Fabric Image (Test)</title>
-  </head>
-  <body>
-    <h1>Upload Fabric Image (Test)</h1>
-    <input type="file" id="fileInput"/>
-    <button id="uploadBtn">Upload</button>
-    <pre id="output"></pre>
+<script>
+  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    <script type="module">
-      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+  const form = document.querySelector("form");
+  const status = document.getElementById("status");
 
-      const supabaseUrl = "https://clkizksbvxjkoatdajgd.supabase.co";
-      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-      const supabase = createClient(supabaseUrl, supabaseKey);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const file = document.getElementById("file").files[0];
+    if (!file) return;
 
-      const bucket = "listing-images";
+    const filePath = `test/${Date.now()}-${file.name}`;
+    const { data, error } = await supabase.storage
+      .from("listing-images")
+      .upload(filePath, file);
 
-      document.getElementById("uploadBtn").onclick = async () => {
-        const file = document.getElementById("fileInput").files[0];
-        if (!file) {
-          document.getElementById("output").textContent = "❌ No file selected";
-          return;
-        }
-        const filePath = `test/${Date.now()}-${file.name}`;
+    if (error) {
+      status.textContent = "❌ " + error.message;
+    } else {
+      // build a public URL
+      const { data: publicUrl } = supabase.storage
+        .from("listing-images")
+        .getPublicUrl(filePath);
 
-        const { error } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, file);
-
-        if (error) {
-          document.getElementById("output").textContent = "❌ Upload error: " + error.message;
-        } else {
-          document.getElementById("output").textContent = "✅ Uploaded to " + filePath;
-        }
-      };
-    </script>
-  </body>
-</html>
+      status.innerHTML = `✅ Uploaded — <a href="${publicUrl.publicUrl}" target="_blank">${publicUrl.publicUrl}</a>`;
+    }
+  });
+</script>
