@@ -5,61 +5,46 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Listings</title>
   <style>
-    body {
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      margin: 24px;
-      background:#fafafa;
-    }
-    .wrap {
-      max-width: 900px;
-      margin: auto;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
+    :root { --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
+    .wrap { max-width: 900px; margin: auto; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
     .listing-card {
-      position: relative;
-      border-radius: 12px;
-      overflow: hidden;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative; border-radius:12px; overflow: hidden; background:#fff;
+      border:1px solid var(--line); box-shadow:0 2px 6px rgba(0,0,0,.05);
+      transition: transform .2s ease, box-shadow .2s ease;
+      opacity:0; transform: translateY(8px); /* start state for fade-in */
     }
-    .listing-card:hover {
-      transform: translateY(-4px) scale(1.02);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    .listing-card.show {
+      opacity:1; transform: translateY(0);
+      animation: fadeUp .38s ease both;
     }
-    .listing-card img {
-      width: 100%;
-      height: 240px;
-      object-fit: cover;
+    @keyframes fadeUp {
+      from { opacity:0; transform: translateY(8px); }
+      to   { opacity:1; transform: translateY(0); }
     }
-    .info {
-      padding: 12px;
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .listing-card, .listing-card.show { transition: none; animation: none; opacity:1; transform:none; }
     }
-    .title {
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .price {
-      font-size: 18px;
-      font-weight: 700;
-    }
-    /* Heart / fav styles */
+
+    .listing-card:hover { transform: translateY(-4px) scale(1.02); box-shadow:0 6px 16px rgba(0,0,0,.15); }
+
+    .listing-card img { width:100%; height:240px; object-fit:cover; }
+
+    .info { padding:12px; }
+    .title { font-weight:600; margin-bottom:4px; }
+    .price { font-size:18px; font-weight:700; }
+
+    /* Heart / fav */
     .fav {
-      position:absolute;
-      top:8px;
-      right:8px;
-      cursor:pointer;
-      font-size:20px;
-      color:#cbd5e1;
-      transition: transform 0.2s ease, color 0.2s ease;
+      position:absolute; top:8px; right:8px; cursor:pointer; font-size:20px;
+      color:#cbd5e1; transition: transform .2s ease, color .2s ease;
+      user-select:none;
     }
     .fav.active { color:#e11d48; }
-    .fav.pop { transform:scale(1.4); }
+    .fav.pop { transform: scale(1.4); }
   </style>
 </head>
 <body>
@@ -70,28 +55,38 @@
 
   <script>
     async function loadListings(){
-      const { data } = await fetch('/listings.json').then(r=>r.json());
+      // NOTE: using your existing data source path; no change needed here.
+      const { data } = await fetch('/listings.json').then(r => r.json());
       const container = document.getElementById('listings');
       container.innerHTML = '';
-      data.forEach(item=>{
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      data.forEach((item, idx) => {
         const card = document.createElement('div');
         card.className = 'listing-card';
         card.innerHTML = `
-          <img src="${item.image_url}" alt="">
+          <img src="${item.image_url}" alt="${item.title || ''}">
           <div class="fav" onclick="toggleFav(this)">♥</div>
           <div class="info">
-            <div class="title">${item.title}</div>
-            <div class="price">$${item.price}</div>
+            <div class="title">${item.title || ''}</div>
+            <div class="price">$${item.price || '0.00'}</div>
           </div>
         `;
         container.appendChild(card);
+
+        // Staggered reveal
+        if (!reduceMotion) {
+          setTimeout(() => card.classList.add('show'), 60 * idx);
+        } else {
+          card.classList.add('show');
+        }
       });
     }
 
     function toggleFav(el){
       el.classList.toggle('active');
       el.classList.add('pop');
-      setTimeout(()=>el.classList.remove('pop'),200);
+      setTimeout(() => el.classList.remove('pop'), 200);
     }
 
     loadListings();
