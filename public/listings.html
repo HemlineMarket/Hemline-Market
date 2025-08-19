@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Listings</title>
   <style>
-    :root{--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--card:#f8fafc}
+    :root{--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--card:#f8fafc;--heart:#e11d48}
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--ink)}
     .wrap{max-width:1100px;margin:0 auto;padding:20px}
@@ -22,19 +22,46 @@
     .card{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;cursor:pointer}
     .imgbox{position:relative;background:#fff}
     .card img{width:100%;height:200px;object-fit:cover;display:block}
-    .fav{position:absolute;right:10px;top:10px;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:999px;padding:6px 9px;font-size:16px;line-height:1}
-    .fav.on{background:#fee2e2;border-color:#fecaca}
     .meta{padding:10px}
     .title{font-weight:600}
     .price{color:#0f172a;font-weight:700}
     .muted{color:var(--muted);font-size:13px}
+    .err{color:#b91c1c}
 
+    /* Heart button */
+    .fav{
+      position:absolute;right:10px;top:10px;
+      display:grid;place-items:center;
+      width:36px;height:36px;border-radius:999px;
+      background:rgba(255,255,255,.92);
+      border:1px solid var(--line);
+      box-shadow:0 2px 6px rgba(0,0,0,.05);
+      cursor:pointer;
+      transition:transform .12s ease;
+    }
+    .fav:hover{transform:scale(1.04)}
+    .fav svg{width:20px;height:20px;display:block}
+    .fav .heart{
+      fill:transparent;stroke:#111827;stroke-width:1.6;
+      transition:fill .18s ease, stroke .18s ease;
+    }
+    .fav.on{background:#fff}
+    .fav.on .heart{fill:var(--heart);stroke:var(--heart)}
+
+    /* pop animation when toggled */
+    .fav.pop{animation:pop .22s ease;}
+    @keyframes pop{
+      0%{transform:scale(.85)}
+      60%{transform:scale(1.18)}
+      100%{transform:scale(1)}
+    }
+
+    /* Recently viewed strip */
     .strip{display:grid;grid-auto-flow:column;grid-auto-columns:120px;gap:10px;overflow-x:auto;padding-bottom:6px}
     .thumb{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
     .thumb img{width:120px;height:80px;object-fit:cover;display:block}
     .thumb .tmeta{padding:6px;font-size:12px}
     .section{margin-top:22px}
-    .err{color:#b91c1c}
   </style>
 </head>
 <body>
@@ -142,6 +169,12 @@
       }
     }
 
+    // SVG heart
+    const HEART_SVG = `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path class="heart" d="M12.001 5.882c1.425-2.533 5.17-2.66 6.76-.294 1.22 1.84.73 4.3-.99 5.64l-4.91 3.92a1 1 0 0 1-1.22 0l-4.91-3.92c-1.72-1.34-2.21-3.8-.99-5.64 1.59-2.366 5.335-2.239 6.76.294z"/>
+      </svg>`;
+
     // ---- Fetch & render ----
     async function loadListings() {
       const q = $("q").value.trim();
@@ -185,7 +218,9 @@
         card.innerHTML = `
           <div class="imgbox">
             <img src="${row.image_url}" alt="${row.title}">
-            <button class="fav ${isFav(row.id)?'on':''}" aria-label="Favorite" title="Favorite">${isFav(row.id)?'❤️':'🤍'}</button>
+            <button class="fav ${isFav(row.id)?'on':''}" aria-label="Favorite" title="Favorite">
+              ${HEART_SVG}
+            </button>
           </div>
           <div class="meta">
             <div class="title">${row.title}</div>
@@ -193,15 +228,22 @@
             <div class="muted">${new Date(row.created_at).toLocaleDateString()}</div>
           </div>
         `;
-        // toggle favorite
-        card.querySelector(".fav").addEventListener("click",(ev)=>{
+
+        // toggle favorite + pop animation
+        const favBtn = card.querySelector(".fav");
+        favBtn.addEventListener("click",(ev)=>{
           ev.stopPropagation();
           toggleFav(row.id);
-          const btn = ev.currentTarget;
           const on = isFav(row.id);
-          btn.classList.toggle("on", on);
-          btn.textContent = on ? "❤️" : "🤍";
+          favBtn.classList.toggle("on", on);
+          // trigger pop
+          favBtn.classList.remove("pop");
+          // force reflow so animation restarts
+          // eslint-disable-next-line no-unused-expressions
+          favBtn.offsetHeight;
+          favBtn.classList.add("pop");
         });
+
         // mark as recently viewed when clicked
         card.addEventListener("click", ()=> pushRecent(row));
 
