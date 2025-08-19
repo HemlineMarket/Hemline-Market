@@ -13,13 +13,15 @@
   /* Sticky toolbar */
   .toolbar {
     position: sticky; top: 0; z-index: 10;
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     padding: 10px 12px; margin: 8px 0 16px;
     background: rgba(250,250,250,.85); backdrop-filter: blur(6px);
     border: 1px solid var(--line); border-radius: 12px;
   }
   .toolbar label { display:flex; align-items:center; gap:8px; font-weight:600; }
-  .chip { padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--card); font-size:12px; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--card); font-size:12px; cursor:pointer; }
+  .chip.active { border-color:#0ea5e9; color:#0ea5e9; font-weight:700; }
   .count { margin-left:auto; font-size:12px; color:#64748b; }
 
   /* CARD */
@@ -43,7 +45,7 @@
     opacity:0; transition:opacity .25s ease; }
   .imgwrap:hover .overlay { opacity:1; }
 
-  /* Date badge (kept for internal use, not under cards) */
+  /* Optional date badge on image (not the under-card date) */
   .badge { position:absolute; left:8px; top:8px; background:rgba(14,165,233,.95); color:#fff;
     padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
     border:1px solid rgba(255,255,255,.5); box-shadow:0 2px 6px rgba(0,0,0,.08); }
@@ -53,8 +55,8 @@
   .price { font-weight:800; letter-spacing:.2px; color:var(--accent); font-size:22px; line-height:1; white-space:nowrap; }
   .price .cur { opacity:.55; font-weight:600; margin-right:1px; }
 
-  /* Hide any stray date text under cards */
-  .info .date, .info time, .card-date, .meta-date { display:none !important; }
+  /* HARD-HIDE any stray date text under cards from legacy markup */
+  time, [datetime], .info .date, .card-date, .meta-date, .muted small, .card small:has(time) { display:none !important; }
 
   /* Favorite heart */
   .fav { position:absolute; top:8px; right:8px; cursor:pointer; font-size:20px;
@@ -71,7 +73,7 @@
   /* Empty state */
   .empty { text-align:center; padding:60px 20px; color:#64748b; display:none; }
   .empty svg { width:80px; height:80px; margin-bottom:16px; opacity:.7; }
-  .empty h2 { font-size:20px; margin:0 0 8px; color:var(--ink); }
+  .empty h2 { font-size:20px; margin:0 0 8px; color:#0f172a; }
   .empty p { margin:0 0 20px; }
   .btn { display:inline-block; padding:10px 18px; border-radius:999px;
     background:#0ea5e9; color:#fff; font-weight:600; text-decoration:none; }
@@ -90,11 +92,16 @@
 </head>
 <body>
   <div class="wrap">
-    <h1 style="margin:0 0 12px">Recent Listings</h1>
+    <h1 style="margin:0 0 12px">Fabric Listings</h1>
 
     <!-- Sticky toolbar -->
     <div class="toolbar" id="toolbar">
       <label><input type="checkbox" id="onlyFavs"> Favorites only</label>
+      <div class="chips" id="priceChips">
+        <button class="chip" data-range="u20">Under $20</button>
+        <button class="chip" data-range="20-50">$20–$50</button>
+        <button class="chip" data-range="50p">$50+</button>
+      </div>
       <span class="chip" id="favCount">♥ 0 saved</span>
       <span class="count" id="resultCount"></span>
     </div>
@@ -130,42 +137,38 @@
     try { localStorage.setItem(LS_KEY, JSON.stringify([...set])); } catch {}
   }
   function keyFor(item){
-    // Prefer a stable id if present; else image_url; else title
     return item.id ?? item.image_url ?? item.title ?? String(Math.random());
   }
-
   function humanizeDate(iso){ if(!iso) return "New arrival"; const dt=new Date(iso); if(isNaN(dt)) return "New arrival";
-    const now=new Date(); const d=Math.floor((now-dt)/(24*60*60*1000));
-    if(d<=1) return "New arrival"; if(d<7) return d+" days ago"; return dt.toLocaleDateString(); }
-
+    const now=new Date(); const d=Math.floor((now-dt)/(24*60*60*1000)); if(d<=1) return "New arrival"; if(d<7) return d+" days ago"; return dt.toLocaleDateString(); }
   function imgWithFallback(src, alt=''){ const img=document.createElement('img'); img.loading='lazy'; img.decoding='async'; img.src=src; img.alt=alt;
     img.onerror=()=>{ if(img.dataset.failed) return; img.dataset.failed=1; const wrap=img.parentElement; const ph=document.createElement('div'); ph.className='ph'; ph.innerHTML='<div class="dot">🧵</div>'; wrap.replaceChild(ph,img); };
     return img; }
-
-  function clearFilters(){ document.getElementById('onlyFavs').checked=false; render(currentData); }
-
-  function renderSkeletons(){
-    const host = document.getElementById('skeletons');
-    host.innerHTML = '';
-    for (let i=0;i<6;i++){
-      const card = document.createElement('div');
-      card.className = 'sk-card';
-      card.innerHTML = `<div class="sk-img"></div><div class="sk-row w60"></div><div class="sk-row w30" style="margin-top:-6px;"></div>`;
-      host.appendChild(card);
-    }
-  }
+  function clearFilters(){ document.getElementById('onlyFavs').checked=false; priceRange=null; syncChipStates(); render(currentData); }
 
   /* ---------- data + rendering ---------- */
   let currentData = [];
   let favSet = getFavStore();
+  let priceRange = null; // 'u20' | '20-50' | '50p' | null
 
   function updateFavCount(){
-    const chip = document.getElementById('favCount');
-    chip.textContent = `♥ ${favSet.size} saved`;
+    document.getElementById('favCount').textContent = `♥ ${favSet.size} saved`;
   }
-
   function updateResultCount(n){
     document.getElementById('resultCount').textContent = n ? `${n} item${n>1?'s':''}` : '';
+  }
+
+  function priceMatches(cents){
+    if(priceRange === 'u20')  return cents < 2000;
+    if(priceRange === '20-50') return cents >= 2000 && cents <= 5000;
+    if(priceRange === '50p') return cents > 5000;
+    return true;
+  }
+
+  function syncChipStates(){
+    document.querySelectorAll('.chip[data-range]').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.range === priceRange);
+    });
   }
 
   function render(data){
@@ -173,8 +176,13 @@
     const container = document.getElementById('listings');
     const empty = document.getElementById('empty');
 
-    // Apply filter
-    const rows = onlyFavs ? data.filter(it => favSet.has(keyFor(it))) : data;
+    // Apply filters
+    const rows = (data||[]).filter(it=>{
+      const cents = typeof it.price_cents==='number' ? it.price_cents : Math.round(parseFloat(it.price||'0')*100);
+      const favOK = !onlyFavs || favSet.has(keyFor(it));
+      const priceOK = priceMatches(cents);
+      return favOK && priceOK;
+    });
 
     container.innerHTML = '';
     updateResultCount(rows.length);
@@ -207,7 +215,6 @@
         fav.classList.add('pop'); setTimeout(()=>fav.classList.remove('pop'),200);
         if (fav.classList.contains('active')) favSet.add(k); else favSet.delete(k);
         saveFavStore(favSet); updateFavCount();
-        // If we’re in Favorites-only view, remove card immediately when unfaved
         if (document.getElementById('onlyFavs').checked && !fav.classList.contains('active')) {
           card.remove(); updateResultCount(container.children.length);
           if (!container.children.length) { document.getElementById('empty').style.display='block'; container.style.display='none'; }
@@ -227,21 +234,30 @@
   }
 
   async function loadListings(){
-    renderSkeletons();
-    document.getElementById('skeletons').style.display = 'grid';
-    document.getElementById('listings').style.display = 'none';
-    document.getElementById('empty').style.display = 'none';
+    // Show skeletons
+    const sk = document.getElementById('skeletons');
+    sk.innerHTML = '';
+    for (let i=0;i<6;i++){ sk.insertAdjacentHTML('beforeend', `<div class="sk-card"><div class="sk-img"></div><div class="sk-row w60"></div><div class="sk-row w30" style="margin-top:-6px;"></div></div>`); }
+    sk.style.display='grid';
+    document.getElementById('listings').style.display='none';
+    document.getElementById('empty').style.display='none';
 
     const res = await fetch('/listings.json').then(r=>r.json()).catch(()=>({data:[]}));
     currentData = res.data || [];
 
-    document.getElementById('skeletons').style.display = 'none';
+    sk.style.display='none';
     updateFavCount();
     render(currentData);
   }
 
   // Wire toolbar
   document.getElementById('onlyFavs').addEventListener('change', ()=>render(currentData));
+  document.getElementById('priceChips').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.chip[data-range]');
+    if(!btn) return;
+    priceRange = (priceRange === btn.dataset.range) ? null : btn.dataset.range;
+    syncChipStates(); render(currentData);
+  });
 
   loadListings();
 </script>
