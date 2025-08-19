@@ -5,10 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Hemline — Listings</title>
 <style>
-  :root { --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa; --accent:#111827; --badge:#0ea5e9; }
+  :root { --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa; --accent:#111827; --badge:#0ea5e9; --card:#ffffff; }
   body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
   .wrap { max-width: 900px; margin:auto; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+  /* Sticky toolbar */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; margin: 8px 0 16px;
+    background: rgba(250,250,250,.85); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  .toolbar label { display:flex; align-items:center; gap:8px; font-weight:600; }
+  .chip { padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--card); font-size:12px; }
+  .count { margin-left:auto; font-size:12px; color:#64748b; }
 
   /* CARD */
   .listing-card {
@@ -31,7 +43,7 @@
     opacity:0; transition:opacity .25s ease; }
   .imgwrap:hover .overlay { opacity:1; }
 
-  /* Date badge (kept for future, but not printed under cards) */
+  /* Date badge (kept for internal use, not under cards) */
   .badge { position:absolute; left:8px; top:8px; background:rgba(14,165,233,.95); color:#fff;
     padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
     border:1px solid rgba(255,255,255,.5); box-shadow:0 2px 6px rgba(0,0,0,.08); }
@@ -46,7 +58,7 @@
 
   /* Favorite heart */
   .fav { position:absolute; top:8px; right:8px; cursor:pointer; font-size:20px;
-         color:#cbd5e1; transition:transform .2s ease, color .2s ease; user-select:none; }
+         color:#cbd5e1; transition:transform 0.2s ease, color 0.2s ease; user-select:none; }
   .fav.active { color:#e11d48; }
   .fav.pop { transform:scale(1.4); }
 
@@ -70,7 +82,7 @@
   .sk-img { height:240px; background:linear-gradient(90deg,#f3f4f6 25%,#eef1f5 37%,#f3f4f6 63%); }
   .sk-row { height:18px; margin:12px; border-radius:6px;
     background:linear-gradient(90deg,#f3f4f6 25%,#eef1f5 37%,#f3f4f6 63%); }
-  .sk-row.w60 { width:60%; } .sk-row.w40 { width:40%; } .sk-row.w30 { width:30%; }
+  .sk-row.w60 { width:60%; } .sk-row.w30 { width:30%; }
   @keyframes shimmer { 0%{background-position:-200px 0} 100%{background-position:200px 0} }
   .sk-img, .sk-row { background-size:400px 100%; animation:shimmer 1.2s infinite linear; }
   @media (prefers-reduced-motion: reduce){ .sk-img,.sk-row { animation:none; } }
@@ -79,6 +91,13 @@
 <body>
   <div class="wrap">
     <h1 style="margin:0 0 12px">Recent Listings</h1>
+
+    <!-- Sticky toolbar -->
+    <div class="toolbar" id="toolbar">
+      <label><input type="checkbox" id="onlyFavs"> Favorites only</label>
+      <span class="chip" id="favCount">♥ 0 saved</span>
+      <span class="count" id="resultCount"></span>
+    </div>
 
     <!-- Skeletons while loading -->
     <div id="skeletons" class="skeleton-grid" aria-hidden="true"></div>
@@ -99,9 +118,21 @@
   </div>
 
 <script>
-  // Inline placeholder SVG (unused now that we swap to a block placeholder)
-  const PLACEHOLDER_SVG = encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='160' height='120' viewBox='0 0 160 120'><rect width='160' height='120' fill='#f3f4f6'/></svg>`);
-  const PLACEHOLDER_URL = `data:image/svg+xml,${PLACEHOLDER_SVG}`;
+  /* ---------- small helpers ---------- */
+  const LS_KEY = 'hemlinemarket:favorites';
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function getFavStore(){
+    try { return new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]')); }
+    catch { return new Set(); }
+  }
+  function saveFavStore(set){
+    try { localStorage.setItem(LS_KEY, JSON.stringify([...set])); } catch {}
+  }
+  function keyFor(item){
+    // Prefer a stable id if present; else image_url; else title
+    return item.id ?? item.image_url ?? item.title ?? String(Math.random());
+  }
 
   function humanizeDate(iso){ if(!iso) return "New arrival"; const dt=new Date(iso); if(isNaN(dt)) return "New arrival";
     const now=new Date(); const d=Math.floor((now-dt)/(24*60*60*1000));
@@ -111,52 +142,55 @@
     img.onerror=()=>{ if(img.dataset.failed) return; img.dataset.failed=1; const wrap=img.parentElement; const ph=document.createElement('div'); ph.className='ph'; ph.innerHTML='<div class="dot">🧵</div>'; wrap.replaceChild(ph,img); };
     return img; }
 
-  function clearFilters(){ location.reload(); }
+  function clearFilters(){ document.getElementById('onlyFavs').checked=false; render(currentData); }
 
-  // Build skeletons (6 cards)
   function renderSkeletons(){
     const host = document.getElementById('skeletons');
     host.innerHTML = '';
     for (let i=0;i<6;i++){
       const card = document.createElement('div');
       card.className = 'sk-card';
-      card.innerHTML = `
-        <div class="sk-img"></div>
-        <div class="sk-row w60"></div>
-        <div class="sk-row w30" style="margin-top:-6px;"></div>
-      `;
+      card.innerHTML = `<div class="sk-img"></div><div class="sk-row w60"></div><div class="sk-row w30" style="margin-top:-6px;"></div>`;
       host.appendChild(card);
     }
   }
 
-  async function loadListings(){
-    // 1) show skeletons
-    renderSkeletons();
-    document.getElementById('skeletons').style.display = 'grid';
-    document.getElementById('listings').style.display = 'none';
-    document.getElementById('empty').style.display = 'none';
+  /* ---------- data + rendering ---------- */
+  let currentData = [];
+  let favSet = getFavStore();
 
-    // 2) fetch data
-    const { data } = await fetch('/listings.json').then(r=>r.json()).catch(()=>({data:[]}));
+  function updateFavCount(){
+    const chip = document.getElementById('favCount');
+    chip.textContent = `♥ ${favSet.size} saved`;
+  }
 
-    // 3) hide skeletons, show content
+  function updateResultCount(n){
+    document.getElementById('resultCount').textContent = n ? `${n} item${n>1?'s':''}` : '';
+  }
+
+  function render(data){
+    const onlyFavs = document.getElementById('onlyFavs').checked;
     const container = document.getElementById('listings');
     const empty = document.getElementById('empty');
-    document.getElementById('skeletons').style.display = 'none';
-    container.innerHTML = '';
 
-    if(!data || data.length===0){
+    // Apply filter
+    const rows = onlyFavs ? data.filter(it => favSet.has(keyFor(it))) : data;
+
+    container.innerHTML = '';
+    updateResultCount(rows.length);
+
+    if(rows.length === 0){
       empty.style.display = 'block';
       container.style.display = 'none';
       return;
     }
-    container.style.display = 'grid';
     empty.style.display = 'none';
+    container.style.display = 'grid';
 
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    (data||[]).forEach((item,idx)=>{
+    rows.forEach((item, idx) => {
       const price=(typeof item.price_cents==='number')?(item.price_cents/100).toFixed(2):(item.price||'0.00');
       const when=humanizeDate(item.created_at||item.date);
+      const k = keyFor(item);
 
       const card=document.createElement('div'); card.className='listing-card';
 
@@ -166,7 +200,19 @@
       const badge=document.createElement('div'); badge.className='badge'; badge.textContent=when; imgwrap.appendChild(badge);
 
       const fav=document.createElement('div'); fav.className='fav'; fav.textContent='♥';
-      fav.addEventListener('click',e=>{e.stopPropagation();fav.classList.toggle('active');fav.classList.add('pop');setTimeout(()=>fav.classList.remove('pop'),200);});
+      if (favSet.has(k)) fav.classList.add('active');
+      fav.addEventListener('click',e=>{
+        e.stopPropagation();
+        fav.classList.toggle('active');
+        fav.classList.add('pop'); setTimeout(()=>fav.classList.remove('pop'),200);
+        if (fav.classList.contains('active')) favSet.add(k); else favSet.delete(k);
+        saveFavStore(favSet); updateFavCount();
+        // If we’re in Favorites-only view, remove card immediately when unfaved
+        if (document.getElementById('onlyFavs').checked && !fav.classList.contains('active')) {
+          card.remove(); updateResultCount(container.children.length);
+          if (!container.children.length) { document.getElementById('empty').style.display='block'; container.style.display='none'; }
+        }
+      });
       imgwrap.appendChild(fav);
 
       const overlay=document.createElement('div'); overlay.className='overlay'; overlay.textContent=item.quickpeek||"View details";
@@ -176,10 +222,26 @@
       info.innerHTML=`<h3 class="title">${item.title||''}</h3><div class="price"><span class="cur">$</span>${price}</div>`;
 
       card.appendChild(imgwrap); card.appendChild(info); container.appendChild(card);
-
       if(!reduceMotion) setTimeout(()=>card.classList.add('show'),60*idx); else card.classList.add('show');
     });
   }
+
+  async function loadListings(){
+    renderSkeletons();
+    document.getElementById('skeletons').style.display = 'grid';
+    document.getElementById('listings').style.display = 'none';
+    document.getElementById('empty').style.display = 'none';
+
+    const res = await fetch('/listings.json').then(r=>r.json()).catch(()=>({data:[]}));
+    currentData = res.data || [];
+
+    document.getElementById('skeletons').style.display = 'none';
+    updateFavCount();
+    render(currentData);
+  }
+
+  // Wire toolbar
+  document.getElementById('onlyFavs').addEventListener('change', ()=>render(currentData));
 
   loadListings();
 </script>
