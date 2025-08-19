@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Hemline — Seller Dashboard</title>
+  <style>
+    :root{--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--card:#f8fafc}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--ink);background:#fff}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px}
+    header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+    nav a{padding:10px 12px;border-radius:10px}
+    nav a:hover{background:var(--card)}
+    h1{font-size:28px;margin:18px 0 6px}
+    .muted{color:var(--muted);margin:0 0 18px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    button{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#fff;cursor:pointer}
+    #status{white-space:pre-wrap;background:#fff;border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:12px;min-height:40px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:14px}
+    .thumb{display:block;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+    .thumb img{width:100%;height:140px;object-fit:cover;display:block}
+    .thumb a{display:block;padding:6px 8px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);word-break:break-all}
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <a class="brand" href="/">Hemline Market</a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/browse.html">Browse</a>
+      <a href="/seller-dashboard.html"><strong>Seller</strong></a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <h1>Seller Dashboard</h1>
+    <p class="muted">Your files in the <code>listing-images</code> bucket.</p>
+
+    <!-- Gallery -->
+    <section class="card">
+      <div class="row">
+        <h2 style="margin:0">Your Images</h2>
+        <span style="flex:1"></span>
+        <button id="refreshBtn" title="Reload">Refresh</button>
+      </div>
+      <div id="status">Loading…</div>
+      <div id="gallery" class="grid"></div>
+    </section>
+  </main>
+
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script>
+    // Exact working project values
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const BUCKET = "listing-images";
+
+    const statusEl = document.getElementById("status");
+    const galleryEl = document.getElementById("gallery");
+    const refreshBtn = document.getElementById("refreshBtn");
+
+    function setStatus(msg){ statusEl.textContent = msg; }
+
+    async function listPrefix(prefix=""){
+      const { data, error } = await supabase.storage.from(BUCKET).list(prefix, {
+        limit: 100,
+        sortBy: { column: "name", order: "desc" }
+      });
+      if (error) throw error;
+      return (data || []).map(f => ({
+        name: f.name,
+        path: prefix ? `${prefix}/${f.name}` : f.name
+      }));
+    }
+
+    async function loadImages(){
+      setStatus("Loading…");
+      galleryEl.innerHTML = "";
+      try{
+        // Show files from test/, listings/, and root
+        const [root, test, listings] = await Promise.all([
+          listPrefix(""),
+          listPrefix("test"),
+          listPrefix("listings")
+        ]);
+        const files = [...test, ...listings, ...root];
+        if(files.length === 0){
+          setStatus("No files yet. Upload via /upload.html");
+          return;
+        }
+        setStatus(`Found ${files.length} file${files.length>1?"s":""}.`);
+        for(const f of files){
+          const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(f.path);
+          const url = pub?.publicUrl;
+          const card = document.createElement("div");
+          card.className = "thumb";
+          card.innerHTML = `
+            <img src="${url}" alt="${f.name}"/>
+            <a href="${url}" target="_blank" rel="noopener noreferrer">${f.name}</a>
+          `;
+          galleryEl.appendChild(card);
+        }
+      }catch(e){
+        setStatus("Error: " + e.message);
+      }
+    }
+
+    refreshBtn.addEventListener("click", loadImages);
+    loadImages();
+  </script>
+</body>
+</html>
