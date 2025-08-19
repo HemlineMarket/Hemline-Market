@@ -15,14 +15,23 @@
     nav a:hover{background:var(--card)}
     h1{font-size:28px;margin:18px 0 6px}
     .muted{color:var(--muted);margin:0 0 18px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
     .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
     button{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#fff;cursor:pointer}
-    #status{white-space:pre-wrap;background:#fff;border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:12px;min-height:40px}
+    .btn-light{background:#fff;color:#0f172a}
+    input, textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px}
+    label{font-size:14px;color:var(--muted)}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:14px}
     .thumb{display:block;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
     .thumb img{width:100%;height:140px;object-fit:cover;display:block}
     .thumb a{display:block;padding:6px 8px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);word-break:break-all}
+    .listings{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+    .tile{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+    .tile img{width:100%;height:160px;object-fit:cover}
+    .tile .meta{padding:10px}
+    .ok{color:#059669}
+    .err{color:#b91c1c}
+    .hint{font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -30,16 +39,58 @@
     <a class="brand" href="/">Hemline Market</a>
     <nav>
       <a href="/">Home</a>
-      <a href="/browse.html">Browse</a>
+      <a href="/listings.html">Browse</a>
       <a href="/seller-dashboard.html"><strong>Seller</strong></a>
     </nav>
   </header>
 
   <main class="wrap">
     <h1>Seller Dashboard</h1>
-    <p class="muted">Your files in the <code>listing-images</code> bucket.</p>
+    <p class="muted">Create a listing, then see your storage images and recent listings below.</p>
 
-    <!-- Gallery -->
+    <!-- Quick link to the public listings page -->
+    <section class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div><strong>Go see your live marketplace page</strong></div>
+      <a href="/listings.html"><button class="btn-light">View Listings →</button></a>
+    </section>
+
+    <!-- Create Listing -->
+    <section class="card">
+      <h2 style="margin:0 0 10px">Create Listing</h2>
+      <div class="hint" style="margin-bottom:8px">
+        Tip: Upload an image at <a href="/upload.html" target="_blank" rel="noopener">/upload.html</a>, copy the Public URL, and paste it here.
+        Clicking a thumbnail in the gallery below will also copy its URL.
+      </div>
+
+      <form id="listingForm">
+        <div style="display:grid;grid-template-columns:1fr 180px;gap:12px;margin-bottom:12px">
+          <div>
+            <label>Title</label>
+            <input id="title" required placeholder="e.g. Ruby Red Linen, 2 yards"/>
+          </div>
+          <div>
+            <label>Price (USD)</label>
+            <input id="price" type="number" min="0" step="0.01" required placeholder="e.g. 29.00"/>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label>Description</label>
+          <textarea id="description" rows="3" placeholder="Optional details (width, weight, weave, notes)…"></textarea>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label>Image URL</label>
+          <input id="image_url" required placeholder="https://hemlinemarket.com/images/test.svg  or  https://…/storage/v1/object/public/listing-images/…"/>
+          <div class="hint">Paste the public URL to the image in your <code>listing-images</code> bucket, or a short URL from <code>/public/images</code>.</div>
+        </div>
+
+        <button id="saveBtn" type="submit">Save Listing</button>
+        <span id="saveStatus" class="hint"></span>
+      </form>
+    </section>
+
+    <!-- Gallery (from storage) -->
     <section class="card">
       <div class="row">
         <h2 style="margin:0">Your Images</h2>
@@ -49,17 +100,66 @@
       <div id="status">Loading…</div>
       <div id="gallery" class="grid"></div>
     </section>
+
+    <!-- Recent Listings (from DB) -->
+    <section class="card">
+      <div class="row">
+        <h2 style="margin:0">Recent Listings</h2>
+        <span style="flex:1"></span>
+        <button id="reloadListings">Reload</button>
+      </div>
+      <div id="listingsStatus" class="hint">Loading…</div>
+      <div id="listingsGrid" class="listings"></div>
+    </section>
   </main>
 
   <!-- Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script>
-    // Exact working project values
+    // Exact project values you verified
     const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const BUCKET = "listing-images";
 
+    // ---------- Create Listing ----------
+    const listingForm = document.getElementById("listingForm");
+    const saveStatus = document.getElementById("saveStatus");
+
+    listingForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      saveStatus.className = "hint";
+      saveStatus.textContent = "Saving…";
+
+      const title = document.getElementById("title").value.trim();
+      const priceStr = document.getElementById("price").value;
+      const description = document.getElementById("description").value.trim();
+      const image_url = document.getElementById("image_url").value.trim();
+      const price_cents = Math.round(parseFloat(priceStr || "0") * 100);
+
+      if (!title || !image_url || !Number.isFinite(price_cents) || price_cents < 0) {
+        saveStatus.className = "err";
+        saveStatus.textContent = "Please provide a title, a valid price, and an image URL.";
+        return;
+      }
+
+      const { error } = await supabase.from("listings").insert([
+        { title, price_cents, description, image_url }
+      ]);
+
+      if (error) {
+        saveStatus.className = "err";
+        saveStatus.textContent = "Error: " + error.message;
+      } else {
+        saveStatus.className = "ok";
+        saveStatus.textContent = "Saved!";
+        listingForm.reset();
+        loadRecentListings();
+      }
+    });
+
+    // ---------- Storage Gallery ----------
     const statusEl = document.getElementById("status");
     const galleryEl = document.getElementById("gallery");
     const refreshBtn = document.getElementById("refreshBtn");
@@ -82,7 +182,6 @@
       setStatus("Loading…");
       galleryEl.innerHTML = "";
       try{
-        // Show files from test/, listings/, and root
         const [root, test, listings] = await Promise.all([
           listPrefix(""),
           listPrefix("test"),
@@ -101,8 +200,15 @@
           card.className = "thumb";
           card.innerHTML = `
             <img src="${url}" alt="${f.name}"/>
-            <a href="${url}" target="_blank" rel="noopener noreferrer">${f.name}</a>
+            <a href="${url}" target="_blank" rel="noopener noreferrer" title="Click to copy URL">${f.name}</a>
           `;
+          // Click a thumbnail name to copy URL into the form
+          card.querySelector("a").addEventListener("click", (ev) => {
+            ev.preventDefault();
+            navigator.clipboard.writeText(url).catch(()=>{});
+            document.getElementById("image_url").value = url;
+            setStatus("Copied URL to Image URL field.");
+          });
           galleryEl.appendChild(card);
         }
       }catch(e){
@@ -111,7 +217,46 @@
     }
 
     refreshBtn.addEventListener("click", loadImages);
+
+    // ---------- Recent Listings ----------
+    const listingsStatus = document.getElementById("listingsStatus");
+    const listingsGrid = document.getElementById("listingsGrid");
+    const reloadListings = document.getElementById("reloadListings");
+
+    function money(cents){ return `$${(cents/100).toFixed(2)}`; }
+
+    async function loadRecentListings(){
+      listingsStatus.textContent = "Loading…";
+      listingsGrid.innerHTML = "";
+      const { data, error } = await supabase
+        .from("listings")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(12);
+
+      if (error) { listingsStatus.textContent = "Error: " + error.message; return; }
+      if (!data || data.length === 0){ listingsStatus.textContent = "No listings yet."; return; }
+
+      listingsStatus.textContent = `Showing ${data.length} listing${data.length>1?"s":""}.`;
+      for(const row of data){
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        tile.innerHTML = `
+          <img src="${row.image_url}" alt="${row.title}"/>
+          <div class="meta">
+            <div style="font-weight:600">${row.title}</div>
+            <div class="muted">${money(row.price_cents)}</div>
+          </div>
+        `;
+        listingsGrid.appendChild(tile);
+      }
+    }
+
+    reloadListings.addEventListener("click", loadRecentListings);
+
+    // Initial loads
     loadImages();
+    loadRecentListings();
   </script>
 </body>
 </html>
