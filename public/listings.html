@@ -7,7 +7,7 @@
   <style>
     :root{--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--card:#f8fafc;--heart:#e11d48}
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--ink)}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--ink);background:#fff}
     .wrap{max-width:1100px;margin:0 auto;padding:20px}
     header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:14px}
     nav a{padding:8px 10px;border-radius:10px;color:inherit;text-decoration:none}
@@ -19,9 +19,41 @@
     .filters label{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
 
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:14px}
-    .card{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;cursor:pointer}
-    .imgbox{position:relative;background:#fff}
-    .card img{width:100%;height:200px;object-fit:cover;display:block}
+
+    /* Card base */
+    .card{
+      position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;cursor:pointer;
+      transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+      will-change: transform;
+    }
+    /* Lift + premium shadow on hover */
+    .card:hover{
+      transform:translateY(-3px);
+      box-shadow:0 8px 28px rgba(2,6,23,.08), 0 2px 8px rgba(2,6,23,.06);
+      border-color:#dfe3ea;
+    }
+
+    .imgbox{position:relative;background:#fff;isolation:isolate}
+    .card img{width:100%;height:200px;object-fit:cover;display:block;transition:transform .35s ease}
+    /* Subtle image zoom */
+    .card:hover img{transform:scale(1.035)}
+
+    /* Shimmer sweep on hover */
+    .imgbox::after{
+      content:""; position:absolute; inset:0;
+      background:linear-gradient(115deg, transparent 20%, rgba(255,255,255,.28) 35%, transparent 55%);
+      transform:translateX(-120%);
+      opacity:0; pointer-events:none; mix-blend-mode:soft-light;
+    }
+    .card:hover .imgbox::after{
+      animation:shimmer 900ms ease forwards;
+      opacity:1;
+    }
+    @keyframes shimmer{
+      0%{transform:translateX(-120%)}
+      100%{transform:translateX(120%)}
+    }
+
     .meta{padding:10px}
     .title{font-weight:600}
     .price{color:#0f172a;font-weight:700}
@@ -38,6 +70,7 @@
       box-shadow:0 2px 6px rgba(0,0,0,.05);
       cursor:pointer;
       transition:transform .12s ease;
+      z-index:2;
     }
     .fav:hover{transform:scale(1.04)}
     .fav svg{width:20px;height:20px;display:block}
@@ -47,14 +80,20 @@
     }
     .fav.on{background:#fff}
     .fav.on .heart{fill:var(--heart);stroke:var(--heart)}
+    .fav.pop{animation:pop .22s ease}
+    @keyframes pop{0%{transform:scale(.85)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
 
-    /* pop animation when toggled */
-    .fav.pop{animation:pop .22s ease;}
-    @keyframes pop{
-      0%{transform:scale(.85)}
-      60%{transform:scale(1.18)}
-      100%{transform:scale(1)}
+    /* Quick View button (appears on hover) */
+    .quick{
+      position:absolute;left:10px;bottom:10px;z-index:2;
+      padding:8px 12px;border-radius:10px;border:1px solid var(--line);
+      background:rgba(255,255,255,.95);
+      box-shadow:0 2px 6px rgba(0,0,0,.05);
+      font-size:13px;color:#0f172a;
+      opacity:0; transform:translateY(4px);
+      transition:opacity .18s ease, transform .18s ease;
     }
+    .card:hover .quick{opacity:1;transform:translateY(0)}
 
     /* Recently viewed strip */
     .strip{display:grid;grid-auto-flow:column;grid-auto-columns:120px;gap:10px;overflow-x:auto;padding-bottom:6px}
@@ -169,7 +208,7 @@
       }
     }
 
-    // SVG heart
+    // Clean SVG heart
     const HEART_SVG = `
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path class="heart" d="M12.001 5.882c1.425-2.533 5.17-2.66 6.76-.294 1.22 1.84.73 4.3-.99 5.64l-4.91 3.92a1 1 0 0 1-1.22 0l-4.91-3.92c-1.72-1.34-2.21-3.8-.99-5.64 1.59-2.366 5.335-2.239 6.76.294z"/>
@@ -218,9 +257,8 @@
         card.innerHTML = `
           <div class="imgbox">
             <img src="${row.image_url}" alt="${row.title}">
-            <button class="fav ${isFav(row.id)?'on':''}" aria-label="Favorite" title="Favorite">
-              ${HEART_SVG}
-            </button>
+            <button class="fav ${isFav(row.id)?'on':''}" aria-label="Favorite" title="Favorite">${HEART_SVG}</button>
+            <button class="quick" title="Quick View">Quick View</button>
           </div>
           <div class="meta">
             <div class="title">${row.title}</div>
@@ -236,15 +274,19 @@
           toggleFav(row.id);
           const on = isFav(row.id);
           favBtn.classList.toggle("on", on);
-          // trigger pop
           favBtn.classList.remove("pop");
-          // force reflow so animation restarts
-          // eslint-disable-next-line no-unused-expressions
-          favBtn.offsetHeight;
+          favBtn.offsetHeight; // restart animation
           favBtn.classList.add("pop");
         });
 
-        // mark as recently viewed when clicked
+        // Quick View: open image in a new tab + mark recent
+        card.querySelector(".quick").addEventListener("click",(ev)=>{
+          ev.stopPropagation();
+          pushRecent(row);
+          window.open(row.image_url, "_blank", "noopener");
+        });
+
+        // mark as recently viewed when the card is clicked
         card.addEventListener("click", ()=> pushRecent(row));
 
         grid.appendChild(card);
