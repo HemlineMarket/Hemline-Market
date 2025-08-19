@@ -40,33 +40,52 @@
     const status = document.getElementById("status");
     const form = document.getElementById("profile-form");
 
-    // Load user session
+    // Get session
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      signedin.textContent = "Signed in as " + user.email;
-
-      // Load profile
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", user.id)
-        .single();
-
-      if (!error && data) {
-        usernameInput.value = data.username || "";
-      }
+    if (!user) {
+      window.location.href = "auth.html";
     } else {
-      signedin.textContent = "Not signed in";
+      signedin.textContent = "Signed in as " + user.email;
     }
 
-    // Save profile
+    // Load profile using user_id (matches our table schema)
+    async function loadProfile() {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        status.textContent = "Error loading profile: " + error.message;
+        return;
+      }
+
+      if (!profile) {
+        // create blank row if missing (trigger usually does this)
+        const { error: insErr } = await supabase
+          .from("profiles")
+          .insert([{ user_id: user.id }]);
+        if (insErr) {
+          status.textContent = "Error creating profile: " + insErr.message;
+          return;
+        }
+        usernameInput.value = "";
+      } else {
+        usernameInput.value = profile.username || "";
+      }
+    }
+
+    await loadProfile();
+
+    // Save profile (update by user_id)
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      if (!user) return;
-
+      status.textContent = "Saving…";
       const { error } = await supabase
         .from("profiles")
-        .upsert({ id: user.id, username: usernameInput.value });
+        .update({ username: usernameInput.value || null })
+        .eq("user_id", user.id);
 
       status.textContent = error ? "Error: " + error.message : "Saved!";
     });
