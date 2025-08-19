@@ -1,38 +1,42 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Image Upload Test</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Upload Test</title>
 </head>
 <body>
-  <h1>Upload Fabric Image</h1>
+  <h1>Upload Test Page</h1>
   <input type="file" id="fileInput" />
   <button id="uploadBtn">Upload</button>
   <p id="status"></p>
 
   <script type="module">
-    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    const SUPABASE_URL = "YOUR_SUPABASE_URL";
-    const SUPABASE_KEY = "YOUR_ANON_KEY";
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabase = createClient(
+      "https://kzqrfzvobsxbkppuexru.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwiaWF0IjoxNjM2MTc2cXJmenZvYnhzTWtvcHVeHJ1IiwiYcm9zS2SlfLmFub24ICpYXQiOjE3MjMxMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYwWTj0t1t2Tdrp91WhKhm7wKtuK2_Kj0IOizHU"
+    );
 
-    document.getElementById("uploadBtn").onclick = async () => {
-      const file = document.getElementById("fileInput").files[0];
-      if (!file) return alert("Pick a file first!");
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      if (!file) {
+        document.getElementById("status").innerText = "Please choose a file first.";
+        return;
+      }
 
-      const { data, error } = await supabase
-        .storage
+      const { data, error } = await supabase.storage
         .from("listing-images")
         .upload(`test/${Date.now()}-${file.name}`, file);
 
       if (error) {
-        document.getElementById("status").textContent = "❌ Upload failed: " + error.message;
+        document.getElementById("status").innerText = "Error: " + error.message;
       } else {
-        document.getElementById("status").textContent = "✅ Uploaded: " + data.path;
+        document.getElementById("status").innerText = "Uploaded: " + data.path;
       }
-    };
+    });
   </script>
 </body>
 </html>
