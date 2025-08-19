@@ -36,7 +36,7 @@
   </header>
 
   <main>
-    <h2>Your Listings</h2>
+    <h2>All Listings</h2>
     <p id="status" class="muted">Loading…</p>
 
     <details style="margin:12px 0;">
@@ -44,6 +44,7 @@
       <pre id="debug"></pre>
     </details>
 
+    <!-- Add Listing (visible only when signed in) -->
     <form id="listing-form" style="display:none;">
       <input type="text" id="title" placeholder="Title" required />
       <textarea id="description" placeholder="Description"></textarea>
@@ -70,7 +71,7 @@
     const accountLink = document.getElementById("account-link");
     const signoutLink = document.getElementById("signout-link");
 
-    const log = (m, o) => { const line = o ? `${m} ${JSON.stringify(o,null,2)}` : m; console.log(line); debugEl.textContent += line + "\n"; };
+    const log = (m, o) => { const line = o ? `${m} ${JSON.stringify(o,null,2)}` : m; console.log(line); debugEl.textContent += line + "\\n"; };
 
     function setNav(signedIn){
       signinLink.style.display = signedIn ? "none" : "inline";
@@ -84,76 +85,67 @@
       location.reload();
     });
 
-    // getUser with timeout + getSession fallback
-    async function getCurrentUser(){
-      log("Step 1: getUser (with timeout)");
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("getUser timeout")), 1500));
+    async function tryGetUser() {
       try {
-        const result = await Promise.race([supabase.auth.getUser(), timeout]);
-        if (result?.data?.user) return result.data.user;
-      } catch (e) {
-        log("getUser error/timeout:", { message: e.message });
-      }
-      log("Step 1b: fallback getSession()");
-      const { data, error } = await supabase.auth.getSession();
-      if (error) { log("getSession error:", error); return null; }
-      return data?.session?.user ?? null;
+        const t = new Promise((_,rej)=>setTimeout(()=>rej(new Error("getUser timeout")),1200));
+        const r = await Promise.race([supabase.auth.getUser(), t]);
+        return r?.data?.user ?? null;
+      } catch { return null; }
     }
 
-    async function loadListings(){
-      try {
-        const user = await getCurrentUser();
-        log("Step 1c: resolved user", user ? { id: user.id, email: user.email } : null);
-
-        setNav(!!user);
-        form.style.display = user ? "block" : "none";
-
-        if (!user){
-          statusEl.innerHTML = 'Please sign in to see your listings.';
-          listingsEl.innerHTML = "";
-          return;
-        }
-
-        statusEl.textContent = "Loading your listings…";
-        log("Step 2: query listings", { seller_id: user.id });
-
-        const { data, error } = await supabase
-          .from("listings")
-          .select("id,title,description,price,image_url")
-          .eq("seller_id", user.id);
-
-        if (error){
-          log("Select error:", error);
-          statusEl.textContent = "Error loading listings: " + error.message;
-          listingsEl.innerHTML = "";
-          return;
-        }
-
-        log("Step 3: data", data);
-
-        if (!data || data.length === 0){
-          statusEl.textContent = "No listings yet. Add one below.";
-          listingsEl.innerHTML = "";
-          return;
-        }
-
-        statusEl.textContent = "";
-        listingsEl.innerHTML = data.map(l => `
-          <div class="card">
-            ${l.image_url ? `<img src="${l.image_url}" alt="${l.title}">` : ""}
-            <p><strong>${l.title ?? "Untitled"}</strong></p>
-            ${l.description ? `<p>${l.description}</p>` : ""}
-            ${l.price != null ? `<p class="price">$${Number(l.price).toFixed(2)}</p>` : ""}
-          </div>
-        `).join("");
-      } catch (e) {
-        log("Fatal JS error:", { message: e.message, stack: e.stack });
-        statusEl.textContent = "Unexpected error. See Debug box.";
+    async function loadPublicListings(){
+      log("Public: fetching listings (no auth)");
+      const { data, error } = await supabase
+        .from("listings")
+        .select("id,title,description,price,image_url");
+      if (error){
+        log("Public select error:", error);
+        statusEl.textContent = "Error loading listings: " + error.message;
+        return;
       }
+      renderListings(data);
+      statusEl.textContent = data?.length ? "" : "No listings yet.";
     }
 
-    loadListings();
-    supabase.auth.onAuthStateChange(() => loadListings());
+    function renderListings(data){
+      listingsEl.innerHTML = (data ?? []).map(l => `
+        <div class="card">
+          ${l.image_url ? `<img src="${l.image_url}" alt="${l.title}">` : ""}
+          <p><strong>${l.title ?? "Untitled"}</strong></p>
+          ${l.description ? `<p>${l.description}</p>` : ""}
+          ${l.price != null ? `<p class="price">$${Number(l.price).toFixed(2)}</p>` : ""}
+        </div>
+      `).join("");
+    }
+
+    async function init(){
+      // 1) Show listings immediately (public policy you enabled)
+      await loadPublicListings();
+
+      // 2) Try to detect session to show "Add Listing" form
+      const user = await tryGetUser();
+      setNav(!!user);
+      form.style.display = user ? "block" : "none";
+
+      // 3) Handle create (requires auth)
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const u = user || (await tryGetUser());
+        if (!u) { alert("Sign in first."); return; }
+        const { error } = await supabase.from("listings").insert([{
+          seller_id: u.id,
+          title: document.getElementById("title").value,
+          description: document.getElementById("description").value,
+          price: document.getElementById("price").value || null,
+          image_url: document.getElementById("image_url").value || null
+        }]);
+        if (error){ alert("Error: " + error.message); return; }
+        e.target.reset();
+        await loadPublicListings();
+      });
+    }
+
+    init();
   </script>
 </body>
 </html>
