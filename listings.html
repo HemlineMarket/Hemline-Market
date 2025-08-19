@@ -1,1 +1,134 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Listings - Hemline Market</title><style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#fafafa;color:#111}header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}header h1{font-size:20px;margin:0}nav a{color:#fff;text-decoration:none;margin-left:20px;font-size:15px}nav a:hover{text-decoration:underline}main{max-width:900px;margin:40px auto;padding:0 16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}img{width:100%;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover}.price{font-weight:700;font-size:18px}footer{background:#111;color:#fff;margin-top:40px}footer .wrap{max-width:900px;margin:auto;padding:20px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}footer a{color:#fff;text-decoration:none}footer a:hover{text-decoration:underline}</style></head><body><header><h1>Hemline Market</h1><nav><a href="index.html">Home</a><a href="listings.html">Listings</a><a href="signup.html">Sign Up</a></nav></header><main><h2>Available Fabrics</h2><div class="grid"><div><img src="https://picsum.photos/400/300?random=1" alt="Fabric sample"/><p class="price">$25/yard</p></div><div><img src="https://picsum.photos/400/300?random=2" alt="Fabric sample"/><p class="price">$32/yard</p></div></div></main><footer><div class="wrap"><div>© Hemline Market</div><div><a href="index.html">Home</a> · <a href="listings.html">Listings</a> · <a href="signup.html">Sign Up</a></div></div></footer></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Listings - Hemline Market</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#fafafa;color:#111}
+    header{background:#111;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+    header h1{font-size:20px;margin:0}
+    nav a{color:#fff;text-decoration:none;margin-left:20px;font-size:15px}
+    nav a:hover{text-decoration:underline}
+    main{max-width:900px;margin:40px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff}
+    img{width:100%;border-radius:12px;border:1px solid #e5e7eb;object-fit:cover}
+    .price{font-weight:700;font-size:18px}
+    .muted{color:#64748b}
+    .btn{display:inline-block;margin-top:12px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;text-decoration:none;color:#111}
+    .btn:hover{background:#f3f4f6}
+    footer{background:#111;color:#fff;margin-top:40px}
+    footer .wrap{max-width:900px;margin:auto;padding:20px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+    footer a{color:#fff;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hemline Market</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="listings.html">Listings</a>
+      <a href="auth.html" id="signin-link">Sign In</a>
+      <a href="account.html" id="account-link" style="display:none;">Account</a>
+      <a href="#" id="signout-link" style="display:none;">Sign Out</a>
+    </nav>
+  </header>
+
+  <main>
+    <h2>Your Listings</h2>
+    <p id="status" class="muted">Loading…</p>
+    <div id="listings" class="grid"></div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div>© Hemline Market</div>
+      <div>
+        <a href="index.html">Home</a> ·
+        <a href="listings.html">Listings</a> ·
+        <a href="account.html">Account</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Inline module to auth-gate and fetch only the current user's listings -->
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const statusEl = document.getElementById("status");
+    const listingsEl = document.getElementById("listings");
+    const signinLink = document.getElementById("signin-link");
+    const accountLink = document.getElementById("account-link");
+    const signoutLink = document.getElementById("signout-link");
+
+    async function refreshNav() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const signedIn = !!user;
+      if (signinLink) signinLink.style.display = signedIn ? "none" : "inline";
+      if (accountLink) accountLink.style.display = signedIn ? "inline" : "none";
+      if (signoutLink) signoutLink.style.display = signedIn ? "inline" : "none";
+    }
+
+    signoutLink?.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await supabase.auth.signOut();
+      location.reload();
+    });
+
+    async function loadListings() {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        statusEl.innerHTML = 'Please sign in to see your listings. <a class="btn" href="auth.html">Sign In</a>';
+        listingsEl.innerHTML = "";
+        await refreshNav();
+        return;
+      }
+
+      statusEl.textContent = "Loading your listings…";
+
+      // Adjust the table/columns to your schema. We assume a "listings" table with user_id, title, description, price, image_url
+      const { data, error } = await supabase
+        .from("listings")
+        .select("id,title,description,price,image_url")
+        .eq("user_id", user.id)
+        .order("id", { ascending: false });
+
+      if (error) {
+        statusEl.textContent = "Error loading listings: " + error.message;
+        listingsEl.innerHTML = "";
+        await refreshNav();
+        return;
+      }
+
+      await refreshNav();
+
+      if (!data || data.length === 0) {
+        statusEl.innerHTML = 'No listings yet. <span class="muted">Create your first listing from your seller tools.</span>';
+        listingsEl.innerHTML = "";
+        return;
+      }
+
+      statusEl.textContent = "";
+      listingsEl.innerHTML = data.map(l => `
+        <div class="card">
+          ${l.image_url ? `<img src="${l.image_url}" alt="${l.title}"/>` : ""}
+          <h3>${l.title ?? "Untitled"}</h3>
+          ${l.description ? `<p>${l.description}</p>` : ""}
+          ${typeof l.price === "number" ? `<p class="price">$${l.price}</p>` : ""}
+        </div>
+      `).join("");
+    }
+
+    loadListings();
+    supabase.auth.onAuthStateChange(() => { loadListings(); refreshNav(); });
+  </script>
+</body>
+</html>
