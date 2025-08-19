@@ -5,15 +5,31 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Account</title>
   <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .wrap{max-width:900px;margin:24px auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    label{display:block;margin-top:12px;font-weight:600}
+    input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px}
+    button{margin-top:16px;padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer}
+    .row{display:flex;gap:16px;align-items:center;margin-top:8px}
+    .avatar{width:72px;height:72px;border-radius:50%;border:1px solid #e5e7eb;object-fit:cover}
+    .muted{color:#64748b}
+  </style>
 </head>
 <body>
   <div class="wrap">
     <h1>My Account</h1>
-    <p id="status">Loading...</p>
+    <p id="status" class="muted">Loading...</p>
 
     <form id="profile-form" style="display:none;">
       <label>Full name</label>
       <input type="text" id="full_name" />
+
+      <label>Avatar URL</label>
+      <input type="url" id="avatar_url" placeholder="https://…"/>
+      <div class="row">
+        <img id="avatar_preview" class="avatar" alt="avatar preview" src="" />
+        <span class="muted">Paste an image URL to preview</span>
+      </div>
 
       <button type="submit">Save Profile</button>
     </form>
@@ -24,56 +40,62 @@
 
     const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const status = document.getElementById("status");
+    const statusEl = document.getElementById("status");
     const form = document.getElementById("profile-form");
     const fullNameInput = document.getElementById("full_name");
+    const avatarInput = document.getElementById("avatar_url");
+    const avatarPreview = document.getElementById("avatar_preview");
+
+    function setPreview(url){
+      if (!url) { avatarPreview.src = ""; return; }
+      avatarPreview.src = url;
+    }
+    avatarInput.addEventListener("input", () => setPreview(avatarInput.value));
 
     async function loadProfile() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        status.textContent = "Not signed in.";
-        return;
-      }
+      if (!user) { statusEl.textContent = "Not signed in."; return; }
 
-      // Fetch existing profile row
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, avatar_url")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") {
-        status.textContent = "Error: " + error.message;
-        return;
-      }
+      if (error) { statusEl.textContent = "Error: " + error.message; return; }
 
-      // Show form
       form.style.display = "block";
-      status.textContent = "Signed in as " + user.email;
+      statusEl.textContent = "Signed in.";
 
-      // Pre-fill name if exists
       if (data) {
         fullNameInput.value = data.full_name || "";
+        avatarInput.value = data.avatar_url || "";
+        setPreview(avatarInput.value);
+      } else {
+        // create blank profile if missing
+        const { error: insErr } = await supabase.from("profiles").insert([{ user_id: user.id }]);
+        if (insErr) { statusEl.textContent = "Error: " + insErr.message; return; }
       }
     }
 
-    // Save profile
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      statusEl.textContent = "Saving…";
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        status.textContent = "Not signed in.";
-        return;
-      }
+      if (!user) { statusEl.textContent = "Not signed in."; return; }
 
       const { error } = await supabase
         .from("profiles")
-        .upsert({ user_id: user.id, full_name: fullNameInput.value });
+        .update({
+          full_name: fullNameInput.value || null,
+          avatar_url: avatarInput.value || null
+        })
+        .eq("user_id", user.id);
 
-      status.textContent = error ? "Error: " + error.message : "Saved!";
+      statusEl.textContent = error ? "Error: " + error.message : "Saved!";
+      if (!error) setPreview(avatarInput.value);
     });
 
     loadProfile();
