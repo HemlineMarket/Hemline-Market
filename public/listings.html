@@ -31,29 +31,27 @@
     toast('Added to cart');
   });
 
-  // Observe listings container and inject Add-to-cart buttons once items render
-  const target = document.getElementById('listings');
-  const observer = new MutationObserver(()=>{
-    target.querySelectorAll('.listing-card').forEach(card=>{
-      if(card.querySelector('[data-add-to-cart]')) return;
-      const id = card.querySelector('h3.title')?.textContent?.trim() || 'unknown';
-      const title = card.querySelector('h3.title')?.textContent?.trim() || 'Fabric';
-      const priceText = card.querySelector('.price')?.textContent?.replace(/[^0-9]/g,'') || '0';
-      const seller = 'unknown';
+  // Inject Add-to-cart buttons directly when rendering each card
+  const oldRenderCard = window.renderCard;
+  window.renderCard = function(item, idxOffset){
+    const card = oldRenderCard(item, idxOffset);
 
+    // Find info area under the card
+    const info = card.querySelector('.info');
+    if(info && !info.querySelector('[data-add-to-cart]')){
       const btn = document.createElement('button');
       btn.className='hm-add';
       btn.textContent='Add to cart';
       btn.setAttribute('data-add-to-cart','1');
-      btn.setAttribute('data-id', id);
-      btn.setAttribute('data-title', title);
-      btn.setAttribute('data-price-cents', priceText);
-      btn.setAttribute('data-seller-id', seller);
+      btn.setAttribute('data-id', item.id);
+      btn.setAttribute('data-title', item.title || 'Fabric');
+      btn.setAttribute('data-price-cents', item.price_cents || 0);
+      btn.setAttribute('data-seller-id', item.seller_id || 'unknown');
+      info.appendChild(btn);
+    }
 
-      (card.querySelector('.info') || card).appendChild(btn);
-    });
-  });
-  observer.observe(target, { childList:true, subtree:true });
+    return card;
+  };
 })();
 </script>
 
