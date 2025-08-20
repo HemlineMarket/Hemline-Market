@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Orders</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
+  .wrap{max-width:1000px;margin:auto}
+  h1{margin:0 0 12px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden}
+  th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left}
+  th{background:#f8fafc;font-weight:700}
+  tr:last-child td{border-bottom:0}
+  .muted{color:#64748b;font-size:14px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+  window.supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+</head>
+<body>
+<div class="wrap">
+  <h1>Orders</h1>
+  <div id="authStatus" class="muted"></div>
+  <div id="orders"></div>
+</div>
+
+<script>
+(async()=>{
+  const { data: { user } } = await window.supa.auth.getUser();
+  const authStatus = document.getElementById('authStatus');
+  if(!user){ authStatus.textContent = "Not signed in."; return; }
+  authStatus.textContent = "Signed in as " + (user.email || user.id);
+
+  const { data, error } = await window.supa.from('seller_orders').select('*').order('created_at',{ascending:false}).limit(50);
+  if(error){ document.getElementById('orders').textContent = "Error: " + error.message; return; }
+  if(!data.length){ document.getElementById('orders').textContent = "No orders found."; return; }
+
+  const rows = data.map(o=>`
+    <tr>
+      <td>${o.order_id}</td>
+      <td>${o.status}</td>
+      <td>${o.title||''}</td>
+      <td>${o.qty}</td>
+      <td>$${(o.unit_price_cents/100).toFixed(2)}</td>
+      <td>$${(o.line_total_cents/100).toFixed(2)}</td>
+      <td>${o.buyer_email||''}</td>
+      <td>${new Date(o.created_at).toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('orders').innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Order ID</th><th>Status</th><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th><th>Buyer</th><th>Created</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+})();
+</script>
+</body>
+</html>
