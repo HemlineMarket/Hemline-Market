@@ -1,64 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Listings</title>
+
+<!-- Base styles -->
+<style>
+  :root { --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa; --accent:#111827; --badge:#0ea5e9; --card:#ffffff; }
+  body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
+  .wrap { max-width: 1000px; margin:auto; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+  /* Sticky toolbar */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 12px; margin: 8px 0 16px;
+    background: rgba(250,250,250,.85); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  .toolbar label { display:flex; align-items:center; gap:8px; font-weight:600; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--card); font-size:12px; cursor:pointer; }
+  .chip.active { border-color:#0ea5e9; color:#0ea5e9; font-weight:700; }
+  .count { margin-left:auto; font-size:12px; color:#64748b; }
+
+  /* CARD */
+  .listing-card {
+    position:relative; border-radius:12px; overflow:hidden; background:#fff;
+    border:1px solid var(--line); box-shadow:0 2px 6px rgba(0,0,0,.05);
+    transition:transform .2s ease, box-shadow .2s ease;
+    opacity:0; transform:translateY(8px);
+  }
+  .listing-card.show { opacity:1; transform:translateY(0); animation:fadeUp .38s ease both; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  @media (prefers-reduced-motion: reduce){ .listing-card,.listing-card.show{ transition:none; animation:none; opacity:1; transform:none; } }
+  .listing-card:hover { transform:translateY(-4px) scale(1.02); box-shadow:0 6px 16px rgba(0,0,0,.15); }
+
+  .imgwrap { position:relative; background:#f8fafc; overflow:hidden; }
+  .listing-card img { width:100%; height:240px; object-fit:cover; display:block; }
+
+  /* Hover quick peek */
+  .overlay { position:absolute; inset:0; background:rgba(0,0,0,.45); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:600; font-size:15px;
+    opacity:0; transition:opacity .25s ease; }
+  .imgwrap:hover .overlay { opacity:1; }
+
+  /* Date badge (on image, not under cards) */
+  .badge { position:absolute; left:8px; top:8px; background:rgba(14,165,233,.95); color:#fff;
+    padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
+    border:1px solid rgba(255,255,255,.5); box-shadow:0 2px 6px rgba(0,0,0,.08); }
+
+  .info { padding:12px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; }
+  .title { font-weight:600; line-height:1.2; margin:0; }
+  .price { font-weight:800; letter-spacing:.2px; color:var(--accent); font-size:22px; line-height:1; white-space:nowrap; }
+  .price .cur { opacity:.55; font-weight:600; margin-right:1px; }
+
+  /* HARD-HIDE any legacy under-card dates */
+  time, [datetime], .info .date, .card-date, .meta-date, .muted small, .card small { display:none !important; }
+
+  /* Favorite heart */
+  .fav { position:absolute; top:8px; right:8px; cursor:pointer; font-size:20px;
+         color:#cbd5e1; transition:transform 0.2s ease, color 0.2s ease; user-select:none; }
+  .fav.active { color:#e11d48; }
+  .fav.pop { transform:scale(1.4); }
+
+  /* Broken image classy placeholder */
+  .ph { width:100%; height:240px; display:grid; place-items:center;
+    background:linear-gradient(135deg,#f3f4f6 10%, #eef2f7 90%); color:#64748b; font-weight:600; }
+  .ph .dot { width:52px; height:52px; border-radius:14px; border:1px solid #e5e7eb; display:grid; place-items:center;
+    background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.05); }
+
+  /* Empty state */
+  .empty { text-align:center; padding:60px 20px; color:#64748b; display:none; }
+  .empty svg { width:80px; height:80px; margin-bottom:16px; opacity:.7; }
+  .empty h2 { font-size:20px; margin:0 0 8px; color:#0f172a; }
+  .empty p { margin:0 0 20px; }
+  .btn { display:inline-block; padding:10px 18px; border-radius:999px;
+    background:#0ea5e9; color:#fff; font-weight:600; text-decoration:none; }
+
+  /* SKELETONS */
+  .skeleton-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .sk-card { border:1px solid var(--line); border-radius:12px; background:#fff; overflow:hidden; }
+  .sk-img { height:240px; background:linear-gradient(90deg,#f3f4f6 25%,#eef1f5 37%,#f3f4f6 63%); }
+  .sk-row { height:18px; margin:12px; border-radius:6px;
+    background:linear-gradient(90deg,#f3f4f6 25%,#eef1f5 37%,#f3f4f6 63%); }
+  .sk-row.w60 { width:60%; } .sk-row.w30 { width:30%; }
+  @keyframes shimmer { 0%{background-position:-200px 0} 100%{background-position:200px 0} }
+  .sk-img, .sk-row { background-size:400px 100%; animation:shimmer 1.2s infinite linear; }
+  @media (prefers-reduced-motion: reduce){ .sk-img,.sk-row { animation:none; } }
+
+  /* Quick View modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal{width:min(860px,92vw);background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #e5e7eb}
+  .modal-title{font-weight:700}
+  .modal-close{border:1px solid #e5e7eb;border-radius:10px;background:#fff;padding:6px 10px;cursor:pointer}
+  .modal-body{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}
+  .modal-body img{width:100%;height:360px;object-fit:cover;border:1px solid #e5e7eb;border-radius:12px}
+  .kv{color:#64748b;font-size:14px;margin:4px 0}
+  .bigprice{font-size:28px;font-weight:800}
+  @media (max-width:720px){ .modal-body{grid-template-columns:1fr} .modal-body img{height:260px} }
+</style>
+
+<!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-async function loadListings() {
-  // pick the real grid container (id first, then class fallback)
-  const grid = document.getElementById('listings') || document.querySelector('.grid');
-  const empty = document.getElementById('empty');
-  const sk = document.getElementById('skeletons');
+  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+  window.supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+</head>
+<body>
+  <div class="wrap">
+    <h1 style="margin:0 0 12px">Fabric Listings</h1>
 
-  if (!grid) { console.error('No listings container found'); return; }
+    <!-- Sticky toolbar -->
+    <div class="toolbar" id="toolbar">
+      <label><input type="checkbox" id="onlyFavs"> Favorites only</label>
+      <div class="chips" id="priceChips">
+        <button class="chip" data-range="u20">Under $20</button>
+        <button class="chip" data-range="20-50">$20–$50</button>
+        <button class="chip" data-range="50p">$50+</button>
+      </div>
+      <span class="chip" id="favCount">♥ 0 saved</span>
+      <span class="count" id="resultCount"></span>
+    </div>
 
-  // show skeletons if present
-  if (sk) sk.style.display = 'grid';
-  if (grid) grid.style.display = 'none';
-  if (empty) empty.style.display = 'none';
+    <!-- Skeletons while loading -->
+    <div id="skeletons" class="skeleton-grid" aria-hidden="true"></div>
 
-  // fetch from Supabase
-  const { data, error } = await window.supa
-    .from('listings')
-    .select('id,title,price_cents,price,image_url,created_at')
-    .order('created_at', { ascending: false })
-    .limit(50);
+    <!-- Real listings -->
+    <div id="listings" class="grid" style="display:none;"></div>
 
-  // hide skeletons
-  if (sk) sk.style.display = 'none';
+    <!-- Empty state -->
+    <div id="empty" class="empty">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 7l9-4 9 4M4 10h16v10H4z"/>
+      </svg>
+      <h2>No fabrics match your filters</h2>
+      <p>Try adjusting your search or clear filters to see more.</p>
+      <a href="#" class="btn" onclick="clearFilters()">Clear filters</a>
+    </div>
+  </div>
 
-  if (error) {
-    console.error('Error loading listings:', error);
-    if (empty) { empty.style.display = 'block'; }
-    return;
-  }
-
-  const rows = data || [];
-  grid.innerHTML = '';
-
-  if (!rows.length) {
-    if (empty) { empty.style.display = 'block'; }
-    return;
-  }
-
-  // show grid
-  grid.style.display = 'grid';
-  if (empty) empty.style.display = 'none';
-
-  rows.forEach(item => {
-    const price = (typeof item.price_cents === 'number')
-      ? (item.price_cents / 100).toFixed(2)
-      : (item.price || '0.00');
-
-    grid.insertAdjacentHTML('beforeend', `
-      <div class="listing-card">
-        <div class="imgwrap">
-          <img src="${item.image_url}" alt="${item.title || ''}">
-          <div class="fav" onclick="this.classList.toggle('active'); this.classList.add('pop'); setTimeout(()=>this.classList.remove('pop'),200);">♥</div>
-          <div class="overlay">View details</div>
-        </div>
-        <div class="info">
-          <h3 class="title">${item.title || ''}</h3>
-          <div class="price"><span class="cur">$</span>${price}</div>
+  <!-- Quick View modal -->
+  <div id="qv" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="qv-title">
+    <div class="modal">
+      <div class="modal-header">
+        <div id="qv-title" class="modal-title">Item</div>
+        <button class="modal-close" onclick="closeQV()">Close</button>
+      </div>
+      <div class="modal-body">
+        <img id="qv-img" alt="">
+        <div>
+          <div id="qv-price" class="bigprice" style="margin-bottom:6px">$0.00</div>
+          <div id="qv-when" class="kv">New arrival</div>
+          <div id="qv-desc" style="margin-top:10px;line-height:1.4"></div>
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+            <button id="qv-fav" class="modal-close" style="background:#111827;color:#fff;border-color:#111827">♥ Add to favorites</button>
+            <a id="qv-open" class="modal-close" href="#" target="_blank" rel="noopener" style="text-decoration:none">Open image</a>
+          </div>
         </div>
       </div>
-    `);
+    </div>
+  </div>
+
+<script>
+  /* ---------- helpers ---------- */
+  const LS_KEY = 'hemlinemarket:favorites';
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function getFavStore(){ try { return new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]')); } catch { return new Set(); } }
+  function saveFavStore(set){ try { localStorage.setItem(LS_KEY, JSON.stringify([...set])); } catch {} }
+  function keyFor(item){ return item.id ?? item.image_url ?? item.title ?? String(Math.random()); }
+
+  function humanizeDate(iso){ if(!iso) return "New arrival"; const dt=new Date(iso); if(isNaN(dt)) return "New arrival";
+    const now=new Date(); const d=Math.floor((now-dt)/(24*60*60*1000)); if(d<=1) return "New arrival"; if(d<7) return d+" days ago"; return dt.toLocaleDateString(); }
+
+  function imgWithFallback(src, alt=''){
+    const img=document.createElement('img'); img.loading='lazy'; img.decoding='async'; img.src=src; img.alt=alt;
+    img.onerror=()=>{ if(img.dataset.failed) return; img.dataset.failed=1; const wrap=img.parentElement; const ph=document.createElement('div'); ph.className='ph'; ph.innerHTML='<div class="dot">🧵</div>'; wrap.replaceChild(ph,img); };
+    return img;
+  }
+
+  function clearFilters(){ document.getElementById('onlyFavs').checked=false; priceRange=null; syncChipStates(); render(currentData); }
+
+  function openQV(item){
+    const $ = id => document.getElementById(id);
+    const price = (typeof item.price_cents==='number') ? (item.price_cents/100).toFixed(2) : (item.price || '0.00');
+    $('qv-title').textContent = item.title || '';
+    $('qv-img').src = item.image_url || '';
+    $('qv-img').alt = item.title || '';
+    $('qv-price').textContent = `$${price}`;
+    $('qv-when').textContent = humanizeDate(item.created_at || item.date);
+    $('qv-desc').textContent = item.description || '';
+    $('qv-open').href = item.image_url || '#';
+
+    const favBtn = $('qv-fav');
+    favBtn.onclick = () => {
+      let set = getFavStore();
+      const k = keyFor(item);
+      if(set.has(k)) set.delete(k); else set.add(k);
+      saveFavStore(set);
+      closeQV();
+    };
+
+    document.getElementById('qv').style.display='flex';
+  }
+  function closeQV(){ document.getElementById('qv').style.display='none'; }
+  document.addEventListener('click', (e)=>{ const qv=document.getElementById('qv'); if(qv && qv.style.display==='flex' && e.target===qv){ closeQV(); } });
+
+  /* ---------- data + rendering ---------- */
+  let currentData = [];
+  let favSet = getFavStore();
+  let priceRange = null; // 'u20' | '20-50' | '50p' | null
+
+  function updateFavCount(){ document.getElementById('favCount').textContent = `♥ ${favSet.size} saved`; }
+  function updateResultCount(n){ document.getElementById('resultCount').textContent = n ? `${n} item${n>1?'s':''}` : ''; }
+
+  function priceMatches(cents){
+    if(priceRange === 'u20')  return cents < 2000;
+    if(priceRange === '20-50') return cents >= 2000 && cents <= 5000;
+    if(priceRange === '50p')   return cents > 5000;
+    return true;
+  }
+  function syncChipStates(){ document.querySelectorAll('.chip[data-range]').forEach(btn=>btn.classList.toggle('active', btn.dataset.range===priceRange)); }
+
+  function render(data){
+    const onlyFavs = document.getElementById('onlyFavs').checked;
+    const container = document.getElementById('listings');
+    const empty = document.getElementById('empty');
+
+    const rows = (data||[]).filter(it=>{
+      const cents = typeof it.price_cents==='number' ? it.price_cents : Math.round(parseFloat(it.price||'0')*100);
+      const favOK = !onlyFavs || favSet.has(keyFor(it));
+      const priceOK = priceMatches(cents);
+      return favOK && priceOK;
+    });
+
+    container.innerHTML = '';
+    updateResultCount(rows.length);
+
+    if(rows.length === 0){
+      empty.style.display = 'block';
+      container.style.display = 'none';
+      return;
+    }
+    empty.style.display = 'none';
+    container.style.display = 'grid';
+
+    rows.forEach((item, idx) => {
+      const price=(typeof item.price_cents==='number')?(item.price_cents/100).toFixed(2):(item.price||'0.00');
+      const when=humanizeDate(item.created_at||item.date);
+      const k = keyFor(item);
+
+      const card=document.createElement('div'); card.className='listing-card';
+
+      const imgwrap=document.createElement('div'); imgwrap.className='imgwrap';
+      imgwrap.appendChild(imgWithFallback(item.image_url,item.title||''));
+
+      const badge=document.createElement('div'); badge.className='badge'; badge.textContent=when; imgwrap.appendChild(badge);
+
+      const fav=document.createElement('div'); fav.className='fav'; fav.textContent='♥';
+      if (favSet.has(k)) fav.classList.add('active');
+      fav.addEventListener('click',e=>{
+        e.stopPropagation();
+        fav.classList.toggle('active');
+        fav.classList.add('pop'); setTimeout(()=>fav.classList.remove('pop'),200);
+        if (fav.classList.contains('active')) favSet.add(k); else favSet.delete(k);
+        saveFavStore(favSet); updateFavCount();
+        if (document.getElementById('onlyFavs').checked && !fav.classList.contains('active')) {
+          card.remove(); updateResultCount(container.children.length);
+          if (!container.children.length) { document.getElementById('empty').style.display='block'; container.style.display='none'; }
+        }
+      });
+      imgwrap.appendChild(fav);
+
+      const overlay=document.createElement('div'); overlay.className='overlay'; overlay.textContent=item.quickpeek||"Quick View";
+      imgwrap.appendChild(overlay);
+
+      const info=document.createElement('div'); info.className='info';
+      info.innerHTML=`<h3 class="title">${item.title||''}</h3><div class="price"><span class="cur">$</span>${price}</div>`;
+
+      card.appendChild(imgwrap); card.appendChild(info); container.appendChild(card);
+      // clicking the card (not the heart) opens modal
+      card.addEventListener('click', (e)=>{ if(!e.target.classList.contains('fav')) openQV(item); });
+
+      if(!reduceMotion) setTimeout(()=>card.classList.add('show'),60*idx); else card.classList.add('show');
+    });
+  }
+
+  async function loadListings(){
+    // Show skeletons
+    const sk = document.getElementById('skeletons');
+    sk.innerHTML = '';
+    for (let i=0;i<6;i++){ sk.insertAdjacentHTML('beforeend', `<div class="sk-card"><div class="sk-img"></div><div class="sk-row w60"></div><div class="sk-row w30" style="margin-top:-6px;"></div></div>`); }
+    sk.style.display='grid';
+    document.getElementById('listings').style.display='none';
+    document.getElementById('empty').style.display='none';
+
+    // Fetch from Supabase
+    const { data, error } = await window.supa
+      .from('listings')
+      .select('id,title,price_cents,price,image_url,created_at,description')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    // Hide skeletons and render
+    sk.style.display='none';
+
+    if (error) {
+      console.error('Error loading listings:', error);
+      document.getElementById('empty').style.display='block';
+      return;
+    }
+
+    currentData = data || [];
+    updateFavCount();
+    render(currentData);
+  }
+
+  // Wire toolbar
+  document.getElementById('onlyFavs').addEventListener('change', ()=>render(currentData));
+  document.getElementById('priceChips').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.chip[data-range]');
+    if(!btn) return;
+    priceRange = (priceRange === btn.dataset.range) ? null : btn.dataset.range;
+    syncChipStates(); render(currentData);
   });
-}
-loadListings();
+
+  // Kick off
+  loadListings();
 </script>
+</body>
+</html>
