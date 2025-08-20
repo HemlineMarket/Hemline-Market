@@ -3,67 +3,59 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Listings</title>
+  <title>Fabric Listings</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 24px; background:#fafafa; color:#111; }
-    h1 { font-size: 1.8em; margin-bottom: 12px; }
-    #listings { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
-    .listing-card { border:1px solid #ddd; border-radius:8px; overflow:hidden; background:#fff; box-shadow:0 2px 5px rgba(0,0,0,0.08); }
-    .listing-card img { width:100%; height:180px; object-fit:cover; display:block; }
-    .info { padding:12px; }
-    .title { font-size:1em; margin:0 0 6px; }
-    .price { font-weight:bold; color:#333; }
-    .error { color:#d00; margin-top:20px; }
+    :root { --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; --accent:#111827; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
+    h1 { font-size:1.5rem; font-weight:700; margin-bottom:1rem; }
+    .grid { display:grid; grid-template-columns:1fr; gap:16px; max-width:800px; margin:auto; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; }
+    .card img { width:100%; height:180px; object-fit:cover; border-radius:8px; margin-bottom:12px; background:#f3f4f6; }
+    .title { font-weight:600; margin-bottom:4px; }
+    .price { color:#111827; font-size:0.95rem; }
+    .error { color:red; }
   </style>
 </head>
 <body>
   <h1>Fabric Listings</h1>
-  <div id="listings"></div>
-  <div id="empty" style="display:none;">No fabrics found.</div>
-  <div id="error" class="error" style="display:none;">Error loading listings.</div>
+  <div id="listings" class="grid"></div>
+  <div id="error" class="error"></div>
 
-  <!-- Load Supabase client -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // Correct project credentials for clkizksbvxjkoatdajgd.supabase.co
     const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_KEY = "YOUR_ANON_KEY"; // replace with anon key
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     async function loadListings() {
       const { data, error } = await supabase
         .from("listings")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("id", { ascending: false });
 
       console.log("Supabase fetch result:", { data, error });
 
-      const container = document.getElementById("listings");
-      const emptyEl = document.getElementById("empty");
-      const errorEl = document.getElementById("error");
-
       if (error) {
-        errorEl.style.display = "block";
-        errorEl.textContent = "Error loading listings.";
+        document.getElementById("error").textContent = "Error loading listings.";
         return;
       }
-      if (!data || data.length === 0) {
-        emptyEl.style.display = "block";
-        return;
-      }
+
+      const container = document.getElementById("listings");
+      container.innerHTML = "";
 
       data.forEach(item => {
         const card = document.createElement("div");
-        card.className = "listing-card";
+        card.className = "card";
+
+        // fallback to reliable placeholder
+        const imgUrl = item.image_url || "https://placehold.co/300x180?text=Hemline+Image";
+
         card.innerHTML = `
-          <img src="${item.image_url || "https://via.placeholder.com/300x180?text=No+Image"}" alt="${item.title || "Fabric"}"/>
-          <div class="info">
-            <h3 class="title">${item.title || "Untitled"}</h3>
-            <div class="price">$${(Number(item.price_cents || 0)/100).toFixed(2)}</div>
-          </div>
+          <img src="${imgUrl}" alt="${item.title || 'Fabric'}" />
+          <div class="title">${item.title || "Untitled"}</div>
+          <div class="price">$${item.price?.toFixed(2) || "0.00"}</div>
         `;
+
         container.appendChild(card);
       });
     }
