@@ -513,5 +513,67 @@
 
   loadListings();
 </script>
+
+  <!-- Add-to-cart button style (compact) -->
+<style>
+.hm-add {display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;background:#111827;color:#fff;font:600 13px/1.1 system-ui,-apple-system,Segoe UI,Inter,Arial,sans-serif;cursor:pointer}
+.hm-add:hover{opacity:.9}
+.hm-toast{position:fixed;right:14px;bottom:14px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;font:600 13px system-ui,-apple-system,Segoe UI,Inter,Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.15);opacity:0;transform:translateY(8px);transition:all .25s}
+.hm-toast.show{opacity:1;transform:translateY(0)}
+.hm-cart-fab{position:fixed;right:14px;bottom:64px;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:10px 12px;font:600 13px system-ui,-apple-system,Segoe UI,Inter,Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.08);text-decoration:none;color:#111827}
+</style>
+
+<!-- Floating link to Cart page -->
+<a class="hm-cart-fab" href="/cart.html">Cart</a>
+
+<!-- Add-to-cart wiring: works for any element with data-add-to-cart + data attrs -->
+<script src="/cart.js"></script>
+<script>
+(function(){
+  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  function toast(msg){
+    let t=document.querySelector('.hm-toast'); if(!t){t=document.createElement('div');t.className='hm-toast';document.body.appendChild(t);}
+    t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1400);
+  }
+  // Attach to any existing or future buttons with data-add-to-cart
+  document.addEventListener('click', (e)=>{
+    const el = e.target.closest('[data-add-to-cart]');
+    if(!el) return;
+    e.preventDefault();
+    const item = {
+      id: el.getAttribute('data-id'),
+      title: el.getAttribute('data-title') || 'Fabric',
+      seller_id: el.getAttribute('data-seller-id') || 'unknown',
+      unit_price_cents: parseInt(el.getAttribute('data-price-cents')||'0',10),
+      qty: parseInt(el.getAttribute('data-qty')||'1',10)
+    };
+    if(!item.id){ toast('Missing item id'); return; }
+    if(!window.HEM_CART){ toast('Cart not loaded'); return; }
+    window.HEM_CART.addItem(item);
+    toast('Added to cart');
+  });
+
+  // If your cards don’t have buttons yet, auto-inject a tiny button for any element with data-listing-id
+  $$('[data-listing-id]').forEach(card=>{
+    if(card.querySelector('[data-add-to-cart]')) return;
+    const id = card.getAttribute('data-listing-id');
+    const title = card.getAttribute('data-title') || card.querySelector('h3, .title')?.textContent?.trim() || 'Fabric';
+    const price = card.getAttribute('data-price-cents') || '0';
+    const seller = card.getAttribute('data-seller-id') || 'unknown';
+    const btn = document.createElement('button');
+    btn.className='hm-add';
+    btn.textContent='Add to cart';
+    btn.setAttribute('data-add-to-cart','1');
+    btn.setAttribute('data-id', id);
+    btn.setAttribute('data-title', title);
+    btn.setAttribute('data-price-cents', price);
+    btn.setAttribute('data-seller-id', seller);
+    (card.querySelector('.actions') || card).appendChild(btn);
+  });
+})();
+</script>
+
+<div class="hm-toast" aria-live="polite"></div>
+  
 </body>
 </html>
