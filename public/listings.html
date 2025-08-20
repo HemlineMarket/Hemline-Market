@@ -5,84 +5,64 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Listings</title>
   <style>
-    body { font-family: sans-serif; margin: 24px; background:#fafafa; color:#111; }
-    h1 { font-size: 1.5rem; margin-bottom: 16px; }
-    #listings { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .listing-card { border: 1px solid #ddd; padding: 12px; border-radius: 8px; background:#fff; }
-    .imgwrap { position: relative; }
-    .imgwrap img { max-width: 100%; border-radius: 6px; }
-    .info { margin-top: 8px; }
-    .price { font-weight: bold; margin-top: 4px; }
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    h1 { font-size: 1.8em; margin-bottom: 12px; }
+    #listings { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+    .listing-card { border:1px solid #ddd; border-radius:8px; overflow:hidden; background:#fff; box-shadow:0 2px 5px rgba(0,0,0,0.08); transition:0.3s; }
+    .listing-card img { width:100%; height:180px; object-fit:cover; display:block; }
+    .info { padding:12px; }
+    .title { font-size:1em; margin:0 0 6px; }
+    .price { font-weight:bold; color:#333; }
+    .error { color:red; margin-top:20px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Fabric Listings</h1>
-    <div id="empty" style="display:none;">No fabrics found.</div>
-    <div id="listings"></div>
-  </div>
+  <h1>Fabric Listings</h1>
+  <div id="listings"></div>
+  <div id="empty" style="display:none;">No fabrics found.</div>
+  <div id="error" class="error" style="display:none;">Error loading listings.</div>
 
-  <!-- Load Supabase client -->
+  <!-- Load Supabase -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
   <script>
-    // ✅ Using your real Supabase project credentials
-    const SUPABASE_URL = "https://zjylolndvwlxnbmwfwgu.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqeWxvbG5kdndseG5ibXdmd2d1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM3Nzk0NTUsImV4cCI6MjAzOTM1NTQ1NX0.g3OC_xxQuEnxWQZw9RSybS2jo1nKPnIpP5TFldcMUVg";
+    // ✅ Use your real project values
+    const SUPABASE_URL = "https://kzqrfzvobxsbkppuexru.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM3MjQzNDYsImV4cCI6MjAzOTMwMDM0Nn0.2qKp6_My8m8Ry4WWXzAOn2xjFiqVbLAnf_lM7lzHbFc";
 
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Fetch listings
-    async function loadListings(){
-      const { data, error } = await client.from("listings").select("*").order("created_at", { ascending: false });
-      console.log("Supabase fetch result:", {data, error});
+    async function loadListings() {
+      const { data, error } = await supabase
+        .from("listings")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      const container = document.getElementById('listings');
-      const emptyMsg = document.getElementById('empty');
-      container.innerHTML = "";
+      console.log("Supabase fetch result:", { data, error });
 
       if (error) {
-        emptyMsg.style.display = "block";
-        emptyMsg.textContent = "Error loading listings.";
+        document.getElementById("error").style.display = "block";
         return;
       }
-
       if (!data || data.length === 0) {
-        emptyMsg.style.display = "block";
+        document.getElementById("empty").style.display = "block";
         return;
       }
 
-      emptyMsg.style.display = "none";
+      const container = document.getElementById("listings");
       data.forEach(item => {
-        container.appendChild(renderCard(item));
+        const card = document.createElement("div");
+        card.className = "listing-card";
+        card.innerHTML = `
+          <img src="${item.image_url || "https://via.placeholder.com/300x180?text=No+Image"}" alt="${item.title || "Fabric"}"/>
+          <div class="info">
+            <h3 class="title">${item.title || "Untitled"}</h3>
+            <div class="price">$${(item.price_cents/100).toFixed(2)}</div>
+          </div>
+        `;
+        container.appendChild(card);
       });
     }
 
-    // Render a card
-    function renderCard(item){
-      const card = document.createElement('div');
-      card.className = 'listing-card';
-
-      const imgwrap = document.createElement('div');
-      imgwrap.className = 'imgwrap';
-      const img = document.createElement('img');
-      img.src = item.image_url || '';
-      img.alt = item.title || 'Fabric';
-      imgwrap.appendChild(img);
-
-      const info = document.createElement('div');
-      info.className = 'info';
-      info.innerHTML = `
-        <h3 class="title">${item.title || ''}</h3>
-        <div class="price">$${(item.price_cents/100).toFixed(2)}</div>
-      `;
-
-      card.appendChild(imgwrap);
-      card.appendChild(info);
-      return card;
-    }
-
-    // Load listings on page load
     loadListings();
   </script>
 </body>
