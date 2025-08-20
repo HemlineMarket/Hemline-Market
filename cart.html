@@ -18,40 +18,64 @@
   .qty input{width:56px;height:34px;border:1px solid var(--line);border-radius:10px;padding:0 8px}
   .price{text-align:right;font-weight:700}
   .row-end td{border-bottom:0}
-  .actions{display:flex;gap:10px;justify-content:space-between;margin-top:14px}
+  .actions{display:flex;gap:10px;justify-content:space-between;margin-top:14px;flex-wrap:wrap}
   .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:700;text-decoration:none;color:#111827}
   .btn.primary{background:#111827;color:#fff;border-color:#111827}
   .btn:disabled{opacity:.55;cursor:not-allowed}
   .empty{padding:40px;text-align:center;color:#64748b}
   .right{float:right}
+  .ok{color:#059669}
+  .err{color:#dc2626}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="/cart.js"></script>
+<script>
+  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+  window.supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
 </head>
 <body>
 <div class="wrap">
   <h1>Cart</h1>
-  <div class="muted">Items you plan to purchase. Quantities can be adjusted below.</div>
+  <div class="muted">Signed-in users can save their cart as a pending order (test mode).</div>
+
+  <div id="authStatus" class="muted" style="margin-top:8px"></div>
 
   <div id="cartView" class="card" style="margin-top:14px"></div>
 
   <div class="actions">
     <a class="btn" href="/listings.html">← Continue shopping</a>
-    <button id="checkoutBtn" class="btn primary" disabled
-      title="Deployments are paused on Vercel; enable after resume.">
-      Proceed to checkout
-    </button>
+    <button id="saveOrderBtn" class="btn primary">Save Pending Order (test)</button>
+    <button id="checkoutBtn" class="btn" disabled title="Enable after Vercel deploys resume.">Proceed to checkout</button>
   </div>
 
+  <div id="result" class="muted mono" style="margin-top:12px"></div>
+
   <p class="muted" style="margin-top:12px">
-    Note: Cart is stored in your browser only (localStorage). Totals shown are subtotal and do not include shipping or fees yet.
+    Note: This saves an order with <strong>status = "pending"</strong> and line items under your account. No payment is taken.
   </p>
 </div>
 
-<script src="/cart.js"></script>
 <script>
 (function(){
   if(!window.HEM_CART){ alert('Cart module not loaded'); return; }
   const view = document.getElementById('cartView');
+  const result = document.getElementById('result');
+  const authStatus = document.getElementById('authStatus');
   const fmt = (cents)=>'$'+(Math.max(0,parseInt(cents||0,10))/100).toFixed(2);
+
+  async function showAuth(){
+    const { data: { user } } = await window.supa.auth.getUser();
+    if(user){
+      authStatus.innerHTML = `Signed in as <strong>${user.email||user.id}</strong>`;
+      return user;
+    } else {
+      authStatus.innerHTML = `<span class="err">You are not signed in.</span> Please sign in on the site before saving an order.`;
+      return null;
+    }
+  }
 
   function render(){
     const { items } = window.HEM_CART.getCart();
@@ -88,7 +112,7 @@
     `;
   }
 
-  // Events: qty change / remove
+  // Qty / remove handlers
   document.addEventListener('input', (e)=>{
     const el = e.target;
     if(el.tagName==='INPUT' && el.id.startsWith('q-')){
@@ -107,11 +131,58 @@
     render();
   });
 
-  render();
+  // Save Pending Order (test)
+  async function savePendingOrder(){
+    result.textContent = '';
+    const user = await showAuth();
+    if(!user){ result.innerHTML = '<span class="err">Aborted: not signed in.</span>'; return; }
 
-  // Checkout button: intentionally disabled until Vercel deploys resume
-  const checkoutBtn = document.getElementById('checkoutBtn');
-  checkoutBtn.addEventListener('click', ()=>{});
+    const cart = window.HEM_CART.getCart();
+    if(!cart.items.length){ result.innerHTML = '<span class="err">Aborted: cart is empty.</span>'; return; }
+
+    const subtotal = cart.items.reduce((s,it)=> s + (it.unit_price_cents||0)*(it.qty||1), 0);
+
+    // 1) insert order
+    const { data: order, error: e1 } = await window.supa
+      .from('orders')
+      .insert([{
+        buyer_id: user.id,
+        status: 'pending',
+        amount_subtotal_cents: subtotal,
+        amount_total_cents: subtotal,
+        currency: 'usd',
+        email: user.email || null,
+        shipping_name: null
+      }])
+      .select()
+      .single();
+
+    if(e1){ result.innerHTML = `<span class="err">Order insert failed:</span> ${e1.message}`; return; }
+
+    // 2) insert items
+    const itemsPayload = cart.items.map(it=>({
+      order_id: order.id,
+      listing_id: it.id,
+      seller_id: it.seller_id || 'unknown',
+      qty: it.qty || 1,
+      unit_price_cents: it.unit_price_cents || 0,
+      title: it.title || 'Fabric'
+    }));
+
+    const { error: e2 } = await window.supa.from('order_items').insert(itemsPayload);
+    if(e2){ result.innerHTML = `<span class="err">Items insert failed:</span> ${e2.message}`; return; }
+
+    // 3) clear cart + show success
+    window.HEM_CART.clear();
+    render();
+    result.innerHTML = `<span class="ok">Saved!</span> Order <strong>${order.id}</strong> created with ${itemsPayload.length} item(s).`;
+  }
+
+  document.getElementById('saveOrderBtn').addEventListener('click', savePendingOrder);
+
+  // Init
+  showAuth();
+  render();
 })();
 </script>
 </body>
