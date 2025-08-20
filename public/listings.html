@@ -114,6 +114,11 @@
     font-weight:600;
   }
   #toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  /* Load more */
+  .loadmore-wrap{display:flex;justify-content:center;margin:16px 0}
+  #loadMore{padding:10px 16px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;font-weight:700}
+  #loadMore[disabled]{opacity:.5;cursor:not-allowed}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -157,6 +162,9 @@
       <p>Try adjusting your search or clear filters to see more.</p>
       <a href="#" class="btn" onclick="clearFilters()">Clear filters</a>
     </div>
+
+    <!-- Load more -->
+    <div class="loadmore-wrap"><button id="loadMore" disabled>Load more</button></div>
   </div>
 
   <div id="qv" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="qv-title">
@@ -203,7 +211,7 @@
   function clearFilters(){
     document.getElementById('onlyFavs').checked=false;
     document.getElementById('q').value='';
-    priceRange=null; syncChipStates(); render(currentData);
+    priceRange=null; syncChipStates(); resetPaging(); renderPage();
   }
 
   function openQV(item){
@@ -234,6 +242,11 @@
   let currentData = [];
   let favSet = getFavStore();
   let priceRange = null;
+  let pageSize = 12;
+  let pageIndex = 0;   // 0-based page of the filtered+sorted array
+  let filteredSorted = [];
+
+  function resetPaging(){ pageIndex = 0; document.getElementById('listings').innerHTML=''; }
 
   function updateFavCount(){ document.getElementById('favCount').textContent = `♥ ${favSet.size} saved`; }
   function updateResultCount(n){ document.getElementById('resultCount').textContent = n ? `${n} item${n>1?'s':''}` : ''; }
@@ -276,13 +289,11 @@
     return rows;
   }
 
-  function render(data){
+  function applyFilters(){
     const onlyFavs = document.getElementById('onlyFavs').checked;
     const q = document.getElementById('q').value.trim();
-    const container = document.getElementById('listings');
-    const empty = document.getElementById('empty');
 
-    let rows = (data||[]).filter(it=>{
+    let rows = (currentData||[]).filter(it=>{
       const cents = typeof it.price_cents==='number' ? it.price_cents : Math.round(parseFloat(it.price||'0')*100);
       const favOK = !onlyFavs || favSet.has(keyFor(it));
       const priceOK = priceMatches(cents);
@@ -291,19 +302,25 @@
     });
 
     rows = sortRows(rows);
-
-    container.innerHTML = '';
+    filteredSorted = rows;
     updateResultCount(rows.length);
+    document.getElementById('empty').style.display = rows.length ? 'none':'block';
+    resetPaging();
+  }
 
-    if(rows.length === 0){
-      empty.style.display = 'block';
+  function renderPage(){
+    const container = document.getElementById('listings');
+    if(!filteredSorted.length){
       container.style.display = 'none';
+      document.getElementById('loadMore').disabled = true;
       return;
     }
-    empty.style.display = 'none';
     container.style.display = 'grid';
 
-    rows.forEach((item, idx) => {
+    const start = pageIndex * pageSize;
+    const end = Math.min(start + pageSize, filteredSorted.length);
+    for(let i=start;i<end;i++){
+      const item = filteredSorted[i];
       const price=(typeof item.price_cents==='number')?(item.price_cents/100).toFixed(2):(item.price||'0.00');
       const when=humanizeDate(item.created_at||item.date);
       const k = keyFor(item);
@@ -325,8 +342,8 @@
         else { favSet.delete(k); toast('Removed'); }
         saveFavStore(favSet); updateFavCount();
         if (document.getElementById('onlyFavs').checked && !fav.classList.contains('active')) {
-          card.remove(); updateResultCount(container.children.length);
-          if (!container.children.length) { document.getElementById('empty').style.display='block'; container.style.display='none'; }
+          card.remove(); updateResultCount(document.getElementById('listings').children.length);
+          if (!document.getElementById('listings').children.length) { document.getElementById('empty').style.display='block'; container.style.display='none'; }
         }
       });
       imgwrap.appendChild(fav);
@@ -340,8 +357,14 @@
       card.appendChild(imgwrap); card.appendChild(info); container.appendChild(card);
       card.addEventListener('click', (e)=>{ if(!e.target.classList.contains('fav')) openQV(item); });
 
-      if(!reduceMotion) setTimeout(()=>card.classList.add('show'),60*idx); else card.classList.add('show');
-    });
+      if(!reduceMotion) setTimeout(()=>card.classList.add('show'), 30*(i-start)); else card.classList.add('show');
+    }
+
+    pageIndex++;
+    const btn = document.getElementById('loadMore');
+    btn.disabled = (pageIndex * pageSize >= filteredSorted.length);
+    if (btn.disabled) btn.textContent = 'All caught up';
+    else btn.textContent = 'Load more';
   }
 
   async function loadListings(){
@@ -356,7 +379,7 @@
       .from('listings')
       .select('id,title,price_cents,price,image_url,created_at,description')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(200); // grab plenty; we page on the client
 
     sk.style.display='none';
 
@@ -368,7 +391,8 @@
 
     currentData = data || [];
     updateFavCount();
-    render(currentData);
+    applyFilters();
+    renderPage();
   }
 
   // Debounced search
@@ -377,12 +401,12 @@
     let t=null;
     qEl.addEventListener('input', ()=>{
       clearTimeout(t);
-      t=setTimeout(()=>render(currentData), 250);
+      t=setTimeout(()=>{ applyFilters(); renderPage(); }, 250);
     });
   })();
 
   // Sort handler
-  document.getElementById('sortBy').addEventListener('change', ()=>render(currentData));
+  document.getElementById('sortBy').addEventListener('change', ()=>{ applyFilters(); renderPage(); });
 
   // To-top FAB
   (function(){
@@ -394,13 +418,28 @@
   })();
 
   // Toolbar
-  document.getElementById('onlyFavs').addEventListener('change', ()=>render(currentData));
+  document.getElementById('onlyFavs').addEventListener('change', ()=>{ applyFilters(); renderPage(); });
   document.getElementById('priceChips').addEventListener('click', (e)=>{
     const btn = e.target.closest('.chip[data-range]');
     if(!btn) return;
     priceRange = (priceRange === btn.dataset.range) ? null : btn.dataset.range;
-    syncChipStates(); render(currentData);
+    syncChipStates(); applyFilters(); renderPage();
   });
+
+  // Load more (button)
+  document.getElementById('loadMore').addEventListener('click', ()=>renderPage());
+
+  // Infinite scroll via sentinel (auto-click when near bottom)
+  const sentinel = document.createElement('div');
+  sentinel.style.height = '1px';
+  document.body.appendChild(sentinel);
+  const io = new IntersectionObserver((entries)=>{
+    const btn = document.getElementById('loadMore');
+    if(entries[0].isIntersecting && btn && !btn.disabled){
+      btn.click();
+    }
+  }, { rootMargin: '600px' });
+  io.observe(sentinel);
 
   loadListings();
 </script>
