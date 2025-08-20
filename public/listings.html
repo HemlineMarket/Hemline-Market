@@ -1,28 +1,63 @@
 <script>
 async function loadListings() {
+  // pick the real grid container (id first, then class fallback)
+  const grid = document.getElementById('listings') || document.querySelector('.grid');
+  const empty = document.getElementById('empty');
+  const sk = document.getElementById('skeletons');
+
+  if (!grid) { console.error('No listings container found'); return; }
+
+  // show skeletons if present
+  if (sk) sk.style.display = 'grid';
+  if (grid) grid.style.display = 'none';
+  if (empty) empty.style.display = 'none';
+
+  // fetch from Supabase
   const { data, error } = await window.supa
-    .from("listings")
-    .select("id, title, price, image_url");
+    .from('listings')
+    .select('id,title,price_cents,price,image_url,created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  // hide skeletons
+  if (sk) sk.style.display = 'none';
 
   if (error) {
-    console.error("Error loading listings:", error);
+    console.error('Error loading listings:', error);
+    if (empty) { empty.style.display = 'block'; }
     return;
   }
 
-  const grid = document.querySelector(".grid");
-  grid.innerHTML = "";
+  const rows = data || [];
+  grid.innerHTML = '';
 
-  data.forEach(item => {
-    grid.innerHTML += `
-      <div class="relative border rounded-lg overflow-hidden shadow">
-        <img src="${item.image_url}" alt="${item.title}" class="w-full h-48 object-cover">
-        <div class="p-3">
-          <div class="font-semibold">${item.title}</div>
-          <div class="text-pink-600 font-bold">$${item.price ?? ""}</div>
+  if (!rows.length) {
+    if (empty) { empty.style.display = 'block'; }
+    return;
+  }
+
+  // show grid
+  grid.style.display = 'grid';
+  if (empty) empty.style.display = 'none';
+
+  rows.forEach(item => {
+    const price = (typeof item.price_cents === 'number')
+      ? (item.price_cents / 100).toFixed(2)
+      : (item.price || '0.00');
+
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="listing-card">
+        <div class="imgwrap">
+          <img src="${item.image_url}" alt="${item.title || ''}">
+          <div class="fav" onclick="this.classList.toggle('active'); this.classList.add('pop'); setTimeout(()=>this.classList.remove('pop'),200);">♥</div>
+          <div class="overlay">View details</div>
         </div>
-        <div class="fav" onclick="toggleFav(this)">♥</div>
+        <div class="info">
+          <h3 class="title">${item.title || ''}</h3>
+          <div class="price"><span class="cur">$</span>${price}</div>
+        </div>
       </div>
-    `;
+    `);
   });
 }
 loadListings();
