@@ -12,10 +12,17 @@
   .wrap { max-width: 1000px; margin:auto; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 
+  /* Inputs */
+  .input {
+    height:36px; padding:0 12px; border:1px solid var(--line); border-radius:10px; background:#fff;
+    font-size:14px; outline:none;
+  }
+  .input:focus { box-shadow:0 0 0 3px rgba(14,165,233,.15); border-color:#94d7f5; }
+
   /* Sticky toolbar */
   .toolbar {
     position: sticky; top: 0; z-index: 10;
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center;
     padding: 10px 12px; margin: 8px 0 16px;
     background: rgba(250,250,250,.85); backdrop-filter: blur(6px);
     border: 1px solid var(--line); border-radius: 12px;
@@ -24,7 +31,7 @@
   .chips { display:flex; gap:8px; flex-wrap:wrap; }
   .chip { padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--card); font-size:12px; cursor:pointer; }
   .chip.active { border-color:#0ea5e9; color:#0ea5e9; font-weight:700; }
-  .count { margin-left:auto; font-size:12px; color:#64748b; }
+  .count { justify-self:end; font-size:12px; color:#64748b; }
 
   /* CARD */
   .listing-card {
@@ -47,7 +54,7 @@
     opacity:0; transition:opacity .25s ease; }
   .imgwrap:hover .overlay { opacity:1; }
 
-  /* Date badge (on image, not under cards) */
+  /* Date badge (on image) */
   .badge { position:absolute; left:8px; top:8px; background:rgba(14,165,233,.95); color:#fff;
     padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
     border:1px solid rgba(255,255,255,.5); box-shadow:0 2px 6px rgba(0,0,0,.08); }
@@ -136,14 +143,17 @@
 
     <!-- Sticky toolbar -->
     <div class="toolbar" id="toolbar">
+      <input id="q" class="input" placeholder="Search title or description…">
       <label><input type="checkbox" id="onlyFavs"> Favorites only</label>
       <div class="chips" id="priceChips">
         <button class="chip" data-range="u20">Under $20</button>
         <button class="chip" data-range="20-50">$20–$50</button>
         <button class="chip" data-range="50p">$50+</button>
       </div>
-      <span class="chip" id="favCount">♥ 0 saved</span>
-      <span class="count" id="resultCount"></span>
+      <span class="count">
+        <span class="chip" id="favCount">♥ 0 saved</span>
+        <span id="resultCount" style="margin-left:8px;"></span>
+      </span>
     </div>
 
     <!-- Skeletons while loading -->
@@ -208,7 +218,11 @@
     return img;
   }
 
-  function clearFilters(){ document.getElementById('onlyFavs').checked=false; priceRange=null; syncChipStates(); render(currentData); }
+  function clearFilters(){
+    document.getElementById('onlyFavs').checked=false;
+    document.getElementById('q').value='';
+    priceRange=null; syncChipStates(); render(currentData);
+  }
 
   function openQV(item){
     const $ = id => document.getElementById(id);
@@ -242,6 +256,146 @@
 
   function updateFavCount(){ document.getElementById('favCount').textContent = `♥ ${favSet.size} saved`; }
   function updateResultCount(n){ document.getElementById('resultCount').textContent = n ? `${n} item${n>1?'s':''}` : ''; }
+  function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1200); }
 
   function priceMatches(cents){
     if(priceRange === 'u20')  return cents < 2000;
+    if(priceRange === '20-50') return cents >= 2000 && cents <= 5000;
+    if(priceRange === '50p')   return cents > 5000;
+    return true;
+  }
+  function syncChipStates(){ document.querySelectorAll('.chip[data-range]').forEach(btn=>btn.classList.toggle('active', btn.dataset.range===priceRange)); }
+
+  function matchesQuery(item, q){
+    if(!q) return true;
+    const s = q.toLowerCase();
+    return (item.title || '').toLowerCase().includes(s)
+        || (item.description || '').toLowerCase().includes(s);
+  }
+
+  function render(data){
+    const onlyFavs = document.getElementById('onlyFavs').checked;
+    const q = document.getElementById('q').value.trim();
+    const container = document.getElementById('listings');
+    const empty = document.getElementById('empty');
+
+    const rows = (data||[]).filter(it=>{
+      const cents = typeof it.price_cents==='number' ? it.price_cents : Math.round(parseFloat(it.price||'0')*100);
+      const favOK = !onlyFavs || favSet.has(keyFor(it));
+      const priceOK = priceMatches(cents);
+      const textOK = matchesQuery(it, q);
+      return favOK && priceOK && textOK;
+    });
+
+    container.innerHTML = '';
+    updateResultCount(rows.length);
+
+    if(rows.length === 0){
+      empty.style.display = 'block';
+      container.style.display = 'none';
+      return;
+    }
+    empty.style.display = 'none';
+    container.style.display = 'grid';
+
+    rows.forEach((item, idx) => {
+      const price=(typeof item.price_cents==='number')?(item.price_cents/100).toFixed(2):(item.price||'0.00');
+      const when=humanizeDate(item.created_at||item.date);
+      const k = keyFor(item);
+
+      const card=document.createElement('div'); card.className='listing-card';
+
+      const imgwrap=document.createElement('div'); imgwrap.className='imgwrap';
+      imgwrap.appendChild(imgWithFallback(item.image_url,item.title||''));
+
+      const badge=document.createElement('div'); badge.className='badge'; badge.textContent=when; imgwrap.appendChild(badge);
+
+      const fav=document.createElement('div'); fav.className='fav'; fav.textContent='♥';
+      if (favSet.has(k)) fav.classList.add('active');
+      fav.addEventListener('click',e=>{
+        e.stopPropagation();
+        fav.classList.toggle('active');
+        fav.classList.add('pop'); setTimeout(()=>fav.classList.remove('pop'),200);
+        if (fav.classList.contains('active')) { favSet.add(k); toast('Saved'); }
+        else { favSet.delete(k); toast('Removed'); }
+        saveFavStore(favSet); updateFavCount();
+        if (document.getElementById('onlyFavs').checked && !fav.classList.contains('active')) {
+          card.remove(); updateResultCount(container.children.length);
+          if (!container.children.length) { document.getElementById('empty').style.display='block'; container.style.display='none'; }
+        }
+      });
+      imgwrap.appendChild(fav);
+
+      const overlay=document.createElement('div'); overlay.className='overlay'; overlay.textContent=item.quickpeek||"Quick View";
+      imgwrap.appendChild(overlay);
+
+      const info=document.createElement('div'); info.className='info';
+      info.innerHTML=`<h3 class="title">${item.title||''}</h3><div class="price"><span class="cur">$</span>${price}</div>`;
+
+      card.appendChild(imgwrap); card.appendChild(info); container.appendChild(card);
+      card.addEventListener('click', (e)=>{ if(!e.target.classList.contains('fav')) openQV(item); });
+
+      if(!reduceMotion) setTimeout(()=>card.classList.add('show'),60*idx); else card.classList.add('show');
+    });
+  }
+
+  async function loadListings(){
+    const sk = document.getElementById('skeletons');
+    sk.innerHTML = '';
+    for (let i=0;i<6;i++){ sk.insertAdjacentHTML('beforeend', `<div class="sk-card"><div class="sk-img"></div><div class="sk-row w60"></div><div class="sk-row w30" style="margin-top:-6px;"></div></div>`); }
+    sk.style.display='grid';
+    document.getElementById('listings').style.display='none';
+    document.getElementById('empty').style.display='none';
+
+    const { data, error } = await window.supa
+      .from('listings')
+      .select('id,title,price_cents,price,image_url,created_at,description')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    sk.style.display='none';
+
+    if (error) {
+      console.error('Error loading listings:', error);
+      document.getElementById('empty').style.display='block';
+      return;
+    }
+
+    currentData = data || [];
+    updateFavCount();
+    render(currentData);
+  }
+
+  // Debounced search
+  (function(){
+    const qEl = document.getElementById('q');
+    let t=null;
+    qEl.addEventListener('input', ()=>{
+      clearTimeout(t);
+      t=setTimeout(()=>render(currentData), 250);
+    });
+  })();
+
+  // To-top FAB
+  (function(){
+    const btn=document.getElementById('toTop');
+    const onScroll=()=>{ if(window.scrollY>500){ btn.classList.add('show'); } else { btn.classList.remove('show'); } };
+    window.addEventListener('scroll', onScroll, { passive:true });
+    btn.addEventListener('click', ()=>window.scrollTo({top:0,behavior:'smooth'}));
+    onScroll();
+  })();
+
+  // Wire toolbar
+  document.getElementById('onlyFavs').addEventListener('change', ()=>render(currentData));
+  document.getElementById('priceChips').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.chip[data-range]');
+    if(!btn) return;
+    priceRange = (priceRange === btn.dataset.range) ? null : btn.dataset.range;
+    syncChipStates(); render(currentData);
+  });
+
+  // Kick off
+  loadListings();
+</script>
+</body>
+</html>
