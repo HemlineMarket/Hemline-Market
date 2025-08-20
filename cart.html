@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Cart</title>
+<style>
+  :root{--ink:#0f172a;--line:#e5e7eb;--bg:#fafafa;--accent:#111827}
+  body{font-family:system-ui,-apple-system,Segoe UI,Inter,Arial,sans-serif;background:var(--bg);color:var(--ink);margin:24px}
+  .wrap{max-width:900px;margin:auto}
+  h1{margin:0 0 12px}
+  .muted{color:#64748b;font-size:14px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,.05);overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{text-align:left;background:#f8fafc;font-weight:700}
+  .qty{display:flex;align-items:center;gap:6px}
+  .qty input{width:56px;height:34px;border:1px solid var(--line);border-radius:10px;padding:0 8px}
+  .price{text-align:right;font-weight:700}
+  .row-end td{border-bottom:0}
+  .actions{display:flex;gap:10px;justify-content:space-between;margin-top:14px}
+  .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:700;text-decoration:none;color:#111827}
+  .btn.primary{background:#111827;color:#fff;border-color:#111827}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .empty{padding:40px;text-align:center;color:#64748b}
+  .right{float:right}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cart</h1>
+  <div class="muted">Items you plan to purchase. Quantities can be adjusted below.</div>
+
+  <div id="cartView" class="card" style="margin-top:14px"></div>
+
+  <div class="actions">
+    <a class="btn" href="/listings.html">← Continue shopping</a>
+    <button id="checkoutBtn" class="btn primary" disabled
+      title="Deployments are paused on Vercel; enable after resume.">
+      Proceed to checkout
+    </button>
+  </div>
+
+  <p class="muted" style="margin-top:12px">
+    Note: Cart is stored in your browser only (localStorage). Totals shown are subtotal and do not include shipping or fees yet.
+  </p>
+</div>
+
+<script src="/cart.js"></script>
+<script>
+(function(){
+  if(!window.HEM_CART){ alert('Cart module not loaded'); return; }
+  const view = document.getElementById('cartView');
+  const fmt = (cents)=>'$'+(Math.max(0,parseInt(cents||0,10))/100).toFixed(2);
+
+  function render(){
+    const { items } = window.HEM_CART.getCart();
+    if(!items.length){
+      view.innerHTML = '<div class="empty">Your cart is empty.</div>';
+      return;
+    }
+    const rows = items.map(it=>{
+      const line = (it.unit_price_cents||0) * (it.qty||1);
+      return `
+        <tr data-id="${it.id}">
+          <td><strong>${it.title||'Fabric'}</strong><div class="muted">Seller: ${it.seller_id||'unknown'}</div></td>
+          <td class="qty">
+            <label class="muted" for="q-${it.id}">Qty</label>
+            <input id="q-${it.id}" type="number" min="0" step="1" value="${it.qty||1}" />
+            <button class="btn" data-act="rm">Remove</button>
+          </td>
+          <td class="price">${fmt(it.unit_price_cents||0)}</td>
+          <td class="price">${fmt(line)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const subtotal = window.HEM_CART.totals().subtotal_cents;
+    view.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Quantity</th><th class="price">Unit</th><th class="price">Total</th></tr>
+        </thead>
+        <tbody>${rows}
+          <tr class="row-end"><td colspan="3" class="price"><strong>Subtotal</strong></td><td class="price"><strong>${fmt(subtotal)}</strong></td></tr>
+        </tbody>
+      </table>
+    `;
+  }
+
+  // Events: qty change / remove
+  document.addEventListener('input', (e)=>{
+    const el = e.target;
+    if(el.tagName==='INPUT' && el.id.startsWith('q-')){
+      const id = el.id.slice(2);
+      const qty = parseInt(el.value||'0',10);
+      window.HEM_CART.setQty(id, qty);
+      render();
+    }
+  });
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-act="rm"]');
+    if(!btn) return;
+    const row = btn.closest('tr[data-id]');
+    if(!row) return;
+    window.HEM_CART.remove(row.getAttribute('data-id'));
+    render();
+  });
+
+  render();
+
+  // Checkout button: intentionally disabled until Vercel deploys resume
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  checkoutBtn.addEventListener('click', ()=>{});
+})();
+</script>
+</body>
+</html>
