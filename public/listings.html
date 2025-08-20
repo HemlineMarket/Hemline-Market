@@ -1,8 +1,6 @@
 <script src="/cart.js"></script>
 <script>
 (function(){
-  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
-
   function toast(msg){
     let t=document.querySelector('.hm-toast');
     if(!t){
@@ -33,25 +31,31 @@
     toast('Added to cart');
   });
 
-  // Auto-inject Add-to-cart buttons for each listing card
-  $$('[data-listing-id]').forEach(card=>{
-    if(card.querySelector('[data-add-to-cart]')) return;
+  // Hook into your existing loadListings
+  const oldLoad = window.loadListings;
+  window.loadListings = async function(){
+    await oldLoad();
+    // Inject buttons after listings are drawn
+    document.querySelectorAll('#listings .listing-card').forEach(card=>{
+      if(card.querySelector('[data-add-to-cart]')) return;
+      const id = card.querySelector('h3.title')?.textContent?.trim() || 'unknown';
+      const title = card.querySelector('h3.title')?.textContent?.trim() || 'Fabric';
+      const priceText = card.querySelector('.price')?.textContent?.replace(/[^0-9]/g,'') || '0';
+      const seller = 'unknown';
 
-    const id = card.getAttribute('data-listing-id');
-    const title = card.getAttribute('data-title') || card.querySelector('h3, .title')?.textContent?.trim() || 'Fabric';
-    const price = card.getAttribute('data-price-cents') || card.querySelector('.price')?.textContent?.replace(/\D/g,'') || '0';
-    const seller = card.getAttribute('data-seller-id') || 'unknown';
+      const btn = document.createElement('button');
+      btn.className='hm-add';
+      btn.textContent='Add to cart';
+      btn.setAttribute('data-add-to-cart','1');
+      btn.setAttribute('data-id', id);
+      btn.setAttribute('data-title', title);
+      btn.setAttribute('data-price-cents', priceText);
+      btn.setAttribute('data-seller-id', seller);
 
-    const btn = document.createElement('button');
-    btn.className='hm-add';
-    btn.textContent='Add to cart';
-    btn.setAttribute('data-add-to-cart','1');
-    btn.setAttribute('data-id', id);
-    btn.setAttribute('data-title', title);
-    btn.setAttribute('data-price-cents', price);
-    btn.setAttribute('data-seller-id', seller);
-
-    (card.querySelector('.info') || card).appendChild(btn);
-  });
+      (card.querySelector('.info') || card).appendChild(btn);
+    });
+  };
 })();
 </script>
+
+<div class="hm-toast" aria-live="polite"></div>
