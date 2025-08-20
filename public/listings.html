@@ -5,133 +5,83 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Listings</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin:24px; background:#fafafa; color:#111; }
-    h1 { font-size:1.5rem; margin-bottom:16px; }
-    #listings { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-    .listing-card { opacity:0; transform:translateY(20px); transition:all .3s ease; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); }
-    .listing-card.show { opacity:1; transform:none; }
-    .imgwrap { position:relative; overflow:hidden; }
-    .imgwrap img { width:100%; display:block; }
-    .badge { position:absolute; top:8px; left:8px; background:#0ea5e9; color:white; padding:2px 6px; border-radius:6px; font-size:12px; }
-    .fav { position:absolute; top:8px; right:8px; cursor:pointer; font-size:18px; color:#999; }
-    .fav.active { color:red; }
-    .overlay { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.5); color:white; text-align:center; font-size:14px; padding:4px; opacity:0; transition:.2s; }
-    .imgwrap:hover .overlay { opacity:1; }
-    .info { padding:12px; }
-    .title { font-size:16px; margin:0 0 8px; }
-    .price { font-size:14px; font-weight:bold; }
-    .hm-add { margin-top:8px; padding:6px 10px; border:none; background:#111827; color:#fff; border-radius:6px; cursor:pointer; }
-    #empty { display:none; margin-top:16px; color:#555; }
+    body { font-family: sans-serif; margin: 24px; }
+    h1 { font-size: 1.5rem; margin-bottom: 16px; }
+    #listings { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .listing-card { border: 1px solid #ddd; padding: 12px; border-radius: 8px; background:#fff; }
+    .imgwrap { position: relative; }
+    .imgwrap img { max-width: 100%; border-radius: 6px; }
+    .info { margin-top: 8px; }
+    .price { font-weight: bold; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Fabric Listings</h1>
+    <div id="empty" style="display:none;">No fabrics found.</div>
     <div id="listings"></div>
-    <div id="empty">No fabrics found.</div>
   </div>
 
-  <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  <!-- Load Supabase client -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
-    const supabaseUrl = "YOUR_SUPABASE_URL";
-    const supabaseKey = "YOUR_SUPABASE_ANON_KEY";
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  <script>
+    // Initialize Supabase
+    const SUPABASE_URL = "https://YOUR-PROJECT-URL.supabase.co";
+    const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    function humanizeDate(str){
-      if(!str) return '';
-      const d = new Date(str);
-      return d.toLocaleDateString();
-    }
-
-    function imgWithFallback(url, alt){
-      const img=document.createElement('img');
-      img.src=url||'https://via.placeholder.com/400x300?text=No+Image';
-      img.alt=alt||'';
-      return img;
-    }
-
-    function renderCard(item, idxOffset){
-      const price = (typeof item.price_cents==='number')
-        ? (item.price_cents/100).toFixed(2)
-        : (item.price || '0.00');
-      const when = humanizeDate(item.created_at||item.date);
-
-      const card = document.createElement('div');
-      card.className='listing-card';
-
-      const imgwrap=document.createElement('div');
-      imgwrap.className='imgwrap';
-      const img = imgWithFallback(item.image_url,item.title||'');
-      imgwrap.appendChild(img);
-
-      const badge=document.createElement('div');
-      badge.className='badge';
-      badge.textContent=when;
-      imgwrap.appendChild(badge);
-
-      const overlay=document.createElement('div');
-      overlay.className='overlay';
-      overlay.textContent=item.quickpeek||"Quick View";
-      imgwrap.appendChild(overlay);
-
-      const info=document.createElement('div');
-      info.className='info';
-      info.innerHTML=`
-        <h3 class="title">${item.title||''}</h3>
-        <div class="price"><span class="cur">$</span>${price}</div>
-      `;
-
-      const btn = document.createElement('button');
-      btn.className='hm-add';
-      btn.textContent='Add to cart';
-      btn.setAttribute('data-add-to-cart','1');
-      btn.setAttribute('data-id', item.id);
-      btn.setAttribute('data-title', item.title || 'Fabric');
-      btn.setAttribute('data-price-cents', item.price_cents || 0);
-      btn.setAttribute('data-seller-id', item.seller_id || 'unknown');
-      info.appendChild(btn);
-
-      card.appendChild(imgwrap);
-      card.appendChild(info);
-
-      setTimeout(()=>card.classList.add('show'), idxOffset);
-      return card;
-    }
-
-    const container = document.getElementById('listings');
-    const emptyMsg = document.getElementById('empty');
-
+    // Fetch listings
     async function loadListings(){
-      const { data, error } = await supabase
-        .from('listings')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await client.from("listings").select("*").order("created_at", { ascending: false });
+      console.log("Supabase fetch result:", {data, error});
 
-      console.log("Supabase fetch result:", { data, error });
+      const container = document.getElementById('listings');
+      const emptyMsg = document.getElementById('empty');
+      container.innerHTML = "";
 
       if (error) {
-        emptyMsg.textContent = "Error loading listings: " + error.message;
-        emptyMsg.style.display='block';
+        emptyMsg.style.display = "block";
+        emptyMsg.textContent = "Error loading listings.";
         return;
       }
 
-      if (!data || !data.length) {
-        emptyMsg.style.display='block';
-        container.style.display='none';
+      if (!data || data.length === 0) {
+        emptyMsg.style.display = "block";
         return;
       }
 
-      emptyMsg.style.display='none';
-      container.style.display='grid';
-      container.innerHTML='';
-
-      data.forEach((item, idx) => {
-        const card = renderCard(item, idx*50);
-        container.appendChild(card);
+      emptyMsg.style.display = "none";
+      data.forEach(item => {
+        container.appendChild(renderCard(item));
       });
     }
 
+    // Render a card
+    function renderCard(item){
+      const card = document.createElement('div');
+      card.className = 'listing-card';
+
+      const imgwrap = document.createElement('div');
+      imgwrap.className = 'imgwrap';
+      const img = document.createElement('img');
+      img.src = item.image_url || '';
+      img.alt = item.title || 'Fabric';
+      imgwrap.appendChild(img);
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      info.innerHTML = `
+        <h3 class="title">${item.title || ''}</h3>
+        <div class="price">$${(item.price_cents/100).toFixed(2)}</div>
+      `;
+
+      card.appendChild(imgwrap);
+      card.appendChild(info);
+      return card;
+    }
+
+    // Load listings on page load
     loadListings();
   </script>
 </body>
