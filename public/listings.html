@@ -1,156 +1,220 @@
-<div id="listings"></div>
-<div id="empty" style="display:none;">No fabrics found.</div>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Hemline — Listings</title>
 
-<script>
-function renderCard(item, idxOffset){
-  const price = (typeof item.price_cents==='number')
-    ? (item.price_cents/100).toFixed(2)
-    : (item.price || '0.00');
-  const when = humanizeDate(item.created_at||item.date);
-  const k = keyFor(item);
-
-  const card = document.createElement('div');
-  card.className='listing-card';
-
-  const imgwrap=document.createElement('div');
-  imgwrap.className='imgwrap';
-  const img = imgWithFallback(item.image_url,item.title||'');
-  imgwrap.appendChild(img);
-
-  const badge=document.createElement('div');
-  badge.className='badge';
-  badge.textContent=when;
-  imgwrap.appendChild(badge);
-
-  const fav=document.createElement('div');
-  fav.className='fav';
-  fav.textContent='♥';
-  if (favSet.has(k)) fav.classList.add('active');
-  fav.addEventListener('click',e=>{
-    e.stopPropagation();
-    fav.classList.toggle('active');
-    fav.classList.add('pop');
-    setTimeout(()=>fav.classList.remove('pop'),200);
-    if (fav.classList.contains('active')) {
-      favSet.add(k); toast('Saved');
-    } else {
-      favSet.delete(k); toast('Removed');
+  <style>
+    :root {
+      --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa;
+      --accent:#111827; --badge:#0ea5e9; --card:#ffffff;
     }
-    saveFavStore(favSet); updateFavCount();
-    if (document.getElementById('onlyFavs').checked && !fav.classList.contains('active')) {
-      card.remove(); 
-      updateResultCount(document.getElementById('listings').children.length);
-      if (!document.getElementById('listings').children.length) {
-        document.getElementById('empty').style.display='block';
-        document.getElementById('listings').style.display='none';
+    body {
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      margin:24px; background:var(--bg); color:var(--ink);
+    }
+    .wrap { max-width:1000px; margin:auto; }
+    #listings { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .listing-card {
+      background:var(--card); border:1px solid var(--line);
+      border-radius:12px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.05);
+      opacity:0; transform:translateY(12px); transition:all .3s ease;
+      cursor:pointer;
+    }
+    .listing-card.show { opacity:1; transform:none; }
+    .imgwrap { position:relative; overflow:hidden; }
+    .imgwrap img { width:100%; display:block; object-fit:cover; }
+    .badge {
+      position:absolute; top:8px; left:8px;
+      background:var(--badge); color:#fff; font-size:12px;
+      padding:2px 6px; border-radius:6px;
+    }
+    .fav {
+      position:absolute; top:8px; right:8px;
+      cursor:pointer; font-size:18px; color:#888;
+      transition:transform .2s ease;
+    }
+    .fav.active { color:red; }
+    .fav.pop { transform:scale(1.3); }
+    .overlay {
+      position:absolute; bottom:0; left:0; right:0;
+      background:rgba(0,0,0,0.5); color:#fff;
+      text-align:center; padding:4px; font-size:14px;
+      opacity:0; transition:opacity .2s ease;
+    }
+    .imgwrap:hover .overlay { opacity:1; }
+    .info { padding:12px; }
+    .title { margin:0 0 6px; font-size:16px; }
+    .price { font-weight:bold; }
+    .hm-add {
+      margin-top:8px; padding:6px 12px;
+      border:none; border-radius:8px;
+      background:var(--accent); color:#fff;
+      cursor:pointer; font-size:14px;
+    }
+    #empty { text-align:center; margin-top:40px; color:#666; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Fabric Listings</h1>
+    <div id="listings"></div>
+    <div id="empty" style="display:none;">No fabrics found.</div>
+  </div>
+
+  <script>
+  function renderCard(item, idxOffset){
+    const price = (typeof item.price_cents==='number')
+      ? (item.price_cents/100).toFixed(2)
+      : (item.price || '0.00');
+    const when = humanizeDate(item.created_at||item.date);
+    const k = keyFor(item);
+
+    const card = document.createElement('div');
+    card.className='listing-card';
+
+    const imgwrap=document.createElement('div');
+    imgwrap.className='imgwrap';
+    const img = imgWithFallback(item.image_url,item.title||'');
+    imgwrap.appendChild(img);
+
+    const badge=document.createElement('div');
+    badge.className='badge';
+    badge.textContent=when;
+    imgwrap.appendChild(badge);
+
+    const fav=document.createElement('div');
+    fav.className='fav';
+    fav.textContent='♥';
+    if (favSet.has(k)) fav.classList.add('active');
+    fav.addEventListener('click',e=>{
+      e.stopPropagation();
+      fav.classList.toggle('active');
+      fav.classList.add('pop');
+      setTimeout(()=>fav.classList.remove('pop'),200);
+      if (fav.classList.contains('active')) {
+        favSet.add(k); toast('Saved');
+      } else {
+        favSet.delete(k); toast('Removed');
       }
-    }
-  });
-  imgwrap.appendChild(fav);
-
-  const overlay=document.createElement('div');
-  overlay.className='overlay';
-  overlay.textContent=item.quickpeek||"Quick View";
-  imgwrap.appendChild(overlay);
-
-  const info=document.createElement('div');
-  info.className='info';
-  info.innerHTML=`
-    <h3 class="title">${item.title||''}</h3>
-    <div class="price"><span class="cur">$</span>${price}</div>
-  `;
-
-  // Add-to-cart button
-  const btn = document.createElement('button');
-  btn.className='hm-add';
-  btn.textContent='Add to cart';
-  btn.setAttribute('data-add-to-cart','1');
-  btn.setAttribute('data-id', item.id);
-  btn.setAttribute('data-title', item.title || 'Fabric');
-  btn.setAttribute('data-price-cents', item.price_cents || 0);
-  btn.setAttribute('data-seller-id', item.seller_id || 'unknown');
-  info.appendChild(btn);
-
-  card.appendChild(imgwrap);
-  card.appendChild(info);
-
-  // Click to open modal
-  card.addEventListener('click',(e)=>{
-    if(!e.target.classList.contains('fav') && !e.target.hasAttribute('data-add-to-cart')){
-      openQV(item);
-    }
-  });
-
-  // Tilt effect
-  if(!reduceMotion){
-    const maxTilt=8; const damp=0.15;
-    let rx=0, ry=0, vx=0, vy=0, rafId=null;
-    function animate(){
-      vx += (rx - vx) * damp;
-      vy += (ry - vy) * damp;
-      img.style.transform=`rotateX(${vx}deg) rotateY(${vy}deg) scale(1.03)`;
-      rafId=requestAnimationFrame(animate);
-    }
-    imgwrap.addEventListener('mouseenter',()=>{
-      cancelAnimationFrame(rafId);
-      rafId=requestAnimationFrame(animate);
+      saveFavStore(favSet); updateFavCount();
+      if (document.getElementById('onlyFavs')?.checked && !fav.classList.contains('active')) {
+        card.remove(); 
+        updateResultCount(document.getElementById('listings').children.length);
+        if (!document.getElementById('listings').children.length) {
+          document.getElementById('empty').style.display='block';
+          document.getElementById('listings').style.display='none';
+        }
+      }
     });
-    imgwrap.addEventListener('mousemove',(ev)=>{
-      const r=imgwrap.getBoundingClientRect();
-      const px=(ev.clientX-r.left)/r.width;
-      const py=(ev.clientY-r.top)/r.height;
-      ry=(px-0.5)*(maxTilt*2);
-      rx=-(py-0.5)*(maxTilt*2);
+    imgwrap.appendChild(fav);
+
+    const overlay=document.createElement('div');
+    overlay.className='overlay';
+    overlay.textContent=item.quickpeek||"Quick View";
+    imgwrap.appendChild(overlay);
+
+    const info=document.createElement('div');
+    info.className='info';
+    info.innerHTML=`
+      <h3 class="title">${item.title||''}</h3>
+      <div class="price"><span class="cur">$</span>${price}</div>
+    `;
+
+    // Add-to-cart button
+    const btn = document.createElement('button');
+    btn.className='hm-add';
+    btn.textContent='Add to cart';
+    btn.setAttribute('data-add-to-cart','1');
+    btn.setAttribute('data-id', item.id);
+    btn.setAttribute('data-title', item.title || 'Fabric');
+    btn.setAttribute('data-price-cents', item.price_cents || 0);
+    btn.setAttribute('data-seller-id', item.seller_id || 'unknown');
+    info.appendChild(btn);
+
+    card.appendChild(imgwrap);
+    card.appendChild(info);
+
+    // Click to open modal
+    card.addEventListener('click',(e)=>{
+      if(!e.target.classList.contains('fav') && !e.target.hasAttribute('data-add-to-cart')){
+        openQV(item);
+      }
     });
-    imgwrap.addEventListener('mouseleave',()=>{
-      rx=0; ry=0;
-      setTimeout(()=>{
+
+    // Tilt effect
+    if(!reduceMotion){
+      const maxTilt=8; const damp=0.15;
+      let rx=0, ry=0, vx=0, vy=0, rafId=null;
+      function animate(){
+        vx += (rx - vx) * damp;
+        vy += (ry - vy) * damp;
+        img.style.transform=`rotateX(${vx}deg) rotateY(${vy}deg) scale(1.03)`;
+        rafId=requestAnimationFrame(animate);
+      }
+      imgwrap.addEventListener('mouseenter',()=>{
         cancelAnimationFrame(rafId);
-        img.style.transform='';
-      },120);
-    });
-  }
-
-  if(!reduceMotion){
-    setTimeout(()=>card.classList.add('show'), idxOffset);
-  } else {
-    card.classList.add('show');
-  }
-  return card;
-}
-
-// --- Data fetch + render ---
-document.addEventListener('DOMContentLoaded', async () => {
-  const container = document.getElementById('listings');
-  const emptyMsg = document.getElementById('empty');
-
-  try {
-    const { data, error } = await supabase
-      .from('listings')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error(error);
-      emptyMsg.style.display='block';
-      container.style.display='none';
-      return;
+        rafId=requestAnimationFrame(animate);
+      });
+      imgwrap.addEventListener('mousemove',(ev)=>{
+        const r=imgwrap.getBoundingClientRect();
+        const px=(ev.clientX-r.left)/r.width;
+        const py=(ev.clientY-r.top)/r.height;
+        ry=(px-0.5)*(maxTilt*2);
+        rx=-(py-0.5)*(maxTilt*2);
+      });
+      imgwrap.addEventListener('mouseleave',()=>{
+        rx=0; ry=0;
+        setTimeout(()=>{
+          cancelAnimationFrame(rafId);
+          img.style.transform='';
+        },120);
+      });
     }
 
-    if (!data || !data.length) {
+    if(!reduceMotion){
+      setTimeout(()=>card.classList.add('show'), idxOffset);
+    } else {
+      card.classList.add('show');
+    }
+    return card;
+  }
+
+  // --- Data fetch + render ---
+  document.addEventListener('DOMContentLoaded', async () => {
+    const container = document.getElementById('listings');
+    const emptyMsg = document.getElementById('empty');
+
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error(error);
+        emptyMsg.style.display='block';
+        container.style.display='none';
+        return;
+      }
+
+      if (!data || !data.length) {
+        emptyMsg.style.display='block';
+        container.style.display='none';
+        return;
+      }
+
+      data.forEach((item, idx) => {
+        const card = renderCard(item, idx*100);
+        container.appendChild(card);
+      });
+    } catch (err) {
+      console.error(err);
       emptyMsg.style.display='block';
       container.style.display='none';
-      return;
     }
-
-    data.forEach((item, idx) => {
-      const card = renderCard(item, idx*100);
-      container.appendChild(card);
-    });
-  } catch (err) {
-    console.error(err);
-    emptyMsg.style.display='block';
-    container.style.display='none';
-  }
-});
-</script>
+  });
+  </script>
+</body>
+</html>
