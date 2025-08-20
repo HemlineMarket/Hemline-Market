@@ -1,27 +1,41 @@
 function renderCard(item, idxOffset){
-  const price=(typeof item.price_cents==='number')?(item.price_cents/100).toFixed(2):(item.price||'0.00');
-  const when=humanizeDate(item.created_at||item.date);
+  const price = (typeof item.price_cents==='number')
+    ? (item.price_cents/100).toFixed(2)
+    : (item.price || '0.00');
+  const when = humanizeDate(item.created_at||item.date);
   const k = keyFor(item);
 
-  const card=document.createElement('div'); card.className='listing-card';
+  const card = document.createElement('div');
+  card.className='listing-card';
 
-  const imgwrap=document.createElement('div'); imgwrap.className='imgwrap';
+  const imgwrap=document.createElement('div');
+  imgwrap.className='imgwrap';
   const img = imgWithFallback(item.image_url,item.title||'');
   imgwrap.appendChild(img);
 
-  const badge=document.createElement('div'); badge.className='badge'; badge.textContent=when; imgwrap.appendChild(badge);
+  const badge=document.createElement('div');
+  badge.className='badge';
+  badge.textContent=when;
+  imgwrap.appendChild(badge);
 
-  const fav=document.createElement('div'); fav.className='fav'; fav.textContent='♥';
+  const fav=document.createElement('div');
+  fav.className='fav';
+  fav.textContent='♥';
   if (favSet.has(k)) fav.classList.add('active');
   fav.addEventListener('click',e=>{
     e.stopPropagation();
     fav.classList.toggle('active');
-    fav.classList.add('pop'); setTimeout(()=>fav.classList.remove('pop'),200);
-    if (fav.classList.contains('active')) { favSet.add(k); toast('Saved'); }
-    else { favSet.delete(k); toast('Removed'); }
+    fav.classList.add('pop');
+    setTimeout(()=>fav.classList.remove('pop'),200);
+    if (fav.classList.contains('active')) {
+      favSet.add(k); toast('Saved');
+    } else {
+      favSet.delete(k); toast('Removed');
+    }
     saveFavStore(favSet); updateFavCount();
     if (document.getElementById('onlyFavs').checked && !fav.classList.contains('active')) {
-      card.remove(); updateResultCount(document.getElementById('listings').children.length);
+      card.remove(); 
+      updateResultCount(document.getElementById('listings').children.length);
       if (!document.getElementById('listings').children.length) {
         document.getElementById('empty').style.display='block';
         document.getElementById('listings').style.display='none';
@@ -30,11 +44,17 @@ function renderCard(item, idxOffset){
   });
   imgwrap.appendChild(fav);
 
-  const overlay=document.createElement('div'); overlay.className='overlay'; overlay.textContent=item.quickpeek||"Quick View";
+  const overlay=document.createElement('div');
+  overlay.className='overlay';
+  overlay.textContent=item.quickpeek||"Quick View";
   imgwrap.appendChild(overlay);
 
-  const info=document.createElement('div'); info.className='info';
-  info.innerHTML=`<h3 class="title">${item.title||''}</h3><div class="price"><span class="cur">$</span>${price}</div>`;
+  const info=document.createElement('div');
+  info.className='info';
+  info.innerHTML=`
+    <h3 class="title">${item.title||''}</h3>
+    <div class="price"><span class="cur">$</span>${price}</div>
+  `;
 
   // Add-to-cart button
   const btn = document.createElement('button');
@@ -47,45 +67,48 @@ function renderCard(item, idxOffset){
   btn.setAttribute('data-seller-id', item.seller_id || 'unknown');
   info.appendChild(btn);
 
-  card.appendChild(imgwrap); 
+  card.appendChild(imgwrap);
   card.appendChild(info);
 
   // Click to open modal
-  card.addEventListener('click', (e)=>{ if(!e.target.classList.contains('fav')) openQV(item); });
+  card.addEventListener('click',(e)=>{
+    if(!e.target.classList.contains('fav') && !e.target.hasAttribute('data-add-to-cart')){
+      openQV(item);
+    }
+  });
 
   // Tilt effect
   if(!reduceMotion){
-    const maxTilt = 8; 
-    const damp = 0.15;
-    let rx = 0, ry = 0, vx = 0, vy = 0, rafId = null;
+    const maxTilt=8; const damp=0.15;
+    let rx=0, ry=0, vx=0, vy=0, rafId=null;
     function animate(){
       vx += (rx - vx) * damp;
       vy += (ry - vy) * damp;
-      img.style.transform = `rotateX(${vx}deg) rotateY(${vy}deg) scale(1.03)`;
-      rafId = requestAnimationFrame(animate);
+      img.style.transform=`rotateX(${vx}deg) rotateY(${vy}deg) scale(1.03)`;
+      rafId=requestAnimationFrame(animate);
     }
-    imgwrap.addEventListener('mouseenter', ()=>{
+    imgwrap.addEventListener('mouseenter',()=>{
       cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(animate);
+      rafId=requestAnimationFrame(animate);
     });
-    imgwrap.addEventListener('mousemove', (ev)=>{
-      const r = imgwrap.getBoundingClientRect();
-      const px = (ev.clientX - r.left) / r.width;   
-      const py = (ev.clientY - r.top)  / r.height;  
-      ry = (px - 0.5) * (maxTilt * 2); 
-      rx = -(py - 0.5) * (maxTilt * 2); 
+    imgwrap.addEventListener('mousemove',(ev)=>{
+      const r=imgwrap.getBoundingClientRect();
+      const px=(ev.clientX-r.left)/r.width;
+      const py=(ev.clientY-r.top)/r.height;
+      ry=(px-0.5)*(maxTilt*2);
+      rx=-(py-0.5)*(maxTilt*2);
     });
-    imgwrap.addEventListener('mouseleave', ()=>{
-      rx = 0; ry = 0;
+    imgwrap.addEventListener('mouseleave',()=>{
+      rx=0; ry=0;
       setTimeout(()=>{
         cancelAnimationFrame(rafId);
-        img.style.transform = '';
-      }, 120);
+        img.style.transform='';
+      },120);
     });
   }
 
   if(!reduceMotion){
-    setTimeout(()=>card.classList.add('show'), idxOffset); 
+    setTimeout(()=>card.classList.add('show'), idxOffset);
   } else {
     card.classList.add('show');
   }
