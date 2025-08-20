@@ -1,3 +1,6 @@
+<div id="listings"></div>
+<div id="empty" style="display:none;">No fabrics found.</div>
+
 <script>
 function renderCard(item, idxOffset){
   const price = (typeof item.price_cents==='number')
@@ -115,4 +118,39 @@ function renderCard(item, idxOffset){
   }
   return card;
 }
+
+// --- Data fetch + render ---
+document.addEventListener('DOMContentLoaded', async () => {
+  const container = document.getElementById('listings');
+  const emptyMsg = document.getElementById('empty');
+
+  try {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      emptyMsg.style.display='block';
+      container.style.display='none';
+      return;
+    }
+
+    if (!data || !data.length) {
+      emptyMsg.style.display='block';
+      container.style.display='none';
+      return;
+    }
+
+    data.forEach((item, idx) => {
+      const card = renderCard(item, idx*100);
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error(err);
+    emptyMsg.style.display='block';
+    container.style.display='none';
+  }
+});
 </script>
