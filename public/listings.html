@@ -13,7 +13,7 @@
     setTimeout(()=>t.classList.remove('show'),1400);
   }
 
-  // Handle clicks on Add-to-cart
+  // Handle Add-to-cart clicks
   document.addEventListener('click', (e)=>{
     const el = e.target.closest('[data-add-to-cart]');
     if(!el) return;
@@ -31,12 +31,10 @@
     toast('Added to cart');
   });
 
-  // Hook into your existing loadListings
-  const oldLoad = window.loadListings;
-  window.loadListings = async function(){
-    await oldLoad();
-    // Inject buttons after listings are drawn
-    document.querySelectorAll('#listings .listing-card').forEach(card=>{
+  // Observe listings container and inject Add-to-cart buttons once items render
+  const target = document.getElementById('listings');
+  const observer = new MutationObserver(()=>{
+    target.querySelectorAll('.listing-card').forEach(card=>{
       if(card.querySelector('[data-add-to-cart]')) return;
       const id = card.querySelector('h3.title')?.textContent?.trim() || 'unknown';
       const title = card.querySelector('h3.title')?.textContent?.trim() || 'Fabric';
@@ -54,7 +52,8 @@
 
       (card.querySelector('.info') || card).appendChild(btn);
     });
-  };
+  });
+  observer.observe(target, { childList:true, subtree:true });
 })();
 </script>
 
