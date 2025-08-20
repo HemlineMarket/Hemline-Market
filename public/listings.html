@@ -5,24 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Hemline — Listings</title>
 
-<!-- Base styles -->
 <style>
   :root { --ink:#0f172a; --line:#e5e7eb; --bg:#fafafa; --accent:#111827; --badge:#0ea5e9; --card:#ffffff; }
   body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
   .wrap { max-width: 1000px; margin:auto; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 
-  /* Inputs */
-  .input {
+  .input, .select {
     height:36px; padding:0 12px; border:1px solid var(--line); border-radius:10px; background:#fff;
     font-size:14px; outline:none;
   }
-  .input:focus { box-shadow:0 0 0 3px rgba(14,165,233,.15); border-color:#94d7f5; }
+  .input:focus, .select:focus { box-shadow:0 0 0 3px rgba(14,165,233,.15); border-color:#94d7f5; }
 
-  /* Sticky toolbar */
   .toolbar {
     position: sticky; top: 0; z-index: 10;
-    display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center;
+    display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 10px; align-items: center;
     padding: 10px 12px; margin: 8px 0 16px;
     background: rgba(250,250,250,.85); backdrop-filter: blur(6px);
     border: 1px solid var(--line); border-radius: 12px;
@@ -33,7 +30,6 @@
   .chip.active { border-color:#0ea5e9; color:#0ea5e9; font-weight:700; }
   .count { justify-self:end; font-size:12px; color:#64748b; }
 
-  /* CARD */
   .listing-card {
     position:relative; border-radius:12px; overflow:hidden; background:#fff;
     border:1px solid var(--line); box-shadow:0 2px 6px rgba(0,0,0,.05);
@@ -48,13 +44,11 @@
   .imgwrap { position:relative; background:#f8fafc; overflow:hidden; }
   .listing-card img { width:100%; height:240px; object-fit:cover; display:block; }
 
-  /* Hover quick peek */
   .overlay { position:absolute; inset:0; background:rgba(0,0,0,.45); color:#fff;
     display:flex; align-items:center; justify-content:center; font-weight:600; font-size:15px;
     opacity:0; transition:opacity .25s ease; }
   .imgwrap:hover .overlay { opacity:1; }
 
-  /* Date badge (on image) */
   .badge { position:absolute; left:8px; top:8px; background:rgba(14,165,233,.95); color:#fff;
     padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600;
     border:1px solid rgba(255,255,255,.5); box-shadow:0 2px 6px rgba(0,0,0,.08); }
@@ -64,30 +58,25 @@
   .price { font-weight:800; letter-spacing:.2px; color:var(--accent); font-size:22px; line-height:1; white-space:nowrap; }
   .price .cur { opacity:.55; font-weight:600; margin-right:1px; }
 
-  /* HARD-HIDE any legacy under-card dates */
+  /* hide any legacy date text under cards */
   time, [datetime], .info .date, .card-date, .meta-date, .muted small, .card small { display:none !important; }
 
-  /* Favorite heart */
   .fav { position:absolute; top:8px; right:8px; cursor:pointer; font-size:20px;
          color:#cbd5e1; transition:transform 0.2s ease, color 0.2s ease; user-select:none; }
   .fav.active { color:#e11d48; }
   .fav.pop { transform:scale(1.4); }
 
-  /* Broken image classy placeholder */
   .ph { width:100%; height:240px; display:grid; place-items:center;
     background:linear-gradient(135deg,#f3f4f6 10%, #eef2f7 90%); color:#64748b; font-weight:600; }
   .ph .dot { width:52px; height:52px; border-radius:14px; border:1px solid #e5e7eb; display:grid; place-items:center;
     background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.05); }
 
-  /* Empty state */
   .empty { text-align:center; padding:60px 20px; color:#64748b; display:none; }
   .empty svg { width:80px; height:80px; margin-bottom:16px; opacity:.7; }
   .empty h2 { font-size:20px; margin:0 0 8px; color:#0f172a; }
   .empty p { margin:0 0 20px; }
-  .btn { display:inline-block; padding:10px 18px; border-radius:999px;
-    background:#0ea5e9; color:#fff; font-weight:600; text-decoration:none; }
+  .btn { display:inline-block; padding:10px 18px; border-radius:999px; background:#0ea5e9; color:#fff; font-weight:600; text-decoration:none; }
 
-  /* SKELETONS */
   .skeleton-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .sk-card { border:1px solid var(--line); border-radius:12px; background:#fff; overflow:hidden; }
   .sk-img { height:240px; background:linear-gradient(90deg,#f3f4f6 25%,#eef1f5 37%,#f3f4f6 63%); }
@@ -98,7 +87,6 @@
   .sk-img, .sk-row { background-size:400px 100%; animation:shimmer 1.2s infinite linear; }
   @media (prefers-reduced-motion: reduce){ .sk-img,.sk-row { animation:none; } }
 
-  /* Quick View modal */
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50}
   .modal{width:min(860px,92vw);background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
   .modal-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #e5e7eb}
@@ -110,7 +98,6 @@
   .bigprice{font-size:28px;font-weight:800}
   @media (max-width:720px){ .modal-body{grid-template-columns:1fr} .modal-body img{height:260px} }
 
-  /* Floating to-top FAB + toast */
   #toTop{
     position:fixed; right:18px; bottom:18px; z-index:60;
     border:1px solid #e5e7eb; background:#111827; color:#fff;
@@ -129,7 +116,6 @@
   #toast.show{ opacity:1; transform:translate(-50%, 0); }
 </style>
 
-<!-- Supabase client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
   const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
@@ -141,9 +127,13 @@
   <div class="wrap">
     <h1 style="margin:0 0 12px">Fabric Listings</h1>
 
-    <!-- Sticky toolbar -->
     <div class="toolbar" id="toolbar">
       <input id="q" class="input" placeholder="Search title or description…">
+      <select id="sortBy" class="select" aria-label="Sort by">
+        <option value="new">Newest</option>
+        <option value="plh">Price: Low → High</option>
+        <option value="phl">Price: High → Low</option>
+      </select>
       <label><input type="checkbox" id="onlyFavs"> Favorites only</label>
       <div class="chips" id="priceChips">
         <button class="chip" data-range="u20">Under $20</button>
@@ -156,17 +146,12 @@
       </span>
     </div>
 
-    <!-- Skeletons while loading -->
     <div id="skeletons" class="skeleton-grid" aria-hidden="true"></div>
-
-    <!-- Real listings -->
     <div id="listings" class="grid" style="display:none;"></div>
 
-    <!-- Empty state -->
     <div id="empty" class="empty">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M3 7l9-4 9 4M4 10h16v10H4z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7l9-4 9 4M4 10h16v10H4z"/>
       </svg>
       <h2>No fabrics match your filters</h2>
       <p>Try adjusting your search or clear filters to see more.</p>
@@ -174,7 +159,6 @@
     </div>
   </div>
 
-  <!-- Quick View modal -->
   <div id="qv" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="qv-title">
     <div class="modal">
       <div class="modal-header">
@@ -196,12 +180,10 @@
     </div>
   </div>
 
-  <!-- Floating FAB + toast -->
   <button id="toTop" aria-label="Back to top">↑</button>
   <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
-  /* ---------- helpers ---------- */
   const LS_KEY = 'hemlinemarket:favorites';
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -249,7 +231,6 @@
   function closeQV(){ document.getElementById('qv').style.display='none'; }
   document.addEventListener('click', (e)=>{ const qv=document.getElementById('qv'); if(qv && qv.style.display==='flex' && e.target===qv){ closeQV(); } });
 
-  /* ---------- data + rendering ---------- */
   let currentData = [];
   let favSet = getFavStore();
   let priceRange = null;
@@ -273,19 +254,43 @@
         || (item.description || '').toLowerCase().includes(s);
   }
 
+  function sortRows(rows){
+    const mode = document.getElementById('sortBy').value;
+    if(mode === 'new'){
+      return rows.sort((a,b)=> new Date(b.created_at||0) - new Date(a.created_at||0));
+    }
+    if(mode === 'plh'){
+      return rows.sort((a,b)=>{
+        const pa = (typeof a.price_cents==='number') ? a.price_cents : Math.round(parseFloat(a.price||'0')*100);
+        const pb = (typeof b.price_cents==='number') ? b.price_cents : Math.round(parseFloat(b.price||'0')*100);
+        return pa - pb;
+      });
+    }
+    if(mode === 'phl'){
+      return rows.sort((a,b)=>{
+        const pa = (typeof a.price_cents==='number') ? a.price_cents : Math.round(parseFloat(a.price||'0')*100);
+        const pb = (typeof b.price_cents==='number') ? b.price_cents : Math.round(parseFloat(b.price||'0')*100);
+        return pb - pa;
+      });
+    }
+    return rows;
+  }
+
   function render(data){
     const onlyFavs = document.getElementById('onlyFavs').checked;
     const q = document.getElementById('q').value.trim();
     const container = document.getElementById('listings');
     const empty = document.getElementById('empty');
 
-    const rows = (data||[]).filter(it=>{
+    let rows = (data||[]).filter(it=>{
       const cents = typeof it.price_cents==='number' ? it.price_cents : Math.round(parseFloat(it.price||'0')*100);
       const favOK = !onlyFavs || favSet.has(keyFor(it));
       const priceOK = priceMatches(cents);
       const textOK = matchesQuery(it, q);
       return favOK && priceOK && textOK;
     });
+
+    rows = sortRows(rows);
 
     container.innerHTML = '';
     updateResultCount(rows.length);
@@ -376,6 +381,9 @@
     });
   })();
 
+  // Sort handler
+  document.getElementById('sortBy').addEventListener('change', ()=>render(currentData));
+
   // To-top FAB
   (function(){
     const btn=document.getElementById('toTop');
@@ -385,7 +393,7 @@
     onScroll();
   })();
 
-  // Wire toolbar
+  // Toolbar
   document.getElementById('onlyFavs').addEventListener('change', ()=>render(currentData));
   document.getElementById('priceChips').addEventListener('click', (e)=>{
     const btn = e.target.closest('.chip[data-range]');
@@ -394,7 +402,6 @@
     syncChipStates(); render(currentData);
   });
 
-  // Kick off
   loadListings();
 </script>
 </body>
