@@ -1,1 +1,69 @@
-<a href="orders.html" style="display:inline-block;margin-bottom:16px;color:#0ea5e9;text-decoration:none;">View Your Orders →</a>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Hemline — Listings</title>
+  <style>
+    :root { --ink:#0f172a; --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; }
+    body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
+    .wrap { max-width:1000px; margin:auto; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+    .card img { width:100%; display:block; }
+    .card-body { padding:12px; }
+    .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    button { background:#0ea5e9; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+    button:hover { background:#0284c7; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="toolbar">
+      <h1>Listings</h1>
+      <div>
+        <button onclick="viewCart()">Checkout</button>
+        <a href="orders.html" style="margin-left:16px;color:#0ea5e9;text-decoration:none;">View Orders</a>
+      </div>
+    </div>
+    <div id="listings" class="grid"></div>
+  </div>
+
+  <script>
+    async function loadListings() {
+      const res = await fetch("https://clkizksbvxjkoatdajgd.supabase.co/rest/v1/listings?select=*", {
+        headers: { apikey: "YOUR_SUPABASE_ANON_KEY" }
+      });
+      const items = await res.json();
+      const grid = document.getElementById("listings");
+      grid.innerHTML = "";
+      items.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <img src="https://clkizksbvxjkoatdajgd.supabase.co/storage/v1/object/public/listing-images/${item.image_url}" alt="">
+          <div class="card-body">
+            <h3>${item.title}</h3>
+            <p>$${item.price}</p>
+            <button onclick='addToCart(${JSON.stringify(item)})'>Add to Cart</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function addToCart(item) {
+      let cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
+      cart.push(item);
+      localStorage.setItem("hem_cart", JSON.stringify(cart));
+      alert(item.title + " added to cart");
+    }
+
+    function viewCart() {
+      window.location.href = "cart.html";
+    }
+
+    loadListings();
+  </script>
+</body>
+</html>
