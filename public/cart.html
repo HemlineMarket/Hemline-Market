@@ -1,101 +1,77 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Hemline — Cart</title>
-<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
-.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
-.thumb{width:100%;height:170px;object-fit:cover;border-radius:8px;margin:0 0 10px;background:#f1f5f9}
-.row{display:flex;justify-content:space-between;align-items:center;gap:8px}.title{font-weight:600}
-.btn{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
-.badge{display:inline-block;background:#e2e8f0;border-radius:999px;padding:2px 8px;font-size:.75rem;margin-top:6px}
-.cta{background:#0ea5e9;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer}
-.cta:disabled{opacity:.5;cursor:not-allowed}.empty{border:2px dashed #e5e7eb;border-radius:12px;padding:24px;text-align:center;color:#475569}
-.controls{display:flex;gap:10px;align-items:center;margin-top:8px}
-.sum{max-width:980px;margin:16px 0;padding:12px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;justify-content:space-between;align-items:center}
-.carousel{margin:26px 0 6px}.track{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:12px;overflow:auto}
-.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:50}
-.panel{width:min(560px,92vw);background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
-.step{display:flex;align-items:center;gap:10px;margin:10px 0}.dot{width:10px;height:10px;border-radius:50%;background:#cbd5e1}.step.done .dot{background:#0ea5e9}
-.roll{height:16px;border-radius:999px;border:1px solid #cbd5e1;overflow:hidden;margin:12px 0 6px}.fill{height:100%;width:0%;background:repeating-linear-gradient(135deg,#0ea5e9 0 14px,#38bdf8 14px 28px);transition:width .5s}
-</style></head><body>
-<h1>Your Cart</h1>
-<div id="cartGrid" class="grid"></div>
-<div id="emptyMsg" class="empty" hidden>Cart is empty. <a href="/listings.html">Continue shopping →</a></div>
-
-<div class="sum" id="summary" hidden>
-  <strong>Subtotal: <span id="subtotal">$0.00</span></strong>
-  <div class="controls">
-    <a class="btn" href="/listings.html">← Continue</a>
-    <button id="checkoutBtn" class="cta" disabled>Checkout</button>
-    <button id="cancelBtn" class="btn">Cancel</button>
-    <button id="clearBtn" class="btn">Remove all</button>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Hemline — Cart</title>
+  <style>
+    :root { --ink:#0f172a; --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; }
+    body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
+    .wrap { max-width:800px; margin:auto; }
+    .cart-item { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+    button { background:#0ea5e9; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+    button:hover { background:#0284c7; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Your Cart</h1>
+    <div id="cart"></div>
+    <button onclick="placeOrder()">Place Order</button>
   </div>
-</div>
 
-<div class="carousel"><h2>New Arrivals</h2><div id="arrivals" class="track"></div></div>
+  <script>
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
 
-<div id="overlay" class="overlay"><div class="panel">
-  <h3>Preparing Checkout</h3>
-  <div class="step" id="s1"><span class="dot"></span><span>Securing cart</span></div>
-  <div class="step" id="s2"><span class="dot"></span><span>Creating session</span></div>
-  <div class="step" id="s3"><span class="dot"></span><span>Redirecting</span></div>
-  <div class="roll"><div id="fill" class="fill"></div></div>
-</div></div>
+    function renderCart() {
+      const cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
+      const cartDiv = document.getElementById("cart");
+      cartDiv.innerHTML = "";
+      cart.forEach((item, idx) => {
+        const div = document.createElement("div");
+        div.className = "cart-item";
+        div.innerHTML = `<span>${item.title} — $${item.price}</span>
+                         <button onclick="removeItem(${idx})">Remove</button>`;
+        cartDiv.appendChild(div);
+      });
+    }
 
-<script>
-const KEY="hem_cart",PH="https://via.placeholder.com/600x400?text=Fabric";
-const $=id=>document.getElementById(id),fmt=n=>`$${n.toFixed(2)}`;
-const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}, save=a=>localStorage.setItem(KEY,JSON.stringify(a||[]));
-const proxy=u=>{try{const x=new URL(u);return "https://images.weserv.nl/?url=ssl:"+x.hostname+x.pathname+(x.search||"")+"&w=300&h=300&fit=cover"}catch(e){return PH}};
+    function removeItem(index) {
+      let cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
+      cart.splice(index, 1);
+      localStorage.setItem("hem_cart", JSON.stringify(cart));
+      renderCart();
+    }
 
-/* Render cart with qty controls and remove */
-function render(){
-  const cart=read(),grid=$("cartGrid"),empty=$("emptyMsg"),sumBox=$("summary"),subEl=$("subtotal"),checkout=$("checkoutBtn");
-  grid.innerHTML=""; let subtotal=0;
-  if(!cart.length){empty.hidden=false;sumBox.hidden=true;return}
-  empty.hidden=true;sumBox.hidden=false;
-  cart.forEach((it,i)=>{const line=(+it.price||0)*(+it.qty||1); subtotal+=line;
-    const c=document.createElement("div"); c.className="card";
-    c.innerHTML=`<img class="thumb" src="${it.img||PH}"/><div class="title">${it.title}</div>
-      <div class="row"><span>Price/yd</span><strong>${fmt(+it.price||0)}</strong></div>
-      <div class="row"><span>Yards</span>
-        <div><button class="btn" data-a="dec" data-i="${i}">−</button>
-        <strong style="margin:0 8px">${it.qty||1}</strong>
-        <button class="btn" data-a="inc" data-i="${i}">+</button></div></div>
-      <div class="row"><span>Line total</span><strong>${fmt(line)}</strong></div>
-      <div class="row"><span></span><button class="btn" data-a="rm" data-i="${i}">Remove</button></div>`;
-    grid.appendChild(c);
-  });
-  subEl.textContent=fmt(subtotal); checkout.disabled=!(subtotal>0);
-  grid.onclick=e=>{const b=e.target.closest("button"); if(!b)return; let c=read(),i=+b.dataset.i,a=b.dataset.a;
-    if(a==="inc")c[i].qty++; else if(a==="dec")c[i].qty=Math.max(1,(c[i].qty||1)-1); else if(a==="rm")c.splice(i,1);
-    save(c); render();
-  };
-  $("clearBtn").onclick=()=>{save([]);render()};
-}
-render();
+    async function placeOrder() {
+      const cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
+      if (cart.length === 0) {
+        alert("Your cart is empty.");
+        return;
+      }
 
-/* Cancel → go to cancel page */
-$("cancelBtn").onclick=()=>{window.location.href="/cancel.html"};
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          Prefer: "return=minimal"
+        },
+        body: JSON.stringify({ items: cart })
+      });
 
-/* Checkout → save optimized images, then redirect (from JSON if present) */
-async function getRedirectURL(){try{const r=await fetch("/stripe-link.json",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();return j.url||"/success.html"}catch(e){return"/success.html"}}
-$("checkoutBtn").onclick=async()=>{const overlay=$("overlay"),fill=$("fill"),s1=$("s1"),s2=$("s2"),s3=$("s3");
-  const order=read(); if(!order.length)return;
-  const optimized=order.map(it=>({...it,img:proxy(it.img||PH)}));
-  sessionStorage.setItem("hem_order",JSON.stringify(optimized)); localStorage.removeItem(KEY);
-  overlay.style.display="flex"; fill.style.width="0%"; [s1,s2,s3].forEach(x=>x.classList.remove("done"));
-  const tick=(w,el)=>new Promise(res=>setTimeout(()=>{fill.style.width=w;el.classList.add("done");res()},450));
-  await tick("25%",s1); await tick("60%",s2); const url=await getRedirectURL(); await tick("100%",s3); window.location.href=url;
-};
+      if (res.ok) {
+        alert("Order placed successfully!");
+        localStorage.removeItem("hem_cart");
+        window.location.href = "orders.html";
+      } else {
+        alert("Error placing order.");
+      }
+    }
 
-/* Arrivals with Add to Cart */
-const arrivals=[{id:"mw-wool-crepe",title:"Merino Wool Crepe — Black",price:38.00,img:"https://images.unsplash.com/photo-1610030469983-98b5a19b7935?q=80&w=1200"},
-{id:"silk-charmeuse",title:"Silk Charmeuse — Ivory",price:42.00,img:"https://images.unsplash.com/photo-1542060748-10c28b62716a?q=80&w=1200"},
-{id:"cotton-sateen",title:"Cotton Sateen — Navy",price:18.50,img:"https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1200"},
-{id:"tropical-wool",title:"Tropical Wool — Charcoal",price:34.00,img:"https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1200"}];
-const track=$("arrivals");
-arrivals.forEach(it=>{const el=document.createElement("div");el.className="card";el.innerHTML=
-  `<img class="thumb" src="${it.img}"/><div class="title">${it.title}</div><div class="badge">$${it.price}/yd</div><button class="add">Add to Cart</button>`;
-  el.querySelector(".add").onclick=()=>{let c=read();const f=c.find(x=>x.id===it.id);if(f)f.qty++;else c.push({...it,qty:1});save(c);render();};
-  track.appendChild(el);
-});
-</script></body></html>
+    renderCart();
+  </script>
+</body>
+</html>
