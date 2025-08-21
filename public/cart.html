@@ -13,7 +13,8 @@ h1{margin-bottom:16px}
 .qty{display:flex;align-items:center;gap:8px}
 .btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:4px 8px;cursor:pointer}
 .total{margin-top:20px;font-size:18px;font-weight:600;text-align:right}
-.checkout{display:block;margin-left:auto;margin-top:12px;background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+.cta{background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer}
 .link{color:var(--accent);text-decoration:none}
 </style></head>
 <body>
@@ -22,11 +23,14 @@ h1{margin-bottom:16px}
   <h1>Your Cart</h1>
   <div id="cart"></div>
   <div class="total" id="total"></div>
-  <button class="checkout" id="checkoutBtn">Checkout</button>
+  <div class="actions">
+    <a class="btn" href="cancel.html">Cancel</a>
+    <button class="cta" id="checkoutBtn">Checkout</button>
+  </div>
 </div>
 
 <script>
-/* Config (keys included) */
+/* Config */
 const SUPABASE_URL="https://clkizksbvxjkoatdajgd.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4MDE1ODIsImV4cCI6MjAzOTM3NzU4Mn0.MEu0Ex0bTtVnNuB-tAek95UbwsKdbWipzJrN84aKhlg";
 const KEY="hem_cart";
@@ -39,7 +43,12 @@ function renderCart(){
   const wrap=document.getElementById("cart"); wrap.innerHTML="";
   let total=0;
 
-  if(!cart.length){wrap.innerHTML="<p>Cart is empty.</p>";document.getElementById("total").textContent="";document.getElementById("checkoutBtn").disabled=true;return}
+  if(!cart.length){
+    wrap.innerHTML="<p>Cart is empty.</p>";
+    document.getElementById("total").textContent="";
+    document.getElementById("checkoutBtn").disabled=true;
+    return;
+  }
 
   cart.forEach((it,idx)=>{
     total+= (Number(it.price)||0)*(Number(it.qty)||1);
@@ -72,18 +81,21 @@ function renderCart(){
   document.getElementById("checkoutBtn").disabled=false;
 }
 
-/* Checkout: save order to Supabase, keep order in session, clear cart, go to success */
+/* Checkout with backup for cancel restore */
 async function checkout(){
   const items=readCart(); if(!items.length) return;
-  const payload={items, created_at:new Date().toISOString()};
+  // backup current cart so cancel.html can restore it
+  try{ sessionStorage.setItem("hem_cart_backup", localStorage.getItem(KEY)||"[]"); }catch(_){}
+  // try to persist remotely
   try{
     await fetch(`${SUPABASE_URL}/rest/v1/orders`,{
       method:"POST",
       headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json",Prefer:"return=minimal"},
-      body:JSON.stringify(payload)
+      body:JSON.stringify({items,created_at:new Date().toISOString()})
     });
-  }catch(_){/* still continue to success page */}
-  sessionStorage.setItem("hem_order",JSON.stringify(items));
+  }catch(_){}
+  // pass order to success + clear local cart
+  sessionStorage.setItem("hem_order", JSON.stringify(items));
   localStorage.removeItem(KEY);
   window.location.href="success.html";
 }
