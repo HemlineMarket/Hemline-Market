@@ -1,66 +1,60 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Hemline — Cart</title>
-<style>:root{--ink:#0f172a;--bg:#fafafa;--card:#fff;--line:#e5e7eb;--accent:#0ea5e9}
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--ink)}
-.wrap{max-width:820px;margin:auto}
-.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#fff}
-.count{display:inline-flex;min-width:22px;height:22px;border-radius:999px;align-items:center;justify-content:center;background:var(--accent);color:#fff;font-weight:700;font-size:.8rem}
-.cart-item{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
-.thumb{width:70px;height:70px;object-fit:cover;border-radius:8px;background:#f1f5f9}
-.info{flex:1}.title{font-weight:600}.price{color:var(--accent);font-weight:600}
-.row{display:flex;gap:8px;align-items:center}.sp{margin-left:auto}
-.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
-.cta{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 16px;cursor:pointer}
-.total{margin-top:10px;text-align:right;font-weight:700}
-.msg{border:2px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:#475569}</style></head>
-<body><div class="wrap">
-  <div class="top">
-    <a href="listings.html" style="color:var(--accent);text-decoration:none">← Back to “Listings”</a>
-    <div class="badge"><span>Items</span><span id="itemCount" class="count">0</span></div>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Hemline — Cart</title>
+  <style>
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+           margin: 24px; background:#fafafa; color:#0f172a; }
+    .wrap { max-width: 800px; margin: auto; }
+    .cart-item { background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+                 padding:16px; margin-bottom:12px; }
+    .actions { margin-top: 20px; }
+    button { padding:10px 16px; border:none; border-radius:8px;
+             background:#0ea5e9; color:#fff; cursor:pointer; }
+    a { color:#0ea5e9; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="listings.html" style="display:inline-block;margin-bottom:20px;">
+      ← Back to Listings
+    </a>
+    <h1>Your Cart</h1>
+    <div id="cart"></div>
+    <div class="actions">
+      <button onclick="checkout()">Checkout</button>
+    </div>
   </div>
-  <h1>Your Cart</h1>
-  <div id="cart"></div>
-  <div id="empty" class="msg" hidden>Cart is empty. <a href="listings.html" style="color:var(--accent);text-decoration:none">Continue shopping →</a></div>
-  <div class="row" style="justify-content:flex-end;gap:10px;margin-top:8px">
-    <button id="clearBtn" class="btn">Remove all</button>
-    <a class="btn" href="cancel.html">Cancel</a>
-    <button id="checkoutBtn" class="cta" disabled>Checkout</button>
-  </div>
-  <div id="total" class="total"></div>
-</div>
-<script>
-const SUPABASE_URL="https://clkizksbvxjkoatdajgd.supabase.co";
-const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4MDE1ODIsImV4cCI6MjAzOTM3NzU4Mn0.MEu0Ex0bTtVnNuB-tAek95UbwsKdbWipzJrN84aKhlg";
-const KEY="hem_cart",PH="https://via.placeholder.com/300x300?text=Fabric";
-const $=id=>document.getElementById(id), read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch{return[]}}, save=a=>localStorage.setItem(KEY,JSON.stringify(a||[]));
-function countItems(arr){return arr.reduce((n,i)=>n+(+i.qty||1),0)}
-function render(){
-  const cart=read(),wrap=$("cart"),empty=$("empty"),btn=$("checkoutBtn"),tot=$("total");
-  wrap.innerHTML=""; let sum=0; $("itemCount").textContent=countItems(cart);
-  if(!cart.length){empty.hidden=false;btn.disabled=true;tot.textContent="";return}else{empty.hidden=true}
-  cart.forEach((it,idx)=>{const q=+it.qty||1,p=+it.price||0; sum+=q*p;
-    const el=document.createElement("div"); el.className="cart-item";
-    el.innerHTML=`<img class="thumb" src="${it.img||PH}" onerror="this.src='${PH}'"><div class="info">
-      <div class="row"><div class="title">${it.title||"Fabric"}</div><div class="price sp">$${p.toFixed(2)}/yd</div></div>
-      <div class="row"><button class="btn" data-a="dec" data-i="${idx}">−</button><strong>${q}</strong>
-      <button class="btn" data-a="inc" data-i="${idx}">+</button><button class="btn sp" data-a="rm" data-i="${idx}">Remove</button></div></div>`;
-    wrap.appendChild(el);
-  });
-  tot.textContent="Subtotal: $"+sum.toFixed(2); btn.disabled=sum<=0;
-}
-document.addEventListener("click",e=>{const b=e.target.closest("button"); if(!b||!b.dataset||b.dataset.i===undefined)return;
-  const i=+b.dataset.i,a=b.dataset.a; let c=read(); if(!c[i])return;
-  if(a==="inc")c[i].qty=(+c[i].qty||1)+1;
-  if(a==="dec")c[i].qty=Math.max(1,(+c[i].qty||1)-1);
-  if(a==="rm")c.splice(i,1);
-  save(c); render();
-});
-$("clearBtn").onclick=()=>{save([]);render()};
-$("checkoutBtn").onclick=async()=>{const items=read(); if(!items.length)return;
-  try{sessionStorage.setItem("hem_cart_backup",localStorage.getItem(KEY)||"[]");}catch(_){}
-  try{await fetch(`${SUPABASE_URL}/rest/v1/orders`,{method:"POST",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({items,created_at:new Date().toISOString()})});}catch(_){}
-  sessionStorage.setItem("hem_order",JSON.stringify(items)); localStorage.removeItem(KEY); window.location.href="success.html";
-};
-render();
-</script>
-</body></html>
+
+  <script>
+    function loadCart() {
+      const div = document.getElementById("cart");
+      div.innerHTML = "";
+      try {
+        const raw = localStorage.getItem("hem_cart");
+        const items = raw ? JSON.parse(raw) : [];
+        if (!items.length) {
+          div.innerHTML = "<p>No items in cart.</p>";
+          return;
+        }
+        items.forEach(it => {
+          div.innerHTML += `<div class="cart-item">${it.title} — $${it.price}</div>`;
+        });
+      } catch {
+        div.innerHTML = "<p>Error loading cart.</p>";
+      }
+    }
+
+    function checkout() {
+      const raw = localStorage.getItem("hem_cart");
+      sessionStorage.setItem("hem_order", raw);
+      localStorage.removeItem("hem_cart");
+      window.location.href = "success.html";
+    }
+
+    loadCart();
+  </script>
+</body>
+</html>
