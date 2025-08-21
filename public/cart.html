@@ -8,8 +8,8 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
 .thumb{width:100%;height:170px;object-fit:cover;border-radius:8px;margin:0 0 10px;background:#f1f5f9}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}.title{font-weight:600}
 .btn{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
-.btn:hover{border-color:#cbd5e1}.danger{color:#b91c1c;border-color:#fecaca}
 .cta{background:#0ea5e9;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer}
+.cta:disabled{opacity:.5;cursor:not-allowed}
 .empty{border:2px dashed #e5e7eb;border-radius:12px;padding:24px;text-align:center;color:#475569}
 .carousel{margin:26px 0 6px}
 .track{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:12px;overflow:auto}
@@ -21,6 +21,13 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
 .flip .back{position:absolute;inset:0;transform:rotateY(180deg)}
 .badge{display:inline-block;background:#e2e8f0;border-radius:999px;padding:2px 8px;font-size:.75rem;margin-top:6px}
 .add{margin-top:10px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;padding:8px 10px;cursor:pointer;width:100%}
+/* Overlay */
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:50}
+.panel{width:min(560px,92vw);background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+.step{display:flex;align-items:center;gap:10px;margin:10px 0}.dot{width:10px;height:10px;border-radius:50%;background:#cbd5e1}.step.done .dot{background:#0ea5e9}
+.roll{height:16px;border-radius:999px;border:1px solid #cbd5e1;overflow:hidden;margin:12px 0 6px}
+.fill{height:100%;width:0%;background:repeating-linear-gradient(135deg,#0ea5e9 0 14px,#38bdf8 14px 28px);transition:width .5s}
+.note{font-size:.9rem;color:#475569}
 </style>
 </head><body>
 <h1>Your Cart</h1>
@@ -33,17 +40,26 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
   <div id="arrivals" class="track"></div>
 </div>
 
+<div id="overlay" class="overlay">
+  <div class="panel">
+    <h3>Preparing Checkout</h3>
+    <div class="step" id="s1"><span class="dot"></span><span>Securing cart</span></div>
+    <div class="step" id="s2"><span class="dot"></span><span>Creating session</span></div>
+    <div class="step" id="s3"><span class="dot"></span><span>Rolling fabric</span></div>
+    <div class="roll"><div id="fill" class="fill"></div></div>
+    <div class="note" id="note">Please wait…</div>
+  </div>
+</div>
+
 <script>
 const KEY="hem_cart",PH="https://via.placeholder.com/600x400?text=Fabric";
-const fmt=n=>`$${n.toFixed(2)}`;
+const $=id=>document.getElementById(id),fmt=n=>`$${n.toFixed(2)}`;
 function read(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}
 function save(arr){localStorage.setItem(KEY,JSON.stringify(arr||[]))}
 
-/* Render cart */
+/* Render */
 function render(){
-  const cart=read(),grid=document.getElementById("cartGrid"),
-        empty=document.getElementById("emptyMsg"),
-        checkout=document.getElementById("checkoutBtn");
+  const cart=read(),grid=$("cartGrid"),empty=$("emptyMsg"),checkout=$("checkoutBtn");
   grid.innerHTML="";
   if(!cart.length){empty.hidden=false;checkout.disabled=true;return}
   empty.hidden=true;checkout.disabled=false;
@@ -57,12 +73,13 @@ function render(){
 }
 render();
 
-/* Add to cart */
-function addItem(item){
-  let c=read();const f=c.find(x=>x.id===item.id);
-  if(f)f.qty++;else c.push({...item,qty:1});
-  save(c);render();
-}
+/* Checkout */
+$("checkoutBtn").onclick=()=>{
+  const overlay=$("overlay"),fill=$("fill"),s1=$("s1"),s2=$("s2"),s3=$("s3"),note=$("note");
+  overlay.style.display="flex";fill.style.width="0%";[s1,s2,s3].forEach(x=>x.classList.remove("done"));
+  const tick=(w,el,msg,cb)=>setTimeout(()=>{fill.style.width=w;el.classList.add("done");note.textContent=msg;cb&&cb()},500);
+  tick("25%",s1,"Cart secured",()=>{tick("60%",s2,"Session ready",()=>{tick("100%",s3,"Redirecting…",()=>{setTimeout(()=>{window.location.href="/success.html"},800)})})});
+};
 
 /* Arrivals */
 const arrivals=[
@@ -71,13 +88,13 @@ const arrivals=[
   {id:"cotton-sateen",title:"Cotton Sateen — Navy",price:18.50,img:"https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1200"},
   {id:"tropical-wool",title:"Tropical Wool — Charcoal",price:34.00,img:"https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1200"}
 ];
-const track=document.getElementById("arrivals");
+const track=$("arrivals");
 arrivals.forEach(it=>{
   const el=document.createElement("div");el.className="flip";el.innerHTML=
     `<div class="face"><div class="front"><img src="${it.img}"/><div class="title">${it.title}</div><div class="badge">$${it.price}/yd</div></div>
       <div class="back"><div class="title">${it.title}</div><button class="add">Add to Cart</button></div></div>`;
   el.addEventListener("click",e=>{if(e.target.classList.contains("add"))return;el.classList.toggle("is-flipped")});
-  el.querySelector(".add").onclick=()=>addItem(it);
+  el.querySelector(".add").onclick=()=>{let c=read();const f=c.find(x=>x.id===it.id);if(f)f.qty++;else c.push({...it,qty:1});save(c);render();};
   track.appendChild(el);
 });
 </script>
