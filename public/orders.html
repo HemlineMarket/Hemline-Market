@@ -5,44 +5,63 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Orders</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin:24px; background:#fafafa; color:#0f172a; }
+    :root { --ink:#0f172a; --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; }
+    body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
     .wrap { max-width:800px; margin:auto; }
-    .order-card {
-      border:1px solid #e5e7eb;
-      border-radius:12px;
-      padding:16px;
-      margin-bottom:20px;
-      background:#fff;
-      box-shadow:0 2px 6px rgba(0,0,0,0.05);
-    }
-    a.back { display:inline-block;margin-bottom:20px;color:#0ea5e9;text-decoration:none; }
+    .order { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+    .order h3 { margin-top:0; }
+    .item { margin-left:16px; }
   </style>
 </head>
 <body>
   <div class="wrap">
+    <a href="listings.html" style="display:inline-block;margin-bottom:20px;color:#0ea5e9;text-decoration:none;">
+      ← Back to Listings
+    </a>
     <h1>Your Orders</h1>
-    <a class="back" href="listings.html">← Back to Listings</a>
-    <div id="ordersContainer"></div>
+    <div id="orders"></div>
   </div>
 
   <script>
-    const container = document.getElementById('ordersContainer');
-    const orders = JSON.parse(localStorage.getItem('hem_orders')) || [];
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
 
-    container.innerHTML = "";
-    if (orders.length === 0) {
-      container.innerHTML = `<p style="color:#6b7280;">You have no orders yet.</p>`;
-    } else {
-      orders.forEach((order, i) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'order-card';
-        wrapper.innerHTML = `
-          <h3>Order #${i + 1} — ${new Date(order.date).toLocaleString()}</h3>
-          <div>${order.html}</div>
-        `;
-        container.appendChild(wrapper);
+    async function loadOrders() {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/orders?select=*`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      });
+
+      const data = await res.json();
+      const ordersDiv = document.getElementById("orders");
+      ordersDiv.innerHTML = "";
+
+      if (data.length === 0) {
+        ordersDiv.innerHTML = "<p>No orders found.</p>";
+        return;
+      }
+
+      data.forEach((order, idx) => {
+        const div = document.createElement("div");
+        div.className = "order";
+        div.innerHTML = `<h3>Order #${idx + 1}</h3>`;
+
+        try {
+          const items = order.items || [];
+          items.forEach(it => {
+            div.innerHTML += `<div class="item">- ${it.title} — $${it.price}</div>`;
+          });
+        } catch {
+          div.innerHTML += `<div class="item">(No items found)</div>`;
+        }
+
+        ordersDiv.appendChild(div);
       });
     }
+
+    loadOrders();
   </script>
 </body>
 </html>
