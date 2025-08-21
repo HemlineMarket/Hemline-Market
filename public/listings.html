@@ -9,58 +9,50 @@
     body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
     .wrap { max-width:1000px; margin:auto; }
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.05); }
-    .card img { width:100%; display:block; }
-    .card-body { padding:12px; }
-    .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-    button { background:#0ea5e9; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
-    button:hover { background:#0284c7; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+    .card img { max-width:100%; border-radius:12px; }
+    .btn { display:inline-block; margin-top:8px; padding:8px 12px; background:#0ea5e9; color:#fff; border-radius:6px; text-decoration:none; cursor:pointer; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="toolbar">
-      <h1>Listings</h1>
-      <div>
-        <button onclick="viewCart()">Checkout</button>
-        <a href="orders.html" style="margin-left:16px;color:#0ea5e9;text-decoration:none;">View Orders</a>
-      </div>
-    </div>
-    <div id="listings" class="grid"></div>
+    <h1>Fabric Listings</h1>
+    <div class="grid" id="listings"></div>
+    <a href="cart.html" class="btn">View Cart</a>
   </div>
 
-  <script>
+  <script type="module">
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_KEY = "YOUR_ACTUAL_ANON_KEY";
+
     async function loadListings() {
-      const res = await fetch("https://clkizksbvxjkoatdajgd.supabase.co/rest/v1/listings?select=*", {
-        headers: { apikey: "YOUR_SUPABASE_ANON_KEY" }
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/listings?select=*`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
       });
-      const items = await res.json();
-      const grid = document.getElementById("listings");
-      grid.innerHTML = "";
-      items.forEach(item => {
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `
-          <img src="https://clkizksbvxjkoatdajgd.supabase.co/storage/v1/object/public/listing-images/${item.image_url}" alt="">
-          <div class="card-body">
-            <h3>${item.title}</h3>
-            <p>$${item.price}</p>
-            <button onclick='addToCart(${JSON.stringify(item)})'>Add to Cart</button>
-          </div>
+      const data = await res.json();
+      const container = document.getElementById("listings");
+      container.innerHTML = "";
+      data.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `
+          <img src="${item.image_url || ''}" alt="${item.title}">
+          <h3>${item.title}</h3>
+          <p>$${item.price}</p>
+          <button class="btn" onclick="addToCart(${item.id}, '${item.title}', ${item.price})">Add to Cart</button>
         `;
-        grid.appendChild(card);
+        container.appendChild(div);
       });
     }
 
-    function addToCart(item) {
+    function addToCart(id, title, price) {
       let cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
-      cart.push(item);
+      cart.push({ id, title, price });
       localStorage.setItem("hem_cart", JSON.stringify(cart));
-      alert(item.title + " added to cart");
-    }
-
-    function viewCart() {
-      window.location.href = "cart.html";
+      alert(`${title} added to cart!`);
     }
 
     loadListings();
