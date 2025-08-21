@@ -5,54 +5,67 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Hemline — Cart</title>
   <style>
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-           margin: 24px; background:#fafafa; color:#0f172a; }
-    .wrap { max-width: 800px; margin: auto; }
-    .cart-item { background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-                 padding:16px; margin-bottom:12px; }
-    .actions { margin-top: 20px; }
-    button { padding:10px 16px; border:none; border-radius:8px;
-             background:#0ea5e9; color:#fff; cursor:pointer; }
-    a { color:#0ea5e9; text-decoration:none; }
+    :root { --ink:#0f172a; --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; --accent:#0ea5e9; }
+    body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
+    .wrap { max-width:800px; margin:auto; }
+    h1 { margin-top:0; }
+    .item { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; display:flex; align-items:center; gap:12px; }
+    .thumb { width:50px; height:50px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+    .title { flex-grow:1; }
+    .btn { border:1px solid var(--line); border-radius:8px; padding:6px 12px; background:#fff; cursor:pointer; }
+    .toolbar { display:flex; gap:10px; margin-top:20px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <a href="listings.html" style="display:inline-block;margin-bottom:20px;">
-      ← Back to Listings
-    </a>
+    <a href="listings.html" style="color:var(--accent);text-decoration:none;display:inline-block;margin-bottom:20px;">← Back to Listings</a>
     <h1>Your Cart</h1>
     <div id="cart"></div>
-    <div class="actions">
-      <button onclick="checkout()">Checkout</button>
+    <div class="toolbar">
+      <button id="checkout" class="btn">Checkout</button>
+      <a href="orders.html" class="btn">View Orders</a>
     </div>
   </div>
 
   <script>
+    const cartDiv = document.getElementById("cart");
+    const checkoutBtn = document.getElementById("checkout");
+
     function loadCart() {
-      const div = document.getElementById("cart");
-      div.innerHTML = "";
-      try {
-        const raw = localStorage.getItem("hem_cart");
-        const items = raw ? JSON.parse(raw) : [];
-        if (!items.length) {
-          div.innerHTML = "<p>No items in cart.</p>";
-          return;
-        }
-        items.forEach(it => {
-          div.innerHTML += `<div class="cart-item">${it.title} — $${it.price}</div>`;
-        });
-      } catch {
-        div.innerHTML = "<p>Error loading cart.</p>";
+      const items = JSON.parse(localStorage.getItem("hem_cart") || "[]");
+      cartDiv.innerHTML = "";
+      if (items.length === 0) {
+        cartDiv.innerHTML = "<p>No items in cart.</p>";
+        checkoutBtn.disabled = true;
+        return;
       }
+      checkoutBtn.disabled = false;
+      items.forEach((it, idx) => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <img src="${it.img}" class="thumb" onerror="this.src='https://via.placeholder.com/80?text=Fabric'"/>
+          <div class="title">${it.title}</div>
+          <div>$${it.price}</div>
+        `;
+        cartDiv.appendChild(div);
+      });
     }
 
-    function checkout() {
-      const raw = localStorage.getItem("hem_cart");
-      sessionStorage.setItem("hem_order", raw);
+    checkoutBtn.onclick = () => {
+      const items = JSON.parse(localStorage.getItem("hem_cart") || "[]");
+      if (!items.length) return;
+      const order = {
+        id: Date.now().toString(),
+        when: new Date().toISOString(),
+        items: items,
+        subtotal: items.reduce((a, c) => a + Number(c.price || 0), 0)
+      };
+      const prev = JSON.parse(localStorage.getItem("hem_orders") || "[]");
+      localStorage.setItem("hem_orders", JSON.stringify([...prev, order]));
       localStorage.removeItem("hem_cart");
-      window.location.href = "success.html";
-    }
+      window.location.href = "orders.html";
+    };
 
     loadCart();
   </script>
