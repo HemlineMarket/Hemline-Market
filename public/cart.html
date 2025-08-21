@@ -5,11 +5,12 @@
 .thumb{width:100%;height:170px;object-fit:cover;border-radius:8px;margin:0 0 10px;background:#f1f5f9}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}.title{font-weight:600}
 .btn{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
+.badge{display:inline-block;background:#e2e8f0;border-radius:999px;padding:2px 8px;font-size:.75rem;margin-top:6px}
 .cta{background:#0ea5e9;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer}
 .cta:disabled{opacity:.5;cursor:not-allowed}.empty{border:2px dashed #e5e7eb;border-radius:12px;padding:24px;text-align:center;color:#475569}
 .controls{display:flex;gap:10px;align-items:center;margin-top:8px}
+.sum{max-width:980px;margin:16px 0;padding:12px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;justify-content:space-between;align-items:center}
 .carousel{margin:26px 0 6px}.track{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:12px;overflow:auto}
-.badge{display:inline-block;background:#e2e8f0;border-radius:999px;padding:2px 8px;font-size:.75rem;margin-top:6px}
 .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:50}
 .panel{width:min(560px,92vw);background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
 .step{display:flex;align-items:center;gap:10px;margin:10px 0}.dot{width:10px;height:10px;border-radius:50%;background:#cbd5e1}.step.done .dot{background:#0ea5e9}
@@ -17,10 +18,16 @@
 </style></head><body>
 <h1>Your Cart</h1>
 <div id="cartGrid" class="grid"></div>
-<div id="emptyMsg" class="empty" hidden>Cart is empty.</div>
-<div class="controls">
-  <button id="checkoutBtn" class="cta" disabled>Checkout</button>
-  <button id="cancelBtn" class="btn">Cancel</button>
+<div id="emptyMsg" class="empty" hidden>Cart is empty. <a href="/listings.html">Continue shopping →</a></div>
+
+<div class="sum" id="summary" hidden>
+  <strong>Subtotal: <span id="subtotal">$0.00</span></strong>
+  <div class="controls">
+    <a class="btn" href="/listings.html">← Continue</a>
+    <button id="checkoutBtn" class="cta" disabled>Checkout</button>
+    <button id="cancelBtn" class="btn">Cancel</button>
+    <button id="clearBtn" class="btn">Remove all</button>
+  </div>
 </div>
 
 <div class="carousel"><h2>New Arrivals</h2><div id="arrivals" class="track"></div></div>
@@ -39,19 +46,37 @@ const $=id=>document.getElementById(id),fmt=n=>`$${n.toFixed(2)}`;
 const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}, save=a=>localStorage.setItem(KEY,JSON.stringify(a||[]));
 const proxy=u=>{try{const x=new URL(u);return "https://images.weserv.nl/?url=ssl:"+x.hostname+x.pathname+(x.search||"")+"&w=300&h=300&fit=cover"}catch(e){return PH}};
 
-function render(){const cart=read(),grid=$("cartGrid"),empty=$("emptyMsg"),checkout=$("checkoutBtn");grid.innerHTML="";
-  if(!cart.length){empty.hidden=false;checkout.disabled=true;return}
-  empty.hidden=true;checkout.disabled=false;
-  cart.forEach(it=>{const c=document.createElement("div");c.className="card";c.innerHTML=
-    `<img class="thumb" src="${it.img||PH}"/><div class="title">${it.title}</div>
-     <div class="row"><span>Qty</span><strong>${it.qty}</strong></div>
-     <div class="row"><span>Price</span><strong>${fmt(it.price)}</strong></div>`;grid.appendChild(c);});
-} render();
+/* Render cart with qty controls and remove */
+function render(){
+  const cart=read(),grid=$("cartGrid"),empty=$("emptyMsg"),sumBox=$("summary"),subEl=$("subtotal"),checkout=$("checkoutBtn");
+  grid.innerHTML=""; let subtotal=0;
+  if(!cart.length){empty.hidden=false;sumBox.hidden=true;return}
+  empty.hidden=true;sumBox.hidden=false;
+  cart.forEach((it,i)=>{const line=(+it.price||0)*(+it.qty||1); subtotal+=line;
+    const c=document.createElement("div"); c.className="card";
+    c.innerHTML=`<img class="thumb" src="${it.img||PH}"/><div class="title">${it.title}</div>
+      <div class="row"><span>Price/yd</span><strong>${fmt(+it.price||0)}</strong></div>
+      <div class="row"><span>Yards</span>
+        <div><button class="btn" data-a="dec" data-i="${i}">−</button>
+        <strong style="margin:0 8px">${it.qty||1}</strong>
+        <button class="btn" data-a="inc" data-i="${i}">+</button></div></div>
+      <div class="row"><span>Line total</span><strong>${fmt(line)}</strong></div>
+      <div class="row"><span></span><button class="btn" data-a="rm" data-i="${i}">Remove</button></div>`;
+    grid.appendChild(c);
+  });
+  subEl.textContent=fmt(subtotal); checkout.disabled=!(subtotal>0);
+  grid.onclick=e=>{const b=e.target.closest("button"); if(!b)return; let c=read(),i=+b.dataset.i,a=b.dataset.a;
+    if(a==="inc")c[i].qty++; else if(a==="dec")c[i].qty=Math.max(1,(c[i].qty||1)-1); else if(a==="rm")c.splice(i,1);
+    save(c); render();
+  };
+  $("clearBtn").onclick=()=>{save([]);render()};
+}
+render();
 
-/* Cancel simply navigates back without touching storage */
+/* Cancel → go to cancel page */
 $("cancelBtn").onclick=()=>{window.location.href="/cancel.html"};
 
-/* Checkout → save optimized images, then redirect (from JSON if present, else success) */
+/* Checkout → save optimized images, then redirect (from JSON if present) */
 async function getRedirectURL(){try{const r=await fetch("/stripe-link.json",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();return j.url||"/success.html"}catch(e){return"/success.html"}}
 $("checkoutBtn").onclick=async()=>{const overlay=$("overlay"),fill=$("fill"),s1=$("s1"),s2=$("s2"),s3=$("s3");
   const order=read(); if(!order.length)return;
@@ -62,7 +87,7 @@ $("checkoutBtn").onclick=async()=>{const overlay=$("overlay"),fill=$("fill"),s1=
   await tick("25%",s1); await tick("60%",s2); const url=await getRedirectURL(); await tick("100%",s3); window.location.href=url;
 };
 
-/* Arrivals with Add to Cart */
+/* Simple arrivals with Add to Cart */
 const arrivals=[{id:"mw-wool-crepe",title:"Merino Wool Crepe — Black",price:38.00,img:"https://images.unsplash.com/photo-1610030469983-98b5a19b7935?q=80&w=1200"},
 {id:"silk-charmeuse",title:"Silk Charmeuse — Ivory",price:42.00,img:"https://images.unsplash.com/photo-1542060748-10c28b62716a?q=80&w=1200"},
 {id:"cotton-sateen",title:"Cotton Sateen — Navy",price:18.50,img:"https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1200"},
