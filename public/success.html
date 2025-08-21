@@ -3,26 +3,38 @@
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
 .box{max-width:680px;margin:auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:22px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
-h1{font-size:1.5rem;margin:0 0 10px;display:flex;align-items:center;gap:6px;color:#0ea5e9}
+.hdr{display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{font-size:1.5rem;margin:0;display:flex;align-items:center;gap:6px;color:#0ea5e9}
+.btn{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
 .item{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #e5e7eb}
 .thumb{width:70px;height:70px;object-fit:cover;border-radius:8px;background:#f1f5f9}
 .title{font-weight:600}.price{margin-left:auto;font-weight:500}
 .total{margin-top:14px;text-align:right;font-size:1.1rem;font-weight:600}
+.meta{margin:8px 0 6px;color:#475569;font-size:.95rem}
 a{color:#7c3aed;text-decoration:none}
 </style></head><body>
-<div class="box">
-  <h1>✅ Order placed</h1>
+<div class="box" id="receipt">
+  <div class="hdr">
+    <h1>✅ Order placed</h1>
+    <button id="printBtn" class="btn">Print receipt</button>
+  </div>
   <p>A summary of what you just purchased.</p>
+  <div id="orderMeta" class="meta"></div>
   <div id="list"></div>
   <div id="total" class="total"></div>
   <p><a id="continue" href="/listings.html">← Continue shopping</a></p>
 </div>
 <script>
 const PH="https://via.placeholder.com/300x300?text=Fabric";
-const out=document.getElementById("list"),tot=document.getElementById("total");
+const out=document.getElementById("list"),tot=document.getElementById("total"),meta=document.getElementById("orderMeta");
+function uid(){return "HLM-"+Date.now().toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase()}
 (function render(){
   const raw=sessionStorage.getItem("hem_order"); if(!raw){out.innerHTML="<p>No items found.</p>";return}
   const items=JSON.parse(raw); let sum=0;
+  const id=uid(), when=new Date().toLocaleString();
+  meta.textContent=`Order #: ${id} • ${when}`;
+  const saved=JSON.parse(localStorage.getItem("hem_orders")||"[]");
+  const record={id,when,items,subtotal:0};
   items.forEach(it=>{
     const qty=Number(it.qty||1), price=Number(it.price||0); sum+=qty*price;
     const row=document.createElement("div"); row.className="item";
@@ -31,8 +43,10 @@ const out=document.getElementById("list"),tot=document.getElementById("total");
       <div class="price">$${(qty*price).toFixed(2)}</div>`;
     out.appendChild(row);
   });
-  tot.textContent="Subtotal: $"+sum.toFixed(2);
+  tot.textContent="Subtotal: $"+sum.toFixed(2); record.subtotal=sum;
+  saved.unshift(record); localStorage.setItem("hem_orders",JSON.stringify(saved.slice(0,50)));
 })();
 document.getElementById("continue").addEventListener("click",()=>{sessionStorage.removeItem("hem_order")});
+document.getElementById("printBtn").addEventListener("click",()=>{window.print()});
 </script>
 </body></html>
