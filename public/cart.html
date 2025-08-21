@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Cart</title>
+<style>
+  :root{--ink:#0f172a;--line:#e5e7eb;--bg:#fafafa;--card:#ffffff;--accent:#111827;--brand:#0ea5e9;}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--ink);}
+  .wrap{max-width:1000px;margin:auto}
+  h1{font-size:1.75rem;margin:0 0 8px}
+  .sub{color:#475569;margin:0 0 24px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+  .thumb{width:100%;height:170px;object-fit:cover;border-radius:8px;margin:0 0 10px;background:#f1f5f9}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .title{font-weight:600;font-size:1rem;line-height:1.2;margin:0 0 4px}
+  .muted{color:#64748b;font-size:.9rem}
+  .qty{display:flex;align-items:center;gap:6px}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
+  .btn:hover{border-color:#cbd5e1}
+  .danger{color:#b91c1c;border-color:#fecaca}
+  .bar{display:flex;justify-content:space-between;align-items:center;margin:18px 0 10px}
+  .cta{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer}
+  .cta:disabled{opacity:.5;cursor:not-allowed}
+  .link{color:var(--accent);text-decoration:none}
+  .totals{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:16px}
+  .empty{border:2px dashed var(--line);border-radius:12px;padding:24px;text-align:center;color:#475569}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧵 Your Cart</h1>
+  <p class="sub">Items you’ve added. Edit quantities or remove before checkout.</p>
+
+  <div id="cartGrid" class="grid" hidden></div>
+  <div id="emptyMsg" class="empty" hidden>Cart is empty. <a class="link" href="/listings.html">Continue shopping →</a></div>
+
+  <div class="totals" id="totalsBox" hidden>
+    <div class="bar">
+      <strong>Subtotal</strong>
+      <div><span id="subtotal">$0.00</span></div>
+    </div>
+    <div class="bar">
+      <a class="link" href="/listings.html">← Continue shopping</a>
+      <div style="display:flex;gap:8px">
+        <button id="clearBtn" class="btn danger">Remove all</button>
+        <button id="checkoutBtn" class="cta" disabled>Checkout</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEYS = ["hem_cart","hemlinemarket_cart","cart"];
+  const PLACEHOLDER_IMG = "https://via.placeholder.com/600x400?text=Fabric";
+
+  function readAny(){
+    for (const k of STORAGE_KEYS){
+      try{
+        const v = localStorage.getItem(k);
+        if (!v) continue;
+        const parsed = JSON.parse(v);
+        if (Array.isArray(parsed) && parsed.length) return {key:k, items:parsed};
+        if (parsed && typeof parsed==="object") {
+          const arr = Object.values(parsed);
+          if (arr.length) return {key:k, items:arr};
+        }
+      }catch(e){}
+    }
+    return {key:"hem_cart", items:[]};
+  }
+
+  function normalize(items){
+    return items.map((it, idx)=>({
+      id: it.id || it.sku || `${(it.title||it.name||"fabric").toString().slice(0,24)}-${idx}`,
+      title: it.title || it.name || it.product || "Untitled Fabric",
+      price: parseFloat(String(it.price ?? it.amount ?? it.unit_price ?? 0).replace(/[^0-9.]/g,"")) || 0,
+      img: it.image || it.img || it.thumbnail || PLACEHOLDER_IMG,
+      qty: Math.max(1, parseInt(it.qty ?? it.quantity ?? it.yards ?? 1,10) || 1)
+    }));
+  }
+
+  function format(n){ return `$${n.toFixed(2)}`; }
+
+  function save(key, items){
+    localStorage.setItem("hem_cart", JSON.stringify(items)); // standardize going forward
+    if (key !== "hem_cart") try{ localStorage.removeItem(key) }catch(e){}
+  }
+
+  function render(){
+    const state = readAny();
+    let cart = normalize(state.items);
+    const grid = document.getElementById("cartGrid");
+    const empty = document.getElementById("emptyMsg");
+    const totals = document.getElementById("totalsBox");
+    const subtotalEl = document.getElementById("subtotal");
+    const checkoutBtn = document.getElementById("checkoutBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
+    grid.innerHTML = "";
+    if (!cart.length){
+      grid.hidden = true; empty.hidden = false; totals.hidden = true;
+      return;
+    }
+    empty.hidden = true; grid.hidden = false; totals.hidden = false;
+
+    cart.forEach((item, i)=>{
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <img class="thumb" src="${item.img}" alt="Fabric"/>
+        <div class="title">${item.title}</div>
+        <div class="row"><span class="muted">Price/Yd</span><strong>${format(item.price)}</strong></div>
+        <div class="row">
+          <span class="muted">Yards</span>
+          <div class="qty">
+            <button class="btn" data-act="dec" data-i="${i}">−</button>
+            <span id="qty-${i}">${item.qty}</span>
+            <button class="btn" data-act="inc" data-i="${i}">+</button>
+          </div>
+        </div>
+        <div class="row"><span class="muted">Line total</span><strong id="line-${i}">${format(item.price*item.qty)}</strong></div>
+        <div class="row"><span></span><button class="btn danger" data-act="remove" data-i="${i}">Remove</button></div>
+      `;
+      grid.appendChild(card);
+    });
+
+    function refreshTotals(){
+      const sum = cart.reduce((s,it)=>s + (it.price*it.qty), 0);
+      subtotalEl.textContent = format(sum);
+      checkoutBtn.disabled = cart.length===0 || sum<=0;
+    }
+    refreshTotals();
+
+    grid.onclick = (e)=>{
+      const btn = e.target.closest("button"); if(!btn) return;
+      const i = +btn.dataset.i; const act = btn.dataset.act;
+      if (act==="inc") cart[i].qty++;
+      if (act==="dec") cart[i].qty = Math.max(1, cart[i].qty-1);
+      if (act==="remove") cart.splice(i,1);
+      save(state.key, cart);
+      render();
+    };
+
+    clearBtn.onclick = ()=>{ cart = []; save(state.key, cart); render(); };
+
+    checkoutBtn.onclick = ()=>{
+      // Placeholder: Stripe checkout comes in Step 8.2
+      alert("Checkout will be enabled in the next step.");
+    };
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
