@@ -1,72 +1,54 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <title>Orders — Hemline Market</title>
-  <meta name="description" content="Track your Hemline Market fabric orders and check order status." />
-  <link rel="canonical" href="https://www.hemlinemarket.com/orders.html" />
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.hemlinemarket.com/orders.html" />
-  <meta property="og:title" content="Orders — Hemline Market" />
-  <meta property="og:description" content="Track your Hemline Market fabric orders and check order status." />
-  <meta property="og:image" content="https://www.hemlinemarket.com/comingsoon.jpg" />
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Orders — Hemline Market" />
-  <meta name="twitter:description" content="Track your Hemline Market fabric orders and check order status." />
-  <meta name="twitter:image" content="https://www.hemlinemarket.com/comingsoon.jpg" />
-
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/css/a11y.css">
-  <link rel="stylesheet" href="/css/polish.css">
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-  <a class="skip-link" href="#main">Skip to main content</a>
-
-  <header>
-    <nav>
-      <a href="index.html" class="logo">Hemline Market</a>
-      <ul>
-        <li><a href="index.html">Home</a></li>
-        <li><a href="browse.html">Browse</a></li>
-        <li><a href="seller.html">Seller</a></li>
-        <li><a href="orders.html" aria-current="page">Orders</a></li>
-        <li><a href="checkout.html">Checkout</a></li>
-        <li><a href="about.html">About</a></li>
-        <li><a href="faq.html">FAQ</a></li>
-      </ul>
-    </nav>
-  </header>
-
-  <main id="main" class="container">
-    <h1 class="h1">Orders</h1>
-    <p class="muted">View and track your Hemline Market orders.</p>
-
-    <div class="card stack">
-      <p class="muted">Coming soon: Order history and tracking.</p>
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Orders</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
+.wrap{max-width:820px;margin:auto}
+h1{margin:0 0 10px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.05);padding:16px;margin:12px 0}
+.row{display:flex;gap:12px;align-items:center}
+.thumb{width:54px;height:54px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid #e5e7eb}
+.meta{color:#475569;font-size:.95rem}
+.btn{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+a{color:#7c3aed;text-decoration:none}
+</style></head><body>
+<div class="wrap">
+  <div class="head">
+    <h1>Orders</h1>
+    <div>
+      <a class="btn" href="/listings.html">← Back to “Listings”</a>
+      <button id="clear" class="btn">Clear all</button>
     </div>
-  </main>
-
-  <footer class="container-md mt-7">
-    <div class="card cluster items-center justify-between gap-4">
-      <p class="muted m-0">© <span id="y"></span> Hemline Market</p>
-      <div class="cluster">
-        <a class="btn" href="about.html">About</a>
-        <a class="btn" href="contact.html">Contact</a>
-        <a class="btn" href="faq.html">FAQ</a>
-        <a class="btn" href="privacy.html">Privacy</a>
-        <a class="btn" href="terms.html">Terms</a>
-        <a class="btn" href="shipping.html">Shipping</a>
-        <a class="btn" href="returns.html">Returns</a>
+  </div>
+  <div id="list"></div>
+</div>
+<script>
+const PH="https://via.placeholder.com/300x300?text=Fabric";
+const list=document.getElementById("list");
+function render(){
+  const orders=JSON.parse(localStorage.getItem("hem_orders")||"[]");
+  list.innerHTML="";
+  if(!orders.length){list.innerHTML="<p>No orders found.</p>";return}
+  orders.forEach(o=>{
+    const card=document.createElement("div");card.className="card";
+    let itemsHTML=o.items.map(it=>`
+      <div class="row">
+        <img class="thumb" src="${it.img||PH}" onerror="this.src='${PH}'" alt="Fabric">
+        <div>
+          <div><strong>${it.title||"Fabric"}</strong></div>
+          <div class="meta">Qty ${it.qty||1}</div>
+        </div>
+        <div style="margin-left:auto"><strong>$${(Number(it.price||0)*Number(it.qty||1)).toFixed(2)}</strong></div>
+      </div>`).join("");
+    card.innerHTML=`<div class="row" style="justify-content:space-between">
+        <div class="meta">Order #: <strong>${o.id||"(local)"}</strong> • ${o.when||""}</div>
+        <div><strong>Subtotal: $${(o.subtotal||0).toFixed(2)}</strong></div>
       </div>
-    </div>
-    <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
-  </footer>
-</body>
-</html>
+      <hr>${itemsHTML}`;
+    list.appendChild(card);
+  });
+}
+render();
+document.getElementById("clear").onclick=()=>{if(confirm("Clear all saved orders?")){localStorage.removeItem("hem_orders");render();}}
+</script>
+</body></html>
