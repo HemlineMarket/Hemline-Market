@@ -1,70 +1,37 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Success</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Order Success</title>
 <style>
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
-.box{max-width:720px;margin:auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:22px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
-.hdr{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-h1{font-size:1.5rem;margin:0;display:flex;align-items:center;gap:6px;color:#0ea5e9}
-.btn{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
-.item{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #e5e7eb}
-.thumb{width:70px;height:70px;object-fit:cover;border-radius:8px;background:#f1f5f9}
-.title{font-weight:600}.price{margin-left:auto;font-weight:500}
-.total{margin-top:14px;text-align:right;font-size:1.1rem;font-weight:600}
-.meta{margin:8px 0 6px;color:#475569;font-size:.95rem}
-a{color:#7c3aed;text-decoration:none}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-input[type="email"]{border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;min-width:240px}
-.small{font-size:.9rem;color:#64748b}
-</style></head><body>
-<div class="box" id="receipt">
-  <div class="hdr">
-    <h1>✅ Order placed</h1>
-    <div class="row">
-      <input id="email" type="email" placeholder="Enter email for receipt"/>
-      <button id="emailBtn" class="btn">Email receipt</button>
-      <button id="printBtn" class="btn">Print receipt</button>
-    </div>
-  </div>
-  <p>A summary of what you just purchased.</p>
-  <div id="orderMeta" class="meta"></div>
-  <div id="list"></div>
-  <div id="total" class="total"></div>
-  <p class="small">Tip: The “Orders” page shows your last 50 receipts on this device.</p>
-  <p><a id="continue" href="/listings.html">← Continue shopping</a></p>
+:root{--ink:#0f172a;--bg:#fafafa;--card:#ffffff;--line:#e5e7eb;--accent:#0ea5e9}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--ink)}
+.wrap{max-width:800px;margin:auto;text-align:center}
+h1{color:var(--accent)}
+.order{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:20px;text-align:left}
+.item{margin-left:16px}
+.link{display:inline-block;margin-top:20px;color:var(--accent);text-decoration:none}
+</style></head>
+<body>
+<div class="wrap">
+  <h1>Thank you for your order!</h1>
+  <p>Your fabrics are confirmed. A copy is saved in your orders page.</p>
+  <div id="order"></div>
+  <a class="link" href="listings.html">← Continue Shopping</a>
 </div>
+
 <script>
-const PH="https://via.placeholder.com/300x300?text=Fabric";
-const out=document.getElementById("list"),tot=document.getElementById("total"),meta=document.getElementById("orderMeta");
-const emailInput=document.getElementById("email");
-function uid(){return "HLM-"+Date.now().toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase()}
-(function render(){
-  const raw=sessionStorage.getItem("hem_order"); if(!raw){out.innerHTML="<p>No items found.</p>";return}
-  const items=JSON.parse(raw); let sum=0;
-  const id=uid(), when=new Date().toLocaleString(); meta.textContent=`Order #: ${id} • ${when}`;
-  const saved=JSON.parse(localStorage.getItem("hem_orders")||"[]"); const record={id,when,items,subtotal:0};
-  items.forEach(it=>{
-    const qty=Number(it.qty||1), price=Number(it.price||0); sum+=qty*price;
-    const row=document.createElement("div"); row.className="item";
-    row.innerHTML=`<img class="thumb" src="${it.img||PH}" onerror="this.src='${PH}'" alt="Fabric">
-      <div><div class="title">${it.title||"Fabric"}</div><div>Qty ${qty}</div></div>
-      <div class="price">$${(qty*price).toFixed(2)}</div>`;
-    out.appendChild(row);
-  });
-  tot.textContent="Subtotal: $"+sum.toFixed(2); record.subtotal=sum;
-  saved.unshift(record); localStorage.setItem("hem_orders",JSON.stringify(saved.slice(0,50)));
-  // prefill email from prior entry
-  const prev=localStorage.getItem("hem_email"); if(prev) emailInput.value=prev;
-  // wire Email receipt
-  document.getElementById("emailBtn").onclick=()=>{
-    const to=emailInput.value.trim(); if(!to){alert("Enter an email address first."); return}
-    localStorage.setItem("hem_email",to);
-    const subject=`Hemline Market receipt — ${record.id}`;
-    const lines=items.map(it=>`• ${it.title||"Fabric"}  x${it.qty||1}  $${(Number(it.price||0)*Number(it.qty||1)).toFixed(2)}`).join("%0A");
-    const body=`Thank you for your order!%0A%0AOrder #: ${record.id}%0ADate: ${record.when}%0A%0AItems:%0A${lines}%0A%0ASubtotal: $${record.subtotal.toFixed(2)}%0A%0A— Hemline Market`;
-    window.location.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${body}`;
-  };
+(function(){
+  try{
+    const data=JSON.parse(sessionStorage.getItem("hem_order")||"[]");
+    const wrap=document.getElementById("order");
+    if(!data.length){wrap.innerHTML="<p>No order details found.</p>";return}
+    const div=document.createElement("div"); div.className="order";
+    div.innerHTML="<h3>Order Summary</h3>";
+    data.forEach(it=>{
+      div.innerHTML+=`<div class="item">- ${it.title||"Fabric"} — $${Number(it.price||0).toFixed(2)} × ${it.qty||1}</div>`;
+    });
+    wrap.appendChild(div);
+    sessionStorage.removeItem("hem_order");
+  }catch{document.getElementById("order").innerHTML="<p>Error loading order.</p>"}
 })();
-document.getElementById("continue").addEventListener("click",()=>{sessionStorage.removeItem("hem_order")});
-document.getElementById("printBtn").addEventListener("click",()=>{window.print()});
 </script>
 </body></html>
