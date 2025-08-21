@@ -1,43 +1,31 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Success</title>
-<style>
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
-.box{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:22px;max-width:680px;margin:auto}
-h1{font-size:1.5rem;margin:0 0 10px;display:flex;align-items:center;gap:6px;color:#0ea5e9}
-.item{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #e5e7eb}
-.thumb{width:70px;height:70px;object-fit:cover;border-radius:8px;background:#f1f5f9}
-.title{font-weight:600}.price{margin-left:auto;font-weight:500}
-.total{margin-top:14px;text-align:right;font-size:1.1rem;font-weight:600}
-a{color:#7c3aed;text-decoration:none}
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Hemline — Success</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
+.box{max-width:640px;margin:auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+h2{color:#0ea5e9;margin:0 0 8px;font-size:1.4rem;display:flex;align-items:center;gap:8px}
+.item{display:flex;align-items:center;gap:14px;margin:14px 0}
+.thumb{width:70px;height:70px;border-radius:8px;object-fit:cover;border:1px solid #e5e7eb;background:#f1f5f9}
+.title{font-weight:600}.price{margin-left:auto}
+a{color:#7c3aed;text-decoration:none;font-weight:500}
 </style></head><body>
 <div class="box">
-  <h1>✅ Order placed</h1>
+  <h2>✅ Order placed</h2>
   <p>A summary of what you just purchased.</p>
-  <div id="list"></div>
-  <div id="total" class="total"></div>
-  <p><a id="continue" href="/listings.html">← Continue shopping</a></p>
+  <div id="summary"></div>
 </div>
 <script>
-const PH_DATA='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="100%" height="100%" fill="%23eef2f7"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2399a3b0" font-family="Arial" font-size="20">Fabric</text></svg>';
-function proxy(u){try{const x=new URL(u);return "https://images.weserv.nl/?url=ssl:"+x.hostname+x.pathname+(x.search||"")+"&w=300&h=300&fit=cover"}catch(e){return PH_DATA}}
-const out=document.getElementById("list"),tot=document.getElementById("total");
-(function render(){
-  const items=JSON.parse(sessionStorage.getItem("hem_order")||"[]"); let sum=0;
-  if(!items.length){out.innerHTML="<p>No items found.</p>";return}
-  items.forEach(it=>{
-    const qty=Number(it.qty||1), price=Number(it.price||0); sum+=qty*price;
-    const row=document.createElement("div"); row.className="item";
-    const img=document.createElement("img"); img.className="thumb"; img.alt="Fabric"; img.src=PH_DATA;
-    // progressive load: direct → proxy → final fallback
-    const tryDirect=new Image(); tryDirect.crossOrigin="anonymous"; tryDirect.onload=()=>{img.src=tryDirect.src};
-    tryDirect.onerror=()=>{const p=new Image(); p.onload=()=>{img.src=p.src}; p.onerror=()=>{img.src=PH_DATA}; p.src=proxy(it.img||"")};
-    tryDirect.src=it.img||"";
-    const meta=document.createElement("div"); meta.innerHTML=`<div class="title">${it.title||"Fabric"}</div><div>Qty ${qty}</div>`;
-    const priceEl=document.createElement("div"); priceEl.className="price"; priceEl.textContent=`$${(qty*price).toFixed(2)}`;
-    row.appendChild(img); row.appendChild(meta); row.appendChild(priceEl); out.appendChild(row);
-  });
-  tot.textContent="Subtotal: $"+sum.toFixed(2);
-})();
-document.getElementById("continue").addEventListener("click",()=>{sessionStorage.removeItem("hem_order")});
-</script>
-</body></html>
+const $=id=>document.getElementById(id),fmt=n=>`$${n.toFixed(2)}`;
+const PH="https://via.placeholder.com/600x400?text=Fabric";
+const proxy=u=>{try{const x=new URL(u);return "https://images.weserv.nl/?url=ssl:"+x.hostname+x.pathname+(x.search||"")+"&w=300&h=300&fit=cover"}catch(e){return PH}};
+function show(){
+  const raw=sessionStorage.getItem("hem_order"); if(!raw){$("summary").innerHTML="<p>No items found.</p>";return}
+  const order=JSON.parse(raw);let subtotal=0;let html="";
+  order.forEach(it=>{subtotal+=it.price*it.qty;
+    html+=`<div class="item">
+      <img class="thumb" src="${proxy(it.img||PH)}"/>
+      <div><div class="title">${it.title}</div><div>Qty ${it.qty}</div></div>
+      <div class="price">${fmt(it.price*it.qty)}</div>
+    </div>`;});
+  html+=`<hr><div class="price">Subtotal: ${fmt(subtotal)}</div><p><a href="/listings.html">← Continue shopping</a></p>`;
+  $("summary").innerHTML=html;
+} show();
+</script></body></html>
