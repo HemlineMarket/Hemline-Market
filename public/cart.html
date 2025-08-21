@@ -34,6 +34,7 @@ const KEY="hem_cart",PH="https://via.placeholder.com/600x400?text=Fabric";
 const $=id=>document.getElementById(id),fmt=n=>`$${n.toFixed(2)}`;
 const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}, save=a=>localStorage.setItem(KEY,JSON.stringify(a||[]));
 const proxy=u=>{try{const x=new URL(u);return "https://images.weserv.nl/?url=ssl:"+x.hostname+x.pathname+(x.search||"")+"&w=300&h=300&fit=cover"}catch(e){return PH}};
+
 function render(){const cart=read(),grid=$("cartGrid"),empty=$("emptyMsg"),checkout=$("checkoutBtn");grid.innerHTML="";
   if(!cart.length){empty.hidden=false;checkout.disabled=true;return}
   empty.hidden=true;checkout.disabled=false;
@@ -42,15 +43,25 @@ function render(){const cart=read(),grid=$("cartGrid"),empty=$("emptyMsg"),check
      <div class="row"><span>Qty</span><strong>${it.qty}</strong></div>
      <div class="row"><span>Price</span><strong>${fmt(it.price)}</strong></div>`;grid.appendChild(c);});
 } render();
-/* Checkout → save optimized images, then redirect (hardcoded) */
-$("checkoutBtn").onclick=()=>{const overlay=$("overlay"),fill=$("fill"),s1=$("s1"),s2=$("s2"),s3=$("s3");
+
+async function getRedirectURL(){
+  try{const r=await fetch("/stripe-link.json",{cache:"no-store"}); if(!r.ok) throw 0;
+      const j=await r.json(); return j.url||"/success.html";}
+  catch(e){return "/success.html";}
+}
+
+/* Checkout → save optimized images, then redirect from JSON */
+$("checkoutBtn").onclick=async()=>{const overlay=$("overlay"),fill=$("fill"),s1=$("s1"),s2=$("s2"),s3=$("s3");
   const order=read(); if(!order.length)return;
   const optimized=order.map(it=>({...it,img:proxy(it.img||PH)}));
   sessionStorage.setItem("hem_order",JSON.stringify(optimized)); localStorage.removeItem(KEY);
   overlay.style.display="flex"; fill.style.width="0%"; [s1,s2,s3].forEach(x=>x.classList.remove("done"));
-  const tick=(w,el,cb)=>setTimeout(()=>{fill.style.width=w;el.classList.add("done");cb&&cb()},450);
-  tick("25%",s1,()=>tick("60%",s2,()=>tick("100%",s3,()=>{window.location.href="/success.html"})));
+  const tick=(w,el)=>new Promise(res=>setTimeout(()=>{fill.style.width=w;el.classList.add("done");res()},450));
+  await tick("25%",s1); await tick("60%",s2);
+  const url=await getRedirectURL(); await tick("100%",s3);
+  window.location.href=url;
 };
+
 /* Arrivals with Add to Cart */
 const arrivals=[{id:"mw-wool-crepe",title:"Merino Wool Crepe — Black",price:38.00,img:"https://images.unsplash.com/photo-1610030469983-98b5a19b7935?q=80&w=1200"},
 {id:"silk-charmeuse",title:"Silk Charmeuse — Ivory",price:42.00,img:"https://images.unsplash.com/photo-1542060748-10c28b62716a?q=80&w=1200"},
