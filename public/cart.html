@@ -31,7 +31,6 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
 .step{display:flex;align-items:center;gap:10px;margin:10px 0}.dot{width:10px;height:10px;border-radius:50%;background:#cbd5e1}.step.done .dot{background:#0ea5e9}
 .roll{height:16px;border-radius:999px;border:1px solid #cbd5e1;overflow:hidden;margin:12px 0 6px}.fill{height:100%;width:0%;background:repeating-linear-gradient(135deg,#0ea5e9 0 14px,#38bdf8 14px 28px);transition:width .5s}
 .note{font-size:.9rem;color:#475569}
-.toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 12px;border-radius:10px;font-size:.9rem;display:none}
 </style>
 </head><body><div class="wrap">
   <h1>🧵 Your Cart</h1>
@@ -67,121 +66,68 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
     <div class="note" id="note">Please wait…</div>
   </div>
 </div>
-<div id="toast" class="toast"></div>
 
 <script>
-/* Utility */
-const $=id=>document.getElementById(id);
-const fmt=n=>`$${n.toFixed(2)}`;
-const PH="https://via.placeholder.com/600x400?text=Fabric";
-function toast(msg){const t=$("toast");t.textContent=msg;t.style.display="block";setTimeout(()=>t.style.display="none",900)}
+const KEY="hem_cart",PH="https://via.placeholder.com/600x400?text=Fabric";
+const $=id=>document.getElementById(id),fmt=n=>`$${n.toFixed(2)}`;
+function read(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}
+function save(arr){localStorage.setItem(KEY,JSON.stringify(arr||[]))}
 
-/* Read from legacy keys and normalize to "hem_cart" */
-function readCart(){
-  const keys=["hem_cart","hemlinemarket_cart","cart"];
-  for(const k of keys){
-    try{
-      const raw=localStorage.getItem(k); if(!raw) continue;
-      const data=JSON.parse(raw);
-      const arr=Array.isArray(data)?data:Object.values(data||{});
-      if(arr.length){
-        // Normalize structure
-        const norm=arr.map((it,i)=>({
-          id: it.id||it.sku||`item-${i}`,
-          title: it.title||it.name||"Fabric",
-          price: Number(String(it.price??it.amount??0).replace(/[^0-9.]/g,""))||0,
-          img: it.image||it.img||it.thumbnail||PH,
-          qty: Math.max(1, parseInt(it.qty??it.quantity??it.yards??1,10)||1)
-        }));
-        localStorage.setItem("hem_cart", JSON.stringify(norm));
-        if(k!=="hem_cart") try{localStorage.removeItem(k)}catch(e){}
-        return norm;
-      }
-    }catch(e){}
-  }
-  try{ return JSON.parse(localStorage.getItem("hem_cart")||"[]") }catch(e){ return [] }
-}
-function saveCart(arr){ localStorage.setItem("hem_cart", JSON.stringify(arr||[])) }
-
-/* Render cart */
-(function render(){
-  let cart=readCart();
-  const grid=$("cartGrid"),empty=$("emptyMsg"),totals=$("totalsBox"),
-        subtotalEl=$("subtotal"),checkout=$("checkoutBtn"),clearBtn=$("clearBtn");
-
+function render(){
+  let cart=read(),grid=$("cartGrid"),empty=$("emptyMsg"),totals=$("totalsBox"),
+      subtotalEl=$("subtotal"),checkout=$("checkoutBtn"),clearBtn=$("clearBtn");
   grid.innerHTML="";
-  if(!cart.length){ grid.hidden=true; empty.hidden=false; totals.hidden=true; return }
-  empty.hidden=true; grid.hidden=false; totals.hidden=false;
-
+  if(!cart.length){grid.hidden=true;empty.hidden=false;totals.hidden=true;return}
+  empty.hidden=true;grid.hidden=false;totals.hidden=false;
   cart.forEach((it,i)=>{
-    const card=document.createElement("div"); card.className="card";
-    card.innerHTML=`
-      <img class="thumb" src="${it.img||PH}" alt="Fabric"/>
-      <div class="title">${it.title||"Fabric"}</div>
+    const card=document.createElement("div");card.className="card";
+    card.innerHTML=`<img class="thumb" src="${it.img||PH}"/><div class="title">${it.title||"Fabric"}</div>
       <div class="row"><span class="small">Price/Yd</span><strong>${fmt(+it.price||0)}</strong></div>
       <div class="row"><span class="small">Yards</span>
-        <div class="qty">
-          <button class="btn" data-a="dec" data-i="${i}">−</button>
-          <span id="q-${i}">${it.qty||1}</span>
-          <button class="btn" data-a="inc" data-i="${i}">+</button>
-        </div>
-      </div>
-      <div class="row"><span class="small">Line total</span><strong id="l-${i}">${fmt((+it.price||0)*(it.qty||1))}</strong></div>
+        <div class="qty"><button class="btn" data-a="dec" data-i="${i}">−</button>
+        <span>${it.qty||1}</span><button class="btn" data-a="inc" data-i="${i}">+</button></div></div>
+      <div class="row"><span class="small">Line total</span><strong>${fmt((+it.price||0)*(it.qty||1))}</strong></div>
       <div class="row"><span></span><button class="btn danger" data-a="rm" data-i="${i}">Remove</button></div>`;
     grid.appendChild(card);
   });
-
   grid.onclick=e=>{
-    const b=e.target.closest("button"); if(!b) return;
-    const i=+b.dataset.i, a=b.dataset.a; let c=readCart();
-    if(a==="inc") c[i].qty=(c[i].qty||1)+1;
-    if(a==="dec") c[i].qty=Math.max(1,(c[i].qty||1)-1);
-    if(a==="rm") c.splice(i,1);
-    saveCart(c); location.reload();
+    const b=e.target.closest("button");if(!b)return;
+    let c=read(),i=+b.dataset.i,a=b.dataset.a;
+    if(a==="inc")c[i].qty++;if(a==="dec")c[i].qty=Math.max(1,c[i].qty-1);if(a==="rm")c.splice(i,1);
+    save(c);render();
   };
-
   const sum=cart.reduce((s,x)=>s+(+x.price||0)*(x.qty||1),0);
-  subtotalEl.textContent=fmt(sum); checkout.disabled=!(sum>0);
+  subtotalEl.textContent=fmt(sum);checkout.disabled=!(sum>0);
+  clearBtn.onclick=()=>{save([]);render()};checkout.onclick=startCheckout;
+}
+render();
 
-  clearBtn.onclick=()=>{ saveCart([]); location.reload() };
-  checkout.onclick=startCheckout;
-})();
-
-/* Overlay progress → success */
 function startCheckout(){
   const overlay=$("overlay"),fill=$("fill"),s1=$("s1"),s2=$("s2"),s3=$("s3"),note=$("note");
-  overlay.style.display="flex"; fill.style.width="0%"; [s1,s2,s3].forEach(x=>x.classList.remove("done")); note.textContent="Please wait…";
-  const tick=(w,el,msg,cb)=>setTimeout(()=>{fill.style.width=w; el.classList.add("done"); note.textContent=msg; cb&&cb()},450);
+  overlay.style.display="flex";fill.style.width="0%";[s1,s2,s3].forEach(x=>x.classList.remove("done"));note.textContent="Please wait…";
+  const tick=(w,el,msg,cb)=>setTimeout(()=>{fill.style.width=w;el.classList.add("done");note.textContent=msg;cb&&cb()},450);
   tick("25%",s1,"Cart secured",()=>{tick("60%",s2,"Checkout session ready",()=>{tick("100%",s3,"Redirecting…",()=>{setTimeout(()=>{window.location.href="/success.html"},700)})})});
 }
 
-/* New Arrivals: write to ALL keys (safety) */
 (function arrivals(){
-  const data=[
+  const items=[
     {id:"mw-wool-crepe",title:"Merino Wool Crepe — Black",price:38.00,img:"https://images.unsplash.com/photo-1610030469983-98b5a19b7935?q=80&w=1200"},
     {id:"silk-charmeuse",title:"Silk Charmeuse — Ivory",price:42.00,img:"https://images.unsplash.com/photo-1542060748-10c28b62716a?q=80&w=1200"},
     {id:"cotton-sateen",title:"Cotton Sateen — Navy",price:18.50,img:"https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1200"},
     {id:"tropical-wool",title:"Tropical Wool — Charcoal",price:34.00,img:"https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1200"}
   ];
   const track=$("arrivals");
-  function addAllKeys(item){
-    const addTo=(key)=>{
-      let c=[]; try{c=JSON.parse(localStorage.getItem(key)||"[]")}catch(e){}
-      const f=c.find(x=>x.id===item.id); if(f) f.qty=(f.qty||1)+1; else c.push({...item,qty:1});
-      localStorage.setItem(key, JSON.stringify(c));
-    };
-    ["hem_cart","hemlinemarket_cart","cart"].forEach(addTo);
-    toast("Added to cart"); setTimeout(()=>location.reload(),350);
+  function add(it){
+    let c=read();const f=c.find(x=>x.id===it.id);
+    if(f)f.qty++;else c.push({...it,qty:1});
+    save(c);alert("Added to cart");location.reload();
   }
-  data.forEach(it=>{
-    const el=document.createElement("div"); el.className="flip";
-    el.innerHTML=`<div class="face">
-      <div class="front"><img src="${it.img}" alt="Fabric"/><div class="title">${it.title}</div><div class="badge">$${it.price}/yd</div></div>
-      <div class="back"><div class="title">${it.title}</div><p class="small">Luxe hand, smooth drape. Ideal for skirts & dresses.</p><button class="add">Add to Cart</button></div>
-    </div>`;
-    el.addEventListener("click",(e)=>{if(e.target.classList.contains("add"))return;el.classList.toggle("is-flipped")});
-    el.querySelector(".add").onclick=()=>addAllKeys(it);
-    track.appendChild(el);
+  items.forEach(it=>{
+    const el=document.createElement("div");el.className="flip";el.innerHTML=
+      `<div class="face"><div class="front"><img src="${it.img}"/><div class="title">${it.title}</div><div class="badge">$${it.price}/yd</div></div>
+      <div class="back"><div class="title">${it.title}</div><p class="small">Luxe hand, smooth drape.</p><button class="add">Add to Cart</button></div></div>`;
+    el.addEventListener("click",e=>{if(e.target.classList.contains("add"))return;el.classList.toggle("is-flipped")});
+    el.querySelector(".add").onclick=()=>add(it);track.appendChild(el);
   });
 })();
 </script>
