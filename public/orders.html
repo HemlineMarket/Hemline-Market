@@ -1,73 +1,69 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Orders</title>
-  <style>
-    :root { --ink:#0f172a; --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; }
-    body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
-    .wrap { max-width:800px; margin:auto; }
-    .order { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
-    .order h3 { margin-top:0; }
-    .item { margin-left:16px; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <a href="listings.html" style="display:inline-block;margin-bottom:20px;color:#0ea5e9;text-decoration:none;">
-      ← Back to Listings
-    </a>
-    <h1>Your Orders</h1>
-    <div id="orders"></div>
-  </div>
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Orders</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
+.wrap{max-width:820px;margin:auto}
+.link{color:#0ea5e9;text-decoration:none}
+.order{background:#fff;border:1px solid #e5e7eb;border-radius:12px;margin:12px 0;overflow:hidden}
+.hdr{margin:0;padding:14px 16px;background:#f3f4f6;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+.details{display:none;padding:12px 16px}
+.item{display:flex;gap:10px;align-items:center;margin:6px 0}
+.thumb{width:42px;height:42px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid #e5e7eb}
+.meta{color:#475569;font-size:.9rem}
+.total{margin-top:10px;text-align:right;font-weight:700}
+.err{color:#b91c1c}
+</style></head>
+<body><div class="wrap">
+<a class="link" href="listings.html">← Back to Listings</a>
+<h1>Your Orders</h1>
+<div id="msg" class="meta"></div>
+<div id="orders">Loading…</div>
+</div>
+<script>
+const SUPABASE_URL="https://clkizksbvxjkoatdajgd.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4MDE1ODIsImV4cCI6MjAzOTM3NzU4Mn0.MEu0Ex0bTtVnNuB-tAek95UbwsKdbWipzJrN84aKhlg";
+const PH="https://via.placeholder.com/80?text=Fabric";
+const box=document.getElementById("orders"), msg=document.getElementById("msg");
 
-  <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-    const supabaseUrl = "https://clkizksbvxjkoatdajgd.supabase.co";
-    const supabaseKey = "YOUR_SUPABASE_ANON_KEY";
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    async function loadOrders() {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      const ordersDiv = document.getElementById("orders");
-      ordersDiv.innerHTML = "";
-
-      if (error) {
-        ordersDiv.innerHTML = `<p style="color:red;">Error loading orders: ${error.message}</p>`;
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        ordersDiv.innerHTML = "<p>No orders found.</p>";
-        return;
-      }
-
-      data.forEach((order, idx) => {
-        const div = document.createElement("div");
-        div.className = "order";
-        const date = order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown date";
-        div.innerHTML = `<h3>Order #${idx + 1} — ${date}</h3>`;
-
-        try {
-          const items = order.items || [];
-          items.forEach(it => {
-            div.innerHTML += `<div class="item">- ${it.title} — $${it.price}</div>`;
-          });
-        } catch {
-          div.innerHTML += `<div class="item">(No items found)</div>`;
-        }
-
-        ordersDiv.appendChild(div);
+async function fetchOrdersREST(){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/orders?select=*`,{
+    headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`},cache:"no-store"
+  });
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+function renderList(data, source){
+  msg.textContent = source==="rest" ? `${data.length} order(s)` : `Showing local receipts (offline fallback)`;
+  if(!data.length){box.innerHTML="<p>No orders found.</p>";return}
+  data.sort((a,b)=>new Date(b.created_at||b.when||0)-new Date(a.created_at||a.when||0));
+  box.innerHTML="";
+  data.forEach((o,i)=>{
+    const wrap=document.createElement("div"); wrap.className="order";
+    const when=o.created_at?new Date(o.created_at).toLocaleString(): (o.when||"");
+    const hdr=document.createElement("div"); hdr.className="hdr";
+    hdr.innerHTML=`<span>Order #${i+1} ${when?`• <span class="meta">${when}</span>`:""}</span><span>Details ▾</span>`;
+    const det=document.createElement("div"); det.className="details";
+    let total=0; const items=Array.isArray(o.items)?o.items:[];
+    if(!items.length){det.innerHTML="<p class='meta'>No items found.</p>";}
+    else{
+      items.forEach(it=>{
+        const qty=Number(it.qty||1), price=Number(it.price||0); total+=qty*price;
+        const row=document.createElement("div"); row.className="item";
+        row.innerHTML=`<img class="thumb" src="${it.img||PH}" onerror="this.src='${PH}'"><div><div><strong>${it.title||"Fabric"}</strong></div><div class="meta">Qty ${qty}</div></div><div style="margin-left:auto">$${(qty*price).toFixed(2)}</div>`;
+        det.appendChild(row);
       });
+      const t=document.createElement("div"); t.className="total"; t.textContent="Total: $"+total.toFixed(2); det.appendChild(t);
     }
-
-    loadOrders();
-  </script>
-</body>
-</html>
+    hdr.onclick=()=>{det.style.display=det.style.display==="block"?"none":"block"};
+    wrap.appendChild(hdr); wrap.appendChild(det); box.appendChild(wrap);
+  });
+}
+(async()=>{
+  try{
+    const data=await fetchOrdersREST(); renderList(data,"rest");
+  }catch(e){
+    msg.innerHTML=`<span class="err">Could not load from server (${e.message}).</span>`;
+    const local=JSON.parse(localStorage.getItem("hem_orders")||"[]"); renderList(local,"local");
+  }
+})();
+</script></body></html>
