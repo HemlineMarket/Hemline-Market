@@ -7,6 +7,7 @@
 .btn{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
 .cta{background:#0ea5e9;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer}
 .cta:disabled{opacity:.5;cursor:not-allowed}.empty{border:2px dashed #e5e7eb;border-radius:12px;padding:24px;text-align:center;color:#475569}
+.controls{display:flex;gap:10px;align-items:center;margin-top:8px}
 .carousel{margin:26px 0 6px}.track{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:12px;overflow:auto}
 .badge{display:inline-block;background:#e2e8f0;border-radius:999px;padding:2px 8px;font-size:.75rem;margin-top:6px}
 .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:50}
@@ -17,7 +18,10 @@
 <h1>Your Cart</h1>
 <div id="cartGrid" class="grid"></div>
 <div id="emptyMsg" class="empty" hidden>Cart is empty.</div>
-<button id="checkoutBtn" class="cta" disabled>Checkout</button>
+<div class="controls">
+  <button id="checkoutBtn" class="cta" disabled>Checkout</button>
+  <button id="cancelBtn" class="btn">Cancel</button>
+</div>
 
 <div class="carousel"><h2>New Arrivals</h2><div id="arrivals" class="track"></div></div>
 
@@ -44,22 +48,18 @@ function render(){const cart=read(),grid=$("cartGrid"),empty=$("emptyMsg"),check
      <div class="row"><span>Price</span><strong>${fmt(it.price)}</strong></div>`;grid.appendChild(c);});
 } render();
 
-async function getRedirectURL(){
-  try{const r=await fetch("/stripe-link.json",{cache:"no-store"}); if(!r.ok) throw 0;
-      const j=await r.json(); return j.url||"/success.html";}
-  catch(e){return "/success.html";}
-}
+/* Cancel simply navigates back without touching storage */
+$("cancelBtn").onclick=()=>{window.location.href="/cancel.html"};
 
-/* Checkout → save optimized images, then redirect from JSON */
+/* Checkout → save optimized images, then redirect (from JSON if present, else success) */
+async function getRedirectURL(){try{const r=await fetch("/stripe-link.json",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();return j.url||"/success.html"}catch(e){return"/success.html"}}
 $("checkoutBtn").onclick=async()=>{const overlay=$("overlay"),fill=$("fill"),s1=$("s1"),s2=$("s2"),s3=$("s3");
   const order=read(); if(!order.length)return;
   const optimized=order.map(it=>({...it,img:proxy(it.img||PH)}));
   sessionStorage.setItem("hem_order",JSON.stringify(optimized)); localStorage.removeItem(KEY);
   overlay.style.display="flex"; fill.style.width="0%"; [s1,s2,s3].forEach(x=>x.classList.remove("done"));
   const tick=(w,el)=>new Promise(res=>setTimeout(()=>{fill.style.width=w;el.classList.add("done");res()},450));
-  await tick("25%",s1); await tick("60%",s2);
-  const url=await getRedirectURL(); await tick("100%",s3);
-  window.location.href=url;
+  await tick("25%",s1); await tick("60%",s2); const url=await getRedirectURL(); await tick("100%",s3); window.location.href=url;
 };
 
 /* Arrivals with Add to Cart */
