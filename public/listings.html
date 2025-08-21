@@ -1,61 +1,99 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Listings</title>
-  <style>
-    :root { --ink:#0f172a; --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; }
-    body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
-    .wrap { max-width:1000px; margin:auto; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
-    .card img { max-width:100%; border-radius:12px; }
-    .btn { display:inline-block; margin-top:8px; padding:8px 12px; background:#0ea5e9; color:#fff; border-radius:6px; text-decoration:none; cursor:pointer; }
-  </style>
-</head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Listings</title>
+<style>
+:root{--ink:#0f172a;--bg:#fafafa;--card:#ffffff;--line:#e5e7eb;--accent:#0ea5e9}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1000px;margin:auto}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.thumb{width:100%;height:180px;object-fit:cover;background:#f1f5f9}
+.body{padding:12px}
+.title{font-weight:600;margin:0 0 6px}
+.price{color:var(--accent);font-weight:600}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
+.qty{display:flex;align-items:center;gap:8px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
+.cta{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 12px;cursor:pointer}
+.link{color:var(--accent);text-decoration:none}
+</style></head>
 <body>
-  <div class="wrap">
-    <h1>Fabric Listings</h1>
-    <div class="grid" id="listings"></div>
-    <a href="cart.html" class="btn">View Cart</a>
+<div class="wrap">
+  <div class="toolbar">
+    <h1>Listings</h1>
+    <div>
+      <a class="link" href="orders.html" style="margin-right:10px">View Orders</a>
+      <a class="link" href="cart.html">View Cart →</a>
+    </div>
   </div>
+  <div id="listings" class="grid"></div>
+</div>
 
-  <script type="module">
-    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
-    const SUPABASE_KEY = "YOUR_ACTUAL_ANON_KEY";
+<script>
+/* Supabase (keys included) */
+const SUPABASE_URL="https://clkizksbvxjkoatdajgd.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4MDE1ODIsImV4cCI6MjAzOTM3NzU4Mn0.MEu0Ex0bTtVnNuB-tAek95UbwsKdbWipzJrN84aKhlg";
 
-    async function loadListings() {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/listings?select=*`, {
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`
+/* Cart helpers (match cart.html expectations) */
+const KEY="hem_cart";
+const readCart=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}};
+const saveCart=a=>localStorage.setItem(KEY,JSON.stringify(a||[]));
+const imgURL=(image_path)=> image_path?.startsWith("http")
+  ? image_path
+  : `https://clkizksbvxjkoatdajgd.supabase.co/storage/v1/object/public/listing-images/${image_path||""}`;
+
+async function loadListings(){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/listings?select=*`,{
+    headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}
+  });
+  const items=await res.json();
+  const grid=document.getElementById("listings"); grid.innerHTML="";
+  if(!Array.isArray(items)||!items.length){grid.innerHTML="<p>No listings found.</p>";return}
+
+  items.forEach(it=>{
+    const card=document.createElement("div"); card.className="card";
+    const src=imgURL(it.image_url);
+    card.innerHTML=`
+      <img class="thumb" src="${src}" alt="">
+      <div class="body">
+        <div class="title">${it.title||"Fabric"}</div>
+        <div class="price">$${Number(it.price||0).toFixed(2)}/yd</div>
+        <div class="row">
+          <div class="qty">
+            <button class="btn" data-a="dec">−</button>
+            <strong data-role="qty">1</strong>
+            <button class="btn" data-a="inc">+</button>
+          </div>
+          <button class="cta" data-a="add">Add to Cart</button>
+        </div>
+      </div>`;
+    // qty handlers + add
+    card.addEventListener("click",(e)=>{
+      const btn=e.target.closest("button"); if(!btn) return;
+      const qtyEl=card.querySelector('[data-role="qty"]'); let q=Number(qtyEl.textContent||1);
+      const a=btn.getAttribute("data-a");
+      if(a==="inc"){q++; qtyEl.textContent=q;}
+      else if(a==="dec"){q=Math.max(1,q-1); qtyEl.textContent=q;}
+      else if(a==="add"){
+        const cart=readCart();
+        const existing=cart.find(x=>x.id===it.id);
+        if(existing){ existing.qty = Number(existing.qty||1) + q; }
+        else{
+          cart.push({
+            id: it.id,
+            title: it.title||"Fabric",
+            price: Number(it.price||0),
+            qty: q,
+            img: src
+          });
         }
-      });
-      const data = await res.json();
-      const container = document.getElementById("listings");
-      container.innerHTML = "";
-      data.forEach(item => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `
-          <img src="${item.image_url || ''}" alt="${item.title}">
-          <h3>${item.title}</h3>
-          <p>$${item.price}</p>
-          <button class="btn" onclick="addToCart(${item.id}, '${item.title}', ${item.price})">Add to Cart</button>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    function addToCart(id, title, price) {
-      let cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
-      cart.push({ id, title, price });
-      localStorage.setItem("hem_cart", JSON.stringify(cart));
-      alert(`${title} added to cart!`);
-    }
-
-    loadListings();
-  </script>
-</body>
-</html>
+        saveCart(cart);
+        btn.textContent="Added ✓"; setTimeout(()=>btn.textContent="Add to Cart",900);
+      }
+    });
+    grid.appendChild(card);
+  });
+}
+loadListings();
+</script>
+</body></html>
