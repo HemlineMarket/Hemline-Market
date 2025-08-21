@@ -1,77 +1,74 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Cart</title>
-  <style>
-    :root { --ink:#0f172a; --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; }
-    body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
-    .wrap { max-width:800px; margin:auto; }
-    .cart-item { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
-    button { background:#0ea5e9; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
-    button:hover { background:#0284c7; }
-  </style>
-</head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Cart</title>
+<style>
+:root{--ink:#0f172a;--bg:#fafafa;--card:#ffffff;--line:#e5e7eb;--accent:#0ea5e9}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--ink)}
+.wrap{max-width:800px;margin:auto}
+h1{margin-bottom:16px}
+.cart-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.thumb{width:70px;height:70px;object-fit:cover;border-radius:8px;background:#f1f5f9}
+.info{flex:1}
+.title{font-weight:600}
+.price{color:var(--accent);font-weight:600}
+.qty{display:flex;align-items:center;gap:8px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:4px 8px;cursor:pointer}
+.total{margin-top:20px;font-size:18px;font-weight:600;text-align:right}
+.checkout{display:block;margin-left:auto;margin-top:12px;background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer}
+.link{color:var(--accent);text-decoration:none}
+</style></head>
 <body>
-  <div class="wrap">
-    <h1>Your Cart</h1>
-    <div id="cart"></div>
-    <button onclick="placeOrder()">Place Order</button>
-  </div>
+<div class="wrap">
+  <a href="listings.html" class="link" style="display:inline-block;margin-bottom:20px">← Back to Listings</a>
+  <h1>Your Cart</h1>
+  <div id="cart"></div>
+  <div class="total" id="total"></div>
+  <button class="checkout" onclick="checkout()">Checkout</button>
+</div>
 
-  <script>
-    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
-    const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
+<script>
+const KEY="hem_cart";
+const readCart=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch{return[]}};
+const saveCart=a=>localStorage.setItem(KEY,JSON.stringify(a||[]));
 
-    function renderCart() {
-      const cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
-      const cartDiv = document.getElementById("cart");
-      cartDiv.innerHTML = "";
-      cart.forEach((item, idx) => {
-        const div = document.createElement("div");
-        div.className = "cart-item";
-        div.innerHTML = `<span>${item.title} — $${item.price}</span>
-                         <button onclick="removeItem(${idx})">Remove</button>`;
-        cartDiv.appendChild(div);
-      });
-    }
+function renderCart(){
+  const cart=readCart();
+  const wrap=document.getElementById("cart"); wrap.innerHTML="";
+  let total=0;
 
-    function removeItem(index) {
-      let cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
-      cart.splice(index, 1);
-      localStorage.setItem("hem_cart", JSON.stringify(cart));
-      renderCart();
-    }
+  if(!cart.length){wrap.innerHTML="<p>Cart is empty.</p>";document.getElementById("total").textContent="";return}
 
-    async function placeOrder() {
-      const cart = JSON.parse(localStorage.getItem("hem_cart")) || [];
-      if (cart.length === 0) {
-        alert("Your cart is empty.");
-        return;
-      }
+  cart.forEach((it,idx)=>{
+    total+= (Number(it.price)||0)*(Number(it.qty)||1);
+    const div=document.createElement("div"); div.className="cart-item";
+    div.innerHTML=`
+      <img class="thumb" src="${it.img||""}" alt="">
+      <div class="info">
+        <div class="title">${it.title}</div>
+        <div class="price">$${Number(it.price).toFixed(2)}/yd</div>
+        <div class="qty">
+          <button class="btn" data-a="dec">−</button>
+          <strong>${it.qty}</strong>
+          <button class="btn" data-a="inc">+</button>
+          <button class="btn" data-a="rm" style="margin-left:12px">Remove</button>
+        </div>
+      </div>`;
+    div.addEventListener("click",e=>{
+      const b=e.target.closest("button"); if(!b)return;
+      const a=b.getAttribute("data-a");
+      if(a==="inc"){cart[idx].qty++; saveCart(cart); renderCart()}
+      else if(a==="dec"){cart[idx].qty=Math.max(1,cart[idx].qty-1); saveCart(cart); renderCart()}
+      else if(a==="rm"){cart.splice(idx,1); saveCart(cart); renderCart()}
+    });
+    wrap.appendChild(div);
+  });
 
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          Prefer: "return=minimal"
-        },
-        body: JSON.stringify({ items: cart })
-      });
+  document.getElementById("total").textContent="Total: $"+total.toFixed(2);
+}
 
-      if (res.ok) {
-        alert("Order placed successfully!");
-        localStorage.removeItem("hem_cart");
-        window.location.href = "orders.html";
-      } else {
-        alert("Error placing order.");
-      }
-    }
+function checkout(){
+  alert("Checkout flow coming soon.");
+}
 
-    renderCart();
-  </script>
-</body>
-</html>
+renderCart();
+</script>
+</body></html>
