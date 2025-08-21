@@ -1,22 +1,84 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Cart Debug</title>
+<title>Hemline — Cart</title>
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:#fafafa;color:#0f172a}
-.debug{white-space:pre-wrap;font-size:.85rem;background:#f1f5f9;border:1px solid #cbd5e1;padding:8px;border-radius:6px;margin-bottom:16px}
-.btn{padding:10px 14px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+.thumb{width:100%;height:170px;object-fit:cover;border-radius:8px;margin:0 0 10px;background:#f1f5f9}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}.title{font-weight:600}
+.btn{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
+.btn:hover{border-color:#cbd5e1}.danger{color:#b91c1c;border-color:#fecaca}
+.cta{background:#0ea5e9;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer}
+.empty{border:2px dashed #e5e7eb;border-radius:12px;padding:24px;text-align:center;color:#475569}
+.carousel{margin:26px 0 6px}
+.track{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:12px;overflow:auto}
+.flip{perspective:1000px;cursor:pointer}
+.flip>.face{position:relative;transform-style:preserve-3d;transition:transform .5s;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+.flip.is-flipped>.face{transform:rotateY(180deg)}
+.flip .front,.flip .back{backface-visibility:hidden;padding:12px;background:#fff;min-height:240px}
+.flip .front img{width:100%;height:140px;object-fit:cover;border-radius:8px;margin-bottom:8px}
+.flip .back{position:absolute;inset:0;transform:rotateY(180deg)}
+.badge{display:inline-block;background:#e2e8f0;border-radius:999px;padding:2px 8px;font-size:.75rem;margin-top:6px}
+.add{margin-top:10px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;padding:8px 10px;cursor:pointer;width:100%}
 </style>
 </head><body>
-<div id="debug" class="debug">hem_cart → (nothing yet)</div>
-<button id="add" class="btn">Add Test Item</button>
+<h1>Your Cart</h1>
+<div id="cartGrid" class="grid"></div>
+<div id="emptyMsg" class="empty" hidden>Cart is empty.</div>
+<button id="checkoutBtn" class="cta" disabled>Checkout</button>
+
+<div class="carousel">
+  <h2>New Arrivals</h2>
+  <div id="arrivals" class="track"></div>
+</div>
+
 <script>
-const key="hem_cart";
-function show(){document.getElementById("debug").textContent="hem_cart → "+localStorage.getItem(key);}
-document.getElementById("add").onclick=()=>{
-  const test=[{id:"test1",title:"Debug Fabric",price:12.34,qty:2,img:"https://via.placeholder.com/300"}];
-  localStorage.setItem(key,JSON.stringify(test));
-  show();
-};
-show();
+const KEY="hem_cart",PH="https://via.placeholder.com/600x400?text=Fabric";
+const fmt=n=>`$${n.toFixed(2)}`;
+function read(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}
+function save(arr){localStorage.setItem(KEY,JSON.stringify(arr||[]))}
+
+/* Render cart */
+function render(){
+  const cart=read(),grid=document.getElementById("cartGrid"),
+        empty=document.getElementById("emptyMsg"),
+        checkout=document.getElementById("checkoutBtn");
+  grid.innerHTML="";
+  if(!cart.length){empty.hidden=false;checkout.disabled=true;return}
+  empty.hidden=true;checkout.disabled=false;
+  cart.forEach(it=>{
+    const card=document.createElement("div");card.className="card";
+    card.innerHTML=`<img class="thumb" src="${it.img||PH}"/><div class="title">${it.title}</div>
+      <div class="row"><span>Qty</span><strong>${it.qty}</strong></div>
+      <div class="row"><span>Price</span><strong>${fmt(it.price)}</strong></div>`;
+    grid.appendChild(card);
+  });
+}
+render();
+
+/* Add to cart */
+function addItem(item){
+  let c=read();const f=c.find(x=>x.id===item.id);
+  if(f)f.qty++;else c.push({...item,qty:1});
+  save(c);render();
+}
+
+/* Arrivals */
+const arrivals=[
+  {id:"mw-wool-crepe",title:"Merino Wool Crepe — Black",price:38.00,img:"https://images.unsplash.com/photo-1610030469983-98b5a19b7935?q=80&w=1200"},
+  {id:"silk-charmeuse",title:"Silk Charmeuse — Ivory",price:42.00,img:"https://images.unsplash.com/photo-1542060748-10c28b62716a?q=80&w=1200"},
+  {id:"cotton-sateen",title:"Cotton Sateen — Navy",price:18.50,img:"https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1200"},
+  {id:"tropical-wool",title:"Tropical Wool — Charcoal",price:34.00,img:"https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1200"}
+];
+const track=document.getElementById("arrivals");
+arrivals.forEach(it=>{
+  const el=document.createElement("div");el.className="flip";el.innerHTML=
+    `<div class="face"><div class="front"><img src="${it.img}"/><div class="title">${it.title}</div><div class="badge">$${it.price}/yd</div></div>
+      <div class="back"><div class="title">${it.title}</div><button class="add">Add to Cart</button></div></div>`;
+  el.addEventListener("click",e=>{if(e.target.classList.contains("add"))return;el.classList.toggle("is-flipped")});
+  el.querySelector(".add").onclick=()=>addItem(it);
+  track.appendChild(el);
+});
 </script>
 </body></html>
