@@ -1,28 +1,45 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Order Success</title>
-<style>:root{--ink:#0f172a;--bg:#fafafa;--card:#fff;--line:#e5e7eb;--accent:#0ea5e9}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--ink)}.wrap{max-width:820px;margin:auto}.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 2px 6px rgba(0,0,0,.05)}.hdr{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}h1{margin:0;color:var(--accent);font-size:1.5rem}.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}.item{display:flex;gap:10px;align-items:center;margin:8px 0}.thumb{width:54px;height:54px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid var(--line)}.meta{color:#475569;font-size:.95rem}.total{margin-top:10px;text-align:right;font-weight:700}.link{color:var(--accent);text-decoration:none}</style></head>
-<body><div class="wrap"><div class="box" id="receipt"><div class="hdr"><h1>✅ Order placed</h1><div><input id="email" type="email" placeholder="email for receipt" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:220px"><button class="btn" id="emailBtn">Email receipt</button><button class="btn" id="printBtn">Print</button></div></div><p class="meta" id="orderMeta"></p><div id="list"></div><div id="subtotal" class="total"></div><p><a class="link" href="orders.html">View Orders →</a> • <a class="link" href="listings.html">← Continue shopping</a></p></div></div>
-<script>
-const SUPABASE_URL="https://clkizksbvxjkoatdajgd.supabase.co";
-const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4MDE1ODIsImV4cCI6MjAzOTM3NzU4Mn0.MEu0Ex0bTtVnNuB-tAek95UbwsKdbWipzJrN84aKhlg";
-const PH="https://via.placeholder.com/80?text=Fabric",$=id=>document.getElementById(id);
-const uid=()=>"HLM-"+Date.now().toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase();
-(async function(){
-  const raw=sessionStorage.getItem("hem_order"); if(!raw){$("list").innerHTML="<p>No order details found.</p>";return}
-  const items=JSON.parse(raw); let sum=0; const id=uid(); const when=new Date().toLocaleString();
-  $("orderMeta").textContent=`Order #: ${id} • ${when}`; $("list").innerHTML="";
-  items.forEach(it=>{const q=+it.qty||1,p=+it.price||0; sum+=q*p; const row=document.createElement("div");row.className="item";
-    row.innerHTML=`<img class="thumb" src="${it.img||PH}" onerror="this.src='${PH}'"><div><div><strong>${it.title||"Fabric"}</strong></div><div class="meta">Qty ${q}</div></div><div style="margin-left:auto">$${(q*p).toFixed(2)}</div>`;$("list").appendChild(row);});
-  $("subtotal").textContent="Subtotal: $"+sum.toFixed(2);
-  const log=JSON.parse(localStorage.getItem("hem_orders")||"[]"); log.unshift({id,when,items,subtotal:sum}); localStorage.setItem("hem_orders",JSON.stringify(log.slice(0,50)));
-  if(!sessionStorage.getItem("hem_saved_remote")){try{await fetch(`${SUPABASE_URL}/rest/v1/orders`,{method:"POST",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({id,items,created_at:new Date().toISOString()})});sessionStorage.setItem("hem_saved_remote","1");}catch(_){/* ignore */}}
-  const prev=localStorage.getItem("hem_email"); if(prev) $("email").value=prev; sessionStorage.removeItem("hem_order");
-  $("printBtn").onclick=()=>window.print();
-  $("emailBtn").onclick=()=>{const to=$("email").value.trim(); if(!to){alert("Enter an email address first.");return}
-    localStorage.setItem("hem_email",to);
-    const lines=items.map(it=>`• ${it.title||"Fabric"}  x${it.qty||1}  $${(Number(it.price||0)*Number(it.qty||1)).toFixed(2)}`).join("%0A");
-    const subject=`Hemline Market receipt — ${id}`;
-    const body=`Thank you for your order!%0A%0AOrder #: ${id}%0ADate: ${when}%0A%0AItems:%0A${lines}%0A%0ASubtotal: $${sum.toFixed(2)}%0A%0A— Hemline Market`;
-    window.location.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${body}`;};
-})();
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Hemline — Order Success</title>
+  <style>
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+           margin: 24px; background:#fafafa; color:#0f172a; text-align:center; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px;
+            padding:30px; max-width:500px; margin:60px auto; }
+    h1 { color:#0ea5e9; }
+    .item { text-align:left; margin-top:8px; }
+    a { color:#0ea5e9; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>✅ Order Placed</h1>
+    <p>Thank you for your purchase! Here’s what you ordered:</p>
+    <div id="items"></div>
+    <p style="margin-top:20px">
+      <a href="listings.html">← Continue Shopping</a> |
+      <a href="orders.html">View My Orders →</a>
+    </p>
+  </div>
+
+  <script>
+    const div = document.getElementById("items");
+    try {
+      const raw = sessionStorage.getItem("hem_order");
+      const items = raw ? JSON.parse(raw) : [];
+      if (!items.length) {
+        div.innerHTML = "<p>(No items found)</p>";
+      } else {
+        items.forEach(it => {
+          div.innerHTML += `<div class="item">- ${it.title||"Fabric"} — $${it.price}</div>`;
+        });
+      }
+    } catch {
+      div.innerHTML = "<p>(Could not load order)</p>";
+    }
+  </script>
+</body>
+</html>
