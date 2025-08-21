@@ -15,35 +15,29 @@ a{color:#7c3aed;text-decoration:none}
   <p>A summary of what you just purchased.</p>
   <div id="list"></div>
   <div id="total" class="total"></div>
-  <p><a href="/listings.html">← Continue shopping</a></p>
+  <p><a id="continue" href="/listings.html">← Continue shopping</a></p>
 </div>
 <script>
-const PH="https://via.placeholder.com/300x300?text=Fabric";
-function proxy(u){
-  try{
-    const url=new URL(u);
-    // Force HTTPS proxying and image sizing
-    return "https://images.weserv.nl/?url=ssl:" + url.hostname + url.pathname + (url.search||"") + "&w=300&h=300&fit=cover";
-  }catch(e){ return PH; }
-}
+const PH_DATA='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="100%" height="100%" fill="%23eef2f7"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2399a3b0" font-family="Arial" font-size="20">Fabric</text></svg>';
+function proxy(u){try{const x=new URL(u);return "https://images.weserv.nl/?url=ssl:"+x.hostname+x.pathname+(x.search||"")+"&w=300&h=300&fit=cover"}catch(e){return PH_DATA}}
 const out=document.getElementById("list"),tot=document.getElementById("total");
-try{
+(function render(){
   const items=JSON.parse(sessionStorage.getItem("hem_order")||"[]"); let sum=0;
-  if(!items.length){ out.innerHTML="<p>No items found.</p>"; }
-  else{
-    items.forEach(it=>{
-      const src=it.img ? proxy(it.img) : PH;
-      const qty=Number(it.qty||1), price=Number(it.price||0);
-      sum += qty*price;
-      const row=document.createElement("div"); row.className="item";
-      row.innerHTML=`<img class="thumb" src="${src}" alt="Fabric" onerror="this.src='${PH}'">
-        <div><div class="title">${it.title||"Fabric"}</div><div>Qty ${qty}</div></div>
-        <div class="price">$${(qty*price).toFixed(2)}</div>`;
-      out.appendChild(row);
-    });
-    tot.textContent="Subtotal: $"+sum.toFixed(2);
-  }
-}catch(e){ out.innerHTML="<p>Error loading order.</p>"; }
-sessionStorage.removeItem("hem_order");
+  if(!items.length){out.innerHTML="<p>No items found.</p>";return}
+  items.forEach(it=>{
+    const qty=Number(it.qty||1), price=Number(it.price||0); sum+=qty*price;
+    const row=document.createElement("div"); row.className="item";
+    const img=document.createElement("img"); img.className="thumb"; img.alt="Fabric"; img.src=PH_DATA;
+    // progressive load: direct → proxy → final fallback
+    const tryDirect=new Image(); tryDirect.crossOrigin="anonymous"; tryDirect.onload=()=>{img.src=tryDirect.src};
+    tryDirect.onerror=()=>{const p=new Image(); p.onload=()=>{img.src=p.src}; p.onerror=()=>{img.src=PH_DATA}; p.src=proxy(it.img||"")};
+    tryDirect.src=it.img||"";
+    const meta=document.createElement("div"); meta.innerHTML=`<div class="title">${it.title||"Fabric"}</div><div>Qty ${qty}</div>`;
+    const priceEl=document.createElement("div"); priceEl.className="price"; priceEl.textContent=`$${(qty*price).toFixed(2)}`;
+    row.appendChild(img); row.appendChild(meta); row.appendChild(priceEl); out.appendChild(row);
+  });
+  tot.textContent="Subtotal: $"+sum.toFixed(2);
+})();
+document.getElementById("continue").addEventListener("click",()=>{sessionStorage.removeItem("hem_order")});
 </script>
 </body></html>
