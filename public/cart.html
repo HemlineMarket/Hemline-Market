@@ -31,7 +31,7 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
   <h3>Preparing Checkout</h3>
   <div class="step" id="s1"><span class="dot"></span><span>Securing cart</span></div>
   <div class="step" id="s2"><span class="dot"></span><span>Creating session</span></div>
-  <div class="step" id="s3"><span class="dot"></span><span>Rolling fabric</span></div>
+  <div class="step" id="s3"><span class="dot"></span><span>Redirecting</span></div>
   <div class="roll"><div id="fill" class="fill"></div></div>
 </div></div>
 
@@ -52,15 +52,25 @@ function render(){
 }
 render();
 
-/* Checkout → store optimized image URLs */
-$("checkoutBtn").onclick=()=>{
+async function getRedirectURL(){
+  try{
+    const res=await fetch("/stripe-link.json",{cache:"no-store"});
+    if(!res.ok) throw new Error("bad");
+    const data=await res.json(); return data.url || "/success.html";
+  }catch(e){ return "/success.html"; }
+}
+
+/* Checkout → store optimized image URLs + redirect from JSON */
+$("checkoutBtn").onclick=async()=>{
   const overlay=$("overlay"),fill=$("fill"),s1=$("s1"),s2=$("s2"),s3=$("s3");
   const order=read(); if(!order.length) return;
   const optimized=order.map(it=>({...it,img: proxy(it.img||PH)}));
   sessionStorage.setItem("hem_order",JSON.stringify(optimized)); localStorage.removeItem(KEY);
   overlay.style.display="flex"; fill.style.width="0%"; [s1,s2,s3].forEach(x=>x.classList.remove("done"));
-  const tick=(w,el,cb)=>setTimeout(()=>{fill.style.width=w;el.classList.add("done");cb&&cb()},450);
-  tick("25%",s1,()=>tick("60%",s2,()=>tick("100%",s3,()=>setTimeout(()=>{window.location.href="/success.html"},700))));
+  const tick=(w,el)=>new Promise(r=>setTimeout(()=>{fill.style.width=w;el.classList.add("done");r()},450));
+  await tick("25%",s1); await tick("60%",s2);
+  const url=await getRedirectURL(); await tick("100%",s3);
+  window.location.href=url;
 };
 
 /* Simple arrivals with Add to Cart */
