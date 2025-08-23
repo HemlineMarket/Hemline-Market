@@ -14,14 +14,18 @@
     #status{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:12px}
 
     .grid{display:grid;gap:12px}
-    .card{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:12px}
-    .thumb{flex:0 0 80px;height:100px;background:#f3f4f6;border-radius:12px;overflow:hidden}
+    .card{display:grid;grid-template-columns:100px 1fr auto;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:12px}
+    @media (max-width:560px){ .card{grid-template-columns:80px 1fr} .remove{grid-column:1 / -1; justify-self:end} }
+    .thumb{width:100%;height:120px;background:#f3f4f6;border-radius:12px;overflow:hidden}
     .thumb img{width:100%;height:100%;object-fit:cover}
-    .meta{flex:1 1 auto}
+    .meta{display:grid;gap:6px}
     .title{font-weight:700}
+    .muted{color:var(--muted);font-size:13px}
     .price{font-weight:700}
-    .qty{margin-top:6px;font-size:14px;color:var(--muted)}
-    .remove{flex:0 0 auto;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
+    .qtybar{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+    .qtybtn{width:38px;height:36px;border:0;background:#fff;cursor:pointer;font-size:18px;line-height:0}
+    .qtyval{min-width:40px;text-align:center}
+    .remove{padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
     .total{margin-top:20px;padding:16px;border:1px solid var(--line);border-radius:16px;background:#fff;font-weight:700;display:flex;justify-content:space-between}
   </style>
 
@@ -71,55 +75,102 @@
       const uid = sess?.session?.user?.id || null;
       if (!uid){ s.textContent='Please sign in to view your cart.'; hm.toast('Sign in to view cart.'); return; }
 
-      // Ensure table exists (cart_items)
-      // id, user_id, listing_id, qty, created_at
-      // If not created, do so in SQL like favorites
+      async function fetchCart() {
+        const cart = hm.guard(await sb.from('cart_items')
+          .select('id,listing_id,qty,created_at')
+          .eq('user_id',uid).order('created_at',{ascending:false}), 'Couldn’t load cart.');
+        if (!cart.data?.length){ s.textContent='Cart is empty.'; totalBox.hidden=true; grid.innerHTML=''; s.hidden=false; return { rows:[], byId:new Map() }; }
 
-      let { data, error } = await sb.from('cart_items').select('id,listing_id,qty,created_at').eq('user_id',uid).order('created_at',{ascending:false});
-      try{ data = hm.guard({data,error},'Couldn’t load cart.'); }catch(_){ return s.textContent='Couldn’t load cart.'; }
-      if (!data?.length){ s.textContent='Cart is empty.'; return; }
+        const ids=cart.data.map(r=>r.listing_id);
+        const items = hm.guard(await sb.from('listings')
+          .select('id,title,price_cents,cover_url')
+          .in('id',ids), 'Couldn’t load items.');
+        const byId=new Map(items.data.map(r=>[r.id,r]));
+        s.hidden=true; return { rows:cart.data, byId };
+      }
 
-      // Fetch listings
-      const ids=data.map(r=>r.listing_id);
-      let listRes=await sb.from('listings').select('id,title,price_cents,cover_url').in('id',ids);
-      let listings=hm.guard(listRes,'Couldn’t load items.');
-      const byId=new Map(listings.map(r=>[r.id,r]));
+      function render({ rows, byId }) {
+        let total=0;
+        grid.innerHTML=rows.map(row=>{
+          const item=byId.get(row.listing_id)||{};
+          const price=item.price_cents||0; total+=price*row.qty;
+          const img=item.cover_url?`<img src="${item.cover_url}" alt="">`:'';
+          return `
+            <div class="card" data-id="${row.id}" data-price="${price}" data-qty="${row.qty}">
+              <div class="thumb">${img}</div>
+              <div class="meta">
+                <div class="title">${item.title||'Untitled'}</div>
+                <div class="muted">Item price: ${price?('$'+(price/100).toFixed(2)):'—'}</div>
+                <div class="qtybar" role="group" aria-label="Quantity">
+                  <button type="button" class="qtybtn dec" aria-label="Decrease">−</button>
+                  <div class="qtyval" aria-live="polite">${row.qty}</div>
+                  <button type="button" class="qtybtn inc" aria-label="Increase">+</button>
+                </div>
+              </div>
+              <button type="button" class="remove">Remove</button>
+            </div>`;
+        }).join('');
+        sumEl.textContent='$'+(total/100).toFixed(2);
+        totalBox.hidden=false;
+      }
 
-      // Render
-      let total=0;
-      grid.innerHTML=data.map(row=>{
-        const item=byId.get(row.listing_id)||{};
-        const price=item.price_cents?item.price_cents*row.qty:0;
-        total+=price;
-        const img=item.cover_url?`<img src="${item.cover_url}" alt="">`:'';
-        return `
-          <div class="card" data-id="${row.id}">
-            <div class="thumb">${img}</div>
-            <div class="meta">
-              <div class="title">${item.title||'Untitled'}</div>
-              <div class="price">${item.price_cents?'$'+(item.price_cents/100).toFixed(2):''}</div>
-              <div class="qty">Qty: ${row.qty}</div>
-            </div>
-            <button type="button" class="remove">Remove</button>
-          </div>`;
-      }).join('');
+      function recalcTotal() {
+        let sum=0;
+        grid.querySelectorAll('.card').forEach(card=>{
+          const price=Number(card.dataset.price||0);
+          const qty=Number(card.dataset.qty||1);
+          sum+=price*qty;
+        });
+        sumEl.textContent='$'+(sum/100).toFixed(2);
+        if (!grid.children.length) { totalBox.hidden=true; s.hidden=false; s.textContent='Cart is empty.'; }
+      }
 
-      sumEl.textContent='$'+(total/100).toFixed(2);
-      totalBox.hidden=false; s.hidden=true;
+      // Initial load
+      const first = await fetchCart(); render(first);
 
-      // Remove handler
+      // Interactions
       grid.addEventListener('click', async (e)=>{
-        const btn=e.target.closest('.remove'); if(!btn)return;
-        const card=btn.closest('.card'); const id=card?.dataset?.id;
-        if(!id)return;
-        try{
-          hm.guard(await sb.from('cart_items').delete().eq('id',id).eq('user_id',uid),'Couldn’t remove item.');
-          card.remove();
-          hm.toast('Removed from cart.');
-          if(!grid.children.length){ totalBox.hidden=true; s.hidden=false; s.textContent='Cart is empty.'; }
-        }catch(err){ hm.toast(hm.normalizeSupabaseError(err)); }
+        const card = e.target.closest('.card'); if(!card) return;
+        const id = card.dataset.id;
+
+        // Remove
+        if (e.target.closest('.remove')) {
+          try {
+            hm.guard(await sb.from('cart_items').delete().eq('id',id).eq('user_id',uid),'Couldn’t remove item.');
+            card.remove(); recalcTotal(); hm.toast('Removed from cart.');
+          } catch (err) { hm.toast(hm.normalizeSupabaseError(err)); }
+          return;
+        }
+
+        // Quantity change
+        const inc = e.target.closest('.inc');
+        const dec = e.target.closest('.dec');
+        if (!inc && !dec) return;
+
+        const curQty = Number(card.dataset.qty||1);
+        let nextQty = inc ? curQty + 1 : Math.max(0, curQty - 1);
+
+        try {
+          if (nextQty === 0) {
+            // delete row
+            hm.guard(await sb.from('cart_items').delete().eq('id',id).eq('user_id',uid),'Couldn’t update cart.');
+            card.remove(); hm.toast('Removed from cart.');
+          } else {
+            // update qty
+            hm.guard(await sb.from('cart_items').update({ qty: nextQty }).eq('id',id).eq('user_id',uid),'Couldn’t update cart.');
+            card.dataset.qty = String(nextQty);
+            card.querySelector('.qtyval').textContent = nextQty;
+            hm.toast('Updated quantity.');
+          }
+          recalcTotal();
+        } catch (err) {
+          hm.toast(hm.normalizeSupabaseError(err));
+        }
       });
     })();
   </script>
+
+  <!-- Optional: header auth + cart badge if present site-wide -->
+  <script src="/auth.js"></script>
 </body>
 </html>
