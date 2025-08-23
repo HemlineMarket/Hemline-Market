@@ -24,7 +24,7 @@
     .title{font-size:20px;font-weight:800}
     .sub{color:var(--muted);margin-top:6px}
     .price{font-size:18px;font-weight:800;margin-top:8px}
-    .actions{display:flex;gap:10px;margin-top:12px}
+    .actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
     .act{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#111827;color:#fff;cursor:pointer}
     .alt{background:#fff;color:var(--ink)}
     .heart{width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;display:grid;place-items:center;cursor:pointer}
@@ -52,6 +52,7 @@
     Hemline
     <a class="btn" href="/listings.html">Listings</a>
     <a class="btn" href="/favorites.html">Favorites</a>
+    <a class="btn" href="/cart.html">Cart</a>
   </header>
 
   <div class="wrap">
@@ -85,7 +86,7 @@
 
       // Wait for Supabase
       let tries=0; while(!window.supabase && tries<40){ await new Promise(r=>setTimeout(r,100)); tries++; }
-      if (!window.supab ase || !window.SUPABASE_URL || !window.SUPABASE_ANON_KEY){ s.textContent='Supabase not ready.'; return; }
+      if (!window.supabase || !window.SUPABASE_URL || !window.SUPABASE_ANON_KEY){ s.textContent='Supabase not ready.'; return; }
       const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
       // Parse id
@@ -93,7 +94,7 @@
       const id = params.get('id');
       if (!id) { s.textContent='Missing listing id.'; return; }
 
-      // Fetch main fields
+      // Fetch main fields (schema-safe: optional columns allowed)
       let { data, error } = await sb.from('listings')
         .select('id,title,price_cents,status,cover_url,subtitle,tags,description,body,created_at')
         .eq('id', id).single();
@@ -102,9 +103,7 @@
       catch(_) { s.textContent='Couldn’t load listing.'; return; }
 
       // Block drafts to the public
-      if (data.status && data.status !== 'active') {
-        s.textContent = 'This listing is not available.'; return;
-      }
+      if (data.status && data.status !== 'active') { s.textContent = 'This listing is not available.'; return; }
 
       // Render fields
       el('title').textContent = data.title || 'Untitled';
@@ -114,16 +113,15 @@
       if (sub) el('sub').textContent = sub;
       const body = data.body || data.description || '';
       if (body) el('body').textContent = body;
-
       if (data.cover_url) { img.src = data.cover_url; img.style.display='block'; }
 
       // Favorites: show state and toggle
       const favBtn = document.getElementById('fav');
-      const { data: sess } = await sb.auth.getSession();
-      const uid = sess?.session?.user?.id || null;
+      const { data: sess0 } = await sb.auth.getSession();
+      const uid0 = sess0?.session?.user?.id || null;
 
       async function setFavState() {
-        if (!uid) return favBtn.classList.remove('active');
+        if (!uid0) return favBtn.classList.remove('active');
         try {
           const res = await sb.from('favorites').select('id').eq('listing_id', id).limit(1);
           const rows = hm.guard(res,'');
@@ -148,24 +146,54 @@
         } catch(err){ hm.toast(hm.normalizeSupabaseError(err)); }
       };
 
-      // Back + Add to Cart buttons (cart is a stub if table not present)
+      // Back button
       document.getElementById('back').onclick = ()=>history.length>1?history.back():location.assign('/listings.html');
+
+      // Add to Cart: idempotent + increment qty
       document.getElementById('buy').onclick = async ()=>{
-        // Optional: cart_items(user_id, listing_id, qty)
-        const { data: s2 } = await sb.auth.getSession(); const userId = s2?.session?.user?.id || null;
+        const { data: s2 } = await sb.auth.getSession(); 
+        const userId = s2?.session?.user?.id || null;
         if (!userId) { hm.toast('Sign in to add to cart.'); return; }
+
         try {
-          const res = await sb.from('cart_items').insert({ user_id: userId, listing_id: id, qty: 1 });
-          hm.guard(res, 'Couldn’t add to cart.');
-          hm.toast('Added to cart.');
-        } catch (err) { hm.toast(hm.normalizeSupabaseError(err)); }
+          // 1) Do we already have this item?
+          const existing = await sb
+            .from('cart_items')
+            .select('id, qty')
+            .eq('user_id', userId)
+            .eq('listing_id', id)
+            .maybeSingle();
+
+          hm.guard(existing, 'Couldn’t read cart.');
+
+          if (existing.data && existing.data.id) {
+            // 2) Increment qty
+            const newQty = Math.max(1, (existing.data.qty || 1) + 1);
+            const upd = await sb
+              .from('cart_items')
+              .update({ qty: newQty })
+              .eq('id', existing.data.id)
+              .eq('user_id', userId);
+            hm.guard(upd, 'Couldn’t update cart.');
+            hm.toast('Quantity increased.');
+          } else {
+            // 3) Insert new row
+            const ins = await sb
+              .from('cart_items')
+              .insert({ user_id: userId, listing_id: id, qty: 1 });
+            hm.guard(ins, 'Couldn’t add to cart.');
+            hm.toast('Added to cart.');
+          }
+        } catch (err) {
+          hm.toast(hm.normalizeSupabaseError(err));
+        }
       };
 
       s.hidden = true; view.hidden = false;
     })();
   </script>
 
-  <!-- Optional: auto header auth pill (if you added /auth.js) -->
+  <!-- Optional: auto header auth pill -->
   <script src="/auth.js"></script>
 </body>
 </html>
