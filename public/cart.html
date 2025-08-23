@@ -2,72 +2,124 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Hemline — Cart</title>
   <style>
-    :root { --ink:#0f172a; --bg:#fafafa; --card:#ffffff; --line:#e5e7eb; --accent:#0ea5e9; }
-    body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; margin:24px; background:var(--bg); color:var(--ink); }
-    .wrap { max-width:800px; margin:auto; }
-    h1 { margin-top:0; }
-    .item { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; display:flex; align-items:center; gap:12px; }
-    .thumb { width:50px; height:50px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
-    .title { flex-grow:1; }
-    .btn { border:1px solid var(--line); border-radius:8px; padding:6px 12px; background:#fff; cursor:pointer; }
-    .toolbar { display:flex; gap:10px; margin-top:20px; }
+    :root { --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;font-weight:700}
+    .btn{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-left:8px}
+    .wrap{max-width:1100px;margin:16px auto;padding:0 16px}
+    #status{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:12px}
+
+    .grid{display:grid;gap:12px}
+    .card{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:12px}
+    .thumb{flex:0 0 80px;height:100px;background:#f3f4f6;border-radius:12px;overflow:hidden}
+    .thumb img{width:100%;height:100%;object-fit:cover}
+    .meta{flex:1 1 auto}
+    .title{font-weight:700}
+    .price{font-weight:700}
+    .qty{margin-top:6px;font-size:14px;color:var(--muted)}
+    .remove{flex:0 0 auto;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
+    .total{margin-top:20px;padding:16px;border:1px solid var(--line);border-radius:16px;background:#fff;font-weight:700;display:flex;justify-content:space-between}
   </style>
+
+  <!-- Env + loaders -->
+  <script src="/env.js"></script>
+  <script>
+    (function loadSupabase(){
+      function add(src, cb){const s=document.createElement('script');s.src=src;s.onload=cb;s.onerror=cb;document.head.appendChild(s);}
+      add("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
+        if (!window.supabase) add("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){});
+      });
+    })();
+  </script>
+  <script src="/app.js"></script>
 </head>
 <body>
+  <header>
+    Hemline
+    <a class="btn" href="/listings.html">Listings</a>
+    <a class="btn" href="/favorites.html">Favorites</a>
+    <a class="btn" href="/cart.html">Cart</a>
+  </header>
+
   <div class="wrap">
-    <a href="listings.html" style="color:var(--accent);text-decoration:none;display:inline-block;margin-bottom:20px;">← Back to Listings</a>
-    <h1>Your Cart</h1>
-    <div id="cart"></div>
-    <div class="toolbar">
-      <button id="checkout" class="btn">Checkout</button>
-      <a href="orders.html" class="btn">View Orders</a>
+    <div id="status">Loading cart…</div>
+    <div id="grid" class="grid"></div>
+    <div id="total" class="total" hidden>
+      <span>Total</span><span id="sum"></span>
     </div>
   </div>
 
   <script>
-    const cartDiv = document.getElementById("cart");
-    const checkoutBtn = document.getElementById("checkout");
+    (async () => {
+      const s=document.getElementById('status');
+      const grid=document.getElementById('grid');
+      const totalBox=document.getElementById('total');
+      const sumEl=document.getElementById('sum');
 
-    function loadCart() {
-      const items = JSON.parse(localStorage.getItem("hem_cart") || "[]");
-      cartDiv.innerHTML = "";
-      if (items.length === 0) {
-        cartDiv.innerHTML = "<p>No items in cart.</p>";
-        checkoutBtn.disabled = true;
-        return;
-      }
-      checkoutBtn.disabled = false;
-      items.forEach((it, idx) => {
-        const div = document.createElement("div");
-        div.className = "item";
-        div.innerHTML = `
-          <img src="${it.img}" class="thumb" onerror="this.src='https://via.placeholder.com/80?text=Fabric'"/>
-          <div class="title">${it.title}</div>
-          <div>$${it.price}</div>
-        `;
-        cartDiv.appendChild(div);
+      // Wait for Supabase
+      let tries=0; while(!window.supabase && tries<40){ await new Promise(r=>setTimeout(r,100)); tries++; }
+      if (!window.supabase) return s.textContent='Error loading Supabase.';
+      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return s.textContent='Missing env.';
+      const sb=window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+      // Require login
+      const { data: sess } = await sb.auth.getSession();
+      const uid = sess?.session?.user?.id || null;
+      if (!uid){ s.textContent='Please sign in to view your cart.'; hm.toast('Sign in to view cart.'); return; }
+
+      // Ensure table exists (cart_items)
+      // id, user_id, listing_id, qty, created_at
+      // If not created, do so in SQL like favorites
+
+      let { data, error } = await sb.from('cart_items').select('id,listing_id,qty,created_at').eq('user_id',uid).order('created_at',{ascending:false});
+      try{ data = hm.guard({data,error},'Couldn’t load cart.'); }catch(_){ return s.textContent='Couldn’t load cart.'; }
+      if (!data?.length){ s.textContent='Cart is empty.'; return; }
+
+      // Fetch listings
+      const ids=data.map(r=>r.listing_id);
+      let listRes=await sb.from('listings').select('id,title,price_cents,cover_url').in('id',ids);
+      let listings=hm.guard(listRes,'Couldn’t load items.');
+      const byId=new Map(listings.map(r=>[r.id,r]));
+
+      // Render
+      let total=0;
+      grid.innerHTML=data.map(row=>{
+        const item=byId.get(row.listing_id)||{};
+        const price=item.price_cents?item.price_cents*row.qty:0;
+        total+=price;
+        const img=item.cover_url?`<img src="${item.cover_url}" alt="">`:'';
+        return `
+          <div class="card" data-id="${row.id}">
+            <div class="thumb">${img}</div>
+            <div class="meta">
+              <div class="title">${item.title||'Untitled'}</div>
+              <div class="price">${item.price_cents?'$'+(item.price_cents/100).toFixed(2):''}</div>
+              <div class="qty">Qty: ${row.qty}</div>
+            </div>
+            <button type="button" class="remove">Remove</button>
+          </div>`;
+      }).join('');
+
+      sumEl.textContent='$'+(total/100).toFixed(2);
+      totalBox.hidden=false; s.hidden=true;
+
+      // Remove handler
+      grid.addEventListener('click', async (e)=>{
+        const btn=e.target.closest('.remove'); if(!btn)return;
+        const card=btn.closest('.card'); const id=card?.dataset?.id;
+        if(!id)return;
+        try{
+          hm.guard(await sb.from('cart_items').delete().eq('id',id).eq('user_id',uid),'Couldn’t remove item.');
+          card.remove();
+          hm.toast('Removed from cart.');
+          if(!grid.children.length){ totalBox.hidden=true; s.hidden=false; s.textContent='Cart is empty.'; }
+        }catch(err){ hm.toast(hm.normalizeSupabaseError(err)); }
       });
-    }
-
-    checkoutBtn.onclick = () => {
-      const items = JSON.parse(localStorage.getItem("hem_cart") || "[]");
-      if (!items.length) return;
-      const order = {
-        id: Date.now().toString(),
-        when: new Date().toISOString(),
-        items: items,
-        subtotal: items.reduce((a, c) => a + Number(c.price || 0), 0)
-      };
-      const prev = JSON.parse(localStorage.getItem("hem_orders") || "[]");
-      localStorage.setItem("hem_orders", JSON.stringify([...prev, order]));
-      localStorage.removeItem("hem_cart");
-      window.location.href = "orders.html";
-    };
-
-    loadCart();
+    })();
   </script>
 </body>
 </html>
