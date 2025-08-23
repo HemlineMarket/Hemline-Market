@@ -15,6 +15,27 @@
     @media (min-width:900px){ .grid{ grid-template-columns:1fr 1fr 1fr; } }
     .card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; }
   </style>
+
+  <!-- Env first (sync) -->
+  <script src="/env.js"></script>
+
+  <!-- Supabase UMD with fallback: jsDelivr -> unpkg (sync, no defer) -->
+  <script>
+    (function loadSupabase(){
+      function inject(src, onload){
+        var s=document.createElement('script');
+        s.src=src; s.onload=onload; s.onerror=onload; document.head.appendChild(s);
+      }
+      inject("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
+        if (!window.supabase) {
+          inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){});
+        }
+      });
+    })();
+  </script>
+
+  <!-- Hemline helpers (sync) -->
+  <script src="/app.js"></script>
 </head>
 <body>
   <header>
@@ -28,31 +49,28 @@
     <div id="grid" class="grid" aria-live="polite"></div>
   </main>
 
-  <!-- Show any JS error on screen -->
-  <script>
-    window.addEventListener('error', e => {
-      const s = document.getElementById('status');
-      s.textContent = 'Error: ' + (e.error?.message || e.message || 'Unknown script error');
-    });
-  </script>
-
-  <!-- Env + libs -->
-  <script src="/env.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-  <script src="/app.js"></script>
-
-  <!-- Minimal query -->
+  <!-- Minimal query AFTER supabase loader -->
   <script>
     (async () => {
       const s = document.getElementById('status');
-      try {
-        if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
-          s.textContent = 'Missing env: SUPABASE_URL or ANON key.';
-          return;
-        }
-        const client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-        s.textContent = 'Connected. Loading listings…';
 
+      // wait until the Supabase global exists (fallback-friendly)
+      let tries = 0;
+      while (!window.supabase && tries < 20) {
+        await new Promise(r => setTimeout(r, 150));
+        tries++;
+      }
+      if (!window.supabase) { s.textContent = 'Error: Supabase library failed to load.'; return; }
+
+      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+        s.textContent = 'Missing env: SUPABASE_URL or ANON key.';
+        return;
+      }
+
+      const client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      s.textContent = 'Connected. Loading listings…';
+
+      try {
         const { data, error } = await client
           .from('listings')
           .select('id,title,price_cents,status,created_at')
@@ -77,7 +95,7 @@
         `).join('');
       } catch (err) {
         const msg = hm?.normalizeSupabaseError ? hm.normalizeSupabaseError(err) : (err.message || 'Failed');
-        document.getElementById('status').textContent = 'Error: ' + msg;
+        s.textContent = 'Error: ' + msg;
       }
     })();
   </script>
