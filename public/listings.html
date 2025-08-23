@@ -1,99 +1,103 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Listings</title>
-<style>
-:root{--ink:#0f172a;--bg:#fafafa;--card:#ffffff;--line:#e5e7eb;--accent:#0ea5e9}
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--ink)}
-.wrap{max-width:1000px;margin:auto}
-.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.thumb{width:100%;height:180px;object-fit:cover;background:#f1f5f9}
-.body{padding:12px}
-.title{font-weight:600;margin:0 0 6px}
-.price{color:var(--accent);font-weight:600}
-.row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
-.qty{display:flex;align-items:center;gap:8px}
-.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
-.cta{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 12px;cursor:pointer}
-.link{color:var(--accent);text-decoration:none}
-</style></head>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Hemline — Listings</title>
+
+  <!-- Base styles (mobile-first) -->
+  <style>
+    :root { --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
+    a { color:inherit; text-decoration:none; }
+    .wrap { max-width:1100px; margin:auto; padding:16px; }
+
+    /* Header */
+    .topbar { position:sticky; top:0; z-index:10; backdrop-filter:saturate(180%) blur(8px);
+      background:rgba(255,255,255,.85); border-bottom:1px solid var(--line); }
+    .topbar .inner { display:flex; align-items:center; gap:12px; padding:12px 16px; }
+    .logo { font-weight:700; letter-spacing:.2px; }
+    .nav { margin-left:auto; display:flex; gap:10px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; padding:10px 14px;
+      border:1px solid var(--line); border-radius:12px; background:#fff; touch-action:manipulation; min-height:44px; }
+
+    /* Grid */
+    .grid { display:grid; grid-template-columns:1fr; gap:12px; margin-top:12px; }
+    @media (min-width:560px){ .grid{ grid-template-columns:1fr 1fr; } }
+    @media (min-width:900px){ .grid{ grid-template-columns:1fr 1fr 1fr; } }
+
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+    .thumb { display:block; aspect-ratio: 4/5; background:#f3f4f6; }
+    .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .meta { padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .title { font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%; }
+    .price { font-weight:700; }
+    .empty { margin:24px 8px; color:var(--muted); }
+
+    /* Large tap targets */
+    .tap { min-height:44px; min-width:44px; }
+  </style>
+</head>
 <body>
-<div class="wrap">
-  <div class="toolbar">
-    <h1>Listings</h1>
-    <div>
-      <a class="link" href="orders.html" style="margin-right:10px">View Orders</a>
-      <a class="link" href="cart.html">View Cart →</a>
+  <header class="topbar">
+    <div class="inner wrap" style="padding-left:16px;padding-right:16px;">
+      <div class="logo"><a class="tap" href="/">Hemline</a></div>
+      <nav class="nav">
+        <a class="btn tap" href="/index.html">Home</a>
+        <a class="btn tap" href="/cart.html">Cart</a>
+        <a class="btn tap" href="/favorites.html">Favorites</a>
+      </nav>
     </div>
-  </div>
-  <div id="listings" class="grid"></div>
-</div>
+  </header>
 
-<script>
-/* Supabase (keys included) */
-const SUPABASE_URL="https://clkizksbvxjkoatdajgd.supabase.co";
-const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4MDE1ODIsImV4cCI6MjAzOTM3NzU4Mn0.MEu0Ex0bTtVnNuB-tAek95UbwsKdbWipzJrN84aKhlg";
+  <main class="wrap">
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <p id="empty" class="empty" hidden>No listings found.</p>
+  </main>
 
-/* Cart helpers (match cart.html expectations) */
-const KEY="hem_cart";
-const readCart=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}};
-const saveCart=a=>localStorage.setItem(KEY,JSON.stringify(a||[]));
-const imgURL=(image_path)=> image_path?.startsWith("http")
-  ? image_path
-  : `https://clkizksbvxjkoatdajgd.supabase.co/storage/v1/object/public/listing-images/${image_path||""}`;
+  <!-- Supabase client -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
+  <!-- Hemline helpers (toasts, guards) -->
+  <script src="/app.js" defer></script>
 
-async function loadListings(){
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/listings?select=*`,{
-    headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}
-  });
-  const items=await res.json();
-  const grid=document.getElementById("listings"); grid.innerHTML="";
-  if(!Array.isArray(items)||!items.length){grid.innerHTML="<p>No listings found.</p>";return}
+  <!-- Page logic -->
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Init Supabase (values are already set in your env via Vercel; public page can use anon key if needed)
+      const supabaseUrl = window.SUPABASE_URL || 'https://clkizksbvxjkoatdajgd.supabase.co';
+      const supabaseKey = window.SUPABASE_ANON_KEY || 'public-anon-key-wired-in-vercel';
+      const client = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-  items.forEach(it=>{
-    const card=document.createElement("div"); card.className="card";
-    const src=imgURL(it.image_url);
-    card.innerHTML=`
-      <img class="thumb" src="${src}" alt="">
-      <div class="body">
-        <div class="title">${it.title||"Fabric"}</div>
-        <div class="price">$${Number(it.price||0).toFixed(2)}/yd</div>
-        <div class="row">
-          <div class="qty">
-            <button class="btn" data-a="dec">−</button>
-            <strong data-role="qty">1</strong>
-            <button class="btn" data-a="inc">+</button>
-          </div>
-          <button class="cta" data-a="add">Add to Cart</button>
-        </div>
-      </div>`;
-    // qty handlers + add
-    card.addEventListener("click",(e)=>{
-      const btn=e.target.closest("button"); if(!btn) return;
-      const qtyEl=card.querySelector('[data-role="qty"]'); let q=Number(qtyEl.textContent||1);
-      const a=btn.getAttribute("data-a");
-      if(a==="inc"){q++; qtyEl.textContent=q;}
-      else if(a==="dec"){q=Math.max(1,q-1); qtyEl.textContent=q;}
-      else if(a==="add"){
-        const cart=readCart();
-        const existing=cart.find(x=>x.id===it.id);
-        if(existing){ existing.qty = Number(existing.qty||1) + q; }
-        else{
-          cart.push({
-            id: it.id,
-            title: it.title||"Fabric",
-            price: Number(it.price||0),
-            qty: q,
-            img: src
-          });
-        }
-        saveCart(cart);
-        btn.textContent="Added ✓"; setTimeout(()=>btn.textContent="Add to Cart",900);
-      }
+      const { data, error } = await client
+        .from('listings')
+        .select('id,title,price_cents,cover_url,status')
+        .eq('status','active')
+        .order('created_at',{ ascending:false })
+        .limit(60);
+
+      try { hm.guard({ data, error }, 'Couldn’t load listings.'); }
+      catch (_) { document.getElementById('empty').hidden = false; return; }
+
+      const grid = document.getElementById('grid');
+      if (!data || data.length === 0) { document.getElementById('empty').hidden = false; return; }
+
+      grid.innerHTML = data.map(row => {
+        const price = row.price_cents ? `$${(row.price_cents/100).toFixed(2)}` : '';
+        const img = row.cover_url || '';
+        return `
+          <a class="card tap" href="/listing.html?id=${encodeURIComponent(row.id)}" aria-label="${row.title}">
+            <span class="thumb">
+              <img loading="lazy" src="${img}" alt="" sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 33vw">
+            </span>
+            <span class="meta">
+              <span class="title">${row.title ?? 'Untitled'}</span>
+              <span class="price">${price}</span>
+            </span>
+          </a>
+        `;
+      }).join('');
     });
-    grid.appendChild(card);
-  });
-}
-loadListings();
-</script>
-</body></html>
+  </script>
+</body>
+</html>
