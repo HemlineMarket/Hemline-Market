@@ -15,31 +15,36 @@
     @media (min-width:560px){ .grid{ grid-template-columns:1fr 1fr; } }
     @media (min-width:900px){ .grid{ grid-template-columns:1fr 1fr 1fr; } }
 
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+    .card { position:relative; background:#fff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
     .thumb { aspect-ratio: 4/5; background:#f3f4f6; }
     .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
     .meta { padding:10px 12px; display:flex; flex-direction:column; gap:4px; }
     .row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .price { font-weight:700; }
-    /* Heart */
-    .heart { position:absolute; top:10px; right:10px; width:40px; height:40px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; display:grid; place-items:center; cursor:pointer; }
+
+    /* Heart button (not inside the link) */
+    .heart {
+      position:absolute; top:10px; right:10px; width:40px; height:40px;
+      border:1px solid #e5e7eb; border-radius:999px; background:#fff;
+      display:grid; place-items:center; cursor:pointer;
+    }
     .heart svg { width:18px; height:18px; fill:none; stroke:#111; stroke-width:2; }
     .heart.active svg { fill:#ef4444; stroke:#ef4444; }
     .heart:active { transform:scale(.96); }
   </style>
 
   <!-- Env + loaders -->
-  <script src="/env.js?v=5"></script>
+  <script src="/env.js?v=6"></script>
   <script>
     (function loadSupabase(){
       function inject(src, cb){var s=document.createElement('script');s.src=src; s.onload=cb; s.onerror=cb; document.head.appendChild(s);}
       inject("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
-        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=5", function(){});
+        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=6", function(){});
       });
     })();
   </script>
-  <script src="/app.js?v=5"></script>
+  <script src="/app.js?v=6"></script>
 </head>
 <body>
   <header>
@@ -64,7 +69,7 @@
       if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY){ s.textContent='Missing env.'; return; }
 
       const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-      const { data: sessionData } = await sb.auth.getSession(); // ok if null
+      const { data: sessionData } = await sb.auth.getSession();
       const userId = sessionData?.session?.user?.id || null;
 
       s.textContent = 'Connected. Loading listings…';
@@ -87,51 +92,56 @@
         } catch(_) {}
       }
 
-      // Render cards
+      // Render cards (link + separate heart button)
       const grid = document.getElementById('grid');
       s.textContent = 'Loaded ' + data.length + ' listing(s).';
       grid.innerHTML = data.map(r => {
         const price = r.price_cents ? '$'+(r.price_cents/100).toFixed(2) : '';
-        const fav = favIds.has(r.id) ? ' active' : '';
+        const favClass = favIds.has(r.id) ? ' active' : '';
         return `
-          <a class="card" href="/listing.html?id=${encodeURIComponent(r.id)}" data-id="${r.id}">
-            <span class="heart${fav}" data-heart aria-label="Save">
-              <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.6 5.6 0 0 0-7.9 0l-.9.9-.9-.9a5.6 5.6 0 1 0-7.9 7.9l.9.9 7.9 7.9 7.9-7.9.9-.9a5.6 5.6 0 0 0 0-7.9z"/></svg>
-            </span>
-            <span class="thumb"><img alt="" style="display:none"></span>
-            <span class="meta">
-              <span class="row">
-                <span class="title">${r.title ?? 'Untitled'}</span>
-                <span class="price">${price}</span>
+          <div class="card" data-id="${r.id}">
+            <a class="tile" href="/listing.html?id=${encodeURIComponent(r.id)}" style="display:block">
+              <span class="thumb"><img alt="" style="display:none"></span>
+              <span class="meta">
+                <span class="row">
+                  <span class="title">${r.title ?? 'Untitled'}</span>
+                  <span class="price">${price}</span>
+                </span>
               </span>
-            </span>
-          </a>
+            </a>
+            <button type="button" class="heart${favClass}" data-heart aria-label="Save">
+              <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.6 5.6 0 0 0-7.9 0l-.9.9-.9-.9a5.6 5.6 0 1 0-7.9 7.9l.9.9 7.9 7.9 7.9-7.9.9-.9a5.6 5.6 0 0 0 0-7.9z"/></svg>
+            </button>
+          </div>
         `;
       }).join('');
 
-      // Heart interactions (stop link, require login, toggle DB)
+      // Heart interactions (button is separate; robust event handling)
       grid.addEventListener('click', async (e) => {
-        const btn = e.target.closest('[data-heart]');
-        if (!btn) return;
+        const btn = e.target.closest('button[data-heart]');
+        if (!btn) return; // ignore non-heart clicks
         e.preventDefault();
+        e.stopPropagation();
+
         const card = btn.closest('.card');
         const id = card?.dataset?.id;
         if (!id) return;
 
-        // require login
         if (!userId) { hm.toast('Sign in to save favorites.'); return; }
 
         try {
           if (btn.classList.contains('active')) {
-            const res = await sb.from('favorites').delete().eq('listing_id', id);
+            const res = await sb.from('favorites').delete().eq('listing_id', id).eq('user_id', userId);
             hm.guard(res, 'Couldn’t remove favorite.');
             btn.classList.remove('active');
+            hm.toast('Removed from Favorites.');
           } else {
             const res = await sb.from('favorites').insert({ listing_id: id, user_id: userId });
             hm.guard(res, 'Couldn’t save favorite.');
             btn.classList.add('active');
+            hm.toast('Saved to Favorites.');
           }
-        } catch(_) { /* toast already shown */ }
+        } catch (_) { /* toast already shown via guard */ }
       });
     })();
   </script>
