@@ -9,6 +9,11 @@
     header { position:sticky; top:0; background:#fff; border-bottom:1px solid #e5e7eb; padding:12px 16px; font-weight:700; }
     main { max-width:1100px; margin:16px auto; padding:0 16px; }
     .btn { display:inline-block; padding:8px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; margin-left:8px; }
+
+    /* Prevent default link color changes/highlights */
+    a, a:visited, a:active { color:inherit; text-decoration:none; -webkit-tap-highlight-color: transparent; }
+    button { -webkit-tap-highlight-color: transparent; }
+
     #status { padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; margin-bottom:12px; }
 
     .grid { display:grid; grid-template-columns:1fr; gap:12px; }
@@ -16,18 +21,20 @@
     @media (min-width:900px){ .grid{ grid-template-columns:1fr 1fr 1fr; } }
 
     .card { position:relative; background:#fff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
+    .tile { display:block; position:relative; z-index:1; color:inherit; } /* keep text color fixed */
     .thumb { aspect-ratio: 4/5; background:#f3f4f6; }
     .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-    .meta { padding:10px 12px; display:flex; flex-direction:column; gap:4px; }
-    .row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .price { font-weight:700; }
+    .meta { padding:10px 12px; display:flex; flex-direction:column; gap:4px; color:inherit; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:8px; color:inherit; }
+    .title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:inherit; }
+    .price { font-weight:700; color:inherit; }
+    .tile:active .title, .tile:active .price { color:inherit; } /* suppress active color */
 
-    /* Heart button (not inside the link) */
+    /* Heart button (above link) */
     .heart {
       position:absolute; top:10px; right:10px; width:40px; height:40px;
       border:1px solid #e5e7eb; border-radius:999px; background:#fff;
-      display:grid; place-items:center; cursor:pointer;
+      display:grid; place-items:center; cursor:pointer; z-index:3;
     }
     .heart svg { width:18px; height:18px; fill:none; stroke:#111; stroke-width:2; }
     .heart.active svg { fill:#ef4444; stroke:#ef4444; }
@@ -35,16 +42,16 @@
   </style>
 
   <!-- Env + loaders -->
-  <script src="/env.js?v=6"></script>
+  <script src="/env.js?v=7"></script>
   <script>
     (function loadSupabase(){
       function inject(src, cb){var s=document.createElement('script');s.src=src; s.onload=cb; s.onerror=cb; document.head.appendChild(s);}
       inject("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
-        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=6", function(){});
+        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=7", function(){});
       });
     })();
   </script>
-  <script src="/app.js?v=6"></script>
+  <script src="/app.js?v=7"></script>
 </head>
 <body>
   <header>
@@ -82,7 +89,7 @@
       catch(_){ s.textContent='Couldn’t load listings.'; return; }
       if (!data || data.length===0){ s.textContent='No active listings found.'; return; }
 
-      // Preload favorite ids for this user (if logged in)
+      // Preload favorite ids
       let favIds = new Set();
       if (userId) {
         try {
@@ -92,7 +99,7 @@
         } catch(_) {}
       }
 
-      // Render cards (link + separate heart button)
+      // Render cards
       const grid = document.getElementById('grid');
       s.textContent = 'Loaded ' + data.length + ' listing(s).';
       grid.innerHTML = data.map(r => {
@@ -100,7 +107,7 @@
         const favClass = favIds.has(r.id) ? ' active' : '';
         return `
           <div class="card" data-id="${r.id}">
-            <a class="tile" href="/listing.html?id=${encodeURIComponent(r.id)}" style="display:block">
+            <a class="tile" href="/listing.html?id=${encodeURIComponent(r.id)}">
               <span class="thumb"><img alt="" style="display:none"></span>
               <span class="meta">
                 <span class="row">
@@ -116,10 +123,10 @@
         `;
       }).join('');
 
-      // Heart interactions (button is separate; robust event handling)
+      // Heart interactions
       grid.addEventListener('click', async (e) => {
         const btn = e.target.closest('button[data-heart]');
-        if (!btn) return; // ignore non-heart clicks
+        if (!btn) return;
         e.preventDefault();
         e.stopPropagation();
 
@@ -141,7 +148,7 @@
             btn.classList.add('active');
             hm.toast('Saved to Favorites.');
           }
-        } catch (_) { /* toast already shown via guard */ }
+        } catch (_) {}
       });
     })();
   </script>
