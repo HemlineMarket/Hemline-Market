@@ -2,92 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Hemline — Listings</title>
   <style>
-    :root { --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; }
-    * { box-sizing: border-box; }
-    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
-    a { color:inherit; text-decoration:none; }
-    .wrap { max-width:1100px; margin:auto; padding:16px; }
-    .topbar { position:sticky; top:0; z-index:10; backdrop-filter:saturate(180%) blur(8px);
-      background:rgba(255,255,255,.85); border-bottom:1px solid var(--line); }
-    .topbar .inner { display:flex; align-items:center; gap:12px; padding:12px 16px; }
-    .logo { font-weight:700; letter-spacing:.2px; }
-    .nav { margin-left:auto; display:flex; gap:10px; }
-    .btn { display:inline-flex; align-items:center; justify-content:center; padding:10px 14px;
-      border:1px solid var(--line); border-radius:12px; background:#fff; min-height:44px; }
-    .grid { display:grid; grid-template-columns:1fr; gap:12px; margin-top:12px; }
+    body { margin:0; background:#fafafa; color:#0f172a; font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
+    header { position:sticky; top:0; background:#fff; border-bottom:1px solid #e5e7eb; padding:12px 16px; font-weight:700; }
+    main { max-width:1100px; margin:16px auto; padding:0 16px; }
+    .btn { display:inline-block; padding:8px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; margin-left:8px; }
+    #status { padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; margin-bottom:12px; }
+    .grid { display:grid; grid-template-columns:1fr; gap:12px; }
     @media (min-width:560px){ .grid{ grid-template-columns:1fr 1fr; } }
     @media (min-width:900px){ .grid{ grid-template-columns:1fr 1fr 1fr; } }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
-    .thumb { display:block; aspect-ratio: 4/5; background:#f3f4f6; }
-    .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-    .meta { padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
-    .title { font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%; }
-    .price { font-weight:700; }
-    .empty { margin:24px 8px; color:var(--muted); }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; }
   </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="inner wrap" style="padding-left:16px;padding-right:16px;">
-      <div class="logo"><a href="/">Hemline</a></div>
-      <nav class="nav">
-        <a class="btn" href="/index.html">Home</a>
-        <a class="btn" href="/cart.html">Cart</a>
-        <a class="btn" href="/favorites.html">Favorites</a>
-      </nav>
-    </div>
+  <header>
+    Hemline
+    <a class="btn" href="/index.html">Home</a>
+    <a class="btn" href="/cart.html">Cart</a>
+    <a class="btn" href="/favorites.html">Favorites</a>
   </header>
-
-  <main class="wrap">
+  <main>
+    <div id="status">Booting…</div>
     <div id="grid" class="grid" aria-live="polite"></div>
-    <p id="empty" class="empty" hidden>No listings found.</p>
   </main>
 
-  <!-- Env + libs -->
-  <script src="/env.js" defer></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
-  <script src="/app.js" defer></script>
-
+  <!-- Show any JS error on screen -->
   <script>
-    window.addEventListener('DOMContentLoaded', async () => {
-      const supabaseUrl = window.SUPABASE_URL;
-      const supabaseKey = window.SUPABASE_ANON_KEY;
-      const client = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-      // Only request columns that all schemas will have
-      const { data, error } = await client
-        .from('listings')
-        .select('id,title,price_cents,status,created_at')
-        .eq('status','active')
-        .order('created_at', { ascending:false })
-        .limit(60);
-
-      try { hm.guard({ data, error }, 'Couldn’t load listings.'); }
-      catch (_) { document.getElementById('empty').hidden = false; return; }
-
-      const rows = Array.isArray(data) ? data : [];
-      if (rows.length === 0) { document.getElementById('empty').hidden = false; return; }
-
-      const grid = document.getElementById('grid');
-      grid.innerHTML = rows.map(row => {
-        const price = row.price_cents ? `$${(row.price_cents/100).toFixed(2)}` : '';
-        return `
-          <a class="card" href="/listing.html?id=${encodeURIComponent(row.id)}" aria-label="${row.title || 'Listing'}">
-            <span class="thumb">
-              <!-- Image optional: placeholder background keeps layout steady -->
-              <img loading="lazy" src="" alt="" style="display:none">
-            </span>
-            <span class="meta">
-              <span class="title">${row.title ?? 'Untitled'}</span>
-              <span class="price">${price}</span>
-            </span>
-          </a>
-        `;
-      }).join('');
+    window.addEventListener('error', e => {
+      const s = document.getElementById('status');
+      s.textContent = 'Error: ' + (e.error?.message || e.message || 'Unknown script error');
     });
+  </script>
+
+  <!-- Env + libs -->
+  <script src="/env.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="/app.js"></script>
+
+  <!-- Minimal query -->
+  <script>
+    (async () => {
+      const s = document.getElementById('status');
+      try {
+        if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+          s.textContent = 'Missing env: SUPABASE_URL or ANON key.';
+          return;
+        }
+        const client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+        s.textContent = 'Connected. Loading listings…';
+
+        const { data, error } = await client
+          .from('listings')
+          .select('id,title,price_cents,status,created_at')
+          .eq('status','active')
+          .order('created_at', { ascending:false })
+          .limit(20);
+
+        hm.guard({ data, error }, 'Couldn’t load listings.');
+
+        if (!data || data.length === 0) {
+          s.textContent = 'No active listings found.';
+          return;
+        }
+
+        s.textContent = 'Loaded ' + data.length + ' listing(s).';
+        const grid = document.getElementById('grid');
+        grid.innerHTML = data.map(r => `
+          <div class="card">
+            <div><strong>${r.title ?? 'Untitled'}</strong></div>
+            <div>${r.price_cents ? '$' + (r.price_cents/100).toFixed(2) : ''}</div>
+          </div>
+        `).join('');
+      } catch (err) {
+        const msg = hm?.normalizeSupabaseError ? hm.normalizeSupabaseError(err) : (err.message || 'Failed');
+        document.getElementById('status').textContent = 'Error: ' + msg;
+      }
+    })();
   </script>
 </body>
 </html>
