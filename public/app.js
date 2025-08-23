@@ -1,4 +1,3 @@
-<script>
 // Hemline Market — global error/toast helpers
 (function () {
   // ------- Toast UI -------
@@ -25,11 +24,9 @@
   // ------- Error normalization -------
   function normalizeSupabaseError(err) {
     try {
-      // Supabase PostgREST error shapes
       if (!err) return 'Something went wrong.';
       if (typeof err === 'string') return err;
 
-      // Common security / rate-limit messages
       const m = (err.message || err.error || '').toLowerCase();
       if (m.includes('too many') || m.includes('rate')) {
         return 'Slow down a sec—too many attempts. Try again in a moment.';
@@ -46,7 +43,6 @@
       if (m.includes('invalid') || m.includes('bad input')) {
         return 'Please check the values—something looks invalid.';
       }
-      // Fallback: short message
       return err.message || err.hint || 'Request failed.';
     } catch (_) {
       return 'Request failed.';
@@ -54,7 +50,6 @@
   }
 
   // ------- Guards for Supabase calls -------
-  // Use on { data, error, status } results
   function guard(result, friendly) {
     if (!result) {
       toast(friendly || 'Request failed.');
@@ -66,10 +61,9 @@
       toast(msg);
       throw error;
     }
-    return result.data ?? result; // pass data onward
+    return result.data ?? result;
   }
 
-  // Optional: fetch retry for 429/5xx (use for your own fetches, not Supabase client)
   async function fetchWithRetry(url, opts={}, retries=2) {
     for (let i = 0; i <= retries; i++) {
       const res = await fetch(url, opts);
@@ -82,4 +76,3 @@
   // expose
   window.hm = { toast, guard, normalizeSupabaseError, fetchWithRetry };
 })();
-</script>
