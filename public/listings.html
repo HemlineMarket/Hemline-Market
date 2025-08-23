@@ -10,32 +10,31 @@
     main { max-width:1100px; margin:16px auto; padding:0 16px; }
     .btn { display:inline-block; padding:8px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; margin-left:8px; }
     #status { padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; margin-bottom:12px; }
+
     .grid { display:grid; grid-template-columns:1fr; gap:12px; }
     @media (min-width:560px){ .grid{ grid-template-columns:1fr 1fr; } }
     @media (min-width:900px){ .grid{ grid-template-columns:1fr 1fr 1fr; } }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; }
+
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
+    .thumb { aspect-ratio: 4/5; background:#f3f4f6; }
+    .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .meta { padding:10px 12px; display:flex; flex-direction:column; gap:4px; }
+    .title { font-weight:700; }
+    .sub { color:#64748b; font-size:13px; min-height:1.2em; }
+    .row { display:flex; align-items:center; justify-content:space-between; }
+    .price { font-weight:700; }
   </style>
 
-  <!-- Env first (cache-busted) -->
-  <script src="/env.js?v=3"></script>
-
-  <!-- Supabase UMD with dual CDN (sync, cache-busted) -->
+  <script src="/env.js?v=4"></script>
   <script>
     (function loadSupabase(){
-      function inject(src, cb){
-        var s=document.createElement('script');
-        s.src=src; s.onload=cb; s.onerror=cb; document.head.appendChild(s);
-      }
+      function inject(src, cb){var s=document.createElement('script');s.src=src; s.onload=cb; s.onerror=cb; document.head.appendChild(s);}
       inject("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
-        if (!window.supabase) {
-          inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=3", function(){});
-        }
+        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=4", function(){});
       });
     })();
   </script>
-
-  <!-- Hemline helpers (cache-busted) -->
-  <script src="/app.js?v=3"></script>
+  <script src="/app.js?v=4"></script>
 </head>
 <body>
   <header>
@@ -44,63 +43,75 @@
     <a class="btn" href="/cart.html">Cart</a>
     <a class="btn" href="/favorites.html">Favorites</a>
   </header>
+
   <main>
-    <div id="status">Booting v3…</div>
+    <div id="status">Loading…</div>
     <div id="grid" class="grid" aria-live="polite"></div>
   </main>
 
   <script>
     (async () => {
       const s = document.getElementById('status');
+      // Wait for Supabase
+      let tries=0; while(!window.supabase && tries<20){ await new Promise(r=>setTimeout(r,150)); tries++; }
+      if (!window.supabase){ s.textContent='Error: Supabase failed to load.'; return; }
+      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY){ s.textContent='Missing env.'; return; }
 
-      // Wait up to ~3s for Supabase to appear
-      let tries = 0;
-      while (!window.supabase && tries < 20) {
-        await new Promise(r => setTimeout(r, 150));
-        tries++;
-      }
-      if (!window.supabase) { s.textContent = 'Error: Supabase library failed to load.'; return; }
+      const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      s.textContent = 'Connected. Loading listings…';
 
-      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
-        s.textContent = 'Missing env: SUPABASE_URL or ANON key.';
-        return;
-      }
+      // Base query (columns guaranteed to exist)
+      let { data, error } = await sb.from('listings')
+        .select('id,title,price_cents,status,created_at')
+        .eq('status','active')
+        .order('created_at',{ascending:false})
+        .limit(30);
 
-      // Guard before calling createClient
-      const lib = window.supabase;
-      if (!lib || typeof lib.createClient !== 'function') {
-        s.textContent = 'Error: Supabase global present but createClient missing.';
-        return;
-      }
+      try { hm.guard({ data, error }, 'Couldn’t load listings.'); }
+      catch(_){ s.textContent='Couldn’t load listings.'; return; }
 
-      const client = lib.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-      s.textContent = 'Connected (v3). Loading listings…';
+      if (!data || data.length===0){ s.textContent='No active listings found.'; return; }
+      s.textContent = 'Loaded ' + data.length + ' listing(s).';
 
-      try {
-        const { data, error } = await client
-          .from('listings')
-          .select('id,title,price_cents,status,created_at')
-          .eq('status','active')
-          .order('created_at', { ascending:false })
-          .limit(20);
+      // Render basic cards first (no images yet)
+      const grid = document.getElementById('grid');
+      grid.innerHTML = data.map(r => `
+        <a class="card" href="/listing.html?id=${encodeURIComponent(r.id)}">
+          <span class="thumb"><img alt="" style="display:none"></span>
+          <span class="meta">
+            <span class="row">
+              <span class="title">${r.title ?? 'Untitled'}</span>
+              <span class="price">${r.price_cents ? '$'+(r.price_cents/100).toFixed(2) : ''}</span>
+            </span>
+            <span class="sub" id="sub-${r.id}"></span>
+          </span>
+        </a>
+      `).join('');
 
-        hm.guard({ data, error }, 'Couldn’t load listings.');
+      // Optional enrich: try to fetch optional columns per-row without breaking if missing
+      for (const r of data) {
+        // cover image (tries 'cover_url'; ignores error if column missing)
+        try {
+          const one = await sb.from('listings').select('cover_url').eq('id', r.id).single();
+          if (!one.error && one.data?.cover_url) {
+            const img = grid.querySelector(`a[href$="${encodeURIComponent(r.id)}"] img`);
+            if (img) { img.src = one.data.cover_url; img.style.display='block'; }
+          }
+        } catch(_) {}
 
-        if (!data || data.length === 0) {
-          s.textContent = 'No active listings found.';
-          return;
-        }
-
-        s.textContent = 'Loaded ' + data.length + ' listing(s).';
-        document.getElementById('grid').innerHTML = data.map(r => `
-          <div class="card">
-            <div><strong>${r.title ?? 'Untitled'}</strong></div>
-            <div>${r.price_cents ? '$' + (r.price_cents/100).toFixed(2) : ''}</div>
-          </div>
-        `).join('');
-      } catch (err) {
-        const msg = hm?.normalizeSupabaseError ? hm.normalizeSupabaseError(err) : (err.message || 'Failed');
-        s.textContent = 'Error: ' + msg;
+        // subtitle (tries 'subtitle' or 'tags' text)
+        try {
+          const sub = document.getElementById(`sub-${r.id}`);
+          if (!sub) continue;
+          let text = '';
+          let q = await sb.from('listings').select('subtitle').eq('id', r.id).single();
+          if (!q.error && q.data?.subtitle) text = q.data.subtitle;
+          if (!text) {
+            q = await sb.from('listings').select('tags').eq('id', r.id).single();
+            if (!q.error && q.data?.tags) text = (Array.isArray(q.data.tags)? q.data.tags.join(', ') : q.data.tags);
+          }
+          if (text) sub.textContent = text;
+        } catch(_) {}
       }
     })();
   </script>
