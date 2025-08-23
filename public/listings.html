@@ -5,53 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Hemline — Listings</title>
   <style>
-    body { margin:0; background:#fafafa; color:#0f172a; font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
-    header { position:sticky; top:0; background:#fff; border-bottom:1px solid #e5e7eb; padding:12px 16px; font-weight:700; }
-    main { max-width:1100px; margin:16px auto; padding:0 16px; }
-    .btn { display:inline-block; padding:8px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; margin-left:8px; }
+    /* Base */
+    :root { --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;font-weight:700}
+    .btn{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-left:8px}
+    #status{max-width:1100px;margin:12px auto;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    main{max-width:1100px;margin:0 auto;padding:0 16px 24px}
 
-    /* Prevent default link color changes/highlights */
-    a, a:visited, a:active { color:inherit; text-decoration:none; -webkit-tap-highlight-color: transparent; }
-    button { -webkit-tap-highlight-color: transparent; }
+    /* Grid */
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width:560px){.grid{grid-template-columns:1fr 1fr}}
+    @media (min-width:900px){.grid{grid-template-columns:1fr 1fr 1fr}}
 
-    #status { padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; margin-bottom:12px; }
+    /* Card */
+    .card{position:relative;display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .tile{display:block;color:inherit;text-decoration:none}
+    .thumb{display:block;aspect-ratio:4/5;background:#f3f4f6}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .meta{padding:10px 12px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .price{font-weight:700}
+    .sub{margin-top:2px;color:var(--muted);font-size:13px;min-height:1.2em}
 
-    .grid { display:grid; grid-template-columns:1fr; gap:12px; }
-    @media (min-width:560px){ .grid{ grid-template-columns:1fr 1fr; } }
-    @media (min-width:900px){ .grid{ grid-template-columns:1fr 1fr 1fr; } }
-
-    .card { position:relative; background:#fff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
-    .tile { display:block; position:relative; z-index:1; color:inherit; } /* keep text color fixed */
-    .thumb { aspect-ratio: 4/5; background:#f3f4f6; }
-    .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-    .meta { padding:10px 12px; display:flex; flex-direction:column; gap:4px; color:inherit; }
-    .row { display:flex; align-items:center; justify-content:space-between; gap:8px; color:inherit; }
-    .title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:inherit; }
-    .price { font-weight:700; color:inherit; }
-    .tile:active .title, .tile:active .price { color:inherit; } /* suppress active color */
-
-    /* Heart button (above link) */
-    .heart {
-      position:absolute; top:10px; right:10px; width:40px; height:40px;
-      border:1px solid #e5e7eb; border-radius:999px; background:#fff;
-      display:grid; place-items:center; cursor:pointer; z-index:3;
+    /* Heart (separate button, above link) */
+    .heart{
+      position:absolute;top:10px;right:10px;width:40px;height:40px;
+      border:1px solid var(--line);border-radius:999px;background:#fff;
+      display:grid;place-items:center;cursor:pointer;z-index:3;pointer-events:auto
     }
-    .heart svg { width:18px; height:18px; fill:none; stroke:#111; stroke-width:2; }
-    .heart.active svg { fill:#ef4444; stroke:#ef4444; }
-    .heart:active { transform:scale(.96); }
+    .heart svg{width:18px;height:18px;fill:none;stroke:#111;stroke-width:2}
+    .heart.active svg{fill:#ef4444;stroke:#ef4444}
+    .heart:active{transform:scale(.96)}
+
+    /* Prevent any red flash on tap */
+    a,a:visited,a:active{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
+    .tile:active .title,.tile:active .price{color:inherit}
+    button{-webkit-tap-highlight-color:transparent}
   </style>
 
   <!-- Env + loaders -->
-  <script src="/env.js?v=7"></script>
+  <script src="/env.js?v=8"></script>
   <script>
     (function loadSupabase(){
       function inject(src, cb){var s=document.createElement('script');s.src=src; s.onload=cb; s.onerror=cb; document.head.appendChild(s);}
       inject("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
-        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=7", function(){});
+        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=8", function(){});
       });
     })();
   </script>
-  <script src="/app.js?v=7"></script>
+  <script src="/app.js?v=8"></script>
 </head>
 <body>
   <header>
@@ -61,16 +66,17 @@
     <a class="btn" href="/favorites.html">Favorites</a>
   </header>
 
+  <div id="status">Loading…</div>
   <main>
-    <div id="status">Loading…</div>
     <div id="grid" class="grid" aria-live="polite"></div>
   </main>
 
   <script>
     (async () => {
       const s = document.getElementById('status');
+      const grid = document.getElementById('grid');
 
-      // Wait for Supabase
+      // Wait for Supabase global
       let tries=0; while(!window.supabase && tries<20){ await new Promise(r=>setTimeout(r,150)); tries++; }
       if (!window.supabase){ s.textContent='Error: Supabase failed to load.'; return; }
       if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY){ s.textContent='Missing env.'; return; }
@@ -79,32 +85,27 @@
       const { data: sessionData } = await sb.auth.getSession();
       const userId = sessionData?.session?.user?.id || null;
 
-      s.textContent = 'Connected. Loading listings…';
+      // Base listings
       let { data, error } = await sb.from('listings')
         .select('id,title,price_cents,status,created_at')
-        .eq('status','active')
-        .order('created_at',{ascending:false})
-        .limit(30);
-      try { hm.guard({ data, error }, 'Couldn’t load listings.'); }
-      catch(_){ s.textContent='Couldn’t load listings.'; return; }
+        .eq('status','active').order('created_at',{ascending:false}).limit(30);
+      try { hm.guard({ data, error }, 'Couldn’t load listings.'); } catch(_){ s.textContent='Couldn’t load listings.'; return; }
       if (!data || data.length===0){ s.textContent='No active listings found.'; return; }
 
-      // Preload favorite ids
+      // Favorites preload
       let favIds = new Set();
       if (userId) {
         try {
           const res = await sb.from('favorites').select('listing_id').order('created_at',{ascending:false}).limit(500);
-          const rows = hm.guard(res, 'Couldn’t load favorites.');
-          favIds = new Set(rows.map(r => r.listing_id));
+          const rows = hm.guard(res, 'Couldn’t load favorites.'); favIds = new Set(rows.map(r=>r.listing_id));
         } catch(_) {}
       }
 
-      // Render cards
-      const grid = document.getElementById('grid');
+      // Render cards (placeholder image area always present)
       s.textContent = 'Loaded ' + data.length + ' listing(s).';
       grid.innerHTML = data.map(r => {
         const price = r.price_cents ? '$'+(r.price_cents/100).toFixed(2) : '';
-        const favClass = favIds.has(r.id) ? ' active' : '';
+        const fav = favIds.has(r.id) ? ' active' : '';
         return `
           <div class="card" data-id="${r.id}">
             <a class="tile" href="/listing.html?id=${encodeURIComponent(r.id)}">
@@ -114,41 +115,48 @@
                   <span class="title">${r.title ?? 'Untitled'}</span>
                   <span class="price">${price}</span>
                 </span>
+                <span class="sub" id="sub-${r.id}"></span>
               </span>
             </a>
-            <button type="button" class="heart${favClass}" data-heart aria-label="Save">
+            <button type="button" class="heart${fav}" data-heart aria-label="Save">
               <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.6 5.6 0 0 0-7.9 0l-.9.9-.9-.9a5.6 5.6 0 1 0-7.9 7.9l.9.9 7.9 7.9 7.9-7.9.9-.9a5.6 5.6 0 0 0 0-7.9z"/></svg>
             </button>
           </div>
         `;
       }).join('');
 
-      // Heart interactions
+      // Progressive enhancement: try optional fields per row (no break if missing)
+      for (const r of data) {
+        try {
+          const q1 = await sb.from('listings').select('cover_url,subtitle,tags').eq('id', r.id).single();
+          if (!q1.error) {
+            const imgEl = grid.querySelector(`.card[data-id="${r.id}"] img`);
+            if (q1.data?.cover_url && imgEl){ imgEl.src=q1.data.cover_url; imgEl.style.display='block'; }
+            const subEl = document.getElementById(`sub-${r.id}`);
+            let subTxt = q1.data?.subtitle || (Array.isArray(q1.data?.tags)? q1.data.tags.join(', ') : q1.data?.tags || '');
+            if (subEl && subTxt) subEl.textContent = subTxt;
+          }
+        } catch(_) {}
+      }
+
+      // Favorite toggles
       grid.addEventListener('click', async (e) => {
         const btn = e.target.closest('button[data-heart]');
         if (!btn) return;
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
 
-        const card = btn.closest('.card');
-        const id = card?.dataset?.id;
-        if (!id) return;
-
+        const id = btn.closest('.card')?.dataset?.id; if (!id) return;
         if (!userId) { hm.toast('Sign in to save favorites.'); return; }
 
         try {
           if (btn.classList.contains('active')) {
             const res = await sb.from('favorites').delete().eq('listing_id', id).eq('user_id', userId);
-            hm.guard(res, 'Couldn’t remove favorite.');
-            btn.classList.remove('active');
-            hm.toast('Removed from Favorites.');
+            hm.guard(res, 'Couldn’t remove favorite.'); btn.classList.remove('active'); hm.toast('Removed from Favorites.');
           } else {
-            const res = await sb.from('favorites').insert({ listing_id: id, user_id: userId });
-            hm.guard(res, 'Couldn’t save favorite.');
-            btn.classList.add('active');
-            hm.toast('Saved to Favorites.');
+            const res = await sb.from('favorites').insert({ listing_id:id, user_id:userId });
+            hm.guard(res, 'Couldn’t save favorite.'); btn.classList.add('active'); hm.toast('Saved to Favorites.');
           }
-        } catch (_) {}
+        } catch(_) {}
       });
     })();
   </script>
