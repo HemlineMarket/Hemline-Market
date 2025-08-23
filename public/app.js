@@ -1,4 +1,4 @@
-// Hemline Market — global toast, guards, a11y tidy, + auto SEO meta injector
+// Hemline Market — global toast, guards, a11y tidy, SEO meta, + robust error/online handlers
 (function () {
   // ------- Toast UI -------
   let toastBox;
@@ -61,7 +61,6 @@
   });
 
   // ------- Auto SEO Meta Injector -------
-  // Adds sensible defaults for <meta name="description">, canonical, and Open Graph tags on every page.
   (function seoInject() {
     const d = document;
     const head = d.head || d.getElementsByTagName('head')[0];
@@ -72,7 +71,6 @@
     const titleFallback = (d.title && d.title.trim()) ? d.title.trim() : site;
     const descFallback = 'Discover curated fabric listings, save favorites, and build your cart — powered by Hemline Market.';
 
-    // helpers
     const ensureMeta = (sel, createTag, attrs) => {
       let el = d.querySelector(sel);
       if (!el) { el = d.createElement(createTag); head.appendChild(el); }
@@ -80,26 +78,36 @@
       return el;
     };
 
-    // <title> (keep if page already set a specific one)
     if (!d.title || d.title.trim() === '') d.title = titleFallback;
-
-    // Description
     ensureMeta('meta[name="description"]', 'meta', { name:'description', content: descFallback });
-
-    // Canonical
     ensureMeta('link[rel="canonical"]', 'link', { rel:'canonical', href:url });
-
-    // Open Graph basics
     ensureMeta('meta[property="og:title"]', 'meta', { property:'og:title', content: titleFallback });
     ensureMeta('meta[property="og:description"]', 'meta', { property:'og:description', content: descFallback });
     ensureMeta('meta[property="og:type"]', 'meta', { property:'og:type', content:'website' });
     ensureMeta('meta[property="og:url"]', 'meta', { property:'og:url', content:url });
-    // Optional image placeholder (you can replace with brand image later)
     ensureMeta('meta[property="og:image"]', 'meta', { property:'og:image', content: (location.origin || 'https://hemlinemarket.com') + '/og-default.png' });
-
-    // Twitter card
     ensureMeta('meta[name="twitter:card"]', 'meta', { name:'twitter:card', content:'summary_large_image' });
     ensureMeta('meta[name="twitter:title"]', 'meta', { name:'twitter:title', content:titleFallback });
     ensureMeta('meta[name="twitter:description"]', 'meta', { name:'twitter:description', content: descFallback });
   })();
+
+  // ------- Global error & network handlers (new) -------
+  // Catch uncaught errors and show a friendly toast instead of silent failure.
+  window.addEventListener('error', (e) => {
+    try {
+      const msg = (e && e.message) ? e.message : 'Unexpected error.';
+      toast(`Oops — ${msg}`);
+    } catch (_) {}
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    try {
+      const reason = e && (e.reason?.message || e.reason) || 'Request failed.';
+      toast(`Request error — ${String(reason)}`);
+    } catch (_) {}
+  });
+
+  // Offline/online notices so users understand failures
+  window.addEventListener('offline', () => toast('You’re offline. Actions will fail until connection returns.'));
+  window.addEventListener('online', () => toast('Back online.'));
+
 })();
