@@ -1,4 +1,4 @@
-// Hemline Market — global toast, guards, a11y tidy, SEO meta, + robust error/online handlers
+// Hemline Market — global toast, guards, a11y/SEO, error handlers, + MOBILE POLISH
 (function () {
   // ------- Toast UI -------
   let toastBox;
@@ -52,7 +52,7 @@
   }
   window.hm = { toast, guard, normalizeSupabaseError, fetchWithRetry };
 
-  // ------- a11y/status tidy (no HTML edits needed) -------
+  // ------- a11y/status tidy -------
   document.addEventListener('DOMContentLoaded', () => {
     const statusEl = document.getElementById('status');
     if (statusEl && !statusEl.hasAttribute('aria-live')) statusEl.setAttribute('aria-live', 'polite');
@@ -62,22 +62,12 @@
 
   // ------- Auto SEO Meta Injector -------
   (function seoInject() {
-    const d = document;
-    const head = d.head || d.getElementsByTagName('head')[0];
-    if (!head) return;
-
+    const d = document; const head = d.head || d.getElementsByTagName('head')[0]; if (!head) return;
     const site = 'Hemline Market';
     const url = (location.origin || 'https://hemlinemarket.com') + location.pathname + (location.search || '');
     const titleFallback = (d.title && d.title.trim()) ? d.title.trim() : site;
     const descFallback = 'Discover curated fabric listings, save favorites, and build your cart — powered by Hemline Market.';
-
-    const ensureMeta = (sel, createTag, attrs) => {
-      let el = d.querySelector(sel);
-      if (!el) { el = d.createElement(createTag); head.appendChild(el); }
-      Object.entries(attrs).forEach(([k, v]) => { if (v && el.getAttribute(k) !== v) el.setAttribute(k, v); });
-      return el;
-    };
-
+    const ensureMeta = (sel, createTag, attrs) => { let el = d.querySelector(sel); if (!el) { el = d.createElement(createTag); head.appendChild(el); } Object.entries(attrs).forEach(([k,v]) => { if (v && el.getAttribute(k) !== v) el.setAttribute(k,v); }); return el; };
     if (!d.title || d.title.trim() === '') d.title = titleFallback;
     ensureMeta('meta[name="description"]', 'meta', { name:'description', content: descFallback });
     ensureMeta('link[rel="canonical"]', 'link', { rel:'canonical', href:url });
@@ -85,29 +75,40 @@
     ensureMeta('meta[property="og:description"]', 'meta', { property:'og:description', content: descFallback });
     ensureMeta('meta[property="og:type"]', 'meta', { property:'og:type', content:'website' });
     ensureMeta('meta[property="og:url"]', 'meta', { property:'og:url', content:url });
-    ensureMeta('meta[property="og:image"]', 'meta', { property:'og:image', content: (location.origin || 'https://hemlinemarket.com') + '/og-default.png' });
+    ensureMeta('meta[property="og:image"]', 'meta', { property:'og:image', content:(location.origin||'https://hemlinemarket.com') + '/og-default.png' });
     ensureMeta('meta[name="twitter:card"]', 'meta', { name:'twitter:card', content:'summary_large_image' });
     ensureMeta('meta[name="twitter:title"]', 'meta', { name:'twitter:title', content:titleFallback });
     ensureMeta('meta[name="twitter:description"]', 'meta', { name:'twitter:description', content: descFallback });
   })();
 
-  // ------- Global error & network handlers (new) -------
-  // Catch uncaught errors and show a friendly toast instead of silent failure.
-  window.addEventListener('error', (e) => {
-    try {
-      const msg = (e && e.message) ? e.message : 'Unexpected error.';
-      toast(`Oops — ${msg}`);
-    } catch (_) {}
-  });
-  window.addEventListener('unhandledrejection', (e) => {
-    try {
-      const reason = e && (e.reason?.message || e.reason) || 'Request failed.';
-      toast(`Request error — ${String(reason)}`);
-    } catch (_) {}
-  });
-
-  // Offline/online notices so users understand failures
+  // ------- Global error & network handlers -------
+  window.addEventListener('error', (e) => { try { toast(`Oops — ${(e && e.message) ? e.message : 'Unexpected error.'}`); } catch (_) {} });
+  window.addEventListener('unhandledrejection', (e) => { try { const r = e && (e.reason?.message || e.reason) || 'Request failed.'; toast(`Request error — ${String(r)}`); } catch (_) {} });
   window.addEventListener('offline', () => toast('You’re offline. Actions will fail until connection returns.'));
   window.addEventListener('online', () => toast('Back online.'));
+
+  // ------- MOBILE POLISH (auto-injected CSS, no HTML edits) -------
+  (function injectMobileCSS(){
+    const css =
+`html,body{overflow-x:hidden}
+*{-webkit-tap-highlight-color:transparent}
+@media (max-width:560px){
+  header{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .btn{padding:12px 14px !important;border-radius:12px}
+  .heart{width:44px !important;height:44px !important}
+  .qtybtn{width:42px !important;height:40px !important}
+  .qtyval{min-width:44px !important}
+  .card{border-radius:16px}
+  .grid{gap:10px}
+}
+@media (pointer:coarse){
+  button,.btn{min-height:44px}
+}
+`;
+    const s = document.createElement('style');
+    s.setAttribute('data-hm-mobile','1');
+    s.appendChild(document.createTextNode(css));
+    (document.head || document.documentElement).appendChild(s);
+  })();
 
 })();
