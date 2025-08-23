@@ -1,6 +1,6 @@
-// Hemline Market — global error/toast helpers (z-index fixed)
+// Hemline Market — global toast, error guards, + tiny a11y/status tidy
 (function () {
-  // ------- Toast UI -------
+  // ------- Toast UI (z-index high so it's always visible) -------
   let toastBox;
   function ensureToastUI() {
     if (toastBox) return;
@@ -11,7 +11,7 @@
       'max-width:90vw;padding:12px 16px;border:1px solid #e5e7eb;border-radius:12px;' +
       'background:#111827;color:#fff;font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;' +
       'box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;' +
-      'z-index:10000'; // <- keep toast above all content
+      'z-index:10000';
     document.body.appendChild(toastBox);
   }
   function toast(message, ms=3800) {
@@ -27,7 +27,6 @@
     try {
       if (!err) return 'Something went wrong.';
       if (typeof err === 'string') return err;
-
       const m = (err.message || err.error || '').toLowerCase();
       if (m.includes('too many') || m.includes('rate')) return 'Slow down a sec—too many attempts. Try again in a moment.';
       if (m.includes('row level security') || m.includes('rls')) return 'You don’t have permission for that action.';
@@ -64,6 +63,20 @@
     }
   }
 
-  // expose
+  // Expose helpers
   window.hm = { toast, guard, normalizeSupabaseError, fetchWithRetry };
+
+  // ------- Single-pass a11y/status tidy (no edits in HTML files) -------
+  // Ensures every page’s #status has aria-live="polite"; hides it by default on listings.
+  document.addEventListener('DOMContentLoaded', () => {
+    const statusEl = document.getElementById('status');
+    if (statusEl) {
+      if (!statusEl.hasAttribute('aria-live')) statusEl.setAttribute('aria-live', 'polite');
+      // Keep listings status hidden by default; other pages can show when needed.
+      const path = (location.pathname || '').toLowerCase();
+      if (path.endsWith('/listings.html') || path === '/listings.html') {
+        statusEl.hidden = true;
+      }
+    }
+  });
 })();
