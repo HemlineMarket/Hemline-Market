@@ -15,26 +15,31 @@
     @media (min-width:560px){ .grid{ grid-template-columns:1fr 1fr; } }
     @media (min-width:900px){ .grid{ grid-template-columns:1fr 1fr 1fr; } }
 
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
     .thumb { aspect-ratio: 4/5; background:#f3f4f6; }
     .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
     .meta { padding:10px 12px; display:flex; flex-direction:column; gap:4px; }
-    .title { font-weight:700; }
-    .sub { color:#64748b; font-size:13px; min-height:1.2em; }
-    .row { display:flex; align-items:center; justify-content:space-between; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .price { font-weight:700; }
+    /* Heart */
+    .heart { position:absolute; top:10px; right:10px; width:40px; height:40px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; display:grid; place-items:center; cursor:pointer; }
+    .heart svg { width:18px; height:18px; fill:none; stroke:#111; stroke-width:2; }
+    .heart.active svg { fill:#ef4444; stroke:#ef4444; }
+    .heart:active { transform:scale(.96); }
   </style>
 
-  <script src="/env.js?v=4"></script>
+  <!-- Env + loaders -->
+  <script src="/env.js?v=5"></script>
   <script>
     (function loadSupabase(){
       function inject(src, cb){var s=document.createElement('script');s.src=src; s.onload=cb; s.onerror=cb; document.head.appendChild(s);}
       inject("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
-        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=4", function(){});
+        if (!window.supabase) inject("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js?v=5", function(){});
       });
     })();
   </script>
-  <script src="/app.js?v=4"></script>
+  <script src="/app.js?v=5"></script>
 </head>
 <body>
   <header>
@@ -52,67 +57,82 @@
   <script>
     (async () => {
       const s = document.getElementById('status');
+
       // Wait for Supabase
       let tries=0; while(!window.supabase && tries<20){ await new Promise(r=>setTimeout(r,150)); tries++; }
       if (!window.supabase){ s.textContent='Error: Supabase failed to load.'; return; }
       if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY){ s.textContent='Missing env.'; return; }
 
       const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-      s.textContent = 'Connected. Loading listings…';
+      const { data: sessionData } = await sb.auth.getSession(); // ok if null
+      const userId = sessionData?.session?.user?.id || null;
 
-      // Base query (columns guaranteed to exist)
+      s.textContent = 'Connected. Loading listings…';
       let { data, error } = await sb.from('listings')
         .select('id,title,price_cents,status,created_at')
         .eq('status','active')
         .order('created_at',{ascending:false})
         .limit(30);
-
       try { hm.guard({ data, error }, 'Couldn’t load listings.'); }
       catch(_){ s.textContent='Couldn’t load listings.'; return; }
-
       if (!data || data.length===0){ s.textContent='No active listings found.'; return; }
-      s.textContent = 'Loaded ' + data.length + ' listing(s).';
 
-      // Render basic cards first (no images yet)
-      const grid = document.getElementById('grid');
-      grid.innerHTML = data.map(r => `
-        <a class="card" href="/listing.html?id=${encodeURIComponent(r.id)}">
-          <span class="thumb"><img alt="" style="display:none"></span>
-          <span class="meta">
-            <span class="row">
-              <span class="title">${r.title ?? 'Untitled'}</span>
-              <span class="price">${r.price_cents ? '$'+(r.price_cents/100).toFixed(2) : ''}</span>
-            </span>
-            <span class="sub" id="sub-${r.id}"></span>
-          </span>
-        </a>
-      `).join('');
-
-      // Optional enrich: try to fetch optional columns per-row without breaking if missing
-      for (const r of data) {
-        // cover image (tries 'cover_url'; ignores error if column missing)
+      // Preload favorite ids for this user (if logged in)
+      let favIds = new Set();
+      if (userId) {
         try {
-          const one = await sb.from('listings').select('cover_url').eq('id', r.id).single();
-          if (!one.error && one.data?.cover_url) {
-            const img = grid.querySelector(`a[href$="${encodeURIComponent(r.id)}"] img`);
-            if (img) { img.src = one.data.cover_url; img.style.display='block'; }
-          }
-        } catch(_) {}
-
-        // subtitle (tries 'subtitle' or 'tags' text)
-        try {
-          const sub = document.getElementById(`sub-${r.id}`);
-          if (!sub) continue;
-          let text = '';
-          let q = await sb.from('listings').select('subtitle').eq('id', r.id).single();
-          if (!q.error && q.data?.subtitle) text = q.data.subtitle;
-          if (!text) {
-            q = await sb.from('listings').select('tags').eq('id', r.id).single();
-            if (!q.error && q.data?.tags) text = (Array.isArray(q.data.tags)? q.data.tags.join(', ') : q.data.tags);
-          }
-          if (text) sub.textContent = text;
+          const res = await sb.from('favorites').select('listing_id').order('created_at',{ascending:false}).limit(500);
+          const rows = hm.guard(res, 'Couldn’t load favorites.');
+          favIds = new Set(rows.map(r => r.listing_id));
         } catch(_) {}
       }
+
+      // Render cards
+      const grid = document.getElementById('grid');
+      s.textContent = 'Loaded ' + data.length + ' listing(s).';
+      grid.innerHTML = data.map(r => {
+        const price = r.price_cents ? '$'+(r.price_cents/100).toFixed(2) : '';
+        const fav = favIds.has(r.id) ? ' active' : '';
+        return `
+          <a class="card" href="/listing.html?id=${encodeURIComponent(r.id)}" data-id="${r.id}">
+            <span class="heart${fav}" data-heart aria-label="Save">
+              <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.6 5.6 0 0 0-7.9 0l-.9.9-.9-.9a5.6 5.6 0 1 0-7.9 7.9l.9.9 7.9 7.9 7.9-7.9.9-.9a5.6 5.6 0 0 0 0-7.9z"/></svg>
+            </span>
+            <span class="thumb"><img alt="" style="display:none"></span>
+            <span class="meta">
+              <span class="row">
+                <span class="title">${r.title ?? 'Untitled'}</span>
+                <span class="price">${price}</span>
+              </span>
+            </span>
+          </a>
+        `;
+      }).join('');
+
+      // Heart interactions (stop link, require login, toggle DB)
+      grid.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-heart]');
+        if (!btn) return;
+        e.preventDefault();
+        const card = btn.closest('.card');
+        const id = card?.dataset?.id;
+        if (!id) return;
+
+        // require login
+        if (!userId) { hm.toast('Sign in to save favorites.'); return; }
+
+        try {
+          if (btn.classList.contains('active')) {
+            const res = await sb.from('favorites').delete().eq('listing_id', id);
+            hm.guard(res, 'Couldn’t remove favorite.');
+            btn.classList.remove('active');
+          } else {
+            const res = await sb.from('favorites').insert({ listing_id: id, user_id: userId });
+            hm.guard(res, 'Couldn’t save favorite.');
+            btn.classList.add('active');
+          }
+        } catch(_) { /* toast already shown */ }
+      });
     })();
   </script>
 </body>
