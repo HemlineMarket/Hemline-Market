@@ -10,14 +10,19 @@
     body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
     header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;font-weight:700}
     .btn{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-left:8px}
-    #status{max-width:1100px;margin:12px auto;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
-    main{max-width:1100px;margin:0 auto;padding:0 16px 24px}
+    main{max-width:1100px;margin:16px auto;padding:0 16px}
+    #status{margin:0 0 12px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
 
     .grid{display:grid;grid-template-columns:1fr;gap:12px}
     @media (min-width:560px){.grid{grid-template-columns:1fr 1fr}}
     @media (min-width:900px){.grid{grid-template-columns:1fr 1fr 1fr}}
 
-    .card{position:relative;display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    /* Card + polish */
+    .card{position:relative;display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+      transform:translateY(2px);opacity:0;animation:fadeIn .35s ease forwards}
+    .card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.06)}
+    @keyframes fadeIn{to{opacity:1;transform:translateY(0)}}
+
     .tile{display:block;color:inherit;text-decoration:none}
     .thumb{display:block;aspect-ratio:4/5;background:#f3f4f6}
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
@@ -27,17 +32,20 @@
     .price{font-weight:700}
     .sub{margin-top:2px;color:var(--muted);font-size:13px;min-height:1.2em}
 
-    .heart{position:absolute;top:10px;right:10px;width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;display:grid;place-items:center;cursor:pointer;z-index:3}
-    .heart svg{width:18px;height:18px;fill:none;stroke:#111;stroke-width:2}
-    .heart.active svg{fill:#ef4444;stroke:#ef4444}
+    /* Heart button */
+    .heart{position:absolute;top:10px;right:10px;width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;
+      display:grid;place-items:center;cursor:pointer;z-index:3}
+    .heart svg{width:18px;height:18px;fill:none;stroke:#111;stroke-width:2;transition:transform .08s ease}
     .heart:active{transform:scale(.96)}
+    .heart.active svg{fill:#ef4444;stroke:#ef4444}
 
+    /* Tap polish */
     a,a:visited,a:active{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
     .tile:active .title,.tile:active .price{color:inherit}
     button{-webkit-tap-highlight-color:transparent}
   </style>
 
-  <!-- Env + helpers -->
+  <!-- Env + Supabase + helpers -->
   <script src="/env.js"></script>
   <script>
     (function loadSupabase(){
@@ -53,49 +61,60 @@
   <header>
     Hemline
     <a class="btn" href="/index.html">Home</a>
-    <a class="btn" href="/cart.html">Cart</a>
     <a class="btn" href="/favorites.html">Favorites</a>
+    <a class="btn" href="/cart.html">Cart</a>
   </header>
 
-  <div id="status" hidden>Loading…</div>
-  <main><div id="grid" class="grid" aria-live="polite"></div></main>
+  <main>
+    <div id="status" hidden>Loading…</div>
+    <div id="grid" class="grid" aria-live="polite"></div>
+  </main>
 
   <script>
     (async () => {
       const s = document.getElementById('status'); const grid = document.getElementById('grid');
-      function show(msg){ s.hidden=false; s.textContent=msg; }
+      const show = (msg)=>{ s.hidden=false; s.textContent=msg; };
 
-      let tries=0; while(!window.supabase && tries<20){ await new Promise(r=>setTimeout(r,150)); tries++; }
+      // Wait for Supabase
+      let tries=0; while(!window.supabase && tries<40){ await new Promise(r=>setTimeout(r,100)); tries++; }
       if (!window.supabase) return show('Error loading Supabase.');
       if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return show('Missing env.');
-
       const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-      const { data: sess } = await sb.auth.getSession(); const userId = sess?.session?.user?.id || null;
 
-      // Base fetch (never fails on optional columns)
+      // Session (optional)
+      const { data: sess } = await sb.auth.getSession();
+      const userId = sess?.session?.user?.id || null;
+
+      // Fetch listings (schema-safe baseline)
       let { data, error } = await sb.from('listings')
         .select('id,title,price_cents,status,created_at')
         .eq('status','active').order('created_at',{ascending:false}).limit(30);
       try { hm.guard({ data, error }, 'Couldn’t load listings.'); } catch(_){ return show('Couldn’t load listings.'); }
       if (!data?.length) return show('No active listings found.');
 
-      // Preload favorites
-      let favIds=new Set();
+      // Favorites preload
+      let favIds = new Set();
       if (userId) {
-        try{ const r=await sb.from('favorites').select('listing_id').limit(500); favIds=new Set(hm.guard(r,'')).add }
-        catch(_){}
+        try {
+          const res = await sb.from('favorites').select('listing_id').limit(500);
+          const rows = hm.guard(res,'');
+          favIds = new Set(rows.map(r=>r.listing_id));
+        } catch(_) {}
       }
 
       // Render cards
-      grid.innerHTML = data.map(r=>{
-        const price=r.price_cents?('$'+(r.price_cents/100).toFixed(2)):'';
-        const fav=favIds.has?.(r.id)?' active':'';
+      grid.innerHTML = data.map((r,i)=>{
+        const price = r.price_cents ? '$'+(r.price_cents/100).toFixed(2) : '';
+        const fav = favIds.has(r.id) ? ' active' : '';
         return `
-          <div class="card" data-id="${r.id}">
+          <div class="card" style="animation-delay:${i*40}ms" data-id="${r.id}">
             <a class="tile" href="/listing.html?id=${encodeURIComponent(r.id)}">
-              <span class="thumb"><img alt="" style="display:none"></span>
+              <span class="thumb"><img loading="lazy" alt="" style="display:none"></span>
               <span class="meta">
-                <span class="row"><span class="title">${r.title??'Untitled'}</span><span class="price">${price}</span></span>
+                <span class="row">
+                  <span class="title">${r.title ?? 'Untitled'}</span>
+                  <span class="price">${price}</span>
+                </span>
                 <span class="sub" id="sub-${r.id}"></span>
               </span>
             </a>
@@ -105,30 +124,31 @@
           </div>`;
       }).join('');
 
-      // Progressive enrich (optional columns)
+      // Optional enrich (cover/subtitle/tags) — safe if columns exist
       for (const r of data) {
         try {
           const q = await sb.from('listings').select('cover_url,subtitle,tags').eq('id', r.id).single();
           if (!q.error) {
-            const img = grid.querySelector(`.card[data-id="${r.id}"] img`);
-            if (q.data?.cover_url && img){ img.src=q.data.cover_url; img.style.display='block'; }
-            const sub = document.getElementById(`sub-${r.id}`);
-            const txt = q.data?.subtitle || (Array.isArray(q.data?.tags)? q.data.tags.join(', '): q.data?.tags||'');
-            if (sub && txt) sub.textContent = txt;
+            const card = grid.querySelector(`.card[data-id="${r.id}"]`);
+            const imgEl = card.querySelector('img');
+            if (q.data?.cover_url && imgEl){ imgEl.src=q.data.cover_url; imgEl.style.display='block'; }
+            const subEl = card.querySelector(`#sub-${r.id}`);
+            const txt = q.data?.subtitle || (Array.isArray(q.data?.tags)? q.data.tags.join(', ') : q.data?.tags || '');
+            if (subEl && txt) subEl.textContent = txt;
           }
         } catch(_) {}
       }
 
-      // Heart toggle
+      // Favorite toggle
       grid.addEventListener('click', async (e)=>{
-        const btn=e.target.closest('button[data-heart]'); if (!btn) return;
+        const btn = e.target.closest('button[data-heart]'); if (!btn) return;
         e.preventDefault(); e.stopPropagation();
         const id = btn.closest('.card')?.dataset?.id; if (!id) return;
 
         const { data: s2 } = await sb.auth.getSession(); const uid = s2?.session?.user?.id || null;
         if (!uid) return hm.toast('Sign in to save favorites.');
 
-        try{
+        try {
           if (btn.classList.contains('active')) {
             hm.guard(await sb.from('favorites').delete().eq('listing_id', id).eq('user_id', uid), 'Couldn’t remove favorite.');
             btn.classList.remove('active'); hm.toast('Removed from Favorites.');
@@ -136,9 +156,12 @@
             hm.guard(await sb.from('favorites').insert({ listing_id:id, user_id:uid }), 'Couldn’t save favorite.');
             btn.classList.add('active'); hm.toast('Saved to Favorites.');
           }
-        }catch(err){ hm.toast(hm.normalizeSupabaseError(err)); }
+        } catch (err) { hm.toast(hm.normalizeSupabaseError(err)); }
       });
     })();
   </script>
+
+  <!-- Header auth/cart badge (auto-injecting) -->
+  <script src="/auth.js"></script>
 </body>
 </html>
