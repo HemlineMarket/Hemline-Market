@@ -5,8 +5,7 @@
 <style>
   :root{--bg:#ffffff;--muted:#f5f5f6;--ink:#111;--border:#e6e6e7}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-  .wrap{max-width:1100px;margin:0 auto;padding:16px}
-  .filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;background:var(--muted);padding:12px;border-radius:14px;border:1px solid var(--border)}
+  .filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;background:var(--muted);padding:12px;border-radius:14px;border:1px solid var(--border);margin:16px}
   .filters select,.filters input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
   .filters .search{grid-column:span 2}
   .filters .reset{padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;cursor:pointer}
@@ -14,11 +13,11 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div id="app">
   <div class="filters" id="filters">
-    <select id="f-fabric"><option value="">Fabric</option><option>Cotton</option><option>Wool</option><option>Linen</option><option>Silk</option><option>Rayon/Viscose</option><option>Knit</option><option>Terry/Fleece</option></select>
+    <select id="f-fabric"><option value="">Fabric</option><option>Cotton</option><option>Wool</option><option>Linen</option><option>Silk</option></select>
     <select id="f-weight"><option value="">Weight</option><option>Light</option><option>Mid</option><option>Heavy</option></select>
-    <select id="f-color"><option value="">Color</option><option>Black</option><option>White</option><option>Brown</option><option>Blue</option><option>Green</option><option>Red</option><option>Yellow</option><option>Pink</option><option>Purple</option></select>
+    <select id="f-color"><option value="">Color</option><option>Black</option><option>White</option><option>Brown</option><option>Blue</option></select>
     <select id="f-seller"><option value="">Seller</option></select>
     <select id="f-sort"><option value="">Sort</option><option value="newest">Newest</option><option value="priceLow">Price: Low → High</option><option value="priceHigh">Price: High → Low</option></select>
     <input id="f-search" class="search" type="search" placeholder="Search fabrics…">
@@ -26,14 +25,7 @@
   </div>
 </div>
 
-<!-- App mount -->
-<div id="app"></div>
-
 <script>
-/* Minimal wiring:
-   - Emits a 'hemline:filters' CustomEvent with current filters
-   - Your React app can listen to this event to filter results
-*/
 (function(){
   const $ = (id)=>document.getElementById(id);
   const inputs = ['f-fabric','f-weight','f-color','f-seller','f-sort','f-search'].map($);
@@ -50,11 +42,6 @@
   }
   inputs.forEach(el=>el.addEventListener('input',emit));
   $('f-reset').addEventListener('click',()=>{inputs.forEach(el=>{if(el.tagName==='INPUT')el.value=''; else el.selectedIndex=0;}); emit();});
-  // Fill sellers if your app exposes a global list later:
-  if(window.HEMLINE_SELLERS && Array.isArray(window.HEMLINE_SELLERS)){
-    const s=$('f-seller'); window.HEMLINE_SELLERS.forEach(name=>{const o=document.createElement('option');o.textContent=name;s.appendChild(o);});
-  }
-  // First emit so app can read defaults
   emit();
 })();
 </script>
