@@ -1,7 +1,206 @@
-<!doctype html><html lang="en"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Listings (v1 probe)</title>
-</head><body>
-<h1 style="font-family:system-ui;margin:24px">LISTINGS PROBE V1</h1>
-<p style="font-family:system-ui;margin:24px">If you see this, this file is the one Vercel serves.</p>
-</body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Hemline — Listings</title>
+  <style>
+    :root { --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;font-weight:700;z-index:20}
+    .btn{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-left:8px}
+
+    /* NEW: Filters bar */
+    .filters-wrap{position:sticky;top:56px;z-index:15;background:#fff;border-bottom:1px solid var(--line)}
+    .filters{max-width:1100px;margin:0 auto;padding:10px 16px;display:grid;gap:8px;grid-template-columns:repeat(6,minmax(0,1fr))}
+    .filters select,.filters input,.filters button{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    .filters .search{grid-column:span 2}
+    @media (max-width:900px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.filters .search{grid-column:span 2}}
+
+    main{max-width:1100px;margin:16px auto;padding:0 16px}
+    #status{margin:0 0 12px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width:560px){.grid{grid-template-columns:1fr 1fr}}
+    @media (min-width:900px){.grid{grid-template-columns:1fr 1fr 1fr}}
+
+    .card{position:relative;display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+      transform:translateY(2px);opacity:0;animation:fadeIn .35s ease forwards}
+    .card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.06)}
+    @keyframes fadeIn{to{opacity:1;transform:translateY(0)}}
+
+    .tile{display:block;color:inherit;text-decoration:none}
+    .thumb{display:block;aspect-ratio:4/5;background:#f3f4f6}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .meta{padding:10px 12px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .price{font-weight:700}
+    .sub{margin-top:2px;color:var(--muted);font-size:13px;min-height:1.2em}
+
+    .heart{position:absolute;top:10px;right:10px;width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;
+      display:grid;place-items:center;cursor:pointer;z-index:3}
+    .heart svg{width:18px;height:18px;fill:none;stroke:#111;stroke-width:2;transition:transform .08s ease}
+    .heart:active{transform:scale(.96)}
+    .heart.active svg{fill:#ef4444;stroke:#ef4444}
+
+    a,a:visited,a:active{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
+    button{-webkit-tap-highlight-color:transparent}
+  </style>
+
+  <!-- Env + Supabase + helpers -->
+  <script src="/env.js"></script>
+  <script>
+    (function loadSupabase(){
+      function add(src, cb){const s=document.createElement('script');s.src=src;s.onload=cb;s.onerror=cb;document.head.appendChild(s);}
+      add("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
+        if (!window.supabase) add("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){});
+      });
+    })();
+  </script>
+  <script src="/app.js"></script>
+</head>
+<body>
+  <header>
+    Hemline
+    <a class="btn" href="/index.html">Home</a>
+    <a class="btn" href="/favorites.html">Favorites</a>
+    <a class="btn" href="/cart.html">Cart</a>
+  </header>
+
+  <!-- NEW: Filters bar -->
+  <div class="filters-wrap" id="filters-wrap">
+    <div class="filters" id="filters">
+      <select id="f-fabric"><option value="">Fabric</option><option>Cotton</option><option>Wool</option><option>Linen</option><option>Silk</option><option>Knit</option><option>Terry/Fleece</option></select>
+      <select id="f-weight"><option value="">Weight</option><option>Light</option><option>Mid</option><option>Heavy</option></select>
+      <select id="f-color"><option value="">Color</option><option>Black</option><option>White</option><option>Brown</option><option>Blue</option><option>Green</option><option>Red</option><option>Yellow</option><option>Pink</option><option>Purple</option></select>
+      <select id="f-seller"><option value="">Seller</option></select>
+      <select id="f-sort"><option value="">Sort</option><option value="newest">Newest</option><option value="priceLow">Price: Low → High</option><option value="priceHigh">Price: High → Low</option></select>
+      <input id="f-search" class="search" type="search" placeholder="Search fabrics…">
+      <button id="f-reset" type="button">Reset</button>
+    </div>
+  </div>
+
+  <main>
+    <div id="status" hidden>Loading…</div>
+    <div id="grid" class="grid" aria-live="polite"></div>
+  </main>
+
+  <!-- Filters wiring -->
+  <script>
+    (function(){
+      const $ = (id)=>document.getElementById(id);
+      const inputs = ['f-fabric','f-weight','f-color','f-seller','f-sort','f-search'].map($);
+      function emit(){
+        const detail = {
+          fabric: $('f-fabric').value || null,
+          weight: $('f-weight').value || null,
+          color: $('f-color').value || null,
+          seller: $('f-seller').value || null,
+          sort: $('f-sort').value || null,
+          q: $('f-search').value.trim() || null
+        };
+        document.dispatchEvent(new CustomEvent('hemline:filters',{detail}));
+      }
+      inputs.forEach(el=>el.addEventListener('input',emit));
+      $('f-reset').addEventListener('click',()=>{inputs.forEach(el=>{if(el.tagName==='INPUT')el.value=''; else el.selectedIndex=0;}); emit();});
+      emit();
+    })();
+  </script>
+
+  <script>
+    (async () => {
+      const s = document.getElementById('status'); const grid = document.getElementById('grid');
+      const show = (msg)=>{ s.hidden=false; s.textContent=msg; };
+
+      // Wait for Supabase
+      let tries=0; while(!window.supabase && tries<40){ await new Promise(r=>setTimeout(r,100)); tries++; }
+      if (!window.supabase) return show('Error loading Supabase.');
+      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return show('Missing env.');
+      const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+      // Session (optional)
+      const { data: sess } = await sb.auth.getSession();
+      const userId = sess?.session?.user?.id || null;
+
+      // Fetch listings
+      let { data, error } = await sb.from('listings')
+        .select('id,title,price_cents,status,created_at')
+        .eq('status','active').order('created_at',{ascending:false}).limit(30);
+      try { hm.guard({ data, error }, 'Couldn’t load listings.'); } catch(_){ return show('Couldn’t load listings.'); }
+      if (!data?.length) return show('No active listings found.');
+
+      // Favorites preload
+      let favIds = new Set();
+      if (userId) {
+        try {
+          const res = await sb.from('favorites').select('listing_id').limit(500);
+          const rows = hm.guard(res,'');
+          favIds = new Set(rows.map(r=>r.listing_id));
+        } catch(_) {}
+      }
+
+      // Render cards
+      grid.innerHTML = data.map((r,i)=>{
+        const price = r.price_cents ? '$'+(r.price_cents/100).toFixed(2) : '';
+        const fav = favIds.has(r.id) ? ' active' : '';
+        return `
+          <div class="card" style="animation-delay:${i*40}ms" data-id="${r.id}">
+            <a class="tile" href="/listing.html?id=${encodeURIComponent(r.id)}">
+              <span class="thumb"><img loading="lazy" alt="" style="display:none"></span>
+              <span class="meta">
+                <span class="row">
+                  <span class="title">${r.title ?? 'Untitled'}</span>
+                  <span class="price">${price}</span>
+                </span>
+                <span class="sub" id="sub-${r.id}"></span>
+              </span>
+            </a>
+            <button type="button" class="heart${fav}" data-heart aria-label="Save">
+              <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.6 5.6 0 0 0-7.9 0l-.9.9-.9-.9a5.6 5.6 0 1 0-7.9 7.9l.9.9 7.9 7.9 7.9-7.9.9-.9a5.6 5.6 0 0 0 0-7.9z"/></svg>
+            </button>
+          </div>`;
+      }).join('');
+
+      // Optional enrich (cover/subtitle/tags)
+      for (const r of data) {
+        try {
+          const q = await sb.from('listings').select('cover_url,subtitle,tags').eq('id', r.id).single();
+          if (!q.error) {
+            const card = grid.querySelector(`.card[data-id="${r.id}"]`);
+            const imgEl = card.querySelector('img');
+            if (q.data?.cover_url && imgEl){ imgEl.src=q.data.cover_url; imgEl.style.display='block'; }
+            const subEl = card.querySelector(`#sub-${r.id}`);
+            const txt = q.data?.subtitle || (Array.isArray(q.data?.tags)? q.data.tags.join(', ') : q.data?.tags || '');
+            if (subEl && txt) subEl.textContent = txt;
+          }
+        } catch(_) {}
+      }
+
+      // Favorite toggle
+      grid.addEventListener('click', async (e)=>{
+        const btn = e.target.closest('button[data-heart]'); if (!btn) return;
+        e.preventDefault(); e.stopPropagation();
+        const id = btn.closest('.card')?.dataset?.id; if (!id) return;
+
+        const { data: s2 } = await sb.auth.getSession(); const uid = s2?.session?.user?.id || null;
+        if (!uid) return hm.toast('Sign in to save favorites.');
+
+        try {
+          if (btn.classList.contains('active')) {
+            hm.guard(await sb.from('favorites').delete().eq('listing_id', id).eq('user_id', uid), 'Couldn’t remove favorite.');
+            btn.classList.remove('active'); hm.toast('Removed from Favorites.');
+          } else {
+            hm.guard(await sb.from('favorites').insert({ listing_id:id, user_id:uid }), 'Couldn’t save favorite.');
+            btn.classList.add('active'); hm.toast('Saved to Favorites.');
+          }
+        } catch (err) { hm.toast(hm.normalizeSupabaseError(err)); }
+      });
+    })();
+  </script>
+
+  <!-- Header auth/cart badge (auto-injecting) -->
+  <script src="/auth.js"></script>
+</body>
+</html>
