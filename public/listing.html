@@ -1,199 +1,37 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Hemline — Listing</title>
-  <style>
-    :root { --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;font-weight:700}
-    .btn{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-left:8px}
-    .wrap{max-width:1100px;margin:16px auto;padding:0 16px}
-    #status{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:12px}
-
-    .layout{display:grid;grid-template-columns:1fr;gap:16px}
-    @media (min-width:900px){.layout{grid-template-columns:1.2fr 1fr}}
-
-    .gallery{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
-    .hero{aspect-ratio:4/5;background:#f3f4f6}
-    .hero img{width:100%;height:100%;object-fit:cover;display:block}
-
-    .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px}
-    .title{font-size:20px;font-weight:800}
-    .sub{color:var(--muted);margin-top:6px}
-    .price{font-size:18px;font-weight:800;margin-top:8px}
-    .actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-    .act{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#111827;color:#fff;cursor:pointer}
-    .alt{background:#fff;color:var(--ink)}
-    .heart{width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;display:grid;place-items:center;cursor:pointer}
-    .heart svg{width:18px;height:18px;fill:none;stroke:#111;stroke-width:2}
-    .heart.active svg{fill:#ef4444;stroke:#ef4444}
-    .body{margin-top:14px;white-space:pre-wrap}
-    a,a:visited,a:active{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
-    button{-webkit-tap-highlight-color:transparent}
-  </style>
-
-  <!-- Env + loaders -->
-  <script src="/env.js"></script>
-  <script>
-    (function loadSupabase(){
-      function add(src, cb){const s=document.createElement('script');s.src=src;s.onload=cb;s.onerror=cb;document.head.appendChild(s);}
-      add("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
-        if (!window.supabase) add("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){});
-      });
-    })();
-  </script>
-  <script src="/app.js"></script>
-</head>
-<body>
-  <header>
-    Hemline
-    <a class="btn" href="/listings.html">Listings</a>
-    <a class="btn" href="/favorites.html">Favorites</a>
-    <a class="btn" href="/cart.html">Cart</a>
-  </header>
-
-  <div class="wrap">
-    <div id="status">Loading listing…</div>
-    <div id="view" class="layout" hidden>
-      <div class="gallery">
-        <div class="hero"><img id="img" alt="" style="display:none"></div>
-      </div>
-      <div class="panel">
-        <div class="title" id="title">—</div>
-        <div class="sub" id="sub"></div>
-        <div class="price" id="price"></div>
-        <div class="actions">
-          <button type="button" class="act alt" id="back">← Back</button>
-          <button type="button" class="heart" id="fav" aria-label="Save">
-            <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.6 5.6 0 0 0-7.9 0l-.9.9-.9-.9a5.6 5.6 0 1 0-7.9 7.9l.9.9 7.9 7.9 7.9-7.9.9-.9a5.6 5.6 0 0 0 0-7.9z"/></svg>
-          </button>
-          <button type="button" class="act" id="buy">Add to Cart</button>
-        </div>
-        <div class="body" id="body"></div>
-      </div>
-    </div>
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline — Listings (public)</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root{--muted:#f5f5f6;--border:#e6e6e7;--ink:#111;--bg:#fff}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+  .hm-filters-bar{position:fixed;left:0;right:0;top:56px;z-index:9999;background:var(--muted);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:10px 12px}
+  .hm-filters{max-width:1100px;margin:0 auto;display:grid;gap:10px;grid-template-columns:repeat(6,minmax(0,1fr))}
+  .hm-filters select,.hm-filters input,.hm-filters button{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
+  .hm-filters .search{grid-column:span 2}
+  @media (max-width:900px){.hm-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.hm-filters .search{grid-column:span 2}}
+  .hm-push{height:66px}
+</style>
+</head><body>
+<div class="hm-filters-bar" id="hm-filters-bar">
+  <div class="hm-filters">
+    <select id="f-fabric"><option value="">Fabric</option><option>Cotton</option><option>Wool</option><option>Linen</option><option>Silk</option><option>Knit</option><option>Terry/Fleece</option></select>
+    <select id="f-weight"><option value="">Weight</option><option>Light</option><option>Mid</option><option>Heavy</option></select>
+    <select id="f-color"><option value="">Color</option><option>Black</option><option>White</option><option>Brown</option><option>Blue</option><option>Green</option><option>Red</option><option>Yellow</option><option>Pink</option><option>Purple</option></select>
+    <select id="f-seller"><option value="">Seller</option></select>
+    <select id="f-sort"><option value="">Sort</option><option value="newest">Newest</option><option value="priceLow">Price: Low → High</option><option value="priceHigh">Price: High → Low</option></select>
+    <input id="f-search" class="search" type="search" placeholder="Search fabrics…">
+    <button id="f-reset" type="button">Reset</button>
   </div>
+</div>
+<div class="hm-push" aria-hidden="true"></div>
 
-  <script>
-    (async () => {
-      const s = document.getElementById('status');
-      const view = document.getElementById('view');
-      const img = document.getElementById('img');
-      const el = (id)=>document.getElementById(id);
-
-      // Wait for Supabase
-      let tries=0; while(!window.supabase && tries<40){ await new Promise(r=>setTimeout(r,100)); tries++; }
-      if (!window.supabase || !window.SUPABASE_URL || !window.SUPABASE_ANON_KEY){ s.textContent='Supabase not ready.'; return; }
-      const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-
-      // Parse id
-      const params = new URLSearchParams(location.search);
-      const id = params.get('id');
-      if (!id) { s.textContent='Missing listing id.'; return; }
-
-      // Fetch main fields (schema-safe: optional columns allowed)
-      let { data, error } = await sb.from('listings')
-        .select('id,title,price_cents,status,cover_url,subtitle,tags,description,body,created_at')
-        .eq('id', id).single();
-
-      try { data = hm.guard({ data, error }, 'Couldn’t load listing.'); }
-      catch(_) { s.textContent='Couldn’t load listing.'; return; }
-
-      // Block drafts to the public
-      if (data.status && data.status !== 'active') { s.textContent = 'This listing is not available.'; return; }
-
-      // Render fields
-      el('title').textContent = data.title || 'Untitled';
-      const price = data.price_cents ? '$'+(data.price_cents/100).toFixed(2) : '';
-      el('price').textContent = price;
-      const sub = data.subtitle || (Array.isArray(data.tags) ? data.tags.join(', ') : (data.tags || ''));
-      if (sub) el('sub').textContent = sub;
-      const body = data.body || data.description || '';
-      if (body) el('body').textContent = body;
-      if (data.cover_url) { img.src = data.cover_url; img.style.display='block'; }
-
-      // Favorites: show state and toggle
-      const favBtn = document.getElementById('fav');
-      const { data: sess0 } = await sb.auth.getSession();
-      const uid0 = sess0?.session?.user?.id || null;
-
-      async function setFavState() {
-        if (!uid0) return favBtn.classList.remove('active');
-        try {
-          const res = await sb.from('favorites').select('id').eq('listing_id', id).limit(1);
-          const rows = hm.guard(res,'');
-          if (rows.length) favBtn.classList.add('active'); else favBtn.classList.remove('active');
-        } catch(_) {}
-      }
-      await setFavState();
-
-      favBtn.onclick = async () => {
-        const { data: s2 } = await sb.auth.getSession();
-        const userId = s2?.session?.user?.id || null;
-        if (!userId) { hm.toast('Sign in to save favorites.'); return; }
-
-        try {
-          if (favBtn.classList.contains('active')) {
-            hm.guard(await sb.from('favorites').delete().eq('listing_id', id).eq('user_id', userId),'Couldn’t remove favorite.');
-            favBtn.classList.remove('active'); hm.toast('Removed from Favorites.');
-          } else {
-            hm.guard(await sb.from('favorites').insert({ listing_id: id, user_id: userId }),'Couldn’t save favorite.');
-            favBtn.classList.add('active'); hm.toast('Saved to Favorites.');
-          }
-        } catch(err){ hm.toast(hm.normalizeSupabaseError(err)); }
-      };
-
-      // Back button
-      document.getElementById('back').onclick = ()=>history.length>1?history.back():location.assign('/listings.html');
-
-      // Add to Cart: idempotent + increment qty
-      document.getElementById('buy').onclick = async ()=>{
-        const { data: s2 } = await sb.auth.getSession(); 
-        const userId = s2?.session?.user?.id || null;
-        if (!userId) { hm.toast('Sign in to add to cart.'); return; }
-
-        try {
-          // 1) Do we already have this item?
-          const existing = await sb
-            .from('cart_items')
-            .select('id, qty')
-            .eq('user_id', userId)
-            .eq('listing_id', id)
-            .maybeSingle();
-
-          hm.guard(existing, 'Couldn’t read cart.');
-
-          if (existing.data && existing.data.id) {
-            // 2) Increment qty
-            const newQty = Math.max(1, (existing.data.qty || 1) + 1);
-            const upd = await sb
-              .from('cart_items')
-              .update({ qty: newQty })
-              .eq('id', existing.data.id)
-              .eq('user_id', userId);
-            hm.guard(upd, 'Couldn’t update cart.');
-            hm.toast('Quantity increased.');
-          } else {
-            // 3) Insert new row
-            const ins = await sb
-              .from('cart_items')
-              .insert({ user_id: userId, listing_id: id, qty: 1 });
-            hm.guard(ins, 'Couldn’t add to cart.');
-            hm.toast('Added to cart.');
-          }
-        } catch (err) {
-          hm.toast(hm.normalizeSupabaseError(err));
-        }
-      };
-
-      s.hidden = true; view.hidden = false;
-    })();
-  </script>
-
-  <!-- Optional: auto header auth pill -->
-  <script src="/auth.js"></script>
-</body>
-</html>
+<div id="app"></div>
+<script src="/js/filters-bar.js"></script>
+<script>
+document.addEventListener('hemline:filters', (e)=> {
+  // Temporary visual proof the bar is live:
+  document.title = 'Hemline — Listings (filters active)';
+});
+</script>
+</body></html>
