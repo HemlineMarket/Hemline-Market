@@ -6,7 +6,10 @@
   <title>Hemline Market — Catalog</title>
   <link rel="icon" href="/favicon.ico">
   <style>
-    :root { --gap:14px; --border:#e5e7eb; --muted:#6b7280; --ink:#111827; --bg:#ffffff; --brand:#111827; }
+    :root {
+      --gap:14px; --border:#e5e7eb; --muted:#6b7280; --ink:#111827; --bg:#ffffff; --brand:#111827;
+      --soft:#f8fafc; --hover:#f1f5f9;
+    }
     * { box-sizing:border-box; }
     body { margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif; color:var(--ink); background:var(--bg); }
 
@@ -17,29 +20,36 @@
     .nav-search { flex:1; }
     .nav-search input { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:999px; }
     .nav-links { display:flex; gap:12px; align-items:center; }
-    .link-btn { padding:8px 12px; border:1px solid var(--border); border-radius:999px; background:#fff; text-decoration:none; color:var(--ink); }
+    .link-btn { position:relative; padding:8px 12px; border:1px solid var(--border); border-radius:999px; background:#fff; text-decoration:none; color:var(--ink); }
+    .link-btn:hover { background:var(--hover); }
+    .link-btn::after { content:""; position:absolute; left:14px; right:14px; bottom:6px; height:2px; background:#0000; transition:background .2s; }
+    .link-btn:hover::after { background:#1112; }
     .link-cta { background:var(--brand); color:#fff; border-color:var(--brand); }
+    .link-cta:hover { filter:brightness(0.95); }
 
     /* Filters row */
     header.filt { position:sticky; top:58px; z-index:10; background:#fff; border-bottom:1px solid var(--border); }
     .wrap { max-width:1100px; margin:0 auto; padding:12px 16px; }
-    .controls { display:grid; grid-template-columns:1fr repeat(7, minmax(150px, 220px)); gap:var(--gap); align-items:end; }
+    .controls { display:grid; grid-template-columns:1fr repeat(9, minmax(150px, 220px)); gap:var(--gap); align-items:end; }
     @media (max-width:1150px){ .controls { grid-template-columns:1fr 1fr; } }
     .control { display:flex; flex-direction:column; gap:6px; }
     .muted { color:var(--muted); }
-    input, select, button { border:1px solid var(--border); border-radius:10px; padding:8px 10px; background:#fff; }
+    input, select, button { border:1px solid var(--border); border-radius:10px; padding:8px 10px; background:#fff; transition:box-shadow .15s, background .15s; }
+    input:hover, select:hover, button:hover { background:linear-gradient(#fff, #fdfefe); box-shadow:0 0 0 3px #00000007 inset; }
     button { cursor:pointer; }
     .btn { padding:9px 14px; }
     .btn.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+    .btn.primary:hover { filter:brightness(0.95); }
 
     /* Dropdown (shared) */
     .dropdown { position:relative; }
     .dropdown-btn { display:flex; align-items:center; gap:8px; justify-content:space-between; min-height:38px; }
-    .dropdown-panel { position:absolute; top:calc(100% + 6px); left:0; width:680px; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 10px 24px rgba(0,0,0,.08); padding:10px; display:none; }
+    .dropdown-panel { position:absolute; top:calc(100% + 6px); left:0; min-width:520px; max-width:720px; max-height:320px; overflow:auto;
+      border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 10px 24px rgba(0,0,0,.08); padding:10px; display:none; }
     .dropdown.open .dropdown-panel { display:block; }
     .d-search { width:100%; margin-bottom:8px; }
-    /* Chip layout (one big alphabetized "line" that wraps) */
     .d-list { display:flex; flex-wrap:wrap; gap:8px 10px; }
+    .d-list.colors { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px 10px; } /* fits on narrow windows */
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--border); border-radius:999px; user-select:none; cursor:pointer; }
     .chip input { appearance:none; width:14px; height:14px; border-radius:999px; border:1px solid var(--border); display:inline-block; position:relative; }
     .chip input:checked { background:#111827; border-color:#111827; }
@@ -50,12 +60,14 @@
 
     main { padding:18px 16px 40px; }
     .grid { display:grid; grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) ); gap:var(--gap); }
-    .card { border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; }
+    .card { border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.03); transition:transform .12s ease, box-shadow .12s ease; }
+    .card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.08); }
     .thumb { aspect-ratio:4/3; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#6b7280; font-size:12px; }
     .body { padding:12px; display:flex; flex-direction:column; gap:6px; }
     .title { font-weight:600; }
     .spacer { flex:1; }
     .empty { border:1px dashed var(--border); border-radius:12px; padding:30px; text-align:center; color:var(--muted); }
+    .countline { color:#444; font-weight:600; }
   </style>
 </head>
 <body>
@@ -113,6 +125,16 @@
         </div>
 
         <div class="control">
+          <label class="muted">Width (in) min</label>
+          <input id="widthMin" type="number" min="0" placeholder="e.g. 44" />
+        </div>
+
+        <div class="control">
+          <label class="muted">Width (in) max</label>
+          <input id="widthMax" type="number" min="0" placeholder="e.g. 60" />
+        </div>
+
+        <div class="control">
           <label class="muted">Price min (USD)</label>
           <input id="pmin" type="number" min="0" placeholder="e.g. 10" />
         </div>
@@ -144,7 +166,7 @@
           </button>
           <div class="dropdown-panel" id="colorPanel">
             <input id="colorSearch" class="d-search" placeholder="Search colors…" />
-            <div id="colorList" class="d-list"></div>
+            <div id="colorList" class="d-list colors"></div>
           </div>
           <div id="colorTags" class="tags"></div>
         </div>
@@ -172,6 +194,15 @@
         </div>
 
         <div class="control">
+          <label class="muted">Country of origin</label>
+          <select id="country">
+            <option value="any">Any</option>
+            <option>China</option><option>France</option><option>India</option><option>Italy</option>
+            <option>Japan</option><option>Turkey</option><option>USA</option><option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="control">
           <label class="muted">Designer</label>
           <input id="designer" placeholder="e.g. Liberty, Mood, Joann" />
         </div>
@@ -188,7 +219,7 @@
 
   <main>
     <div class="wrap">
-      <div id="count" class="muted" style="margin-bottom:10px;"></div>
+      <div id="count" class="countline" style="margin-bottom:10px;"></div>
       <div id="grid" class="grid"></div>
       <div id="empty" class="empty" style="display:none;">No fabrics match your filters.</div>
     </div>
@@ -209,10 +240,13 @@
     const stretchEl = document.getElementById('stretch');
     const wminEl = document.getElementById('wmin');
     const wmaxEl = document.getElementById('wmax');
+    const widthMinEl = document.getElementById('widthMin');
+    const widthMaxEl = document.getElementById('widthMax');
     const pminEl = document.getElementById('pmin');
     const pmaxEl = document.getElementById('pmax');
     const conditionEl = document.getElementById('condition');
     const departmentEl = document.getElementById('department');
+    const countryEl = document.getElementById('country');
     const designerEl = document.getElementById('designer');
     const gridEl = document.getElementById('grid');
     const emptyEl = document.getElementById('empty');
@@ -221,15 +255,12 @@
     // navbar search delegates to main search
     globalSearch.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ qEl.value = globalSearch.value; query(); } });
 
-    /* ---------- Fabric Type dropdown (alphabetized + “other” visible) ---------- */
+    /* ---------- Fabric Type dropdown (alphabetized + “other” pinned last) ---------- */
     const FABRIC_TOKENS_UNSORTED = [
       'cotton','wool','silk','linen','denim','chiffon','crepe','jersey','satin','twill','canvas','lace','velvet',
       'rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic'
     ];
-    const ALL_FABRICS = [...FABRIC_TOKENS_UNSORTED, 'other']
-      .map(x=>x.toLowerCase())
-      .sort((a,b)=>a.localeCompare(b)); // alphabetical line
-
+    const ALL_FABRICS = [...FABRIC_TOKENS_UNSORTED].map(s=>s.toLowerCase()).sort((a,b)=>a.localeCompare(b)).concat('other');
     const FABRIC_TOKENS = FABRIC_TOKENS_UNSORTED.map(x=>x.toLowerCase()); // used for “other” logic
 
     const fabricState = new Set();
@@ -264,8 +295,7 @@
     renderFabricList();
     syncFabricUI();
 
-    /* ---------- Color dropdown (alphabetized + swatches) ---------- */
-    // IMPORTANT: color list must match DB whitelist to keep filters working.
+    /* ---------- Color dropdown (swatches + wrapped grid that fits narrow windows) ---------- */
     const COLOR_META = [
       ['beige',  '#e7d7b5'],
       ['black',  '#111827'],
@@ -279,7 +309,7 @@
       ['red',    '#ef4444'],
       ['white',  '#ffffff'],
       ['yellow', '#f59e0b'],
-    ].sort((a,b)=>a[0].localeCompare(b[0])); // alphabetical
+    ].sort((a,b)=>a[0].localeCompare(b[0]));
     const COLOR_OPTIONS = COLOR_META.map(([k])=>k);
 
     const colorState = new Set();
@@ -318,9 +348,20 @@
     syncColorUI();
 
     /* ---------- Cards & query ---------- */
+    const colorHex = (name)=> (COLOR_META.find(([k])=>k===name)||[])[1] || '#e5e7eb';
     function dollars(c){ return (c/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
+    function placeholderStyle(cname){
+      const base = colorHex((cname||'').toLowerCase());
+      return `background:
+        radial-gradient(circle at 30% 30%, #ffffff80 0%, #ffffff00 40%),
+        repeating-linear-gradient(45deg, #ffffff10 0px, #ffffff10 4px, #0000000b 4px, #0000000b 8px),
+        ${base};`;
+    }
     function card(item){
-      const t = item.thumbnail_url ? `<img class="thumb" src="${item.thumbnail_url}" alt="">` : `<div class="thumb">No image</div>`;
+      const hasImg = !!item.thumbnail_url;
+      const t = hasImg
+        ? `<img class="thumb" src="${item.thumbnail_url}" alt="">`
+        : `<div class="thumb" style="${placeholderStyle(item.color_category)}">No image</div>`;
       const lines=[ item.fabric_content||'—', `Color: ${item.color_category??'—'}`, `Weight: ${item.weight_gsm??'—'} gsm`,
                     `Stretch: ${item.stretch?'yes':'no'}`, `Fiber: ${item.fiber_type??'—'}`, `Width: ${item.width_in??'—'} in`,
                     `Origin: ${item.country_of_origin??'—'}`, `Yards: ${item.yards_available??'—'}` ];
@@ -331,14 +372,14 @@
     }
 
     async function query(){
-      gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='Loading…';
+      gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='Finding fabrics…';
 
       let base = supabase.from('catalog').select('*').limit(300);
 
       const term = (qEl.value || '').trim();
       if(term){ base = base.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`); }
 
-      // Colors (DB whitelist)
+      // Colors
       if(colorState.size>0){ base = base.in('color_category', [...colorState]); }
 
       // Stretch
@@ -349,6 +390,11 @@
       const wmin=parseInt(wminEl.value,10), wmax=parseInt(wmaxEl.value,10);
       if(!isNaN(wmin)) base = base.gte('weight_gsm', wmin);
       if(!isNaN(wmax)) base = base.lte('weight_gsm', wmax);
+
+      // Width
+      const witMin=parseInt(widthMinEl.value,10), witMax=parseInt(widthMaxEl.value,10);
+      if(!isNaN(witMin)) base = base.gte('width_in', witMin);
+      if(!isNaN(witMax)) base = base.lte('width_in', witMax);
 
       // Price
       const pmin=parseInt(pminEl.value,10), pmax=parseInt(pmaxEl.value,10);
@@ -380,10 +426,12 @@
         const map=new Map(); [...(resA.data||[]), ...(resB.data||[])].forEach(r=>map.set(r.id,r)); rows=[...map.values()];
       }
 
-      // Client-side (safe) extras
+      // Client-side extras
       const cond = conditionEl.value;
       const dept = departmentEl.value;
       const desg = (designerEl.value||'').trim().toLowerCase();
+      const countryPick = countryEl.value;
+
       rows = rows.filter(r=>{
         if (cond!=='any' && (r.condition||'').toLowerCase()!==cond) return false;
         if (dept!=='any' && (r.department||'').toLowerCase()!==dept) return false;
@@ -391,10 +439,19 @@
           const hay = `${r.designer||''} ${r.title||''} ${r.fabric_content||''}`.toLowerCase();
           if (!hay.includes(desg)) return false;
         }
+        if (countryPick!=='any') {
+          const known = ['China','France','India','Italy','Japan','Turkey','USA'];
+          const v = r.country_of_origin || '';
+          if (countryPick==='other') {
+            if (known.includes(v)) return false;
+          } else {
+            if (v !== countryPick) return false;
+          }
+        }
         return true;
       });
 
-      countEl.textContent = `${rows.length} fabric${rows.length===1?'':'s'}`;
+      countEl.textContent = `✨ ${rows.length} fabric${rows.length===1?'':'s'} found ✨`;
       if (rows.length === 0) { emptyEl.style.display='block'; gridEl.innerHTML=''; return; }
       gridEl.innerHTML = rows.map(card).join('');
     }
@@ -404,8 +461,9 @@
     document.getElementById('apply').onclick = query;
     document.getElementById('reset').onclick = () => {
       globalSearch.value=''; qEl.value=''; sortEl.value='newest'; stretchEl.value='any';
-      wminEl.value=''; wmaxEl.value=''; pminEl.value=''; pmaxEl.value='';
-      conditionEl.value='any'; departmentEl.value='any'; designerEl.value='';
+      wminEl.value=''; wmaxEl.value=''; widthMinEl.value=''; widthMaxEl.value='';
+      pminEl.value=''; pmaxEl.value='';
+      conditionEl.value='any'; departmentEl.value='any'; countryEl.value='any'; designerEl.value='';
       fabricState.clear(); syncFabricUI();
       colorState.clear(); syncColorUI();
       query();
