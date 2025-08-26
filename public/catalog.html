@@ -35,10 +35,10 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-    // === Supabase credentials (correct project URL) ===
+    // === Correct Supabase credentials ===
     const SUPABASE_URL  = "https://clkizksbvyjkoatdajgd.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYvWTjOlt12Tdpr91WKhKm7wNtuK2_Kj0lOiZHU";
-    // ================================================
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+    // ====================================
 
     const envEl = document.getElementById('env');
     const t1 = document.getElementById('t1');
@@ -74,7 +74,15 @@
         const r = await fetch(SUPABASE_URL + "/rest/v1/catalog?select=*", {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
         });
-        t3.textContent = "status " + r.status;
+        if (!r.ok) {
+          const txt = await r.text();
+          t3.textContent = `HTTP ${r.status}: ${txt.slice(0,200)}`;
+          log("T3 body: " + txt);
+        } else {
+          const json = await r.json();
+          t3.textContent = `OK: ${json.length} rows`;
+          log("T3 rows: " + JSON.stringify(json, null, 2));
+        }
       } catch (e) { t3.textContent = "Failed: " + e.message; }
 
       try {
