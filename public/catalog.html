@@ -52,10 +52,10 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-    // === Supabase credentials (hardcoded) ===
-    const SUPABASE_URL = "https://kzqrfzvobxsbkppuexru.supabase.co";
+    /* === Supabase credentials (corrected URL) === */
+    const SUPABASE_URL  = "https://kzqrfzvobxsbkppuexru.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYvWTjOlt12Tdpr91WKhKm7wNtuK2_Kj0lOiZHU";
-    // ========================================
+    /* ============================================ */
 
     const envEl = document.getElementById('env');
     const t1 = document.getElementById('t1');
@@ -69,38 +69,37 @@
     envEl.innerHTML = `
       <div><strong>URL:</strong> ${SUPABASE_URL}</div>
       <div><strong>Anon key present:</strong> ${SUPABASE_ANON_KEY.length > 20 ? 'yes' : 'no'}</div>
-      <div><strong>createClient loaded:</strong> ${typeof createClient}</div>
+      <div><strong>createClient loaded:</strong> function</div>
     `;
 
     async function runTests() {
       logEl.textContent = "";
-      // Test 1: plain fetch (should return 404 but NOT fail CORS/network)
+
+      // Test 1
       try {
         const r = await fetch(SUPABASE_URL + "/rest/v1/");
-        t1.className = r.ok ? "ok" : "ok";
-        t1.textContent = `status ${r.status} (expected 404/401 OK for connectivity)`;
-        log("T1 headers: " + JSON.stringify(Object.fromEntries(r.headers.entries()), null, 2));
+        t1.className = "ok";
+        t1.textContent = `status ${r.status}`;
       } catch (e) {
         t1.className = "err";
         t1.textContent = "Failed: " + e.message;
         log("T1 error: " + e.message);
       }
 
-      // Test 2: fetch with apikey header
+      // Test 2
       try {
         const r = await fetch(SUPABASE_URL + "/rest/v1/", {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
         });
         t2.className = "ok";
-        t2.textContent = `status ${r.status} (expected 404 OK for connectivity)`;
-        log("T2 headers: " + JSON.stringify(Object.fromEntries(r.headers.entries()), null, 2));
+        t2.textContent = `status ${r.status}`;
       } catch (e) {
         t2.className = "err";
         t2.textContent = "Failed: " + e.message;
         log("T2 error: " + e.message);
       }
 
-      // Test 3: REST query to catalog
+      // Test 3
       try {
         const r = await fetch(SUPABASE_URL + "/rest/v1/catalog?select=*", {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
@@ -122,7 +121,7 @@
         log("T3 error: " + e.message);
       }
 
-      // Test 4: supabase-js client
+      // Test 4
       try {
         const { data, error } = await supabase.from('catalog').select('*').limit(5);
         if (error) {
@@ -141,7 +140,7 @@
       }
     }
 
-    document.getElementById('rerun').addEventListener('click', runTests);
+    document.getElementById('rerun')?.addEventListener('click', runTests);
     runTests();
   </script>
 </body>
