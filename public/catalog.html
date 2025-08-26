@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hemline Market — Connectivity Recheck</title>
+  <title>Hemline Market — Catalog Debug</title>
   <link rel="icon" href="/favicon.ico">
   <style>
     body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;color:#111}
@@ -16,7 +16,7 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Connectivity Recheck</h1>
+    <h1>Catalog Debug</h1>
     <div class="card" id="env"></div>
     <div class="card"><strong>Test 1 — GET /rest/v1/</strong><div id="t1">pending…</div></div>
     <div class="card"><strong>Test 2 — GET /rest/v1/catalog?select=*</strong><div id="t2">pending…</div></div>
@@ -28,7 +28,7 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-    const SUPABASE_URL  = "https://clkizksbvyjkoatdajgd.supabase.co";
+    const SUPABASE_URL  = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
     const env = document.getElementById('env');
@@ -38,60 +38,49 @@
     const logEl = document.getElementById('log');
     const log = (m) => { console.log(m); logEl.textContent += m + "\n"; };
 
-    env.textContent = `URL: ${SUPABASE_URL} | anon key: present | createClient: ${typeof createClient}`;
+    env.textContent = `URL: ${SUPABASE_URL} | anon key present | createClient: ${typeof createClient}`;
 
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
     async function run() {
       logEl.textContent = "";
 
-      // T1: root of REST API (should return 401/404 if reachable)
       try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/`, { method:"GET" });
-        t1.className = "ok";
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/`);
         t1.textContent = `HTTP ${r.status}`;
       } catch (e) {
-        t1.className = "err";
         t1.textContent = `Failed: ${e.message}`;
         log("T1: " + e.message);
       }
 
-      // T2: catalog via REST
       try {
         const r = await fetch(`${SUPABASE_URL}/rest/v1/catalog?select=*`, {
           headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
         });
         if (!r.ok) {
           const txt = await r.text();
-          t2.className = "err";
           t2.textContent = `HTTP ${r.status}: ${txt.slice(0,120)}`;
-          log("T2 body: " + txt);
+          log("T2: " + txt);
         } else {
           const json = await r.json();
-          t2.className = "ok";
           t2.textContent = `OK: ${json.length} rows`;
           log("T2 rows: " + JSON.stringify(json, null, 2));
         }
       } catch (e) {
-        t2.className = "err";
         t2.textContent = `Failed: ${e.message}`;
         log("T2: " + e.message);
       }
 
-      // T3: supabase-js client
       try {
         const { data, error } = await sb.from('catalog').select('*').limit(5);
         if (error) {
-          t3.className = "err";
           t3.textContent = `Supabase error: ${error.message}`;
-          log("T3 error: " + error.message);
+          log("T3: " + error.message);
         } else {
-          t3.className = "ok";
           t3.textContent = `OK: ${data.length} rows`;
           log("T3 rows: " + JSON.stringify(data, null, 2));
         }
       } catch (e) {
-        t3.className = "err";
         t3.textContent = `Failed: ${e.message}`;
         log("T3: " + e.message);
       }
