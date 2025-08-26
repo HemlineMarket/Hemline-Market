@@ -20,7 +20,7 @@
     .link-btn { padding:8px 12px; border:1px solid var(--border); border-radius:999px; background:#fff; text-decoration:none; color:var(--ink); }
     .link-cta { background:var(--brand); color:#fff; border-color:var(--brand); }
 
-    /* Controls row */
+    /* Filters row */
     header.filt { position:sticky; top:58px; z-index:10; background:#fff; border-bottom:1px solid var(--border); }
     .wrap { max-width:1100px; margin:0 auto; padding:12px 16px; }
     .controls { display:grid; grid-template-columns:1fr repeat(7, minmax(150px, 220px)); gap:var(--gap); align-items:end; }
@@ -35,11 +35,15 @@
     /* Dropdown (shared) */
     .dropdown { position:relative; }
     .dropdown-btn { display:flex; align-items:center; gap:8px; justify-content:space-between; min-height:38px; }
-    .dropdown-panel { position:absolute; top:calc(100% + 6px); left:0; width:320px; max-height:300px; overflow:auto; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 10px 24px rgba(0,0,0,.08); padding:10px; display:none; }
+    .dropdown-panel { position:absolute; top:calc(100% + 6px); left:0; width:680px; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 10px 24px rgba(0,0,0,.08); padding:10px; display:none; }
     .dropdown.open .dropdown-panel { display:block; }
     .d-search { width:100%; margin-bottom:8px; }
-    .d-list { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }
-    .d-item { display:flex; align-items:center; gap:6px; }
+    /* Chip layout (one big alphabetized "line" that wraps) */
+    .d-list { display:flex; flex-wrap:wrap; gap:8px 10px; }
+    .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--border); border-radius:999px; user-select:none; cursor:pointer; }
+    .chip input { appearance:none; width:14px; height:14px; border-radius:999px; border:1px solid var(--border); display:inline-block; position:relative; }
+    .chip input:checked { background:#111827; border-color:#111827; }
+    .chip .swatch { width:12px; height:12px; border-radius:999px; border:1px solid rgba(0,0,0,.15); }
     .tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
     .tag { background:var(--ink); color:#fff; padding:3px 8px; border-radius:999px; font-size:12px; }
     .count-pill { background:#f3f4f6; color:#374151; padding:2px 8px; border-radius:999px; font-size:12px; }
@@ -108,7 +112,6 @@
           <input id="wmax" type="number" min="0" placeholder="e.g. 300" />
         </div>
 
-        <!-- Price min/max -->
         <div class="control">
           <label class="muted">Price min (USD)</label>
           <input id="pmin" type="number" min="0" placeholder="e.g. 10" />
@@ -125,7 +128,7 @@
             <span id="fabricBtnText">Select fabric types</span>
             <span id="fabricCount" class="count-pill" style="display:none;">0</span>
           </button>
-          <div class="dropdown-panel">
+          <div class="dropdown-panel" id="fabricPanel">
             <input id="fabricSearch" class="d-search" placeholder="Search types…" />
             <div id="fabricList" class="d-list"></div>
           </div>
@@ -139,14 +142,13 @@
             <span id="colorBtnText">Select colors</span>
             <span id="colorCount" class="count-pill" style="display:none;">0</span>
           </button>
-          <div class="dropdown-panel">
+          <div class="dropdown-panel" id="colorPanel">
             <input id="colorSearch" class="d-search" placeholder="Search colors…" />
             <div id="colorList" class="d-list"></div>
           </div>
           <div id="colorTags" class="tags"></div>
         </div>
 
-        <!-- Condition -->
         <div class="control">
           <label class="muted">Condition</label>
           <select id="condition">
@@ -158,7 +160,6 @@
           </select>
         </div>
 
-        <!-- Department -->
         <div class="control">
           <label class="muted">Department</label>
           <select id="department">
@@ -170,7 +171,6 @@
           </select>
         </div>
 
-        <!-- Designer -->
         <div class="control">
           <label class="muted">Designer</label>
           <input id="designer" placeholder="e.g. Liberty, Mood, Joann" />
@@ -218,15 +218,20 @@
     const emptyEl = document.getElementById('empty');
     const countEl = document.getElementById('count');
 
-    // Navbar search pipes into main search
+    // navbar search delegates to main search
     globalSearch.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ qEl.value = globalSearch.value; query(); } });
 
-    /* ---------- Fabric Type dropdown ---------- */
-    const FABRIC_TOKENS = [
+    /* ---------- Fabric Type dropdown (alphabetized + “other” visible) ---------- */
+    const FABRIC_TOKENS_UNSORTED = [
       'cotton','wool','silk','linen','denim','chiffon','crepe','jersey','satin','twill','canvas','lace','velvet',
       'rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic'
     ];
-    const ALL_FABRICS = [...FABRIC_TOKENS, 'other'];
+    const ALL_FABRICS = [...FABRIC_TOKENS_UNSORTED, 'other']
+      .map(x=>x.toLowerCase())
+      .sort((a,b)=>a.localeCompare(b)); // alphabetical line
+
+    const FABRIC_TOKENS = FABRIC_TOKENS_UNSORTED.map(x=>x.toLowerCase()); // used for “other” logic
+
     const fabricState = new Set();
     const fabricDD = document.getElementById('fabricDD');
     const fabricBtn = document.getElementById('fabricBtn');
@@ -240,7 +245,7 @@
       const term=filter.trim().toLowerCase();
       fabricList.innerHTML='';
       ALL_FABRICS.filter(k=>!term||k.includes(term)).forEach(k=>{
-        const row=document.createElement('label'); row.className='d-item';
+        const row=document.createElement('label'); row.className='chip';
         row.innerHTML=`<input type="checkbox" ${fabricState.has(k)?'checked':''}><span>${k}</span>`;
         row.querySelector('input').onchange=(e)=>{ if(e.target.checked) fabricState.add(k); else fabricState.delete(k); syncFabricUI(); };
         fabricList.appendChild(row);
@@ -256,11 +261,27 @@
     fabricBtn.onclick=()=>fabricDD.classList.toggle('open');
     document.addEventListener('click',(e)=>{ if(!fabricDD.contains(e.target)) fabricDD.classList.remove('open'); });
     fabricSearch.addEventListener('input',()=>renderFabricList(fabricSearch.value));
-    renderFabricList(); // IMPORTANT: build immediately so it “populates”
+    renderFabricList();
     syncFabricUI();
 
-    /* ---------- Color dropdown ---------- */
-    const COLOR_OPTIONS = ['black','gray','white','beige','brown','yellow','orange','red','pink','purple','blue','green'];
+    /* ---------- Color dropdown (alphabetized + swatches) ---------- */
+    // IMPORTANT: color list must match DB whitelist to keep filters working.
+    const COLOR_META = [
+      ['beige',  '#e7d7b5'],
+      ['black',  '#111827'],
+      ['blue',   '#3b82f6'],
+      ['brown',  '#8b5a2b'],
+      ['gray',   '#9ca3af'],
+      ['green',  '#22c55e'],
+      ['orange', '#fb923c'],
+      ['pink',   '#f472b6'],
+      ['purple', '#a78bfa'],
+      ['red',    '#ef4444'],
+      ['white',  '#ffffff'],
+      ['yellow', '#f59e0b'],
+    ].sort((a,b)=>a[0].localeCompare(b[0])); // alphabetical
+    const COLOR_OPTIONS = COLOR_META.map(([k])=>k);
+
     const colorState = new Set();
     const colorDD = document.getElementById('colorDD');
     const colorBtn = document.getElementById('colorBtn');
@@ -273,16 +294,19 @@
     function renderColorList(filter=''){
       const term=filter.trim().toLowerCase();
       colorList.innerHTML='';
-      COLOR_OPTIONS.filter(k=>!term||k.includes(term)).forEach(k=>{
-        const row=document.createElement('label'); row.className='d-item';
-        row.innerHTML=`<input type="checkbox" ${colorState.has(k)?'checked':''}><span>${k}</span>`;
+      COLOR_META.filter(([k])=>!term||k.includes(term)).forEach(([k,hex])=>{
+        const row=document.createElement('label'); row.className='chip';
+        row.innerHTML=`<span class="swatch" style="background:${hex}"></span><input type="checkbox" ${colorState.has(k)?'checked':''}><span>${k}</span>`;
         row.querySelector('input').onchange=(e)=>{ if(e.target.checked) colorState.add(k); else colorState.delete(k); syncColorUI(); };
         colorList.appendChild(row);
       });
     }
     function syncColorUI(){
       const vals=[...colorState];
-      colorTags.innerHTML = vals.map(v=>`<span class="tag">${v}</span>`).join('');
+      colorTags.innerHTML = vals.map(v=>{
+        const hex = (COLOR_META.find(([k])=>k===v)||[])[1] || '#111827';
+        return `<span class="tag" style="background:${hex}; color:${v==='white'?'#111':''}">${v}</span>`;
+      }).join('');
       if(vals.length===0){ colorBtnText.textContent='Select colors'; colorBtnCount.style.display='none'; }
       else { colorBtnText.textContent='Color'; colorBtnCount.style.display='inline-flex'; colorBtnCount.textContent=vals.length; }
       renderColorList(colorSearch.value||'');
@@ -290,7 +314,7 @@
     colorBtn.onclick=()=>colorDD.classList.toggle('open');
     document.addEventListener('click',(e)=>{ if(!colorDD.contains(e.target)) colorDD.classList.remove('open'); });
     colorSearch.addEventListener('input',()=>renderColorList(colorSearch.value));
-    renderColorList(); // populate immediately
+    renderColorList();
     syncColorUI();
 
     /* ---------- Cards & query ---------- */
@@ -311,11 +335,10 @@
 
       let base = supabase.from('catalog').select('*').limit(300);
 
-      // Text search (navbar + local)
       const term = (qEl.value || '').trim();
       if(term){ base = base.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`); }
 
-      // Color
+      // Colors (DB whitelist)
       if(colorState.size>0){ base = base.in('color_category', [...colorState]); }
 
       // Stretch
@@ -327,7 +350,7 @@
       if(!isNaN(wmin)) base = base.gte('weight_gsm', wmin);
       if(!isNaN(wmax)) base = base.lte('weight_gsm', wmax);
 
-      // Price (cents)
+      // Price
       const pmin=parseInt(pminEl.value,10), pmax=parseInt(pmaxEl.value,10);
       if(!isNaN(pmin)) base = base.gte('price_cents', Math.round(pmin*100));
       if(!isNaN(pmax)) base = base.lte('price_cents', Math.round(pmax*100));
@@ -337,7 +360,7 @@
       if(sortEl.value==='price_asc') base = base.order('price_cents',{ascending:true});
       if(sortEl.value==='price_desc') base = base.order('price_cents',{ascending:false});
 
-      // Fabric Type logic (“other” supported)
+      // Fabric Type (supports “other”)
       const selected = [...fabricState];
       let rows = [];
       if (selected.length === 0) {
@@ -357,23 +380,13 @@
         const map=new Map(); [...(resA.data||[]), ...(resB.data||[])].forEach(r=>map.set(r.id,r)); rows=[...map.values()];
       }
 
-      // Client-side filters that may not yet exist as DB columns (non-breaking):
-      const cond = conditionEl.value;        // expects row.condition if present
-      const dept = departmentEl.value;       // expects row.department if present
+      // Client-side (safe) extras
+      const cond = conditionEl.value;
+      const dept = departmentEl.value;
       const desg = (designerEl.value||'').trim().toLowerCase();
-
       rows = rows.filter(r=>{
-        // condition
-        if (cond!=='any') {
-          const v = (r.condition||'').toLowerCase();
-          if (v!==cond) return false;
-        }
-        // department
-        if (dept!=='any') {
-          const v = (r.department||'').toLowerCase();
-          if (v!==dept) return false;
-        }
-        // designer (match against r.designer if present, otherwise fallback to title/content)
+        if (cond!=='any' && (r.condition||'').toLowerCase()!==cond) return false;
+        if (dept!=='any' && (r.department||'').toLowerCase()!==dept) return false;
         if (desg) {
           const hay = `${r.designer||''} ${r.title||''} ${r.fabric_content||''}`.toLowerCase();
           if (!hay.includes(desg)) return false;
