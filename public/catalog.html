@@ -6,44 +6,57 @@
   <title>Hemline Market — Catalog</title>
   <link rel="icon" href="/favicon.ico">
   <style>
-    :root { --gap:14px; --border:#e5e7eb; --muted:#6b7280; }
-    * { box-sizing: border-box; }
-    body { font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; color:#111827; background:#fff; }
-    header { position:sticky; top:0; background:#fff; border-bottom:1px solid var(--border); padding:12px 16px; z-index:10; }
-    .wrap { max-width:1100px; margin:0 auto; }
-    .controls { display:flex; flex-wrap:wrap; gap:var(--gap); align-items:flex-end; }
+    :root { --gap:14px; --border:#e5e7eb; --muted:#6b7280; --ink:#111827; --bg:#ffffff; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif; color:var(--ink); background:var(--bg); }
+    header { position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid var(--border); }
+    .wrap { max-width:1100px; margin:0 auto; padding:12px 16px; }
+    .controls { display:grid; grid-template-columns:1fr repeat(3, minmax(160px, 220px)) repeat(2, minmax(120px, 180px)); gap:var(--gap); align-items:end; }
+    @media (max-width:1000px){ .controls { grid-template-columns:1fr 1fr; } }
     .control { display:flex; flex-direction:column; gap:6px; }
-    .control input, .control select { padding:8px 10px; border:1px solid var(--border); border-radius:10px; min-width:180px; }
-    .select-multi { padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:#fff; min-width:220px; }
+    .muted { color:var(--muted); }
+    input, select, button { border:1px solid var(--border); border-radius:10px; padding:8px 10px; background:#fff; }
+    button { cursor:pointer; }
+    .btn { padding:9px 14px; }
+    .btn.primary { background:var(--ink); color:#fff; border-color:var(--ink); }
+
+    /* Dropdown (Fabric Type) */
+    .dropdown { position:relative; }
+    .dropdown-btn { display:flex; align-items:center; gap:8px; justify-content:space-between; min-height:38px; }
+    .dropdown-panel { position:absolute; top:calc(100% + 6px); left:0; width:320px; max-height:300px; overflow:auto; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 10px 24px rgba(0,0,0,.08); padding:10px; display:none; }
+    .dropdown.open .dropdown-panel { display:block; }
+    .d-search { width:100%; margin-bottom:8px; }
+    .d-list { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }
+    .d-item { display:flex; align-items:center; gap:6px; }
     .tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
-    .tag { background:#111827; color:#fff; padding:3px 8px; border-radius:999px; font-size:12px; }
-    .btn { padding:9px 14px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
-    .btn.primary { background:#111827; color:#fff; border-color:#111827; }
+    .tag { background:var(--ink); color:#fff; padding:3px 8px; border-radius:999px; font-size:12px; }
+    .count-pill { background:#f3f4f6; color:#374151; padding:2px 8px; border-radius:999px; font-size:12px; }
+
+    /* Color wheel */
+    .row-xl { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; margin-top:12px; }
+    .wheel { width:240px; height:240px; }
+    .legend { display:grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap:6px 12px; align-items:center; }
+    .legend .bullet { width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid rgba(0,0,0,.15); }
+    .sel-colors { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .sel-colors .tag { background:#111827; }
+    .wheel path { outline:none; transition:transform .18s ease, stroke-width .18s ease; transform-origin:50% 50%; transform-box:fill-box; }
+    .wheel path.sel { stroke:#111827; stroke-width:2.6; transform:scale(1.04); }
+
     main { padding:18px 16px 40px; }
     .grid { display:grid; grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) ); gap:var(--gap); }
     .card { border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; }
-    .thumb { aspect-ratio: 4 / 3; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#6b7280; font-size:12px; }
-    .card .body { padding:12px; display:flex; flex-direction:column; gap:6px; }
+    .thumb { aspect-ratio:4/3; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#6b7280; font-size:12px; }
+    .body { padding:12px; display:flex; flex-direction:column; gap:6px; }
     .title { font-weight:600; }
-    .muted { color:#6b7280; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; }
     .spacer { flex:1; }
-    .empty { padding:30px; text-align:center; color:#6b7280; border:1px dashed var(--border); border-radius:12px; }
-
-    /* color wheel */
-    .wheel-wrap { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
-    .wheel { width:260px; height:260px; }
-    .legend { display:grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap:6px 12px; align-items:center; }
-    .legend .bullet { width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid rgba(0,0,0,.15); }
-    .wheel path { outline:none; transition: transform .18s ease, stroke-width .18s ease; transform-origin: 50% 50%; transform-box: fill-box; }
-    .wheel path.sel { stroke:#111827; stroke-width:2.6; transform: scale(1.04); }
+    .empty { border:1px dashed var(--border); border-radius:12px; padding:30px; text-align:center; color:var(--muted); }
   </style>
 </head>
 <body>
   <header>
     <div class="wrap">
       <div class="controls">
-        <div class="control" style="flex:1; min-width:260px;">
+        <div class="control" style="grid-column:1 / -1;">
           <label class="muted">Search (title or fabric content)</label>
           <input id="q" placeholder="e.g. wool, silk, lawn" />
         </div>
@@ -70,57 +83,44 @@
           <label class="muted">Weight (gsm) min</label>
           <input id="wmin" type="number" min="0" placeholder="e.g. 60" />
         </div>
+
         <div class="control">
           <label class="muted">Weight (gsm) max</label>
           <input id="wmax" type="number" min="0" placeholder="e.g. 300" />
         </div>
 
-        <div class="control" style="min-width:100%;"></div>
-
-        <!-- Fabric Type: multi-select dropdown -->
-        <div class="control">
-          <label class="muted">Fabric Type (multi-select)</label>
-          <select id="fabricSelect" class="select-multi" multiple size="5">
-            <option value="cotton">cotton</option>
-            <option value="wool">wool</option>
-            <option value="silk">silk</option>
-            <option value="linen">linen</option>
-            <option value="denim">denim</option>
-            <option value="chiffon">chiffon</option>
-            <option value="crepe">crepe</option>
-            <option value="jersey">jersey</option>
-            <option value="satin">satin</option>
-            <option value="twill">twill</option>
-            <option value="canvas">canvas</option>
-            <option value="lace">lace</option>
-            <option value="velvet">velvet</option>
-            <option value="rayon">rayon</option>
-            <option value="viscose">viscose</option>
-            <option value="modal">modal</option>
-            <option value="tencel">tencel</option>
-            <option value="lyocell">lyocell</option>
-            <option value="polyester">polyester</option>
-            <option value="nylon">nylon</option>
-            <option value="acrylic">acrylic</option>
-          </select>
+        <!-- Fabric Type dropdown -->
+        <div class="control dropdown" id="fabricDD">
+          <label class="muted">Fabric Type</label>
+          <button class="dropdown-btn" id="fabricBtn">
+            <span id="fabricBtnText">Select fabric types</span>
+            <span id="fabricCount" class="count-pill" style="display:none;">0</span>
+          </button>
+          <div class="dropdown-panel">
+            <input id="fabricSearch" class="d-search" placeholder="Search types…" />
+            <div id="fabricList" class="d-list"></div>
+          </div>
           <div id="fabricTags" class="tags"></div>
         </div>
 
-        <div class="control" style="min-width:100%;"></div>
+        <div class="control" style="align-self:center;">
+          <button class="btn" id="reset">Reset</button>
+        </div>
+        <div class="control" style="align-self:center;">
+          <button class="btn primary" id="apply">Apply Filters</button>
+        </div>
+      </div>
 
-        <!-- Color Wheel -->
-        <div class="control" style="min-width:100%;">
-          <label class="muted">Color</label>
-          <div class="wheel-wrap">
-            <svg id="colorWheel" class="wheel" viewBox="0 0 100 100"></svg>
-            <div class="legend" id="legend"></div>
+      <!-- Colors -->
+      <div class="control" style="margin-top:10px;">
+        <label class="muted">Color</label>
+        <div class="row-xl">
+          <svg id="colorWheel" class="wheel" viewBox="0 0 100 100"></svg>
+          <div>
+            <div id="legend" class="legend"></div>
+            <div id="selColors" class="sel-colors"></div>
           </div>
         </div>
-
-        <div class="spacer"></div>
-
-        <button class="btn" id="reset">Reset</button>
-        <button class="btn primary" id="apply">Apply Filters</button>
       </div>
     </div>
   </header>
@@ -136,10 +136,12 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
+    // --- Supabase ---
     const SUPABASE_URL  = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+    // --- UI refs ---
     const qEl = document.getElementById('q');
     const sortEl = document.getElementById('sort');
     const stretchEl = document.getElementById('stretch');
@@ -149,20 +151,65 @@
     const emptyEl = document.getElementById('empty');
     const countEl = document.getElementById('count');
 
-    // Fabric dropdown helpers
-    const fabricSelect = document.getElementById('fabricSelect');
-    const fabricTags = document.getElementById('fabricTags');
-    function getSelectedFabrics(){
-      return Array.from(fabricSelect.selectedOptions).map(o => o.value);
-    }
-    function renderFabricTags(){
-      const values = getSelectedFabrics();
-      fabricTags.innerHTML = values.map(v => `<span class="tag">${v}</span>`).join('');
-    }
-    fabricSelect.addEventListener('change', renderFabricTags);
-    renderFabricTags();
+    // ===== Fabric Type dropdown =====
+    // Canonical fabric tokens we’ll search for inside fabric_content (ILIKE)
+    const FABRIC_TOKENS = [
+      'cotton','wool','silk','linen','denim','chiffon','crepe','jersey','satin','twill','canvas','lace','velvet',
+      'rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic'
+    ];
+    const ALL_FABRIC_OPTIONS = [...FABRIC_TOKENS, 'other']; // includes "Other"
+    const fabricState = new Set(); // selected values
+    const dd = document.getElementById('fabricDD');
+    const btn = document.getElementById('fabricBtn');
+    const btnText = document.getElementById('fabricBtnText');
+    const btnCount = document.getElementById('fabricCount');
+    const panel = dd.querySelector('.dropdown-panel');
+    const listEl = document.getElementById('fabricList');
+    const tagsEl = document.getElementById('fabricTags');
+    const searchEl = document.getElementById('fabricSearch');
 
-    // Color wheel
+    // Build list with checkboxes
+    function renderFabricList(filter='') {
+      const needle = filter.trim().toLowerCase();
+      listEl.innerHTML = '';
+      ALL_FABRIC_OPTIONS
+        .filter(k => !needle || k.includes(needle))
+        .forEach(k => {
+          const id = `fab-${k}`;
+          const row = document.createElement('label');
+          row.className = 'd-item';
+          row.innerHTML = `<input type="checkbox" id="${id}" ${fabricState.has(k)?'checked':''}><span>${k}</span>`;
+          row.querySelector('input').onchange = (e) => {
+            if (e.target.checked) fabricState.add(k); else fabricState.delete(k);
+            syncFabricUI();
+          };
+          listEl.appendChild(row);
+        });
+    }
+    function syncFabricUI() {
+      // Tags under the field
+      const vals = [...fabricState];
+      tagsEl.innerHTML = vals.map(v => `<span class="tag">${v}</span>`).join('');
+      // Button text + count
+      if (vals.length === 0) {
+        btnText.textContent = 'Select fabric types';
+        btnCount.style.display = 'none';
+      } else {
+        btnText.textContent = 'Fabric Type';
+        btnCount.style.display = 'inline-flex';
+        btnCount.textContent = vals.length;
+      }
+      // Keep list checkboxes in sync after search changes
+      renderFabricList(searchEl.value || '');
+    }
+    btn.onclick = () => { dd.classList.toggle('open'); };
+    document.addEventListener('click', (e) => {
+      if (!dd.contains(e.target)) dd.classList.remove('open');
+    });
+    searchEl.addEventListener('input', () => renderFabricList(searchEl.value));
+    renderFabricList(); // initial
+
+    // ===== Color wheel (with selected color tags) =====
     const COLORS = [
       {key:'black',  fill:'#111827'},
       {key:'gray',   fill:'#9ca3af'},
@@ -177,9 +224,14 @@
       {key:'blue',   fill:'#3b82f6'},
       {key:'green',  fill:'#22c55e'}
     ];
-    const selectedColors = new Set();
-    const svg = document.getElementById('colorWheel');
+    const selColors = new Set();
+    const wheel = document.getElementById('colorWheel');
     const legend = document.getElementById('legend');
+    const selColorsEl = document.getElementById('selColors');
+
+    function renderSelectedColors() {
+      selColorsEl.innerHTML = [...selColors].map(c => `<span class="tag">${c}</span>`).join('');
+    }
 
     function addSlice(cx, cy, r, startDeg, endDeg, fill, key) {
       const toXY = (deg) => { const rad=(deg-90)*Math.PI/180; return [cx+r*Math.cos(rad), cy+r*Math.sin(rad)]; };
@@ -192,8 +244,8 @@
       p.setAttribute('stroke', '#ffffff');
       p.setAttribute('stroke-width','0.7');
       p.style.cursor='pointer';
-      p.addEventListener('click', ()=>toggleColor(key,p));
-      svg.appendChild(p);
+      p.addEventListener('click', () => toggleColor(key,p));
+      wheel.appendChild(p);
       return p;
     }
     const cx=50, cy=50, r=48, slice=360/COLORS.length, sliceElems={};
@@ -207,19 +259,16 @@
       legend.appendChild(row);
     });
     function toggleColor(key, elem){
-      if(selectedColors.has(key)){
-        selectedColors.delete(key);
-        elem.classList.remove('sel');
-      } else {
-        selectedColors.add(key);
-        elem.classList.add('sel');
-      }
+      if(selColors.has(key)){ selColors.delete(key); elem.classList.remove('sel'); }
+      else { selColors.add(key); elem.classList.add('sel'); }
+      renderSelectedColors();
     }
-    function clearWheel(){
-      selectedColors.clear();
-      Object.values(sliceElems).forEach(p=>p.classList.remove('sel'));
+    function clearColors(){
+      selColors.clear(); Object.values(sliceElems).forEach(p=>p.classList.remove('sel')); renderSelectedColors();
     }
+    renderSelectedColors();
 
+    // ===== Cards & query =====
     function dollars(c){ return (c/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
     function card(item){
       const t = item.thumbnail_url ? `<img class="thumb" src="${item.thumbnail_url}" alt="">` : `<div class="thumb">No image</div>`;
@@ -227,60 +276,96 @@
                     `Stretch: ${item.stretch?'yes':'no'}`, `Fiber: ${item.fiber_type??'—'}`, `Width: ${item.width_in??'—'} in`,
                     `Origin: ${item.country_of_origin??'—'}`, `Yards: ${item.yards_available??'—'}` ];
       return `<div class="card">${t}<div class="body"><div class="title">${item.title||'Fabric'}</div>
-              <div class="row"><div>${item.price_cents!=null?dollars(item.price_cents):''}</div>
+              <div style="display:flex;gap:8px;align-items:center;"><div>${item.price_cents!=null?dollars(item.price_cents):''}</div>
               <div class="spacer"></div><div class="muted">${new Date(item.created_at).toLocaleDateString()}</div></div>
               <div class="muted">${lines.join(' · ')}</div></div></div>`;
     }
 
     async function query(){
       gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='Loading…';
-      let q = supabase.from('catalog').select('*').limit(60);
 
+      // Base
+      let base = supabase.from('catalog').select('*').limit(200);
+
+      // Search
       const term=qEl.value.trim();
-      if(term){ q=q.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`); }
-
-      // Fabric types: build OR over fabric_content ILIKE
-      const fabrics = getSelectedFabrics();
-      if(fabrics.length>0){
-        const ors = fabrics.map(k => `fabric_content.ilike.%${k}%`).join(',');
-        q = q.or(ors);
-      }
+      if(term){ base = base.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`); }
 
       // Colors
-      if(selectedColors.size>0){ q=q.in('color_category', Array.from(selectedColors)); }
+      if(selColors.size>0){ base = base.in('color_category', [...selColors]); }
 
       // Stretch
-      if(stretchEl.value==='true') q=q.eq('stretch',true);
-      if(stretchEl.value==='false') q=q.eq('stretch',false);
+      if(stretchEl.value==='true') base = base.eq('stretch',true);
+      if(stretchEl.value==='false') base = base.eq('stretch',false);
 
-      // Weight range
+      // Weight
       const wmin=parseInt(wminEl.value,10), wmax=parseInt(wmaxEl.value,10);
-      if(!isNaN(wmin)) q=q.gte('weight_gsm', wmin);
-      if(!isNaN(wmax)) q=q.lte('weight_gsm', wmax);
+      if(!isNaN(wmin)) base = base.gte('weight_gsm', wmin);
+      if(!isNaN(wmax)) base = base.lte('weight_gsm', wmax);
 
       // Sort
-      if(sortEl.value==='newest') q=q.order('created_at',{ascending:false});
-      if(sortEl.value==='price_asc') q=q.order('price_cents',{ascending:true});
-      if(sortEl.value==='price_desc') q=q.order('price_cents',{ascending:false});
+      if(sortEl.value==='newest') base = base.order('created_at',{ascending:false});
+      if(sortEl.value==='price_asc') base = base.order('price_cents',{ascending:true});
+      if(sortEl.value==='price_desc') base = base.order('price_cents',{ascending:false});
 
-      const { data, error } = await q;
-      if(error){ countEl.textContent=`Error: ${error.message}`; emptyEl.style.display='block'; return; }
-      countEl.textContent = `${data.length} fabric${data.length===1?'':'s'}`;
-      if(data.length===0){ emptyEl.style.display='block'; return; }
-      gridEl.innerHTML = data.map(card).join('');
+      // Fabric Type logic:
+      const selected = [...fabricState];
+      let rows = [];
+      if (selected.length === 0) {
+        const { data, error } = await base;
+        if (error) return fail(error.message);
+        rows = data;
+      } else if (selected.length === 1 && selected[0] !== 'other') {
+        const { data, error } = await base.or(`fabric_content.ilike.%${selected[0]}%`);
+        if (error) return fail(error.message);
+        rows = data;
+      } else if (selected.length === 1 && selected[0] === 'other') {
+        // Only OTHER: NOT ILIKE any known token
+        let q = base;
+        FABRIC_TOKENS.forEach(tok => { q = q.not('fabric_content','ilike',`%${tok}%`); });
+        const { data, error } = await q;
+        if (error) return fail(error.message);
+        rows = data;
+      } else {
+        // OTHER + some picks, or multiple picks
+        const picks = selected.filter(x => x !== 'other');
+        const needOther = selected.includes('other');
+
+        // Query A: any of the picked tokens
+        let qA = base;
+        if (picks.length > 0) qA = qA.or(picks.map(k => `fabric_content.ilike.%${k}%`).join(','));
+        const resA = picks.length>0 ? await qA : { data: [] , error: null };
+
+        // Query B: OTHER set (NOT ILIKE any known token)
+        let resB = { data: [] , error: null };
+        if (needOther) {
+          let qB = base;
+          FABRIC_TOKENS.forEach(tok => { qB = qB.not('fabric_content','ilike',`%${tok}%`); });
+          resB = await qB;
+        }
+
+        if (resA.error) return fail(resA.error.message);
+        if (resB.error) return fail(resB.error.message);
+        const map = new Map();
+        [...(resA.data||[]), ...(resB.data||[])].forEach(r => map.set(r.id, r)); // union unique
+        rows = [...map.values()];
+      }
+
+      countEl.textContent = `${rows.length} fabric${rows.length===1?'':'s'}`;
+      if (rows.length === 0) { emptyEl.style.display='block'; return; }
+      gridEl.innerHTML = rows.map(card).join('');
     }
 
-    document.getElementById('apply').addEventListener('click', query);
-    document.getElementById('reset').addEventListener('click', ()=>{
-      qEl.value=''; sortEl.value='newest'; stretchEl.value='any'; wminEl.value=''; wmaxEl.value='';
-      // clear fabric dropdown
-      Array.from(fabricSelect.options).forEach(o=>o.selected=false); renderFabricTags();
-      // clear color wheel
-      clearWheel();
-      query();
-    });
+    function fail(msg){ countEl.textContent = `Error: ${msg}`; emptyEl.style.display='block'; }
 
-    // initial load
+    document.getElementById('apply').onclick = query;
+    document.getElementById('reset').onclick = () => {
+      qEl.value=''; sortEl.value='newest'; stretchEl.value='any'; wminEl.value=''; wmaxEl.value='';
+      fabricState.clear(); syncFabricUI(); clearColors(); query();
+    };
+
+    // Initial sync & load
+    syncFabricUI();
     query();
   </script>
 </body>
