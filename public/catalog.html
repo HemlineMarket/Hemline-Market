@@ -7,191 +7,64 @@
   <script defer src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <link rel="icon" href="/favicon.ico">
   <style>
-    :root { --gap: 14px; --radius: 14px; --border: #e5e7eb; }
-    body { font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; color:#111827; }
-    header { position:sticky; top:0; background:#fff; border-bottom:1px solid var(--border); padding:12px 16px; z-index:10; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
-    .filters { display:grid; grid-template-columns: repeat(6, 1fr); gap: var(--gap); }
-    .filters > * { border:1px solid var(--border); border-radius: var(--radius); padding:8px 10px; background:#fff; }
-    .filters label { display:block; font-size:12px; color:#6b7280; margin-bottom:6px; }
-    .row { display:flex; gap: var(--gap); align-items:center; }
-    .row input[type="number"] { width:100%; }
-    .catalog { display:grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top:18px; }
-    .card { border:1px solid var(--border); border-radius:16px; overflow:hidden; background:#fff; display:flex; flex-direction:column; }
-    .card img { width:100%; height:180px; object-fit:cover; background:#f3f4f6; }
-    .card .info { padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
-    .pill { font-size:11px; padding:2px 8px; border:1px solid var(--border); border-radius:999px; color:#374151; width:max-content; }
-    .toolbar { display:flex; gap:12px; align-items:center; margin-top:14px; }
-    select, input, button { border:1px solid var(--border); border-radius:12px; padding:8px 10px; background:#fff; }
-    button { cursor:pointer; }
-    @media (max-width: 980px) {
-      .filters { grid-template-columns: repeat(2, 1fr); }
-      .catalog { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 600px) {
-      .filters { grid-template-columns: 1fr; }
-      .catalog { grid-template-columns: 1fr; }
-    }
+    body { font: 14px/1.4 system-ui, sans-serif; margin:0; color:#111; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .card { border:1px solid #ddd; border-radius:12px; padding:12px; margin:10px 0; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="wrap">
-      <div class="toolbar">
-        <input id="q" type="search" placeholder="Search fabrics (content, title)…" />
-        <select id="sort">
-          <option value="newest">Newest</option>
-          <option value="price_asc">Price: Low → High</option>
-          <option value="price_desc">Price: High → Low</option>
-        </select>
-        <button id="reset">Reset</button>
-      </div>
-    </div>
-  </header>
-
-  <main class="wrap">
-    <section class="filters" id="filters">
-      <div>
-        <label>Fabric Content</label>
-        <input id="fabric_content" type="text" placeholder="e.g., 70% viscose" />
-      </div>
-      <div>
-        <label>Color Category</label>
-        <select id="color_category">
-          <option value="">Any</option>
-          <option>black</option><option>white</option><option>ivory</option><option>beige</option>
-          <option>brown</option><option>camel</option><option>grey</option><option>navy</option>
-          <option>blue</option><option>green</option><option>olive</option><option>yellow</option>
-          <option>orange</option><option>red</option><option>pink</option><option>burgundy</option>
-          <option>purple</option><option>multi</option>
-        </select>
-      </div>
-      <div>
-        <label>Stretch</label>
-        <select id="stretch">
-          <option value="">Any</option>
-          <option value="true">Stretch</option>
-          <option value="false">No Stretch</option>
-        </select>
-      </div>
-      <div>
-        <label>Weight (GSM min)</label>
-        <input id="weight_min" type="number" min="0" placeholder="e.g., 150" />
-      </div>
-      <div>
-        <label>Weight (GSM max)</label>
-        <input id="weight_max" type="number" min="0" placeholder="e.g., 350" />
-      </div>
-      <div>
-        <label>Texture</label>
-        <select id="texture">
-          <option value="">Any</option>
-          <option>smooth</option><option>twill</option><option>sateen</option>
-          <option>crepe</option><option>bouclé</option><option>woolen</option>
-          <option>poplin</option><option>denim</option><option>jersey</option>
-        </select>
-      </div>
-      <div>
-        <label>Drapiness</label>
-        <select id="drapiness">
-          <option value="">Any</option>
-          <option>fluid</option><option>moderate</option><option>structured</option>
-        </select>
-      </div>
-      <div>
-        <label>Width (inches) ≥</label>
-        <input id="width_min" type="number" min="0" step="0.5" placeholder="e.g., 44" />
-      </div>
-      <div>
-        <label>Fiber Type</label>
-        <select id="fiber_type">
-          <option value="">Any</option>
-          <option value="natural">natural</option>
-          <option value="modified_natural">modified_natural</option>
-          <option value="synthetic">synthetic</option>
-          <option value="blend">blend</option>
-        </select>
-      </div>
-      <div>
-        <label>Country of Origin</label>
-        <input id="country_of_origin" type="text" placeholder="e.g., Italy" />
-      </div>
-      <div>
-        <label>Yards Available ≥</label>
-        <input id="yards_min" type="number" min="0" step="0.25" placeholder="e.g., 1.0" />
-      </div>
-      <div>
-        <label>Seller</label>
-        <input id="seller" type="text" placeholder="seller id or name" />
-      </div>
-    </section>
-
-    <section class="toolbar" style="justify-content: flex-end;">
-      <button id="apply">Apply Filters</button>
-    </section>
-
-    <section id="results" class="catalog" aria-live="polite"></section>
-  </main>
+  <div class="wrap">
+    <h1>Catalog Debug</h1>
+    <button id="apply">Run Query</button>
+    <div id="results"></div>
+    <pre id="log" style="background:#f9f9f9;padding:10px;border:1px solid #ddd;white-space:pre-wrap;"></pre>
+  </div>
 
   <script>
-    const SUPABASE_URL = window.ENV_SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
-    const SUPABASE_ANON_KEY = window.ENV_SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
-
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      document.body.innerHTML = "<p style='padding:20px;color:red;'>Missing SUPABASE_URL or SUPABASE_ANON_KEY. Set them in localStorage for testing.</p>";
-      throw new Error("Missing Supabase credentials");
+    const logEl = document.getElementById('log');
+    function log(msg) {
+      console.log(msg);
+      logEl.textContent += msg + "\\n";
     }
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+    window.addEventListener("error", function(e) {
+      document.body.innerHTML += "<div style='color:red;padding:20px;'>Global Error: " + e.message + "</div>";
+    });
+    window.addEventListener("unhandledrejection", function(e) {
+      document.body.innerHTML += "<div style='color:red;padding:20px;'>Unhandled Promise: " + e.reason + "</div>";
+    });
 
-    const $ = (id) => document.getElementById(id);
-    const resultsEl = $('results');
+    try {
+      const SUPABASE_URL = window.ENV_SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
+      const SUPABASE_ANON_KEY = window.ENV_SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
 
-    function buildQuery() {
-      let query = supabase.from('catalog').select('*');
-      return query.limit(48);
-    }
-
-    function render(items) {
-      resultsEl.innerHTML = '';
-      if (!items || items.length === 0) {
-        resultsEl.innerHTML = `<div class="card" style="grid-column:1/-1;">
-          <div class="info"><strong>No results.</strong></div>
-        </div>`;
-        return;
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        document.getElementById('results').innerHTML = "<p style='color:red;'>Missing SUPABASE_URL or SUPABASE_ANON_KEY</p>";
+        throw new Error("Missing Supabase credentials");
       }
-      for (const it of items) {
-        const card = document.createElement('article');
-        card.className = 'card';
-        card.innerHTML = `
-          <img alt="" src="${it.thumbnail_url || ''}" />
-          <div class="info">
-            <strong>${it.title || 'Fabric'}</strong>
-          </div>`;
-        resultsEl.appendChild(card);
-      }
-    }
 
-    async function run() {
-      resultsEl.innerHTML = '<div>Loading…</div>';
-      try {
-        const { data, error } = await buildQuery();
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      async function run() {
+        document.getElementById('results').innerHTML = "Loading…";
+        const { data, error } = await supabase.from('catalog').select('*').limit(5);
         if (error) {
-          console.error("Supabase error:", error);
-          resultsEl.innerHTML = `<div>Error: ${error.message}</div>`;
+          log("Supabase error: " + error.message);
+          document.getElementById('results').innerHTML = "<p style='color:red;'>Supabase error: " + error.message + "</p>";
           return;
         }
-        render(data);
-      } catch (err) {
-        console.error("JS runtime error:", err);
-        resultsEl.innerHTML = `<div>Runtime error: ${err.message}</div>`;
+        log("Got rows: " + JSON.stringify(data, null, 2));
+        document.getElementById('results').innerHTML = data.map(
+          d => "<div class='card'>" + (d.title || 'Fabric') + "</div>"
+        ).join('');
       }
+
+      document.getElementById('apply').addEventListener('click', run);
+      run();
+    } catch (err) {
+      log("Runtime error: " + err.message);
+      document.getElementById('results').innerHTML = "<p style='color:red;'>Runtime error: " + err.message + "</p>";
     }
-
-    document.getElementById('apply').addEventListener('click', run);
-    document.getElementById('reset').addEventListener('click', run);
-
-    run();
   </script>
 </body>
 </html>
