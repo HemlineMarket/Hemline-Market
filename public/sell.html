@@ -5,83 +5,171 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Hemline Market — List an Item</title>
 <style>
-  body{font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;margin:0;background:#fff;color:#111827}
-  .wrap{max-width:700px;margin:40px auto;padding:0 16px}
-  h1{font-size:22px;font-weight:700;margin-bottom:20px}
-  form{display:flex;flex-direction:column;gap:16px}
-  label{font-weight:600;margin-bottom:4px;display:block}
-  input,select,textarea{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px}
-  textarea{min-height:80px}
-  button{padding:12px;border:none;border-radius:8px;font-weight:600;cursor:pointer}
-  .primary{background:#111827;color:#fff}
+  :root{--border:#e5e7eb;--ink:#111827;--muted:#6b7280;--brand:#111827}
+  *{box-sizing:border-box}
+  body{font:14px/1.5 system-ui,-apple-system,Segoe UI,Inter,Roboto,sans-serif;margin:0;color:var(--ink);background:#fff}
+  .wrap{max-width:760px;margin:32px auto;padding:0 16px}
+  h1{font-size:22px;font-weight:800;margin:0 0 18px}
+  form{display:grid;grid-template-columns:1fr;gap:16px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label{font-weight:600;margin-bottom:6px;display:block}
+  .muted{color:var(--muted);font-weight:500}
+  input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px}
+  textarea{min-height:90px}
+  .field{display:flex;flex-direction:column}
+  .hint{color:var(--muted);font-size:12px;margin-top:6px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer}
+  .chip input{appearance:none;width:14px;height:14px;border-radius:999px;border:1px solid var(--border)}
+  .chip input:checked{background:#111827;border-color:#111827}
+  .actions{display:flex;gap:10px}
+  button{padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
+  .primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .toast{position:fixed;inset:auto 16px 16px auto;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.15);display:none}
 </style>
 </head>
 <body>
   <div class="wrap">
     <h1>List a Fabric</h1>
+
     <form id="sellForm">
-      <div>
+      <div class="field">
         <label>Title</label>
         <input id="title" required placeholder="e.g. Italian Wool Crepe">
       </div>
 
-      <div>
-        <label>Description</label>
-        <textarea id="description" placeholder="Optional details…"></textarea>
+      <div class="field">
+        <label>Description <span class="muted">(optional)</span></label>
+        <textarea id="description" placeholder="Notes about hand-feel, intended use, flaws, etc."></textarea>
       </div>
 
-      <div>
-        <label>Fabric Type</label>
-        <select id="fabric_type" required></select>
+      <div class="row">
+        <div class="field">
+          <label>Fabric Type</label>
+          <select id="fabric_type" required></select>
+        </div>
+        <div class="field">
+          <label>Color</label>
+          <select id="color" required></select>
+        </div>
       </div>
 
-      <div>
-        <label>Color</label>
-        <select id="color" required></select>
+      <div class="row">
+        <div class="field">
+          <label>Condition</label>
+          <select id="condition" required>
+            <option value="new">New</option>
+            <option value="washed">Washed (pre-shrunk)</option>
+            <option value="used">Used</option>
+            <option value="vintage">Vintage</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Department</label>
+          <select id="department" required>
+            <option value="fashion">Fashion fabric</option>
+            <option value="quilting">Quilting fabric</option>
+            <option value="home">Home fabric</option>
+            <option value="notions">Notions</option>
+          </select>
+        </div>
       </div>
 
-      <div>
-        <label>Condition</label>
-        <select id="condition" required>
-          <option value="new">New</option>
-          <option value="washed">Washed (pre-shrunk)</option>
-          <option value="used">Used</option>
-          <option value="vintage">Vintage</option>
-        </select>
+      <div class="row">
+        <div class="field">
+          <label>Country of Origin</label>
+          <select id="country">
+            <option>China</option><option>France</option><option>India</option>
+            <option>Italy</option><option>Japan</option><option>Turkey</option><option>USA</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Designer <span class="muted">(optional)</span></label>
+          <input id="designer" placeholder="e.g. Liberty, Mood, Joann">
+        </div>
       </div>
 
-      <div>
-        <label>Department</label>
-        <select id="department" required>
-          <option value="fashion">Fashion fabric</option>
-          <option value="quilting">Quilting fabric</option>
-          <option value="home">Home fabric</option>
-          <option value="notions">Notions</option>
-        </select>
+      <div class="row">
+        <div class="field">
+          <label>Price (USD)</label>
+          <input id="price" type="number" min="0" step="0.01" required>
+        </div>
+        <div class="field">
+          <label>Price is for how many yards?</label>
+          <input id="price_unit_yards" type="number" min="1" step="1" value="1" required>
+        </div>
+      </div>
+      <div class="hint">Shown to buyers as: “$PRICE for X yards”.</div>
+
+      <div class="row">
+        <div class="field">
+          <label>Original Price (USD) <span class="muted">(optional)</span></label>
+          <input id="original_price" type="number" min="0" step="0.01" placeholder="Retail or pre-discount price">
+        </div>
+        <div class="field">
+          <label>Yards Available</label>
+          <input id="yards" type="number" min="0" step="0.25" required>
+        </div>
       </div>
 
-      <div>
-        <label>Country of Origin</label>
-        <select id="country">
-          <option>China</option><option>France</option><option>India</option>
-          <option>Italy</option><option>Japan</option><option>Turkey</option><option>USA</option>
-          <option>Other</option>
-        </select>
+      <div class="row">
+        <div class="field">
+          <label>Drapiness</label>
+          <select id="drapiness">
+            <option value="">—</option>
+            <option>fluid</option><option>moderate</option><option>crisp</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Visual Finish</label>
+          <select id="visual_finish">
+            <option value="">—</option>
+            <option>matte</option><option>semi-gloss</option><option>glossy</option>
+            <option>sheer</option><option>opaque</option>
+          </select>
+        </div>
       </div>
 
-      <div>
-        <label>Price (USD)</label>
-        <input id="price" type="number" min="0" required>
+      <div class="row">
+        <div class="field">
+          <label>Texture / Hand</label>
+          <select id="texture">
+            <option value="">—</option>
+            <option>smooth</option><option>soft</option><option>brushed</option>
+            <option>slub</option><option>nubby</option><option>pebbled</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Fabric Structure (construction)</label>
+          <select id="fabric_structure">
+            <option value="">—</option>
+            <option>plain weave</option><option>twill</option><option>satin</option>
+            <option>rib knit</option><option>jersey knit</option><option>canvas</option>
+            <option>lace</option><option>crepe</option>
+          </select>
+        </div>
       </div>
 
-      <div>
-        <label>Yards Available</label>
-        <input id="yards" type="number" min="0" required>
+      <div class="field">
+        <label>Certifications <span class="muted">(optional)</span></label>
+        <div id="certWrap" class="chips"></div>
       </div>
 
-      <button class="primary" type="submit">Save Fabric</button>
+      <div class="field">
+        <label>Images (URLs) <span class="muted">(comma-separated)</span></label>
+        <input id="images" placeholder="https://... , https://...">
+        <div class="hint">Tip: you can add multiple images separated by commas. Storage upload can be added later.</div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="resetBtn">Reset</button>
+        <button class="primary" type="submit">Save Fabric</button>
+      </div>
     </form>
   </div>
+
+  <div class="toast" id="toast">Saved!</div>
 
 <script type="module">
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
@@ -90,32 +178,89 @@
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
   );
 
-  // same enums as filters
+  // Same enums as filters
   const FABRICS=['cotton','wool','silk','linen','denim','chiffon','crepe','jersey','satin','twill','canvas','lace','velvet','rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic','other'];
   const COLORS=['beige','black','blue','brown','gray','green','orange','pink','purple','red','white','yellow'];
+  const CERTS=['OEKO-TEX','GOTS','BCI','RWS','GRS'];
 
+  // Populate selects
   const fabricSel=document.getElementById('fabric_type');
-  FABRICS.forEach(f=>{let o=document.createElement('option');o.value=f;o.textContent=f;fabricSel.appendChild(o);});
+  FABRICS.sort((a,b)=>a.localeCompare(b)).forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;fabricSel.appendChild(o);});
   const colorSel=document.getElementById('color');
-  COLORS.forEach(c=>{let o=document.createElement('option');o.value=c;o.textContent=c;colorSel.appendChild(o);});
+  COLORS.sort((a,b)=>a.localeCompare(b)).forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;colorSel.appendChild(o);});
 
-  const form=document.getElementById('sellForm');
-  form.onsubmit=async e=>{
+  // Certifications chips
+  const certWrap=document.getElementById('certWrap');
+  const certState=new Set();
+  CERTS.forEach(c=>{
+    const lbl=document.createElement('label');lbl.className='chip';
+    lbl.innerHTML=`<input type="checkbox"><span>${c}</span>`;
+    const cb=lbl.querySelector('input');
+    cb.onchange=()=>{ cb.checked?certState.add(c):certState.delete(c); };
+    certWrap.appendChild(lbl);
+  });
+
+  // Helpers
+  const el = id => document.getElementById(id);
+  const toast = (msg='Saved!')=>{
+    const t=el('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',1600);
+  };
+
+  // Submit
+  el('sellForm').onsubmit=async e=>{
     e.preventDefault();
-    const item={
-      title:document.getElementById('title').value,
-      description:document.getElementById('description').value,
-      fabric_content:document.getElementById('fabric_type').value,
-      color_category:document.getElementById('color').value,
-      condition:document.getElementById('condition').value,
-      department:document.getElementById('department').value,
-      country_of_origin:document.getElementById('country').value,
-      price_cents:Math.round(Number(document.getElementById('price').value)*100),
-      yards_available:Number(document.getElementById('yards').value),
-      created_at:new Date().toISOString()
+
+    const price   = Number(el('price').value||0);
+    const priceFor= Number(el('price_unit_yards').value||1);
+    const original= el('original_price').value===''?null:Number(el('original_price').value);
+
+    const payload={
+      title: el('title').value.trim(),
+      description: el('description').value.trim() || null,
+      fabric_content: el('fabric_type').value,      // matches filter parsing
+      color_category: el('color').value,
+      condition: el('condition').value,
+      department: el('department').value,
+      country_of_origin: el('country').value,
+      designer: el('designer').value.trim() || null,
+
+      price_cents: Math.round(price*100),
+      price_unit_yards: Math.max(1, priceFor),
+      original_price_cents: original==null?null:Math.round(original*100),
+
+      yards_available: Number(el('yards').value||0),
+
+      drapiness: el('drapiness').value || null,
+      visual_finish: el('visual_finish').value || null,
+      texture: el('texture').value || null,
+      fabric_structure: el('fabric_structure').value || null,
+      certifications: [...certState],
+      images: (el('images').value||'')
+                .split(',')
+                .map(s=>s.trim())
+                .filter(Boolean),
+
+      created_at: new Date().toISOString()
     };
-    const {error}=await supabase.from('catalog').insert([item]);
-    if(error){alert("Error: "+error.message);} else {alert("Fabric saved!"); form.reset();}
+
+    // Basic guards
+    if(!payload.title){ alert('Title is required'); return; }
+    if(payload.price_cents<0){ alert('Price must be ≥ 0'); return; }
+
+    const {error} = await supabase.from('listings').insert([payload]);
+    if(error){ alert('Error: '+error.message); return; }
+
+    toast('Fabric saved!');
+    e.target.reset();
+    certState.clear();
+    [...certWrap.querySelectorAll('input[type=checkbox]')].forEach(cb=>cb.checked=false);
+  };
+
+  // Reset
+  el('resetBtn').onclick=()=>{
+    el('sellForm').reset();
+    certState.clear();
+    [...certWrap.querySelectorAll('input[type=checkbox]')].forEach(cb=>cb.checked=false);
   };
 </script>
 </body>
