@@ -11,8 +11,8 @@
     body { margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif; color:var(--ink); background:var(--bg); }
     header { position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid var(--border); }
     .wrap { max-width:1100px; margin:0 auto; padding:12px 16px; }
-    .controls { display:grid; grid-template-columns:1fr repeat(3, minmax(160px, 220px)) repeat(2, minmax(120px, 180px)); gap:var(--gap); align-items:end; }
-    @media (max-width:1000px){ .controls { grid-template-columns:1fr 1fr; } }
+    .controls { display:grid; grid-template-columns:1fr repeat(3, minmax(160px, 220px)) repeat(3, minmax(160px, 240px)); gap:var(--gap); align-items:end; }
+    @media (max-width:1100px){ .controls { grid-template-columns:1fr 1fr; } }
     .control { display:flex; flex-direction:column; gap:6px; }
     .muted { color:var(--muted); }
     input, select, button { border:1px solid var(--border); border-radius:10px; padding:8px 10px; background:#fff; }
@@ -20,7 +20,7 @@
     .btn { padding:9px 14px; }
     .btn.primary { background:var(--ink); color:#fff; border-color:var(--ink); }
 
-    /* Dropdown (Fabric Type) */
+    /* Dropdown (shared styles for Fabric + Color) */
     .dropdown { position:relative; }
     .dropdown-btn { display:flex; align-items:center; gap:8px; justify-content:space-between; min-height:38px; }
     .dropdown-panel { position:absolute; top:calc(100% + 6px); left:0; width:320px; max-height:300px; overflow:auto; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 10px 24px rgba(0,0,0,.08); padding:10px; display:none; }
@@ -31,16 +31,6 @@
     .tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
     .tag { background:var(--ink); color:#fff; padding:3px 8px; border-radius:999px; font-size:12px; }
     .count-pill { background:#f3f4f6; color:#374151; padding:2px 8px; border-radius:999px; font-size:12px; }
-
-    /* Color wheel */
-    .row-xl { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; margin-top:12px; }
-    .wheel { width:240px; height:240px; }
-    .legend { display:grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap:6px 12px; align-items:center; }
-    .legend .bullet { width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid rgba(0,0,0,.15); }
-    .sel-colors { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-    .sel-colors .tag { background:#111827; }
-    .wheel path { outline:none; transition:transform .18s ease, stroke-width .18s ease; transform-origin:50% 50%; transform-box:fill-box; }
-    .wheel path.sel { stroke:#111827; stroke-width:2.6; transform:scale(1.04); }
 
     main { padding:18px 16px 40px; }
     .grid { display:grid; grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) ); gap:var(--gap); }
@@ -103,23 +93,25 @@
           <div id="fabricTags" class="tags"></div>
         </div>
 
+        <!-- Color dropdown -->
+        <div class="control dropdown" id="colorDD">
+          <label class="muted">Color</label>
+          <button class="dropdown-btn" id="colorBtn">
+            <span id="colorBtnText">Select colors</span>
+            <span id="colorCount" class="count-pill" style="display:none;">0</span>
+          </button>
+          <div class="dropdown-panel">
+            <input id="colorSearch" class="d-search" placeholder="Search colors…" />
+            <div id="colorList" class="d-list"></div>
+          </div>
+          <div id="colorTags" class="tags"></div>
+        </div>
+
         <div class="control" style="align-self:center;">
           <button class="btn" id="reset">Reset</button>
         </div>
         <div class="control" style="align-self:center;">
           <button class="btn primary" id="apply">Apply Filters</button>
-        </div>
-      </div>
-
-      <!-- Colors -->
-      <div class="control" style="margin-top:10px;">
-        <label class="muted">Color</label>
-        <div class="row-xl">
-          <svg id="colorWheel" class="wheel" viewBox="0 0 100 100"></svg>
-          <div>
-            <div id="legend" class="legend"></div>
-            <div id="selColors" class="sel-colors"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -152,121 +144,74 @@
     const countEl = document.getElementById('count');
 
     // ===== Fabric Type dropdown =====
-    // Canonical fabric tokens we’ll search for inside fabric_content (ILIKE)
     const FABRIC_TOKENS = [
       'cotton','wool','silk','linen','denim','chiffon','crepe','jersey','satin','twill','canvas','lace','velvet',
       'rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic'
     ];
-    const ALL_FABRIC_OPTIONS = [...FABRIC_TOKENS, 'other']; // includes "Other"
-    const fabricState = new Set(); // selected values
-    const dd = document.getElementById('fabricDD');
-    const btn = document.getElementById('fabricBtn');
-    const btnText = document.getElementById('fabricBtnText');
-    const btnCount = document.getElementById('fabricCount');
-    const panel = dd.querySelector('.dropdown-panel');
-    const listEl = document.getElementById('fabricList');
-    const tagsEl = document.getElementById('fabricTags');
-    const searchEl = document.getElementById('fabricSearch');
+    const ALL_FABRICS = [...FABRIC_TOKENS, 'other'];
+    const fabricState = new Set();
+    const fabricDD = document.getElementById('fabricDD');
+    const fabricBtn = document.getElementById('fabricBtn');
+    const fabricBtnText = document.getElementById('fabricBtnText');
+    const fabricBtnCount = document.getElementById('fabricCount');
+    const fabricList = document.getElementById('fabricList');
+    const fabricTags = document.getElementById('fabricTags');
+    const fabricSearch = document.getElementById('fabricSearch');
 
-    // Build list with checkboxes
-    function renderFabricList(filter='') {
-      const needle = filter.trim().toLowerCase();
-      listEl.innerHTML = '';
-      ALL_FABRIC_OPTIONS
-        .filter(k => !needle || k.includes(needle))
-        .forEach(k => {
-          const id = `fab-${k}`;
-          const row = document.createElement('label');
-          row.className = 'd-item';
-          row.innerHTML = `<input type="checkbox" id="${id}" ${fabricState.has(k)?'checked':''}><span>${k}</span>`;
-          row.querySelector('input').onchange = (e) => {
-            if (e.target.checked) fabricState.add(k); else fabricState.delete(k);
-            syncFabricUI();
-          };
-          listEl.appendChild(row);
-        });
+    function renderFabricList(filter=''){
+      const term = filter.trim().toLowerCase();
+      fabricList.innerHTML='';
+      ALL_FABRICS.filter(k=>!term || k.includes(term)).forEach(k=>{
+        const row=document.createElement('label'); row.className='d-item';
+        row.innerHTML=`<input type="checkbox" ${fabricState.has(k)?'checked':''}><span>${k}</span>`;
+        row.querySelector('input').onchange=(e)=>{ if(e.target.checked) fabricState.add(k); else fabricState.delete(k); syncFabricUI(); };
+        fabricList.appendChild(row);
+      });
     }
-    function syncFabricUI() {
-      // Tags under the field
-      const vals = [...fabricState];
-      tagsEl.innerHTML = vals.map(v => `<span class="tag">${v}</span>`).join('');
-      // Button text + count
-      if (vals.length === 0) {
-        btnText.textContent = 'Select fabric types';
-        btnCount.style.display = 'none';
-      } else {
-        btnText.textContent = 'Fabric Type';
-        btnCount.style.display = 'inline-flex';
-        btnCount.textContent = vals.length;
-      }
-      // Keep list checkboxes in sync after search changes
-      renderFabricList(searchEl.value || '');
+    function syncFabricUI(){
+      const vals=[...fabricState];
+      fabricTags.innerHTML = vals.map(v=>`<span class="tag">${v}</span>`).join('');
+      if(vals.length===0){ fabricBtnText.textContent='Select fabric types'; fabricBtnCount.style.display='none'; }
+      else { fabricBtnText.textContent='Fabric Type'; fabricBtnCount.style.display='inline-flex'; fabricBtnCount.textContent=vals.length; }
+      renderFabricList(fabricSearch.value||'');
     }
-    btn.onclick = () => { dd.classList.toggle('open'); };
-    document.addEventListener('click', (e) => {
-      if (!dd.contains(e.target)) dd.classList.remove('open');
-    });
-    searchEl.addEventListener('input', () => renderFabricList(searchEl.value));
-    renderFabricList(); // initial
+    fabricBtn.onclick=()=>fabricDD.classList.toggle('open');
+    document.addEventListener('click',(e)=>{ if(!fabricDD.contains(e.target)) fabricDD.classList.remove('open'); });
+    fabricSearch.addEventListener('input',()=>renderFabricList(fabricSearch.value));
+    renderFabricList();
 
-    // ===== Color wheel (with selected color tags) =====
-    const COLORS = [
-      {key:'black',  fill:'#111827'},
-      {key:'gray',   fill:'#9ca3af'},
-      {key:'white',  fill:'#ffffff'},
-      {key:'beige',  fill:'#e7d7b5'},
-      {key:'brown',  fill:'#8b5a2b'},
-      {key:'yellow', fill:'#f59e0b'},
-      {key:'orange', fill:'#fb923c'},
-      {key:'red',    fill:'#ef4444'},
-      {key:'pink',   fill:'#f472b6'},
-      {key:'purple', fill:'#a78bfa'},
-      {key:'blue',   fill:'#3b82f6'},
-      {key:'green',  fill:'#22c55e'}
-    ];
-    const selColors = new Set();
-    const wheel = document.getElementById('colorWheel');
-    const legend = document.getElementById('legend');
-    const selColorsEl = document.getElementById('selColors');
+    // ===== Color dropdown (replaces wheel) =====
+    const COLOR_OPTIONS = ['black','gray','white','beige','brown','yellow','orange','red','pink','purple','blue','green'];
+    const colorState = new Set();
+    const colorDD = document.getElementById('colorDD');
+    const colorBtn = document.getElementById('colorBtn');
+    const colorBtnText = document.getElementById('colorBtnText');
+    const colorBtnCount = document.getElementById('colorCount');
+    const colorList = document.getElementById('colorList');
+    const colorTags = document.getElementById('colorTags');
+    const colorSearch = document.getElementById('colorSearch');
 
-    function renderSelectedColors() {
-      selColorsEl.innerHTML = [...selColors].map(c => `<span class="tag">${c}</span>`).join('');
+    function renderColorList(filter=''){
+      const term = filter.trim().toLowerCase();
+      colorList.innerHTML='';
+      COLOR_OPTIONS.filter(k=>!term || k.includes(term)).forEach(k=>{
+        const row=document.createElement('label'); row.className='d-item';
+        row.innerHTML=`<input type="checkbox" ${colorState.has(k)?'checked':''}><span>${k}</span>`;
+        row.querySelector('input').onchange=(e)=>{ if(e.target.checked) colorState.add(k); else colorState.delete(k); syncColorUI(); };
+        colorList.appendChild(row);
+      });
     }
-
-    function addSlice(cx, cy, r, startDeg, endDeg, fill, key) {
-      const toXY = (deg) => { const rad=(deg-90)*Math.PI/180; return [cx+r*Math.cos(rad), cy+r*Math.sin(rad)]; };
-      const [x1,y1]=toXY(startDeg), [x2,y2]=toXY(endDeg);
-      const largeArc = endDeg-startDeg <= 180 ? 0 : 1;
-      const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-      const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-      p.setAttribute('d', d);
-      p.setAttribute('fill', fill);
-      p.setAttribute('stroke', '#ffffff');
-      p.setAttribute('stroke-width','0.7');
-      p.style.cursor='pointer';
-      p.addEventListener('click', () => toggleColor(key,p));
-      wheel.appendChild(p);
-      return p;
+    function syncColorUI(){
+      const vals=[...colorState];
+      colorTags.innerHTML = vals.map(v=>`<span class="tag">${v}</span>`).join('');
+      if(vals.length===0){ colorBtnText.textContent='Select colors'; colorBtnCount.style.display='none'; }
+      else { colorBtnText.textContent='Color'; colorBtnCount.style.display='inline-flex'; colorBtnCount.textContent=vals.length; }
+      renderColorList(colorSearch.value||'');
     }
-    const cx=50, cy=50, r=48, slice=360/COLORS.length, sliceElems={};
-    COLORS.forEach((c,i)=>{
-      const p=addSlice(cx,cy,r,i*slice,(i+1)*slice,c.fill,c.key);
-      sliceElems[c.key]=p;
-      const row=document.createElement('div');
-      row.innerHTML=`<span class="bullet" style="background:${c.fill}"></span>${c.key}`;
-      row.style.cursor='pointer';
-      row.onclick=()=>toggleColor(c.key,sliceElems[c.key]);
-      legend.appendChild(row);
-    });
-    function toggleColor(key, elem){
-      if(selColors.has(key)){ selColors.delete(key); elem.classList.remove('sel'); }
-      else { selColors.add(key); elem.classList.add('sel'); }
-      renderSelectedColors();
-    }
-    function clearColors(){
-      selColors.clear(); Object.values(sliceElems).forEach(p=>p.classList.remove('sel')); renderSelectedColors();
-    }
-    renderSelectedColors();
+    colorBtn.onclick=()=>colorDD.classList.toggle('open');
+    document.addEventListener('click',(e)=>{ if(!colorDD.contains(e.target)) colorDD.classList.remove('open'); });
+    colorSearch.addEventListener('input',()=>renderColorList(colorSearch.value));
+    renderColorList();
 
     // ===== Cards & query =====
     function dollars(c){ return (c/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
@@ -284,15 +229,13 @@
     async function query(){
       gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='Loading…';
 
-      // Base
       let base = supabase.from('catalog').select('*').limit(200);
 
-      // Search
       const term=qEl.value.trim();
       if(term){ base = base.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`); }
 
       // Colors
-      if(selColors.size>0){ base = base.in('color_category', [...selColors]); }
+      if(colorState.size>0){ base = base.in('color_category', [...colorState]); }
 
       // Stretch
       if(stretchEl.value==='true') base = base.eq('stretch',true);
@@ -308,47 +251,24 @@
       if(sortEl.value==='price_asc') base = base.order('price_cents',{ascending:true});
       if(sortEl.value==='price_desc') base = base.order('price_cents',{ascending:false});
 
-      // Fabric Type logic:
+      // Fabric Type logic (supports “other”)
       const selected = [...fabricState];
       let rows = [];
       if (selected.length === 0) {
-        const { data, error } = await base;
-        if (error) return fail(error.message);
-        rows = data;
+        const { data, error } = await base; if (error) return fail(error.message); rows = data;
       } else if (selected.length === 1 && selected[0] !== 'other') {
-        const { data, error } = await base.or(`fabric_content.ilike.%${selected[0]}%`);
-        if (error) return fail(error.message);
-        rows = data;
+        const { data, error } = await base.or(`fabric_content.ilike.%${selected[0]}%`); if (error) return fail(error.message); rows = data;
       } else if (selected.length === 1 && selected[0] === 'other') {
-        // Only OTHER: NOT ILIKE any known token
-        let q = base;
-        FABRIC_TOKENS.forEach(tok => { q = q.not('fabric_content','ilike',`%${tok}%`); });
-        const { data, error } = await q;
-        if (error) return fail(error.message);
-        rows = data;
+        let q = base; FABRIC_TOKENS.forEach(tok => { q = q.not('fabric_content','ilike',`%${tok}%`); });
+        const { data, error } = await q; if (error) return fail(error.message); rows = data;
       } else {
-        // OTHER + some picks, or multiple picks
-        const picks = selected.filter(x => x !== 'other');
-        const needOther = selected.includes('other');
-
-        // Query A: any of the picked tokens
-        let qA = base;
-        if (picks.length > 0) qA = qA.or(picks.map(k => `fabric_content.ilike.%${k}%`).join(','));
-        const resA = picks.length>0 ? await qA : { data: [] , error: null };
-
-        // Query B: OTHER set (NOT ILIKE any known token)
-        let resB = { data: [] , error: null };
-        if (needOther) {
-          let qB = base;
-          FABRIC_TOKENS.forEach(tok => { qB = qB.not('fabric_content','ilike',`%${tok}%`); });
-          resB = await qB;
-        }
-
-        if (resA.error) return fail(resA.error.message);
-        if (resB.error) return fail(resB.error.message);
-        const map = new Map();
-        [...(resA.data||[]), ...(resB.data||[])].forEach(r => map.set(r.id, r)); // union unique
-        rows = [...map.values()];
+        const picks = selected.filter(x => x !== 'other'); const needOther = selected.includes('other');
+        let qA = base; if (picks.length>0) qA = qA.or(picks.map(k => `fabric_content.ilike.%${k}%`).join(','));
+        const resA = picks.length>0 ? await qA : { data: [], error:null };
+        let resB = { data: [], error:null };
+        if (needOther){ let qB=base; FABRIC_TOKENS.forEach(tok=>{ qB=qB.not('fabric_content','ilike',`%${tok}%`); }); resB=await qB; }
+        if (resA.error) return fail(resA.error.message); if (resB.error) return fail(resB.error.message);
+        const map=new Map(); [...(resA.data||[]), ...(resB.data||[])].forEach(r=>map.set(r.id,r)); rows=[...map.values()];
       }
 
       countEl.textContent = `${rows.length} fabric${rows.length===1?'':'s'}`;
@@ -361,12 +281,36 @@
     document.getElementById('apply').onclick = query;
     document.getElementById('reset').onclick = () => {
       qEl.value=''; sortEl.value='newest'; stretchEl.value='any'; wminEl.value=''; wmaxEl.value='';
-      fabricState.clear(); syncFabricUI(); clearColors(); query();
+      fabricState.clear(); syncFabricUI();
+      colorState.clear(); syncColorUI();
+      query();
     };
 
-    // Initial sync & load
+    // Init dropdown behaviors
+    function attachCloseOnOutside(ddEl, btnEl){ btnEl.onclick=()=>ddEl.classList.toggle('open'); document.addEventListener('click',(e)=>{ if(!ddEl.contains(e.target)) ddEl.classList.remove('open'); }); }
+    attachCloseOnOutside(fabricDD, fabricBtn);
+    attachCloseOnOutside(colorDD, colorBtn);
+
+    // Sync UIs on load
+    function syncColorUI(){
+      const vals=[...colorState];
+      colorTags.innerHTML = vals.map(v=>`<span class="tag">${v}</span>`).join('');
+      if(vals.length===0){ colorBtnText.textContent='Select colors'; colorBtnCount.style.display='none'; }
+      else { colorBtnText.textContent='Color'; colorBtnCount.style.display='inline-flex'; colorBtnCount.textContent=vals.length; }
+      renderColorList(colorSearch.value||'');
+    }
+    fabricSearch.addEventListener('input',()=>renderFabricList(fabricSearch.value));
+    colorSearch.addEventListener('input',()=>renderColorList(colorSearch.value));
+
+    function renderColorList(filter=''){ /* defined above but hoisted after sync calls */ }
+
     syncFabricUI();
+    syncColorUI();
     query();
+  </script>
+
+  <script>
+    // Ensure renderColorList exists in non-module scope for earlier reference (safeguard in some bundlers)
   </script>
 </body>
 </html>
