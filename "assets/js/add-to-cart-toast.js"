@@ -1,0 +1,137 @@
+/* Hemline Market — Add-to-cart micro-toast (Part 13, Step 1)
+   Drop-in file: assets/js/add-to-cart-toast.js
+   No dependencies. Auto-injects CSS. Binds to any element with [data-add-to-cart].
+   Optional: updates #cart-count badge if present.                                  */
+
+(function () {
+  // --- Guard against double-loading
+  if (window.__HM_ADD_TO_CART_TOAST__) return;
+  window.__HM_ADD_TO_CART_TOAST__ = true;
+
+  // --- Inject minimal CSS (Apple-like, subtle, boutique-warm)
+  const css = `
+  .hm-toast-host{position:fixed;inset:auto 0 24px 0;display:flex;justify-content:center;pointer-events:none;z-index:9999}
+  .hm-toast{
+    display:flex;align-items:center;gap:10px;
+    background:#111;color:#fff;padding:12px 14px;border-radius:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.18);font:14px/1.2 system-ui,-apple-system,Segoe UI,Inter,sans-serif;
+    transform:translateY(20px) scale(.97);opacity:0;transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .35s;
+    pointer-events:auto; border:1px solid rgba(255,255,255,.06);
+  }
+  .hm-toast.show{transform:translateY(0) scale(1);opacity:1}
+  .hm-toast .icon{
+    width:22px;height:22px;border-radius:999px;display:grid;place-items:center;
+    background:#16a34a;
+    box-shadow:0 0 0 0 rgba(22,163,74,.4);
+    animation:hmPulse 1.2s ease-out forwards;
+  }
+  .hm-toast .icon svg{width:14px;height:14px;fill:#fff}
+  @keyframes hmPulse{
+    0%{box-shadow:0 0 0 0 rgba(22,163,74,.45)}
+    100%{box-shadow:0 0 0 14px rgba(22,163,74,0)}
+  }
+  .hm-toast .msg{white-space:nowrap}
+  .hm-toast .name{font-weight:600}
+  .hm-toast .undo{margin-left:10px;background:#fff;color:#111;border:none;padding:6px 9px;border-radius:10px;cursor:pointer}
+  .hm-bump{animation:hmBump .35s ease-out}
+  @keyframes hmBump{
+    0%{transform:translateY(0)}
+    40%{transform:translateY(-4px)}
+    100%{transform:translateY(0)}
+  }`;
+  const style = document.createElement('style');
+  style.id = 'hm-add-to-cart-toast-style';
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  // --- Host for toasts
+  const host = document.createElement('div');
+  host.className = 'hm-toast-host';
+  document.body.appendChild(host);
+
+  // --- Utilities
+  const qs = (sel, ctx) => (ctx || document).querySelector(sel);
+  const getNameFromCard = (el) => {
+    // Try explicit data attribute, then closest card title, then button text
+    const explicit = el.getAttribute('data-item');
+    if (explicit) return explicit.trim();
+    const card = el.closest('.card') || el.closest('[data-card]');
+    const title = card && (qs('.title', card) || qs('h3', card) || qs('h2', card));
+    if (title && title.textContent) return title.textContent.trim();
+    return (el.textContent || 'Item').trim();
+  };
+
+  function updateCartBadge(delta) {
+    const badge = qs('#cart-count') || qs('[data-cart-count]');
+    if (!badge) return;
+    const n = parseInt(badge.textContent || '0', 10) || 0;
+    badge.textContent = String(Math.max(0, n + delta));
+    badge.classList.add('hm-bump');
+    setTimeout(() => badge.classList.remove('hm-bump'), 400);
+  }
+
+  function showToast(name, onUndo) {
+    const toast = document.createElement('div');
+    toast.className = 'hm-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    toast.innerHTML = `
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+      </div>
+      <div class="msg">
+        <span class="name">${name.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span> added to cart
+      </div>
+      <button class="undo" type="button">Undo</button>
+    `;
+    host.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    const remove = () => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 280);
+    };
+
+    const timer = setTimeout(remove, 2300);
+    toast.querySelector('.undo').addEventListener('click', () => {
+      clearTimeout(timer);
+      try { onUndo && onUndo(); } catch(_) {}
+      remove();
+    });
+  }
+
+  // --- Core: bind to all add-to-cart triggers (buttons, links)
+  function bind() {
+    const triggers = Array.from(document.querySelectorAll('[data-add-to-cart]'));
+    if (triggers.length === 0) return;
+
+    triggers.forEach(btn => {
+      if (btn.__hm_bound) return; // avoid duplicate listeners
+      btn.__hm_bound = true;
+
+      btn.addEventListener('click', (e) => {
+        // If the page already intercepts the click, let it run but still show toast
+        const name = getNameFromCard(btn);
+
+        // Do optimistic UI
+        updateCartBadge(+1);
+        showToast(name, () => updateCartBadge(-1));
+      });
+    });
+  }
+
+  // Bind immediately + on DOM ready + on mutation (for dynamically loaded cards)
+  bind();
+  document.addEventListener('DOMContentLoaded', bind, { once: true });
+
+  const mo = new MutationObserver(() => bind());
+  mo.observe(document.documentElement, { childList: true, subtree: true });
+
+  // Expose a tiny API for programmatic adds if needed:
+  window.HMToast = {
+    add(itemName) {
+      updateCartBadge(+1);
+      showToast(itemName || 'Item', () => updateCartBadge(-1));
+    }
+  };
+})();
