@@ -69,6 +69,12 @@
       border:1px solid #ccc;
       font-size:0.9rem;
     }
+    .status {
+      text-align:center;
+      font-size:0.95rem;
+      color:#666;
+      margin:16px 0 -8px;
+    }
   </style>
 </head>
 <body>
@@ -130,8 +136,11 @@
   </div>
 </div>
 
+<!-- Status message -->
+<div id="catalog-status" class="status">Showing all fabrics</div>
+
 <!-- Catalog Grid -->
-<main class="grid">
+<main class="grid" id="catalog-grid">
   <div class="card">
     <img src="images/fabric1.jpg" alt="Silk Crepe">
     <h3>Silk Crepe</h3>
@@ -150,5 +159,24 @@
 </main>
 
 <script src="assets/js/catalog-filters.js" defer></script>
+<script>
+// Update status text when filters change
+(function(){
+  function updateStatus() {
+    const cards = document.querySelectorAll('.card');
+    const visible = Array.from(cards).filter(c => c.style.display !== 'none');
+    const status = document.getElementById('catalog-status');
+    if (visible.length === 0) {
+      status.textContent = 'No fabrics match these filters';
+    } else {
+      status.textContent = 'Showing ' + visible.length + ' fabric' + (visible.length > 1 ? 's' : '');
+    }
+  }
+  ['fabric-content','fabric-type','fabric-category'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('change',updateStatus);
+  });
+})();
+</script>
 </body>
 </html>
