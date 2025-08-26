@@ -111,4 +111,106 @@
     <div class="swatches" aria-label="Available colors">
       <span class="swatch" style="background:#e45050" title="Red"></span>
       <span class="swatch" style="background:#f2b3c2" title="Rose"></span>
-      <span class="swatch" style
+      <span class="swatch" style="background:#f2efe7" title="Ivory"></span>
+    </div>
+    <p class="meta">Content: Silk · Type: Crepe · Category: Natural</p>
+    <p class="price">$45.00 / yd</p>
+  </article>
+
+  <article class="card" data-content="wool" data-type="dobby" data-category="natural" data-colors="black,charcoal">
+    <div class="thumb" role="img" aria-label="Wool Dobby"></div>
+    <h3 class="title">Wool Dobby</h3>
+    <div class="swatches" aria-label="Available colors">
+      <span class="swatch" style="background:#1b1b1c" title="Black"></span>
+      <span class="swatch" style="background:#4a4f57" title="Charcoal"></span>
+    </div>
+    <p class="meta">Content: Wool · Type: Dobby · Category: Natural</p>
+    <p class="price">$60.00 / yd</p>
+  </article>
+
+  <article class="card" data-content="cotton" data-type="satin" data-category="natural" data-colors="white,navy">
+    <div class="thumb" role="img" aria-label="Cotton Satin"></div>
+    <h3 class="title">Cotton Satin</h3>
+    <div class="swatches" aria-label="Available colors">
+      <span class="swatch" style="background:#ffffff" title="White"></span>
+      <span class="swatch" style="background:#1d2a44" title="Navy"></span>
+    </div>
+    <p class="meta">Content: Cotton · Type: Satin · Category: Natural</p>
+    <p class="price">$25.00 / yd</p>
+  </article>
+
+  <article class="card" data-content="linen" data-type="twill" data-category="natural" data-colors="oat,hazelnut">
+    <div class="thumb" role="img" aria-label="Linen Twill"></div>
+    <h3 class="title">Linen Twill</h3>
+    <div class="swatches" aria-label="Available colors">
+      <span class="swatch" style="background:#d8cbb5" title="Oat"></span>
+      <span class="swatch" style="background:#b08a5b" title="Hazelnut"></span>
+    </div>
+    <p class="meta">Content: Linen · Type: Twill · Category: Natural</p>
+    <p class="price">$35.00 / yd</p>
+  </article>
+
+  <article class="card" data-content="polyester" data-type="jersey" data-category="synthetic" data-colors="heather-grey,black">
+    <div class="thumb" role="img" aria-label="Poly Jersey"></div>
+    <h3 class="title">Poly Jersey</h3>
+    <div class="swatches" aria-label="Available colors">
+      <span class="swatch" style="background:#b7b9be" title="Heather Grey"></span>
+      <span class="swatch" style="background:#111111" title="Black"></span>
+    </div>
+    <p class="meta">Content: Polyester · Type: Jersey · Category: Synthetic</p>
+    <p class="price">$12.00 / yd</p>
+  </article>
+
+  <article class="card" data-content="wool-silk" data-type="crepe" data-category="blend" data-colors="midnight,champagne">
+    <div class="thumb" role="img" aria-label="Wool-Silk Crepe Blend"></div>
+    <h3 class="title">Wool-Silk Crepe Blend</h3>
+    <div class="swatches" aria-label="Available colors">
+      <span class="swatch" style="background:#101726" title="Midnight"></span>
+      <span class="swatch" style="background:#f4e4c7" title="Champagne"></span>
+    </div>
+    <p class="meta">Content: Wool/Silk · Type: Crepe · Category: Blend</p>
+    <p class="price">$70.00 / yd</p>
+  </article>
+</main>
+
+<!-- Self-contained filtering logic -->
+<script>
+(function(){
+  function qs(id){return document.getElementById(id)}
+  function all(sel){return Array.from(document.querySelectorAll(sel))}
+  function updateStatus(n){
+    const s=qs('catalog-status'); if(!s) return;
+    s.textContent=(n===0)?'No fabrics match these filters':'Showing '+n+' fabric'+(n>1?'s':'');
+  }
+  function apply(){
+    const content=(qs('fabric-content')?.value||'').trim();
+    const type=(qs('fabric-type')?.value||'').trim();
+    const category=(qs('fabric-category')?.value||'').trim();
+    let visible=0;
+    all('.card').forEach(card=>{
+      const c=(card.dataset.content||'');
+      const t=(card.dataset.type||'');
+      const cat=(card.dataset.category||'');
+      const show=(!content||c===content)&&(!type||t===type)&&(!category||cat===category);
+      card.style.display=show?'block':'none';
+      if(show) visible++;
+    });
+    updateStatus(visible);
+  }
+  function clearFilters(){
+    ['fabric-content','fabric-type','fabric-category'].forEach(id=>{const el=qs(id); if(el) el.value='';});
+    all('.card').forEach(c=>c.style.display='block');
+    updateStatus(all('.card').length);
+  }
+  function init(){
+    ['fabric-content','fabric-type','fabric-category'].forEach(id=>{
+      const el=qs(id); if(el) el.addEventListener('change',apply);
+    });
+    const clear=qs('clear-filters'); if(clear) clear.addEventListener('click',clearFilters);
+    apply();
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init,{once:true});} else {init();}
+})();
+</script>
+</body>
+</html>
