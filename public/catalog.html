@@ -3,79 +3,237 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Connectivity Recheck</title>
+  <title>Hemline Market — Catalog</title>
   <link rel="icon" href="/favicon.ico">
   <style>
-    body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;color:#111}
-    .wrap{max-width:900px;margin:0 auto;padding:24px}
-    .card{border:1px solid #ddd;border-radius:12px;padding:12px;margin:10px 0}
-    .ok{color:#0a7}.err{color:#c00}
-    pre{background:#f9f9f9;padding:10px;border:1px solid #ddd;white-space:pre-wrap}
-    button{border:1px solid #ddd;border-radius:8px;padding:6px 10px;cursor:pointer}
+    :root { --gap:14px; --border:#e5e7eb; --muted:#6b7280; }
+    * { box-sizing: border-box; }
+    body { font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; color:#111827; background:#fff; }
+    header { position:sticky; top:0; background:#fff; border-bottom:1px solid var(--border); padding:12px 16px; z-index:10; }
+    .wrap { max-width:1100px; margin:0 auto; }
+    .controls { display:flex; flex-wrap:wrap; gap:var(--gap); align-items:flex-end; }
+    .control { display:flex; flex-direction:column; gap:6px; }
+    .control input, .control select { padding:8px 10px; border:1px solid var(--border); border-radius:10px; min-width:180px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { display:flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:6px 10px; cursor:pointer; user-select:none; }
+    .chip input { margin:0; }
+    .btn { padding:9px 14px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
+    .btn.primary { background:#111827; color:#fff; border-color:#111827; }
+    main { padding:18px 16px 40px; }
+    .grid { display:grid; grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) ); gap:var(--gap); }
+    .card { border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; }
+    .thumb { aspect-ratio: 4 / 3; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; }
+    .card .body { padding:12px; display:flex; flex-direction:column; gap:6px; }
+    .title { font-weight:600; }
+    .muted { color:var(--muted); }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .spacer { flex:1; }
+    .empty { padding:30px; text-align:center; color:var(--muted); border:1px dashed var(--border); border-radius:12px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Connectivity Recheck</h1>
-    <div class="card" id="env"></div>
-    <div class="card"><strong>Test 1 — GET /rest/v1/</strong><div id="t1">pending…</div></div>
-    <div class="card"><strong>Test 2 — GET /rest/v1/catalog?select=*</strong><div id="t2">pending…</div></div>
-    <div class="card"><strong>Test 3 — supabase.from('catalog').select('*')</strong><div id="t3">pending…</div></div>
-    <div class="card"><button id="rerun">Re-run tests</button></div>
-    <div class="card"><strong>Raw</strong><pre id="log"></pre></div>
-  </div>
+  <header>
+    <div class="wrap">
+      <div class="controls">
+        <div class="control" style="flex:1; min-width:260px;">
+          <label class="muted">Search (title or fabric content)</label>
+          <input id="q" placeholder="e.g. wool, silk, lawn" />
+        </div>
+
+        <div class="control">
+          <label class="muted">Sort</label>
+          <select id="sort">
+            <option value="newest">Newest</option>
+            <option value="price_asc">Price: Low → High</option>
+            <option value="price_desc">Price: High → Low</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label class="muted">Stretch</label>
+          <select id="stretch">
+            <option value="any">Any</option>
+            <option value="true">Stretch</option>
+            <option value="false">No Stretch</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label class="muted">Fiber Type</label>
+          <select id="fiber">
+            <option value="any">Any</option>
+            <option value="natural">natural</option>
+            <option value="modified_natural">modified_natural</option>
+            <option value="synthetic">synthetic</option>
+            <option value="blend">blend</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label class="muted">Weight (gsm) min</label>
+          <input id="wmin" type="number" min="0" placeholder="e.g. 60" />
+        </div>
+        <div class="control">
+          <label class="muted">Weight (gsm) max</label>
+          <input id="wmax" type="number" min="0" placeholder="e.g. 300" />
+        </div>
+
+        <div class="control" style="min-width:100%;"></div>
+
+        <div class="control" style="min-width:100%;">
+          <label class="muted">Color</label>
+          <div class="chips" id="colorChips"></div>
+        </div>
+
+        <div class="spacer"></div>
+
+        <button class="btn" id="reset">Reset</button>
+        <button class="btn primary" id="apply">Apply Filters</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div id="count" class="muted" style="margin-bottom:10px;"></div>
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" style="display:none;">No fabrics match your filters.</div>
+    </div>
+  </main>
 
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-    /* === Correct project URL + anon key === */
+    // === Supabase (correct project) ===
     const SUPABASE_URL  = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-    /* ====================================== */
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    const env = document.getElementById('env');
-    const t1 = document.getElementById('t1');
-    const t2 = document.getElementById('t2');
-    const t3 = document.getElementById('t3');
-    const logEl = document.getElementById('log');
-    const log = (m) => { console.log(m); logEl.textContent += m + "\n"; };
+    // === UI refs ===
+    const qEl = document.getElementById('q');
+    const sortEl = document.getElementById('sort');
+    const stretchEl = document.getElementById('stretch');
+    const fiberEl = document.getElementById('fiber');
+    const wminEl = document.getElementById('wmin');
+    const wmaxEl = document.getElementById('wmax');
+    const gridEl = document.getElementById('grid');
+    const emptyEl = document.getElementById('empty');
+    const countEl = document.getElementById('count');
+    const chipsEl = document.getElementById('colorChips');
 
-    env.textContent = `URL: ${SUPABASE_URL} | anon key: present | createClient: ${typeof createClient}`;
+    // allowed colors (from your DB whitelist)
+    const COLORS = ['black','white','red','blue','green','yellow','brown','gray','beige','pink','purple','orange'];
 
-    const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
-
-    async function run() {
-      logEl.textContent = "";
-
-      try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/`);
-        t1.textContent = `HTTP ${r.status}`;
-      } catch (e) { t1.textContent = `Failed: ${e.message}`; log("T1: " + e.message); }
-
-      try {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/catalog?select=*`, {
-          headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
-        });
-        if (!r.ok) {
-          const txt = await r.text();
-          t2.textContent = `HTTP ${r.status}: ${txt.slice(0,120)}`;
-          log("T2: " + txt);
-        } else {
-          const json = await r.json();
-          t2.textContent = `OK: ${json.length} rows`;
-          log("T2 rows: " + JSON.stringify(json, null, 2));
-        }
-      } catch (e) { t2.textContent = `Failed: ${e.message}`; log("T2: " + e.message); }
-
-      try {
-        const { data, error } = await sb.from('catalog').select('*').limit(5);
-        if (error) { t3.textContent = `Supabase error: ${error.message}`; log("T3: " + error.message); }
-        else { t3.textContent = `OK: ${data.length} rows`; log("T3 rows: " + JSON.stringify(data, null, 2)); }
-      } catch (e) { t3.textContent = `Failed: ${e.message}`; log("T3: " + e.message); }
+    // build color chips
+    const selectedColors = new Set();
+    for (const c of COLORS) {
+      const chip = document.createElement('label');
+      chip.className = 'chip';
+      chip.innerHTML = `<input type="checkbox" value="${c}"><span>${c}</span>`;
+      chip.querySelector('input').addEventListener('change', (e) => {
+        if (e.target.checked) selectedColors.add(c); else selectedColors.delete(c);
+      });
+      chipsEl.appendChild(chip);
     }
 
-    document.getElementById('rerun').addEventListener('click', run);
-    run();
+    function dollars(cents) { return (cents/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
+
+    function card(item) {
+      const t = item.thumbnail_url ? `<img class="thumb" src="${item.thumbnail_url}" alt="">`
+                                   : `<div class="thumb">No image</div>`;
+      const lines = [
+        item.fabric_content || '—',
+        `Color: ${item.color_category ?? '—'}`,
+        `Weight: ${item.weight_gsm ?? '—'} gsm`,
+        `Stretch: ${item.stretch ? 'yes' : 'no'}`,
+        `Fiber: ${item.fiber_type ?? '—'}`,
+        `Width: ${item.width_in ?? '—'} in`,
+        `Origin: ${item.country_of_origin ?? '—'}`,
+        `Yards: ${item.yards_available ?? '—'}`
+      ];
+      return `
+        <div class="card">
+          ${t}
+          <div class="body">
+            <div class="title">${item.title || 'Fabric'}</div>
+            <div class="row">
+              <div>${item.price_cents != null ? dollars(item.price_cents) : ''}</div>
+              <div class="spacer"></div>
+              <div class="muted">${new Date(item.created_at).toLocaleDateString()}</div>
+            </div>
+            <div class="muted">${lines.join(' · ')}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function query() {
+      gridEl.innerHTML = '';
+      emptyEl.style.display = 'none';
+      countEl.textContent = 'Loading…';
+
+      let q = supabase.from('catalog').select('*').limit(60);
+
+      // search
+      const term = qEl.value.trim();
+      if (term) {
+        // title or fabric_content ilike
+        q = q.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`);
+      }
+
+      // colors
+      if (selectedColors.size > 0) {
+        q = q.in('color_category', Array.from(selectedColors));
+      }
+
+      // stretch
+      if (stretchEl.value === 'true') q = q.eq('stretch', true);
+      if (stretchEl.value === 'false') q = q.eq('stretch', false);
+
+      // fiber
+      if (fiberEl.value !== 'any') q = q.eq('fiber_type', fiberEl.value);
+
+      // weight range
+      const wmin = parseInt(wminEl.value, 10);
+      const wmax = parseInt(wmaxEl.value, 10);
+      if (!isNaN(wmin)) q = q.gte('weight_gsm', wmin);
+      if (!isNaN(wmax)) q = q.lte('weight_gsm', wmax);
+
+      // sort
+      if (sortEl.value === 'newest') q = q.order('created_at', { ascending:false });
+      if (sortEl.value === 'price_asc') q = q.order('price_cents', { ascending:true });
+      if (sortEl.value === 'price_desc') q = q.order('price_cents', { ascending:false });
+
+      const { data, error } = await q;
+      if (error) {
+        countEl.textContent = `Error: ${error.message}`;
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      countEl.textContent = `${data.length} fabric${data.length===1?'':'s'}`;
+      if (data.length === 0) {
+        emptyEl.style.display = 'block';
+        return;
+      }
+      gridEl.innerHTML = data.map(card).join('');
+    }
+
+    document.getElementById('apply').addEventListener('click', query);
+    document.getElementById('reset').addEventListener('click', () => {
+      qEl.value = '';
+      sortEl.value = 'newest';
+      stretchEl.value = 'any';
+      fiberEl.value = 'any';
+      wminEl.value = '';
+      wmaxEl.value = '';
+      selectedColors.clear();
+      chipsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      query();
+    });
+
+    // first load
+    query();
   </script>
 </body>
 </html>
