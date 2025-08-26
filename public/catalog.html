@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Hemline Market — Catalog</title>
-  <!-- Correct Supabase CDN build -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/supabase.min.js"></script>
   <link rel="icon" href="/favicon.ico">
   <style>
     body { font: 14px/1.4 system-ui, sans-serif; margin:0; color:#111; }
     .wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
     .card { border:1px solid #ddd; border-radius:12px; padding:12px; margin:10px 0; }
+    button { border:1px solid #ddd; border-radius:8px; padding:6px 10px; cursor:pointer; }
+    pre { background:#f9f9f9; padding:10px; border:1px solid #ddd; white-space:pre-wrap; }
   </style>
 </head>
 <body>
@@ -18,55 +18,46 @@
     <h1>Catalog Debug</h1>
     <button id="apply">Run Query</button>
     <div id="results"></div>
-    <pre id="log" style="background:#f9f9f9;padding:10px;border:1px solid #ddd;white-space:pre-wrap;"></pre>
+    <pre id="log"></pre>
   </div>
 
-  <script>
-    // === Supabase credentials (hardcoded, no edits needed) ===
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    // === Supabase credentials (hardcoded) ===
     const SUPABASE_URL = "https://kzqrfzvobxsbkppuexru.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYvWTjOlt12Tdpr91WKhKm7wNtuK2_Kj0lOiZHU";
-    // ========================================================
+    // ========================================
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const logEl = document.getElementById('log');
-    function log(msg) {
-      console.log(msg);
-      logEl.textContent += msg + "\n";
-    }
+    const resultsEl = document.getElementById('results');
+    const log = (m) => { console.log(m); logEl.textContent += m + "\n"; };
 
-    window.addEventListener("error", function(e) {
-      document.body.innerHTML += "<div style='color:red;padding:20px;'>Global Error: " + e.message + "</div>";
-    });
-    window.addEventListener("unhandledrejection", function(e) {
-      document.body.innerHTML += "<div style='color:red;padding:20px;'>Unhandled Promise: " + e.reason + "</div>";
-    });
-
-    try {
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-      async function run() {
-        document.getElementById('results').innerHTML = "Loading…";
+    async function run() {
+      resultsEl.textContent = "Loading…";
+      try {
         const { data, error } = await supabase.from('catalog').select('*').limit(5);
         if (error) {
+          resultsEl.innerHTML = `<p style="color:red;">Supabase error: ${error.message}</p>`;
           log("Supabase error: " + error.message);
-          document.getElementById('results').innerHTML = "<p style='color:red;'>Supabase error: " + error.message + "</p>";
           return;
         }
         if (!data || data.length === 0) {
-          document.getElementById('results').innerHTML = "<p>No rows in catalog.</p>";
+          resultsEl.innerHTML = "<p>No rows in catalog.</p>";
           return;
         }
+        resultsEl.innerHTML = data.map(d => `<div class="card">${d.title || 'Fabric'}</div>`).join('');
         log("Got rows: " + JSON.stringify(data, null, 2));
-        document.getElementById('results').innerHTML = data.map(
-          d => "<div class='card'>" + (d.title || 'Fabric') + "</div>"
-        ).join('');
+      } catch (e) {
+        resultsEl.innerHTML = `<p style="color:red;">Runtime error: ${e.message}</p>`;
+        log("Runtime error: " + e.message);
       }
-
-      document.getElementById('apply').addEventListener('click', run);
-      run();
-    } catch (err) {
-      log("Runtime error: " + err.message);
-      document.getElementById('results').innerHTML = "<p style='color:red;'>Runtime error: " + err.message + "</p>";
     }
+
+    document.getElementById('apply').addEventListener('click', run);
+    run();
   </script>
 </body>
 </html>
