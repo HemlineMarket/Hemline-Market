@@ -1,189 +1,176 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Cart</title>
-<style>
-  :root{--ink:#0f172a;--line:#e5e7eb;--bg:#fafafa;--accent:#111827}
-  body{font-family:system-ui,-apple-system,Segoe UI,Inter,Arial,sans-serif;background:var(--bg);color:var(--ink);margin:24px}
-  .wrap{max-width:900px;margin:auto}
-  h1{margin:0 0 12px}
-  .muted{color:#64748b;font-size:14px}
-  .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,.05);overflow:hidden}
-  table{width:100%;border-collapse:collapse}
-  th,td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle}
-  th{text-align:left;background:#f8fafc;font-weight:700}
-  .qty{display:flex;align-items:center;gap:6px}
-  .qty input{width:56px;height:34px;border:1px solid var(--line);border-radius:10px;padding:0 8px}
-  .price{text-align:right;font-weight:700}
-  .row-end td{border-bottom:0}
-  .actions{display:flex;gap:10px;justify-content:space-between;margin-top:14px;flex-wrap:wrap}
-  .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:700;text-decoration:none;color:#111827}
-  .btn.primary{background:#111827;color:#fff;border-color:#111827}
-  .btn:disabled{opacity:.55;cursor:not-allowed}
-  .empty{padding:40px;text-align:center;color:#64748b}
-  .right{float:right}
-  .ok{color:#059669}
-  .err{color:#dc2626}
-  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
-</style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="/cart.js"></script>
-<script>
-  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-  window.supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cart — Hemline Market</title>
+  <style>
+    :root{--ink:#111;--muted:#666;--line:#eee;}
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:#fff}
+    header nav{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--line)}
+    header a{color:var(--ink);text-decoration:none}
+    .brand{font-weight:700;font-size:1.1rem}
+    .nav-left,.nav-right{display:flex;align-items:center;gap:24px}
+    .cta{padding:6px 12px;background:#111;color:#fff;border-radius:8px}
+    main{max-width:960px;margin:24px auto;padding:0 20px}
+    h1{margin:0 0 12px}
+    .muted{color:var(--muted)}
+    .cart-empty{padding:24px;border:1px dashed var(--line);border-radius:12px;text-align:center;margin-top:12px}
+    .cart-list{display:grid;grid-template-columns:1fr auto auto;gap:12px;border-top:1px solid var(--line);margin-top:12px}
+    .cart-row{display:contents}
+    .cell{padding:12px 0;border-bottom:1px solid var(--line)}
+    .name{font-weight:600}
+    .qty{display:flex;gap:8px;align-items:center}
+    .btn{padding:8px 12px;border:1px solid #ccc;border-radius:10px;background:#f9f9f9;cursor:pointer}
+    .btn:hover{background:#eee}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+    .total{font-weight:700}
+    .checkout{padding:10px 14px;background:#111;color:#fff;border-radius:10px;border:1px solid #111;cursor:pointer}
+    .checkout:hover{background:#000}
+    .right{display:flex;gap:10px;align-items:center}
+    .price{white-space:nowrap}
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Cart</h1>
-  <div class="muted">Signed-in users can save their cart as a pending order (test mode).</div>
 
-  <div id="authStatus" class="muted" style="margin-top:8px"></div>
+<header>
+  <nav>
+    <div class="nav-left">
+      <a class="brand" href="index.html">hemlinemarket</a>
+      <a href="catalog.html">Catalog</a>
+      <a href="browse.html">Browse</a>
+      <a href="atelier.html">Atelier Stash</a>
+    </div>
+    <div class="nav-right">
+      <a href="profile.html">Profile</a>
+      <a class="cta" href="list.html">List an Item</a>
+      <a class="hm-cart-link" href="cart.html">Cart <span id="cart-count">0</span></a>
+    </div>
+  </nav>
+</header>
 
-  <div id="cartView" class="card" style="margin-top:14px"></div>
+<main>
+  <h1>Your cart</h1>
+  <p class="muted">Items you’ve added from the catalog. This page reads your cart from your browser’s storage.</p>
 
-  <div class="actions">
-    <a class="btn" href="/listings.html">← Continue shopping</a>
-    <button id="saveOrderBtn" class="btn primary">Save Pending Order (test)</button>
-    <button id="checkoutBtn" class="btn" disabled title="Enable after Vercel deploys resume.">Proceed to checkout</button>
+  <div id="cart-empty" class="cart-empty" style="display:none">
+    Your cart is empty. <a href="catalog.html">Go to the catalog</a>
   </div>
 
-  <div id="result" class="muted mono" style="margin-top:12px"></div>
+  <div id="cart-list" class="cart-list" aria-live="polite" aria-atomic="true"></div>
 
-  <p class="muted" style="margin-top:12px">
-    Note: This saves an order with <strong>status = "pending"</strong> and line items under your account. No payment is taken.
-  </p>
-</div>
+  <div class="footer">
+    <div class="actions">
+      <button id="clear-cart" class="btn" type="button">Clear cart</button>
+      <button id="refresh" class="btn" type="button">Refresh</button>
+    </div>
+    <div class="right">
+      <div class="total">Total items: <span id="total-count">0</span></div>
+      <button id="checkout" class="checkout" type="button">Proceed to checkout</button>
+    </div>
+  </div>
+</main>
+
+<!-- Load shared header cart badge (safe if already loaded) -->
+<script id="hm-cart-badge" src="/assets/js/cart-badge.js" defer></script>
+
+<!-- Load cart store (reads/writes localStorage, exposes window.HMCART) -->
+<script id="hm-cart-store" src="/assets/js/cart-store.js" defer></script>
 
 <script>
 (function(){
-  if(!window.HEM_CART){ alert('Cart module not loaded'); return; }
-  const view = document.getElementById('cartView');
-  const result = document.getElementById('result');
-  const authStatus = document.getElementById('authStatus');
-  const fmt = (cents)=>'$'+(Math.max(0,parseInt(cents||0,10))/100).toFixed(2);
+  const $ = (s,c=document)=>c.querySelector(s);
+  const $$ = (s,c=document)=>Array.from((c||document).querySelectorAll(s));
 
-  async function showAuth(){
-    const { data: { user } } = await window.supa.auth.getUser();
-    if(user){
-      authStatus.innerHTML = `Signed in as <strong>${user.email||user.id}</strong>`;
-      return user;
-    } else {
-      authStatus.innerHTML = `<span class="err">You are not signed in.</span> Please sign in on the site before saving an order.`;
-      return null;
-    }
+  function ensureAPIsReady(cb){
+    if (window.HMCART) return cb();
+    document.getElementById('hm-cart-store').addEventListener('load', cb, {once:true});
   }
 
   function render(){
-    const { items } = window.HEM_CART.getCart();
-    if(!items.length){
-      view.innerHTML = '<div class="empty">Your cart is empty.</div>';
+    const listEl = $('#cart-list');
+    const emptyEl = $('#cart-empty');
+    const totalEl = $('#total-count');
+
+    const items = (window.HMCART && HMCART.getAll()) || [];
+    listEl.innerHTML = '';
+
+    if (items.length === 0){
+      emptyEl.style.display = 'block';
+      totalEl.textContent = '0';
       return;
     }
-    const rows = items.map(it=>{
-      const line = (it.unit_price_cents||0) * (it.qty||1);
-      return `
-        <tr data-id="${it.id}">
-          <td><strong>${it.title||'Fabric'}</strong><div class="muted">Seller: ${it.seller_id||'unknown'}</div></td>
-          <td class="qty">
-            <label class="muted" for="q-${it.id}">Qty</label>
-            <input id="q-${it.id}" type="number" min="0" step="1" value="${it.qty||1}" />
-            <button class="btn" data-act="rm">Remove</button>
-          </td>
-          <td class="price">${fmt(it.unit_price_cents||0)}</td>
-          <td class="price">${fmt(line)}</td>
-        </tr>
-      `;
-    }).join('');
+    emptyEl.style.display = 'none';
 
-    const subtotal = window.HEM_CART.totals().subtotal_cents;
-    view.innerHTML = `
-      <table>
-        <thead>
-          <tr><th>Item</th><th>Quantity</th><th class="price">Unit</th><th class="price">Total</th></tr>
-        </thead>
-        <tbody>${rows}
-          <tr class="row-end"><td colspan="3" class="price"><strong>Subtotal</strong></td><td class="price"><strong>${fmt(subtotal)}</strong></td></tr>
-        </tbody>
-      </table>
+    // Header row
+    const header = document.createElement('div');
+    header.className = 'cart-row';
+    header.innerHTML = `
+      <div class="cell muted">Item</div>
+      <div class="cell muted">Added</div>
+      <div class="cell muted">Actions</div>
     `;
+    listEl.appendChild(header);
+
+    items.forEach((it, idx)=>{
+      const row = document.createElement('div');
+      row.className = 'cart-row';
+      const when = new Date(it.ts || Date.now());
+      row.innerHTML = `
+        <div class="cell name">${(it.name||'Item').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <div class="cell">${when.toLocaleString()}</div>
+        <div class="cell">
+          <button class="btn" data-remove="${idx}" type="button">Remove</button>
+        </div>
+      `;
+      listEl.appendChild(row);
+    });
+
+    totalEl.textContent = String(items.length);
   }
 
-  // Qty / remove handlers
-  document.addEventListener('input', (e)=>{
-    const el = e.target;
-    if(el.tagName==='INPUT' && el.id.startsWith('q-')){
-      const id = el.id.slice(2);
-      const qty = parseInt(el.value||'0',10);
-      window.HEM_CART.setQty(id, qty);
+  function bind(){
+    $('#clear-cart').addEventListener('click', function(){
+      if (!window.HMCART) return;
+      HMCART.clear();
       render();
-    }
-  });
-  document.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button[data-act="rm"]');
-    if(!btn) return;
-    const row = btn.closest('tr[data-id]');
-    if(!row) return;
-    window.HEM_CART.remove(row.getAttribute('data-id'));
-    render();
-  });
-
-  // Save Pending Order (test)
-  async function savePendingOrder(){
-    result.textContent = '';
-    const user = await showAuth();
-    if(!user){ result.innerHTML = '<span class="err">Aborted: not signed in.</span>'; return; }
-
-    const cart = window.HEM_CART.getCart();
-    if(!cart.items.length){ result.innerHTML = '<span class="err">Aborted: cart is empty.</span>'; return; }
-
-    const subtotal = cart.items.reduce((s,it)=> s + (it.unit_price_cents||0)*(it.qty||1), 0);
-
-    // 1) insert order
-    const { data: order, error: e1 } = await window.supa
-      .from('orders')
-      .insert([{
-        buyer_id: user.id,
-        status: 'pending',
-        amount_subtotal_cents: subtotal,
-        amount_total_cents: subtotal,
-        currency: 'usd',
-        email: user.email || null,
-        shipping_name: null
-      }])
-      .select()
-      .single();
-
-    if(e1){ result.innerHTML = `<span class="err">Order insert failed:</span> ${e1.message}`; return; }
-
-    // 2) insert items
-    const itemsPayload = cart.items.map(it=>({
-      order_id: order.id,
-      listing_id: it.id,
-      seller_id: it.seller_id || 'unknown',
-      qty: it.qty || 1,
-      unit_price_cents: it.unit_price_cents || 0,
-      title: it.title || 'Fabric'
-    }));
-
-    const { error: e2 } = await window.supa.from('order_items').insert(itemsPayload);
-    if(e2){ result.innerHTML = `<span class="err">Items insert failed:</span> ${e2.message}`; return; }
-
-    // 3) clear cart + show success
-    window.HEM_CART.clear();
-    render();
-    result.innerHTML = `<span class="ok">Saved!</span> Order <strong>${order.id}</strong> created with ${itemsPayload.length} item(s).`;
+    });
+    $('#refresh').addEventListener('click', render);
+    $('#cart-list').addEventListener('click', function(e){
+      const btn = e.target.closest('button[data-remove]');
+      if (!btn || !window.HMCART) return;
+      const idx = parseInt(btn.getAttribute('data-remove'), 10);
+      const items = HMCART.getAll();
+      if (isNaN(idx) || idx < 0 || idx >= items.length) return;
+      items.splice(idx, 1);
+      // write back
+      localStorage.setItem('hm_cart', JSON.stringify(items));
+      // sync badge
+      const badge = document.getElementById('cart-count');
+      if (badge) { badge.textContent = String(items.length); }
+      render();
+    });
+    $('#checkout').addEventListener('click', function(){
+      alert('Checkout flow coming next in Part 13.'); // placeholder
+    });
   }
 
-  document.getElementById('saveOrderBtn').addEventListener('click', savePendingOrder);
+  function init(){
+    render();
+    bind();
+  }
 
-  // Init
-  showAuth();
-  render();
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      ensureAPIsReady(init);
+    }, {once:true});
+  } else {
+    ensureAPIsReady(init);
+  }
 })();
 </script>
+
 </body>
 </html>
