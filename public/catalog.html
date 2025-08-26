@@ -6,21 +6,33 @@
   <title>Hemline Market — Catalog</title>
   <link rel="icon" href="/favicon.ico">
   <style>
-    :root { --gap:14px; --border:#e5e7eb; --muted:#6b7280; --ink:#111827; --bg:#ffffff; }
+    :root { --gap:14px; --border:#e5e7eb; --muted:#6b7280; --ink:#111827; --bg:#ffffff; --brand:#111827; }
     * { box-sizing:border-box; }
     body { margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif; color:var(--ink); background:var(--bg); }
-    header { position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid var(--border); }
+
+    /* Top Navbar */
+    .nav { position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--border); }
+    .nav-inner { max-width:1100px; margin:0 auto; padding:10px 16px; display:flex; align-items:center; gap:14px; }
+    .brand { font-weight:800; letter-spacing:.2px; color:var(--brand); text-decoration:none; font-size:18px; }
+    .nav-search { flex:1; }
+    .nav-search input { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:999px; }
+    .nav-links { display:flex; gap:12px; align-items:center; }
+    .link-btn { padding:8px 12px; border:1px solid var(--border); border-radius:999px; background:#fff; text-decoration:none; color:var(--ink); }
+    .link-cta { background:var(--brand); color:#fff; border-color:var(--brand); }
+
+    /* Controls row */
+    header.filt { position:sticky; top:58px; z-index:10; background:#fff; border-bottom:1px solid var(--border); }
     .wrap { max-width:1100px; margin:0 auto; padding:12px 16px; }
-    .controls { display:grid; grid-template-columns:1fr repeat(3, minmax(160px, 220px)) repeat(3, minmax(160px, 240px)); gap:var(--gap); align-items:end; }
-    @media (max-width:1100px){ .controls { grid-template-columns:1fr 1fr; } }
+    .controls { display:grid; grid-template-columns:1fr repeat(7, minmax(150px, 220px)); gap:var(--gap); align-items:end; }
+    @media (max-width:1150px){ .controls { grid-template-columns:1fr 1fr; } }
     .control { display:flex; flex-direction:column; gap:6px; }
     .muted { color:var(--muted); }
     input, select, button { border:1px solid var(--border); border-radius:10px; padding:8px 10px; background:#fff; }
     button { cursor:pointer; }
     .btn { padding:9px 14px; }
-    .btn.primary { background:var(--ink); color:#fff; border-color:var(--ink); }
+    .btn.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
 
-    /* Dropdown (shared styles for Fabric + Color) */
+    /* Dropdown (shared) */
     .dropdown { position:relative; }
     .dropdown-btn { display:flex; align-items:center; gap:8px; justify-content:space-between; min-height:38px; }
     .dropdown-panel { position:absolute; top:calc(100% + 6px); left:0; width:320px; max-height:300px; overflow:auto; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 10px 24px rgba(0,0,0,.08); padding:10px; display:none; }
@@ -43,9 +55,26 @@
   </style>
 </head>
 <body>
-  <header>
+
+  <!-- Global Navbar -->
+  <div class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/index.html">hemlinemarket</a>
+      <div class="nav-search"><input id="globalSearch" placeholder="Search fabrics…"></div>
+      <div class="nav-links">
+        <a class="link-btn" href="/favorites.html">Likes</a>
+        <a class="link-btn" href="/news.html">News</a>
+        <a class="link-btn" href="/profile.html">Profile</a>
+        <a class="link-btn link-cta" href="/sell.html">List an item</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <header class="filt">
     <div class="wrap">
       <div class="controls">
+
         <div class="control" style="grid-column:1 / -1;">
           <label class="muted">Search (title or fabric content)</label>
           <input id="q" placeholder="e.g. wool, silk, lawn" />
@@ -79,6 +108,16 @@
           <input id="wmax" type="number" min="0" placeholder="e.g. 300" />
         </div>
 
+        <!-- Price min/max -->
+        <div class="control">
+          <label class="muted">Price min (USD)</label>
+          <input id="pmin" type="number" min="0" placeholder="e.g. 10" />
+        </div>
+        <div class="control">
+          <label class="muted">Price max (USD)</label>
+          <input id="pmax" type="number" min="0" placeholder="e.g. 80" />
+        </div>
+
         <!-- Fabric Type dropdown -->
         <div class="control dropdown" id="fabricDD">
           <label class="muted">Fabric Type</label>
@@ -107,6 +146,36 @@
           <div id="colorTags" class="tags"></div>
         </div>
 
+        <!-- Condition -->
+        <div class="control">
+          <label class="muted">Condition</label>
+          <select id="condition">
+            <option value="any">Any</option>
+            <option value="new">New</option>
+            <option value="washed">Washed (pre-shrunk)</option>
+            <option value="used">Used</option>
+            <option value="vintage">Vintage</option>
+          </select>
+        </div>
+
+        <!-- Department -->
+        <div class="control">
+          <label class="muted">Department</label>
+          <select id="department">
+            <option value="any">Any</option>
+            <option value="fashion">Fashion fabric</option>
+            <option value="quilting">Quilting fabric</option>
+            <option value="home">Home fabric</option>
+            <option value="notions">Notions</option>
+          </select>
+        </div>
+
+        <!-- Designer -->
+        <div class="control">
+          <label class="muted">Designer</label>
+          <input id="designer" placeholder="e.g. Liberty, Mood, Joann" />
+        </div>
+
         <div class="control" style="align-self:center;">
           <button class="btn" id="reset">Reset</button>
         </div>
@@ -128,22 +197,31 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-    // --- Supabase ---
+    // Supabase
     const SUPABASE_URL  = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // --- UI refs ---
+    // DOM refs
+    const globalSearch = document.getElementById('globalSearch');
     const qEl = document.getElementById('q');
     const sortEl = document.getElementById('sort');
     const stretchEl = document.getElementById('stretch');
     const wminEl = document.getElementById('wmin');
     const wmaxEl = document.getElementById('wmax');
+    const pminEl = document.getElementById('pmin');
+    const pmaxEl = document.getElementById('pmax');
+    const conditionEl = document.getElementById('condition');
+    const departmentEl = document.getElementById('department');
+    const designerEl = document.getElementById('designer');
     const gridEl = document.getElementById('grid');
     const emptyEl = document.getElementById('empty');
     const countEl = document.getElementById('count');
 
-    // ===== Fabric Type dropdown =====
+    // Navbar search pipes into main search
+    globalSearch.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ qEl.value = globalSearch.value; query(); } });
+
+    /* ---------- Fabric Type dropdown ---------- */
     const FABRIC_TOKENS = [
       'cotton','wool','silk','linen','denim','chiffon','crepe','jersey','satin','twill','canvas','lace','velvet',
       'rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic'
@@ -159,9 +237,9 @@
     const fabricSearch = document.getElementById('fabricSearch');
 
     function renderFabricList(filter=''){
-      const term = filter.trim().toLowerCase();
+      const term=filter.trim().toLowerCase();
       fabricList.innerHTML='';
-      ALL_FABRICS.filter(k=>!term || k.includes(term)).forEach(k=>{
+      ALL_FABRICS.filter(k=>!term||k.includes(term)).forEach(k=>{
         const row=document.createElement('label'); row.className='d-item';
         row.innerHTML=`<input type="checkbox" ${fabricState.has(k)?'checked':''}><span>${k}</span>`;
         row.querySelector('input').onchange=(e)=>{ if(e.target.checked) fabricState.add(k); else fabricState.delete(k); syncFabricUI(); };
@@ -178,9 +256,10 @@
     fabricBtn.onclick=()=>fabricDD.classList.toggle('open');
     document.addEventListener('click',(e)=>{ if(!fabricDD.contains(e.target)) fabricDD.classList.remove('open'); });
     fabricSearch.addEventListener('input',()=>renderFabricList(fabricSearch.value));
-    renderFabricList();
+    renderFabricList(); // IMPORTANT: build immediately so it “populates”
+    syncFabricUI();
 
-    // ===== Color dropdown (replaces wheel) =====
+    /* ---------- Color dropdown ---------- */
     const COLOR_OPTIONS = ['black','gray','white','beige','brown','yellow','orange','red','pink','purple','blue','green'];
     const colorState = new Set();
     const colorDD = document.getElementById('colorDD');
@@ -192,9 +271,9 @@
     const colorSearch = document.getElementById('colorSearch');
 
     function renderColorList(filter=''){
-      const term = filter.trim().toLowerCase();
+      const term=filter.trim().toLowerCase();
       colorList.innerHTML='';
-      COLOR_OPTIONS.filter(k=>!term || k.includes(term)).forEach(k=>{
+      COLOR_OPTIONS.filter(k=>!term||k.includes(term)).forEach(k=>{
         const row=document.createElement('label'); row.className='d-item';
         row.innerHTML=`<input type="checkbox" ${colorState.has(k)?'checked':''}><span>${k}</span>`;
         row.querySelector('input').onchange=(e)=>{ if(e.target.checked) colorState.add(k); else colorState.delete(k); syncColorUI(); };
@@ -211,9 +290,10 @@
     colorBtn.onclick=()=>colorDD.classList.toggle('open');
     document.addEventListener('click',(e)=>{ if(!colorDD.contains(e.target)) colorDD.classList.remove('open'); });
     colorSearch.addEventListener('input',()=>renderColorList(colorSearch.value));
-    renderColorList();
+    renderColorList(); // populate immediately
+    syncColorUI();
 
-    // ===== Cards & query =====
+    /* ---------- Cards & query ---------- */
     function dollars(c){ return (c/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
     function card(item){
       const t = item.thumbnail_url ? `<img class="thumb" src="${item.thumbnail_url}" alt="">` : `<div class="thumb">No image</div>`;
@@ -229,12 +309,13 @@
     async function query(){
       gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='Loading…';
 
-      let base = supabase.from('catalog').select('*').limit(200);
+      let base = supabase.from('catalog').select('*').limit(300);
 
-      const term=qEl.value.trim();
+      // Text search (navbar + local)
+      const term = (qEl.value || '').trim();
       if(term){ base = base.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`); }
 
-      // Colors
+      // Color
       if(colorState.size>0){ base = base.in('color_category', [...colorState]); }
 
       // Stretch
@@ -246,12 +327,17 @@
       if(!isNaN(wmin)) base = base.gte('weight_gsm', wmin);
       if(!isNaN(wmax)) base = base.lte('weight_gsm', wmax);
 
+      // Price (cents)
+      const pmin=parseInt(pminEl.value,10), pmax=parseInt(pmaxEl.value,10);
+      if(!isNaN(pmin)) base = base.gte('price_cents', Math.round(pmin*100));
+      if(!isNaN(pmax)) base = base.lte('price_cents', Math.round(pmax*100));
+
       // Sort
       if(sortEl.value==='newest') base = base.order('created_at',{ascending:false});
       if(sortEl.value==='price_asc') base = base.order('price_cents',{ascending:true});
       if(sortEl.value==='price_desc') base = base.order('price_cents',{ascending:false});
 
-      // Fabric Type logic (supports “other”)
+      // Fabric Type logic (“other” supported)
       const selected = [...fabricState];
       let rows = [];
       if (selected.length === 0) {
@@ -271,8 +357,32 @@
         const map=new Map(); [...(resA.data||[]), ...(resB.data||[])].forEach(r=>map.set(r.id,r)); rows=[...map.values()];
       }
 
+      // Client-side filters that may not yet exist as DB columns (non-breaking):
+      const cond = conditionEl.value;        // expects row.condition if present
+      const dept = departmentEl.value;       // expects row.department if present
+      const desg = (designerEl.value||'').trim().toLowerCase();
+
+      rows = rows.filter(r=>{
+        // condition
+        if (cond!=='any') {
+          const v = (r.condition||'').toLowerCase();
+          if (v!==cond) return false;
+        }
+        // department
+        if (dept!=='any') {
+          const v = (r.department||'').toLowerCase();
+          if (v!==dept) return false;
+        }
+        // designer (match against r.designer if present, otherwise fallback to title/content)
+        if (desg) {
+          const hay = `${r.designer||''} ${r.title||''} ${r.fabric_content||''}`.toLowerCase();
+          if (!hay.includes(desg)) return false;
+        }
+        return true;
+      });
+
       countEl.textContent = `${rows.length} fabric${rows.length===1?'':'s'}`;
-      if (rows.length === 0) { emptyEl.style.display='block'; return; }
+      if (rows.length === 0) { emptyEl.style.display='block'; gridEl.innerHTML=''; return; }
       gridEl.innerHTML = rows.map(card).join('');
     }
 
@@ -280,37 +390,16 @@
 
     document.getElementById('apply').onclick = query;
     document.getElementById('reset').onclick = () => {
-      qEl.value=''; sortEl.value='newest'; stretchEl.value='any'; wminEl.value=''; wmaxEl.value='';
+      globalSearch.value=''; qEl.value=''; sortEl.value='newest'; stretchEl.value='any';
+      wminEl.value=''; wmaxEl.value=''; pminEl.value=''; pmaxEl.value='';
+      conditionEl.value='any'; departmentEl.value='any'; designerEl.value='';
       fabricState.clear(); syncFabricUI();
       colorState.clear(); syncColorUI();
       query();
     };
 
-    // Init dropdown behaviors
-    function attachCloseOnOutside(ddEl, btnEl){ btnEl.onclick=()=>ddEl.classList.toggle('open'); document.addEventListener('click',(e)=>{ if(!ddEl.contains(e.target)) ddEl.classList.remove('open'); }); }
-    attachCloseOnOutside(fabricDD, fabricBtn);
-    attachCloseOnOutside(colorDD, colorBtn);
-
-    // Sync UIs on load
-    function syncColorUI(){
-      const vals=[...colorState];
-      colorTags.innerHTML = vals.map(v=>`<span class="tag">${v}</span>`).join('');
-      if(vals.length===0){ colorBtnText.textContent='Select colors'; colorBtnCount.style.display='none'; }
-      else { colorBtnText.textContent='Color'; colorBtnCount.style.display='inline-flex'; colorBtnCount.textContent=vals.length; }
-      renderColorList(colorSearch.value||'');
-    }
-    fabricSearch.addEventListener('input',()=>renderFabricList(fabricSearch.value));
-    colorSearch.addEventListener('input',()=>renderColorList(colorSearch.value));
-
-    function renderColorList(filter=''){ /* defined above but hoisted after sync calls */ }
-
-    syncFabricUI();
-    syncColorUI();
+    // initial load
     query();
-  </script>
-
-  <script>
-    // Ensure renderColorList exists in non-module scope for earlier reference (safeguard in some bundlers)
   </script>
 </body>
 </html>
