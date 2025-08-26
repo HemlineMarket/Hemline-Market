@@ -14,28 +14,28 @@
     .controls { display:flex; flex-wrap:wrap; gap:var(--gap); align-items:flex-end; }
     .control { display:flex; flex-direction:column; gap:6px; }
     .control input, .control select { padding:8px 10px; border:1px solid var(--border); border-radius:10px; min-width:180px; }
-    .chips { display:flex; gap:8px; flex-wrap:wrap; }
-    .chip { display:flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:6px 10px; cursor:pointer; user-select:none; }
-    .chip input { margin:0; }
     .btn { padding:9px 14px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
     .btn.primary { background:#111827; color:#fff; border-color:#111827; }
     main { padding:18px 16px 40px; }
     .grid { display:grid; grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) ); gap:var(--gap); }
     .card { border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; }
-    .thumb { aspect-ratio: 4 / 3; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; }
+    .thumb { aspect-ratio: 4 / 3; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#6b7280; font-size:12px; }
     .card .body { padding:12px; display:flex; flex-direction:column; gap:6px; }
     .title { font-weight:600; }
-    .muted { color:var(--muted); }
+    .muted { color:#6b7280; }
     .row { display:flex; gap:8px; flex-wrap:wrap; }
     .spacer { flex:1; }
-    .empty { padding:30px; text-align:center; color:var(--muted); border:1px dashed var(--border); border-radius:12px; }
-
-    /* Color wheel */
+    .empty { padding:30px; text-align:center; color:#6b7280; border:1px dashed var(--border); border-radius:12px; }
+    /* chips */
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { display:flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:999px; padding:6px 10px; cursor:pointer; user-select:none; }
+    .chip input { margin:0; }
+    /* color wheel */
     .wheel-wrap { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
     .wheel { width:240px; height:240px; }
     .legend { display:grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap:6px 12px; align-items:center; }
     .legend .bullet { width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid rgba(0,0,0,.15); }
-    .wheel-selected { outline:4px solid #111827; outline-offset:-2px; }
+    /* highlight is handled by stroke-width change; no outlines that create squares */
   </style>
 </head>
 <body>
@@ -66,17 +66,6 @@
         </div>
 
         <div class="control">
-          <label class="muted">Fiber Type</label>
-          <select id="fiber">
-            <option value="any">Any</option>
-            <option value="natural">natural</option>
-            <option value="modified_natural">modified_natural</option>
-            <option value="synthetic">synthetic</option>
-            <option value="blend">blend</option>
-          </select>
-        </div>
-
-        <div class="control">
           <label class="muted">Weight (gsm) min</label>
           <input id="wmin" type="number" min="0" placeholder="e.g. 60" />
         </div>
@@ -86,6 +75,12 @@
         </div>
 
         <div class="control" style="min-width:100%;"></div>
+
+        <!-- Fabric Type chips (maps to fabric_content ILIKE) -->
+        <div class="control" style="min-width:100%;">
+          <label class="muted">Fabric Type</label>
+          <div class="chips" id="fabricChips"></div>
+        </div>
 
         <!-- Color Wheel -->
         <div class="control" style="min-width:100%;">
@@ -115,23 +110,38 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-    // === Supabase (correct project) ===
+    // Supabase — correct project
     const SUPABASE_URL  = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // === UI refs ===
+    // UI refs
     const qEl = document.getElementById('q');
     const sortEl = document.getElementById('sort');
     const stretchEl = document.getElementById('stretch');
-    const fiberEl = document.getElementById('fiber');
     const wminEl = document.getElementById('wmin');
     const wmaxEl = document.getElementById('wmax');
     const gridEl = document.getElementById('grid');
     const emptyEl = document.getElementById('empty');
     const countEl = document.getElementById('count');
 
-    // allowed colors (from DB whitelist) + display colors for the wheel
+    // ---- Fabric Type chips (search on fabric_content ILIKE) ----
+    const FABRICS = [
+      'cotton','wool','silk','linen','rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic'
+    ];
+    const selectedFabrics = new Set();
+    const fabricChipsEl = document.getElementById('fabricChips');
+    FABRICS.forEach(k => {
+      const lbl = document.createElement('label');
+      lbl.className = 'chip';
+      lbl.innerHTML = `<input type="checkbox" value="${k}"><span>${k}</span>`;
+      lbl.querySelector('input').addEventListener('change', e => {
+        if (e.target.checked) selectedFabrics.add(k); else selectedFabrics.delete(k);
+      });
+      fabricChipsEl.appendChild(lbl);
+    });
+
+    // ---- Color wheel (12 whitelist colors) with clean highlight ----
     const COLORS = [
       {key:'black',  fill:'#111827'},
       {key:'gray',   fill:'#9ca3af'},
@@ -146,161 +156,109 @@
       {key:'blue',   fill:'#3b82f6'},
       {key:'green',  fill:'#22c55e'}
     ];
-
-    // selected set
     const selectedColors = new Set();
-
-    // --- Draw color wheel ---
     const svg = document.getElementById('colorWheel');
     const legend = document.getElementById('legend');
 
-    // helper: add path
     function addSlice(cx, cy, r, startDeg, endDeg, fill, key) {
-      const toXY = (deg) => {
-        const rad = (deg-90) * Math.PI/180;
-        return [cx + r*Math.cos(rad), cy + r*Math.sin(rad)];
-      };
-      const [x1,y1] = toXY(startDeg);
-      const [x2,y2] = toXY(endDeg);
-      const largeArc = endDeg - startDeg <= 180 ? 0 : 1;
-      const d = [
-        `M ${cx} ${cy}`,
-        `L ${x1} ${y1}`,
-        `A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`,
-        'Z'
-      ].join(' ');
+      const toXY = (deg) => { const rad=(deg-90)*Math.PI/180; return [cx+r*Math.cos(rad), cy+r*Math.sin(rad)]; };
+      const [x1,y1]=toXY(startDeg), [x2,y2]=toXY(endDeg);
+      const largeArc = endDeg-startDeg <= 180 ? 0 : 1;
+      const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
       const p = document.createElementNS('http://www.w3.org/2000/svg','path');
       p.setAttribute('d', d);
       p.setAttribute('fill', fill);
-      p.setAttribute('stroke', '#ffffff');
-      p.setAttribute('stroke-width','0.5');
+      p.setAttribute('stroke', '#ffffff');     // base separator
+      p.setAttribute('stroke-width','0.6');    // thin by default
       p.dataset.key = key;
-      p.style.cursor = 'pointer';
-      p.addEventListener('click', () => toggleColor(key, p));
+      p.style.cursor='pointer';
+      p.addEventListener('click', ()=>toggleColor(key,p));
       svg.appendChild(p);
       return p;
     }
-
-    // draw ring (12 equal slices)
-    const cx=50, cy=50, r=48;
-    const slice = 360 / COLORS.length;
-    const sliceElems = {};
-    COLORS.forEach((c, i) => {
-      const p = addSlice(cx, cy, r, i*slice, (i+1)*slice, c.fill, c.key);
-      sliceElems[c.key] = p;
-      // legend
-      const row = document.createElement('div');
-      row.innerHTML = `<span class="bullet" style="background:${c.fill}"></span>${c.key}`;
-      row.style.cursor = 'pointer';
-      row.onclick = () => toggleColor(c.key, sliceElems[c.key]);
+    const cx=50, cy=50, r=48, slice=360/COLORS.length, sliceElems={};
+    COLORS.forEach((c,i)=>{
+      const p=addSlice(cx,cy,r,i*slice,(i+1)*slice,c.fill,c.key);
+      sliceElems[c.key]=p;
+      const row=document.createElement('div');
+      row.innerHTML=`<span class="bullet" style="background:${c.fill}"></span>${c.key}`;
+      row.style.cursor='pointer';
+      row.onclick=()=>toggleColor(c.key,sliceElems[c.key]);
       legend.appendChild(row);
     });
-
-    function toggleColor(key, elem) {
-      if (selectedColors.has(key)) {
+    function toggleColor(key, elem){
+      if(selectedColors.has(key)){
         selectedColors.delete(key);
-        elem.classList.remove('wheel-selected');
+        elem.setAttribute('stroke','#ffffff');
+        elem.setAttribute('stroke-width','0.6');
       } else {
         selectedColors.add(key);
-        elem.classList.add('wheel-selected');
+        elem.setAttribute('stroke','#111827');  // clean ring highlight
+        elem.setAttribute('stroke-width','2.4');
       }
     }
-
-    function clearWheel() {
+    function clearWheel(){
       selectedColors.clear();
-      Object.values(sliceElems).forEach(p => p.classList.remove('wheel-selected'));
+      Object.values(sliceElems).forEach(p=>{p.setAttribute('stroke','#ffffff'); p.setAttribute('stroke-width','0.6');});
     }
 
-    function dollars(cents) { return (cents/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
-
-    function card(item) {
-      const t = item.thumbnail_url ? `<img class="thumb" src="${item.thumbnail_url}" alt="">`
-                                   : `<div class="thumb">No image</div>`;
-      const lines = [
-        item.fabric_content || '—',
-        `Color: ${item.color_category ?? '—'}`,
-        `Weight: ${item.weight_gsm ?? '—'} gsm`,
-        `Stretch: ${item.stretch ? 'yes' : 'no'}`,
-        `Fiber: ${item.fiber_type ?? '—'}`,
-        `Width: ${item.width_in ?? '—'} in`,
-        `Origin: ${item.country_of_origin ?? '—'}`,
-        `Yards: ${item.yards_available ?? '—'}`
-      ];
-      return `
-        <div class="card">
-          ${t}
-          <div class="body">
-            <div class="title">${item.title || 'Fabric'}</div>
-            <div class="row">
-              <div>${item.price_cents != null ? dollars(item.price_cents) : ''}</div>
-              <div class="spacer"></div>
-              <div class="muted">${new Date(item.created_at).toLocaleDateString()}</div>
-            </div>
-            <div class="muted">${lines.join(' · ')}</div>
-          </div>
-        </div>
-      `;
+    // helpers
+    function dollars(c){ return (c/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
+    function card(item){
+      const t = item.thumbnail_url ? `<img class="thumb" src="${item.thumbnail_url}" alt="">` : `<div class="thumb">No image</div>`;
+      const lines=[ item.fabric_content||'—', `Color: ${item.color_category??'—'}`, `Weight: ${item.weight_gsm??'—'} gsm`,
+                    `Stretch: ${item.stretch?'yes':'no'}`, `Fiber: ${item.fiber_type??'—'}`, `Width: ${item.width_in??'—'} in`,
+                    `Origin: ${item.country_of_origin??'—'}`, `Yards: ${item.yards_available??'—'}` ];
+      return `<div class="card">${t}<div class="body"><div class="title">${item.title||'Fabric'}</div>
+              <div class="row"><div>${item.price_cents!=null?dollars(item.price_cents):''}</div>
+              <div class="spacer"></div><div class="muted">${new Date(item.created_at).toLocaleDateString()}</div></div>
+              <div class="muted">${lines.join(' · ')}</div></div></div>`;
     }
 
-    async function query() {
-      gridEl.innerHTML = '';
-      emptyEl.style.display = 'none';
-      countEl.textContent = 'Loading…';
-
+    async function query(){
+      gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='Loading…';
       let q = supabase.from('catalog').select('*').limit(60);
 
-      // search
-      const term = qEl.value.trim();
-      if (term) {
-        q = q.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`);
+      const term=qEl.value.trim();
+      if(term){ q=q.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`); }
+
+      // fabric type chips -> OR ILIKE (%cotton% OR %wool% ...)
+      if(selectedFabrics.size>0){
+        const ors = Array.from(selectedFabrics).map(k => `fabric_content.ilike.%${k}%`).join(',');
+        q = q.or(ors);
       }
 
-      // colors via wheel
-      if (selectedColors.size > 0) {
-        q = q.in('color_category', Array.from(selectedColors));
-      }
+      // color (wheel)
+      if(selectedColors.size>0){ q=q.in('color_category', Array.from(selectedColors)); }
 
       // stretch
-      if (stretchEl.value === 'true') q = q.eq('stretch', true);
-      if (stretchEl.value === 'false') q = q.eq('stretch', false);
-
-      // fiber
-      if (fiberEl.value !== 'any') q = q.eq('fiber_type', fiberEl.value);
+      if(stretchEl.value==='true') q=q.eq('stretch',true);
+      if(stretchEl.value==='false') q=q.eq('stretch',false);
 
       // weight range
-      const wmin = parseInt(wminEl.value, 10);
-      const wmax = parseInt(wmaxEl.value, 10);
-      if (!isNaN(wmin)) q = q.gte('weight_gsm', wmin);
-      if (!isNaN(wmax)) q = q.lte('weight_gsm', wmax);
+      const wmin=parseInt(wminEl.value,10), wmax=parseInt(wmaxEl.value,10);
+      if(!isNaN(wmin)) q=q.gte('weight_gsm', wmin);
+      if(!isNaN(wmax)) q=q.lte('weight_gsm', wmax);
 
       // sort
-      if (sortEl.value === 'newest') q = q.order('created_at', { ascending:false });
-      if (sortEl.value === 'price_asc') q = q.order('price_cents', { ascending:true });
-      if (sortEl.value === 'price_desc') q = q.order('price_cents', { ascending:false });
+      if(sortEl.value==='newest') q=q.order('created_at',{ascending:false});
+      if(sortEl.value==='price_asc') q=q.order('price_cents',{ascending:true});
+      if(sortEl.value==='price_desc') q=q.order('price_cents',{ascending:false});
 
       const { data, error } = await q;
-      if (error) {
-        countEl.textContent = `Error: ${error.message}`;
-        emptyEl.style.display = 'block';
-        return;
-      }
-
+      if(error){ countEl.textContent=`Error: ${error.message}`; emptyEl.style.display='block'; return; }
       countEl.textContent = `${data.length} fabric${data.length===1?'':'s'}`;
-      if (data.length === 0) {
-        emptyEl.style.display = 'block';
-        return;
-      }
+      if(data.length===0){ emptyEl.style.display='block'; return; }
       gridEl.innerHTML = data.map(card).join('');
     }
 
     document.getElementById('apply').addEventListener('click', query);
-    document.getElementById('reset').addEventListener('click', () => {
-      qEl.value = '';
-      sortEl.value = 'newest';
-      stretchEl.value = 'any';
-      fiberEl.value = 'any';
-      wminEl.value = '';
-      wmaxEl.value = '';
+    document.getElementById('reset').addEventListener('click', ()=>{
+      qEl.value=''; sortEl.value='newest'; stretchEl.value='any'; wminEl.value=''; wmaxEl.value='';
+      // clear fabric chips
+      selectedFabrics.clear();
+      document.querySelectorAll('#fabricChips input[type="checkbox"]').forEach(cb=>cb.checked=false);
+      // clear color wheel
       clearWheel();
       query();
     });
