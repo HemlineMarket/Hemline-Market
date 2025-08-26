@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline Market — List an Item</title>
+<style>
+  body{font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;margin:0;background:#fff;color:#111827}
+  .wrap{max-width:700px;margin:40px auto;padding:0 16px}
+  h1{font-size:22px;font-weight:700;margin-bottom:20px}
+  form{display:flex;flex-direction:column;gap:16px}
+  label{font-weight:600;margin-bottom:4px;display:block}
+  input,select,textarea{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px}
+  textarea{min-height:80px}
+  button{padding:12px;border:none;border-radius:8px;font-weight:600;cursor:pointer}
+  .primary{background:#111827;color:#fff}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>List a Fabric</h1>
+    <form id="sellForm">
+      <div>
+        <label>Title</label>
+        <input id="title" required placeholder="e.g. Italian Wool Crepe">
+      </div>
+
+      <div>
+        <label>Description</label>
+        <textarea id="description" placeholder="Optional details…"></textarea>
+      </div>
+
+      <div>
+        <label>Fabric Type</label>
+        <select id="fabric_type" required></select>
+      </div>
+
+      <div>
+        <label>Color</label>
+        <select id="color" required></select>
+      </div>
+
+      <div>
+        <label>Condition</label>
+        <select id="condition" required>
+          <option value="new">New</option>
+          <option value="washed">Washed (pre-shrunk)</option>
+          <option value="used">Used</option>
+          <option value="vintage">Vintage</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Department</label>
+        <select id="department" required>
+          <option value="fashion">Fashion fabric</option>
+          <option value="quilting">Quilting fabric</option>
+          <option value="home">Home fabric</option>
+          <option value="notions">Notions</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Country of Origin</label>
+        <select id="country">
+          <option>China</option><option>France</option><option>India</option>
+          <option>Italy</option><option>Japan</option><option>Turkey</option><option>USA</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Price (USD)</label>
+        <input id="price" type="number" min="0" required>
+      </div>
+
+      <div>
+        <label>Yards Available</label>
+        <input id="yards" type="number" min="0" required>
+      </div>
+
+      <button class="primary" type="submit">Save Fabric</button>
+    </form>
+  </div>
+
+<script type="module">
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
+  const supabase = createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+  );
+
+  // same enums as filters
+  const FABRICS=['cotton','wool','silk','linen','denim','chiffon','crepe','jersey','satin','twill','canvas','lace','velvet','rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic','other'];
+  const COLORS=['beige','black','blue','brown','gray','green','orange','pink','purple','red','white','yellow'];
+
+  const fabricSel=document.getElementById('fabric_type');
+  FABRICS.forEach(f=>{let o=document.createElement('option');o.value=f;o.textContent=f;fabricSel.appendChild(o);});
+  const colorSel=document.getElementById('color');
+  COLORS.forEach(c=>{let o=document.createElement('option');o.value=c;o.textContent=c;colorSel.appendChild(o);});
+
+  const form=document.getElementById('sellForm');
+  form.onsubmit=async e=>{
+    e.preventDefault();
+    const item={
+      title:document.getElementById('title').value,
+      description:document.getElementById('description').value,
+      fabric_content:document.getElementById('fabric_type').value,
+      color_category:document.getElementById('color').value,
+      condition:document.getElementById('condition').value,
+      department:document.getElementById('department').value,
+      country_of_origin:document.getElementById('country').value,
+      price_cents:Math.round(Number(document.getElementById('price').value)*100),
+      yards_available:Number(document.getElementById('yards').value),
+      created_at:new Date().toISOString()
+    };
+    const {error}=await supabase.from('catalog').insert([item]);
+    if(error){alert("Error: "+error.message);} else {alert("Fabric saved!"); form.reset();}
+  };
+</script>
+</body>
+</html>
