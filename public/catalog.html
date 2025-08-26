@@ -23,39 +23,22 @@
       <div class="card">
         <div id="env"></div>
       </div>
-      <div class="card">
-        <strong>Test 1 — Plain fetch to /rest/v1/ (no headers)</strong>
-        <div id="t1" class="err">pending…</div>
-      </div>
-      <div class="card">
-        <strong>Test 2 — Fetch to /rest/v1/ with apikey header</strong>
-        <div id="t2" class="err">pending…</div>
-      </div>
-      <div class="card">
-        <strong>Test 3 — Fetch rows via REST: /rest/v1/catalog?select=*</strong>
-        <div id="t3" class="err">pending…</div>
-      </div>
-      <div class="card">
-        <strong>Test 4 — supabase-js client .from('catalog').select('*')</strong>
-        <div id="t4" class="err">pending…</div>
-      </div>
-      <div class="card">
-        <button id="rerun">Re-run tests</button>
-      </div>
-      <div class="card">
-        <strong>Raw Log</strong>
-        <pre id="log"></pre>
-      </div>
+      <div class="card"><strong>Test 1</strong><div id="t1">pending…</div></div>
+      <div class="card"><strong>Test 2</strong><div id="t2">pending…</div></div>
+      <div class="card"><strong>Test 3</strong><div id="t3">pending…</div></div>
+      <div class="card"><strong>Test 4</strong><div id="t4">pending…</div></div>
+      <div class="card"><button id="rerun">Re-run tests</button></div>
+      <div class="card"><strong>Raw Log</strong><pre id="log"></pre></div>
     </div>
   </div>
 
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-    /* === Supabase credentials (corrected URL) === */
-    const SUPABASE_URL  = "https://kzqrfzvobxsbkppuexru.supabase.co";
+    // === Supabase credentials (correct project URL) ===
+    const SUPABASE_URL  = "https://clkizksbvyjkoatdajgd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYvWTjOlt12Tdpr91WKhKm7wNtuK2_Kj0lOiZHU";
-    /* ============================================ */
+    // ================================================
 
     const envEl = document.getElementById('env');
     const t1 = document.getElementById('t1');
@@ -75,72 +58,33 @@
     async function runTests() {
       logEl.textContent = "";
 
-      // Test 1
       try {
         const r = await fetch(SUPABASE_URL + "/rest/v1/");
-        t1.className = "ok";
-        t1.textContent = `status ${r.status}`;
-      } catch (e) {
-        t1.className = "err";
-        t1.textContent = "Failed: " + e.message;
-        log("T1 error: " + e.message);
-      }
+        t1.textContent = "status " + r.status;
+      } catch (e) { t1.textContent = "Failed: " + e.message; }
 
-      // Test 2
       try {
         const r = await fetch(SUPABASE_URL + "/rest/v1/", {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
         });
-        t2.className = "ok";
-        t2.textContent = `status ${r.status}`;
-      } catch (e) {
-        t2.className = "err";
-        t2.textContent = "Failed: " + e.message;
-        log("T2 error: " + e.message);
-      }
+        t2.textContent = "status " + r.status;
+      } catch (e) { t2.textContent = "Failed: " + e.message; }
 
-      // Test 3
       try {
         const r = await fetch(SUPABASE_URL + "/rest/v1/catalog?select=*", {
           headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
         });
-        if (!r.ok) {
-          const txt = await r.text();
-          t3.className = "err";
-          t3.textContent = `HTTP ${r.status}: ${txt.slice(0,200)}`;
-          log("T3 body: " + txt);
-        } else {
-          const json = await r.json();
-          t3.className = "ok";
-          t3.textContent = `OK: ${json.length} rows`;
-          log("T3 rows: " + JSON.stringify(json, null, 2));
-        }
-      } catch (e) {
-        t3.className = "err";
-        t3.textContent = "Failed: " + e.message;
-        log("T3 error: " + e.message);
-      }
+        t3.textContent = "status " + r.status;
+      } catch (e) { t3.textContent = "Failed: " + e.message; }
 
-      // Test 4
       try {
         const { data, error } = await supabase.from('catalog').select('*').limit(5);
-        if (error) {
-          t4.className = "err";
-          t4.textContent = "Supabase error: " + error.message;
-          log("T4 error: " + (error.message || JSON.stringify(error)));
-        } else {
-          t4.className = "ok";
-          t4.textContent = `OK: ${data.length} rows`;
-          log("T4 rows: " + JSON.stringify(data, null, 2));
-        }
-      } catch (e) {
-        t4.className = "err";
-        t4.textContent = "Failed: " + e.message;
-        log("T4 catch: " + e.message);
-      }
+        if (error) t4.textContent = "Supabase error: " + error.message;
+        else t4.textContent = "OK: " + data.length + " rows";
+      } catch (e) { t4.textContent = "Failed: " + e.message; }
     }
 
-    document.getElementById('rerun')?.addEventListener('click', runTests);
+    document.getElementById('rerun').addEventListener('click', runTests);
     runTests();
   </script>
 </body>
