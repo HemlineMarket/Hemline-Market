@@ -3,71 +3,146 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hemline Market — Catalog Debug</title>
+  <title>Hemline Market — Catalog Connectivity Debug</title>
   <link rel="icon" href="/favicon.ico">
   <style>
     body { font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; color:#111; background:#fff; }
     .wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
-    .card { border:1px solid #ddd; border-radius:12px; padding:12px; margin:10px 0; }
-    button { border:1px solid #ddd; border-radius:8px; padding:6px 10px; cursor:pointer; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:14px; }
+    .card { border:1px solid #ddd; border-radius:12px; padding:12px; }
+    .ok { color:#0a7; }
+    .err { color:#c00; }
     pre { background:#f9f9f9; padding:10px; border:1px solid #ddd; white-space:pre-wrap; }
-    .red { color:#c00; }
-    .muted { color:#666; }
+    button { border:1px solid #ddd; border-radius:8px; padding:6px 10px; cursor:pointer; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Catalog Debug</h1>
-    <div class="muted" id="status">Loading module…</div>
-    <button id="apply">Run Query</button>
-    <div id="results" class="card"></div>
-    <pre id="log"></pre>
+    <h1>Catalog Connectivity Debug</h1>
+    <div class="grid">
+      <div class="card">
+        <div id="env"></div>
+      </div>
+      <div class="card">
+        <strong>Test 1 — Plain fetch to /rest/v1/ (no headers)</strong>
+        <div id="t1" class="err">pending…</div>
+      </div>
+      <div class="card">
+        <strong>Test 2 — Fetch to /rest/v1/ with apikey header</strong>
+        <div id="t2" class="err">pending…</div>
+      </div>
+      <div class="card">
+        <strong>Test 3 — Fetch rows via REST: /rest/v1/catalog?select=*</strong>
+        <div id="t3" class="err">pending…</div>
+      </div>
+      <div class="card">
+        <strong>Test 4 — supabase-js client .from('catalog').select('*')</strong>
+        <div id="t4" class="err">pending…</div>
+      </div>
+      <div class="card">
+        <button id="rerun">Re-run tests</button>
+      </div>
+      <div class="card">
+        <strong>Raw Log</strong>
+        <pre id="log"></pre>
+      </div>
+    </div>
   </div>
 
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
-
-    // expose for any legacy code that expects window.supabase.createClient
-    window.supabase = { createClient };
 
     // === Supabase credentials (hardcoded) ===
     const SUPABASE_URL = "https://kzqrfzvobxsbkppuexru.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYvWTjOlt12Tdpr91WKhKm7wNtuK2_Kj0lOiZHU";
     // ========================================
 
-    const statusEl = document.getElementById('status');
+    const envEl = document.getElementById('env');
+    const t1 = document.getElementById('t1');
+    const t2 = document.getElementById('t2');
+    const t3 = document.getElementById('t3');
+    const t4 = document.getElementById('t4');
     const logEl = document.getElementById('log');
-    const resultsEl = document.getElementById('results');
     const log = (m) => { console.log(m); logEl.textContent += m + "\n"; };
-
-    // show import status
-    statusEl.textContent = "createClient typeof = " + (typeof createClient);
-
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    async function run() {
-      resultsEl.textContent = "Loading…";
+    envEl.innerHTML = `
+      <div><strong>URL:</strong> ${SUPABASE_URL}</div>
+      <div><strong>Anon key present:</strong> ${SUPABASE_ANON_KEY.length > 20 ? 'yes' : 'no'}</div>
+      <div><strong>createClient loaded:</strong> ${typeof createClient}</div>
+    `;
+
+    async function runTests() {
+      logEl.textContent = "";
+      // Test 1: plain fetch (should return 404 but NOT fail CORS/network)
+      try {
+        const r = await fetch(SUPABASE_URL + "/rest/v1/");
+        t1.className = r.ok ? "ok" : "ok";
+        t1.textContent = `status ${r.status} (expected 404/401 OK for connectivity)`;
+        log("T1 headers: " + JSON.stringify(Object.fromEntries(r.headers.entries()), null, 2));
+      } catch (e) {
+        t1.className = "err";
+        t1.textContent = "Failed: " + e.message;
+        log("T1 error: " + e.message);
+      }
+
+      // Test 2: fetch with apikey header
+      try {
+        const r = await fetch(SUPABASE_URL + "/rest/v1/", {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
+        });
+        t2.className = "ok";
+        t2.textContent = `status ${r.status} (expected 404 OK for connectivity)`;
+        log("T2 headers: " + JSON.stringify(Object.fromEntries(r.headers.entries()), null, 2));
+      } catch (e) {
+        t2.className = "err";
+        t2.textContent = "Failed: " + e.message;
+        log("T2 error: " + e.message);
+      }
+
+      // Test 3: REST query to catalog
+      try {
+        const r = await fetch(SUPABASE_URL + "/rest/v1/catalog?select=*", {
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
+        });
+        if (!r.ok) {
+          const txt = await r.text();
+          t3.className = "err";
+          t3.textContent = `HTTP ${r.status}: ${txt.slice(0,200)}`;
+          log("T3 body: " + txt);
+        } else {
+          const json = await r.json();
+          t3.className = "ok";
+          t3.textContent = `OK: ${json.length} rows`;
+          log("T3 rows: " + JSON.stringify(json, null, 2));
+        }
+      } catch (e) {
+        t3.className = "err";
+        t3.textContent = "Failed: " + e.message;
+        log("T3 error: " + e.message);
+      }
+
+      // Test 4: supabase-js client
       try {
         const { data, error } = await supabase.from('catalog').select('*').limit(5);
         if (error) {
-          resultsEl.innerHTML = `<div class="red">Supabase error: ${error.message}</div>`;
-          log("Supabase error: " + error.message);
-          return;
+          t4.className = "err";
+          t4.textContent = "Supabase error: " + error.message;
+          log("T4 error: " + (error.message || JSON.stringify(error)));
+        } else {
+          t4.className = "ok";
+          t4.textContent = `OK: ${data.length} rows`;
+          log("T4 rows: " + JSON.stringify(data, null, 2));
         }
-        if (!data || data.length === 0) {
-          resultsEl.innerHTML = "<div>No rows in catalog.</div>";
-          return;
-        }
-        resultsEl.innerHTML = data.map(d => `<div class="card">${d.title || 'Fabric'}</div>`).join('');
-        log("Got rows: " + JSON.stringify(data, null, 2));
       } catch (e) {
-        resultsEl.innerHTML = `<div class="red">Runtime error: ${e.message}</div>`;
-        log("Runtime error: " + e.message);
+        t4.className = "err";
+        t4.textContent = "Failed: " + e.message;
+        log("T4 catch: " + e.message);
       }
     }
 
-    document.getElementById('apply').addEventListener('click', run);
-    run();
+    document.getElementById('rerun').addEventListener('click', runTests);
+    runTests();
   </script>
 </body>
 </html>
