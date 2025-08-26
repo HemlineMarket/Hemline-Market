@@ -8,6 +8,8 @@
   :root{--gap:14px;--border:#e5e7eb;--muted:#6b7280;--ink:#111827;--brand:#111827}
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Inter,Roboto,sans-serif;color:var(--ink);background:#fff}
+
+  /* NAV */
   .nav{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--border)}
   .nav-inner{max-width:1100px;margin:0 auto;padding:10px 16px;display:flex;gap:10px;align-items:center}
   .brand{font-weight:800;text-decoration:none;color:var(--brand);font-size:18px}
@@ -16,7 +18,10 @@
   .btn{padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;text-decoration:none;color:var(--ink)}
   .btn:hover{background:#f3f4f6}
   .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
-  header.filt{position:sticky;top:58px;z-index:10;background:#fff;border-bottom:1px solid var(--border)}
+
+  /* FILTERS */
+  header.filt{position:sticky;top:58px;z-index:10;background:#fff;border-bottom:1px solid var(--border);transition:box-shadow .15s}
+  header.filt.scrolled{box-shadow:0 6px 16px rgba(0,0,0,.06)}
   .wrap{max-width:1100px;margin:0 auto;padding:12px 16px}
   .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--gap);align-items:end}
   .control{display:flex;flex-direction:column;gap:6px}
@@ -26,10 +31,17 @@
   .two .unit{position:relative;flex:1}
   .two .unit input{width:100%;padding-right:38px}
   .unit .u{position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px}
+
+  /* DROPDOWNS */
   .dropdown{position:relative}
   .dropdown-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:38px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:8px 10px;cursor:pointer}
   .count-pill{background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:999px;font-size:12px}
-  .dropdown-panel{position:absolute;top:calc(100% + 6px);right:0;width:min(92vw,560px);max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 10px 24px rgba(0,0,0,.08);padding:10px;display:none}
+  .dropdown-panel{
+    position:absolute;top:calc(100% + 6px);
+    width:min(92vw,560px);max-height:320px;overflow:auto;
+    border:1px solid var(--border);border-radius:12px;background:#fff;
+    box-shadow:0 10px 24px rgba(0,0,0,.08);padding:10px;display:none
+  }
   .dropdown.open .dropdown-panel{display:block}
   .d-search{width:100%;margin-bottom:8px}
   .d-list{display:flex;flex-wrap:wrap;gap:8px 10px}
@@ -40,13 +52,18 @@
   .chip .swatch{width:12px;height:12px;border-radius:999px;border:1px solid #0002}
   .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
   .tag{background:#111827;color:#fff;padding:3px 8px;border-radius:999px;font-size:12px}
+
+  /* RESULTS */
   main{padding:18px 16px 40px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--gap)}
   .card{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.03)}
   .thumb{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:12px}
   .body{padding:12px;display:flex;flex-direction:column;gap:6px}
   .title{font-weight:600}
-  .empty{border:1px dashed var(--border);border-radius:12px;padding:30px;text-align:center;color:var(--muted)}
+  .empty{border:1px dashed var(--border);border-radius:12px;padding:24px;text-align:center;color:var(--muted);display:none}
+  .empty h3{margin:0 0 8px 0;font-size:16px;color:var(--ink)}
+  .empty .tips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .pill{padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff}
   .countline{font-weight:800}
 </style>
 </head>
@@ -65,10 +82,9 @@
 </div>
 
 <!-- FILTERS -->
-<header class="filt">
+<header class="filt" id="filtBar">
   <div class="wrap">
     <div class="controls">
-
       <div class="control" style="grid-column:1/-1">
         <label class="muted">Search (title or fabric content)</label>
         <input id="q" placeholder="e.g. wool, silk, lawn" />
@@ -191,7 +207,16 @@
   <div class="wrap">
     <div id="count" class="countline" style="margin-bottom:10px;">✨ Loading… ✨</div>
     <div id="grid" class="grid"></div>
-    <div id="empty" class="empty" style="display:none">No fabrics match your filters.</div>
+
+    <div id="empty" class="empty">
+      <h3>No fabrics match these filters.</h3>
+      <div><button id="emptyClear" class="btn">Clear filters</button></div>
+      <div class="tips">
+        <span class="pill">Try fewer colors</span>
+        <span class="pill">Widen price range</span>
+        <span class="pill">Remove “Other” type</span>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -202,6 +227,11 @@
   const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+  /* sticky shadow */
+  const filtBar=document.getElementById('filtBar');
+  const shadow=()=>{filtBar.classList.toggle('scrolled',window.scrollY>4);};
+  shadow(); window.addEventListener('scroll',shadow);
+
   /* refs */
   const globalSearch=document.getElementById('globalSearch');
   const qEl=document.getElementById('q'), sortEl=document.getElementById('sort'), stretchEl=document.getElementById('stretch');
@@ -210,8 +240,9 @@
   const pMin=document.getElementById('pMin'), pMax=document.getElementById('pMax');
   const conditionEl=document.getElementById('condition'), departmentEl=document.getElementById('department'), countryEl=document.getElementById('country'), designerEl=document.getElementById('designer');
   const gridEl=document.getElementById('grid'), emptyEl=document.getElementById('empty'), countEl=document.getElementById('count');
+  const emptyClear=document.getElementById('emptyClear');
 
-  /* apply on Enter */
+  /* Enter applies */
   [globalSearch,qEl,wMin,wMax,widthMin,widthMax,pMin,pMax,designerEl].forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter') query()}));
   globalSearch.addEventListener('input',e=>{ qEl.value=e.target.value; });
 
@@ -221,6 +252,7 @@
   const FABRIC_TOKENS=FABRIC_TOKENS_UNSORTED.map(x=>x.toLowerCase());
   const fabricState=new Set();
   const fabricDD=document.getElementById('fabricDD'), fabricBtn=document.getElementById('fabricBtn'), fabricBtnText=document.getElementById('fabricBtnText'), fabricBtnCount=document.getElementById('fabricCount'), fabricList=document.getElementById('fabricList'), fabricTags=document.getElementById('fabricTags'), fabricSearch=document.getElementById('fabricSearch');
+
   function renderFabricList(filter=''){
     const term=filter.trim().toLowerCase(); fabricList.innerHTML='';
     ALL_FABRICS.filter(k=>!term||k.includes(term)).forEach(k=>{
@@ -232,21 +264,18 @@
   }
   function syncFabricUI(){
     const vals=[...fabricState];
-    document.getElementById('fabricTags').innerHTML=vals.map(v=>`<span class="tag">${v}</span>`).join('');
+    fabricTags.innerHTML=vals.map(v=>`<span class="tag">${v}</span>`).join('');
     if(vals.length===0){fabricBtnText.textContent='Select fabric types';fabricBtnCount.style.display='none';}
     else{fabricBtnText.textContent='Fabric Type';fabricBtnCount.style.display='inline-flex';fabricBtnCount.textContent=vals.length;}
     renderFabricList(fabricSearch.value||'');
   }
-  fabricBtn.onclick=()=>fabricDD.classList.toggle('open');
-  document.addEventListener('click',e=>{if(!fabricDD.contains(e.target)) fabricDD.classList.remove('open');});
-  fabricSearch.addEventListener('input',()=>renderFabricList(fabricSearch.value));
-  renderFabricList(); syncFabricUI();
 
   /* Color dropdown */
   const COLOR_META=[['beige','#e7d7b5'],['black','#111827'],['blue','#3b82f6'],['brown','#8b5a2b'],['gray','#9ca3af'],['green','#22c55e'],['orange','#fb923c'],['pink','#f472b6'],['purple','#a78bfa'],['red','#ef4444'],['white','#ffffff'],['yellow','#f59e0b']]
   .sort((a,b)=>a[0].localeCompare(b[0]));
   const colorState=new Set();
   const colorDD=document.getElementById('colorDD'), colorBtn=document.getElementById('colorBtn'), colorBtnText=document.getElementById('colorBtnText'), colorBtnCount=document.getElementById('colorCount'), colorList=document.getElementById('colorList'), colorTags=document.getElementById('colorTags'), colorSearch=document.getElementById('colorSearch');
+
   function renderColorList(filter=''){
     const term=filter.trim().toLowerCase(); colorList.innerHTML='';
     COLOR_META.filter(([k])=>!term||k.includes(term)).forEach(([k,hex])=>{
@@ -263,10 +292,49 @@
     else{colorBtnText.textContent='Color';colorBtnCount.style.display='inline-flex';colorBtnCount.textContent=vals.length;}
     renderColorList(colorSearch.value||'');
   }
-  colorBtn.onclick=()=>colorDD.classList.toggle('open');
-  document.addEventListener('click',e=>{if(!colorDD.contains(e.target)) colorDD.classList.remove('open');});
+
+  // shared dropdown behavior (positioning + close rules)
+  function openDropdown(container, btn, panel){
+    // toggle
+    const willOpen = !container.classList.contains('open');
+    // close all others
+    document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));
+    if(!willOpen) return;
+
+    container.classList.add('open');
+    // position so it never overflows viewport
+    const rect = btn.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const desired = Math.min(vw*0.92, 560);
+    panel.style.width = desired + 'px';
+    // if right space is smaller than panel, align to right edge; else align left
+    const rightSpace = vw - rect.left;
+    const leftSpace  = rect.right;
+    const preferRight = rightSpace >= desired || rightSpace >= leftSpace;
+    if(preferRight){
+      panel.style.left = '0px';
+      panel.style.right = 'auto';
+    }else{
+      panel.style.right = '0px';
+      panel.style.left = 'auto';
+    }
+  }
+
+  // wire dropdowns
+  fabricBtn.addEventListener('click',()=>openDropdown(fabricDD,fabricBtn,document.getElementById('fabricPanel')));
+  colorBtn.addEventListener('click',()=>openDropdown(colorDD,colorBtn,document.getElementById('colorPanel')));
+  document.addEventListener('click',e=>{
+    document.querySelectorAll('.dropdown').forEach(dd=>{
+      if(!dd.contains(e.target)) dd.classList.remove('open');
+    });
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape') document.querySelectorAll('.dropdown.open').forEach(dd=>dd.classList.remove('open'));
+  });
+
+  fabricSearch.addEventListener('input',()=>renderFabricList(fabricSearch.value));
   colorSearch.addEventListener('input',()=>renderColorList(colorSearch.value));
-  renderColorList(); syncColorUI();
+  renderFabricList(); syncFabricUI(); renderColorList(); syncColorUI();
 
   /* helpers */
   const colorHex=name=>(COLOR_META.find(([k])=>k===name)||[])[1]||'#e5e7eb';
@@ -275,7 +343,6 @@
     radial-gradient(circle at 30% 30%, #ffffff80 0%, #ffffff00 40%),
     repeating-linear-gradient(45deg,#ffffff10 0px,#ffffff10 4px,#0000000b 4px,#0000000b 8px),
     ${colorHex((cname||'').toLowerCase())};`;
-
   function card(r){
     const t=r.thumbnail_url?`<img class="thumb" src="${r.thumbnail_url}" alt="">`:`<div class="thumb" style="${thumbStyle(r.color_category)}">No image</div>`;
     const meta=[r.fabric_content||'—',`Color: ${r.color_category??'—'}`,`Weight: ${r.weight_gsm??'—'} gsm`,`Stretch: ${r.stretch?'yes':'no'}`,`Fiber: ${r.fiber_type??'—'}`,`Width: ${r.width_in??'—'} in`,`Origin: ${r.country_of_origin??'—'}`,`Yards: ${r.yards_available??'—'}`];
@@ -284,8 +351,8 @@
       <div style="margin-left:auto" class="muted">${new Date(r.created_at).toLocaleDateString()}</div></div>
       <div class="muted">${meta.join(' · ')}</div></div></div>`;
   }
-
   function intVal(el,min,max){ const v = el.value===''?null:Number(el.value); if(v==null||Number.isNaN(v)) return null; return Math.min(max,Math.max(min,v)); }
+  function fail(msg){ countEl.textContent=`Error: ${msg}`; emptyEl.style.display='block'; }
 
   async function query(){
     gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='✨ Finding fabrics… ✨';
@@ -304,11 +371,9 @@
     const wmin=intVal(wMin,0,500), wmax=intVal(wMax,0,500);
     if(wmin!=null) base=base.gte('weight_gsm', wmin);
     if(wmax!=null) base=base.lte('weight_gsm', wmax);
-
     const widMin=intVal(widthMin,30,80), widMax=intVal(widthMax,30,80);
     if(widMin!=null) base=base.gte('width_in', widMin);
     if(widMax!=null) base=base.lte('width_in', widMax);
-
     const pmin=intVal(pMin,0,200000), pmax=intVal(pMax,0,200000);
     if(pmin!=null) base=base.gte('price_cents', Math.round(pmin*100));
     if(pmax!=null) base=base.lte('price_cents', Math.round(pmax*100));
@@ -317,7 +382,7 @@
     if(sortEl.value==='price_asc') base=base.order('price_cents',{ascending:true});
     if(sortEl.value==='price_desc') base=base.order('price_cents',{ascending:false});
 
-    // Fabric logic
+    // Fabric logic (includes "other")
     const selected=[...fabricState]; let rows=[];
     if(selected.length===0){
       const {data,error}=await base; if(error) return fail(error.message); rows=data;
@@ -351,22 +416,31 @@
     });
 
     countEl.textContent=`✨ ${rows.length} fabric${rows.length===1?'':'s'} found ✨`;
-    if(rows.length===0){ emptyEl.style.display='block'; gridEl.innerHTML=''; return; }
+    if(rows.length===0){
+      emptyEl.style.display='block';
+      gridEl.innerHTML='';
+      return;
+    }
     gridEl.innerHTML=rows.map(card).join('');
   }
 
-  function fail(msg){ countEl.textContent=`Error: ${msg}`; emptyEl.style.display='block'; }
-
+  // buttons
   document.getElementById('applyBtn').onclick=query;
-  document.getElementById('resetBtn').onclick=()=>{
+  document.getElementById('resetBtn').onclick=resetAll;
+  emptyClear.onclick=resetAll;
+
+  function resetAll(){
     [qEl,globalSearch,designerEl].forEach(el=>el.value='');
     sortEl.value='newest'; stretchEl.value='any';
     [wMin,wMax,widthMin,widthMax,pMin,pMax].forEach(el=>el.value='');
     conditionEl.value='any'; departmentEl.value='any'; countryEl.value='any';
     fabricState.clear(); syncFabricUI(); colorState.clear(); syncColorUI();
     query();
-  };
+  }
 
+  // init
+  renderFabricList(); syncFabricUI();
+  renderColorList(); syncColorUI();
   query();
 </script>
 </body>
