@@ -16,7 +16,6 @@
   .nav-search input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:999px}
   .btn{padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;text-decoration:none;color:var(--ink)}
   .btn:hover{background:#f3f4f6}
-  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 
   .wrap{max-width:760px;margin:24px auto;padding:0 16px}
   h1{font-size:22px;font-weight:800;margin:0 0 18px}
@@ -40,37 +39,39 @@
 </head>
 <body>
 
-<!-- Shared header -->
+<!-- Shared header (no “List an item” here since we’re already on Sell) -->
 <div class="nav">
   <div class="nav-inner">
     <a class="brand" href="/index.html">hemlinemarket</a>
-    <div class="nav-search"><input placeholder="Search fabrics…" onkeydown="if(event.key==='Enter'){location.href='/catalog.html?q='+encodeURIComponent(this.value)}"></div>
+    <div class="nav-search">
+      <input placeholder="Search fabrics…" onkeydown="if(event.key==='Enter'){location.href='/catalog.html?q='+encodeURIComponent(this.value)}">
+    </div>
     <a class="btn" href="/catalog.html">Browse</a>
     <a class="btn" href="/favorites.html">Likes</a>
     <a class="btn" href="/news.html">News</a>
     <a class="btn" href="/profile.html">Profile</a>
-    <a class="btn primary" href="/sell.html">List an item</a>
   </div>
 </div>
 
 <div class="wrap">
-  <h1>List a Fabric</h1>
+  <h1>List an Item</h1>
 
   <form id="sellForm">
     <div class="field">
       <label>Title</label>
-      <input id="title" required placeholder="e.g. Italian Wool Crepe">
+      <input id="title" required placeholder="e.g. Italian Wool Crepe, Juki Sewing Machine, Vintage Buttons">
     </div>
 
     <div class="field">
       <label>Description <span class="muted">(optional)</span></label>
-      <textarea id="description" placeholder="Notes about hand-feel, intended use, flaws, etc."></textarea>
+      <textarea id="description" placeholder="Notes about hand-feel, intended use, condition specifics, flaws, etc."></textarea>
     </div>
 
     <div class="row">
       <div class="field">
         <label>Fabric Type</label>
         <select id="fabric_type" required></select>
+        <div class="hint">Choose “other” or “unknown” if not a fabric (e.g., notions, machines).</div>
       </div>
       <div class="field">
         <label>Color</label>
@@ -129,7 +130,7 @@
     </div>
     <div class="row">
       <div class="field">
-        <label id="origLabel">Original Price (USD) <span class="muted">(optional; same yards)</span></label>
+        <label id="origLabel">Original Price (USD) <span class="muted">(optional; for 1 yard)</span></label>
         <input id="original_price" type="number" min="0" step="0.01" placeholder="Retail or pre-discount price">
       </div>
       <div class="field">
@@ -197,7 +198,7 @@
 
     <div class="actions">
       <button type="button" id="resetBtn">Reset</button>
-      <button class="primary" type="submit">Save Fabric</button>
+      <button class="primary" type="submit">List item</button>
     </div>
   </form>
 </div>
@@ -223,20 +224,24 @@
 
   // Certifications chips
   const certState=new Set(), certWrap=document.getElementById('certWrap');
-  CERTS.forEach(c=>{const lbl=document.createElement('label');lbl.className='chip';
+  CERTS.forEach(c=>{
+    const lbl=document.createElement('label');lbl.className='chip';
     lbl.innerHTML=`<input type="checkbox"><span>${c}</span>`;
-    const cb=lbl.querySelector('input');cb.onchange=()=>{cb.checked?certState.add(c):certState.delete(c)};certWrap.appendChild(lbl);
+    const cb=lbl.querySelector('input');
+    cb.onchange=()=>{cb.checked?certState.add(c):certState.delete(c)};
+    certWrap.appendChild(lbl);
   });
 
+  // helpers
   const el=id=>document.getElementById(id);
   window.updateOriginalLabel=function(){
-    const n = Number(el('price_unit_yards').value||1);
-    el('origLabel').innerHTML = `Original Price (USD) <span class="muted">(optional; for ${Math.max(1,n)} yard${n>1?'s':''})</span>`;
+    const n = Math.max(1, Number(el('price_unit_yards').value||1));
+    el('origLabel').innerHTML = `Original Price (USD) <span class="muted">(optional; for ${n} yard${n>1?'s':''})</span>`;
   };
   updateOriginalLabel();
-
   const toast=msg=>{const t=el('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',1600)};
 
+  // submit
   el('sellForm').onsubmit=async e=>{
     e.preventDefault();
     const price   = Number(el('price').value||0);
@@ -252,17 +257,22 @@
       department: el('department').value,
       country_of_origin: el('country').value,
       designer: el('designer').value.trim() || null,
+
       price_cents: Math.round(price*100),
       price_unit_yards: priceFor,
       original_price_cents: original==null?null:Math.round(original*100),
+
       yards_available: Number(el('yards').value||0),
+
       drapiness: el('drapiness').value,
       visual_finish: el('visual_finish').value,
       texture: el('texture').value,
       fabric_structure: el('fabric_structure').value,
       transparency: el('transparency').value,
+
       certifications: [...certState],
       images: (el('images').value||'').split(',').map(s=>s.trim()).filter(Boolean),
+
       created_at: new Date().toISOString()
     };
 
@@ -271,12 +281,18 @@
 
     const {error}=await supabase.from('listings').insert([payload]);
     if(error){alert('Error: '+error.message);return;}
-    toast('Fabric saved!');
+    toast('Item listed!');
     e.target.reset(); certState.clear(); [...certWrap.querySelectorAll('input[type=checkbox]')].forEach(cb=>cb.checked=false);
     updateOriginalLabel();
   };
 
-  el('resetBtn').onclick=()=>{el('sellForm').reset();certState.clear();[...certWrap.querySelectorAll('input[type=checkbox]')].forEach(cb=>cb.checked=false);updateOriginalLabel()};
+  // reset
+  el('resetBtn').onclick=()=>{
+    el('sellForm').reset();
+    certState.clear();
+    [...certWrap.querySelectorAll('input[type=checkbox]')].forEach(cb=>cb.checked=false);
+    updateOriginalLabel();
+  };
 </script>
 </body>
 </html>
