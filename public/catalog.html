@@ -3,55 +3,65 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hemline Market — Catalog</title>
+  <title>Hemline Market — Catalog Debug</title>
   <link rel="icon" href="/favicon.ico">
   <style>
-    body { font: 14px/1.4 system-ui, sans-serif; margin:0; color:#111; }
-    .wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+    body { font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; color:#111; background:#fff; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
     .card { border:1px solid #ddd; border-radius:12px; padding:12px; margin:10px 0; }
     button { border:1px solid #ddd; border-radius:8px; padding:6px 10px; cursor:pointer; }
     pre { background:#f9f9f9; padding:10px; border:1px solid #ddd; white-space:pre-wrap; }
+    .red { color:#c00; }
+    .muted { color:#666; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Catalog Debug</h1>
+    <div class="muted" id="status">Loading module…</div>
     <button id="apply">Run Query</button>
-    <div id="results"></div>
+    <div id="results" class="card"></div>
     <pre id="log"></pre>
   </div>
 
   <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
+
+    // expose for any legacy code that expects window.supabase.createClient
+    window.supabase = { createClient };
 
     // === Supabase credentials (hardcoded) ===
     const SUPABASE_URL = "https://kzqrfzvobxsbkppuexru.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cXJmenZvYnhzYmtwcHVleHJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMxMzIzNTUsImV4cCI6MjAzODcwODM1NX0.OH1ZjYvWTjOlt12Tdpr91WKhKm7wNtuK2_Kj0lOiZHU";
     // ========================================
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+    const statusEl = document.getElementById('status');
     const logEl = document.getElementById('log');
     const resultsEl = document.getElementById('results');
     const log = (m) => { console.log(m); logEl.textContent += m + "\n"; };
+
+    // show import status
+    statusEl.textContent = "createClient typeof = " + (typeof createClient);
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     async function run() {
       resultsEl.textContent = "Loading…";
       try {
         const { data, error } = await supabase.from('catalog').select('*').limit(5);
         if (error) {
-          resultsEl.innerHTML = `<p style="color:red;">Supabase error: ${error.message}</p>`;
+          resultsEl.innerHTML = `<div class="red">Supabase error: ${error.message}</div>`;
           log("Supabase error: " + error.message);
           return;
         }
         if (!data || data.length === 0) {
-          resultsEl.innerHTML = "<p>No rows in catalog.</p>";
+          resultsEl.innerHTML = "<div>No rows in catalog.</div>";
           return;
         }
         resultsEl.innerHTML = data.map(d => `<div class="card">${d.title || 'Fabric'}</div>`).join('');
         log("Got rows: " + JSON.stringify(data, null, 2));
       } catch (e) {
-        resultsEl.innerHTML = `<p style="color:red;">Runtime error: ${e.message}</p>`;
+        resultsEl.innerHTML = `<div class="red">Runtime error: ${e.message}</div>`;
         log("Runtime error: " + e.message);
       }
     }
