@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Reset Service Worker & Caches</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html,body{height:100%}body{margin:0;display:grid;place-items:center;font:16px system-ui}
+    .box{padding:24px;border:2px dashed #999;border-radius:12px;text-align:center;max-width:720px}
+    code{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:2px 6px}
+    .ok{color:#0a7d16}.err{color:#a30}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Resetting offline cache…</h1>
+    <p id="status">Working…</p>
+    <p>If this page doesn’t redirect, open <code>/catalog.html</code> manually after 5–10 seconds.</p>
+  </div>
+
+  <script>
+    (async () => {
+      const out = (m, ok) => document.getElementById('status').innerHTML =
+        (ok ? '<span class="ok">✓</span> ' : '<span class="err">✗</span> ') + m;
+
+      try {
+        // 1) Unregister ALL service workers
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const r of regs) { try { await r.unregister(); } catch {} }
+        }
+
+        // 2) Delete ALL Cache Storage buckets
+        if (window.caches && caches.keys) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+
+        // 3) Clear localStorage/sessionStorage for good measure
+        try { localStorage.clear(); } catch {}
+        try { sessionStorage.clear(); } catch {}
+
+        out('Offline cache cleared. Redirecting…', true);
+
+        // 4) Hard-reload the catalog without using cache
+        const url = new URL('/catalog.html', location.origin);
+        url.searchParams.set('_', Date.now().toString()); // bust any proxies
+        setTimeout(() => location.replace(url.toString()), 800);
+      } catch (e) {
+        out('Could not fully reset caches. Try a hard refresh (Ctrl/Cmd+Shift+R).', false);
+      }
+    })();
+  </script>
+</body>
+</html>
