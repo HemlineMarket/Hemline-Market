@@ -8,7 +8,7 @@
   <style>
     :root {
       --gap:14px; --border:#e5e7eb; --muted:#6b7280; --ink:#111827; --bg:#ffffff; --brand:#111827;
-      --soft:#f8fafc; --hover:#f1f5f9;
+      --soft:#f8fafc; --hover:#f1f5f9; --accent:#111827;
     }
     * { box-sizing:border-box; }
     body { margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif; color:var(--ink); background:var(--bg); }
@@ -30,7 +30,7 @@
     /* Filters row */
     header.filt { position:sticky; top:58px; z-index:10; background:#fff; border-bottom:1px solid var(--border); }
     .wrap { max-width:1100px; margin:0 auto; padding:12px 16px; }
-    .controls { display:grid; grid-template-columns:1fr repeat(9, minmax(150px, 220px)); gap:var(--gap); align-items:end; }
+    .controls { display:grid; grid-template-columns:1fr repeat(10, minmax(150px, 220px)); gap:var(--gap); align-items:end; }
     @media (max-width:1150px){ .controls { grid-template-columns:1fr 1fr; } }
     .control { display:flex; flex-direction:column; gap:6px; }
     .muted { color:var(--muted); }
@@ -41,7 +41,7 @@
     .btn.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
     .btn.primary:hover { filter:brightness(0.95); }
 
-    /* Dropdown (shared) */
+    /* Dropdowns */
     .dropdown { position:relative; }
     .dropdown-btn { display:flex; align-items:center; gap:8px; justify-content:space-between; min-height:38px; }
     .dropdown-panel { position:absolute; top:calc(100% + 6px); left:0; min-width:520px; max-width:720px; max-height:320px; overflow:auto;
@@ -49,7 +49,7 @@
     .dropdown.open .dropdown-panel { display:block; }
     .d-search { width:100%; margin-bottom:8px; }
     .d-list { display:flex; flex-wrap:wrap; gap:8px 10px; }
-    .d-list.colors { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px 10px; } /* fits on narrow windows */
+    .d-list.colors { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px 10px; }
     .chip { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--border); border-radius:999px; user-select:none; cursor:pointer; }
     .chip input { appearance:none; width:14px; height:14px; border-radius:999px; border:1px solid var(--border); display:inline-block; position:relative; }
     .chip input:checked { background:#111827; border-color:#111827; }
@@ -58,16 +58,32 @@
     .tag { background:var(--ink); color:#fff; padding:3px 8px; border-radius:999px; font-size:12px; }
     .count-pill { background:#f3f4f6; color:#374151; padding:2px 8px; border-radius:999px; font-size:12px; }
 
+    /* Dual-range slider */
+    .range { padding:6px 0 2px; }
+    .range-row { display:flex; align-items:center; gap:8px; }
+    .range-track { position:relative; height:28px; flex:1; }
+    .range-track input[type=range] {
+      position:absolute; left:0; right:0; top:8px; height:10px; margin:0;
+      -webkit-appearance:none; appearance:none; background:transparent; pointer-events:auto;
+      width:100%;
+    }
+    .track-bg { position:absolute; left:0; right:0; top:12px; height:6px; background:#e5e7eb; border-radius:999px; }
+    .track-fill { position:absolute; top:12px; height:6px; background:var(--accent); border-radius:999px; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; background:var(--accent); border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #0002; cursor:pointer; position:relative; z-index:2; }
+    input[type=range]::-moz-range-thumb { width:16px; height:16px; background:var(--accent); border:none; border-radius:50%; box-shadow:0 0 0 1px #0002; cursor:pointer; position:relative; z-index:2; }
+    input[type=range]::-webkit-slider-runnable-track { height:6px; background:transparent; }
+    input[type=range]::-moz-range-track { height:6px; background:transparent; }
+
     main { padding:18px 16px 40px; }
     .grid { display:grid; grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) ); gap:var(--gap); }
     .card { border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.03); transition:transform .12s ease, box-shadow .12s ease; }
     .card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.08); }
-    .thumb { aspect-ratio:4/3; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#6b7280; font-size:12px; }
+    .thumb { aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; color:#6b7280; font-size:12px; }
     .body { padding:12px; display:flex; flex-direction:column; gap:6px; }
     .title { font-weight:600; }
     .spacer { flex:1; }
     .empty { border:1px dashed var(--border); border-radius:12px; padding:30px; text-align:center; color:var(--muted); }
-    .countline { color:#444; font-weight:600; }
+    .countline { color:#111; font-weight:700; letter-spacing:.2px; }
   </style>
 </head>
 <body>
@@ -114,36 +130,58 @@
           </select>
         </div>
 
+        <!-- Weight slider -->
         <div class="control">
-          <label class="muted">Weight (gsm) min</label>
-          <input id="wmin" type="number" min="0" placeholder="e.g. 60" />
+          <label class="muted">Weight (gsm)</label>
+          <div class="range" id="rngWeight">
+            <div class="range-row">
+              <input id="wmin" type="number" min="0" placeholder="min" style="width:86px">
+              <div class="range-track">
+                <div class="track-bg"></div>
+                <div class="track-fill"></div>
+                <input type="range" min="0" max="500" value="0">
+                <input type="range" min="0" max="500" value="500">
+              </div>
+              <input id="wmax" type="number" min="0" placeholder="max" style="width:86px">
+            </div>
+          </div>
         </div>
 
+        <!-- Width slider -->
         <div class="control">
-          <label class="muted">Weight (gsm) max</label>
-          <input id="wmax" type="number" min="0" placeholder="e.g. 300" />
+          <label class="muted">Width (in)</label>
+          <div class="range" id="rngWidth">
+            <div class="range-row">
+              <input id="widthMin" type="number" min="0" placeholder="min" style="width:86px">
+              <div class="range-track">
+                <div class="track-bg"></div>
+                <div class="track-fill"></div>
+                <input type="range" min="30" max="80" value="30">
+                <input type="range" min="30" max="80" value="80">
+              </div>
+              <input id="widthMax" type="number" min="0" placeholder="max" style="width:86px">
+            </div>
+          </div>
         </div>
 
+        <!-- Price slider -->
         <div class="control">
-          <label class="muted">Width (in) min</label>
-          <input id="widthMin" type="number" min="0" placeholder="e.g. 44" />
+          <label class="muted">Price (USD)</label>
+          <div class="range" id="rngPrice">
+            <div class="range-row">
+              <input id="pmin" type="number" min="0" placeholder="min" style="width:86px">
+              <div class="range-track">
+                <div class="track-bg"></div>
+                <div class="track-fill"></div>
+                <input type="range" min="0" max="200" value="0">
+                <input type="range" min="0" max="200" value="200">
+              </div>
+              <input id="pmax" type="number" min="0" placeholder="max" style="width:86px">
+            </div>
+          </div>
         </div>
 
-        <div class="control">
-          <label class="muted">Width (in) max</label>
-          <input id="widthMax" type="number" min="0" placeholder="e.g. 60" />
-        </div>
-
-        <div class="control">
-          <label class="muted">Price min (USD)</label>
-          <input id="pmin" type="number" min="0" placeholder="e.g. 10" />
-        </div>
-        <div class="control">
-          <label class="muted">Price max (USD)</label>
-          <input id="pmax" type="number" min="0" placeholder="e.g. 80" />
-        </div>
-
-        <!-- Fabric Type dropdown -->
+        <!-- Fabric Type dropdown (visible & working) -->
         <div class="control dropdown" id="fabricDD">
           <label class="muted">Fabric Type</label>
           <button class="dropdown-btn" id="fabricBtn">
@@ -157,7 +195,7 @@
           <div id="fabricTags" class="tags"></div>
         </div>
 
-        <!-- Color dropdown -->
+        <!-- Color dropdown (visible & working) -->
         <div class="control dropdown" id="colorDD">
           <label class="muted">Color</label>
           <button class="dropdown-btn" id="colorBtn">
@@ -219,7 +257,7 @@
 
   <main>
     <div class="wrap">
-      <div id="count" class="countline" style="margin-bottom:10px;"></div>
+      <div id="count" class="countline" style="margin-bottom:10px;">✨ Loading… ✨</div>
       <div id="grid" class="grid"></div>
       <div id="empty" class="empty" style="display:none;">No fabrics match your filters.</div>
     </div>
@@ -228,22 +266,19 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.3";
 
-    // Supabase
+    /* ------------ Supabase ------------ */
     const SUPABASE_URL  = "https://clkizksbvxjkoatdajgd.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // DOM refs
+    /* ------------ DOM refs ------------ */
     const globalSearch = document.getElementById('globalSearch');
     const qEl = document.getElementById('q');
     const sortEl = document.getElementById('sort');
     const stretchEl = document.getElementById('stretch');
-    const wminEl = document.getElementById('wmin');
-    const wmaxEl = document.getElementById('wmax');
-    const widthMinEl = document.getElementById('widthMin');
-    const widthMaxEl = document.getElementById('widthMax');
-    const pminEl = document.getElementById('pmin');
-    const pmaxEl = document.getElementById('pmax');
+    const wminEl = document.getElementById('wmin'); const wmaxEl = document.getElementById('wmax');
+    const widthMinEl = document.getElementById('widthMin'); const widthMaxEl = document.getElementById('widthMax');
+    const pminEl = document.getElementById('pmin'); const pmaxEl = document.getElementById('pmax');
     const conditionEl = document.getElementById('condition');
     const departmentEl = document.getElementById('department');
     const countryEl = document.getElementById('country');
@@ -252,16 +287,54 @@
     const emptyEl = document.getElementById('empty');
     const countEl = document.getElementById('count');
 
-    // navbar search delegates to main search
+    /* ------------ Navbar search → main search ------------ */
     globalSearch.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ qEl.value = globalSearch.value; query(); } });
 
-    /* ---------- Fabric Type dropdown (alphabetized + “other” pinned last) ---------- */
+    /* ------------ Dual-range slider wiring ------------ */
+    function wireDualRange(containerId, minInput, maxInput, opts){
+      const el = document.getElementById(containerId);
+      const [r1, r2] = el.querySelectorAll('input[type=range]');
+      const fill = el.querySelector('.track-fill');
+      const minBound = +r1.min, maxBound = +r1.max;
+      const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+      const syncFill = ()=>{
+        const a = Math.min(+r1.value, +r2.value), b = Math.max(+r1.value, +r2.value);
+        const pctA = 100*(a-minBound)/(maxBound-minBound);
+        const pctB = 100*(b-minBound)/(maxBound-minBound);
+        fill.style.left = pctA + '%';
+        fill.style.width = (pctB - pctA) + '%';
+        minInput.value = a === minBound ? '' : a;
+        maxInput.value = b === maxBound ? '' : b;
+      };
+      const syncFromInputs = ()=>{
+        const a = clamp(minInput.value===''?minBound:+minInput.value, minBound, maxBound);
+        const b = clamp(maxInput.value===''?maxBound:+maxInput.value, minBound, maxBound);
+        r1.value = Math.min(a,b);
+        r2.value = Math.max(a,b);
+        syncFill();
+      };
+      r1.addEventListener('input', ()=>{ if(+r1.value>+r2.value) r1.value = r2.value; syncFill(); });
+      r2.addEventListener('input', ()=>{ if(+r2.value<+r1.value) r2.value = r1.value; syncFill(); });
+      minInput.addEventListener('change', syncFromInputs);
+      maxInput.addEventListener('change', syncFromInputs);
+      // Initialize to bounds
+      minInput.placeholder = `e.g. ${opts.placeholderMin}`;
+      maxInput.placeholder = `e.g. ${opts.placeholderMax}`;
+      r1.value = minBound; r2.value = maxBound; syncFill();
+      return { syncFromInputs, reset: ()=>{ r1.value=minBound; r2.value=maxBound; minInput.value=''; maxInput.value=''; syncFill(); } };
+    }
+
+    const rngWeight = wireDualRange('rngWeight', wminEl, wmaxEl, { placeholderMin: 60, placeholderMax: 300 });
+    const rngWidth  = wireDualRange('rngWidth',  widthMinEl, widthMaxEl, { placeholderMin: 44, placeholderMax: 60 });
+    const rngPrice  = wireDualRange('rngPrice',  pminEl,    pmaxEl,    { placeholderMin: 10, placeholderMax: 80 });
+
+    /* ------------ Fabric Type dropdown (alphabetical + “other” last) ------------ */
     const FABRIC_TOKENS_UNSORTED = [
       'cotton','wool','silk','linen','denim','chiffon','crepe','jersey','satin','twill','canvas','lace','velvet',
       'rayon','viscose','modal','tencel','lyocell','polyester','nylon','acrylic'
     ];
     const ALL_FABRICS = [...FABRIC_TOKENS_UNSORTED].map(s=>s.toLowerCase()).sort((a,b)=>a.localeCompare(b)).concat('other');
-    const FABRIC_TOKENS = FABRIC_TOKENS_UNSORTED.map(x=>x.toLowerCase()); // used for “other” logic
+    const FABRIC_TOKENS = FABRIC_TOKENS_UNSORTED.map(x=>x.toLowerCase());
 
     const fabricState = new Set();
     const fabricDD = document.getElementById('fabricDD');
@@ -292,10 +365,9 @@
     fabricBtn.onclick=()=>fabricDD.classList.toggle('open');
     document.addEventListener('click',(e)=>{ if(!fabricDD.contains(e.target)) fabricDD.classList.remove('open'); });
     fabricSearch.addEventListener('input',()=>renderFabricList(fabricSearch.value));
-    renderFabricList();
-    syncFabricUI();
+    renderFabricList(); syncFabricUI();
 
-    /* ---------- Color dropdown (swatches + wrapped grid that fits narrow windows) ---------- */
+    /* ------------ Color dropdown (swatches + wrapped grid) ------------ */
     const COLOR_META = [
       ['beige',  '#e7d7b5'],
       ['black',  '#111827'],
@@ -310,8 +382,6 @@
       ['white',  '#ffffff'],
       ['yellow', '#f59e0b'],
     ].sort((a,b)=>a[0].localeCompare(b[0]));
-    const COLOR_OPTIONS = COLOR_META.map(([k])=>k);
-
     const colorState = new Set();
     const colorDD = document.getElementById('colorDD');
     const colorBtn = document.getElementById('colorBtn');
@@ -344,10 +414,9 @@
     colorBtn.onclick=()=>colorDD.classList.toggle('open');
     document.addEventListener('click',(e)=>{ if(!colorDD.contains(e.target)) colorDD.classList.remove('open'); });
     colorSearch.addEventListener('input',()=>renderColorList(colorSearch.value));
-    renderColorList();
-    syncColorUI();
+    renderColorList(); syncColorUI();
 
-    /* ---------- Cards & query ---------- */
+    /* ------------ Cards & query ------------ */
     const colorHex = (name)=> (COLOR_META.find(([k])=>k===name)||[])[1] || '#e5e7eb';
     function dollars(c){ return (c/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
     function placeholderStyle(cname){
@@ -358,8 +427,7 @@
         ${base};`;
     }
     function card(item){
-      const hasImg = !!item.thumbnail_url;
-      const t = hasImg
+      const t = item.thumbnail_url
         ? `<img class="thumb" src="${item.thumbnail_url}" alt="">`
         : `<div class="thumb" style="${placeholderStyle(item.color_category)}">No image</div>`;
       const lines=[ item.fabric_content||'—', `Color: ${item.color_category??'—'}`, `Weight: ${item.weight_gsm??'—'} gsm`,
@@ -372,7 +440,7 @@
     }
 
     async function query(){
-      gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='Finding fabrics…';
+      gridEl.innerHTML=''; emptyEl.style.display='none'; countEl.textContent='✨ Finding fabrics… ✨';
 
       let base = supabase.from('catalog').select('*').limit(300);
 
@@ -461,11 +529,9 @@
     document.getElementById('apply').onclick = query;
     document.getElementById('reset').onclick = () => {
       globalSearch.value=''; qEl.value=''; sortEl.value='newest'; stretchEl.value='any';
-      wminEl.value=''; wmaxEl.value=''; widthMinEl.value=''; widthMaxEl.value='';
-      pminEl.value=''; pmaxEl.value='';
+      rngWeight.reset(); rngWidth.reset(); rngPrice.reset();
       conditionEl.value='any'; departmentEl.value='any'; countryEl.value='any'; designerEl.value='';
-      fabricState.clear(); syncFabricUI();
-      colorState.clear(); syncColorUI();
+      fabricState.clear(); syncFabricUI(); colorState.clear(); syncColorUI();
       query();
     };
 
