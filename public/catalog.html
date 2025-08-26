@@ -29,6 +29,13 @@
     .row { display:flex; gap:8px; flex-wrap:wrap; }
     .spacer { flex:1; }
     .empty { padding:30px; text-align:center; color:var(--muted); border:1px dashed var(--border); border-radius:12px; }
+
+    /* Color wheel */
+    .wheel-wrap { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+    .wheel { width:240px; height:240px; }
+    .legend { display:grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); gap:6px 12px; align-items:center; }
+    .legend .bullet { width:12px; height:12px; border-radius:999px; display:inline-block; margin-right:6px; border:1px solid rgba(0,0,0,.15); }
+    .wheel-selected { outline:4px solid #111827; outline-offset:-2px; }
   </style>
 </head>
 <body>
@@ -80,9 +87,13 @@
 
         <div class="control" style="min-width:100%;"></div>
 
+        <!-- Color Wheel -->
         <div class="control" style="min-width:100%;">
           <label class="muted">Color</label>
-          <div class="chips" id="colorChips"></div>
+          <div class="wheel-wrap">
+            <svg id="colorWheel" class="wheel" viewBox="0 0 100 100"></svg>
+            <div class="legend" id="legend"></div>
+          </div>
         </div>
 
         <div class="spacer"></div>
@@ -119,21 +130,85 @@
     const gridEl = document.getElementById('grid');
     const emptyEl = document.getElementById('empty');
     const countEl = document.getElementById('count');
-    const chipsEl = document.getElementById('colorChips');
 
-    // allowed colors (from your DB whitelist)
-    const COLORS = ['black','white','red','blue','green','yellow','brown','gray','beige','pink','purple','orange'];
+    // allowed colors (from DB whitelist) + display colors for the wheel
+    const COLORS = [
+      {key:'black',  fill:'#111827'},
+      {key:'gray',   fill:'#9ca3af'},
+      {key:'white',  fill:'#ffffff'},
+      {key:'beige',  fill:'#e7d7b5'},
+      {key:'brown',  fill:'#8b5a2b'},
+      {key:'yellow', fill:'#f59e0b'},
+      {key:'orange', fill:'#fb923c'},
+      {key:'red',    fill:'#ef4444'},
+      {key:'pink',   fill:'#f472b6'},
+      {key:'purple', fill:'#a78bfa'},
+      {key:'blue',   fill:'#3b82f6'},
+      {key:'green',  fill:'#22c55e'}
+    ];
 
-    // build color chips
+    // selected set
     const selectedColors = new Set();
-    for (const c of COLORS) {
-      const chip = document.createElement('label');
-      chip.className = 'chip';
-      chip.innerHTML = `<input type="checkbox" value="${c}"><span>${c}</span>`;
-      chip.querySelector('input').addEventListener('change', (e) => {
-        if (e.target.checked) selectedColors.add(c); else selectedColors.delete(c);
-      });
-      chipsEl.appendChild(chip);
+
+    // --- Draw color wheel ---
+    const svg = document.getElementById('colorWheel');
+    const legend = document.getElementById('legend');
+
+    // helper: add path
+    function addSlice(cx, cy, r, startDeg, endDeg, fill, key) {
+      const toXY = (deg) => {
+        const rad = (deg-90) * Math.PI/180;
+        return [cx + r*Math.cos(rad), cy + r*Math.sin(rad)];
+      };
+      const [x1,y1] = toXY(startDeg);
+      const [x2,y2] = toXY(endDeg);
+      const largeArc = endDeg - startDeg <= 180 ? 0 : 1;
+      const d = [
+        `M ${cx} ${cy}`,
+        `L ${x1} ${y1}`,
+        `A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`,
+        'Z'
+      ].join(' ');
+      const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d', d);
+      p.setAttribute('fill', fill);
+      p.setAttribute('stroke', '#ffffff');
+      p.setAttribute('stroke-width','0.5');
+      p.dataset.key = key;
+      p.style.cursor = 'pointer';
+      p.addEventListener('click', () => toggleColor(key, p));
+      svg.appendChild(p);
+      return p;
+    }
+
+    // draw ring (12 equal slices)
+    const cx=50, cy=50, r=48;
+    const slice = 360 / COLORS.length;
+    const sliceElems = {};
+    COLORS.forEach((c, i) => {
+      const p = addSlice(cx, cy, r, i*slice, (i+1)*slice, c.fill, c.key);
+      sliceElems[c.key] = p;
+      // legend
+      const row = document.createElement('div');
+      row.innerHTML = `<span class="bullet" style="background:${c.fill}"></span>${c.key}`;
+      row.style.cursor = 'pointer';
+      row.onclick = () => toggleColor(c.key, sliceElems[c.key]);
+      legend.appendChild(row);
+    });
+
+    function toggleColor(key, elem) {
+      if (selectedColors.has(key)) {
+        selectedColors.delete(key);
+        elem.classList.remove('wheel-selected');
+      } else {
+        selectedColors.add(key);
+        elem.classList.add('wheel-selected');
+      }
+    }
+
+    function clearWheel() {
+      selectedColors.clear();
+      Object.values(sliceElems).forEach(p => p.classList.remove('wheel-selected'));
     }
 
     function dollars(cents) { return (cents/100).toLocaleString(undefined,{style:'currency',currency:'USD'}); }
@@ -177,11 +252,10 @@
       // search
       const term = qEl.value.trim();
       if (term) {
-        // title or fabric_content ilike
         q = q.or(`title.ilike.%${term}%,fabric_content.ilike.%${term}%`);
       }
 
-      // colors
+      // colors via wheel
       if (selectedColors.size > 0) {
         q = q.in('color_category', Array.from(selectedColors));
       }
@@ -227,12 +301,11 @@
       fiberEl.value = 'any';
       wminEl.value = '';
       wmaxEl.value = '';
-      selectedColors.clear();
-      chipsEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      clearWheel();
       query();
     });
 
-    // first load
+    // initial load
     query();
   </script>
 </body>
