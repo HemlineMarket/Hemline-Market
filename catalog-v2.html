@@ -5,30 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Hemline Market — Category</title>
 
-  <!-- Keep your existing site styles -->
   <link rel="stylesheet" href="/css/styles.css"/>
 
   <style>
-    /* ===========================
-       Hemline Market – Filters (Poshmark-style)
-       Scoped to #filters-panel and .hm-* to avoid collisions
-       =========================== */
-
     :root{
       --hm-header-h: 64px;
       --hm-gap: 12px;
       --hm-radius: 14px;
       --hm-border: 1px solid rgba(0,0,0,0.08);
       --hm-shadow: 0 6px 16px rgba(0,0,0,0.08);
-      --hm-muted: #6b7280; /* slate-500 */
-      --hm-text: #0f172a;  /* slate-900 */
+      --hm-muted: #6b7280;
+      --hm-text: #0f172a;
       --hm-bg: #ffffff;
-      --hm-chip: #f3f4f6;  /* gray-100 */
+      --hm-chip: #f3f4f6;
       --hm-chip-text: #111827;
-      --hm-accent: #111827; /* neutral/dark for now; wire to brand later */
+      --hm-accent: #111827;
+      --hm-z-overlay: 60;
+      --hm-z-drawer: 61;
     }
 
-    /* Layout: left filters, right results */
+    /* Layout: left filters (desktop), content right */
     .hm-layout{
       display:grid;
       grid-template-columns: 300px 1fr;
@@ -39,10 +35,35 @@
     @media (max-width: 980px){
       .hm-layout{
         grid-template-columns: 1fr;
+        padding: 12px;
       }
     }
 
-    /* Active chips row (above results) */
+    /* Top bar with Filters button on mobile */
+    .hm-topbar{
+      display:none;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .hm-topbar .hm-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:12px;
+      border:var(--hm-border);
+      font-weight:600;
+      cursor:pointer;
+    }
+    .hm-topbar .hm-btn svg{ width:18px; height:18px; }
+    @media (max-width:980px){
+      .hm-topbar{ display:flex; }
+    }
+
+    /* Active chips row */
     #active-filter-chips{
       display:flex;
       flex-wrap:wrap;
@@ -65,7 +86,7 @@
       border:0; background:transparent; cursor:pointer; font-size:14px; line-height:1;
     }
 
-    /* Filters panel */
+    /* Filters panel (desktop default) */
     #filters-panel{
       position:sticky;
       top: var(--hm-header-h);
@@ -78,38 +99,80 @@
       padding: 12px;
     }
 
-    /* Section headers using <details>/<summary> */
+    /* Drawer behavior on mobile */
+    @media (max-width:980px){
+      #filters-panel{
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100dvh;
+        max-height: none;
+        width: min(92vw, 360px);
+        transform: translateX(-105%);
+        transition: transform .28s ease;
+        border-radius: 0 16px 16px 0;
+        padding: 14px;
+        z-index: var(--hm-z-drawer);
+      }
+      #filters-panel.is-open{
+        transform: translateX(0);
+      }
+      /* Provide extra bottom padding so sticky CTA doesn't overlap content */
+      #filters-panel .drawer-spacer{ height: 8px; }
+    }
+
+    /* Overlay (mobile) */
+    #filters-overlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .28s ease;
+      z-index: var(--hm-z-overlay);
+    }
+    #filters-overlay.is-open{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    /* Drawer header (mobile only) */
+    .drawer-header{
+      display:none;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin: -4px 0 8px 0;
+      padding-bottom:8px;
+      border-bottom: var(--hm-border);
+    }
+    .drawer-title{ font-weight:700; }
+    .drawer-close{
+      border:0; background:#fff; cursor:pointer;
+      width:36px; height:36px; border-radius:10px; border: var(--hm-border);
+      display:inline-flex; align-items:center; justify-content:center;
+    }
+    .drawer-close svg{ width:18px; height:18px; }
+    @media (max-width:980px){
+      .drawer-header{ display:flex; }
+    }
+
+    /* Sections */
     #filters-panel details{
       border-bottom: var(--hm-border);
       padding: 4px 0 8px 0;
     }
-    #filters-panel details:last-of-type{
-      border-bottom:0;
-    }
+    #filters-panel details:last-of-type{ border-bottom:0; }
     #filters-panel summary{
-      list-style:none;
-      cursor:pointer;
-      user-select:none;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding: 8px 4px;
-      font-weight:600;
-      color: var(--hm-text);
+      list-style:none; cursor:pointer; user-select:none;
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 8px 4px; font-weight:600; color: var(--hm-text);
     }
     #filters-panel summary::-webkit-details-marker{ display:none; }
-    #filters-panel .summary-caret{
-      transition: transform .25s ease;
-    }
-    #filters-panel details[open] .summary-caret{
-      transform: rotate(90deg);
-    }
+    #filters-panel .summary-caret{ transition: transform .25s ease; }
+    #filters-panel details[open] .summary-caret{ transform: rotate(90deg); }
 
-    .filter-body{
-      padding: 6px 4px 10px 4px;
-      display:grid;
-      gap: 8px;
-    }
+    .filter-body{ padding: 6px 4px 10px 4px; display:grid; gap: 8px; }
 
     .filter-grid-2{
       display:grid;
@@ -120,29 +183,14 @@
       .filter-grid-2{ grid-template-columns: 1fr; }
     }
 
-    .hm-input,
-    .hm-select{
-      width:100%;
-      padding:10px 12px;
-      border-radius:10px;
-      border: var(--hm-border);
-      font-size:14px;
+    .hm-input,.hm-select{
+      width:100%; padding:10px 12px; border-radius:10px; border: var(--hm-border); font-size:14px;
     }
-
-    .hm-checklist{
-      display:grid;
-      gap:6px;
-    }
-    .hm-check{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-size:14px;
-      color: var(--hm-text);
-    }
+    .hm-checklist{ display:grid; gap:6px; }
+    .hm-check{ display:flex; align-items:center; gap:10px; font-size:14px; color: var(--hm-text); }
     .hm-check input{ width:16px; height:16px; }
 
-    /* Sticky Apply/Reset */
+    /* Sticky Apply/Reset inside panel */
     .filters-cta{
       position: sticky;
       bottom: 0;
@@ -150,38 +198,16 @@
       padding-top: 10px;
       margin-top: 10px;
     }
-    .filters-cta .cta-row{
-      display:flex;
-      gap:10px;
-    }
-    .hm-btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      padding: 10px 14px;
-      border-radius: 12px;
-      border: var(--hm-border);
-      font-weight:600;
-      cursor:pointer;
-      width:100%;
-    }
+    .filters-cta .cta-row{ display:flex; gap:10px; }
+    .hm-btn-wide{ width:100%; }
     .hm-btn--primary{
-      background: var(--hm-accent);
-      color: #fff;
-      border-color: transparent;
+      background: var(--hm-accent); color: #fff; border-color: transparent;
     }
     .hm-btn--ghost{
-      background: #fff;
-      color: var(--hm-text);
+      background: #fff; color: var(--hm-text); border: var(--hm-border);
     }
 
-    .hm-hint{
-      font-size:12px;
-      color: var(--hm-muted);
-    }
-
-    /* Simple results grid scaffolding (non-invasive) */
+    /* Results grid scaffolding */
     .results-grid{
       display:grid;
       grid-template-columns: repeat(3, minmax(0,1fr));
@@ -208,32 +234,37 @@
 <body>
 
   <main class="hm-layout">
-    <!-- Left: Filters -->
-    <aside id="filters-panel" aria-label="Filters">
+    <!-- MOBILE TOPBAR -->
+    <div class="hm-topbar">
+      <button id="open-filters" class="hm-btn" type="button" aria-controls="filters-panel" aria-expanded="false">
+        <!-- funnel icon -->
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v2H3V5zm4 6h10v2H7v-2zm3 6h4v2h-4v-2z"/></svg>
+        Filters
+      </button>
+    </div>
+
+    <!-- OVERLAY (mobile) -->
+    <div id="filters-overlay" aria-hidden="true"></div>
+
+    <!-- FILTERS PANEL -->
+    <aside id="filters-panel" aria-label="Filters" aria-modal="true">
+      <!-- Drawer header (mobile) -->
+      <div class="drawer-header">
+        <div class="drawer-title">Filters</div>
+        <button class="drawer-close" type="button" aria-label="Close filters">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.29 19.7 2.88 18.29 9.17 12 2.88 5.71 4.29 4.29l6.3 6.3 6.29-6.3z"/></svg>
+        </button>
+      </div>
+
       <!-- Section: Category -->
       <details open>
-        <summary>
-          Category
-          <span class="summary-caret">›</span>
-        </summary>
+        <summary>Category <span class="summary-caret">›</span></summary>
         <div class="filter-body">
           <div class="hm-checklist">
-            <label class="hm-check">
-              <input type="checkbox" name="category" value="fabric" data-group-label="Category">
-              Fabric
-            </label>
-            <label class="hm-check">
-              <input type="checkbox" name="category" value="trims" data-group-label="Category">
-              Trims
-            </label>
-            <label class="hm-check">
-              <input type="checkbox" name="category" value="notions" data-group-label="Category">
-              Notions
-            </label>
-            <label class="hm-check">
-              <input type="checkbox" name="category" value="handmade" data-group-label="Category">
-              Handmade
-            </label>
+            <label class="hm-check"><input type="checkbox" name="category" value="fabric" data-group-label="Category">Fabric</label>
+            <label class="hm-check"><input type="checkbox" name="category" value="trims" data-group-label="Category">Trims</label>
+            <label class="hm-check"><input type="checkbox" name="category" value="notions" data-group-label="Category">Notions</label>
+            <label class="hm-check"><input type="checkbox" name="category" value="handmade" data-group-label="Category">Handmade</label>
           </div>
           <p class="hm-hint">Select one or more.</p>
         </div>
@@ -241,10 +272,7 @@
 
       <!-- Section: Fabric -->
       <details open>
-        <summary>
-          Fabric
-          <span class="summary-caret">›</span>
-        </summary>
+        <summary>Fabric <span class="summary-caret">›</span></summary>
         <div class="filter-body">
           <div class="hm-checklist">
             <label class="hm-check"><input type="checkbox" name="fabric" value="wool" data-group-label="Fabric">Wool</label>
@@ -258,10 +286,7 @@
 
       <!-- Section: Color -->
       <details>
-        <summary>
-          Color
-          <span class="summary-caret">›</span>
-        </summary>
+        <summary>Color <span class="summary-caret">›</span></summary>
         <div class="filter-body">
           <div class="hm-checklist">
             <label class="hm-check"><input type="checkbox" name="color" value="black" data-group-label="Color">Black</label>
@@ -275,10 +300,7 @@
 
       <!-- Section: Price -->
       <details open>
-        <summary>
-          Price
-          <span class="summary-caret">›</span>
-        </summary>
+        <summary>Price <span class="summary-caret">›</span></summary>
         <div class="filter-body">
           <div class="filter-grid-2">
             <input id="price-min" class="hm-input" type="number" inputmode="numeric" placeholder="Min"
@@ -292,10 +314,7 @@
 
       <!-- Section: Length -->
       <details>
-        <summary>
-          Length
-          <span class="summary-caret">›</span>
-        </summary>
+        <summary>Length <span class="summary-caret">›</span></summary>
         <div class="filter-body hm-checklist">
           <label class="hm-check"><input type="radio" name="length" value="mini" data-group-label="Length">Mini</label>
           <label class="hm-check"><input type="radio" name="length" value="midi" data-group-label="Length">Midi</label>
@@ -305,10 +324,7 @@
 
       <!-- Section: Pattern -->
       <details>
-        <summary>
-          Pattern
-          <span class="summary-caret">›</span>
-        </summary>
+        <summary>Pattern <span class="summary-caret">›</span></summary>
         <div class="filter-body hm-checklist">
           <label class="hm-check"><input type="checkbox" name="pattern" value="solid" data-group-label="Pattern">Solid</label>
           <label class="hm-check"><input type="checkbox" name="pattern" value="stripe" data-group-label="Pattern">Stripe</label>
@@ -317,20 +333,22 @@
         </div>
       </details>
 
+      <!-- Spacer for drawer (mobile) -->
+      <div class="drawer-spacer"></div>
+
       <!-- Apply / Reset -->
       <div class="filters-cta">
         <div class="cta-row">
-          <button type="button" class="hm-btn hm-btn--ghost" data-action="reset-filters">Reset</button>
-          <button type="button" class="hm-btn hm-btn--primary" data-action="apply-filters">Apply</button>
+          <button type="button" class="hm-btn hm-btn--ghost hm-btn-wide" data-action="reset-filters">Reset</button>
+          <button type="button" class="hm-btn hm-btn--primary hm-btn-wide" data-action="apply-filters">Apply</button>
         </div>
       </div>
     </aside>
 
-    <!-- Right: Results -->
+    <!-- RESULTS -->
     <section id="category-results">
       <div id="active-filter-chips"></div>
 
-      <!-- Your real results grid goes here. Temporary scaffolding below for visual check. -->
       <div class="results-grid" id="results">
         <article class="result-card">
           <img src="https://picsum.photos/seed/hem1/600/400" alt="Sample item"/>
@@ -358,25 +376,47 @@
   </main>
 
   <script>
-    /* ===========================
-       Hemline Market – Filters Logic
-       - Builds chips
-       - Handles reset/apply
-       =========================== */
     (function(){
       const panel = document.getElementById('filters-panel');
       if(!panel) return;
 
       const chipsRow = document.getElementById('active-filter-chips');
+      const openBtn  = document.getElementById('open-filters');
+      const overlay  = document.getElementById('filters-overlay');
+      const closeBtn = panel.querySelector('.drawer-close');
 
-      // Helpers
       const $$ = (sel, root=document)=> Array.from(root.querySelectorAll(sel));
+
+      /* ---------- Drawer open/close (mobile) ---------- */
+      const openDrawer = ()=>{
+        panel.classList.add('is-open');
+        overlay.classList.add('is-open');
+        openBtn?.setAttribute('aria-expanded','true');
+        // focus first interactive element for accessibility
+        const first = panel.querySelector('button,[href],input,select,summary');
+        first?.focus({preventScroll:true});
+      };
+      const closeDrawer = ()=>{
+        panel.classList.remove('is-open');
+        overlay.classList.remove('is-open');
+        openBtn?.setAttribute('aria-expanded','false');
+        openBtn?.focus({preventScroll:true});
+      };
+
+      openBtn?.addEventListener('click', openDrawer);
+      overlay?.addEventListener('click', closeDrawer);
+      closeBtn?.addEventListener('click', closeDrawer);
+      document.addEventListener('keydown', (e)=>{
+        if(e.key === 'Escape' && panel.classList.contains('is-open')) closeDrawer();
+      });
+
+      /* ---------- Chips + Apply/Reset logic ---------- */
       const formatLabel = (el)=>{
         const dl = el.getAttribute('data-label');
         if (dl) return dl;
         const id = el.id;
         if (id) {
-          const lbl = panel.querySelector(\`label[for="\${id}"]\`);
+          const lbl = panel.querySelector(`label[for="${id}"]`);
           if (lbl) return lbl.textContent.trim();
         }
         if (el.tagName === 'SELECT') {
@@ -390,12 +430,12 @@
 
       const addChip = (key, label, clearFn)=>{
         if(!chipsRow) return;
-        chipsRow.querySelectorAll(\`[data-chip-key="\${key}"]\`).forEach(n=>n.remove());
+        chipsRow.querySelectorAll(`[data-chip-key="${key}"]`).forEach(n=>n.remove());
         if(!label) return;
         const chip = document.createElement('span');
         chip.className = 'hm-chip';
         chip.dataset.chipKey = key;
-        chip.innerHTML = \`<span>\${label}</span><button type="button" aria-label="Clear \${label}">✕</button>\`;
+        chip.innerHTML = `<span>${label}</span><button type="button" aria-label="Clear ${label}">✕</button>`;
         chip.querySelector('button').addEventListener('click', ()=>{
           clearFn?.();
           chip.remove();
@@ -411,45 +451,37 @@
         const update = ()=>{
           let label = '';
           if (el.type === 'checkbox') {
-            const groupChecked = $$('input[name="'+el.name+'"]', panel).filter(i=>i.checked);
+            const groupChecked = $$(`input[name="${el.name}"]`, panel).filter(i=>i.checked);
             label = groupChecked.length
-              ? \`\${el.getAttribute('data-group-label') || el.name}: \${groupChecked.map(formatLabel).join(', ')}\`
+              ? `${el.getAttribute('data-group-label') || el.name}: ${groupChecked.map(formatLabel).join(', ')}`
               : '';
-            addChip(el.name, label, ()=>{
-              groupChecked.forEach(i=> i.checked = false);
-            });
+            addChip(el.name, label, ()=>{ groupChecked.forEach(i=> i.checked = false); });
           } else if (el.type === 'radio') {
-            const checked = $$('input[name="'+el.name+'"]', panel).find(i=>i.checked);
-            label = checked ? \`\${el.getAttribute('data-group-label') || el.name}: \${formatLabel(checked)}\` : '';
-            addChip(el.name, label, ()=>{
-              if (checked) checked.checked = false;
-            });
+            const checked = $$(`input[name="${el.name}"]`, panel).find(i=>i.checked);
+            label = checked ? `${el.getAttribute('data-group-label') || el.name}: ${formatLabel(checked)}` : '';
+            addChip(el.name, label, ()=>{ if (checked) checked.checked = false; });
           } else if (el.tagName === 'SELECT') {
             if (el.multiple) {
               const selected = $$( 'option:checked', el );
-              label = selected.length ? \`\${el.getAttribute('data-group-label') || el.name}: \${selected.map(o=>o.text.trim()).join(', ')}\` : '';
-              addChip(key, label, ()=>{
-                $$( 'option:checked', el ).forEach(o=>o.selected=false);
-              });
+              label = selected.length ? `${el.getAttribute('data-group-label') || el.name}: ${selected.map(o=>o.text.trim()).join(', ')}` : '';
+              addChip(key, label, ()=>{ $$( 'option:checked', el ).forEach(o=>o.selected=false); });
             } else {
-              label = el.value ? \`\${el.getAttribute('data-group-label') || el.name}: \${formatLabel(el)}\` : '';
-              addChip(key, label, ()=>{
-                el.value = '';
-              });
+              label = el.value ? `${el.getAttribute('data-group-label') || el.name}: ${formatLabel(el)}` : '';
+              addChip(key, label, ()=>{ el.value = ''; });
             }
           } else if (el.type === 'number' || el.type === 'text') {
             if (el.dataset.role && el.dataset.group) {
               const g = el.dataset.group;
-              const from = panel.querySelector('[data-group="'+g+'"][data-role="min"]')?.value || '';
-              const to   = panel.querySelector('[data-group="'+g+'"][data-role="max"]')?.value || '';
+              const from = panel.querySelector(`[data-group="${g}"][data-role="min"]`)?.value || '';
+              const to   = panel.querySelector(`[data-group="${g}"][data-role="max"]`)?.value || '';
               const any  = from || to;
-              addChip(g, any ? \`\${el.getAttribute('data-group-label') || g}: \${from || '—'} to \${to || '—'}\` : '', ()=>{
-                const a = panel.querySelector('[data-group="'+g+'"][data-role="min"]');
-                const b = panel.querySelector('[data-group="'+g+'"][data-role="max"]');
+              addChip(g, any ? `${el.getAttribute('data-group-label') || g}: ${from || '—'} to ${to || '—'}` : '', ()=>{
+                const a = panel.querySelector(`[data-group="${g}"][data-role="min"]`);
+                const b = panel.querySelector(`[data-group="${g}"][data-role="max"]`);
                 if(a) a.value = ''; if(b) b.value = '';
               });
             } else {
-              label = el.value ? \`\${el.getAttribute('data-group-label') || key}: \${el.value}\` : '';
+              label = el.value ? `${el.getAttribute('data-group-label') || key}: ${el.value}` : '';
               addChip(key, label, ()=>{ el.value=''; });
             }
           }
@@ -508,15 +540,13 @@
           }
         });
 
-        // Emit event so your results grid can refresh.
         const ev = new CustomEvent('filters:apply', {detail:{query}, bubbles:true});
         panel.dispatchEvent(ev);
 
-        // For now, log to verify wiring (safe no-op)
-        console.log('filters:apply', query);
+        // Close drawer after applying (mobile UX)
+        if (panel.classList.contains('is-open')) closeDrawer();
 
-        // If you want to navigate by querystring in a later step:
-        // location.search = new URLSearchParams(query).toString();
+        console.log('filters:apply', query);
       });
     })();
   </script>
