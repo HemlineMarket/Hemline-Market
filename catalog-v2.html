@@ -1,375 +1,524 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>hemlinemarket — Search</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Hemline Market — Category</title>
+
+  <!-- Keep your existing site styles -->
+  <link rel="stylesheet" href="/css/styles.css"/>
+
   <style>
+    /* ===========================
+       Hemline Market – Filters (Poshmark-style)
+       Scoped to #filters-panel and .hm-* to avoid collisions
+       =========================== */
+
     :root{
-      --ink:#0f172a;--muted:#6b7280;--bg:#ffffff;--chip:#f3f4f6;--chipText:#111827;--chipActive:#111827;--chipActiveText:#ffffff;
-      --ring:#11182722;--card:#ffffff;--border:#e5e7eb;--brand:#0b132b;
+      --hm-header-h: 64px;
+      --hm-gap: 12px;
+      --hm-radius: 14px;
+      --hm-border: 1px solid rgba(0,0,0,0.08);
+      --hm-shadow: 0 6px 16px rgba(0,0,0,0.08);
+      --hm-muted: #6b7280; /* slate-500 */
+      --hm-text: #0f172a;  /* slate-900 */
+      --hm-bg: #ffffff;
+      --hm-chip: #f3f4f6;  /* gray-100 */
+      --hm-chip-text: #111827;
+      --hm-accent: #111827; /* neutral/dark for now; wire to brand later */
     }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";color:var(--ink);background:#fafafa}
-    header{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--border)}
-    .container{max-width:1080px;margin:0 auto;padding:16px}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .brand{font-weight:700}
-    .pillbar{display:flex;gap:10px;align-items:center}
-    .pill{padding:8px 12px;border-radius:999px;background:#f8fafc;border:1px solid var(--border);font-size:14px}
-    .pill strong{font-weight:600}
-    h1{margin:12px 0 8px 0;font-size:28px}
-    .searchbox{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px}
-    .filters{margin-top:8px;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px}
-    .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
-    select,input[type="number"],input[type="text"]{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:14px;background:#fff}
-    .chips{display:flex;gap:8px;flex-wrap:wrap}
-    .chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:var(--chip);color:var(--chipText);cursor:pointer;font-size:13px}
-    .chip[data-active="1"]{background:var(--chipActive);color:var(--chipActiveText);border-color:var(--chipActive)}
-    .swatches{display:flex;gap:10px;flex-wrap:wrap}
-    .swatch{width:28px;height:28px;border-radius:999px;border:2px solid #ffffff;outline:1px solid var(--border);cursor:pointer;display:inline-block}
-    .swatch[data-active="1"]{outline:2px solid var(--ink)}
-    .swatch.gold{background: linear-gradient(135deg,#f9e79f 0%, #f1c40f 50%, #b7950b 100%)}
-    .swatch.silver{background: linear-gradient(135deg,#f8fbfd 0%, #cfd8dc 50%, #90a4ae 100%)}
-    .swatch.black{background:#000}
-    .swatch.gray{background:#9ca3af}
-    .swatch.white{background:#fff}
-    .swatch.ivory{background:#f7f3e8}
-    .swatch.brown{background:#8b5e3c}
-    .swatch.pink{background:#f9a8d4}
-    .swatch.red{background:#ef4444}
-    .swatch.orange{background:#fb923c}
-    .swatch.yellow{background:#facc15}
-    .swatch.green{background:#22c55e}
-    .swatch.blue{background:#3b82f6}
-    .swatch.purple{background:#8b5cf6}
-    .actions{display:flex;gap:10px;margin-top:10px}
-    .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#0f172a;color:#fff;cursor:pointer}
-    .btn.secondary{background:#fff;color:#111;border:1px solid var(--border)}
-    .subbar{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
-    .catalog{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:14px 0 40px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-    .thumb{height:160px;background:repeating-linear-gradient(45deg,#eef2ff,#eef2ff 8px,#e5e7eb 8px,#e5e7eb 16px);display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px}
-    .meta{padding:12px}
-    .title{font-weight:600;margin-bottom:4px}
-    .subtle{color:var(--muted);font-size:12px}
-    .priceRow{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
-    .price{font-weight:700}
-    .badge{font-size:11px;background:#f3f4f6;border:1px solid var(--border);padding:4px 8px;border-radius:999px}
-    @media (max-width:960px){
-      .catalog{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+    /* Layout: left filters, right results */
+    .hm-layout{
+      display:grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+      align-items:start;
+      padding: 20px;
     }
-    @media (max-width:640px){
-      .catalog{grid-template-columns:1fr}
-      .grid3,.grid2{grid-template-columns:1fr}
+    @media (max-width: 980px){
+      .hm-layout{
+        grid-template-columns: 1fr;
+      }
     }
+
+    /* Active chips row (above results) */
+    #active-filter-chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin: 4px 0 16px 0;
+    }
+    .hm-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:var(--hm-chip);
+      color:var(--hm-chip-text);
+      font-size:12px;
+      line-height:1;
+      border: var(--hm-border);
+    }
+    .hm-chip button{
+      border:0; background:transparent; cursor:pointer; font-size:14px; line-height:1;
+    }
+
+    /* Filters panel */
+    #filters-panel{
+      position:sticky;
+      top: var(--hm-header-h);
+      max-height: calc(100vh - var(--hm-header-h) - 16px);
+      overflow:auto;
+      background: var(--hm-bg);
+      border: var(--hm-border);
+      border-radius: var(--hm-radius);
+      box-shadow: var(--hm-shadow);
+      padding: 12px;
+    }
+
+    /* Section headers using <details>/<summary> */
+    #filters-panel details{
+      border-bottom: var(--hm-border);
+      padding: 4px 0 8px 0;
+    }
+    #filters-panel details:last-of-type{
+      border-bottom:0;
+    }
+    #filters-panel summary{
+      list-style:none;
+      cursor:pointer;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 8px 4px;
+      font-weight:600;
+      color: var(--hm-text);
+    }
+    #filters-panel summary::-webkit-details-marker{ display:none; }
+    #filters-panel .summary-caret{
+      transition: transform .25s ease;
+    }
+    #filters-panel details[open] .summary-caret{
+      transform: rotate(90deg);
+    }
+
+    .filter-body{
+      padding: 6px 4px 10px 4px;
+      display:grid;
+      gap: 8px;
+    }
+
+    .filter-grid-2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    @media (max-width: 480px){
+      .filter-grid-2{ grid-template-columns: 1fr; }
+    }
+
+    .hm-input,
+    .hm-select{
+      width:100%;
+      padding:10px 12px;
+      border-radius:10px;
+      border: var(--hm-border);
+      font-size:14px;
+    }
+
+    .hm-checklist{
+      display:grid;
+      gap:6px;
+    }
+    .hm-check{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-size:14px;
+      color: var(--hm-text);
+    }
+    .hm-check input{ width:16px; height:16px; }
+
+    /* Sticky Apply/Reset */
+    .filters-cta{
+      position: sticky;
+      bottom: 0;
+      background: linear-gradient(to top, #fff 75%, rgba(255,255,255,0));
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+    .filters-cta .cta-row{
+      display:flex;
+      gap:10px;
+    }
+    .hm-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: var(--hm-border);
+      font-weight:600;
+      cursor:pointer;
+      width:100%;
+    }
+    .hm-btn--primary{
+      background: var(--hm-accent);
+      color: #fff;
+      border-color: transparent;
+    }
+    .hm-btn--ghost{
+      background: #fff;
+      color: var(--hm-text);
+    }
+
+    .hm-hint{
+      font-size:12px;
+      color: var(--hm-muted);
+    }
+
+    /* Simple results grid scaffolding (non-invasive) */
+    .results-grid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 16px;
+    }
+    @media (max-width: 1100px){
+      .results-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 640px){
+      .results-grid{ grid-template-columns: 1fr; }
+    }
+    .result-card{
+      border: var(--hm-border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .result-card img{ width:100%; height: 220px; object-fit: cover; display:block; }
+    .result-card .rc-body{ padding: 10px 12px; }
+    .result-card .rc-title{ font-weight:600; margin:0 0 6px 0; }
+    .result-card .rc-price{ color:#111827; font-weight:700; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="container row" style="justify-content:space-between;align-items:center">
-      <div class="brand">hemlinemarket</div>
-      <nav class="pillbar">
-        <a class="pill" href="/likes.html">Likes</a>
-        <a class="pill" href="/atelier.html">My Atelier</a>
-        <a class="pill" href="/new.html">New arrivals</a>
-        <a class="pill" href="/profile.html">Profile</a>
-        <a class="pill" href="/list.html"><strong>List an item</strong></a>
-      </nav>
-    </div>
-  </header>
 
-  <main class="container">
-    <h1>Search</h1>
-    <input id="q" class="searchbox" placeholder="Search fabrics… e.g. silk crepe, red, Liberty" />
+  <main class="hm-layout">
+    <!-- Left: Filters -->
+    <aside id="filters-panel" aria-label="Filters">
+      <!-- Section: Category -->
+      <details open>
+        <summary>
+          Category
+          <span class="summary-caret">›</span>
+        </summary>
+        <div class="filter-body">
+          <div class="hm-checklist">
+            <label class="hm-check">
+              <input type="checkbox" name="category" value="fabric" data-group-label="Category">
+              Fabric
+            </label>
+            <label class="hm-check">
+              <input type="checkbox" name="category" value="trims" data-group-label="Category">
+              Trims
+            </label>
+            <label class="hm-check">
+              <input type="checkbox" name="category" value="notions" data-group-label="Category">
+              Notions
+            </label>
+            <label class="hm-check">
+              <input type="checkbox" name="category" value="handmade" data-group-label="Category">
+              Handmade
+            </label>
+          </div>
+          <p class="hm-hint">Select one or more.</p>
+        </div>
+      </details>
 
-    <section class="filters">
-      <div class="grid3">
-        <div>
-          <label>Fabric content</label>
-          <select id="content"></select>
-        </div>
-        <div>
-          <label>Fabric type</label>
-          <select id="type"></select>
-        </div>
-        <div>
-          <label>Fabric category</label>
-          <select id="category"></select>
-        </div>
-
-        <div>
-          <label>Condition</label>
-          <select id="condition">
-            <option value="">Any</option>
-            <option>New</option>
-            <option>Washed (pre-shrunk)</option>
-            <option>Used</option>
-          </select>
-        </div>
-
-        <div>
-          <label>Weight (gsm) — min</label>
-          <input id="gsmMin" type="number" inputmode="numeric" placeholder="min">
-        </div>
-        <div>
-          <label>Weight (gsm) — max</label>
-          <input id="gsmMax" type="number" inputmode="numeric" placeholder="max">
-        </div>
-
-        <div>
-          <label>Width (in) — min</label>
-          <input id="wMin" type="number" inputmode="numeric" placeholder="min">
-        </div>
-        <div>
-          <label>Width (in) — max</label>
-          <input id="wMax" type="number" inputmode="numeric" placeholder="max">
-        </div>
-        <div>
-          <label>Price (USD) — min</label>
-          <input id="pMin" type="number" inputmode="numeric" placeholder="min">
-        </div>
-
-        <div>
-          <label>Price (USD) — max</label>
-          <input id="pMax" type="number" inputmode="numeric" placeholder="max">
-        </div>
-        <div>
-          <label>Country of origin</label>
-          <select id="origin">
-            <option value="">Any</option>
-            <option>China</option>
-            <option>France</option>
-            <option>India</option>
-            <option>Italy</option>
-            <option>Japan</option>
-            <option>USA</option>
-          </select>
-        </div>
-        <div>
-          <label>Designer</label>
-          <input id="designer" type="text" placeholder="Enter designer name">
-        </div>
-
-        <div>
-          <label>Yards available (min)</label>
-          <input id="yardsMin" type="number" inputmode="numeric" placeholder="min yards">
-        </div>
-        <div style="grid-column: span 2;">
-          <label>Color family</label>
-          <div id="colors" class="swatches" aria-label="Color family">
-            <span class="swatch black"   data-color="black"   title="Black"></span>
-            <span class="swatch gray"    data-color="gray"    title="Gray"></span>
-            <span class="swatch white"   data-color="white"   title="White"></span>
-            <span class="swatch ivory"   data-color="ivory"   title="Ivory"></span>
-            <span class="swatch brown"   data-color="brown"   title="Brown"></span>
-            <span class="swatch pink"    data-color="pink"    title="Pink"></span>
-            <span class="swatch red"     data-color="red"     title="Red"></span>
-            <span class="swatch orange"  data-color="orange"  title="Orange"></span>
-            <span class="swatch yellow"  data-color="yellow"  title="Yellow"></span>
-            <span class="swatch green"   data-color="green"   title="Green"></span>
-            <span class="swatch blue"    data-color="blue"    title="Blue"></span>
-            <span class="swatch purple"  data-color="purple"  title="Purple"></span>
-            <span class="swatch silver"  data-color="silver"  title="Silver"></span>
-            <span class="swatch gold"    data-color="gold"    title="Gold"></span>
+      <!-- Section: Fabric -->
+      <details open>
+        <summary>
+          Fabric
+          <span class="summary-caret">›</span>
+        </summary>
+        <div class="filter-body">
+          <div class="hm-checklist">
+            <label class="hm-check"><input type="checkbox" name="fabric" value="wool" data-group-label="Fabric">Wool</label>
+            <label class="hm-check"><input type="checkbox" name="fabric" value="silk" data-group-label="Fabric">Silk</label>
+            <label class="hm-check"><input type="checkbox" name="fabric" value="cotton" data-group-label="Fabric">Cotton</label>
+            <label class="hm-check"><input type="checkbox" name="fabric" value="linen" data-group-label="Fabric">Linen</label>
+            <label class="hm-check"><input type="checkbox" name="fabric" value="leather" data-group-label="Fabric">Leather</label>
           </div>
         </div>
+      </details>
 
-        <div style="grid-column: 1 / -1;">
-          <label>Pattern</label>
-          <div id="pattern" class="chips" role="group" aria-label="Pattern">
-            <button class="chip" data-val="">Any</button>
-            <button class="chip" data-val="solid">Solid</button>
-            <button class="chip" data-val="print">Print</button>
+      <!-- Section: Color -->
+      <details>
+        <summary>
+          Color
+          <span class="summary-caret">›</span>
+        </summary>
+        <div class="filter-body">
+          <div class="hm-checklist">
+            <label class="hm-check"><input type="checkbox" name="color" value="black" data-group-label="Color">Black</label>
+            <label class="hm-check"><input type="checkbox" name="color" value="white" data-group-label="Color">White</label>
+            <label class="hm-check"><input type="checkbox" name="color" value="navy" data-group-label="Color">Navy</label>
+            <label class="hm-check"><input type="checkbox" name="color" value="camel" data-group-label="Color">Camel</label>
+            <label class="hm-check"><input type="checkbox" name="color" value="red" data-group-label="Color">Red</label>
           </div>
+        </div>
+      </details>
+
+      <!-- Section: Price -->
+      <details open>
+        <summary>
+          Price
+          <span class="summary-caret">›</span>
+        </summary>
+        <div class="filter-body">
+          <div class="filter-grid-2">
+            <input id="price-min" class="hm-input" type="number" inputmode="numeric" placeholder="Min"
+                   data-role="min" data-group="price" data-group-label="Price" data-max-pair="price-max">
+            <input id="price-max" class="hm-input" type="number" inputmode="numeric" placeholder="Max"
+                   data-role="max" data-group="price" data-group-label="Price" data-min-pair="price-min">
+          </div>
+          <p class="hm-hint">Enter any range.</p>
+        </div>
+      </details>
+
+      <!-- Section: Length -->
+      <details>
+        <summary>
+          Length
+          <span class="summary-caret">›</span>
+        </summary>
+        <div class="filter-body hm-checklist">
+          <label class="hm-check"><input type="radio" name="length" value="mini" data-group-label="Length">Mini</label>
+          <label class="hm-check"><input type="radio" name="length" value="midi" data-group-label="Length">Midi</label>
+          <label class="hm-check"><input type="radio" name="length" value="maxi" data-group-label="Length">Maxi</label>
+        </div>
+      </details>
+
+      <!-- Section: Pattern -->
+      <details>
+        <summary>
+          Pattern
+          <span class="summary-caret">›</span>
+        </summary>
+        <div class="filter-body hm-checklist">
+          <label class="hm-check"><input type="checkbox" name="pattern" value="solid" data-group-label="Pattern">Solid</label>
+          <label class="hm-check"><input type="checkbox" name="pattern" value="stripe" data-group-label="Pattern">Stripe</label>
+          <label class="hm-check"><input type="checkbox" name="pattern" value="plaid" data-group-label="Pattern">Plaid</label>
+          <label class="hm-check"><input type="checkbox" name="pattern" value="print" data-group-label="Pattern">Print</label>
+        </div>
+      </details>
+
+      <!-- Apply / Reset -->
+      <div class="filters-cta">
+        <div class="cta-row">
+          <button type="button" class="hm-btn hm-btn--ghost" data-action="reset-filters">Reset</button>
+          <button type="button" class="hm-btn hm-btn--primary" data-action="apply-filters">Apply</button>
         </div>
       </div>
+    </aside>
 
-      <div class="actions">
-        <button id="apply" class="btn">Apply Filters</button>
-        <button id="clear" class="btn secondary">Clear Filters</button>
+    <!-- Right: Results -->
+    <section id="category-results">
+      <div id="active-filter-chips"></div>
+
+      <!-- Your real results grid goes here. Temporary scaffolding below for visual check. -->
+      <div class="results-grid" id="results">
+        <article class="result-card">
+          <img src="https://picsum.photos/seed/hem1/600/400" alt="Sample item"/>
+          <div class="rc-body">
+            <p class="rc-title">Sample Wool Crepe</p>
+            <p class="rc-price">$45</p>
+          </div>
+        </article>
+        <article class="result-card">
+          <img src="https://picsum.photos/seed/hem2/600/400" alt="Sample item"/>
+          <div class="rc-body">
+            <p class="rc-title">Italian Silk Twill</p>
+            <p class="rc-price">$68</p>
+          </div>
+        </article>
+        <article class="result-card">
+          <img src="https://picsum.photos/seed/hem3/600/400" alt="Sample item"/>
+          <div class="rc-body">
+            <p class="rc-title">Cotton Sateen</p>
+            <p class="rc-price">$22</p>
+          </div>
+        </article>
       </div>
     </section>
-
-    <div class="subbar">
-      <div id="status" class="subtle">Showing 0 fabrics</div>
-      <div>
-        <label class="subtle" for="sort">Sort</label>
-        <select id="sort">
-          <option value="newest">Newest</option>
-          <option value="price_low">Price: low to high</option>
-          <option value="price_high">Price: high to low</option>
-          <option value="width">Width</option>
-          <option value="yards">Yards available</option>
-        </select>
-      </div>
-    </div>
-
-    <section id="catalog" class="catalog"></section>
   </main>
 
   <script>
-    // ----- Data (demo)
-    // NOTE: color tokens in items must match swatch data-color values.
-    const ITEMS = [
-      { id:1,title:"Silk Crepe",   price:45,  yd:5,  content:"Silk",     type:"Crepe",   category:"Natural",  condition:"New",                 gsm:90,  width:54,  origin:"China", designer:"Liberty", colors:["red","ivory","pink"],   pattern:"solid" },
-      { id:2,title:"Wool Dobby",   price:60,  yd:8,  content:"Wool",     type:"Dobby",   category:"Natural",  condition:"Used",                gsm:240, width:58,  origin:"Italy", designer:"Mood",    colors:["black","gray"],        pattern:"solid" },
-      { id:3,title:"Cotton Sateen",price:28,  yd:12, content:"Cotton",   type:"Sateen",  category:"Natural",  condition:"Washed (pre-shrunk)", gsm:150, width:55,  origin:"Japan", designer:"Joann",   colors:["blue"],                 pattern:"print" },
-      { id:4,title:"Linen Twill",  price:35,  yd:6,  content:"Linen",    type:"Twill",   category:"Natural",  condition:"New",                 gsm:175, width:55,  origin:"Turkey",designer:"Liberty", colors:["ivory","brown"],       pattern:"solid" },
-      { id:5,title:"Poly Jersey",  price:12,  yd:10, content:"Polyester",type:"Jersey",  category:"Synthetic",condition:"Used",                gsm:180, width:60,  origin:"USA",   designer:"Mood",    colors:["gray","black"],        pattern:"solid" },
-      { id:6,title:"Wool-Silk Crepe Blend",price:70,yd:7,content:"Blend",type:"Crepe",   category:"Blend",    condition:"New",                 gsm:160, width:57,  origin:"France",designer:"Joann",   colors:["gold","black"],        pattern:"print" }
-    ];
+    /* ===========================
+       Hemline Market – Filters Logic
+       - Builds chips
+       - Handles reset/apply
+       =========================== */
+    (function(){
+      const panel = document.getElementById('filters-panel');
+      if(!panel) return;
 
-    // ----- Select option sources (alphabetical)
-    const CONTENTS = [
-      "Acrylic","Alpaca","Cashmere","Cotton","Hemp","Linen","Modal","Mohair","Nylon","Polyester",
-      "Ramie","Rayon","Silk","Spandex","Tencel","Viscose","Wool","Blend","Wool-Silk"
-    ];
-    const TYPES = ["Canvas","Chiffon","Crepe","Denim","Jersey","Lace","Lyocell","Modal","Nylon","Other","Polyester","Rayon","Satin","Silk","Tencel","Twill","Velvet","Viscose","Wool"].sort((a,b)=>a.localeCompare(b));
-    const CATS = ["All","Natural","Synthetic","Blend"];
+      const chipsRow = document.getElementById('active-filter-chips');
 
-    // Simple synonyms (search box only)
-    const SYNONYMS = { elastane:"spandex", lycra:"spandex" };
-
-    // ----- DOM helpers
-    const $ = sel => document.querySelector(sel);
-    const $$ = sel => Array.from(document.querySelectorAll(sel));
-    function optfill(sel, list, withAll=true){
-      const el=$(sel); el.innerHTML="";
-      if(withAll){ const o=document.createElement("option"); o.value=""; o.textContent="All"; el.appendChild(o); }
-      list.slice().sort((a,b)=>a.localeCompare(b)).forEach(v=>{
-        const o=document.createElement("option"); o.value=v; o.textContent=v; el.appendChild(o);
-      });
-    }
-
-    // Init selects
-    optfill("#content", CONTENTS);
-    optfill("#type", TYPES);
-    optfill("#category", ["Natural","Synthetic","Blend"], true);
-
-    // Pattern chips
-    const patternChips = $$("#pattern .chip");
-    function setChip(val){
-      patternChips.forEach(c=>c.dataset.active = (c.dataset.val===val?"1":"0"));
-      $("#pattern").dataset.value = val || "";
-    }
-    patternChips.forEach(c=>c.addEventListener("click",()=>setChip(c.dataset.val)));
-    setChip("");
-
-    // Color swatches
-    const activeColors = new Set();
-    $$("#colors .swatch").forEach(sw=>{
-      sw.addEventListener("click",()=>{
-        const c = sw.dataset.color;
-        if(activeColors.has(c)){ activeColors.delete(c); sw.dataset.active=""; }
-        else { activeColors.add(c); sw.dataset.active="1"; }
-      });
-    });
-
-    // Render cards
-    function cardHTML(it){
-      return `
-      <article class="card" data-id="${it.id}">
-        <div class="thumb">No image</div>
-        <div class="meta">
-          <div class="title">${it.title}</div>
-          <div class="subtle">${it.content} • ${it.type} • ${it.width}" • ${it.gsm} gsm</div>
-          <div class="priceRow">
-            <div class="price">$${it.price.toFixed(2)} / yd</div>
-            <span class="badge">${it.yd} yd</span>
-          </div>
-        </div>
-      </article>`;
-    }
-
-    function matches(it, want){
-      // search text with simple synonyms
-      const q = (want.q || "").trim().toLowerCase();
-      if(q){
-        const norm = q.split(/\s+/).map(w=>SYNONYMS[w]||w).join(" ");
-        const hay = [it.title,it.content,it.type,it.category,it.designer].join(" ").toLowerCase();
-        if(!hay.includes(norm)) return false;
-      }
-      if(want.content && it.content!==want.content) return false;
-      if(want.type && it.type!==want.type) return false;
-      if(want.category && it.category!==want.category) return false;
-      if(want.condition && it.condition!==want.condition) return false;
-      if(want.origin && it.origin!==want.origin) return false;
-      if(want.designer && !it.designer.toLowerCase().includes(want.designer.toLowerCase())) return false;
-      if(want.pattern && it.pattern!==want.pattern) return false;
-      if(want.gsmMin!=null && it.gsm < want.gsmMin) return false;
-      if(want.gsmMax!=null && it.gsm > want.gsmMax) return false;
-      if(want.wMin!=null && it.width < want.wMin) return false;
-      if(want.wMax!=null && it.width > want.wMax) return false;
-      if(want.pMin!=null && it.price < want.pMin) return false;
-      if(want.pMax!=null && it.price > want.pMax) return false;
-      if(want.yardsMin!=null && it.yd < want.yardsMin) return false;
-      if(want.colors && want.colors.size){
-        const has = it.colors.some(c=>want.colors.has(c));
-        if(!has) return false;
-      }
-      return true;
-    }
-
-    function valNum(id){
-      const v = $(id).value.trim(); return v===""?null:Number(v);
-    }
-
-    function apply(){
-      const want = {
-        q: $("#q").value,
-        content: $("#content").value,
-        type: $("#type").value,
-        category: $("#category").value,
-        condition: $("#condition").value,
-        origin: $("#origin").value,
-        designer: $("#designer").value.trim(),
-        pattern: $("#pattern").dataset.value || "",
-        gsmMin: valNum("#gsmMin"),
-        gsmMax: valNum("#gsmMax"),
-        wMin:   valNum("#wMin"),
-        wMax:   valNum("#wMax"),
-        pMin:   valNum("#pMin"),
-        pMax:   valNum("#pMax"),
-        yardsMin: valNum("#yardsMin"),
-        colors: activeColors
+      // Helpers
+      const $$ = (sel, root=document)=> Array.from(root.querySelectorAll(sel));
+      const formatLabel = (el)=>{
+        const dl = el.getAttribute('data-label');
+        if (dl) return dl;
+        const id = el.id;
+        if (id) {
+          const lbl = panel.querySelector(\`label[for="\${id}"]\`);
+          if (lbl) return lbl.textContent.trim();
+        }
+        if (el.tagName === 'SELECT') {
+          return el.options[el.selectedIndex]?.text?.trim() || '';
+        }
+        return (el.value || '').trim();
+      };
+      const keyFor = (el)=>{
+        return el.getAttribute('name') || el.getAttribute('data-filter-key') || el.id || '';
       };
 
-      let out = ITEMS.filter(it=>matches(it,want));
+      const addChip = (key, label, clearFn)=>{
+        if(!chipsRow) return;
+        chipsRow.querySelectorAll(\`[data-chip-key="\${key}"]\`).forEach(n=>n.remove());
+        if(!label) return;
+        const chip = document.createElement('span');
+        chip.className = 'hm-chip';
+        chip.dataset.chipKey = key;
+        chip.innerHTML = \`<span>\${label}</span><button type="button" aria-label="Clear \${label}">✕</button>\`;
+        chip.querySelector('button').addEventListener('click', ()=>{
+          clearFn?.();
+          chip.remove();
+          panel.dispatchEvent(new CustomEvent('filters:change', {bubbles:true}));
+        });
+        chipsRow.appendChild(chip);
+      };
 
-      const sort = $("#sort").value;
-      if(sort==="price_low") out.sort((a,b)=>a.price-b.price);
-      else if(sort==="price_high") out.sort((a,b)=>b.price-a.price);
-      else if(sort==="width") out.sort((a,b)=>b.width-a.width);
-      else if(sort==="yards") out.sort((a,b)=>b.yd-a.yd);
-      else out.sort((a,b)=>b.id-a.id); // newest (by id)
+      const wireInput = (el)=>{
+        const key = keyFor(el);
+        if(!key) return;
 
-      $("#catalog").innerHTML = out.map(cardHTML).join("");
-      $("#status").textContent = `Showing ${out.length} fabric${out.length===1?"":"s"}`;
-    }
+        const update = ()=>{
+          let label = '';
+          if (el.type === 'checkbox') {
+            const groupChecked = $$('input[name="'+el.name+'"]', panel).filter(i=>i.checked);
+            label = groupChecked.length
+              ? \`\${el.getAttribute('data-group-label') || el.name}: \${groupChecked.map(formatLabel).join(', ')}\`
+              : '';
+            addChip(el.name, label, ()=>{
+              groupChecked.forEach(i=> i.checked = false);
+            });
+          } else if (el.type === 'radio') {
+            const checked = $$('input[name="'+el.name+'"]', panel).find(i=>i.checked);
+            label = checked ? \`\${el.getAttribute('data-group-label') || el.name}: \${formatLabel(checked)}\` : '';
+            addChip(el.name, label, ()=>{
+              if (checked) checked.checked = false;
+            });
+          } else if (el.tagName === 'SELECT') {
+            if (el.multiple) {
+              const selected = $$( 'option:checked', el );
+              label = selected.length ? \`\${el.getAttribute('data-group-label') || el.name}: \${selected.map(o=>o.text.trim()).join(', ')}\` : '';
+              addChip(key, label, ()=>{
+                $$( 'option:checked', el ).forEach(o=>o.selected=false);
+              });
+            } else {
+              label = el.value ? \`\${el.getAttribute('data-group-label') || el.name}: \${formatLabel(el)}\` : '';
+              addChip(key, label, ()=>{
+                el.value = '';
+              });
+            }
+          } else if (el.type === 'number' || el.type === 'text') {
+            if (el.dataset.role && el.dataset.group) {
+              const g = el.dataset.group;
+              const from = panel.querySelector('[data-group="'+g+'"][data-role="min"]')?.value || '';
+              const to   = panel.querySelector('[data-group="'+g+'"][data-role="max"]')?.value || '';
+              const any  = from || to;
+              addChip(g, any ? \`\${el.getAttribute('data-group-label') || g}: \${from || '—'} to \${to || '—'}\` : '', ()=>{
+                const a = panel.querySelector('[data-group="'+g+'"][data-role="min"]');
+                const b = panel.querySelector('[data-group="'+g+'"][data-role="max"]');
+                if(a) a.value = ''; if(b) b.value = '';
+              });
+            } else {
+              label = el.value ? \`\${el.getAttribute('data-group-label') || key}: \${el.value}\` : '';
+              addChip(key, label, ()=>{ el.value=''; });
+            }
+          }
+        };
 
-    function clearAll(){
-      $("#q").value="";
-      ["#content","#type","#category","#condition","#origin","#sort"].forEach(s=>$(s).value="");
-      ["#gsmMin","#gsmMax","#wMin","#wMax","#pMin","#pMax","#designer","#yardsMin"].forEach(s=>$(s).value="");
-      setChip("");
-      activeColors.clear(); $$("#colors .swatch").forEach(sw=>sw.dataset.active="");
-      apply();
-    }
+        update();
+        el.addEventListener('change', update);
+        el.addEventListener('input', ()=>{
+          if (el.type === 'number' || el.type === 'text') update();
+        });
+      };
 
-    $("#apply").addEventListener("click",apply);
-    $("#clear").addEventListener("click",clearAll);
-    $("#sort").addEventListener("change",apply);
-    ["#q","#content","#type","#category","#condition","#origin"].forEach(s=>$(s).addEventListener("change",apply));
+      $$('.filter-body input, .filter-body select', panel).forEach(wireInput);
 
-    // Initial render
-    apply();
+      const resetBtn = panel.querySelector('[data-action="reset-filters"]');
+      const applyBtn = panel.querySelector('[data-action="apply-filters"]');
+
+      resetBtn?.addEventListener('click', ()=>{
+        $$('.filter-body input[type="checkbox"]', panel).forEach(i=> i.checked = false);
+        $$('.filter-body input[type="radio"]', panel).forEach(i=> i.checked = false);
+        $$('.filter-body input[type="text"], .filter-body input[type="number"]', panel).forEach(i=> i.value = '');
+        $$('.filter-body select', panel).forEach(s=>{
+          if (s.multiple) $$( 'option:checked', s ).forEach(o=>o.selected=false);
+          else s.value = '';
+        });
+        chipsRow?.replaceChildren();
+        panel.dispatchEvent(new CustomEvent('filters:reset', {bubbles:true}));
+        panel.dispatchEvent(new CustomEvent('filters:change', {bubbles:true}));
+      });
+
+      applyBtn?.addEventListener('click', ()=>{
+        const query = {};
+        const inputs = $$('.filter-body input, .filter-body select', panel);
+        inputs.forEach(el=>{
+          const key = keyFor(el);
+          if(!key) return;
+          if (el.type === 'checkbox') {
+            if (!query[key]) query[key] = [];
+            if (el.checked) query[key].push(el.value);
+          } else if (el.type === 'radio') {
+            if (el.checked) query[key] = el.value;
+          } else if (el.tagName === 'SELECT') {
+            if (el.multiple) {
+              query[key] = $$( 'option:checked', el ).map(o=>o.value);
+            } else {
+              if (el.value) query[key] = el.value;
+            }
+          } else if (el.type === 'number' || el.type === 'text') {
+            if (el.dataset.role && el.dataset.group) {
+              const g = el.dataset.group;
+              query[g] = query[g] || {};
+              query[g][el.dataset.role] = el.value;
+            } else if (el.value) {
+              query[key] = el.value;
+            }
+          }
+        });
+
+        // Emit event so your results grid can refresh.
+        const ev = new CustomEvent('filters:apply', {detail:{query}, bubbles:true});
+        panel.dispatchEvent(ev);
+
+        // For now, log to verify wiring (safe no-op)
+        console.log('filters:apply', query);
+
+        // If you want to navigate by querystring in a later step:
+        // location.search = new URLSearchParams(query).toString();
+      });
+    })();
   </script>
 </body>
 </html>
