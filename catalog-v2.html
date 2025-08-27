@@ -1,464 +1,393 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hemline Market — Catalog</title>
-  <link rel="stylesheet" href="components.css" />
-  <style>
-    :root{--ink:#0f172a;--muted:#6b7280;--chip:#f3f4f6;--chipb:#e5e7eb;--bg:#ffffff}
-    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--ink);margin:0}
-    .container{max-width:1100px;margin:0 auto;padding:20px}
-    header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-    header .brand{font-weight:800;letter-spacing:0.2px}
-    header .pill{padding:6px 10px;border-radius:999px;background:#f5f7fb;font-size:12px}
-    nav{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
-    nav a{background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;text-decoration:none;color:var(--ink);font-size:12px}
-    .searchbar{display:flex;gap:10px;align-items:center;margin:10px 0 20px}
-    .searchbar input{flex:1;border:1px solid #e5e7eb;border-radius:999px;padding:10px 14px}
-    .filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-    .filters .row{display:flex;flex-direction:column;gap:6px}
-    .filters select,.filters input{border:1px solid #e5e7eb;border-radius:10px;padding:10px}
-    .actions{display:flex;gap:12px;align-items:center;margin:14px 0}
-    .btn{background:#0f172a;color:#fff;border:none;border-radius:12px;padding:10px 16px;cursor:pointer}
-    .btn.secondary{background:#fff;color:var(--ink);border:1px solid #e5e7eb}
-    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:10px}
-    .card{border:1px solid #e5e7eb;border-radius:16px;padding:14px;background:#fff}
-    .thumb{height:150px;border-radius:12px;background:linear-gradient(135deg,#f3f4f6,#e5e7eb);display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px}
-    .title{margin:10px 0 4px;font-weight:700}
-    .price{font-weight:700}
-    .meta{font-size:12px;color:#6b7280;line-height:1.45}
-    .status{margin:14px 0 6px;color:#6b7280;font-size:12px}
-    .palette{display:grid;grid-template-columns:repeat(8,22px);gap:10px;align-items:center}
-    .swatch{width:22px;height:22px;border-radius:50%;border:1px solid #d1d5db;cursor:pointer;position:relative}
-    .swatch[aria-pressed="true"]{outline:2px solid #0f172a;outline-offset:2px}
-    .swatch.gray{background:#9ca3af}.swatch.black{background:#111827}.swatch.white{background:#ffffff}
-    .swatch.cream{background:#f5f3e7}.swatch.brown{background:#8b5e3c}.swatch.pink{background:#f5a6c4}
-    .swatch.red{background:#ef4444}.swatch.orange{background:#f59e0b}.swatch.yellow{background:#facc15}
-    .swatch.green{background:#10b981}.swatch.blue{background:#2563eb}.swatch.purple{background:#7c3aed}
-    .swatch.silver{background:linear-gradient(135deg,#d1d5db,#9ca3af)}.swatch.gold{background:linear-gradient(135deg,#fcd34d,#b45309)}
-    @media (max-width:960px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hemline Market — Catalog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff;--ink:#0f172a;--muted:#6b7280;--line:#e5e7eb;--pill:#f3f4f6;--pill-ink:#111827;--ink-soft:#374151;
+    --brand:#111827;--brand-ink:#fff;--accent:#111827;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  /* Header */
+  .topnav{display:flex;align-items:center;gap:16px;justify-content:space-between;padding:12px 0}
+  .brand{font-weight:700;font-size:18px;letter-spacing:0.2px}
+  .nav-actions{display:flex;gap:10px;align-items:center}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-weight:500}
+  .cta{background:var(--brand);color:var(--brand-ink);border:0}
+  /* Title + search */
+  .titlebar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:6px 0 10px}
+  .titlebar h1{font-size:22px;margin:0 12px 0 0;font-weight:700}
+  .search{flex:1;min-width:260px}
+  .search input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
+  /* Filters */
+  .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:10px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px 2px}
+  .field select,.field input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+  .row{display:flex;gap:10px}
+  .swatches,.pattern-chips{display:flex;flex-wrap:wrap;gap:10px}
+  .swatch{width:26px;height:26px;border-radius:999px;border:1px solid var(--line);cursor:pointer}
+  .swatch[aria-pressed="true"]{outline:2px solid var(--ink)}
+  .chip-btn{border:1px solid var(--line);background:var(--pill);color:var(--pill-ink);padding:8px 10px;border-radius:999px;cursor:pointer;font-size:13px}
+  .chip-btn[aria-pressed="true"]{border-color:var(--ink);background:#fff}
+  .bar{display:flex;gap:10px;align-items:center;margin:8px 0 2px}
+  .apply{background:var(--accent);color:#fff;border:0;padding:10px 14px;border-radius:10px;font-weight:600}
+  .reset{background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:10px;font-weight:600}
+  .sort{margin-left:auto}
+  /* Cards */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0 60px}
+  .card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+  .ph{height:160px;background:linear-gradient(135deg,#f7f7f7,#f1f1f1)}
+  .card .pad{padding:12px}
+  .card h3{margin:0 0 6px;font-size:16px}
+  .meta{font-size:12px;color:var(--muted)}
+  .price-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+  .price{font-weight:700}
+  .badge{font-size:11px;color:#6b7280;background:#f3f4f6;border-radius:999px;padding:4px 8px}
+  /* Empty state */
+  .empty{border:1px dashed var(--line);border-radius:12px;padding:24px;text-align:center;color:var(--muted)}
+  @media (max-width:900px){.filters{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr 1fr}}
+  @media (max-width:620px){.filters{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
-  <div class="container">
+  <div class="wrap">
     <!-- Header -->
-    <header>
-      <div class="brand">hemline<strong>market</strong></div>
-      <span class="pill">CATALOG V2</span>
-      <nav>
-        <a href="likes.html">Likes</a>
-        <a href="atelier.html">My Atelier</a>
-        <a href="new.html">New Arrivals</a>
-        <a href="profile.html">Profile</a>
-        <a href="list.html" style="background:#0f172a;color:#fff">List an item</a>
-      </nav>
-    </header>
+    <div class="topnav">
+      <div class="brand"><a href="/index.html">hemlinemarket</a></div>
+      <div class="nav-actions">
+        <a class="chip" href="/likes.html">Likes</a>
+        <a class="chip" href="/atelier.html">My Atelier</a>
+        <a class="chip" href="/new.html">New arrivals</a>
+        <a class="chip" href="/profile.html">Profile</a>
+        <a class="chip cta" href="/list.html">List an item</a>
+      </div>
+    </div>
 
-    <!-- Search -->
-    <div class="searchbar">
-      <input id="q" type="search" placeholder="Search fabrics… e.g. silk crepe, red, Liberty" />
+    <!-- Title + search -->
+    <div class="titlebar">
+      <h1>Catalog</h1>
+      <div class="search">
+        <input id="q" type="search" placeholder="Search fabrics… e.g. silk crepe, red, Liberty" />
+      </div>
     </div>
 
     <!-- Filters -->
     <div class="filters" id="filters">
-      <div class="row">
+      <div class="field">
         <label>Fabric content</label>
-        <select id="f-content">
+        <select id="content">
           <option value="">All</option>
-          <option>Acetate</option><option>Acrylic</option><option>Cotton</option><option>Elastane</option>
+          <!-- alphabetized -->
+          <option>Acrylic</option><option>Alpaca</option><option>Cashmere</option><option>Cotton</option>
           <option>Hemp</option><option>Linen</option><option>Lyocell</option><option>Modal</option>
-          <option>Nylon</option><option>Polyester</option><option>Rayon</option><option>Silk</option>
-          <option>Spandex</option><option>Tencel</option><option>Triacetate</option><option>Viscose</option>
-          <option>Wool</option>
+          <option>Nylon</option><option>Polyester</option><option>Ramie</option><option>Rayon</option>
+          <option>Silk</option><option>Spandex</option><option>Tencel</option><option>Triacetate</option>
+          <option>Viscose</option><option>Wool</option>
         </select>
       </div>
 
-      <div class="row">
+      <div class="field">
         <label>Fabric type</label>
-        <select id="f-type">
+        <select id="type">
           <option value="">All</option>
-          <option>Broadcloth</option><option>Canvas</option><option>Challis</option><option>Charmeuse</option>
-          <option>Chiffon</option><option>Crepe</option><option>Dobby</option><option>Gabardine</option>
-          <option>Jersey</option><option>Lawn</option><option>Oxford</option><option>Poplin</option>
+          <!-- alphabetized -->
+          <option>Canvas</option><option>Chiffon</option><option>Crepe</option><option>Denim</option>
+          <option>Jersey</option><option>Lace</option><option>Lawn</option><option>Poplin</option>
           <option>Sateen</option><option>Satin</option><option>Twill</option><option>Velvet</option>
         </select>
       </div>
 
-      <div class="row">
+      <div class="field">
         <label>Fabric category</label>
-        <select id="f-category">
+        <select id="category">
           <option value="">All</option>
           <option>Natural</option><option>Synthetic</option><option>Blend</option>
         </select>
       </div>
 
-      <div class="row">
+      <div class="field">
         <label>Condition</label>
-        <select id="f-condition">
+        <select id="condition">
           <option value="">Any</option>
-          <option>New</option><option>Like New</option><option>Used</option><option>Unknown</option>
+          <option>New</option><option>Like New</option><option>Used</option>
         </select>
       </div>
 
-      <div class="row">
-        <label>Transparency</label>
-        <select id="f-transparency">
-          <option value="">Any</option>
-          <option>Opaque</option><option>Mostly opaque</option>
-          <option>Semi-sheer</option><option>Mostly sheer</option><option>Sheer</option>
-        </select>
-      </div>
-
-      <div class="row">
+      <div class="field">
         <label>Weight (gsm)</label>
-        <div style="display:flex;gap:8px">
-          <input id="gsm-min" type="number" placeholder="min" />
-          <input id="gsm-max" type="number" placeholder="max" />
+        <div class="row">
+          <input id="gsmMin" inputmode="numeric" placeholder="min">
+          <input id="gsmMax" inputmode="numeric" placeholder="max">
         </div>
       </div>
 
-      <div class="row">
+      <div class="field">
         <label>Width (in)</label>
-        <div style="display:flex;gap:8px">
-          <input id="w-min" type="number" placeholder="min" />
-          <input id="w-max" type="number" placeholder="max" />
+        <div class="row">
+          <input id="wMin" inputmode="numeric" placeholder="min">
+          <input id="wMax" inputmode="numeric" placeholder="max">
         </div>
       </div>
 
-      <div class="row">
+      <div class="field">
         <label>Price (USD)</label>
-        <div style="display:flex;gap:8px">
-          <input id="p-min" type="number" placeholder="min" />
-          <input id="p-max" type="number" placeholder="max" />
+        <div class="row">
+          <input id="pMin" inputmode="numeric" placeholder="min">
+          <input id="pMax" inputmode="numeric" placeholder="max">
         </div>
       </div>
 
-      <div class="row">
+      <div class="field">
         <label>Country of origin</label>
-        <select id="f-origin">
+        <select id="origin">
           <option value="">Any</option>
-          <option>USA</option><option>Italy</option><option>France</option><option>Japan</option><option>China</option><option>Turkey</option>
+          <option>China</option><option>France</option><option>Italy</option><option>Japan</option><option>USA</option>
         </select>
       </div>
 
-      <div class="row">
+      <div class="field">
         <label>Designer</label>
-        <input id="f-designer" placeholder="e.g. Liberty, Mood, Joann" />
+        <input id="designer" placeholder="Enter designer name" />
       </div>
 
-      <div class="row">
-        <label>Use</label>
-        <select id="f-use">
-          <option value="">Any</option>
-          <option>Fashion</option>
-          <option>Quilting</option>
-          <option>Home</option>
-        </select>
-      </div>
-
-      <div class="row">
-        <label>Pattern</label>
-        <select id="f-pattern">
-          <option value="">Any</option>
-          <option>Solid</option><option>Print</option><option>Stripe</option><option>Plaid</option>
-          <option>Dots</option><option>Floral</option><option>Abstract</option><option>Novelty</option>
-          <option>Texture</option><option>Metallic</option>
-        </select>
-      </div>
-
-      <div class="row">
+      <div class="field">
         <label>Yards available (min)</label>
-        <input id="yards-min" type="number" placeholder="min yards" />
+        <input id="yardsMin" inputmode="numeric" placeholder="min yards" />
       </div>
 
-      <div class="row">
+      <div class="field">
         <label>Color family</label>
-        <div class="palette" id="color-palette" role="group" aria-label="Color family">
-          <button type="button" class="swatch black"   data-color="black"   aria-pressed="false" title="Black"></button>
-          <button type="button" class="swatch gray"    data-color="gray"    aria-pressed="false" title="Gray"></button>
-          <button type="button" class="swatch white"   data-color="white"   aria-pressed="false" title="White"></button>
-          <button type="button" class="swatch cream"   data-color="cream"   aria-pressed="false" title="Cream"></button>
-          <button type="button" class="swatch brown"   data-color="brown"   aria-pressed="false" title="Brown"></button>
-          <button type="button" class="swatch pink"    data-color="pink"    aria-pressed="false" title="Pink"></button>
-          <button type="button" class="swatch red"     data-color="red"     aria-pressed="false" title="Red"></button>
-          <button type="button" class="swatch orange"  data-color="orange"  aria-pressed="false" title="Orange"></button>
-          <button type="button" class="swatch yellow"  data-color="yellow"  aria-pressed="false" title="Yellow"></button>
-          <button type="button" class="swatch green"   data-color="green"   aria-pressed="false" title="Green"></button>
-          <button type="button" class="swatch blue"    data-color="blue"    aria-pressed="false" title="Blue"></button>
-          <button type="button" class="swatch purple"  data-color="purple"  aria-pressed="false" title="Purple"></button>
-          <button type="button" class="swatch silver"  data-color="silver"  aria-pressed="false" title="Silver"></button>
-          <button type="button" class="swatch gold"    data-color="gold"    aria-pressed="false" title="Gold"></button>
+        <div class="swatches" id="colors">
+          <!-- row 1 -->
+          <button class="swatch" data-color="black" style="background:#000"></button>
+          <button class="swatch" data-color="gray"  style="background:#9ca3af"></button>
+          <button class="swatch" data-color="white" style="background:#fff"></button>
+          <button class="swatch" data-color="ivory" style="background:#faf7e8"></button>
+          <button class="swatch" data-color="tan"   style="background:#b58863"></button>
+          <button class="swatch" data-color="pink"  style="background:#f5a3b3"></button>
+          <!-- row 2 -->
+          <button class="swatch" data-color="red"   style="background:#ef4444"></button>
+          <button class="swatch" data-color="orange"style="background:#fb923c"></button>
+          <button class="swatch" data-color="yellow"style="background:#facc15"></button>
+          <button class="swatch" data-color="green" style="background:#22c55e"></button>
+          <button class="swatch" data-color="blue"  style="background:#3b82f6"></button>
+          <button class="swatch" data-color="purple"style="background:#8b5cf6"></button>
+          <!-- metallics -->
+          <button class="swatch" data-color="silver"style="background:linear-gradient(90deg,#d1d5db,#f3f4f6)"></button>
+          <button class="swatch" data-color="gold"  style="background:linear-gradient(90deg,#f59e0b,#fcd34d)"></button>
+        </div>
+      </div>
+
+      <div class="field" style="grid-column:1/-1">
+        <label>Pattern</label>
+        <div class="pattern-chips" id="patterns">
+          <button class="chip-btn" data-pattern="Solid">Solid</button>
+          <button class="chip-btn" data-pattern="Print">Print</button>
+          <button class="chip-btn" data-pattern="Stripe">Stripe</button>
+          <button class="chip-btn" data-pattern="Plaid">Plaid</button>
+          <button class="chip-btn" data-pattern="Dot">Dot</button>
+          <button class="chip-btn" data-pattern="Floral">Floral</button>
+          <button class="chip-btn" data-pattern="Abstract">Abstract</button>
         </div>
       </div>
     </div>
 
-    <div class="actions">
-      <button class="btn" id="apply">Apply Filters</button>
-      <button class="btn secondary" id="clear">Clear Filters</button>
-      <span class="status" id="status"></span>
+    <!-- Apply / Sort -->
+    <div class="bar">
+      <button class="apply" id="apply">Apply Filters</button>
+      <button class="reset" id="reset">Clear Filters</button>
+      <div class="sort">
+        <label style="font-size:12px;color:var(--muted);margin-right:6px">Sort</label>
+        <select id="sort">
+          <option value="newest">Newest</option>
+          <option value="priceAsc">Price: Low to High</option>
+          <option value="priceDesc">Price: High to Low</option>
+          <option value="yardsDesc">Yardage: High to Low</option>
+          <option value="alpha">Alphabetical (A–Z)</option>
+        </select>
+      </div>
     </div>
 
-    <!-- Results grid (sample data w/ attributes) -->
-    <div class="grid" id="grid">
-      <article class="card"
-        data-content="Silk"
-        data-type="Crepe"
-        data-category="Natural"
-        data-condition="New"
-        data-transparency="Semi-sheer"
-        data-gsm="90"
-        data-width="54"
-        data-price="45"
-        data-origin="China"
-        data-designer="Liberty"
-        data-use="Fashion"
-        data-pattern="Solid"
-        data-color="red"
-        data-yards="5">
-        <div class="thumb">No image</div>
-        <div class="title">Silk Crepe</div>
-        <div class="meta">Content: Silk · Type: Crepe · Category: Natural · Use: Fashion · Pattern: Solid · Yards: 5</div>
-        <div class="meta">Transparency: Semi-sheer · GSM: 90 · Width: 54" · Color: Red</div>
-        <div class="price">$45.00 / yd</div>
-      </article>
-
-      <article class="card"
-        data-content="Wool"
-        data-type="Dobby"
-        data-category="Natural"
-        data-condition="Used"
-        data-transparency="Opaque"
-        data-gsm="240"
-        data-width="58"
-        data-price="60"
-        data-origin="Italy"
-        data-designer="Mood"
-        data-use="Fashion"
-        data-pattern="Texture"
-        data-color="black"
-        data-yards="8">
-        <div class="thumb">No image</div>
-        <div class="title">Wool Dobby</div>
-        <div class="meta">Content: Wool · Type: Dobby · Category: Natural · Use: Fashion · Pattern: Texture · Yards: 8</div>
-        <div class="meta">Transparency: Opaque · GSM: 240 · Width: 58" · Color: Black</div>
-        <div class="price">$60.00 / yd</div>
-      </article>
-
-      <article class="card"
-        data-content="Cotton"
-        data-type="Sateen"
-        data-category="Natural"
-        data-condition="Like New"
-        data-transparency="Mostly opaque"
-        data-gsm="150"
-        data-width="55"
-        data-price="28"
-        data-origin="Japan"
-        data-designer="Joann"
-        data-use="Home"
-        data-pattern="Solid"
-        data-color="white"
-        data-yards="12">
-        <div class="thumb">No image</div>
-        <div class="title">Cotton Sateen</div>
-        <div class="meta">Content: Cotton · Type: Sateen · Category: Natural · Use: Home · Pattern: Solid · Yards: 12</div>
-        <div class="meta">Transparency: Mostly opaque · GSM: 150 · Width: 55" · Color: White</div>
-        <div class="price">$28.00 / yd</div>
-      </article>
-
-      <article class="card"
-        data-content="Linen"
-        data-type="Twill"
-        data-category="Natural"
-        data-condition="New"
-        data-transparency="Mostly opaque"
-        data-gsm="175"
-        data-width="55"
-        data-price="35"
-        data-origin="Turkey"
-        data-designer="Liberty"
-        data-use="Fashion"
-        data-pattern="Plaid"
-        data-color="brown"
-        data-yards="6">
-        <div class="thumb">No image</div>
-        <div class="title">Linen Twill</div>
-        <div class="meta">Content: Linen · Type: Twill · Category: Natural · Use: Fashion · Pattern: Plaid · Yards: 6</div>
-        <div class="meta">Transparency: Mostly opaque · GSM: 175 · Width: 55" · Color: Brown</div>
-        <div class="price">$35.00 / yd</div>
-      </article>
-
-      <article class="card"
-        data-content="Polyester"
-        data-type="Jersey"
-        data-category="Synthetic"
-        data-condition="Used"
-        data-transparency="Opaque"
-        data-gsm="180"
-        data-width="60"
-        data-price="12"
-        data-origin="USA"
-        data-designer="Mood"
-        data-use="Activewear"
-        data-pattern="Solid"
-        data-color="blue"
-        data-yards="9">
-        <div class="thumb">No image</div>
-        <div class="title">Poly Jersey</div>
-        <div class="meta">Polyester Jersey · Use: Activewear · Pattern: Solid · Yards: 9</div>
-        <div class="meta">Opaque · GSM: 180 · Width: 60" · Color: Blue</div>
-        <div class="price">$12.00 / yd</div>
-      </article>
-
-      <article class="card"
-        data-content="Wool-Silk"
-        data-type="Crepe"
-        data-category="Blend"
-        data-condition="Like New"
-        data-transparency="Mostly sheer"
-        data-gsm="160"
-        data-width="57"
-        data-price="70"
-        data-origin="France"
-        data-designer="Joann"
-        data-use="Fashion"
-        data-pattern="Floral"
-        data-color="pink"
-        data-yards="4">
-        <div class="thumb">No image</div>
-        <div class="title">Wool-Silk Crepe Blend</div>
-        <div class="meta">Wool/Silk Crepe · Use: Fashion · Pattern: Floral · Yards: 4</div>
-        <div class="meta">Mostly sheer · GSM: 160 · Width: 57" · Color: Pink</div>
-        <div class="price">$70.00 / yd</div>
-      </article>
-    </div>
+    <!-- Results -->
+    <div id="status" class="meta" style="margin:6px 2px 6px"></div>
+    <div class="grid" id="grid"></div>
+    <div id="empty" class="empty" style="display:none">No fabrics match these filters.</div>
   </div>
 
-  <script>
-    // --- helpers
-    function normalizeContent(v){
-      if(!v) return '';
-      const s = v.toLowerCase();
-      if(s.includes('elastane')) return 'spandex';
-      return s;
+<script>
+/* ---------- Demo dataset (replace with live data when ready) ---------- */
+const FABRICS = [
+  { id:1, name:"Silk Crepe",        price:45,  date:"2025-08-25", content:"Silk",      type:"Crepe",  category:"Natural", condition:"New",      gsm:90,  width:54, color:"red",    origin:"China", designer:"Liberty", yards:5,  pattern:"Solid" },
+  { id:2, name:"Wool Dobby",        price:60,  date:"2025-08-25", content:"Wool",      type:"Dobby",  category:"Natural", condition:"Used",     gsm:240, width:58, color:"black",  origin:"Italy",  designer:"Mood",    yards:8,  pattern:"Textured" },
+  { id:3, name:"Cotton Sateen",     price:28,  date:"2025-08-25", content:"Cotton",    type:"Sateen", category:"Natural", condition:"Like New",gsm:150, width:55, color:"navy",   origin:"Japan",  designer:"Joann",   yards:12, pattern:"Solid" },
+  { id:4, name:"Linen Twill",       price:35,  date:"2025-08-25", content:"Linen",     type:"Twill",  category:"Natural", condition:"New",      gsm:175, width:55, color:"beige",  origin:"Turkey", designer:"Liberty", yards:6,  pattern:"Solid" },
+  { id:5, name:"Poly Jersey",       price:12,  date:"2025-08-25", content:"Polyester", type:"Jersey", category:"Synthetic",condition:"Used",   gsm:180, width:60, color:"grey",   origin:"USA",    designer:"Mood",    yards:10, pattern:"Solid" },
+  { id:6, name:"Wool-Silk Crepe Blend", price:70,date:"2025-08-25", content:"Blend",  type:"Crepe",  category:"Blend",   condition:"Like New",gsm:160, width:57, color:"gold",   origin:"France", designer:"Joann",   yards:7,  pattern:"Print" },
+];
+
+/* ---------- State ---------- */
+const el = s => document.querySelector(s);
+const els = s => [...document.querySelectorAll(s)];
+const state = {
+  q:"", content:"", type:"", category:"", condition:"",
+  gsmMin:"", gsmMax:"", wMin:"", wMax:"", pMin:"", pMax:"",
+  origin:"", designer:"", yardsMin:"", colors: new Set(), patterns: new Set(),
+  sort:"newest"
+};
+
+/* ---------- Helpers ---------- */
+const norm = v => (v||"").toString().trim().toLowerCase();
+const num = v => v===""? null : Number(v);
+const includesAny = (hay="", needles=[]) => {
+  const h = norm(hay);
+  return needles.some(n => h.includes(norm(n)));
+};
+// content/type synonyms
+const SYN = {
+  content:{
+    elastane:["spandex"], spandex:["elastane"],
+    tencel:["lyocell"], lyocell:["tencel"],
+    viscose:["rayon"], rayon:["viscose"]
+  }
+};
+function contentMatch(needle, value){
+  if(!needle) return true;
+  const n = norm(needle), v = norm(value);
+  if(v.includes(n)) return true;
+  const syns = SYN.content[n]||[];
+  return syns.some(s=>v.includes(norm(s)));
+}
+
+/* ---------- Render ---------- */
+function render(list){
+  const g = el("#grid"); g.innerHTML="";
+  if(!list.length){ el("#empty").style.display="block"; el("#status").textContent=""; return; }
+  el("#empty").style.display="none";
+  el("#status").textContent = `Showing ${list.length} fabric${list.length>1?"s":""}`;
+  list.forEach(x=>{
+    const card = document.createElement("div");
+    card.className="card";
+    card.innerHTML = `
+      <div class="ph"></div>
+      <div class="pad">
+        <h3>${x.name}</h3>
+        <div class="meta">${x.content} • ${x.type} • ${x.width}" • ${x.gsm} gsm</div>
+        <div class="price-row">
+          <div class="price">$${x.price.toFixed(2)} / yd</div>
+          <div class="badge">${x.yards} yd</div>
+        </div>
+      </div>`;
+    g.appendChild(card);
+  });
+}
+
+/* ---------- Filter + Sort ---------- */
+function apply(){
+  let list = FABRICS.slice();
+
+  list = list.filter(f=>{
+    if(state.q){
+      const q = norm(state.q);
+      const blob = norm([f.name,f.content,f.type,f.designer,f.origin,f.pattern].join(" "));
+      if(!blob.includes(q)) return false;
     }
-    function inRange(val, min, max){
-      const n = Number(val);
-      if(!Number.isFinite(n)) return true;
-      if(min!=='' && n < Number(min)) return false;
-      if(max!=='' && n > Number(max)) return false;
-      return true;
-    }
-    function anySelectedColors(){
-      return Array.from(document.querySelectorAll('.swatch[aria-pressed="true"]'))
-        .map(b=>b.dataset.color);
-    }
+    if(state.content && !contentMatch(state.content,f.content)) return false;
+    if(state.type && norm(f.type)!==norm(state.type)) return false;
+    if(state.category && norm(f.category)!==norm(state.category)) return false;
+    if(state.condition && norm(f.condition)!==norm(state.condition)) return false;
 
-    function apply(){
-      const q = document.getElementById('q').value.trim().toLowerCase();
+    const gmin = num(state.gsmMin), gmax = num(state.gsmMax);
+    if(gmin!=null && f.gsm<gmin) return false;
+    if(gmax!=null && f.gsm>gmax) return false;
 
-      const fContent = document.getElementById('f-content').value;
-      const fType = document.getElementById('f-type').value;
-      const fCat = document.getElementById('f-category').value;
-      const fCond = document.getElementById('f-condition').value;
-      const fTrans = document.getElementById('f-transparency').value;
+    const wmin = num(state.wMin), wmax = num(state.wMax);
+    if(wmin!=null && f.width<wmin) return false;
+    if(wmax!=null && f.width>wmax) return false;
 
-      const gsmMin = document.getElementById('gsm-min').value;
-      const gsmMax = document.getElementById('gsm-max').value;
-      const wMin = document.getElementById('w-min').value;
-      const wMax = document.getElementById('w-max').value;
-      const pMin = document.getElementById('p-min').value;
-      const pMax = document.getElementById('p-max').value;
+    const pmin = num(state.pMin), pmax = num(state.pMax);
+    if(pmin!=null && f.price<pmin) return false;
+    if(pmax!=null && f.price>pmax) return false;
 
-      const origin = (document.getElementById('f-origin').value||'').toLowerCase();
-      const designer = (document.getElementById('f-designer').value||'').trim().toLowerCase();
+    if(state.origin && norm(f.origin)!==norm(state.origin)) return false;
+    if(state.designer && !includesAny(f.designer,[state.designer])) return false;
 
-      const fUse = document.getElementById('f-use').value;
-      const fPattern = document.getElementById('f-pattern').value;
-      const yardsMin = document.getElementById('yards-min').value;
-      const colorList = anySelectedColors(); // array of strings
+    const yMin = num(state.yardsMin);
+    if(yMin!=null && f.yards<yMin) return false;
 
-      let shown = 0;
-      document.querySelectorAll('#grid .card').forEach(card=>{
-        const d = (k)=> (card.dataset[k]||'').toString();
-        const content = normalizeContent(d('content'));
-        const type = d('type');
-        const category = d('category');
-        const cond = d('condition');
-        const trans = d('transparency');
-        const gsm = d('gsm');
-        const width = d('width');
-        const price = d('price');
-        const org = d('origin').toLowerCase();
-        const des = d('designer').toLowerCase();
-        const use = d('use');
-        const pattern = d('pattern');
-        const color = (d('color')||'').toLowerCase();
-        const yards = d('yards');
+    if(state.colors.size && !state.colors.has(norm(f.color))) return false;
+    if(state.patterns.size && !state.patterns.has(norm(f.pattern))) return false;
 
-        const textBlob = (card.textContent||'').toLowerCase();
+    return true;
+  });
 
-        const pass =
-          (!fContent || content.toLowerCase()===normalizeContent(fContent)) &&
-          (!fType || type===fType) &&
-          (!fCat || category===fCat) &&
-          (!fCond || cond===fCond) &&
-          (!fTrans || trans===fTrans) &&
-          (!fUse || use===fUse) &&
-          (!fPattern || pattern===fPattern) &&
-          (yardsMin==='' || Number(yards)>=Number(yardsMin)) &&
-          inRange(gsm, gsmMin, gsmMax) &&
-          inRange(width, wMin, wMax) &&
-          inRange(price, pMin, pMax) &&
-          (!origin || org.includes(origin)) &&
-          (!designer || des.includes(designer)) &&
-          (colorList.length===0 || colorList.includes(color)) &&
-          (!q || textBlob.includes(q));
+  switch(state.sort){
+    case "priceAsc":  list.sort((a,b)=>a.price-b.price); break;
+    case "priceDesc": list.sort((a,b)=>b.price-a.price); break;
+    case "yardsDesc": list.sort((a,b)=>b.yards-a.yards); break;
+    case "alpha":     list.sort((a,b)=>a.name.localeCompare(b.name)); break;
+    default:          list.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  }
 
-        card.style.display = pass ? 'block' : 'none';
-        if(pass) shown++;
-      });
+  render(list);
+}
 
-      const status = document.getElementById('status');
-      status.textContent = shown ? `Showing ${shown} fabrics` : 'No fabrics match these filters';
-    }
+/* ---------- Wire up ---------- */
+function reset(){
+  ["content","type","category","condition","origin","designer","yardsMin",
+   "gsmMin","gsmMax","wMin","wMax","pMin","pMax"].forEach(id=>el("#"+id).value="");
+  state.q=""; el("#q").value="";
+  state.colors.clear(); state.patterns.clear();
+  els(".swatch").forEach(b=>b.setAttribute("aria-pressed","false"));
+  els(".chip-btn").forEach(b=>b.setAttribute("aria-pressed","false"));
+  el("#sort").value="newest"; state.sort="newest";
+  apply();
+}
 
-    function clearAll(){
-      document.querySelectorAll('#filters select').forEach(s=>s.value='');
-      ['gsm-min','gsm-max','w-min','w-max','p-min','p-max','q','f-designer','yards-min']
-        .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-      document.querySelectorAll('.swatch[aria-pressed="true"]').forEach(b=>b.setAttribute('aria-pressed','false'));
-      apply();
-    }
+el("#q").addEventListener("input", e=>{ state.q = e.target.value; });
+el("#content").addEventListener("change", e=>state.content=e.target.value);
+el("#type").addEventListener("change", e=>state.type=e.target.value);
+el("#category").addEventListener("change", e=>state.category=e.target.value);
+el("#condition").addEventListener("change", e=>state.condition=e.target.value);
+el("#gsmMin").addEventListener("input", e=>state.gsmMin=e.target.value);
+el("#gsmMax").addEventListener("input", e=>state.gsmMax=e.target.value);
+el("#wMin").addEventListener("input", e=>state.wMin=e.target.value);
+el("#wMax").addEventListener("input", e=>state.wMax=e.target.value);
+el("#pMin").addEventListener("input", e=>state.pMin=e.target.value);
+el("#pMax").addEventListener("input", e=>state.pMax=e.target.value);
+el("#origin").addEventListener("change", e=>state.origin=e.target.value);
+el("#designer").addEventListener("input", e=>state.designer=e.target.value);
+el("#yardsMin").addEventListener("input", e=>state.yardsMin=e.target.value);
+el("#sort").addEventListener("change", e=>{ state.sort=e.target.value; apply(); });
 
-    // Color swatches (toggle)
-    document.addEventListener('click', (e)=>{
-      const b = e.target.closest('.swatch');
-      if(!b) return;
-      const pressed = b.getAttribute('aria-pressed')==='true';
-      b.setAttribute('aria-pressed', pressed ? 'false' : 'true');
-    });
+els(".swatch").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const key = norm(btn.dataset.color);
+    const pressed = btn.getAttribute("aria-pressed")==="true";
+    if(pressed){ state.colors.delete(key); btn.setAttribute("aria-pressed","false"); }
+    else{ state.colors.add(key); btn.setAttribute("aria-pressed","true"); }
+  });
+});
+els(".chip-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const key = norm(btn.dataset.pattern);
+    const pressed = btn.getAttribute("aria-pressed")==="true";
+    if(pressed){ state.patterns.delete(key); btn.setAttribute("aria-pressed","false"); }
+    else{ state.patterns.add(key); btn.setAttribute("aria-pressed","true"); }
+  });
+});
 
-    // Apply + Clear + Live search
-    document.addEventListener('DOMContentLoaded', ()=>{
-      const alpha = (sel)=>{
-        const el = document.getElementById(sel);
-        if(!el) return;
-        const opts = Array.from(el.options);
-        const head = opts.shift(); // keep "All" top
-        opts.sort((a,b)=>a.text.localeCompare(b.text));
-        el.replaceChildren(head, ...opts);
-      };
-      alpha('f-content');
-      alpha('f-type');
+el("#apply").addEventListener("click", apply);
+el("#reset").addEventListener("click", reset);
 
-      document.getElementById('apply').addEventListener('click', apply);
-      document.getElementById('clear').addEventListener('click', clearAll);
-      document.getElementById('q').addEventListener('input', apply);
-
-      apply();
-    });
-  </script>
+/* Initial load */
+apply();
+</script>
 </body>
 </html>
