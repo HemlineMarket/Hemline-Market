@@ -1,149 +1,163 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Hemline — Favorites</title>
-  <style>
-    :root { --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;font-weight:700}
-    .btn{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-left:8px}
-    #status{max-width:1100px;margin:12px auto;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
-    main{max-width:1100px;margin:0 auto;padding:0 16px 24px}
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Hemline Market — Favorites (Closet)</title>
+<meta name="theme-color" content="#333333"/>
+<style>
+  :root{
+    --hm-charcoal:#333333; --hm-rosewood:#65000b; --hm-hunter:#355e3b; --hm-black:#000;
+    --hm-text:#333333; --hm-muted:#6b7280; --hm-bg:#fff;
+    --hm-border:1px solid rgba(0,0,0,.12); --hm-shadow:0 8px 24px rgba(0,0,0,.08);
+    --hm-radius:14px; --hm-gap:16px; --hm-cta:#65000b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  a{text-decoration:none;color:#000} a:hover{color:var(--hm-rosewood)}
+  img{max-width:100%;display:block}
 
-    .grid{display:grid;grid-template-columns:1fr;gap:12px}
-    @media (min-width:560px){.grid{grid-template-columns:1fr 1fr}}
-    @media (min-width:900px){.grid{grid-template-columns:1fr 1fr 1fr}}
+  /* Header (site-consistent) + cart badge */
+  .hm-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);backdrop-filter:saturate(120%) blur(6px);border-bottom:1px solid rgba(0,0,0,.08)}
+  .hm-header-inner{height:90px;max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 16px}
+  .hm-logo img{height:80px}
+  .hm-nav{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+  .hm-nav a{font-weight:700}
+  .hm-nav .cta{font-weight:900;padding:10px 18px;border-radius:999px;background:var(--hm-cta);color:#fff;border:1px solid #000}
+  .cart-link{position:relative;padding-right:10px}
+  .cart-count{position:absolute;top:-8px;right:-12px;min-width:20px;height:20px;border-radius:999px;background:#111;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:1px solid #000}
 
-    .card{position:relative;display:block;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
-    .tile{display:block;color:inherit;text-decoration:none}
-    .thumb{display:block;aspect-ratio:4/5;background:#f3f4f6}
-    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .meta{padding:10px 12px}
-    .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-    .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .price{font-weight:700}
-    .sub{margin-top:2px;color:var(--muted);font-size:13px;min-height:1.2em}
+  /* Page */
+  .wrap{max-width:1200px;margin:26px auto 48px;padding:0 16px}
+  .head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .head h1{margin:0}
+  .hint{color:var(--hm-muted)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  @media (max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
+  @media (max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:520px){.grid{grid-template-columns:1fr}}
 
-    .heart{position:absolute;top:10px;right:10px;width:40px;height:40px;border:1px solid var(--line);border-radius:999px;background:#fff;display:grid;place-items:center;cursor:pointer;z-index:3}
-    .heart svg{width:18px;height:18px;fill:none;stroke:#111;stroke-width:2}
-    .heart.active svg{fill:#ef4444;stroke:#ef4444}
-    .heart:active{transform:scale(.96)}
-
-    a,a:visited,a:active{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
-    .tile:active .title,.tile:active .price{color:inherit}
-    button{-webkit-tap-highlight-color:transparent}
-  </style>
-
-  <!-- Env + helpers -->
-  <script src="/env.js"></script>
-  <script>
-    (function loadSupabase(){
-      function add(src, cb){const s=document.createElement('script');s.src=src;s.onload=cb;s.onerror=cb;document.head.appendChild(s);}
-      add("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
-        if (!window.supabase) add("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){});
-      });
-    })();
-  </script>
-  <script src="/app.js"></script>
+  .card{background:#fff;border:var(--hm-border);border-radius:18px;box-shadow:var(--hm-shadow);overflow:hidden;display:flex;flex-direction:column}
+  .thumb{height:180px;background:linear-gradient(0deg,#e9e9e9,#f5f5f5)}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .content{padding:12px 14px}
+  .title{font-weight:800;margin:4px 0}
+  .meta{color:var(--hm-muted);font-size:13px}
+  .price{font-weight:900;margin-top:6px}
+  .actions{display:flex;gap:8px;margin:12px 14px 14px}
+  .btn{flex:1 1 auto;border:var(--hm-border);background:#fff;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer;text-align:center}
+  .btn-primary{background:var(--hm-cta);color:#fff;border-color:#000}
+  .empty{background:#fff;border:var(--hm-border);border-radius:18px;box-shadow:var(--hm-shadow);padding:26px;text-align:center;margin-top:12px}
+  .empty h3{margin:6px 0 4px}
+  .pill{display:inline-block;border-radius:999px;border:var(--hm-border);padding:6px 10px;background:#fff;font-weight:800;margin-top:8px}
+</style>
 </head>
 <body>
-  <header>
-    Hemline
-    <a class="btn" href="/index.html">Home</a>
-    <a class="btn" href="/listings.html">Listings</a>
-    <a class="btn" href="/favorites.html">Favorites</a>
-  </header>
 
-  <div id="status">Loading favorites…</div>
-  <main><div id="grid" class="grid" aria-live="polite"></div></main>
+<header class="hm-header">
+  <div class="hm-header-inner">
+    <a class="hm-logo" href="/" aria-label="Hemline Market home">
+      <img src="/logo.png" alt="Hemline Market logo" onerror="this.style.display='none'">
+    </a>
+    <nav class="hm-nav" aria-label="Primary">
+      <a href="/catalog-v2.html">Browse</a>
+      <a href="/favorites">❤ Favorites</a>
+      <a href="/account">My Account</a>
+      <a href="/cart.html" class="cart-link">Cart <span class="cart-count" data-cart-count>0</span></a>
+      <a class="cta" href="/list">List Item</a>
+    </nav>
+  </div>
+</header>
 
-  <script>
-    (async () => {
-      const s = document.getElementById('status'); const grid = document.getElementById('grid');
-      function show(msg){ s.textContent = msg; }
+<main class="wrap">
+  <div class="head">
+    <h1>Favorites</h1>
+    <div class="hint">Your closet — saved fabrics live here.</div>
+  </div>
 
-      let tries=0; while(!window.supabase && tries<20){ await new Promise(r=>setTimeout(r,150)); tries++; }
-      if (!window.supabase) return show('Error loading Supabase.');
-      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return show('Missing env.');
+  <div id="grid" class="grid"></div>
+  <div id="empty" class="empty" style="display:none">
+    <h3>Your closet is empty</h3>
+    <p class="hint">Tap the ❤ on any listing to save it here. We’ll keep your picks safe.</p>
+    <a class="pill" href="/catalog-v2.html">Browse fabrics →</a>
+  </div>
+</main>
 
-      const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+<script>
+(function(){
+  const FAV_KEY='hm_favs_v1';
+  const CART_KEY='hm_cart_v1';
 
-      // Require login
-      const { data: sess } = await sb.auth.getSession();
-      const userId = sess?.session?.user?.id || null;
-      if (!userId) { show('Please sign in to view your favorites.'); hm.toast('Sign in to view favorites.'); return; }
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+  const fmt=n=>'$'+(Number(n||0)).toFixed(2);
 
-      // Join favorites -> listings (fallback to 2-step if join unsupported)
-      let favs = [];
-      try {
-        const res = await sb
-          .from('favorites')
-          .select('listing_id, created_at')
-          .order('created_at', { ascending:false })
-          .limit(200);
-        favs = hm.guard(res, 'Couldn’t load favorites.');
-      } catch (_) {
-        return show('Couldn’t load favorites.');
-      }
-      if (!favs.length) return show('No favorites yet.');
+  function read(k){ try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];} }
+  function write(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+  function syncCount(){
+    const count = read(CART_KEY).reduce((n,i)=>n+(Number(i.qty)||1),0);
+    $$('[data-cart-count]').forEach(el=>el.textContent=count);
+  }
 
-      // Fetch those listings
-      const ids = favs.map(f => f.listing_id);
-      let listings = [];
-      try {
-        const res = await sb
-          .from('listings')
-          .select('id,title,price_cents,cover_url,subtitle,tags')
-          .in('id', ids);
-        listings = hm.guard(res, 'Couldn’t load listings for favorites.');
-      } catch (_) {
-        return show('Couldn’t load listings for favorites.');
-      }
+  function removeFav(sku){
+    const items = read(FAV_KEY).filter(x=>x.sku!==sku);
+    write(FAV_KEY, items);
+    render();
+  }
 
-      // Keep original order by created_at of favorite
-      const byId = new Map(listings.map(r => [r.id, r]));
-      const ordered = favs.map(f => byId.get(f.listing_id)).filter(Boolean);
-      show(''); s.hidden = true;
+  function addToCart(item){
+    const items = read(CART_KEY);
+    const i = items.findIndex(x=>x.sku===item.sku);
+    if(i>-1){ items[i].qty = (Number(items[i].qty)||1)+1; }
+    else { items.push({sku:item.sku,name:item.name,price:item.price,qty:1,image:item.image}); }
+    write(CART_KEY, items);
+    syncCount();
+    alert('Added to cart.');
+  }
 
-      // Render
-      grid.innerHTML = ordered.map(r=>{
-        const price = r?.price_cents ? ('$'+(r.price_cents/100).toFixed(2)) : '';
-        const sub = r?.subtitle || (Array.isArray(r?.tags) ? r.tags.join(', ') : (r?.tags || ''));
-        const img = r?.cover_url || '';
-        return `
-          <div class="card" data-id="${r?.id}">
-            <a class="tile" href="/listing.html?id=${encodeURIComponent(r?.id)}">
-              <span class="thumb"><img alt="" ${img ? `src="${img}"` : 'style="display:none"'}></span>
-              <span class="meta">
-                <span class="row"><span class="title">${r?.title ?? 'Untitled'}</span><span class="price">${price}</span></span>
-                <span class="sub">${sub || ''}</span>
-              </span>
-            </a>
-            <button type="button" class="heart active" data-heart aria-label="Unsave">
-              <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.6 5.6 0 0 0-7.9 0l-.9.9-.9-.9a5.6 5.6 0 1 0-7.9 7.9l.9.9 7.9 7.9 7.9-7.9.9-.9a5.6 5.6 0 0 0 0-7.9z"/></svg>
-            </button>
-          </div>`;
-      }).join('');
+  function cardHTML(it){
+    return `
+      <article class="card">
+        <div class="thumb">${it.image?`<img src="${it.image}" alt="">`:''}</div>
+        <div class="content">
+          <div class="title">${it.name||'Fabric'}</div>
+          <div class="meta">${it.meta||''}</div>
+          <div class="price">${fmt(it.price||0)} / yd</div>
+        </div>
+        <div class="actions">
+          <button class="btn" data-rm="${it.sku}">Remove</button>
+          <button class="btn btn-primary" data-add="${it.sku}">Add to cart</button>
+        </div>
+      </article>
+    `;
+  }
 
-      // Unfavorite from the list
-      grid.addEventListener('click', async (e)=>{
-        const btn = e.target.closest('button[data-heart]'); if (!btn) return;
-        e.preventDefault(); e.stopPropagation();
-        const id = btn.closest('.card')?.dataset?.id; if (!id) return;
+  function render(){
+    const favs = read(FAV_KEY);
+    const grid = $('#grid'); const empty = $('#empty');
+    if(!favs.length){
+      grid.innerHTML=''; empty.style.display='';
+      return;
+    }
+    empty.style.display='none';
+    grid.innerHTML = favs.map(cardHTML).join('');
 
-        try {
-          hm.guard(await sb.from('favorites').delete().eq('listing_id', id).eq('user_id', userId), 'Couldn’t remove favorite.');
-          btn.closest('.card')?.remove();
-          hm.toast('Removed from Favorites.');
-          if (!grid.children.length) { s.hidden=false; show('No favorites yet.'); }
-        } catch (err) {
-          hm.toast(hm.normalizeSupabaseError(err));
-        }
-      });
-    })();
-  </script>
+    // wire buttons
+    grid.addEventListener('click', (e)=>{
+      const sku = e.target.getAttribute('data-rm') || e.target.getAttribute('data-add');
+      if(!sku) return;
+      const fav = favs.find(f=>f.sku===sku);
+      if(!fav) return;
+      if(e.target.hasAttribute('data-rm')) removeFav(sku);
+      if(e.target.hasAttribute('data-add')) addToCart(fav);
+    }, { once:true }); // reattached each render
+  }
+
+  // init
+  syncCount();
+  render();
+})();
+</script>
+
 </body>
 </html>
