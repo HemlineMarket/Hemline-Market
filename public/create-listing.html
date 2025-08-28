@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hemline — Create Listing</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    label { display:block; margin-top:12px; font-size:14px; }
+    input, textarea { width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; }
+    button { margin-top:16px; padding:10px 14px; border:0; border-radius:8px; background:black; color:white; cursor:pointer; }
+    .warn { margin-top:12px; color:red; }
+  </style>
+</head>
+<body>
+  <h1>Create Listing</h1>
+
+  <form id="listingForm" method="POST" action="/api/listings/create">
+    <label>Title <input name="title" required /></label>
+    <label>Price <input name="price" type="number" step="0.01" required /></label>
+    <label>Description <textarea name="description"></textarea></label>
+    <button id="submitListing">Submit Listing</button>
+  </form>
+
+  <div id="warn" class="warn"></div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById("listingForm");
+    const warn = document.getElementById("warn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      // 1. Require sign-in
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        warn.textContent = "⚠️ You must sign in first.";
+        return;
+      }
+
+      // 2. Check seller profile via our API
+      try {
+        const resp = await fetch("/api/seller/profile-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seller_id: user.id })
+        });
+        const data = await resp.json();
+
+        if (!data.ok) {
+          warn.textContent = "⚠️ Please set your ship-from address before listing. Go to /seller-profile.html.";
+          return;
+        }
+
+        // 3. Allow form submit if profile complete
+        warn.textContent = "";
+        form.submit();
+      } catch (err) {
+        warn.textContent = "⚠️ Error checking seller profile: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
