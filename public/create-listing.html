@@ -10,8 +10,11 @@
     h1 { font-size: 20px; margin-bottom: 16px; }
     label { display:block; margin-top:12px; font-size:14px; }
     input, textarea { width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .row3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
     button { margin-top:16px; padding:10px 14px; border:0; border-radius:8px; background:black; color:white; cursor:pointer; }
     .warn { margin-top:12px; color:red; }
+    small.muted { color:#6b7280; }
   </style>
 </head>
 <body>
@@ -22,8 +25,37 @@
     <input type="hidden" name="seller_id" id="seller_id" />
 
     <label>Title <input name="title" required /></label>
-    <label>Price <input name="price" type="number" step="0.01" required /></label>
-    <label>Description <textarea name="description"></textarea></label>
+
+    <div class="row">
+      <label>Price (USD)
+        <input name="price" type="number" step="0.01" min="0" required />
+      </label>
+      <label>Weight (oz)
+        <input name="weight_oz" type="number" step="0.1" min="0.1" required />
+        <small class="muted">Most 2–3 yd light fabrics: 12–24 oz</small>
+      </label>
+    </div>
+
+    <div class="row">
+      <label>Ships in (min days)
+        <input name="handling_days_min" type="number" min="0" step="1" value="1" required />
+      </label>
+      <label>Ships in (max days)
+        <input name="handling_days_max" type="number" min="0" step="1" value="2" required />
+      </label>
+    </div>
+
+    <div class="row3">
+      <label>Length (in) <input name="length_in" type="number" step="0.1" min="0" /></label>
+      <label>Width (in)  <input name="width_in"  type="number" step="0.1" min="0" /></label>
+      <label>Height (in) <input name="height_in" type="number" step="0.1" min="0" /></label>
+    </div>
+    <small class="muted">Dimensions optional for now; required later for cubic/pricing accuracy.</small>
+
+    <label>Description
+      <textarea name="description" rows="4" placeholder="Fabric type, yardage, condition…"></textarea>
+    </label>
+
     <button id="submitListing">Submit Listing</button>
   </form>
 
@@ -43,9 +75,7 @@
     // On load, set hidden seller_id if signed in
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        sellerIdInput.value = user.id;
-      }
+      if (user) sellerIdInput.value = user.id;
     })();
 
     form.addEventListener("submit", async (e) => {
@@ -57,9 +87,26 @@
         warn.textContent = "⚠️ You must sign in first.";
         return;
       }
-      sellerIdInput.value = user.id; // ensure it’s set
+      sellerIdInput.value = user.id; // ensure set
 
-      // 2) Check seller profile via our API (blocks if missing address)
+      // 2) Basic client sanity checks for shipping fields
+      const minEl = form.elements["handling_days_min"];
+      const maxEl = form.elements["handling_days_max"];
+      const wEl = form.elements["weight_oz"];
+      const min = Number(minEl.value);
+      const max = Number(maxEl.value);
+      const w = Number(wEl.value);
+
+      if (!Number.isFinite(w) || w <= 0) {
+        warn.textContent = "⚠️ Weight must be greater than 0 oz.";
+        return;
+      }
+      if (!Number.isInteger(min) || !Number.isInteger(max) || min < 0 || max < min) {
+        warn.textContent = "⚠️ Handling days must be integers and max ≥ min.";
+        return;
+      }
+
+      // 3) Check seller profile via our API (blocks if missing address)
       try {
         const resp = await fetch("/api/seller/profile-check", {
           method: "POST",
@@ -73,7 +120,7 @@
           return;
         }
 
-        // 3) Allow form submit if profile complete
+        // 4) Allow form submit if profile complete
         warn.textContent = "";
         form.submit();
       } catch (err) {
