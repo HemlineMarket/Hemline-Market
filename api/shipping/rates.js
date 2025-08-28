@@ -1,7 +1,8 @@
 // api/shipping/rates.js
 // Hemline Market — Get curated USPS shipping rates via Shippo (serverless)
-// Now multi-seller aware: accepts { seller_id } and pulls that seller's ship-from
-// address from Supabase (service role). Falls back to env defaults if missing.
+// Multi-seller aware: accepts { seller_id } and pulls that seller's ship-from
+// address from Supabase (service role). New: require seller origin unless
+// ALLOW_ENV_ORIGIN_FALLBACK === "true".
 //
 // POST JSON:
 // {
@@ -9,7 +10,8 @@
 //   "to": { "name":"", "street1":"", "city":"", "state":"", "zip":"", "country":"US" },
 //   "parcel": { "weight_oz": 16, "length_in": 10, "width_in": 8, "height_in": 2 }
 // }
-// Response 200: { address_from, address_to, rates: [ { rate_object_id, amount, currency, provider, service_token, service_name, estimated_days } ] }
+// Response 200: { address_from, address_to, rates: [ ... ] }
+// Response 400: when seller has no origin and fallback not allowed.
 
 const SHIPPO_API = "https://api.goshippo.com";
 const ALLOWED_SERVICE_KEYS = ["usps_priority_mail", "usps_ground_advantage"];
@@ -70,7 +72,8 @@ module.exports = async (req, res) => {
     SHIP_FROM_ZIP,
     SHIP_FROM_COUNTRY,
     SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
+    SUPABASE_SERVICE_ROLE_KEY,
+    ALLOW_ENV_ORIGIN_FALLBACK
   } = process.env;
 
   if (!SHIPPO_API_KEY) return send(res, 500, { error: "Missing SHIPPO_API_KEY env var." });
@@ -87,22 +90,26 @@ module.exports = async (req, res) => {
   if (required(to, ["name","street1","city","state","zip","country"], "to", res)) return;
   if (required(parcel, ["weight_oz","length_in","width_in","height_in"], "parcel", res)) return;
 
-  // Resolve origin: seller-specific via Supabase, else env fallback
+  // Resolve origin: seller-specific via Supabase
   let address_from = null;
   try {
     if (sellerId) {
       const s = await fetchSellerOrigin(sellerId, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      if (s && s.street1 && s.city && s.state && s.zip) {
-        address_from = s;
-      }
+      if (s && s.street1 && s.city && s.state && s.zip) address_from = s;
     }
   } catch (e) {
     // Log but don't crash the request
     console.error("seller origin lookup failed:", e.message || e);
   }
 
-  if (!address_from) {
-    // Fallback (safe for tests; not correct for multi-seller prod)
+  // New: enforce seller origin unless fallback allowed
+  const allowFallback = String(ALLOW_ENV_ORIGIN_FALLBACK || "").toLowerCase() === "true";
+  if (!address_from && !allowFallback) {
+    return bad(res, "Seller must set ship-from address before requesting rates.");
+  }
+
+  if (!address_from && allowFallback) {
+    // Fallback (only when explicitly allowed for local testing)
     address_from = {
       name: SHIP_FROM_NAME || "Hemline Seller",
       street1: SHIP_FROM_STREET1 || "123 Main St",
@@ -119,7 +126,7 @@ module.exports = async (req, res) => {
   };
   const parcels = [{
     weight: String(parcel.weight_oz), mass_unit: "oz",
-    length: String(parcel.length_in), width: String(parcel_width = parcel.width_in),
+    length: String(parcel.length_in), width: String(parcel.width_in),
     height: String(parcel.height_in), distance_unit: "in"
   }];
 
