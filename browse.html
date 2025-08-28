@@ -63,7 +63,7 @@
 
       <div class="hm-search">
         <form action="browse.html" method="get" role="search" aria-label="Sitewide">
-          <input type="search" name="q" placeholder="Search fabrics, shops, or styles…" />
+          <input id="q" type="search" name="q" placeholder="Search fabrics, shops, or styles…" />
           <button type="submit" aria-label="Search">Search</button>
         </form>
       </div>
@@ -121,6 +121,7 @@
           <div class="row"><input id="c_black" name="clr_black" type="checkbox" /><label for="c_black">Black</label></div>
           <div class="row"><input id="c_blue" name="clr_blue" type="checkbox" /><label for="c_blue">Blue</label></div>
           <div class="row"><input id="c_red" name="clr_red" type="checkbox" /><label for="c_red">Red</label></div>
+          <div class="row"><input id="c_green" name="clr_green" type="checkbox" /><label for="c_green">Green</label></div>
         </div>
         <div class="group" aria-label="Width">
           <div class="row"><input id="w_44" name="w_44" type="checkbox" /><label for="w_44">~44”</label></div>
@@ -172,6 +173,7 @@
   <!-- JS -->
   <script>
     (function(){
+      // Profile dropdown
       const profile=document.querySelector(".hm-profile");
       if(profile){
         document.addEventListener("click",e=>{
@@ -181,6 +183,120 @@
         const avatar=profile.querySelector(".hm-avatar");
         if(avatar){avatar.addEventListener("click",e=>e.preventDefault());}
       }
+
+      // --- Demo dataset (client-side only) ---
+      const items=[
+        {id:1, title:"Wool Crepe — Saffron", price:28, fiber:"wool", weight:"mid", width:"58", colors:["red","neutral"], date:"2025-07-20"},
+        {id:2, title:"Cotton Lawn — Charcoal", price:12, fiber:"cotton", weight:"light", width:"44", colors:["black","neutral"], date:"2025-07-10"},
+        {id:3, title:"Silk Charmeuse — Midnight", price:36, fiber:"silk", weight:"light", width:"54", colors:["blue","black"], date:"2025-06-29"},
+        {id:4, title:"Linen Twill — Natural", price:18, fiber:"linen", weight:"mid", width:"58", colors:["neutral"], date:"2025-06-15"},
+        {id:5, title:"Cotton Poplin — Moss", price:14, fiber:"cotton", weight:"mid", width:"44", colors:["green"], date:"2025-08-01"},
+        {id:6, title:"Silk Noil — Fern", price:32, fiber:"silk", weight:"mid", width:"54", colors:["green","neutral"], date:"2025-07-28"},
+        {id:7, title:"Wool Flannel — Forest", price:30, fiber:"wool", weight:"heavy", width:"58", colors:["green"], date:"2025-05-12"},
+        {id:8, title:"Cotton Sateen — Black", price:14, fiber:"cotton", weight:"mid", width:"54", colors:["black"], date:"2025-07-05"},
+        {id:9, title:"Linen Gauze — Sea", price:16, fiber:"linen", weight:"light", width:"58", colors:["blue","green"], date:"2025-08-15"}
+      ];
+
+      // Elements
+      const form=document.getElementById("filters");
+      const grid=document.getElementById("grid");
+      const empty=document.getElementById("empty");
+      const resultCount=document.getElementById("resultCount");
+      const activeCount=document.getElementById("activeCount");
+      const sort=document.getElementById("sort");
+      const searchInput=document.getElementById("q");
+
+      // Helpers
+      function countActive(){
+        const inputs=[...form.querySelectorAll('input[type="checkbox"]')];
+        const n=inputs.filter(i=>i.checked).length + (searchInput.value.trim()?1:0);
+        activeCount.textContent=n+" active";
+      }
+
+      function render(list){
+        grid.innerHTML="";
+        if(list.length===0){
+          empty.style.display="block";
+          resultCount.textContent="0 results";
+          return;
+        }
+        empty.style.display="none";
+        resultCount.textContent=list.length+" result"+(list.length>1?"s":"");
+        for(const it of list){
+          const a=document.createElement("a");
+          a.className="item"; a.href="item.html?id="+it.id;
+          a.innerHTML=`
+            <div class="thumb" aria-hidden="true">photo</div>
+            <div class="info">
+              <div class="title">${it.title}</div>
+              <div class="meta">
+                <span class="price">$${it.price}/yd</span>
+                <span class="badge">${it.fiber}</span>
+              </div>
+            </div>`;
+          grid.appendChild(a);
+        }
+      }
+
+      function applyFilters(e){
+        if(e) e.preventDefault();
+        const params=new URLSearchParams(location.search);
+        const q=(params.get("q")||"").trim().toLowerCase() || searchInput.value.trim().toLowerCase();
+
+        // Collect filter sets
+        const wantFiber=new Set(["fiber_cotton","fiber_wool","fiber_silk","fiber_linen"].filter(n=>form[n]?.checked).map(n=>n.split("_")[1]));
+        const wantWeight=new Set(["w_light","w_mid","w_heavy"].filter(n=>form[n]?.checked).map(n=>n.split("_")[1]));
+        const wantWidth=new Set(["w_44","w_54","w_58"].filter(n=>form[n]?.checked).map(n=>n.split("_")[1]));
+        const wantColors=new Set([
+          ["clr_neutral","neutral"],["clr_black","black"],["clr_blue","blue"],["clr_red","red"],["clr_green","green"]
+        ].filter(([n])=>form[n]?.checked).map(([,v])=>v));
+
+        let list=[...items];
+
+        // Text search
+        if(q){
+          list=list.filter(it=>it.title.toLowerCase().includes(q));
+        }
+
+        // Fiber
+        if(wantFiber.size){ list=list.filter(it=>wantFiber.has(it.fiber)); }
+        // Weight
+        if(wantWeight.size){ list=list.filter(it=>wantWeight.has(it.weight)); }
+        // Width (normalize to "44" "54" "58")
+        if(wantWidth.size){ list=list.filter(it=>wantWidth.has(it.width)); }
+        // Colors (match any)
+        if(wantColors.size){ list=list.filter(it=>it.colors.some(c=>wantColors.has(c))); }
+
+        // Sort
+        const s=sort.value;
+        if(s==="new"){ list.sort((a,b)=>new Date(b.date)-new Date(a.date)); }
+        else if(s==="price_asc"){ list.sort((a,b)=>a.price-b.price); }
+        else if(s==="price_desc"){ list.sort((a,b)=>b.price-a.price); }
+        // relevance = leave order as-is (dataset already loosely by relevance)
+
+        render(list);
+        countActive();
+      }
+
+      // Wire up
+      form.addEventListener("submit",applyFilters);
+      form.addEventListener("change",countActive);
+      document.getElementById("clear").addEventListener("click",function(){
+        // Reset after paint so checkboxes actually clear before re-render
+        setTimeout(()=>{
+          searchInput.value="";
+          sort.value="relevance";
+          applyFilters();
+        },0);
+      });
+      sort.addEventListener("change",()=>applyFilters());
+
+      // Initialize from URL (?q=)
+      const params=new URLSearchParams(location.search);
+      if(params.get("q")){ searchInput.value=params.get("q"); }
+
+      // Initial render
+      applyFilters();
     })();
   </script>
 </body>
