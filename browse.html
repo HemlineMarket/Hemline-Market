@@ -24,6 +24,8 @@
     .filters .row{display:flex;align-items:center;gap:8px;margin:6px 0}
     .filters label{font-size:14px;color:var(--hm-text)}
     .filters input[type="checkbox"]{width:16px;height:16px}
+    .filters .twocol{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .filters input[type="number"]{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px}
     .filters .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--hm-border);font-size:12px;color:var(--hm-muted)}
     .apply{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:999px;border:1px solid var(--hm-border);background:#fff;font-weight:700;text-decoration:none;color:var(--hm-text)}
@@ -123,11 +125,30 @@
           <div class="row"><input id="c_red" name="clr_red" type="checkbox" /><label for="c_red">Red</label></div>
           <div class="row"><input id="c_green" name="clr_green" type="checkbox" /><label for="c_green">Green</label></div>
         </div>
+
         <div class="group" aria-label="Width">
           <div class="row"><input id="w_44" name="w_44" type="checkbox" /><label for="w_44">~44”</label></div>
           <div class="row"><input id="w_54" name="w_54" type="checkbox" /><label for="w_54">~54”</label></div>
           <div class="row"><input id="w_58" name="w_58" type="checkbox" /><label for="w_58">~58–60”</label></div>
         </div>
+
+        <div class="group" aria-label="Price">
+          <div class="row" style="justify-content:space-between;gap:10px;align-items:center">
+            <strong>Price</strong>
+            <span class="pill" id="priceBadge">$<span id="minBadge">0</span> – $<span id="maxBadge">999</span></span>
+          </div>
+          <div class="twocol">
+            <div>
+              <label for="pmin">Min</label>
+              <input id="pmin" name="pmin" type="number" min="0" step="1" value="0" />
+            </div>
+            <div>
+              <label for="pmax">Max</label>
+              <input id="pmax" name="pmax" type="number" min="0" step="1" value="999" />
+            </div>
+          </div>
+        </div>
+
         <div class="apply">
           <button class="btn-primary btn" type="submit">Apply</button>
           <button class="btn" type="reset" id="clear">Clear</button>
@@ -186,15 +207,15 @@
 
       // --- Demo dataset (client-side only) ---
       const items=[
-        {id:1, title:"Wool Crepe — Saffron", price:28, fiber:"wool", weight:"mid", width:"58", colors:["red","neutral"], date:"2025-07-20"},
-        {id:2, title:"Cotton Lawn — Charcoal", price:12, fiber:"cotton", weight:"light", width:"44", colors:["black","neutral"], date:"2025-07-10"},
-        {id:3, title:"Silk Charmeuse — Midnight", price:36, fiber:"silk", weight:"light", width:"54", colors:["blue","black"], date:"2025-06-29"},
-        {id:4, title:"Linen Twill — Natural", price:18, fiber:"linen", weight:"mid", width:"58", colors:["neutral"], date:"2025-06-15"},
-        {id:5, title:"Cotton Poplin — Moss", price:14, fiber:"cotton", weight:"mid", width:"44", colors:["green"], date:"2025-08-01"},
-        {id:6, title:"Silk Noil — Fern", price:32, fiber:"silk", weight:"mid", width:"54", colors:["green","neutral"], date:"2025-07-28"},
-        {id:7, title:"Wool Flannel — Forest", price:30, fiber:"wool", weight:"heavy", width:"58", colors:["green"], date:"2025-05-12"},
-        {id:8, title:"Cotton Sateen — Black", price:14, fiber:"cotton", weight:"mid", width:"54", colors:["black"], date:"2025-07-05"},
-        {id:9, title:"Linen Gauze — Sea", price:16, fiber:"linen", weight:"light", width:"58", colors:["blue","green"], date:"2025-08-15"}
+        {id:1, title:"Wool Crepe — Saffron", price:28, fiber:"wool",  weight:"mid",   width:"58", colors:["red","neutral"],   date:"2025-07-20"},
+        {id:2, title:"Cotton Lawn — Charcoal", price:12, fiber:"cotton",weight:"light", width:"44", colors:["black","neutral"], date:"2025-07-10"},
+        {id:3, title:"Silk Charmeuse — Midnight", price:36, fiber:"silk", weight:"light", width:"54", colors:["blue","black"],   date:"2025-06-29"},
+        {id:4, title:"Linen Twill — Natural", price:18, fiber:"linen", weight:"mid",   width:"58", colors:["neutral"],        date:"2025-06-15"},
+        {id:5, title:"Cotton Poplin — Moss", price:14, fiber:"cotton",weight:"mid",   width:"44", colors:["green"],          date:"2025-08-01"},
+        {id:6, title:"Silk Noil — Fern", price:32, fiber:"silk", weight:"mid",   width:"54", colors:["green","neutral"], date:"2025-07-28"},
+        {id:7, title:"Wool Flannel — Forest", price:30, fiber:"wool",  weight:"heavy", width:"58", colors:["green"],          date:"2025-05-12"},
+        {id:8, title:"Cotton Sateen — Black", price:14, fiber:"cotton",weight:"mid",   width:"54", colors:["black"],          date:"2025-07-05"},
+        {id:9, title:"Linen Gauze — Sea", price:16, fiber:"linen", weight:"light", width:"58", colors:["blue","green"],    date:"2025-08-15"}
       ];
 
       // Elements
@@ -205,11 +226,16 @@
       const activeCount=document.getElementById("activeCount");
       const sort=document.getElementById("sort");
       const searchInput=document.getElementById("q");
+      const pmin=document.getElementById("pmin");
+      const pmax=document.getElementById("pmax");
+      const minBadge=document.getElementById("minBadge");
+      const maxBadge=document.getElementById("maxBadge");
 
       // Helpers
       function countActive(){
         const inputs=[...form.querySelectorAll('input[type="checkbox"]')];
-        const n=inputs.filter(i=>i.checked).length + (searchInput.value.trim()?1:0);
+        const priceOn=(Number(pmin.value||0)!==0 || Number(pmax.value||999)!==999) ? 1 : 0;
+        const n=inputs.filter(i=>i.checked).length + (searchInput.value.trim()?1:0) + priceOn;
         activeCount.textContent=n+" active";
       }
 
@@ -254,9 +280,7 @@
         let list=[...items];
 
         // Text search
-        if(q){
-          list=list.filter(it=>it.title.toLowerCase().includes(q));
-        }
+        if(q){ list=list.filter(it=>it.title.toLowerCase().includes(q)); }
 
         // Fiber
         if(wantFiber.size){ list=list.filter(it=>wantFiber.has(it.fiber)); }
@@ -267,12 +291,17 @@
         // Colors (match any)
         if(wantColors.size){ list=list.filter(it=>it.colors.some(c=>wantColors.has(c))); }
 
+        // Price range
+        const min=Number(pmin.value||0);
+        const max=Number(pmax.value||999);
+        list=list.filter(it=>it.price>=min && it.price<=max);
+
         // Sort
         const s=sort.value;
         if(s==="new"){ list.sort((a,b)=>new Date(b.date)-new Date(a.date)); }
         else if(s==="price_asc"){ list.sort((a,b)=>a.price-b.price); }
         else if(s==="price_desc"){ list.sort((a,b)=>b.price-a.price); }
-        // relevance = leave order as-is (dataset already loosely by relevance)
+        // relevance = dataset order
 
         render(list);
         countActive();
@@ -280,12 +309,27 @@
 
       // Wire up
       form.addEventListener("submit",applyFilters);
-      form.addEventListener("change",countActive);
+      form.addEventListener("change",()=>{
+        minBadge.textContent=String(pmin.value||0);
+        maxBadge.textContent=String(pmax.value||999);
+        countActive();
+      });
+      [pmin,pmax].forEach(el=>{
+        el.addEventListener("input",()=>{
+          minBadge.textContent=String(pmin.value||0);
+          maxBadge.textContent=String(pmax.value||999);
+          countActive();
+        });
+      });
+
       document.getElementById("clear").addEventListener("click",function(){
-        // Reset after paint so checkboxes actually clear before re-render
         setTimeout(()=>{
           searchInput.value="";
           sort.value="relevance";
+          pmin.value="0";
+          pmax.value="999";
+          minBadge.textContent="0";
+          maxBadge.textContent="999";
           applyFilters();
         },0);
       });
