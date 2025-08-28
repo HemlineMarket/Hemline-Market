@@ -44,18 +44,12 @@
   .label{font-weight:700}
   .hint{font-size:12px;color:var(--hm-muted)}
   .input,.select,textarea{padding:12px 14px;border:var(--hm-border);border-radius:12px;font-size:14px}
-  textarea{min-height:120px;resize:vertical}
+  textarea{min-height:140px;resize:vertical}
 
   .checklist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:300px;overflow:auto;padding-right:4px}
   @media (max-width:800px){.checklist{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .check{display:flex;align-items:center;gap:8px}
   .check input{width:16px;height:16px}
-
-  .swatches{display:flex;flex-wrap:wrap;gap:10px}
-  .swatch{--size:28px;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
-  .swatch .box{width:var(--size);height:var(--size);border-radius:6px;border:1px solid rgba(0,0,0,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
-  .swatch input{display:none}
-  .swatch input:checked + .box{outline:2px solid var(--hm-hunter);outline-offset:2px}
 
   .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
   .btn{border:var(--hm-border);background:#fff;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer}
@@ -64,6 +58,7 @@
   .btn-primary:hover{background:var(--hm-cta-bg-hover)}
   .btn-ghost{background:#fff}
 
+  /* Preview */
   .preview .thumb{width:100%;height:200px}
   .thumb--wool{background:repeating-linear-gradient(45deg,#0000000d 0 8px,#ffffff10 8px 16px),linear-gradient(0deg,#d8d6d1,#e6e1db)}
   .thumb--silk{background:linear-gradient(135deg,#ffffff80,#ffffff00 40%),linear-gradient(315deg,#0000000d,#0000 45%),linear-gradient(0deg,#f2ede8,#e7e1db)}
@@ -81,6 +76,23 @@
   .field.error .input, .field.error .select, .field.error textarea{border-color:#cc3c3c; box-shadow:0 0 0 3px rgba(204,60,60,.1)}
   .field .error-text{display:none;font-size:12px;color:var(--hm-error)}
   .field.error .error-text{display:block}
+
+  /* Images Uploader */
+  .uploader{border:2px dashed rgba(0,0,0,.15);border-radius:14px;padding:14px;text-align:center;background:#fafafa}
+  .uploader.drag{background:#f1f7f3;border-color:var(--hm-hunter)}
+  .uploader input[type=file]{display:none}
+  .uploader .btn{margin-top:8px}
+  .thumbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+  .thumbs .t{position:relative;border:var(--hm-border);border-radius:12px;overflow:hidden;background:#fff}
+  .thumbs img{width:100%;height:120px;object-fit:cover;display:block}
+  .thumbs .handle{position:absolute;inset:auto 6px 6px auto;background:#fff;border:var(--hm-border);border-radius:8px;padding:4px 8px;font-size:12px;cursor:grab}
+  .thumbs .remove{position:absolute;top:6px;right:6px;background:#fff;border:var(--hm-border);border-radius:999px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .thumbs .t[draggable=true]{cursor:grab}
+  .thumbs .t.dragging{opacity:.6}
+  .thumbs .t.drop-target{outline:2px dashed var(--hm-hunter);outline-offset:2px}
+
+  /* Spacing fix between Condition and Pattern */
+  .stack-gap{display:grid;gap:18px}
 </style>
 </head>
 <body>
@@ -109,9 +121,27 @@
     <div id="ok-banner" class="ok-banner" role="status"></div>
 
     <form id="sell-form" class="card-body" novalidate>
+      <!-- 1) IMAGES FIRST -->
+      <div class="field">
+        <label class="label">Images (3+ recommended)</label>
+        <div class="hint">Primary: full piece on a flat surface • Close-up: weave/texture • Drape on form • Back side • Any defects</div>
+        <div id="uploader" class="uploader" tabindex="0">
+          <input id="files" type="file" accept="image/*" multiple>
+          <div>Drag & drop images here or</div>
+          <button type="button" class="btn" id="pickFiles">Choose Images</button>
+        </div>
+        <div id="thumbs" class="thumbs" aria-live="polite"></div>
+      </div>
+
+      <!-- 2) DESCRIPTION -->
+      <div class="field">
+        <label class="label" for="description">Description</label>
+        <textarea id="description" name="description" class="input" placeholder="Mention drape, structure/hand, weave, care, defects, finish, stretch, end-use, etc."></textarea>
+      </div>
+
       <div class="field" data-field="title">
         <label class="label" for="title">Title <span class="hint">(required)</span></label>
-        <input class="input" id="title" name="title" placeholder="e.g., Italian Silk Twill – Navy Chain" required/>
+        <input class="input" id="title" name="title" placeholder="e.g., Italian Silk Twill — Navy Chain" required/>
         <div class="error-text">Please enter a title.</div>
       </div>
 
@@ -121,36 +151,51 @@
           <input class="input" type="number" id="pricePerYd" name="pricePerYd" min="0" step="0.01" placeholder="e.g., 48" required/>
           <div class="error-text">Enter a price per yard (≥ 0).</div>
         </div>
+
+        <!-- YARDS PICKER: 0.5 increments via select (scroll-friendly) -->
         <div class="field" data-field="yards">
-          <label class="label" for="yards">Yards Available <span class="hint">(required)</span></label>
-          <input class="input" type="number" id="yards" name="yards" min="0.1" step="0.1" placeholder="e.g., 5" required/>
-          <div class="error-text">Enter yards available (≥ 0.1).</div>
+          <label class="label" for="yardsSelect">Yards Available <span class="hint">(0.5 increments, required)</span></label>
+          <select id="yardsSelect" class="select" required></select>
+          <input type="hidden" id="yards" name="yards" value="">
+          <div class="error-text">Select yards available (≥ 0.5).</div>
+        </div>
+      </div>
+
+      <!-- Selling mode -->
+      <div class="field">
+        <label class="label">Selling Mode</label>
+        <div class="checklist" style="grid-template-columns:1fr">
+          <label class="check"><input type="radio" name="sellingMode" value="lot" checked> Sell all yardage together as one lot</label>
+          <label class="check"><input type="radio" name="sellingMode" value="increments"> Sell in 0.5 yard increments (buyer chooses quantity)</label>
         </div>
       </div>
 
       <div class="row">
         <div class="field" data-field="widthIn">
-          <label class="label" for="widthIn">Width (inches) <span class="hint">(required)</span></label>
-          <input class="input" type="number" id="widthIn" name="widthIn" min="1" step="0.1" placeholder="e.g., 54" required/>
-          <div class="error-text">Enter width in inches (≥ 1).</div>
+          <label class="label" for="widthIn">Width (inches)</label>
+          <input class="input" type="number" id="widthIn" name="widthIn" min="1" step="0.1" placeholder="e.g., 54"/>
+          <div class="error-text">Width must be ≥ 1 inch.</div>
+          <div class="hint"><label class="check" style="margin-top:6px"><input type="checkbox" id="widthUnknown"> Unknown</label></div>
         </div>
         <div class="field" data-field="weightGsm">
           <label class="label" for="weightGsm">Weight (GSM)</label>
           <input class="input" type="number" id="weightGsm" name="weightGsm" min="0" step="1" placeholder="e.g., 95"/>
           <div class="error-text">Weight must be ≥ 0.</div>
+          <div class="hint"><label class="check" style="margin-top:6px"><input type="checkbox" id="weightUnknown"> Unknown</label></div>
         </div>
       </div>
 
       <div class="row">
         <div class="field" data-field="department">
-          <label class="label">Department <span class="hint">(select at least one)</span></label>
+          <label class="label">Department <span class="hint">(select at least one or Unknown)</span></label>
           <div class="checklist">
             <label class="check"><input type="checkbox" name="department" value="fashion">Fashion</label>
             <label class="check"><input type="checkbox" name="department" value="home">Home</label>
             <label class="check"><input type="checkbox" name="department" value="quilting">Quilting</label>
             <label class="check"><input type="checkbox" name="department" value="notions">Notions</label>
+            <label class="check"><input type="checkbox" name="department" value="unknown" id="deptUnknown">Unknown</label>
           </div>
-          <div class="error-text">Choose at least one department.</div>
+          <div class="error-text">Choose at least one department or mark Unknown.</div>
         </div>
         <div class="field">
           <label class="label">Country Made</label>
@@ -161,13 +206,16 @@
             <label class="check"><input type="checkbox" name="country" value="uk">UK</label>
             <label class="check"><input type="checkbox" name="country" value="usa">USA</label>
             <label class="check"><input type="checkbox" name="country" value="other">Other</label>
+            <label class="check"><input type="checkbox" name="country" value="unknown">Unknown</label>
           </div>
         </div>
       </div>
 
+      <!-- Fabric Content -->
       <div class="field" data-field="content">
-        <label class="label">Fabric Content (multi-select) <span class="hint">(select at least one)</span></label>
+        <label class="label">Fabric Content (multi-select)</label>
         <div class="checklist" id="content-list">
+          <label class="check"><input type="checkbox" name="content" value="unknown" id="contentUnknown">Unknown</label>
           <label class="check"><input type="checkbox" name="content" value="acetate">Acetate</label>
           <label class="check"><input type="checkbox" name="content" value="acrylic">Acrylic</label>
           <label class="check"><input type="checkbox" name="content" value="alpaca">Alpaca</label>
@@ -191,12 +239,19 @@
           <label class="check"><input type="checkbox" name="content" value="triacetate">Triacetate</label>
           <label class="check"><input type="checkbox" name="content" value="wool">Wool</label>
         </div>
-        <div class="error-text">Choose at least one fabric content.</div>
+        <div class="row" style="margin-top:6px">
+          <div class="field">
+            <label class="label">Other (content)</label>
+            <input class="input" id="contentOther" placeholder="e.g., ramie blend">
+          </div>
+        </div>
       </div>
 
+      <!-- Fabric Type -->
       <div class="field" data-field="type">
-        <label class="label">Fabric Type (multi-select) <span class="hint">(select at least one)</span></label>
+        <label class="label">Fabric Type (multi-select)</label>
         <div class="checklist" id="type-list">
+          <label class="check"><input type="checkbox" name="type" value="unknown" id="typeUnknown">Unknown</label>
           <label class="check"><input type="checkbox" name="type" value="boucle">Bouclé</label>
           <label class="check"><input type="checkbox" name="type" value="canvas">Canvas</label>
           <label class="check"><input type="checkbox" name="type" value="chiffon">Chiffon</label>
@@ -218,16 +273,23 @@
           <label class="check"><input type="checkbox" name="type" value="velvet">Velvet</label>
           <label class="check"><input type="checkbox" name="type" value="voile">Voile</label>
         </div>
-        <div class="error-text">Choose at least one fabric type.</div>
+        <div class="row" style="margin-top:6px">
+          <div class="field">
+            <label class="label">Other (type)</label>
+            <input class="input" id="typeOther" placeholder="e.g., ottoman weave">
+          </div>
+        </div>
       </div>
 
-      <div class="row">
+      <!-- Condition + Pattern with extra space -->
+      <div class="stack-gap">
         <div class="field">
           <label class="label">Condition</label>
           <div class="row">
             <label class="check"><input type="radio" name="condition" value="new" checked>New</label>
             <label class="check"><input type="radio" name="condition" value="washed">Washed</label>
             <label class="check"><input type="radio" name="condition" value="used">Used</label>
+            <label class="check"><input type="radio" name="condition" value="unknown">Unknown</label>
           </div>
         </div>
         <div class="field">
@@ -235,157 +297,11 @@
           <div class="row">
             <label class="check"><input type="radio" name="pattern" value="solid" checked>Solid</label>
             <label class="check"><input type="radio" name="pattern" value="pattern">Pattern</label>
+            <label class="check"><input type="radio" name="pattern" value="unknown">Unknown</label>
           </div>
         </div>
       </div>
 
-      <div class="field">
-        <label class="label" for="imageUrl">Image URL (optional)</label>
-        <input class="input" id="imageUrl" name="imageUrl" placeholder="https://…"/>
-        <p class="hint">If you skip this, we’ll use a fabric-style placeholder based on the type.</p>
-      </div>
-
-      <div class="field">
-        <label class="label" for="description">Description</label>
-        <textarea id="description" name="description" class="input" placeholder="Weave, hand-feel, drape, care notes, defects, etc."></textarea>
-      </div>
-
       <div class="actions">
         <button type="button" class="btn btn-ghost" id="preview-btn">Preview</button>
-        <button type="submit" class="btn btn-primary" id="publish-btn" disabled>Publish Listing</button>
-      </div>
-    </form>
-  </section>
-
-  <!-- PREVIEW -->
-  <aside class="card preview" aria-live="polite">
-    <h2>Preview</h2>
-    <div class="card-body" id="preview">
-      <div class="thumb thumb--cotton" id="preview-thumb"></div>
-      <h3 id="p-title" style="margin:12px 0 6px">Your Title</h3>
-      <div class="meta" id="p-meta">0 yd • 0″ • —</div>
-      <div class="price" id="p-price">$0 / yd</div>
-      <div class="meta" id="p-tags" style="margin-top:6px"></div>
-      <p class="meta" id="p-desc" style="margin-top:8px"></p>
-    </div>
-  </aside>
-</main>
-
-<script>
-(function(){
-  const $ = (s,r=document)=>r.querySelector(s);
-  const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-  const form = $('#sell-form');
-  const errorBanner = $('#error-banner');
-  const okBanner = $('#ok-banner');
-  const publishBtn = $('#publish-btn');
-
-  function getValues(){
-    const v = Object.fromEntries(new FormData(form).entries());
-    v.pricePerYd = Number(v.pricePerYd||0);
-    v.yards = Number(v.yards||0);
-    v.widthIn = Number(v.widthIn||0);
-    v.weightGsm = Number(v.weightGsm||0);
-    v.department = $$('input[name="department"]:checked', form).map(i=>i.value);
-    v.country = $$('input[name="country"]:checked', form).map(i=>i.value);
-    v.content = $$('input[name="content"]:checked', form).map(i=>i.value);
-    v.type = $$('input[name="type"]:checked', form).map(i=>i.value);
-    v.colors = $$('input[name="color"]:checked', form).map(i=>i.value);
-    return v;
-  }
-
-  function thumbClassFrom(v){
-    if (v.type.includes('crepe')) return 'thumb--crepe';
-    if (v.type.includes('sateen')) return 'thumb--sateen';
-    if (v.content.includes('silk')) return 'thumb--silk';
-    if (v.content.includes('wool')) return 'thumb--wool';
-    return 'thumb--cotton';
-  }
-
-  function updatePreview(){
-    const v = getValues();
-    $('#p-title').textContent = v.title || 'Your Title';
-    $('#p-meta').textContent = `${v.yards||0} yd • ${v.widthIn||0}″ • ${(v.country[0]||'—').toUpperCase()}`;
-    $('#p-price').textContent = `$${(v.pricePerYd||0)} / yd`;
-    $('#p-tags').textContent = [
-      v.type.join(', '),
-      v.content.join(', '),
-      v.material_class ? `class: ${v.material_class}` : ''
-    ].filter(Boolean).join(' • ');
-    $('#p-desc').textContent = v.description || '';
-    const th = $('#preview-thumb');
-    if (v.imageUrl && /^https?:\/\//.test(v.imageUrl)){
-      th.style.background = `url('${v.imageUrl}') center/cover no-repeat`;
-    } else {
-      th.removeAttribute('style');
-      th.className = 'thumb ' + thumbClassFrom(v);
-    }
-  }
-
-  function setFieldError(fieldKey, hasError){
-    const field = form.querySelector(`[data-field="${fieldKey}"]`);
-    if (!field) return;
-    field.classList.toggle('error', !!hasError);
-  }
-
-  function validate(){
-    const v = getValues();
-    const errs = [];
-
-    if (!v.title || !v.title.trim()){ errs.push('Title is required.'); setFieldError('title', true); } else setFieldError('title', false);
-    if (isNaN(v.pricePerYd) || v.pricePerYd < 0){ errs.push('Price per yard must be ≥ 0.'); setFieldError('pricePerYd', true); } else setFieldError('pricePerYd', false);
-    if (isNaN(v.yards) || v.yards < 0.1){ errs.push('Yards available must be ≥ 0.1.'); setFieldError('yards', true); } else setFieldError('yards', false);
-    if (isNaN(v.widthIn) || v.widthIn < 1){ errs.push('Width must be ≥ 1 inch.'); setFieldError('widthIn', true); } else setFieldError('widthIn', false);
-    if (v.department.length === 0){ errs.push('Select at least one department.'); setFieldError('department', true); } else setFieldError('department', false);
-    if (v.content.length === 0){ errs.push('Select at least one fabric content.'); setFieldError('content', true); } else setFieldError('content', false);
-    if (v.type.length === 0){ errs.push('Select at least one fabric type.'); setFieldError('type', true); } else setFieldError('type', false);
-
-    if (errs.length){
-      okBanner.classList.remove('show'); okBanner.textContent = '';
-      errorBanner.classList.add('show');
-      errorBanner.innerHTML = 'Please fix the following:<ul style="margin:6px 0 0 18px">'+errs.map(e=>`<li>${e}</li>`).join('')+'</ul>';
-    } else {
-      errorBanner.classList.remove('show'); errorBanner.textContent = '';
-      okBanner.classList.add('show'); okBanner.textContent = 'Looks good — ready to publish.';
-    }
-    publishBtn.disabled = errs.length > 0;
-    return errs.length === 0;
-  }
-
-  form.addEventListener('input', ()=>{ updatePreview(); validate(); });
-  document.getElementById('preview-btn').addEventListener('click', ()=>{ updatePreview(); validate(); });
-
-  form.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    updatePreview();
-    if (!validate()) return;
-    const v = getValues();
-    const payload = {
-      title: v.title.trim(),
-      pricePerYd: v.pricePerYd,
-      yards: v.yards,
-      widthIn: v.widthIn,
-      weightGsm: v.weightGsm || null,
-      department: v.department,
-      country: v.country,
-      content: v.content,
-      type: v.type,
-      colors: v.colors,
-      condition: v.condition || 'new',
-      pattern: v.pattern || 'solid',
-      imageUrl: v.imageUrl || null,
-      description: v.description?.trim() || ''
-    };
-    const okBanner = document.getElementById('ok-banner');
-    okBanner.classList.add('show');
-    okBanner.textContent = '✅ Listing would be published (demo). Check console for payload.';
-    console.log('SELLER_PAYLOAD', payload);
-  });
-
-  // init
-  updatePreview();
-  validate();
-})();
-</script>
-</body>
-</html>
+        <button type="submit" class
