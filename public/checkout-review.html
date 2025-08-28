@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="description" content="Hemline Market — Review your cart items, adjust yardage, and proceed to checkout with friendly, accessible validation.">
 <title>Hemline Market — Order Review</title>
 <meta name="theme-color" content="#333333"/>
 <style>
@@ -14,9 +15,12 @@
     --hm-error-bg:#fff6f7; --hm-error-border:#ff8aa3; --hm-error-text:#7f1d1d;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  html,body{margin:0;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:#f6f6f6}
   a{text-decoration:none;color:#000} a:hover{color:var(--hm-rosewood)}
   img{max-width:100%;display:block}
+
+  /* ✅ Visible keyboard focus */
+  :focus-visible{ outline:3px solid var(--hm-rosewood); outline-offset:2px; border-radius:6px; }
 
   /* Header (matches site) + cart badge */
   .hm-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);backdrop-filter:saturate(120%) blur(6px);border-bottom:1px solid rgba(0,0,0,.08)}
@@ -44,8 +48,8 @@
 
   .qty{display:flex;align-items:center;gap:6px}
   .qty button{width:30px;height:30px;border:var(--hm-border);border-radius:10px;background:#fff;font-weight:900;cursor:pointer}
-  .qty input{width:56px;text-align:center;padding:8px 10px;border:var(--hm-border);border-radius:10px}
-  .remove{color:#7f1d1d;font-weight:800;cursor:pointer}
+  .qty input{width:64px;text-align:center;padding:10px;border:var(--hm-border);border-radius:10px}
+  .remove{color:#7f1d1d;font-weight:800;cursor:pointer;border:var(--hm-border);border-radius:10px;padding:6px 8px;background:#fff}
 
   .summary li{display:flex;justify-content:space-between;margin:8px 0}
   .summary .total{font-weight:900;font-size:18px}
@@ -65,7 +69,6 @@
   }
   .error-summary.show{display:block}
   .error-list{margin:8px 0 0 18px; color:var(--hm-error-text)}
-  .row.error{background:linear-gradient(0deg,#fff, #fff) padding-box; border-radius:12px}
   .row.error .qty input{outline:3px solid rgba(255,0,66,.15); border-color:var(--hm-error-border)}
 </style>
 </head>
@@ -78,9 +81,9 @@
     </a>
     <nav class="hm-nav" aria-label="Primary">
       <a href="/catalog.html">Browse</a>
-      <a href="/favorites">❤ Favorites</a>
+      <a href="/favorites" aria-label="Favorites">❤ Favorites</a>
       <a href="/account">My Account</a>
-      <a href="/cart.html" class="cart-link">Cart <span class="cart-count" data-cart-count>0</span></a>
+      <a href="/cart.html" class="cart-link" aria-label="Shopping cart">Cart <span class="cart-count" data-cart-count>0</span></a>
       <a class="cta" href="/list">List Item</a>
     </nav>
   </div>
@@ -88,11 +91,11 @@
 
 <main class="wrap">
   <!-- Left: items -->
-  <section class="card">
+  <section class="card" aria-label="Order review items">
     <h2>Order Review</h2>
     <div class="card-body">
       <!-- ✅ error summary lives here -->
-      <div id="errorSummary" class="error-summary" role="alert" aria-live="assertive">
+      <div id="errorSummary" class="error-summary" role="alert" aria-live="assertive" tabindex="-1">
         Let’s fix a few things:
         <ul id="errorList" class="error-list"></ul>
       </div>
@@ -102,7 +105,7 @@
   </section>
 
   <!-- Right: totals -->
-  <aside class="card">
+  <aside class="card" aria-label="Order summary">
     <h2>Summary</h2>
     <div class="card-body">
       <ul class="summary" id="summary">
@@ -118,11 +121,11 @@
 </main>
 
 <script>
-/* Tiny cart util (same key as other pages) + friendly errors */
+/* Tiny cart util + friendly errors + a11y tweaks */
 (function(){
   const CART_KEY='hm_cart_v1';
-  const shipFlat = 6.95;   // placeholder (Part 14 = real shipping)
-  const taxRate  = 0.00;   // placeholder; set by region later
+  const shipFlat = 6.95;   // placeholder (shipping calc later)
+  const taxRate  = 0.00;   // placeholder
 
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -136,12 +139,10 @@
     document.querySelectorAll('[data-cart-count]').forEach(el=>el.textContent=count);
   }
 
-  function addError(msg, list){ const li=document.createElement('li'); li.textContent=msg; list.appendChild(li); }
-
   function validateItems(items){
     const errors = [];
     const MIN_QTY = 1;
-    const MAX_QTY = 500; // sanity cap; adjust later if needed
+    const MAX_QTY = 500;
     const MIN_PRICE = 0;
 
     items.forEach((it, idx)=>{
@@ -188,24 +189,26 @@
 
       const t = document.createElement('div');
       t.className = 'thumb';
-      if(it.image){ const img = document.createElement('img'); img.src = it.image; t.appendChild(img); }
+      if(it.image){ const img = document.createElement('img'); img.src = it.image; img.alt = it.name ? `${it.name} preview` : 'Item preview'; t.appendChild(img); }
       row.appendChild(t);
 
       const mid = document.createElement('div');
+      const qtyId = `qty-${idx}`;
       mid.innerHTML = `
         <div class="line-title">${it.name||'Fabric'}</div>
         <div class="meta">${it.sku||''}</div>
-        <div class="qty" aria-label="Quantity controls">
-          <button type="button" data-act="dec" aria-label="Decrease quantity">−</button>
-          <input type="number" inputmode="numeric" min="1" step="1" value="${Number(it.qty||1)}" aria-label="Quantity">
-          <button type="button" data-act="inc" aria-label="Increase quantity">+</button>
+        <div class="qty" aria-label="Quantity controls for ${it.name||'item'}">
+          <button type="button" data-act="dec" aria-controls="${qtyId}" aria-label="Decrease quantity">−</button>
+          <input id="${qtyId}" type="number" inputmode="numeric" min="1" step="1" value="${Number(it.qty||1)}" aria-label="Quantity (yards)">
+          <button type="button" data-act="inc" aria-controls="${qtyId}" aria-label="Increase quantity">+</button>
           <span class="meta" style="margin-left:8px">yd</span>
-          <span class="remove" data-act="rm" style="margin-left:12px">Remove</span>
+          <button type="button" class="remove" data-act="rm" aria-label="Remove ${it.name||'item'} from cart">Remove</button>
         </div>`;
       row.appendChild(mid);
 
       const rt = document.createElement('div');
       rt.style.fontWeight='900';
+      rt.setAttribute('aria-live','polite');
       rt.textContent = fmt((it.price||0) * (it.qty||1));
       row.appendChild(rt);
 
@@ -247,15 +250,15 @@
 
     // ✅ Validate & show friendly errors
     const errs = validateItems(items);
-    // Clear row highlights
     $$('.row').forEach(r=>r.classList.remove('error'));
     if(errs.length){
       errorList.innerHTML='';
       errs.forEach(er=>{
-        addError(er.msg, errorList);
+        const li=document.createElement('li'); li.textContent=er.msg; errorList.appendChild(li);
         const badRow = $(`.row[data-idx="${er.idx}"]`); badRow?.classList.add('error');
       });
       errorSummary.classList.add('show');
+      errorSummary.focus();
       proceed.setAttribute('aria-disabled','true');
     } else {
       errorSummary.classList.remove('show');
