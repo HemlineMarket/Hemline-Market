@@ -13,12 +13,25 @@
     .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     .row3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
     button { margin-top:16px; padding:10px 14px; border:0; border-radius:8px; background:black; color:white; cursor:pointer; }
-    .warn { margin-top:12px; color:red; }
+    .warn { margin-top:12px; color:#b91c1c; }
+    /* New banner styles */
+    .banner { display:none; margin-bottom:16px; padding:12px; border:1px solid #fecaca; background:#fef2f2; color:#7f1d1d; border-radius:10px; }
+    .banner strong { display:block; margin-bottom:6px; }
+    .banner a { color:#7f1d1d; text-decoration: underline; }
+    .banner .cta { display:inline-block; margin-top:8px; padding:8px 10px; border-radius:8px; background:#7f1d1d; color:#fff; text-decoration:none; }
     small.muted { color:#6b7280; }
   </style>
 </head>
 <body>
   <h1>Create Listing</h1>
+
+  <!-- Friendly banner (shown if seller has no ship-from address) -->
+  <div id="profileBanner" class="banner">
+    <strong>Finish your Seller Profile</strong>
+    You need a ship-from address before listing items.
+    <a href="/seller-profile.html">Open Seller Profile</a>
+    <a class="cta" href="/seller-profile.html">Add address</a>
+  </div>
 
   <form id="listingForm" method="POST" action="/api/listings/create">
     <!-- Hidden seller id gets set after auth -->
@@ -71,11 +84,28 @@
     const form = document.getElementById("listingForm");
     const warn = document.getElementById("warn");
     const sellerIdInput = document.getElementById("seller_id");
+    const banner = document.getElementById("profileBanner");
 
-    // On load, set hidden seller_id if signed in
+    async function checkProfile(userId) {
+      const resp = await fetch("/api/seller/profile-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seller_id: userId })
+      });
+      const data = await resp.json();
+      return !!(data && data.ok);
+    }
+
+    // On load: set hidden seller_id and show banner if profile incomplete
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) sellerIdInput.value = user.id;
+      if (user) {
+        sellerIdInput.value = user.id;
+        try {
+          const ok = await checkProfile(user.id);
+          if (!ok) banner.style.display = "block";
+        } catch {}
+      }
     })();
 
     form.addEventListener("submit", async (e) => {
@@ -85,6 +115,7 @@
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         warn.textContent = "⚠️ You must sign in first.";
+        banner.style.display = "block";
         return;
       }
       sellerIdInput.value = user.id; // ensure set
@@ -108,20 +139,16 @@
 
       // 3) Check seller profile via our API (blocks if missing address)
       try {
-        const resp = await fetch("/api/seller/profile-check", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ seller_id: user.id })
-        });
-        const data = await resp.json();
-
-        if (!data.ok) {
-          warn.textContent = "⚠️ Please set your ship-from address before listing. Go to /seller-profile.html.";
+        const ok = await checkProfile(user.id);
+        if (!ok) {
+          warn.textContent = "⚠️ Please add your ship-from address first.";
+          banner.style.display = "block";
           return;
         }
 
-        // 4) Allow form submit if profile complete
+        // 4) Allow submit
         warn.textContent = "";
+        banner.style.display = "none";
         form.submit();
       } catch (err) {
         warn.textContent = "⚠️ Error checking seller profile: " + err.message;
