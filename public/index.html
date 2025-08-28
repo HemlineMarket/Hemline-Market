@@ -8,7 +8,7 @@
     :root{
       --container:1200px;
       --pad:20px;
-      --brand:#800000;
+      --brand:#800000;   /* merlot */
       --ink:#111;
       --muted:#555;
       --card:#fff;
@@ -22,14 +22,28 @@
       color:var(--ink);
       min-height:100%;
       display:flex;flex-direction:column;
+      position:relative;
     }
 
-    /* Background (fixed, full viewport) */
-    .bg-holder{position:fixed;inset:0;z-index:-2;}
-    .bg-holder picture{position:absolute;inset:0;display:block;width:100%;height:100%;}
-    .bg-holder picture img{display:block;width:100%;height:100%;object-fit:cover;}
-    .bg-overlay{
-      position:fixed;inset:0;z-index:-1;
+    /* RELIABLE BACKGROUND (no picture sizing issues) */
+    body::before{
+      content:"";
+      position:fixed; inset:0; z-index:-2;
+      background:
+        center / cover no-repeat
+        url('/images/homepage.jpeg');
+      /* fallbacks if filename differs */
+      background-image:
+        image-set(
+          url('/images/homepage.jpeg') type('image/jpeg'),
+          url('/images/homepage.jpg') type('image/jpeg'),
+          url('/images/fabric_row.jpeg') type('image/jpeg')
+        );
+    }
+    /* Subtle dark/blur overlay for readability */
+    body::after{
+      content:"";
+      position:fixed; inset:0; z-index:-1;
       background:rgba(0,0,0,.22);
       backdrop-filter:blur(2px);
     }
@@ -116,15 +130,6 @@
   </style>
 </head>
 <body>
-  <!-- Background -->
-  <div class="bg-holder">
-    <picture>
-      <source srcset="/images/homepage.webp" type="image/webp" />
-      <img src="/images/homepage.jpeg" alt="Fabric background" />
-    </picture>
-  </div>
-  <div class="bg-overlay"></div>
-
   <!-- HEADER -->
   <header class="navbar">
     <div class="container nav-row">
