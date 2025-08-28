@@ -8,11 +8,9 @@
   <link rel="stylesheet" href="styles/hem-header.css" />
   <link rel="stylesheet" href="styles/hm-profile.css" />
   <link rel="stylesheet" href="styles/hm-typography.css" />
+  <link rel="stylesheet" href="styles/hm-footer.css" />
   <style>
-    :root{
-      --hm-border:#e5e7eb; --hm-soft:#f7f7f8; --hm-muted:#6b7280; --hm-text:#1f2937; --hm-accent:#991b1b;
-      --hm-card:#ffffff;
-    }
+    :root{ --hm-border:#e5e7eb; --hm-soft:#f7f7f8; --hm-muted:#6b7280; --hm-text:#1f2937; --hm-accent:#991b1b; --hm-card:#ffffff; }
     .wrap{max-width:1200px;margin:0 auto;padding:0 16px}
     .page{max-width:1200px;margin:20px auto;padding:0 16px;display:grid;grid-template-columns:260px 1fr;gap:16px}
     @media (max-width:980px){ .page{grid-template-columns:1fr} }
@@ -47,14 +45,6 @@
     .price{font-weight:800;color:var(--hm-text)}
     .badge{font-size:12px;padding:2px 6px;border:1px solid var(--hm-border);border-radius:999px;color:var(--hm-muted)}
     .empty{padding:18px;border:1px dashed var(--hm-border);border-radius:12px;color:var(--hm-muted);text-align:center}
-
-    /* Footer */
-    footer.hm-footer{border-top:1px solid var(--hm-border);padding:16px 0;margin-top:24px;background:var(--hm-soft)}
-    .footer-wrap{max-width:1200px;margin:0 auto;padding:0 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-    .footer-links{display:flex;gap:14px;flex-wrap:wrap}
-    .footer-links a{font-size:14px;color:var(--hm-text);text-decoration:none}
-    .footer-links a:hover{text-decoration:underline}
-    .copy{font-size:13px;color:var(--hm-muted)}
   </style>
 </head>
 <body>
@@ -114,7 +104,6 @@
     <!-- FILTERS -->
     <aside class="card pad filters" aria-label="Filters">
       <h2>Filters</h2>
-
       <form id="filters">
         <div class="group" aria-label="Fiber">
           <div class="row"><input id="f_cotton" name="fiber_cotton" type="checkbox" /><label for="f_cotton">Cotton</label></div>
@@ -122,26 +111,22 @@
           <div class="row"><input id="f_silk" name="fiber_silk" type="checkbox" /><label for="f_silk">Silk</label></div>
           <div class="row"><input id="f_linen" name="fiber_linen" type="checkbox" /><label for="f_linen">Linen</label></div>
         </div>
-
         <div class="group" aria-label="Weight class">
           <div class="row"><input id="w_light" name="w_light" type="checkbox" /><label for="w_light">Light</label></div>
           <div class="row"><input id="w_mid" name="w_mid" type="checkbox" /><label for="w_mid">Mid</label></div>
           <div class="row"><input id="w_heavy" name="w_heavy" type="checkbox" /><label for="w_heavy">Heavy</label></div>
         </div>
-
         <div class="group" aria-label="Color">
           <div class="row"><input id="c_neutral" name="clr_neutral" type="checkbox" /><label for="c_neutral">Neutrals</label></div>
           <div class="row"><input id="c_black" name="clr_black" type="checkbox" /><label for="c_black">Black</label></div>
           <div class="row"><input id="c_blue" name="clr_blue" type="checkbox" /><label for="c_blue">Blue</label></div>
           <div class="row"><input id="c_red" name="clr_red" type="checkbox" /><label for="c_red">Red</label></div>
         </div>
-
         <div class="group" aria-label="Width">
           <div class="row"><input id="w_44" name="w_44" type="checkbox" /><label for="w_44">~44”</label></div>
           <div class="row"><input id="w_54" name="w_54" type="checkbox" /><label for="w_54">~54”</label></div>
           <div class="row"><input id="w_58" name="w_58" type="checkbox" /><label for="w_58">~58–60”</label></div>
         </div>
-
         <div class="apply">
           <button class="btn-primary btn" type="submit">Apply</button>
           <button class="btn" type="reset" id="clear">Clear</button>
@@ -164,14 +149,8 @@
           </select>
         </div>
       </div>
-
-      <div id="grid" class="grid" aria-live="polite">
-        <!-- JS injects placeholder cards -->
-      </div>
-
-      <div id="empty" class="empty" style="display:none">
-        No results. Try removing a filter or searching different keywords.
-      </div>
+      <div id="grid" class="grid" aria-live="polite"></div>
+      <div id="empty" class="empty" style="display:none">No results. Try removing a filter or searching different keywords.</div>
     </section>
   </main>
 
@@ -193,129 +172,15 @@
   <!-- JS -->
   <script>
     (function(){
-      // Profile dropdown
-      const profile = document.querySelector(".hm-profile");
+      const profile=document.querySelector(".hm-profile");
       if(profile){
-        document.addEventListener("click", function(e){
-          if(profile.contains(e.target)){ profile.classList.toggle("open"); }
-          else { profile.classList.remove("open"); }
+        document.addEventListener("click",e=>{
+          if(profile.contains(e.target)){profile.classList.toggle("open");}
+          else{profile.classList.remove("open");}
         });
-        const avatar = profile.querySelector(".hm-avatar");
-        if(avatar){ avatar.addEventListener("click", e => e.preventDefault()); }
+        const avatar=profile.querySelector(".hm-avatar");
+        if(avatar){avatar.addEventListener("click",e=>e.preventDefault());}
       }
-
-      // Small client-side demo: reflect query + filters in UI, show mock results
-      const params = new URLSearchParams(location.search);
-      const q = params.get("q") || "";
-      // Pre-check filters from query params (if any)
-      document.querySelectorAll(".filters input[type=checkbox]").forEach(cb=>{
-        if(params.has(cb.name)) cb.checked = true;
-      });
-      // Count active filters
-      function countActive(){
-        let n = 0;
-        document.querySelectorAll(".filters input[type=checkbox]").forEach(cb=>{ if(cb.checked) n++; });
-        document.getElementById("activeCount").textContent = n + " active";
-        return n;
-      }
-      countActive();
-
-      // Simple mock dataset
-      const data = [
-        {id:1,title:"Wool Crepe — Saffron", price:28, yards:3, fiber:"wool", tag:"Mid", color:"red"},
-        {id:2,title:"Cotton Lawn — Charcoal", price:12, yards:5, fiber:"cotton", tag:"Light", color:"neutral"},
-        {id:3,title:"Silk Charmeuse — Midnight", price:36, yards:2.5, fiber:"silk", tag:"Light", color:"blue"},
-        {id:4,title:"Linen Twill — Natural", price:22, yards:4, fiber:"linen", tag:"Mid", color:"neutral"},
-        {id:5,title:"Wool Coating — Hunter", price:40, yards:2, fiber:"wool", tag:"Heavy", color:"green"},
-        {id:6,title:"Cotton Sateen — Black", price:14, yards:6, fiber:"cotton", tag:"Mid", color:"black"}
-      ];
-
-      function passFilter(item){
-        // Fiber filters
-        const fiberMap = {cotton:"fiber_cotton", wool:"fiber_wool", silk:"fiber_silk", linen:"fiber_linen"};
-        for(const [k,qp] of Object.entries(fiberMap)){
-          const el = document.querySelector("[name="+qp+"]");
-          if(el && el.checked && item.fiber !== k) return false;
-        }
-        // Color (very rough mapping)
-        const colorMap = {
-          neutral:"clr_neutral", black:"clr_black", blue:"clr_blue", red:"clr_red", green:"clr_green"
-        };
-        for(const [k,qp] of Object.entries(colorMap)){
-          const el = document.querySelector("[name="+qp+"]");
-          if(el && el.checked && item.color !== k) return false;
-        }
-        // Weight (tag)
-        const wMap = {Light:"w_light", Mid:"w_mid", Heavy:"w_heavy"};
-        for(const [k,qp] of Object.entries(wMap)){
-          const el = document.querySelector("[name="+qp+"]");
-          if(el && el.checked && item.tag !== k) return false;
-        }
-        // Keyword q
-        if(q){
-          const t = (item.title||"").toLowerCase();
-          if(!t.includes(q.toLowerCase())) return false;
-        }
-        return true;
-      }
-
-      function render(list){
-        const grid = document.getElementById("grid");
-        const empty = document.getElementById("empty");
-        grid.innerHTML = "";
-        document.getElementById("resultCount").textContent = list.length + " results";
-        if(!list.length){ empty.style.display = "block"; return; }
-        empty.style.display = "none";
-        list.forEach(it=>{
-          const a = document.createElement("a");
-          a.className = "item";
-          a.href = "item.html?id="+it.id;
-          a.innerHTML = `
-            <div class="thumb" aria-hidden="true">photo</div>
-            <div class="info">
-              <div class="title" title="${it.title}">${it.title}</div>
-              <div class="meta">
-                <span class="price">$${it.price}</span>
-                <span class="badge">${it.tag}</span>
-              </div>
-            </div>`;
-          grid.appendChild(a);
-        });
-      }
-
-      // Initial render using params
-      const filtered = data.filter(passFilter);
-      render(filtered);
-
-      // Apply button -> rebuild URL with selected filters (no backend)
-      const form = document.getElementById("filters");
-      form.addEventListener("submit", function(e){
-        e.preventDefault();
-        const next = new URLSearchParams();
-        if(q) next.set("q", q);
-        document.querySelectorAll(".filters input[type=checkbox]").forEach(cb=>{
-          if(cb.checked) next.set(cb.name, "1");
-        });
-        const sort = document.getElementById("sort").value;
-        if(sort && sort !== "relevance") next.set("sort", sort);
-        location.search = next.toString();
-      });
-      form.addEventListener("change", countActive);
-
-      // Clear -> wipe params
-      const clear = document.getElementById("clear");
-      clear.addEventListener("click", function(){
-        location.search = "";
-      });
-
-      // Reflect sort param
-      const sortSel = document.getElementById("sort");
-      if(params.get("sort")) sortSel.value = params.get("sort");
-
-      // NOTE: Sorting is cosmetic here
-      sortSel.addEventListener("change", function(){
-        alert("Sort updated (demo only).");
-      });
     })();
   </script>
 </body>
