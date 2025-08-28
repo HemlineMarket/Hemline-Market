@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hemline — Shipping Test (Seller)</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; line-height: 1.4; }
     h1 { font-size: 20px; margin-bottom: 16px; }
@@ -89,6 +90,11 @@
   <div id="toast" class="toast"></div>
 
   <script>
+    // Initialize Supabase (browser-safe: anon key)
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const $ = id => document.getElementById(id);
     const toast = (msg, isError=false) => {
       const el = $('toast');
@@ -98,7 +104,13 @@
       setTimeout(() => el.style.display = 'none', 4000);
     };
 
-    function toPayload() {
+    async function getSellerId() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("You must be signed in to use this test page.");
+      return user.id;
+    }
+
+    function toPayloadBase() {
       return {
         to: {
           name: $('to_name').value.trim(),
@@ -129,7 +141,8 @@
       $('rates').innerHTML = '';
       toast('Fetching rates…');
       try {
-        const payload = toPayload();
+        const seller_id = await getSellerId();
+        const payload = Object.assign({ seller_id }, toPayloadBase());
         const data = await postJSON('/api/shipping/rates', payload);
         const list = data.rates || [];
         if (!list.length) {
@@ -158,27 +171,29 @@
         $('rates').querySelectorAll('button[data-rate]').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             const rateId = e.currentTarget.getAttribute('data-rate');
-            try {
-              toast('Purchasing label (Test)…');
-              const resp = await postJSON('/api/shipping/label', { rate_object_id: rateId });
-              const pdf = resp.label_pdf_url;
-              const track = resp.tracking_number;
-              const amt = resp.amount;
-              $('rates').insertAdjacentHTML('beforeend',
-                `<div class="code">Label purchased (TEST):
+            (async () => {
+              try {
+                toast('Purchasing label (Test)…');
+                const resp = await postJSON('/api/shipping/label', { rate_object_id: rateId });
+                const pdf = resp.label_pdf_url;
+                const track = resp.tracking_number;
+                const amt = resp.amount;
+                $('rates').insertAdjacentHTML('beforeend',
+                  `<div class="code">Label purchased (TEST):
 - Tracking: ${track || 'n/a'}
 - Amount: $${amt != null ? Number(amt).toFixed(2) : '—'}
 - PDF: <a href="${pdf}" target="_blank" rel="noopener">Open label</a></div>`);
-              toast('Label created (Test). Open the PDF to view.');
-            } catch (err) {
-              toast('Error purchasing label: ' + err.message, true);
-            }
+                toast('Label created (Test). Open the PDF to view.');
+              } catch (err) {
+                toast('Error purchasing label: ' + err.message, true);
+              }
+            })();
           });
         });
 
         toast('Rates loaded.');
       } catch (err) {
-        toast('Error fetching rates: ' + err.message, true);
+        toast('Error: ' + err.message, true);
       }
     });
   </script>
