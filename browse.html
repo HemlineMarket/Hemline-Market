@@ -6,6 +6,7 @@
   <title>Browse · Hemline Market</title>
   <link rel="stylesheet" href="styles/hm-modern.css" />
   <link rel="stylesheet" href="styles/hem-header.css" />
+  <link rel="stylesheet" href="styles/hm-profile.css" />
   <link rel="stylesheet" href="styles/hm-filters.css" />
 </head>
 <body>
@@ -39,7 +40,24 @@
         <a class="hm-btn hm-btn-primary" href="seller/index.html?list=new" aria-label="List an item">
           <span class="label">List Item</span>
         </a>
-        <a class="hm-avatar" href="account.html" aria-label="Your profile">?</a>
+
+        <!-- Profile dropdown -->
+        <div class="hm-profile">
+          <a class="hm-avatar" href="#" aria-label="Your profile">?</a>
+          <nav class="hm-profile-menu" aria-label="Profile">
+            <a href="account.html">Account</a>
+            <a href="atelier.html">Atelier</a>
+            <a href="listings.html">Listings</a>
+            <a href="drafts.html">Drafts</a>
+            <a href="favorites.html">Favorites</a>
+            <a href="orders.html">Orders</a>
+            <a href="bundles.html">Bundles</a>
+            <a href="notifications.html">Notifications</a>
+            <a href="settings.html">Settings</a>
+            <a href="help.html">Help</a>
+            <a href="logout.html">Log out</a>
+          </nav>
+        </div>
       </div>
     </div>
   </header>
@@ -50,7 +68,6 @@
     <aside class="hm-filters" aria-label="Filters">
       <header>Filters</header>
       <form id="filters" action="browse.html" method="get">
-        <!-- Preserve search query from header if present -->
         <input type="hidden" name="q" id="filter-q" value="">
 
         <section class="hm-filter">
@@ -127,7 +144,6 @@
       <h1 style="margin:0 0 10px 0;">Browse</h1>
       <div class="active-filters" id="active-filters"></div>
       <div class="hm-grid" id="results-grid">
-        <!-- Temporary placeholder cards -->
         <div class="hm-card">Result A</div>
         <div class="hm-card">Result B</div>
         <div class="hm-card">Result C</div>
@@ -136,17 +152,29 @@
     </main>
   </div>
 
-  <!-- Minimal hydration to reflect active filters and preserve q -->
+  <!-- Minimal hydration -->
   <script>
     (function(){
+      // Profile dropdown toggle
+      const profile = document.querySelector(".hm-profile");
+      if(profile){
+        document.addEventListener("click", function(e){
+          if(profile.contains(e.target)){
+            profile.classList.toggle("open");
+          } else {
+            profile.classList.remove("open");
+          }
+        });
+        const avatar = profile.querySelector(".hm-avatar");
+        if(avatar){ avatar.addEventListener("click", e => e.preventDefault()); }
+      }
+
+      // Filters: preserve q + chips
       const qs = new URLSearchParams(location.search);
       const form = document.getElementById('filters');
-
-      // Preserve header search query inside the filters form
       const qHidden = document.getElementById('filter-q');
-      qHidden.value = qs.get('q') || '';
+      if(qHidden) qHidden.value = qs.get('q') || '';
 
-      // Re-check controls from query string
       form.querySelectorAll('input').forEach(inp=>{
         const k = inp.name, v = qs.get(k);
         if(!v) return;
@@ -155,12 +183,9 @@
         } else {
           inp.value = v;
         }
-        // open its <details> if something is active
-        const det = inp.closest('details');
-        if(det) det.open = true;
+        const det = inp.closest('details'); if(det) det.open = true;
       });
 
-      // Render simple "Active filters" chips
       const mapLabels = {
         fiber_wool:'Wool', fiber_silk:'Silk', fiber_cotton:'Cotton', fiber_linen:'Linen', fiber_blend:'Blend',
         wt_light:'Light', wt_mid:'Mid', wt_heavy:'Heavy',
@@ -177,12 +202,6 @@
       if(chips.length){ chips.forEach(t=>{
         const el = document.createElement('span'); el.className='hm-chip'; el.textContent=t; af.appendChild(el);
       }); }
-
-      // Fake "no results" demo if filters present but no cards exist (for UX check)
-      const hasFilters = Array.from(qs.keys()).some(k=>k.startsWith('fiber_')||k.startsWith('wt_')||k.startsWith('clr_')||k.startsWith('price_'));
-      if(hasFilters === true){
-        // leave the placeholder cards visible for now; real data will replace later
-      }
     })();
   </script>
 </body>
