@@ -7,6 +7,33 @@
   <link rel="stylesheet" href="../styles/hm-modern.css" />
   <link rel="stylesheet" href="../styles/hem-header.css" />
   <link rel="stylesheet" href="../styles/hm-profile.css" />
+  <style>
+    /* Listing form (tight, uniform small labels; tiny inline errors) */
+    :root{
+      --hm-border:#e5e7eb; --hm-muted:#6b7280; --hm-text:#1f2937; --hm-accent:#991b1b;
+      --hm-ok:#065f46; --hm-warn:#b45309;
+    }
+    .hm-wrap{max-width:1200px;margin:24px auto;padding:0 16px;}
+    .hm-listing{display:grid;grid-template-columns:1fr 340px;gap:20px}
+    .hm-card{background:#fff;border:1px solid var(--hm-border);border-radius:14px;padding:16px}
+    .hm-card h2{margin:0 0 10px 0}
+    .f{display:grid;gap:6px;margin:10px 0}
+    .f label{font-size:13px;color:var(--hm-muted)}
+    .f input[type="text"], .f input[type="number"], .f textarea, .f select{
+      width:100%;padding:10px 12px;border:1px solid var(--hm-border);border-radius:10px;font-size:14px;
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .hint{font-size:12px;color:var(--hm-muted)}
+    .err{font-size:12px;color:#b91c1c;display:none}
+    .ok{font-size:12px;color:var(--hm-ok);display:none}
+    .btns{display:flex;gap:10px;margin-top:12px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 14px;border-radius:999px;
+      border:1px solid var(--hm-border);background:#fff;color:var(--hm-text);font-weight:600;text-decoration:none}
+    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff}
+    .pill{display:inline-flex;gap:8px;align-items:center;font-size:12px;color:var(--hm-muted)}
+    .pill svg{width:14px;height:14px}
+    @media (max-width:980px){ .hm-listing{grid-template-columns:1fr} }
+  </style>
 </head>
 <body>
   <!-- GLOBAL HEADER -->
@@ -40,7 +67,6 @@
           <span class="label">List Item</span>
         </a>
 
-        <!-- Profile dropdown -->
         <div class="hm-profile">
           <a class="hm-avatar" href="#" aria-label="Your profile">?</a>
           <nav class="hm-profile-menu" aria-label="Profile">
@@ -61,26 +87,173 @@
     </div>
   </header>
 
-  <!-- SELLER CONTENT (placeholder) -->
-  <main style="max-width:1200px;margin:24px auto;padding:0 16px;">
-    <h1>Seller Dashboard</h1>
-    <p>This is a temporary shell. Click “List Item” to start a new listing flow.</p>
-  </main>
+  <!-- SELLER LISTING FORM -->
+  <div class="hm-wrap">
+    <div class="hm-listing">
+      <!-- Left: main form -->
+      <form id="listingForm" class="hm-card" novalidate>
+        <h2>Create Listing</h2>
 
-  <!-- Minimal JS for profile toggle -->
+        <div class="f">
+          <label for="title">Title</label>
+          <input id="title" name="title" type="text" placeholder="e.g., Italian Wool Crepe, Saffron" title="Short, searchable name." />
+          <div class="hint">Keep it clear: fiber + fabric + color or vibe.</div>
+          <div class="err" id="err-title">Title is required.</div>
+        </div>
+
+        <div class="f">
+          <label for="desc">Description</label>
+          <textarea id="desc" name="desc" rows="6" placeholder="Content, handfeel, drape, season, uses…" title="Add cut notes and care here."></textarea>
+          <div class="hint">Include care, origin (if known), and any flaws.</div>
+        </div>
+
+        <div class="row">
+          <div class="f">
+            <label for="price">Price (USD)</label>
+            <input id="price" name="price" type="number" step="0.01" min="0" placeholder="e.g., 28.00" title="Per yard or per piece." />
+            <div class="err" id="err-price">Price required.</div>
+          </div>
+          <div class="f">
+            <label for="qty">Quantity</label>
+            <input id="qty" name="qty" type="number" step="0.25" min="0" placeholder="e.g., 3.0" title="Yards or number of pieces." />
+            <div class="hint">Use decimals for partial yards (e.g., 1.5).</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="f">
+            <label for="fiber">Fiber</label>
+            <select id="fiber" name="fiber" title="Primary content.">
+              <option value="">Select…</option>
+              <option>Wool</option><option>Silk</option><option>Cotton</option><option>Linen</option><option>Blend</option><option>Other</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="weight">Weight</label>
+            <select id="weight" name="weight" title="General class.">
+              <option value="">Select…</option>
+              <option>Light</option><option>Mid</option><option>Heavy</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="f">
+            <label for="width">Width (inches)</label>
+            <input id="width" name="width" type="number" step="0.1" min="0" placeholder="e.g., 57" title="Usable width." />
+          </div>
+          <div class="f">
+            <label for="color">Color</label>
+            <input id="color" name="color" type="text" placeholder="e.g., saffron" title="Common name customers search." />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="f">
+            <label for="condition">Condition</label>
+            <select id="condition" name="condition" title="New, deadstock, remnant, etc.">
+              <option value="">Select…</option>
+              <option>New</option><option>Deadstock</option><option>Vintage</option><option>Remnant</option>
+            </select>
+            <div class="err" id="err-condition">Condition required.</div>
+          </div>
+          <div class="f">
+            <label for="category">Category</label>
+            <select id="category" name="category" title="Type of fabric.">
+              <option value="">Select…</option>
+              <option>Crepe</option><option>Twill</option><option>Satin</option><option>Jersey</option><option>Denim</option><option>Suiting</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="f">
+          <label for="photos">Photos</label>
+          <input id="photos" name="photos" type="file" multiple title="Add at least one clear photo." />
+          <div class="err" id="err-photos">Please add at least one photo.</div>
+          <div class="hint pill" title="Use natural light; show texture & drape.">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M5.45 11H2m9-6.55V2m0 20v-3.45M22 12h-3.45M4.22 4.22l2.44 2.44M17.34 17.34l2.44 2.44M19.78 4.22l-2.44 2.44M6.66 17.34l-2.44 2.44"/></svg>
+            Quick tip: 4–6 images beat 1 perfect shot.
+          </div>
+        </div>
+
+        <div class="hm-card" style="padding:12px;margin:14px -16px 0 -16px;border-left:0;border-right:0;border-bottom:0;border-top:1px solid var(--hm-border);border-radius:0;">
+          <div class="row">
+            <div class="f">
+              <label for="shipflat">Flat-rate Shipping (USD)</label>
+              <input id="shipflat" name="shipflat" type="number" step="0.01" min="0" placeholder="e.g., 8.95" title="Customer pays this amount." />
+            </div>
+            <div class="f">
+              <label for="processing">Processing Time (days)</label>
+              <input id="processing" name="processing" type="number" min="0" step="1" placeholder="e.g., 2" title="Days before shipment." />
+            </div>
+          </div>
+          <div class="hint">You can refine shipping rules later.</div>
+        </div>
+
+        <div class="btns">
+          <button class="btn" type="button" id="saveDraft">Save Draft</button>
+          <button class="btn btn-primary" type="submit" id="publish">Publish Listing</button>
+          <button type="submit" name="action" value="submit" style="display:none">Submit</button>
+        </div>
+        <div class="ok" id="msg-draft">Draft saved (local only for now).</div>
+        <div class="ok" id="msg-publish">Validation passed (no backend yet).</div>
+      </form>
+
+      <!-- Right: helper card -->
+      <aside class="hm-card">
+        <h2>Seller Tips</h2>
+        <ul style="margin:8px 0 0 16px; padding:0; color:var(--hm-muted); font-size:14px;">
+          <li>Title = fiber + fabric + color (e.g., “Wool Crepe — Saffron”).</li>
+          <li>Add yardage, width, and handfeel in Description.</li>
+          <li>Show scale (ruler/coin) and drape in photos.</li>
+          <li>Flat-rate works well; add “Ships in X days”.</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Minimal JS: tiny inline validation + fake draft save -->
   <script>
     (function(){
+      // Profile dropdown
       const profile = document.querySelector(".hm-profile");
-      if(!profile) return;
-      document.addEventListener("click", function(e){
-        if(profile.contains(e.target)){
-          profile.classList.toggle("open");
-        } else {
-          profile.classList.remove("open");
-        }
+      if(profile){
+        document.addEventListener("click", function(e){
+          if(profile.contains(e.target)){ profile.classList.toggle("open"); }
+          else { profile.classList.remove("open"); }
+        });
+        const avatar = profile.querySelector(".hm-avatar");
+        if(avatar){ avatar.addEventListener("click", e => e.preventDefault()); }
+      }
+
+      // Listing validation
+      const $ = s => document.querySelector(s);
+      const form = $("#listingForm");
+      const req = [
+        {id:"#title", err:"#err-title"},
+        {id:"#price", err:"#err-price"},
+        {id:"#condition", err:"#err-condition"},
+        {id:"#photos", err:"#err-photos", check: el => el.files && el.files.length>0}
+      ];
+      const show = (sel, on)=>{ const el=$(sel); if(!el)return; el.style.display = on?"block":"none"; };
+
+      form.addEventListener("submit", function(e){
+        e.preventDefault();
+        let ok = true;
+        req.forEach(r=>{
+          const el=$(r.id);
+          const good = r.check ? r.check(el) : (el.value && String(el.value).trim() !== "");
+          show(r.err, !good); if(!good) ok=false;
+        });
+        if(ok){ show("#msg-publish", true); window.scrollTo({top:0,behavior:"smooth"}); }
       });
-      const avatar = profile.querySelector(".hm-avatar");
-      if(avatar){ avatar.addEventListener("click", e => e.preventDefault()); }
+
+      $("#saveDraft").addEventListener("click", function(){
+        const data = new FormData(form);
+        const obj = {}; data.forEach((v,k)=>{obj[k]=v;});
+        try{ localStorage.setItem("hm_draft_listing", JSON.stringify(obj)); }catch(_){}
+        show("#msg-draft", true);
+      });
     })();
   </script>
 </body>
