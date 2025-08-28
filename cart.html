@@ -1,176 +1,116 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Cart — Hemline Market</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cart · Hemline Market</title>
+  <link rel="stylesheet" href="styles/hm-modern.css" />
+  <link rel="stylesheet" href="styles/hem-header.css" />
+  <link rel="stylesheet" href="styles/hm-profile.css" />
+  <link rel="stylesheet" href="styles/hm-typography.css" />
   <style>
-    :root{--ink:#111;--muted:#666;--line:#eee;}
-    *{box-sizing:border-box}
-    body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:#fff}
-    header nav{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--line)}
-    header a{color:var(--ink);text-decoration:none}
-    .brand{font-weight:700;font-size:1.1rem}
-    .nav-left,.nav-right{display:flex;align-items:center;gap:24px}
-    .cta{padding:6px 12px;background:#111;color:#fff;border-radius:8px}
-    main{max-width:960px;margin:24px auto;padding:0 20px}
-    h1{margin:0 0 12px}
-    .muted{color:var(--muted)}
-    .cart-empty{padding:24px;border:1px dashed var(--line);border-radius:12px;text-align:center;margin-top:12px}
-    .cart-list{display:grid;grid-template-columns:1fr auto auto;gap:12px;border-top:1px solid var(--line);margin-top:12px}
-    .cart-row{display:contents}
-    .cell{padding:12px 0;border-bottom:1px solid var(--line)}
-    .name{font-weight:600}
-    .qty{display:flex;gap:8px;align-items:center}
-    .btn{padding:8px 12px;border:1px solid #ccc;border-radius:10px;background:#f9f9f9;cursor:pointer}
-    .btn:hover{background:#eee}
-    .actions{display:flex;gap:8px;flex-wrap:wrap}
-    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
-    .total{font-weight:700}
-    .checkout{padding:10px 14px;background:#111;color:#fff;border-radius:10px;border:1px solid #111;cursor:pointer}
-    .checkout:hover{background:#000}
-    .right{display:flex;gap:10px;align-items:center}
-    .price{white-space:nowrap}
+    .empty {
+      max-width: 600px;
+      margin: 60px auto;
+      text-align: center;
+      padding: 30px 20px;
+      border: 1px dashed #e5e7eb;
+      border-radius: 14px;
+      color: #6b7280;
+    }
+    .empty h2 {
+      margin: 0 0 10px 0;
+      font-size: 1.25rem;
+      color: #1f2937;
+    }
+    .empty a {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: #991b1b;
+      color: #fff;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .empty a:hover {
+      background: #7f1d1d;
+    }
   </style>
 </head>
 <body>
+  <!-- GLOBAL HEADER -->
+  <header class="hm-header" role="banner">
+    <div class="wrap">
+      <div class="left">
+        <a class="hm-brand" href="index.html" aria-label="Hemline Market home">
+          Hemline<span class="dot">•</span>Market
+        </a>
+        <nav class="hm-nav" aria-label="Primary">
+          <a href="browse.html">Browse</a>
+          <a href="about.html">About</a>
+        </nav>
+      </div>
 
-<header>
-  <nav>
-    <div class="nav-left">
-      <a class="brand" href="index.html">hemlinemarket</a>
-      <a href="catalog.html">Catalog</a>
-      <a href="browse.html">Browse</a>
-      <a href="atelier.html">Atelier Stash</a>
-    </div>
-    <div class="nav-right">
-      <a href="profile.html">Profile</a>
-      <a class="cta" href="list.html">List an Item</a>
-      <a class="hm-cart-link" href="cart.html">Cart <span id="cart-count">0</span></a>
-    </div>
-  </nav>
-</header>
+      <div class="hm-search">
+        <form action="browse.html" method="get" role="search" aria-label="Sitewide">
+          <input type="search" name="q" placeholder="Search fabrics, shops, or styles…" />
+          <button type="submit" aria-label="Search">Search</button>
+        </form>
+      </div>
 
-<main>
-  <h1>Your cart</h1>
-  <p class="muted">Items you’ve added from the catalog. This page reads your cart from your browser’s storage.</p>
-
-  <div id="cart-empty" class="cart-empty" style="display:none">
-    Your cart is empty. <a href="catalog.html">Go to the catalog</a>
-  </div>
-
-  <div id="cart-list" class="cart-list" aria-live="polite" aria-atomic="true"></div>
-
-  <div class="footer">
-    <div class="actions">
-      <button id="clear-cart" class="btn" type="button">Clear cart</button>
-      <button id="refresh" class="btn" type="button">Refresh</button>
-    </div>
-    <div class="right">
-      <div class="total">Total items: <span id="total-count">0</span></div>
-      <button id="checkout" class="checkout" type="button">Proceed to checkout</button>
-    </div>
-  </div>
-</main>
-
-<!-- Load shared header cart badge (safe if already loaded) -->
-<script id="hm-cart-badge" src="/assets/js/cart-badge.js" defer></script>
-
-<!-- Load cart store (reads/writes localStorage, exposes window.HMCART) -->
-<script id="hm-cart-store" src="/assets/js/cart-store.js" defer></script>
-
-<script>
-(function(){
-  const $ = (s,c=document)=>c.querySelector(s);
-  const $$ = (s,c=document)=>Array.from((c||document).querySelectorAll(s));
-
-  function ensureAPIsReady(cb){
-    if (window.HMCART) return cb();
-    document.getElementById('hm-cart-store').addEventListener('load', cb, {once:true});
-  }
-
-  function render(){
-    const listEl = $('#cart-list');
-    const emptyEl = $('#cart-empty');
-    const totalEl = $('#total-count');
-
-    const items = (window.HMCART && HMCART.getAll()) || [];
-    listEl.innerHTML = '';
-
-    if (items.length === 0){
-      emptyEl.style.display = 'block';
-      totalEl.textContent = '0';
-      return;
-    }
-    emptyEl.style.display = 'none';
-
-    // Header row
-    const header = document.createElement('div');
-    header.className = 'cart-row';
-    header.innerHTML = `
-      <div class="cell muted">Item</div>
-      <div class="cell muted">Added</div>
-      <div class="cell muted">Actions</div>
-    `;
-    listEl.appendChild(header);
-
-    items.forEach((it, idx)=>{
-      const row = document.createElement('div');
-      row.className = 'cart-row';
-      const when = new Date(it.ts || Date.now());
-      row.innerHTML = `
-        <div class="cell name">${(it.name||'Item').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-        <div class="cell">${when.toLocaleString()}</div>
-        <div class="cell">
-          <button class="btn" data-remove="${idx}" type="button">Remove</button>
+      <div class="hm-actions">
+        <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </a>
+        <a class="hm-btn hm-btn-primary" href="seller/index.html?list=new" aria-label="List an item">
+          <span class="label">List Item</span>
+        </a>
+        <div class="hm-profile">
+          <a class="hm-avatar" href="#" aria-label="Your profile">?</a>
+          <nav class="hm-profile-menu" aria-label="Profile">
+            <a href="account.html">Account</a>
+            <a href="atelier.html">Atelier</a>
+            <a href="listings.html">Listings</a>
+            <a href="drafts.html">Drafts</a>
+            <a href="favorites.html">Favorites</a>
+            <a href="orders.html">Orders</a>
+            <a href="bundles.html">Bundles</a>
+            <a href="notifications.html">Notifications</a>
+            <a href="settings.html">Settings</a>
+            <a href="help.html">Help</a>
+            <a href="logout.html">Log out</a>
+          </nav>
         </div>
-      `;
-      listEl.appendChild(row);
-    });
+      </div>
+    </div>
+  </header>
 
-    totalEl.textContent = String(items.length);
-  }
+  <!-- CART CONTENT -->
+  <main>
+    <div class="empty">
+      <h2>Your cart is empty</h2>
+      <p class="muted">When you add a fabric to your cart, it will appear here.</p>
+      <a href="browse.html">Browse Fabrics</a>
+    </div>
+  </main>
 
-  function bind(){
-    $('#clear-cart').addEventListener('click', function(){
-      if (!window.HMCART) return;
-      HMCART.clear();
-      render();
-    });
-    $('#refresh').addEventListener('click', render);
-    $('#cart-list').addEventListener('click', function(e){
-      const btn = e.target.closest('button[data-remove]');
-      if (!btn || !window.HMCART) return;
-      const idx = parseInt(btn.getAttribute('data-remove'), 10);
-      const items = HMCART.getAll();
-      if (isNaN(idx) || idx < 0 || idx >= items.length) return;
-      items.splice(idx, 1);
-      // write back
-      localStorage.setItem('hm_cart', JSON.stringify(items));
-      // sync badge
-      const badge = document.getElementById('cart-count');
-      if (badge) { badge.textContent = String(items.length); }
-      render();
-    });
-    $('#checkout').addEventListener('click', function(){
-      alert('Checkout flow coming next in Part 13.'); // placeholder
-    });
-  }
-
-  function init(){
-    render();
-    bind();
-  }
-
-  if (document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', function(){
-      ensureAPIsReady(init);
-    }, {once:true});
-  } else {
-    ensureAPIsReady(init);
-  }
-})();
-</script>
-
+  <!-- Profile dropdown toggle -->
+  <script>
+    (function(){
+      const profile = document.querySelector(".hm-profile");
+      if(profile){
+        document.addEventListener("click", function(e){
+          if(profile.contains(e.target)){ profile.classList.toggle("open"); }
+          else { profile.classList.remove("open"); }
+        });
+        const avatar = profile.querySelector(".hm-avatar");
+        if(avatar){ avatar.addEventListener("click", e => e.preventDefault()); }
+      }
+    })();
+  </script>
 </body>
 </html>
