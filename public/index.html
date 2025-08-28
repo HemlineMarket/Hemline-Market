@@ -1,128 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hemline Market</title>
-  <link rel="stylesheet" href="styles.css">
   <style>
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+    :root{
+      --container-max:1200px;
+      --pad:20px;
+      --brand:#800000;            /* deep merlot */
+      --ink:#111;
+      --muted:#555;
+      --card:#fff;
+      --border:#e5e7eb;
+      --radius:12px;
     }
-    /* Background with overlay */
-    .background {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: url('/images/homepage.jpeg') no-repeat center center fixed;
-      background-size: cover;
-      z-index: -2;
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--ink);
+      min-height:100%;
+      display:flex;flex-direction:column;
     }
-    .overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.25); /* subtle dark layer */
-      backdrop-filter: blur(2px);
-      z-index: -1;
+
+    /* Background image behind everything */
+    .bg-holder{position:fixed;inset:0;z-index:-2}
+    .bg-holder img{width:100%;height:100%;object-fit:cover}
+    .bg-overlay{
+      position:fixed;inset:0;z-index:-1;
+      background:rgba(0,0,0,.22);
+      backdrop-filter:blur(2px); /* subtle readability boost */
     }
-    header {
-      background: rgba(255, 255, 255, 0.85);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 2rem;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+
+    .container{max-width:var(--container-max);margin-inline:auto;padding-inline:var(--pad);width:100%}
+
+    /* Header / Nav */
+    header.navbar{
+      position:sticky;top:0;z-index:10;
+      background:rgba(255,255,255,.9);
+      backdrop-filter:saturate(120%) blur(6px);
+      border-bottom:1px solid #eee;
     }
-    nav {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
+    .nav-row{
+      height:56px;
+      display:flex;align-items:center;justify-content:space-between;
     }
-    nav a {
-      text-decoration: none;
-      color: #111;
-      font-weight: 500;
+    .brand{
+      font-weight:800;
+      font-size:18px;
+      color:var(--brand);
+      letter-spacing:-.01em;
+      text-decoration:none;
+      white-space:nowrap;
     }
-    .hero {
-      text-align: center;
-      padding: 4rem 1rem;
-      background: rgba(255, 255, 255, 0.8);
-      border-radius: 1rem;
-      max-width: 650px;
-      margin: 3rem auto;
+    .nav-left,.nav-right{display:flex;align-items:center;gap:18px}
+    .nav-left a.link, .nav-right a.link{
+      text-decoration:none;color:var(--ink);font-weight:600;font-size:15px;
     }
-    .cards {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1rem;
-      padding: 2rem;
+    .cta{
+      background:var(--brand);color:#fff !important;text-decoration:none;
+      padding:8px 14px;border-radius:8px;font-weight:700;display:inline-block
     }
-    .card {
-      background: white;
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-      flex: 1 1 250px;
-      max-width: 300px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    @media (max-width:700px){
+      .nav-left a.link{display:none} /* keep brand only on small screens */
     }
-    footer {
-      background: rgba(255, 255, 255, 0.85);
-      text-align: center;
-      padding: 1rem;
+
+    /* HERO */
+    .hero{display:grid;place-items:center;text-align:center;min-height:60vh}
+    .hero-card{
+      background:rgba(255,255,255,.9);
+      width:min(92vw,760px);
+      border-radius:16px;padding:28px;
+      box-shadow:0 12px 32px rgba(0,0,0,.12)
     }
+    .hero h1{
+      font-size:clamp(28px,3.2vw,38px);
+      font-weight:800;letter-spacing:-.02em;margin-bottom:10px
+    }
+    .hero p{color:var(--muted);margin-bottom:16px}
+
+    /* Pill search */
+    .search-pill{
+      display:flex;gap:8px;align-items:center;justify-content:center;
+      background:#fff;border:1px solid #dcdcdc;border-radius:999px;
+      padding:6px 6px;max-width:640px;margin-inline:auto
+    }
+    .search-pill input{
+      flex:1;border:0;outline:0;padding:10px 12px;border-radius:999px;font-size:14px
+    }
+    .search-pill button{
+      background:var(--brand);color:#fff;border:0;border-radius:999px;
+      padding:10px 16px;font-weight:700;cursor:pointer
+    }
+
+    /* Feature cards */
+    main.section{padding:42px 0 56px}
+    .cards{display:grid;gap:16px;grid-template-columns:repeat(3,1fr)}
+    @media (max-width:900px){.cards{grid-template-columns:1fr 1fr}}
+    @media (max-width:640px){.cards{grid-template-columns:1fr}.hero{min-height:54vh}}
+    .card{
+      background:var(--card);border:1px solid var(--border);
+      border-radius:var(--radius);padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.08)
+    }
+    .card h2{font-size:18px;margin:0 0 8px;font-weight:700}
+    .card p{font-size:14px;color:var(--muted);margin:0 0 10px}
+    .card .cta-small{
+      display:inline-block;background:#000;color:#fff;text-decoration:none;
+      padding:8px 12px;border-radius:8px;font-weight:700
+    }
+
+    /* Footer */
+    footer{
+      background:rgba(255,255,255,.94);
+      border-top:1px solid #eee;
+      padding:18px 0;
+      margin-top:auto;
+    }
+    .footer-links{
+      display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
+      font-size:14px;color:var(--muted)
+    }
+    .footer-links a{color:var(--muted);text-decoration:none}
+    .copy{text-align:center;color:var(--muted);font-size:13px;margin-top:8px}
   </style>
 </head>
 <body>
-  <div class="background"></div>
-  <div class="overlay"></div>
+  <!-- Background -->
+  <div class="bg-holder">
+    <picture>
+      <!-- If you later add /images/homepage.webp it will load faster on mobile -->
+      <source srcset="/images/homepage.webp" type="image/webp">
+      <img src="/images/homepage.jpeg" alt="Fabric background">
+    </picture>
+  </div>
+  <div class="bg-overlay"></div>
 
-  <header>
-    <div class="logo">Hemline Market</div>
-    <nav>
-      <a href="/new.html">New Arrivals</a>
-      <a href="/atelier.html">My Atelier</a>
-      <a href="/favorites.html">❤</a>
-      <a href="/notifications.html">🔔</a>
-      <a href="/account.html">👤</a>
-      <a href="/seller.html" style="font-weight:bold;">List Item</a>
-    </nav>
+  <!-- NAV -->
+  <header class="navbar">
+    <div class="container nav-row">
+      <div class="nav-left">
+        <a href="/" class="brand">Hemline Market</a>
+        <a class="link" href="/new.html">New Arrivals</a>
+        <a class="link" href="/atelier.html">My Atelier</a>
+      </div>
+      <div class="nav-right">
+        <a class="link" href="/favorites.html" title="Favorites">❤️</a>
+        <a class="link" href="/notifications.html" title="Notifications">🔔</a>
+        <a class="link" href="/account.html" title="My Account">👤</a>
+        <a class="cta"  href="/seller/list.html">List Item</a>
+      </div>
+    </div>
   </header>
 
+  <!-- HERO -->
   <section class="hero">
-    <h1>Find the perfect fabric for your next piece</h1>
-    <p>Search by content, weight, width, and more. Transparent listings. Seller-friendly tools.</p>
-    <form>
-      <input type="text" placeholder="Search silk, wool, lawn…" />
-      <button type="submit">Browse</button>
-    </form>
-  </section>
-
-  <section class="cards">
-    <div class="card">
-      <h3>Shop by Material</h3>
-      <p>Silk, wool, cotton, linen, leather, blends, and more.</p>
-      <button>Explore materials →</button>
-    </div>
-    <div class="card">
-      <h3>Trending Colors</h3>
-      <p>Charcoal, rosewood, hunter, and modern neutrals.</p>
-      <button>See colors →</button>
-    </div>
-    <div class="card">
-      <h3>Recently Listed</h3>
-      <p>Fresh fabrics added by sellers — see what just landed.</p>
-      <button>View new listings →</button>
+    <div class="hero-card">
+      <h1>Find the perfect fabric for your next piece</h1>
+      <p>Search by content, weight, width, and more.</p>
+      <form class="search-pill" action="/browse.html" method="get">
+        <input type="text" name="q" placeholder="Search silk, wool, lawn…" />
+        <button type="submit">Browse</button>
+      </form>
     </div>
   </section>
 
+  <!-- FEATURE CARDS -->
+  <main class="section">
+    <div class="container">
+      <div class="cards">
+        <article class="card">
+          <h2>Shop by Material</h2>
+          <p>Silk, wool, cotton, linen, leather, blends, and more.</p>
+          <a class="cta-small" href="/browse.html">Explore materials →</a>
+        </article>
+
+        <article class="card">
+          <h2>Trending Colors</h2>
+          <p>Charcoal, rosewood, hunter, and modern neutrals.</p>
+          <a class="cta-small" href="/browse.html?tab=colors">See colors →</a>
+        </article>
+
+        <article class="card">
+          <h2>Recently Listed</h2>
+          <p>Fresh fabrics added by sellers — see what just landed.</p>
+          <a class="cta-small" href="/listings.html">View new listings →</a>
+        </article>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
   <footer>
-    <p>© 2025 Hemline Market — <a href="/about.html">About</a> · <a href="/account.html">My Account</a></p>
+    <div class="container">
+      <div class="footer-links">
+        <a href="/faq.html">FAQ</a> •
+        <a href="/contact.html">Contact Us</a> •
+        <a href="/feedback.html">Site Feedback</a> •
+        <a href="/privacy.html">Privacy</a> •
+        <a href="/terms.html">Terms &amp; Conditions</a> •
+        <a href="/subscribe.html">Subscribe</a>
+      </div>
+      <div class="copy">© 2025 Hemline Market</div>
+    </div>
   </footer>
 </body>
 </html>
