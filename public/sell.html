@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="description" content="Hemline Market — List fabric with clear photos and transparent specs. Accessible, seller-friendly form with live validation.">
 <title>Hemline Market — List an Item</title>
 <meta name="theme-color" content="#333333"/>
 <style>
@@ -17,7 +18,7 @@
   *{box-sizing:border-box}
   html,body{margin:0;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
-  /* FULL-BLEED BACKGROUND (match site) */
+  /* FULL-BLEED BACKGROUND (brand) */
   body{position:relative;min-height:100vh}
   body::before{
     content:""; position:fixed; inset:0; z-index:-2;
@@ -34,7 +35,10 @@
   a{text-decoration:none;color:#000} a:hover{color:var(--hm-rosewood)}
   img{max-width:100%;display:block}
 
-  /* Header (same as site) */
+  /* ✅ Visible keyboard focus */
+  :focus-visible{ outline:3px solid var(--hm-rosewood); outline-offset:2px; border-radius:6px; }
+
+  /* Header (site) */
   .hm-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);backdrop-filter:saturate(120%) blur(6px);border-bottom:1px solid rgba(0,0,0,.08)}
   .hm-header-inner{height:90px;max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 16px}
   .hm-logo img{height:80px}
@@ -42,7 +46,7 @@
   .hm-nav a{font-weight:700}
   .hm-nav .cta{font-weight:900;padding:10px 18px;border-radius:999px;background:var(--hm-cta);color:#fff;border:1px solid #000}
 
-  /* Layout shell */
+  /* Layout */
   .wrap{max-width:1200px;margin:26px auto 48px;padding:0 16px;display:grid;grid-template-columns:1.15fr .85fr;gap:22px}
   @media (max-width:980px){.wrap{grid-template-columns:1fr}}
   .card{
@@ -52,7 +56,7 @@
   .card h2{margin:0;padding:16px 18px;border-bottom:1px solid rgba(0,0,0,.12)}
   .card-body{padding:18px}
 
-  /* Filter-style sections */
+  /* Sections */
   .section{border:var(--hm-border);border-radius:14px;padding:16px;margin-bottom:16px;background:#fff}
   .section-title{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px 0;font-weight:800}
   .field{display:flex;flex-direction:column;gap:8px;margin-top:8px}
@@ -135,8 +139,8 @@
     <nav class="hm-nav" aria-label="Primary">
       <a href="/new">New Arrivals</a>
       <a href="/atelier">My Atelier</a>
-      <a href="/favorites">❤ Favorites</a>
-      <a href="/notifications">🔔 Notifications</a>
+      <a href="/favorites" aria-label="Favorites">❤ Favorites</a>
+      <a href="/notifications" aria-label="Notifications">🔔 Notifications</a>
       <a href="/account">My Account</a>
       <a class="cta" href="/list">List Item</a>
     </nav>
@@ -145,103 +149,108 @@
 
 <main class="wrap">
   <!-- FORM -->
-  <section class="card">
+  <section class="card" aria-label="List item form">
     <h2>List an Item</h2>
     <div class="card-body">
       <!-- ✅ friendly error summary -->
-      <div id="errorSummary" class="error-summary" role="alert" aria-live="assertive">
+      <div id="errorSummary" class="error-summary" role="alert" aria-live="assertive" tabindex="-1">
         Let’s fix a few things:
         <ul id="errorList" class="error-list"></ul>
       </div>
 
-      <form id="sell-form" novalidate>
+      <form id="sell-form" novalidate aria-describedby="formHelp">
+        <p id="formHelp" class="hint">Fields marked required must be completed before publishing.</p>
+
         <!-- Images -->
-        <div class="section" id="sec-images">
-          <h3 class="section-title">Images</h3>
-          <div class="hint" style="margin-bottom:10px">
+        <div class="section" id="sec-images" aria-labelledby="imagesTitle">
+          <h3 class="section-title" id="imagesTitle">Images</h3>
+          <div class="hint" id="imagesHint" style="margin-bottom:10px">
             Please include at least three photos: <strong>one close-up</strong>, <strong>one folded</strong>, and <strong>one drape</strong>. Place a <strong>ruler in-frame</strong> in at least one photo (you can <a href="/ruler.svg" download>print this ruler</a>).
           </div>
-          <div id="uploader" class="uploader">
-            <input id="files" type="file" accept="image/*" multiple>
+          <div id="uploader" class="uploader" role="region" aria-label="Image uploader" aria-describedby="imagesHint">
+            <input id="files" type="file" accept="image/*" multiple aria-label="Choose images to upload">
             <div>Drag & drop images here or</div>
-            <button type="button" class="btn" id="pickFiles">Choose Images</button>
+            <button type="button" class="btn" id="pickFiles" aria-label="Pick images">Choose Images</button>
           </div>
-          <div id="thumbs" class="thumbs"></div>
-          <div id="err-images" class="error-msg">Add at least 3 photos.</div>
+          <div id="thumbs" class="thumbs" role="list" aria-label="Selected images"></div>
+          <div id="err-images" class="error-msg" role="alert">Add at least 3 photos.</div>
         </div>
 
         <!-- Description -->
-        <div class="section" id="sec-desc">
-          <h3 class="section-title">Description</h3>
+        <div class="section" id="sec-desc" aria-labelledby="descTitle">
+          <h3 class="section-title" id="descTitle">Description</h3>
           <div class="field" id="fld-desc">
             <label class="label" for="description">Details</label>
-            <textarea id="description" class="input" placeholder="Mention drape, structure/hand, weave, care, defects, stretch, finish, end-use, etc."></textarea>
-            <div id="err-desc" class="error-msg">Add a brief description (a sentence or two).</div>
+            <textarea id="description" class="input" placeholder="Mention drape, structure/hand, weave, care, defects, stretch, finish, end-use, etc." aria-describedby="descHint"></textarea>
+            <div id="descHint" class="hint">Examples: “fluid drape”, “light structure”, “hand-wash cold”, “tiny pull near selvage”.</div>
+            <div id="err-desc" class="error-msg" role="alert">Add a brief description (a sentence or two).</div>
           </div>
           <div class="field" id="fld-title" style="margin-top:12px">
             <label class="label" for="title">Title <span class="hint">(required)</span></label>
-            <input id="title" class="input" placeholder="e.g., Italian Silk Twill — Navy Chain" required>
-            <div id="err-title" class="error-msg">Please add a title.</div>
+            <input id="title" class="input" placeholder="e.g., Italian Silk Twill — Navy Chain" required aria-required="true">
+            <div id="err-title" class="error-msg" role="alert">Please add a title.</div>
           </div>
         </div>
 
         <!-- Price & Availability -->
-        <div class="section" id="sec-price">
-          <h3 class="section-title">Price & Availability</h3>
+        <div class="section" id="sec-price" aria-labelledby="priceTitle">
+          <h3 class="section-title" id="priceTitle">Price & Availability</h3>
           <div class="row">
             <div class="field" id="fld-price">
               <label class="label" for="pricePerYd">Price (per yard) <span class="hint">(required)</span></label>
               <div class="prefix">
-                <span class="prefix-tag">$</span>
-                <input id="pricePerYd" type="number" min="0" step="0.01" class="input" placeholder="e.g., 48" required>
+                <span class="prefix-tag" aria-hidden="true">$</span>
+                <input id="pricePerYd" type="number" min="0" step="0.01" class="input" placeholder="e.g., 48" required aria-required="true" aria-describedby="priceHint">
               </div>
-              <div id="err-price" class="error-msg">Enter a valid price (0 or higher).</div>
+              <div id="priceHint" class="hint">Charged per yard.</div>
+              <div id="err-price" class="error-msg" role="alert">Enter a valid price (0 or higher).</div>
             </div>
             <div class="field" id="fld-yards">
               <label class="label" for="yardsSelect">Yards Available <span class="hint">(0.5 increments, required)</span></label>
-              <select id="yardsSelect" class="select"></select>
-              <input type="hidden" id="yards">
-              <div id="err-yards" class="error-msg">Choose at least 0.5 yards.</div>
+              <select id="yardsSelect" class="select" aria-required="true" aria-describedby="yardsHint"></select>
+              <input type="hidden" id="yards" aria-hidden="true">
+              <div id="yardsHint" class="hint">Choose total yardage you’re listing.</div>
+              <div id="err-yards" class="error-msg" role="alert">Choose at least 0.5 yards.</div>
             </div>
           </div>
-          <div class="field" style="margin-top:12px">
-            <label class="label">Selling Mode</label>
+          <fieldset class="field" style="margin-top:12px">
+            <legend class="label">Selling Mode</legend>
             <label><input type="radio" name="sellingMode" value="lot" checked> Sell all yardage together as one lot</label>
             <label style="margin-top:6px"><input type="radio" name="sellingMode" value="increments"> Sell in 0.5 yard increments (buyer chooses quantity)</label>
-          </div>
+          </fieldset>
         </div>
 
         <!-- Specs -->
-        <div class="section" id="sec-specs">
-          <h3 class="section-title">Specs</h3>
+        <div class="section" id="sec-specs" aria-labelledby="specsTitle">
+          <h3 class="section-title" id="specsTitle">Specs</h3>
           <div class="row">
             <div class="field" id="fld-width">
               <label class="label" for="widthIn">Width (inches)</label>
-              <input id="widthIn" type="number" min="1" step="0.1" class="input" placeholder="e.g., 54">
-              <div class="hint"><label><input type="checkbox" id="widthUnknown"> Unknown</label></div>
+              <input id="widthIn" type="number" min="1" step="0.1" class="input" placeholder="e.g., 54" aria-describedby="widthHelp">
+              <div class="hint" id="widthHelp"><label><input type="checkbox" id="widthUnknown"> Unknown</label></div>
             </div>
             <div class="field" id="fld-weight">
               <label class="label" for="weightGsm">Weight (GSM)</label>
-              <input id="weightGsm" type="number" min="0" step="1" class="input" placeholder="e.g., 95">
-              <div class="hint"><label><input type="checkbox" id="weightUnknown"> Unknown</label></div>
+              <input id="weightGsm" type="number" min="0" step="1" class="input" placeholder="e.g., 95" aria-describedby="weightHelp">
+              <div class="hint" id="weightHelp"><label><input type="checkbox" id="weightUnknown"> Unknown</label></div>
             </div>
           </div>
 
           <div class="row" style="margin-top:12px">
-            <div class="field">
-              <label class="label">Department</label>
+            <fieldset class="field">
+              <legend class="label">Department</legend>
               <div class="hint">Select at least one or mark Unknown</div>
-              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px">
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px" role="group" aria-label="Department">
                 <label><input type="checkbox" name="department" value="fashion"> Fashion</label>
                 <label><input type="checkbox" name="department" value="home"> Home</label>
                 <label><input type="checkbox" name="department" value="quilting"> Quilting</label>
                 <label><input type="checkbox" name="department" value="notions"> Notions</label>
                 <label><input type="checkbox" name="department" value="unknown"> Unknown</label>
               </div>
-            </div>
-            <div class="field">
-              <label class="label">Country Made</label>
-              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px">
+            </fieldset>
+            <fieldset class="field">
+              <legend class="label">Country Made</legend>
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px" role="group" aria-label="Country made">
                 <label><input type="checkbox" name="country" value="france"> France</label>
                 <label><input type="checkbox" name="country" value="italy"> Italy</label>
                 <label><input type="checkbox" name="country" value="japan"> Japan</label>
@@ -250,20 +259,21 @@
                 <label><input type="checkbox" name="country" value="other"> Other</label>
                 <label><input type="checkbox" name="country" value="unknown"> Unknown</label>
               </div>
-            </div>
+            </fieldset>
           </div>
 
           <!-- Designer (optional) -->
           <div class="field" style="margin-top:12px">
             <label class="label" for="designer">Designer / Brand <span class="hint">(optional)</span></label>
-            <input id="designer" class="input" placeholder="e.g., Loro Piana, Liberty, deadstock mill…">
+            <input id="designer" class="input" placeholder="e.g., Loro Piana, Liberty, deadstock mill…" aria-describedby="designerHelp">
+            <div id="designerHelp" class="hint">If unknown, leave blank.</div>
           </div>
 
           <!-- Content -->
-          <div class="field" style="margin-top:12px">
-            <label class="label">Fabric Content (multi-select)</label>
+          <fieldset class="field" style="margin-top:12px">
+            <legend class="label">Fabric Content (multi-select)</legend>
             <div class="hint">Choose all that apply (Unknown and Other supported)</div>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="content-list">
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="content-list" role="group" aria-label="Fabric content">
               <label><input type="checkbox" id="contentUnknown" value="unknown"> Unknown</label>
               <label><input type="checkbox" value="acetate"> Acetate</label>
               <label><input type="checkbox" value="acrylic"> Acrylic</label>
@@ -290,16 +300,16 @@
             </div>
             <div class="row" style="margin-top:6px">
               <div class="field">
-                <label class="label">Other (content)</label>
+                <label class="label" for="contentOther">Other (content)</label>
                 <input class="input" id="contentOther" placeholder="e.g., ramie blend">
               </div>
             </div>
-          </div>
+          </fieldset>
 
           <!-- Type -->
-          <div class="field" style="margin-top:12px">
-            <label class="label">Fabric Type (multi-select)</label>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="type-list">
+          <fieldset class="field" style="margin-top:12px">
+            <legend class="label">Fabric Type (multi-select)</legend>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="type-list" role="group" aria-label="Fabric type">
               <label><input type="checkbox" id="typeUnknown" value="unknown"> Unknown</label>
               <label><input type="checkbox" value="boucle"> Bouclé</label>
               <label><input type="checkbox" value="canvas"> Canvas</label>
@@ -324,16 +334,16 @@
             </div>
             <div class="row" style="margin-top:6px">
               <div class="field">
-                <label class="label">Other (type)</label>
+                <label class="label" for="typeOther">Other (type)</label>
                 <input class="input" id="typeOther" placeholder="e.g., ottoman weave">
               </div>
             </div>
-          </div>
+          </fieldset>
 
           <!-- Color -->
-          <div class="section">
-            <h3 class="section-title">Color</h3>
-            <div class="chips" id="color-chips">
+          <div class="section" aria-labelledby="colorTitle">
+            <h3 class="section-title" id="colorTitle">Color</h3>
+            <div class="chips" id="color-chips" role="group" aria-label="Color">
               <label class="chip"><input type="checkbox" value="unknown"><span>Unknown</span></label>
               <label class="chip"><input type="checkbox" value="black"><span class="dot black"></span><span>Black</span></label>
               <label class="chip"><input type="checkbox" value="white"><span class="dot white"></span><span>White</span></label>
@@ -353,9 +363,9 @@
             </div>
           </div>
 
-          <div class="actions">
+          <div class="actions" aria-label="Form actions">
             <button type="button" class="btn" id="preview-btn">Preview</button>
-            <button type="submit" class="btn btn-primary" id="publish-btn" disabled>Publish Listing</button>
+            <button type="submit" class="btn btn-primary" id="publish-btn" disabled aria-disabled="true">Publish Listing</button>
           </div>
         </div>
       </form>
@@ -363,10 +373,10 @@
   </section>
 
   <!-- PREVIEW -->
-  <aside class="card preview">
+  <aside class="card preview" aria-label="Listing preview">
     <h2>Preview</h2>
     <div class="card-body">
-      <div class="thumb" id="preview-thumb"></div>
+      <div class="thumb" id="preview-thumb" role="img" aria-label="Preview image"></div>
       <h3 id="p-title" style="margin:12px 0 6px">Your Title</h3>
       <div class="meta" id="p-meta">0 yd • 0″ • —</div>
       <div class="price" id="p-price">$0 / yd</div>
@@ -390,15 +400,15 @@
     yardsSelect.addEventListener('change',()=>yardsHidden.value=yardsSelect.value);
   }
 
-  // Unknown toggles
-  $('#widthUnknown')?.addEventListener('change',e=>{const i=$('#widthIn'); i.disabled=e.target.checked; if(e.target.checked) i.value='';});
-  $('#weightUnknown')?.addEventListener('change',e=>{const i=$('#weightGsm'); i.disabled=e.target.checked; if(e.target.checked) i.value='';});
+  // Unknown toggles lock others
   function wireUnknown(id, containerSel){
     const unk=$(id); if(!unk) return;
     unk.addEventListener('change',()=>{
       $$(containerSel+' input[type="checkbox"]').forEach(cb=>{ if(cb!==unk){cb.disabled=unk.checked; if(unk.checked) cb.checked=false;} });
     });
   }
+  $('#widthUnknown')?.addEventListener('change',e=>{const i=$('#widthIn'); i.disabled=e.target.checked; if(e.target.checked) i.value='';});
+  $('#weightUnknown')?.addEventListener('change',e=>{const i=$('#weightGsm'); i.disabled=e.target.checked; if(e.target.checked) i.value='';});
   wireUnknown('#contentUnknown','#content-list');
   wireUnknown('#typeUnknown','#type-list');
 
@@ -412,7 +422,7 @@
   function addFiles(list){ Array.from(list||[]).slice(0,12).forEach(f=>{const url=URL.createObjectURL(f); images.push({url});}); renderThumbs(); updatePreview(); validate(); }
   function renderThumbs(){
     thumbs.innerHTML=''; images.forEach((img,idx)=>{ const t=document.createElement('div'); t.className='t';
-      const im=document.createElement('img'); im.src=img.url; const rm=document.createElement('button'); rm.className='remove'; rm.type='button'; rm.textContent='×';
+      const im=document.createElement('img'); im.src=img.url; const rm=document.createElement('button'); rm.className='remove'; rm.type='button'; rm.setAttribute('aria-label','Remove image'); rm.textContent='×';
       rm.addEventListener('click',()=>{images.splice(idx,1); renderThumbs(); updatePreview(); validate();}); t.appendChild(im); t.appendChild(rm); thumbs.appendChild(t);
     });
   }
@@ -426,7 +436,6 @@
     const chip = cb.closest('.chip'); if (chip) chip.classList.toggle('active', cb.checked);
   });
 
-  // Preview + validation helpers
   function values(){
     const v={};
     v.title=$('#title')?.value?.trim()||'';
@@ -447,6 +456,7 @@
     v.designer=$('#designer')?.value?.trim()||'';
     return v;
   }
+
   function updatePreview(){
     const v=values();
     $('#p-title').textContent=v.title||'Your Title';
@@ -456,7 +466,8 @@
     $('#p-tags').textContent=[v.type.join(', '), v.content.join(', '), v.colors.join(', '), extra, v.sellingMode==='increments'?'0.5 yd increments':'sold as one lot'].filter(Boolean).join(' • ');
     $('#p-desc').textContent=v.desc||'';
     const th=$('#preview-thumb');
-    if(v.images?.length){ th.style.background=`url('${v.images[0]}') center/cover no-repeat`; } else { th.style.background='linear-gradient(0deg,#e9e9e9,#f5f5f5)'; }
+    if(v.images?.length){ th.style.background=`url('${v.images[0]}') center/cover no-repeat`; th.setAttribute('aria-label','Preview image from the first uploaded photo'); }
+    else { th.style.background='linear-gradient(0deg,#e9e9e9,#f5f5f5)'; th.setAttribute('aria-label','Preview placeholder'); }
   }
 
   // ✅ Inline errors
@@ -469,7 +480,7 @@
 
   function showFieldError(key, on){
     const cfg = fields[key];
-    const sec = $(cfg.section); const em = $(cfg.err);
+    const sec = document.querySelector(cfg.section); const em = document.querySelector(cfg.err);
     if(!sec||!em) return;
     sec.classList.toggle('error', on);
     sec.classList.toggle('good', !on);
@@ -477,23 +488,21 @@
   }
 
   function validate(){
-    const v=values(); // (also ensures hidden yards synced)
+    const v=values(); // ensures hidden yards synced
     const failed = Object.keys(fields).filter(k=>!fields[k].valid());
-    // Field highlights
     Object.keys(fields).forEach(k=>showFieldError(k, failed.includes(k)));
 
-    // Summary
     const sum = $('#errorSummary'); const list = $('#errorList');
     if(failed.length){
       list.innerHTML = failed.map(k=>`<li>${fields[k].msg}</li>`).join('');
-      sum.classList.add('show');
+      sum.classList.add('show'); sum.setAttribute('tabindex','-1'); sum.focus();
     } else {
       sum.classList.remove('show');
       list.innerHTML = '';
     }
 
-    // Publish button
     $('#publish-btn').disabled = failed.length>0;
+    $('#publish-btn').setAttribute('aria-disabled', String(failed.length>0));
     return failed.length===0;
   }
 
@@ -502,11 +511,7 @@
   $('#preview-btn')?.addEventListener('click',()=>{updatePreview(); validate();});
   $('#sell-form')?.addEventListener('submit',e=>{
     e.preventDefault(); updatePreview();
-    if(!validate()){
-      // Focus the summary so screen readers announce it
-      $('#errorSummary').focus?.();
-      return;
-    }
+    if(!validate()) return;
     const v=values();
     const payload={ ...v, content:[...v.content, ...(v.contentOther?[v.contentOther]:[])], type:[...v.type, ...(v.typeOther?[v.typeOther]:[])] };
     console.log('SELLER_PAYLOAD', payload);
@@ -515,8 +520,6 @@
 
   // init
   updatePreview(); validate();
-
-  // Reusable toggles wired earlier
 })();
 </script>
 
