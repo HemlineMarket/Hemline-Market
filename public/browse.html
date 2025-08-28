@@ -5,476 +5,436 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Hemline Market — Browse</title>
 <meta name="theme-color" content="#333333"/>
+
 <style>
-  /* Brand tokens (matches home) */
+  /* ======= Brand tokens (match homepage) ======= */
   :root{
     --hm-charcoal:#333333; --hm-rosewood:#65000b; --hm-hunter:#355e3b; --hm-black:#000;
-    --hm-bg:#fff; --hm-text:#111; --hm-muted:#6b7280;
-    --hm-border:1px solid rgba(0,0,0,.12); --hm-shadow:0 8px 24px rgba(0,0,0,.08);
+    --hm-bg:#fff; --hm-text:#111827; --hm-muted:#6b7280;
+    --hm-border:1px solid rgba(0,0,0,.12); --hm-shadow:0 8px 24px rgba(0,0,0,.06);
     --hm-radius:14px; --hm-gap:16px;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Inter,Roboto,Helvetica,Arial}
-  a{color:#111;text-decoration:none}
-  a:hover{color:var(--hm-rosewood)}
+  html,body{margin:0;background:#fff;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Inter,Roboto,Helvetica,Arial}
+  img{max-width:100%;display:block}
+  a{color:#111;text-decoration:none} a:hover{color:var(--hm-rosewood)}
 
-  /* ===== Header (like homepage) ===== */
-  .site-header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid rgba(0,0,0,.08);backdrop-filter:saturate(115%) blur(6px)}
-  .site-header .row{max-width:1200px;margin:0 auto;height:64px;display:flex;align-items:center;gap:18px;padding:0 16px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:900}
-  .brand img{height:32px}
-  .nav{display:flex;align-items:center;gap:18px;margin-left:8px}
+  /* ======= Header (identical to homepage) ======= */
+  .site-header{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid rgba(0,0,0,.06)}
+  .site-header .inner{max-width:1200px;margin:0 auto;height:72px;display:flex;align-items:center;gap:20px;padding:0 16px}
+  .brand{font-weight:900;font-size:18px;white-space:nowrap}
+  .nav{display:flex;gap:22px;align-items:center}
   .nav a{font-weight:600}
   .spacer{flex:1}
-  .icons{display:flex;align-items:center;gap:14px}
-  .cta{background:#111;color:#fff;font-weight:900;border:1px solid #000;border-radius:999px;padding:8px 14px}
-  .cta:hover{background:#222}
+  .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;border:var(--hm-border);background:#fff}
+  .cta{padding:10px 16px;border-radius:999px;background:#111;color:#fff;font-weight:800;border:1px solid #000}
+  .cta:hover{background:#000}
+  .emoji{font-size:16px;line-height:1}
+  @media (max-width:820px){ .nav{gap:14px} }
 
-  /* ===== Layout ===== */
-  main{max-width:1200px;margin:16px auto 40px;padding:0 16px;display:grid;grid-template-columns:320px 1fr;gap:20px}
-  @media (max-width:980px){main{grid-template-columns:1fr}}
-  .panel{position:sticky;top:72px;align-self:start;background:#fff;border:var(--hm-border);border-radius:16px;box-shadow:var(--hm-shadow);padding:12px;max-height:calc(100vh - 96px);overflow:auto}
-  .group{border-bottom:var(--hm-border);padding:6px 0 10px}
-  .group:last-child{border-bottom:0}
-  .group summary{list-style:none;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:800;padding:8px 6px}
-  .group summary::-webkit-details-marker{display:none}
-  .group .body{padding:6px}
-  .checklist{display:grid;gap:8px;max-height:240px;overflow:auto;padding-right:4px}
+  /* ======= Layout ======= */
+  .wrap{max-width:1200px;margin:18px auto 48px;padding:0 16px;display:grid;grid-template-columns:300px 1fr;gap:18px}
+  @media (max-width:980px){.wrap{grid-template-columns:1fr}}
+
+  /* ======= Filters column ======= */
+  .filters{background:#fff;border:var(--hm-border);border-radius:18px;box-shadow:var(--hm-shadow);padding:12px}
+  .filters details{border-top:var(--hm-border)}
+  .filters details:first-of-type{border-top:0}
+  .filters summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;padding:10px 6px;font-weight:800}
+  .filters .body{padding:0 6px 12px 6px}
+  .checklist{display:grid;gap:8px;max-height:230px;overflow:auto;padding-right:6px}
   .row{display:flex;align-items:center;gap:10px}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
-  .chip{display:inline-flex;align-items:center;gap:8px;background:#f3f4f6;border:var(--hm-border);border-radius:999px;padding:6px 10px;font-size:12px}
-  .chip button{border:0;background:transparent;cursor:pointer;font-size:14px}
-  .toolbar{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-bottom:10px}
-  .select{padding:10px 12px;border:var(--hm-border);border-radius:10px}
-  .input{padding:12px;border:var(--hm-border);border-radius:12px;width:100%}
+  .row input[type="checkbox"], .row input[type="radio"]{width:16px;height:16px}
+  .muted{color:var(--hm-muted);font-size:13px}
 
-  /* Results */
-  #summary{margin:2px 0 8px;color:var(--hm-muted);font-size:13px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  @media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
-  @media (max-width:640px){.grid{grid-template-columns:1fr}}
-  .card{background:#fff;border:var(--hm-border);border-radius:12px;overflow:hidden}
-  .thumb{height:180px;background:repeating-linear-gradient(45deg,#0001 0 10px,#0000 10px 20px)}
-  .body{padding:10px 12px}
-  .title{font-weight:800;margin:0 0 6px}
+  /* Range pairs */
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .input{width:100%;padding:10px 12px;border:var(--hm-border);border-radius:12px}
+
+  /* Color swatches */
+  .swatches{display:flex;flex-wrap:wrap;gap:10px}
+  .sw{--s:28px;display:inline-flex;align-items:center;gap:8px}
+  .sw i{display:block;width:var(--s);height:var(--s);border-radius:6px;border:1px solid rgba(0,0,0,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+  .sw input{display:none}
+  .sw input:checked + i{outline:2px solid var(--hm-hunter);outline-offset:2px}
+
+  /* ======= Results ======= */
+  .results-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .sort{padding:10px 12px;border:var(--hm-border);border-radius:10px;background:#fff}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  @media (min-width:980px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .card{border:var(--hm-border);border-radius:14px;overflow:hidden;background:#fff}
+  .thumb{height:180px;background:linear-gradient(0deg,#eee,#f7f7f7)}
+  .card .body{padding:12px}
+  .title{font-weight:700;margin:0 0 4px}
   .meta{color:var(--hm-muted);font-size:12px}
-  .price{font-weight:900;margin-top:4px}
+  .price{font-weight:900;margin-top:6px}
 
-  /* ===== Footer (like homepage) ===== */
-  .site-footer{border-top:1px solid rgba(0,0,0,.08);padding:18px 0 26px;margin-top:40px;background:#fff}
-  .site-footer .wrap{max-width:1200px;margin:0 auto;padding:0 16px;color:#111}
-  .foot-links{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;font-size:14px}
-  .copyright{margin-top:8px;text-align:center;color:var(--hm-muted);font-size:13px}
-  .dot::before{content:"•";margin:0 8px;color:var(--hm-muted)}
+  /* ======= Footer (match homepage) ======= */
+  .site-footer{border-top:1px solid rgba(0,0,0,.08);padding:22px 16px;color:var(--hm-muted)}
+  .site-footer .inner{max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center}
+  .site-footer .inner a{color:inherit}
 </style>
 </head>
 <body>
 
-<!-- ===== Header (matches home; no search bar here) ===== -->
+<!-- ======= Header (same as homepage) ======= -->
 <header class="site-header">
-  <div class="row">
-    <a class="brand" href="/"><img src="/logo.png" alt="Hemline Market logo" onerror="this.style.display='none'"><span>Hemline Market</span></a>
+  <div class="inner">
+    <a href="/" class="brand">Hemline Market</a>
     <nav class="nav" aria-label="Primary">
       <a href="/new">New Arrivals</a>
       <a href="/atelier">My Atelier</a>
-      <a href="/browse.html">Browse</a>
+      <!-- Intentionally omit “Browse” on this page to avoid linking to itself -->
     </nav>
     <div class="spacer"></div>
-    <div class="icons">
-      <a href="/favorites" aria-label="Favorites">❤</a>
-      <a href="/notifications" aria-label="Notifications">🔔</a>
-      <a class="cta" href="/sell.html">List Item</a>
-    </div>
+    <a class="icon-btn" href="/favorites" aria-label="Favorites"><span class="emoji">❤️</span></a>
+    <a class="icon-btn" href="/notifications" aria-label="Notifications"><span class="emoji">🔔</span></a>
+    <a class="cta" href="/seller.html">List Item</a>
   </div>
 </header>
 
-<main>
-  <!-- ===== Filters ===== -->
-  <aside class="panel" aria-label="Filters">
-    <!-- Search within filters -->
-    <div class="group">
-      <details open>
-        <summary>Search</summary>
-        <div class="body">
-          <input id="q" class="input" type="search" placeholder="Add search term" aria-label="Search term">
-        </div>
-      </details>
-    </div>
+<main class="wrap">
+  <!-- ======= Filters ======= -->
+  <aside class="filters" aria-label="Filters">
+    <details open>
+      <summary>Department</summary>
+      <div class="body checklist">
+        <label class="row"><input type="checkbox" name="department" value="fashion"> <span>Fashion</span></label>
+        <label class="row"><input type="checkbox" name="department" value="home"> <span>Home</span></label>
+        <label class="row"><input type="checkbox" name="department" value="quilting"> <span>Quilting</span></label>
+        <label class="row"><input type="checkbox" name="department" value="notions"> <span>Notions</span></label>
+      </div>
+    </details>
 
-    <div class="group">
-      <details open>
-        <summary>Department</summary>
-        <div class="body checklist">
-          <label class="row"><input type="checkbox" name="department" value="fashion">Fashion</label>
-          <label class="row"><input type="checkbox" name="department" value="home">Home</label>
-          <label class="row"><input type="checkbox" name="department" value="quilting">Quilting</label>
-          <label class="row"><input type="checkbox" name="department" value="notions">Notions</label>
-        </div>
-      </details>
-    </div>
+    <details open>
+      <summary>Fabric Content</summary>
+      <div class="body checklist" id="contentList">
+        <label class="row"><input type="checkbox" name="content" value="" data-any="content"> <span><strong>Any</strong></span></label>
+        <label class="row"><input type="checkbox" name="content" value="acetate"> <span>Acetate</span></label>
+        <label class="row"><input type="checkbox" name="content" value="acrylic"> <span>Acrylic</span></label>
+        <label class="row"><input type="checkbox" name="content" value="alpaca"> <span>Alpaca</span></label>
+        <label class="row"><input type="checkbox" name="content" value="bamboo"> <span>Bamboo</span></label>
+        <label class="row"><input type="checkbox" name="content" value="cashmere"> <span>Cashmere</span></label>
+        <label class="row"><input type="checkbox" name="content" value="cotton"> <span>Cotton</span></label>
+        <label class="row"><input type="checkbox" name="content" value="cupro"> <span>Cupro</span></label>
+        <label class="row"><input type="checkbox" name="content" value="elastane"> <span>Elastane/Spandex</span></label>
+        <label class="row"><input type="checkbox" name="content" value="hemp"> <span>Hemp</span></label>
+        <label class="row"><input type="checkbox" name="content" value="leather"> <span>Leather</span></label>
+        <label class="row"><input type="checkbox" name="content" value="linen"> <span>Linen</span></label>
+        <label class="row"><input type="checkbox" name="content" value="modal"> <span>Modal</span></label>
+        <label class="row"><input type="checkbox" name="content" value="mohair"> <span>Mohair</span></label>
+        <label class="row"><input type="checkbox" name="content" value="nylon"> <span>Nylon</span></label>
+        <label class="row"><input type="checkbox" name="content" value="polyamide"> <span>Polyamide</span></label>
+        <label class="row"><input type="checkbox" name="content" value="polyester"> <span>Polyester</span></label>
+        <label class="row"><input type="checkbox" name="content" value="polyurethane"> <span>Polyurethane</span></label>
+        <label class="row"><input type="checkbox" name="content" value="rayon"> <span>Rayon/Viscose</span></label>
+        <label class="row"><input type="checkbox" name="content" value="silk"> <span>Silk</span></label>
+        <label class="row"><input type="checkbox" name="content" value="tencel"> <span>Tencel</span></label>
+        <label class="row"><input type="checkbox" name="content" value="triacetate"> <span>Triacetate</span></label>
+        <label class="row"><input type="checkbox" name="content" value="wool"> <span>Wool</span></label>
+      </div>
+    </details>
 
-    <!-- Fabric Content with "Any" -->
-    <div class="group">
-      <details open>
-        <summary>Fabric Content</summary>
-        <div id="contentList" class="body checklist">
-          <label class="row"><input type="checkbox" name="content" value="__any__" data-any>Any</label>
-          <label class="row"><input type="checkbox" name="content" value="acetate">Acetate</label>
-          <label class="row"><input type="checkbox" name="content" value="acrylic">Acrylic</label>
-          <label class="row"><input type="checkbox" name="content" value="alpaca">Alpaca</label>
-          <label class="row"><input type="checkbox" name="content" value="bamboo">Bamboo</label>
-          <label class="row"><input type="checkbox" name="content" value="cashmere">Cashmere</label>
-          <label class="row"><input type="checkbox" name="content" value="cotton">Cotton</label>
-          <label class="row"><input type="checkbox" name="content" value="cupro">Cupro</label>
-          <label class="row"><input type="checkbox" name="content" value="elastane">Elastane/Spandex</label>
-          <label class="row"><input type="checkbox" name="content" value="hemp">Hemp</label>
-          <label class="row"><input type="checkbox" name="content" value="leather">Leather</label>
-          <label class="row"><input type="checkbox" name="content" value="linen">Linen</label>
-          <label class="row"><input type="checkbox" name="content" value="modal">Modal</label>
-          <label class="row"><input type="checkbox" name="content" value="mohair">Mohair</label>
-          <label class="row"><input type="checkbox" name="content" value="nylon">Nylon</label>
-          <label class="row"><input type="checkbox" name="content" value="polyamide">Polyamide</label>
-          <label class="row"><input type="checkbox" name="content" value="polyester">Polyester</label>
-          <label class="row"><input type="checkbox" name="content" value="polyurethane">Polyurethane</label>
-          <label class="row"><input type="checkbox" name="content" value="rayon">Rayon/Viscose</label>
-          <label class="row"><input type="checkbox" name="content" value="silk">Silk</label>
-          <label class="row"><input type="checkbox" name="content" value="tencel">Tencel</label>
-          <label class="row"><input type="checkbox" name="content" value="triacetate">Triacetate</label>
-          <label class="row"><input type="checkbox" name="content" value="wool">Wool</label>
-        </div>
-      </details>
-    </div>
+    <details open>
+      <summary>Material Class</summary>
+      <div class="body checklist">
+        <label class="row"><input type="radio" name="material_class" value="" checked> <span>Any</span></label>
+        <label class="row"><input type="radio" name="material_class" value="natural"> <span>Natural</span></label>
+        <label class="row"><input type="radio" name="material_class" value="modified_natural"> <span>Modified Natural</span></label>
+        <label class="row"><input type="radio" name="material_class" value="synthetic"> <span>Synthetic</span></label>
+        <label class="row"><input type="radio" name="material_class" value="blend"> <span>Blend</span></label>
+      </div>
+    </details>
 
-    <div class="group">
-      <details open>
-        <summary>Material Class</summary>
-        <div class="body checklist">
-          <label class="row"><input type="radio" name="material_class" value="" checked>Any</label>
-          <label class="row"><input type="radio" name="material_class" value="natural">Natural</label>
-          <label class="row"><input type="radio" name="material_class" value="modified_natural">Modified Natural</label>
-          <label class="row"><input type="radio" name="material_class" value="synthetic">Synthetic</label>
-          <label class="row"><input type="radio" name="material_class" value="blend">Blend</label>
-        </div>
-      </details>
-    </div>
+    <details open>
+      <summary>Fabric Type</summary>
+      <div class="body checklist" id="typeList">
+        <label class="row"><input type="checkbox" name="type" value="" data-any="type"> <span><strong>Any</strong></span></label>
+        <label class="row"><input type="checkbox" name="type" value="boucle"> <span>Bouclé</span></label>
+        <label class="row"><input type="checkbox" name="type" value="canvas"> <span>Canvas</span></label>
+        <label class="row"><input type="checkbox" name="type" value="chiffon"> <span>Chiffon</span></label>
+        <label class="row"><input type="checkbox" name="type" value="corduroy"> <span>Corduroy</span></label>
+        <label class="row"><input type="checkbox" name="type" value="crepe"> <span>Crepe</span></label>
+        <label class="row"><input type="checkbox" name="type" value="denim"> <span>Denim</span></label>
+        <label class="row"><input type="checkbox" name="type" value="gabardine"> <span>Gabardine</span></label>
+        <label class="row"><input type="checkbox" name="type" value="georgette"> <span>Georgette</span></label>
+        <label class="row"><input type="checkbox" name="type" value="jersey"> <span>Jersey</span></label>
+        <label class="row"><input type="checkbox" name="type" value="lace"> <span>Lace</span></label>
+        <label class="row"><input type="checkbox" name="type" value="leather"> <span>Leather</span></label>
+        <label class="row"><input type="checkbox" name="type" value="organza"> <span>Organza</span></label>
+        <label class="row"><input type="checkbox" name="type" value="poplin"> <span>Poplin</span></label>
+        <label class="row"><input type="checkbox" name="type" value="sateen"> <span>Sateen</span></label>
+        <label class="row"><input type="checkbox" name="type" value="satin"> <span>Satin</span></label>
+        <label class="row"><input type="checkbox" name="type" value="tulle"> <span>Tulle</span></label>
+        <label class="row"><input type="checkbox" name="type" value="tweed"> <span>Tweed</span></label>
+        <label class="row"><input type="checkbox" name="type" value="twill"> <span>Twill</span></label>
+        <label class="row"><input type="checkbox" name="type" value="velvet"> <span>Velvet</span></label>
+        <label class="row"><input type="checkbox" name="type" value="voile"> <span>Voile</span></label>
+      </div>
+    </details>
 
-    <!-- Fabric Type with "Any" -->
-    <div class="group">
-      <details open>
-        <summary>Fabric Type</summary>
-        <div id="typeList" class="body checklist">
-          <label class="row"><input type="checkbox" name="type" value="__any__" data-any>Any</label>
-          <label class="row"><input type="checkbox" name="type" value="boucle">Bouclé</label>
-          <label class="row"><input type="checkbox" name="type" value="canvas">Canvas</label>
-          <label class="row"><input type="checkbox" name="type" value="chiffon">Chiffon</label>
-          <label class="row"><input type="checkbox" name="type" value="corduroy">Corduroy</label>
-          <label class="row"><input type="checkbox" name="type" value="crepe">Crepe</label>
-          <label class="row"><input type="checkbox" name="type" value="denim">Denim</label>
-          <label class="row"><input type="checkbox" name="type" value="gabardine">Gabardine</label>
-          <label class="row"><input type="checkbox" name="type" value="georgette">Georgette</label>
-          <label class="row"><input type="checkbox" name="type" value="jersey">Jersey</label>
-          <label class="row"><input type="checkbox" name="type" value="lace">Lace</label>
-          <label class="row"><input type="checkbox" name="type" value="leather">Leather</label>
-          <label class="row"><input type="checkbox" name="type" value="organza">Organza</label>
-          <label class="row"><input type="checkbox" name="type" value="poplin">Poplin</label>
-          <label class="row"><input type="checkbox" name="type" value="sateen">Sateen</label>
-          <label class="row"><input type="checkbox" name="type" value="satin">Satin</label>
-          <label class="row"><input type="checkbox" name="type" value="tulle">Tulle</label>
-          <label class="row"><input type="checkbox" name="type" value="tweed">Tweed</label>
-          <label class="row"><input type="checkbox" name="type" value="twill">Twill</label>
-          <label class="row"><input type="checkbox" name="type" value="velvet">Velvet</label>
-          <label class="row"><input type="checkbox" name="type" value="voile">Voile</label>
+    <details>
+      <summary>Color Family</summary>
+      <div class="body">
+        <div class="swatches">
+          <label class="sw"><input type="checkbox" name="color" value="black"><i style="background:#000"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="grey"><i style="background:#b3b7bd"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="white"><i style="background:#fff"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="ivory"><i style="background:#fff8e7"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="brown"><i style="background:#7c4a2c"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="pink"><i style="background:#f3a4b7"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="red"><i style="background:#e10019"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="orange"><i style="background:#ff9800"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="yellow"><i style="background:#ffd600"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="green"><i style="background:#0d6a2f"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="blue"><i style="background:#1246ff"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="purple"><i style="background:#6a1b9a"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="silver"><i style="background:linear-gradient(135deg,#d7d7d7,#f4f4f4)"></i></label>
+          <label class="sw"><input type="checkbox" name="color" value="gold"><i style="background:linear-gradient(135deg,#d0a84f,#ffe49b)"></i></label>
         </div>
-      </details>
-    </div>
+      </div>
+    </details>
 
-    <div class="group">
-      <details>
-        <summary>Color Family</summary>
-        <div class="body checklist" style="grid-template-columns:repeat(2,1fr)">
-          <label class="row"><input type="checkbox" name="color" value="black"><span>Black</span></label>
-          <label class="row"><input type="checkbox" name="color" value="grey"><span>Grey</span></label>
-          <label class="row"><input type="checkbox" name="color" value="white"><span>White</span></label>
-          <label class="row"><input type="checkbox" name="color" value="ivory"><span>Ivory</span></label>
-          <label class="row"><input type="checkbox" name="color" value="brown"><span>Brown</span></label>
-          <label class="row"><input type="checkbox" name="color" value="pink"><span>Pink</span></label>
-          <label class="row"><input type="checkbox" name="color" value="red"><span>Red</span></label>
-          <label class="row"><input type="checkbox" name="color" value="orange"><span>Orange</span></label>
-          <label class="row"><input type="checkbox" name="color" value="yellow"><span>Yellow</span></label>
-          <label class="row"><input type="checkbox" name="color" value="green"><span>Green</span></label>
-          <label class="row"><input type="checkbox" name="color" value="blue"><span>Blue</span></label>
-          <label class="row"><input type="checkbox" name="color" value="purple"><span>Purple</span></label>
-          <label class="row"><input type="checkbox" name="color" value="silver"><span>Silver</span></label>
-          <label class="row"><input type="checkbox" name="color" value="gold"><span>Gold</span></label>
-        </div>
-      </details>
-    </div>
+    <details open>
+      <summary>Price (per yard)</summary>
+      <div class="body pair">
+        <input class="input" type="number" placeholder="Min" data-role="min" data-group="price">
+        <input class="input" type="number" placeholder="Max" data-role="max" data-group="price">
+      </div>
+    </details>
 
-    <div class="group">
-      <details open>
-        <summary>Price (per yard)</summary>
-        <div class="body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <input class="input" type="number" id="priceMin" placeholder="Min">
-          <input class="input" type="number" id="priceMax" placeholder="Max">
-        </div>
-      </details>
-    </div>
+    <details>
+      <summary>Width (in)</summary>
+      <div class="body pair">
+        <input class="input" type="number" placeholder="Min" data-role="min" data-group="width">
+        <input class="input" type="number" placeholder="Max" data-role="max" data-group="width">
+      </div>
+    </details>
 
-    <div class="group">
-      <details>
-        <summary>Width (in)</summary>
-        <div class="body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <input class="input" type="number" id="widthMin" placeholder="Min">
-          <input class="input" type="number" id="widthMax" placeholder="Max">
-        </div>
-      </details>
-    </div>
+    <details>
+      <summary>Weight (GSM)</summary>
+      <div class="body pair">
+        <input class="input" type="number" placeholder="Min" data-role="min" data-group="weight">
+        <input class="input" type="number" placeholder="Max" data-role="max" data-group="weight">
+      </div>
+    </details>
 
-    <div class="group">
-      <details>
-        <summary>Weight (GSM)</summary>
-        <div class="body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <input class="input" type="number" id="weightMin" placeholder="Min">
-          <input class="input" type="number" id="weightMax" placeholder="Max">
-        </div>
-      </details>
-    </div>
-
-    <div class="group">
-      <details>
-        <summary>Min Yards Available</summary>
-        <div class="body">
-          <input class="input" type="number" id="minYards" placeholder="e.g. 3" min="0.5" step="0.5">
-          <div style="color:var(--hm-muted);font-size:12px;margin-top:6px">Sellers list in 0.5 yd increments</div>
-        </div>
-      </details>
-    </div>
+    <details>
+      <summary>Min Yards Available</summary>
+      <div class="body">
+        <input id="minYards" class="input" type="number" placeholder="e.g. 3" step="0.5" min="0.5" data-filter-key="min_yards">
+        <div class="muted">Sold in 0.5-yd increments</div>
+      </div>
+    </details>
   </aside>
 
-  <!-- ===== Results ===== -->
+  <!-- ======= Results ======= -->
   <section>
-    <div class="toolbar">
-      <label for="sort" style="font-weight:700">Sort</label>
-      <select id="sort" class="select">
-        <option value="">Featured</option>
-        <option value="newest">Newest</option>
-        <option value="price_asc">Price (Low → High)</option>
-        <option value="price_desc">Price (High → Low)</option>
-        <option value="yards_desc">Yardage (High → Low)</option>
-        <option value="width_desc">Width (Wide → Narrow)</option>
-      </select>
+    <div class="results-head">
+      <div class="muted" id="summary">Results</div>
+      <label>
+        <span class="muted" style="margin-right:8px">Sort</span>
+        <select id="sort" class="sort">
+          <option value="">Featured</option>
+          <option value="newest">Newest</option>
+          <option value="price_asc">Price (Low → High)</option>
+          <option value="price_desc">Price (High → Low)</option>
+          <option value="yards_desc">Yardage (High → Low)</option>
+          <option value="width_desc">Width (Wide → Narrow)</option>
+        </select>
+      </label>
     </div>
-    <div id="chips" class="chips"></div>
-    <div id="summary">Loading…</div>
+    <div id="chips" style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px"></div>
     <div id="grid" class="grid"></div>
   </section>
 </main>
 
-<!-- ===== Footer (matches home) ===== -->
 <footer class="site-footer">
-  <div class="wrap">
-    <div class="foot-links">
-      <a href="/faq.html">FAQ</a><span class="dot"></span>
-      <a href="/contact.html">Contact Us</a><span class="dot"></span>
-      <a href="/feedback.html">Site Feedback</a><span class="dot"></span>
-      <a href="/privacy.html">Privacy</a><span class="dot"></span>
-      <a href="/terms.html">Terms &amp; Conditions</a><span class="dot"></span>
-      <a href="/subscribe.html">Subscribe</a>
-    </div>
-    <div class="copyright">© 2025 Hemline Market</div>
+  <div class="inner">
+    <a href="/faq">FAQ</a> ·
+    <a href="/contact">Contact Us</a> ·
+    <a href="/feedback">Site Feedback</a> ·
+    <a href="/privacy">Privacy</a> ·
+    <a href="/terms">Terms &amp; Conditions</a> ·
+    <a href="/subscribe">Subscribe</a>
+    <span style="margin-left:8px">© 2025 Hemline Market</span>
   </div>
 </footer>
 
 <script>
 (function(){
-  // Demo data
+  /* Demo dataset (unchanged) */
   const DATA = [
-    { id:'wool-crepe-1', title:'Sample Wool Crepe', pricePerYd:45, yards:12, widthIn:58, weightGsm:210, country:'italy', department:['fashion'], pattern:'solid', condition:'new', content:['wool'],  type:['crepe'],           colors:['black','grey'], created_at:'2025-08-25' },
-    { id:'silk-twill-1', title:'Italian Silk Twill', pricePerYd:68, yards:6,  widthIn:54, weightGsm:90,  country:'italy', department:['fashion'], pattern:'pattern', condition:'washed', content:['silk'],  type:['twill','satin'],  colors:['blue','gold'],  created_at:'2025-08-26' },
-    { id:'cotton-sateen-1', title:'Cotton Sateen',  pricePerYd:22, yards:20, widthIn:60, weightGsm:180, country:'usa',   department:['fashion','quilting'], pattern:'solid', condition:'used', content:['cotton'],type:['sateen'],        colors:['white','ivory'], created_at:'2025-08-20' },
-    { id:'leather-lamb-1', title:'Lamb Leather Nappa', pricePerYd:95, yards:4, widthIn:48, weightGsm:600, country:'france', department:['fashion'], pattern:'solid', condition:'new', content:['leather'], type:['leather'], colors:['brown','black'], created_at:'2025-08-27' }
+    { id:'wool-crepe-1', title:'Sample Wool Crepe', pricePerYd:45, yards:12, widthIn:58, weightGsm:210, country:'italy', department:['fashion'], pattern:'solid', condition:'new', content:['wool'],  type:['crepe'],           colors:['black','grey'], thumb:'wool' },
+    { id:'silk-twill-1', title:'Italian Silk Twill', pricePerYd:68, yards:6,  widthIn:54, weightGsm:90,  country:'italy', department:['fashion'], pattern:'pattern', condition:'washed', content:['silk'],  type:['twill','satin'],  colors:['blue','gold'],  thumb:'silk' },
+    { id:'cotton-sateen-1', title:'Cotton Sateen',  pricePerYd:22, yards:20, widthIn:60, weightGsm:180, country:'usa',   department:['fashion','quilting'], pattern:'solid', condition:'used', content:['cotton'],type:['sateen'],        colors:['white','ivory'],thumb:'cotton' },
+    { id:'leather-lamb-1', title:'Lamb Leather Nappa', pricePerYd:95, yards:4, widthIn:48, weightGsm:600, country:'france', department:['fashion'], pattern:'solid', condition:'new', content:['leather'], type:['leather'], colors:['brown','black'], thumb:'crepe' }
   ];
 
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 
-  const qEl = $('#q');
   const grid = $('#grid');
   const summary = $('#summary');
-  const chips = $('#chips');
   const sortSel = $('#sort');
+  const chips = $('#chips');
 
-  const priceMin=$('#priceMin'), priceMax=$('#priceMax');
-  const widthMin=$('#widthMin'), widthMax=$('#widthMax');
-  const weightMin=$('#weightMin'), weightMax=$('#weightMax');
-  const minYards=$('#minYards');
-
-  // Enforce 0.5 increments and min >= 0.5 for minYards
-  function normalizeHalfSteps(input){
-    let v = parseFloat(input.value);
-    if (isNaN(v)) return input.value='';
-    v = Math.max(0.5, v);
-    v = Math.round(v*2)/2; // snap to 0.5
-    input.value = v.toFixed( v%1===0 ? 0 : 1 );
-  }
-  ['change','blur','input'].forEach(ev=>{
-    minYards.addEventListener(ev, ()=>{ normalizeHalfSteps(minYards); trigger(false); });
-  });
-
-  // Mutually exclusive "Any" for Fabric Content & Type
-  function wireAny(listId, name){
-    const list = $(listId);
-    const any = list.querySelector('input[name="'+name+'"][data-any]');
-    list.addEventListener('change', e=>{
-      if (e.target.name!==name) return;
-      if (e.target.hasAttribute('data-any')){
-        // Any checked -> uncheck others
-        if (e.target.checked) $$('input[name="'+name+'"]', list).forEach(i=>{ if(i!==e.target) i.checked=false; });
-      } else {
-        // Some specific checked -> uncheck Any
-        if (e.target.checked) any.checked=false;
-      }
-      trigger(false);
-    });
-  }
-  wireAny('#contentList','content');
-  wireAny('#typeList','type');
-
-  // Basic render
-  function card(r){
+  /* Utility: render cards */
+  function card(it){
+    const thumbClass = {
+      wool:'repeating-linear-gradient(45deg,#0000000d 0 8px,#ffffff10 8px 16px),linear-gradient(0deg,#d8d6d1,#e6e1db)',
+      silk:'linear-gradient(135deg,#ffffff80,#ffffff00 40%),linear-gradient(315deg,#0000000d,#0000 45%),linear-gradient(0deg,#f2ede8,#e7e1db)',
+      cotton:'repeating-linear-gradient(0deg,#00000008 0 2px,#0000 2px 4px),repeating-linear-gradient(90deg,#00000008 0 2px,#0000 2px 4px),linear-gradient(0deg,#e9e9e9,#f5f5f5)',
+      sateen:'linear-gradient(90deg,#ffffffb3 0 20%,#ffffff00 40% 60%,#ffffff99 80% 100%),linear-gradient(0deg,#dedfe6,#cfd3de)',
+      crepe:'radial-gradient(circle at 20% 30%,#0000000f 0 12%,#0000 13%),radial-gradient(circle at 70% 60%,#0000000d 0 10%,#0000 11%),linear-gradient(0deg,#e6e3e1,#f0eeeb)'
+    }[it.thumb] || 'linear-gradient(0deg,#eee,#f7f7f7)';
     return `
       <article class="card">
-        <div class="thumb" role="img" aria-label="${r.title} swatch"></div>
+        <div class="thumb" style="background:${thumbClass}"></div>
         <div class="body">
-          <p class="title">${r.title}</p>
-          <p class="meta">${r.yards} yd • ${r.widthIn}″ • ${r.country.toUpperCase()}</p>
-          <p class="price">$${r.pricePerYd} / yd</p>
+          <p class="title">${it.title}</p>
+          <p class="meta">${it.yards} yd • ${it.widthIn}″ • ${it.country.toUpperCase()}</p>
+          <p class="price">$${it.pricePerYd} / yd</p>
         </div>
       </article>
     `;
   }
 
-  function activeChips(query){
-    chips.innerHTML='';
-    const add=(key,label,clear)=>{ const el=document.createElement('span'); el.className='chip'; el.dataset.key=key; el.innerHTML=`<span>${label}</span><button aria-label="Clear ${label}">✕</button>`; el.querySelector('button').onclick=()=>{ clear(); trigger(false); }; chips.appendChild(el); };
-    if (query.q) add('q',`Search: ${query.q}`,()=> qEl.value='');
-
-    ['department','content','type','color'].forEach(name=>{
-      const selected = $$('input[name="'+name+'"]:checked').map(i=>i.value);
-      if (!selected.length) return;
-      if (selected.includes('__any__')) return; // Any means no chip
-      const labels = $$('input[name="'+name+'"]:checked').map(i=>i.parentElement.textContent.trim());
-      add(name, `${name[0].toUpperCase()+name.slice(1)}: ${labels.join(', ')}`, ()=>{
-        $$('input[name="'+name+'"]:checked').forEach(i=>i.checked=false);
-      });
-    });
-
-    const rng=(idMin,idMax,label)=>{
-      const a=$(idMin).value, b=$(idMax).value;
-      if (!a && !b) return;
-      add(label, `${label}: ${a||'—'} to ${b||'—'}`, ()=>{ $(idMin).value=''; $(idMax).value=''; });
-    };
-    rng('#priceMin','#priceMax','Price/yd');
-    rng('#widthMin','#widthMax','Width (in)');
-    rng('#weightMin','#weightMax','Weight (GSM)');
-
-    if (minYards.value){
-      add('minYards', `Min yards: ${minYards.value}`, ()=>{ minYards.value=''; });
-    }
-  }
-
-  function collect(){
-    const q = (qEl.value||'').trim().toLowerCase();
-    const sel = n => $$('input[name="'+n+'"]:checked').map(i=>i.value);
-    return {
-      q,
-      department: sel('department'),
-      content: sel('content'),
-      type: sel('type'),
-      color: sel('color'),
-      priceMin: priceMin.value, priceMax: priceMax.value,
-      widthMin: widthMin.value, widthMax: widthMax.value,
-      weightMin: weightMin.value, weightMax: weightMax.value,
-      minYards: minYards.value,
-      sort: sortSel.value
-    };
-  }
-
-  function filterRows(q){
-    let rows = DATA.slice();
-
-    if (q.q){
-      rows = rows.filter(it=>{
-        const hay = [it.title, ...(it.type||[]), ...(it.content||[])].join(' ').toLowerCase();
-        return hay.includes(q.q);
-      });
-    }
-
-    const multi = (field, selected) => {
-      if (!selected.length || selected.includes('__any__')) return;
-      rows = rows.filter(it => (it[field]||[]).some(v => selected.includes(v)));
-    };
-    multi('department', q.department);
-    multi('content', q.content);
-    multi('type', q.type);
-    multi('colors', q.color);
-
-    const range = (mn, mx, get) => {
-      const a = mn ? Number(mn) : -Infinity;
-      const b = mx ? Number(mx) : Infinity;
-      rows = rows.filter(it => {
-        const v = get(it);
-        return v >= a && v <= b;
-      });
-    };
-    range(q.priceMin, q.priceMax, it=>it.pricePerYd);
-    range(q.widthMin, q.widthMax, it=>it.widthIn);
-    range(q.weightMin, q.weightMax, it=>it.weightGsm);
-
-    if (q.minYards){
-      rows = rows.filter(it => it.yards >= Number(q.minYards));
-    }
-
-    switch(q.sort){
-      case 'price_asc': rows.sort((a,b)=> a.pricePerYd - b.pricePerYd); break;
-      case 'price_desc': rows.sort((a,b)=> b.pricePerYd - a.pricePerYd); break;
-      case 'yards_desc': rows.sort((a,b)=> b.yards - a.yards); break;
-      case 'width_desc': rows.sort((a,b)=> b.widthIn - a.widthIn); break;
-      case 'newest': rows.sort((a,b)=> new Date(b.created_at) - new Date(a.created_at)); break;
-      default: break;
-    }
-
-    return rows;
-  }
-
   function render(rows){
     grid.innerHTML = rows.map(card).join('');
-    summary.innerHTML = `<strong>Results</strong> · ${rows.length} item${rows.length===1?'':'s'}`;
   }
+  render(DATA);
 
-  function trigger(updateChips=true){
-    const q = collect();
-    if (updateChips) activeChips(q);
-    const rows = filterRows(q);
-    render(rows);
-  }
+  /* === “Any” behavior for checklists === */
+  function wireAny(groupName){
+    const list = groupName==='content' ? $('#contentList') : $('#typeList');
+    const any = list.querySelector(`[data-any="${groupName}"]`);
+    const boxes = $$(`input[name="${groupName}"]`, list).filter(b => b !== any);
 
-  // Events
-  [qEl, priceMin, priceMax, widthMin, widthMax, weightMin, weightMax].forEach(el=>{
-    el.addEventListener('input', ()=> trigger(false));
-    el.addEventListener('change', ()=> trigger());
-  });
-  sortSel.addEventListener('change', ()=> trigger());
-
-  // Checkboxes
-  ['department','content','type','color'].forEach(name=>{
-    document.addEventListener('change', e=>{
-      if (e.target.name===name) trigger();
+    // If "Any" is checked, clear others
+    any.addEventListener('change', ()=>{
+      if(any.checked){ boxes.forEach(b=> b.checked=false); apply(); }
     });
+    // If any specific is checked, uncheck "Any"
+    boxes.forEach(b=> b.addEventListener('change', ()=>{
+      if(b.checked) any.checked=false;
+      apply();
+    }));
+  }
+  wireAny('content'); wireAny('type');
+
+  // Other filter inputs
+  $$('.filters input[type="checkbox"]:not([data-any]), .filters input[type="radio"], .filters input[type="number"]').forEach(el=>{
+    el.addEventListener('change', apply);
+  });
+  sortSel.addEventListener('change', apply);
+
+  // Min yards: clamp to >=0.5 and step 0.5
+  const minYardsEl = $('#minYards');
+  function clampHalf(v){
+    if (isNaN(v) || v <= 0) return 0.5;
+    return Math.max(0.5, Math.round(v*2)/2);
+  }
+  minYardsEl.addEventListener('input', ()=>{
+    if (minYardsEl.value==='') return;
+    minYardsEl.value = clampHalf(parseFloat(minYardsEl.value));
   });
 
-  // First paint
-  trigger();
+  function collect(){
+    const q = {};
+    // multi selects
+    ['department','content','type','color'].forEach(name=>{
+      const picked = $$(`input[name="${name}"]:checked`).map(i=>i.value).filter(v=>v!=='');
+
+      if (name==='content' || name==='type'){
+        const any = $$(`input[name="${name}"][data-any="${name}"]`).some(i=>i.checked);
+        if (any || picked.length===0) return; // “Any” => no constraint
+      }
+      if (picked.length) q[name]=picked;
+    });
+
+    // radios
+    const mc = $('input[name="material_class"]:checked'); if(mc && mc.value) q.material_class = mc.value;
+
+    // numeric ranges
+    const readRange=(g)=> {
+      const min = document.querySelector(`[data-group="${g}"][data-role="min"]`)?.value;
+      const max = document.querySelector(`[data-group="${g}"][data-role="max"]`)?.value;
+      const r={}; if(min) r.min=Number(min); if(max) r.max=Number(max);
+      return (r.min==null && r.max==null) ? null : r;
+    };
+    const pr=readRange('price'); if(pr) q.price=pr;
+    const wr=readRange('width'); if(wr) q.width=wr;
+    const gr=readRange('weight'); if(gr) q.weight=gr;
+
+    if(minYardsEl.value) q.min_yards = clampHalf(parseFloat(minYardsEl.value));
+
+    if (sortSel.value) q.sort = sortSel.value;
+    return q;
+  }
+
+  function apply(){
+    const query = collect();
+    let rows = DATA.slice();
+
+    // filters
+    ['department','content','type','color'].forEach(field=>{
+      const sel = query[field]; if(!sel) return;
+      rows = rows.filter(it => (it[field]||[]).some(v => sel.includes(v)));
+    });
+    if (query.material_class){
+      // demo: simple inference by content
+      const nat = ['cotton','wool','silk','linen','hemp','leather','alpaca','cashmere'];
+      const mod = ['rayon','viscose','modal','tencel','cupro','triacetate'];
+      const syn = ['polyester','nylon','polyamide','acrylic','polyurethane','elastane'];
+      rows = rows.filter(it=>{
+        const c=(it.content||[])[0]||'';
+        if(query.material_class==='natural') return nat.includes(c);
+        if(query.material_class==='modified_natural') return mod.includes(c);
+        if(query.material_class==='synthetic') return syn.includes(c);
+        if(query.material_class==='blend') return (it.content||[]).length>1;
+        return true;
+      });
+    }
+    const rng=(r,get)=>{ if(!r) return; const min=r.min??-Infinity, max=r.max??Infinity; rows=rows.filter(it=>{const v=get(it); return v>=min && v<=max;});};
+    rng(query.price, it=>it.pricePerYd);
+    rng(query.width, it=>it.widthIn);
+    rng(query.weight, it=>it.weightGsm);
+    if (query.min_yards) rows = rows.filter(it=> it.yards >= query.min_yards);
+
+    // sort
+    switch(query.sort){
+      case 'price_asc': rows.sort((a,b)=>a.pricePerYd-b.pricePerYd); break;
+      case 'price_desc': rows.sort((a,b)=>b.pricePerYd-a.pricePerYd); break;
+      case 'yards_desc': rows.sort((a,b)=>b.yards-a.yards); break;
+      case 'width_desc': rows.sort((a,b)=>b.widthIn-a.widthIn); break;
+      case 'newest': rows.sort((a,b)=> (b.id>a.id?1:-1)); break;
+    }
+
+    render(rows);
+    summary.textContent = `Results · ${rows.length} item${rows.length===1?'':'s'}`;
+
+    // chips (compact summary)
+    chips.replaceChildren();
+    const addChip=(txt)=>{
+      const s=document.createElement('span');
+      s.style.cssText='display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid rgba(0,0,0,.12);border-radius:999px;background:#f7f7f7;font-size:12px';
+      s.textContent=txt; chips.appendChild(s);
+    };
+    if(query.department) addChip('Department: '+query.department.join(', '));
+    if(query.content) addChip('Fabric Content: '+query.content.join(', '));
+    if(query.type) addChip('Fabric Type: '+query.type.join(', '));
+    if(query.color) addChip('Color: '+query.color.join(', '));
+    if(query.material_class) addChip('Material Class: '+query.material_class.replace('_',' '));
+    if(query.price) addChip(`Price: ${query.price.min??'—'} to ${query.price.max??'—'}`);
+    if(query.width) addChip(`Width: ${query.width.min??'—'} to ${query.width.max??'—'}`);
+    if(query.weight) addChip(`Weight: ${query.weight.min??'—'} to ${query.weight.max??'—'}`);
+    if(query.min_yards) addChip(`Min yards: ${query.min_yards}`);
+    if(query.sort) addChip(`Sorted: ${$('#sort').selectedOptions[0].textContent}`);
+  }
+
+  apply();
 })();
 </script>
 </body>
