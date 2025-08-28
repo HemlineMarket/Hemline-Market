@@ -11,11 +11,13 @@
     --hm-bg:#fff; --hm-text:#333333; --hm-muted:#6b7280;
     --hm-border:1px solid rgba(0,0,0,.12); --hm-shadow:0 8px 24px rgba(0,0,0,.08);
     --hm-radius:14px; --hm-gap:16px; --hm-cta:#65000b;
+    --hm-error-bg:#fff6f7; --hm-error-border:#ff8aa3; --hm-error-text:#7f1d1d;
+    --hm-good:#22c55e;
   }
   *{box-sizing:border-box}
   html,body{margin:0;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
-  /* FULL-BLEED BACKGROUND to match homepage/about */
+  /* FULL-BLEED BACKGROUND (match site) */
   body{position:relative;min-height:100vh}
   body::before{
     content:""; position:fixed; inset:0; z-index:-2;
@@ -32,7 +34,7 @@
   a{text-decoration:none;color:#000} a:hover{color:var(--hm-rosewood)}
   img{max-width:100%;display:block}
 
-  /* Header (same as homepage/about) */
+  /* Header (same as site) */
   .hm-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);backdrop-filter:saturate(120%) blur(6px);border-bottom:1px solid rgba(0,0,0,.08)}
   .hm-header-inner{height:90px;max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 16px}
   .hm-logo img{height:80px}
@@ -93,7 +95,7 @@
   .dot.silver{background:linear-gradient(145deg,#bbb,#eee)}
   .dot.gold{background:linear-gradient(145deg,#d6b25e,#f7e7a2)}
 
-  .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
   .btn{border:var(--hm-border);background:#fff;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer}
   .btn-primary{background:var(--hm-cta);color:#fff;border-color:#000}
   .btn-primary[disabled]{opacity:.6;cursor:not-allowed}
@@ -101,6 +103,26 @@
   .preview .thumb{width:100%;height:200px;border-radius:12px;background:linear-gradient(0deg,#e9e9e9,#f5f5f5)}
   .meta{color:var(--hm-muted);font-size:13px}
   .price{font-weight:800}
+
+  /* ✅ Inline error components */
+  .error-summary{
+    display:none; margin-bottom:14px; border-radius:14px;
+    background:var(--hm-error-bg); border:2px solid var(--hm-error-border);
+    color:var(--hm-error-text); padding:12px 14px; font-weight:800;
+  }
+  .error-summary.show{display:block}
+  .error-list{margin:8px 0 0 18px; color:var(--hm-error-text)}
+  .error-msg{
+    display:none; margin-top:6px; border-radius:10px;
+    background:var(--hm-error-bg); border:1px solid var(--hm-error-border);
+    color:var(--hm-error-text); padding:8px 10px; font-weight:700; font-size:13px;
+  }
+  .error .input, .error .select, .error textarea{
+    border-color: var(--hm-error-border); outline: 3px solid rgba(255, 0, 66, .15);
+  }
+  .good .input, .good .select, .good textarea{
+    outline: 3px solid rgba(34, 197, 94, .15);
+  }
 </style>
 </head>
 <body>
@@ -125,226 +147,219 @@
   <!-- FORM -->
   <section class="card">
     <h2>List an Item</h2>
-    <form id="sell-form" class="card-body" novalidate>
-      <!-- Images -->
-      <div class="section">
-        <h3 class="section-title">Images</h3>
-        <div class="hint" style="margin-bottom:10px">
-          Please include at least three photos: <strong>one close-up</strong>, <strong>one folded</strong>, and <strong>one drape</strong>. Place a <strong>ruler in-frame</strong> in at least one photo (you can <a href="/ruler.svg" download>print this ruler</a>).
-        </div>
-        <div id="uploader" class="uploader">
-          <input id="files" type="file" accept="image/*" multiple>
-          <div>Drag & drop images here or</div>
-          <button type="button" class="btn" id="pickFiles">Choose Images</button>
-        </div>
-        <div id="thumbs" class="thumbs"></div>
+    <div class="card-body">
+      <!-- ✅ friendly error summary -->
+      <div id="errorSummary" class="error-summary" role="alert" aria-live="assertive">
+        Let’s fix a few things:
+        <ul id="errorList" class="error-list"></ul>
       </div>
 
-      <!-- Description -->
-      <div class="section">
-        <h3 class="section-title">Description</h3>
-        <div class="field">
-          <label class="label" for="description">Details</label>
-          <textarea id="description" class="input" placeholder="Mention drape, structure/hand, weave, care, defects, stretch, finish, end-use, etc."></textarea>
+      <form id="sell-form" novalidate>
+        <!-- Images -->
+        <div class="section" id="sec-images">
+          <h3 class="section-title">Images</h3>
+          <div class="hint" style="margin-bottom:10px">
+            Please include at least three photos: <strong>one close-up</strong>, <strong>one folded</strong>, and <strong>one drape</strong>. Place a <strong>ruler in-frame</strong> in at least one photo (you can <a href="/ruler.svg" download>print this ruler</a>).
+          </div>
+          <div id="uploader" class="uploader">
+            <input id="files" type="file" accept="image/*" multiple>
+            <div>Drag & drop images here or</div>
+            <button type="button" class="btn" id="pickFiles">Choose Images</button>
+          </div>
+          <div id="thumbs" class="thumbs"></div>
+          <div id="err-images" class="error-msg">Add at least 3 photos.</div>
         </div>
-        <div class="field" style="margin-top:12px">
-          <label class="label" for="title">Title <span class="hint">(required)</span></label>
-          <input id="title" class="input" placeholder="e.g., Italian Silk Twill — Navy Chain" required>
-        </div>
-      </div>
 
-      <!-- Price & Availability -->
-      <div class="section">
-        <h3 class="section-title">Price & Availability</h3>
-        <div class="row">
-          <div class="field">
-            <label class="label" for="pricePerYd">Price (per yard) <span class="hint">(required)</span></label>
-            <div class="prefix">
-              <span class="prefix-tag">$</span>
-              <input id="pricePerYd" type="number" min="0" step="0.01" class="input" placeholder="e.g., 48" required>
-            </div>
+        <!-- Description -->
+        <div class="section" id="sec-desc">
+          <h3 class="section-title">Description</h3>
+          <div class="field" id="fld-desc">
+            <label class="label" for="description">Details</label>
+            <textarea id="description" class="input" placeholder="Mention drape, structure/hand, weave, care, defects, stretch, finish, end-use, etc."></textarea>
+            <div id="err-desc" class="error-msg">Add a brief description (a sentence or two).</div>
           </div>
-          <div class="field">
-            <label class="label" for="yardsSelect">Yards Available <span class="hint">(0.5 increments, required)</span></label>
-            <select id="yardsSelect" class="select"></select>
-            <input type="hidden" id="yards">
-          </div>
-        </div>
-        <div class="field" style="margin-top:12px">
-          <label class="label">Selling Mode</label>
-          <label><input type="radio" name="sellingMode" value="lot" checked> Sell all yardage together as one lot</label>
-          <label style="margin-top:6px"><input type="radio" name="sellingMode" value="increments"> Sell in 0.5 yard increments (buyer chooses quantity)</label>
-        </div>
-      </div>
-
-      <!-- Specs -->
-      <div class="section">
-        <h3 class="section-title">Specs</h3>
-        <div class="row">
-          <div class="field">
-            <label class="label" for="widthIn">Width (inches)</label>
-            <input id="widthIn" type="number" min="1" step="0.1" class="input" placeholder="e.g., 54">
-            <div class="hint"><label><input type="checkbox" id="widthUnknown"> Unknown</label></div>
-          </div>
-          <div class="field">
-            <label class="label" for="weightGsm">Weight (GSM)</label>
-            <input id="weightGsm" type="number" min="0" step="1" class="input" placeholder="e.g., 95">
-            <div class="hint"><label><input type="checkbox" id="weightUnknown"> Unknown</label></div>
+          <div class="field" id="fld-title" style="margin-top:12px">
+            <label class="label" for="title">Title <span class="hint">(required)</span></label>
+            <input id="title" class="input" placeholder="e.g., Italian Silk Twill — Navy Chain" required>
+            <div id="err-title" class="error-msg">Please add a title.</div>
           </div>
         </div>
 
-        <div class="row" style="margin-top:12px">
-          <div class="field">
-            <label class="label">Department</label>
-            <div class="hint">Select at least one or mark Unknown</div>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px">
-              <label><input type="checkbox" name="department" value="fashion"> Fashion</label>
-              <label><input type="checkbox" name="department" value="home"> Home</label>
-              <label><input type="checkbox" name="department" value="quilting"> Quilting</label>
-              <label><input type="checkbox" name="department" value="notions"> Notions</label>
-              <label><input type="checkbox" name="department" value="unknown"> Unknown</label>
-            </div>
-          </div>
-          <div class="field">
-            <label class="label">Country Made</label>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px">
-              <label><input type="checkbox" name="country" value="france"> France</label>
-              <label><input type="checkbox" name="country" value="italy"> Italy</label>
-              <label><input type="checkbox" name="country" value="japan"> Japan</label>
-              <label><input type="checkbox" name="country" value="uk"> UK</label>
-              <label><input type="checkbox" name="country" value="usa"> USA</label>
-              <label><input type="checkbox" name="country" value="other"> Other</label>
-              <label><input type="checkbox" name="country" value="unknown"> Unknown</label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Designer (optional) -->
-        <div class="field" style="margin-top:12px">
-          <label class="label" for="designer">Designer / Brand <span class="hint">(optional)</span></label>
-          <input id="designer" class="input" placeholder="e.g., Loro Piana, Liberty, deadstock mill…">
-        </div>
-
-        <!-- Content -->
-        <div class="field" style="margin-top:12px">
-          <label class="label">Fabric Content (multi-select)</label>
-          <div class="hint">Choose all that apply (Unknown and Other supported)</div>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="content-list">
-            <label><input type="checkbox" id="contentUnknown" value="unknown"> Unknown</label>
-            <label><input type="checkbox" value="acetate"> Acetate</label>
-            <label><input type="checkbox" value="acrylic"> Acrylic</label>
-            <label><input type="checkbox" value="alpaca"> Alpaca</label>
-            <label><input type="checkbox" value="bamboo"> Bamboo</label>
-            <label><input type="checkbox" value="cashmere"> Cashmere</label>
-            <label><input type="checkbox" value="cotton"> Cotton</label>
-            <label><input type="checkbox" value="cupro"> Cupro</label>
-            <label><input type="checkbox" value="elastane"> Elastane/Spandex</label>
-            <label><input type="checkbox" value="hemp"> Hemp</label>
-            <label><input type="checkbox" value="leather"> Leather</label>
-            <label><input type="checkbox" value="linen"> Linen</label>
-            <label><input type="checkbox" value="modal"> Modal</label>
-            <label><input type="checkbox" value="mohair"> Mohair</label>
-            <label><input type="checkbox" value="nylon"> Nylon</label>
-            <label><input type="checkbox" value="polyamide"> Polyamide</label>
-            <label><input type="checkbox" value="polyester"> Polyester</label>
-            <label><input type="checkbox" value="polyurethane"> Polyurethane</label>
-            <label><input type="checkbox" value="rayon"> Rayon/Viscose</label>
-            <label><input type="checkbox" value="silk"> Silk</label>
-            <label><input type="checkbox" value="tencel"> Tencel</label>
-            <label><input type="checkbox" value="triacetate"> Triacetate</label>
-            <label><input type="checkbox" value="wool"> Wool</label>
-          </div>
-          <div class="row" style="margin-top:6px">
-            <div class="field">
-              <label class="label">Other (content)</label>
-              <input class="input" id="contentOther" placeholder="e.g., ramie blend">
-            </div>
-          </div>
-        </div>
-
-        <!-- Type -->
-        <div class="field" style="margin-top:12px">
-          <label class="label">Fabric Type (multi-select)</label>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="type-list">
-            <label><input type="checkbox" id="typeUnknown" value="unknown"> Unknown</label>
-            <label><input type="checkbox" value="boucle"> Bouclé</label>
-            <label><input type="checkbox" value="canvas"> Canvas</label>
-            <label><input type="checkbox" value="chiffon"> Chiffon</label>
-            <label><input type="checkbox" value="corduroy"> Corduroy</label>
-            <label><input type="checkbox" value="crepe"> Crepe</label>
-            <label><input type="checkbox" value="denim"> Denim</label>
-            <label><input type="checkbox" value="gabardine"> Gabardine</label>
-            <label><input type="checkbox" value="georgette"> Georgette</label>
-            <label><input type="checkbox" value="jersey"> Jersey</label>
-            <label><input type="checkbox" value="lace"> Lace</label>
-            <label><input type="checkbox" value="leather"> Leather</label>
-            <label><input type="checkbox" value="organza"> Organza</label>
-            <label><input type="checkbox" value="poplin"> Poplin</label>
-            <label><input type="checkbox" value="sateen"> Sateen</label>
-            <label><input type="checkbox" value="satin"> Satin</label>
-            <label><input type="checkbox" value="tulle"> Tulle</label>
-            <label><input type="checkbox" value="tweed"> Tweed</label>
-            <label><input type="checkbox" value="twill"> Twill</label>
-            <label><input type="checkbox" value="velvet"> Velvet</label>
-            <label><input type="checkbox" value="voile"> Voile</label>
-          </div>
-          <div class="row" style="margin-top:6px">
-            <div class="field">
-              <label class="label">Other (type)</label>
-              <input class="input" id="typeOther" placeholder="e.g., ottoman weave">
-            </div>
-          </div>
-        </div>
-
-        <!-- Color -->
-        <div class="section">
-          <h3 class="section-title">Color</h3>
-          <div class="chips" id="color-chips">
-            <label class="chip"><input type="checkbox" value="unknown"><span>Unknown</span></label>
-            <label class="chip"><input type="checkbox" value="black"><span class="dot black"></span><span>Black</span></label>
-            <label class="chip"><input type="checkbox" value="white"><span class="dot white"></span><span>White</span></label>
-            <label class="chip"><input type="checkbox" value="grey"><span class="dot grey"></span><span>Grey</span></label>
-            <label class="chip"><input type="checkbox" value="cream"><span class="dot cream"></span><span>Cream</span></label>
-            <label class="chip"><input type="checkbox" value="brown"><span class="dot brown"></span><span>Brown</span></label>
-            <label class="chip"><input type="checkbox" value="pink"><span class="dot pink"></span><span>Pink</span></label>
-            <label class="chip"><input type="checkbox" value="red"><span class="dot red"></span><span>Red</span></label>
-            <label class="chip"><input type="checkbox" value="orange"><span class="dot orange"></span><span>Orange</span></label>
-            <label class="chip"><input type="checkbox" value="yellow"><span class="dot yellow"></span><span>Yellow</span></label>
-            <label class="chip"><input type="checkbox" value="green"><span class="dot green"></span><span>Green</span></label>
-            <label class="chip"><input type="checkbox" value="navy"><span class="dot navy"></span><span>Navy</span></label>
-            <label class="chip"><input type="checkbox" value="blue"><span class="dot blue"></span><span>Blue</span></label>
-            <label class="chip"><input type="checkbox" value="purple"><span class="dot purple"></span><span>Purple</span></label>
-            <label class="chip"><input type="checkbox" value="silver"><span class="dot silver"></span><span>Silver</span></label>
-            <label class="chip"><input type="checkbox" value="gold"><span class="dot gold"></span><span>Gold</span></label>
-          </div>
-        </div>
-
-        <!-- Condition & Pattern -->
-        <div class="section">
-          <h3 class="section-title">Condition & Pattern</h3>
+        <!-- Price & Availability -->
+        <div class="section" id="sec-price">
+          <h3 class="section-title">Price & Availability</h3>
           <div class="row">
-            <div class="field">
-              <label class="label">Condition</label>
-              <label><input type="radio" name="condition" value="new" checked> New</label>
-              <label><input type="radio" name="condition" value="washed"> Washed</label>
-              <label><input type="radio" name="condition" value="used"> Used</label>
-              <label><input type="radio" name="condition" value="unknown"> Unknown</label>
+            <div class="field" id="fld-price">
+              <label class="label" for="pricePerYd">Price (per yard) <span class="hint">(required)</span></label>
+              <div class="prefix">
+                <span class="prefix-tag">$</span>
+                <input id="pricePerYd" type="number" min="0" step="0.01" class="input" placeholder="e.g., 48" required>
+              </div>
+              <div id="err-price" class="error-msg">Enter a valid price (0 or higher).</div>
             </div>
-            <div class="field">
-              <label class="label">Pattern</label>
-              <label><input type="radio" name="pattern" value="solid" checked> Solid</label>
-              <label><input type="radio" name="pattern" value="pattern"> Pattern</label>
-              <label><input type="radio" name="pattern" value="unknown"> Unknown</label>
+            <div class="field" id="fld-yards">
+              <label class="label" for="yardsSelect">Yards Available <span class="hint">(0.5 increments, required)</span></label>
+              <select id="yardsSelect" class="select"></select>
+              <input type="hidden" id="yards">
+              <div id="err-yards" class="error-msg">Choose at least 0.5 yards.</div>
             </div>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label class="label">Selling Mode</label>
+            <label><input type="radio" name="sellingMode" value="lot" checked> Sell all yardage together as one lot</label>
+            <label style="margin-top:6px"><input type="radio" name="sellingMode" value="increments"> Sell in 0.5 yard increments (buyer chooses quantity)</label>
           </div>
         </div>
 
-        <div class="actions">
-          <button type="button" class="btn" id="preview-btn">Preview</button>
-          <button type="submit" class="btn btn-primary" id="publish-btn" disabled>Publish Listing</button>
+        <!-- Specs -->
+        <div class="section" id="sec-specs">
+          <h3 class="section-title">Specs</h3>
+          <div class="row">
+            <div class="field" id="fld-width">
+              <label class="label" for="widthIn">Width (inches)</label>
+              <input id="widthIn" type="number" min="1" step="0.1" class="input" placeholder="e.g., 54">
+              <div class="hint"><label><input type="checkbox" id="widthUnknown"> Unknown</label></div>
+            </div>
+            <div class="field" id="fld-weight">
+              <label class="label" for="weightGsm">Weight (GSM)</label>
+              <input id="weightGsm" type="number" min="0" step="1" class="input" placeholder="e.g., 95">
+              <div class="hint"><label><input type="checkbox" id="weightUnknown"> Unknown</label></div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:12px">
+            <div class="field">
+              <label class="label">Department</label>
+              <div class="hint">Select at least one or mark Unknown</div>
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px">
+                <label><input type="checkbox" name="department" value="fashion"> Fashion</label>
+                <label><input type="checkbox" name="department" value="home"> Home</label>
+                <label><input type="checkbox" name="department" value="quilting"> Quilting</label>
+                <label><input type="checkbox" name="department" value="notions"> Notions</label>
+                <label><input type="checkbox" name="department" value="unknown"> Unknown</label>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Country Made</label>
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px">
+                <label><input type="checkbox" name="country" value="france"> France</label>
+                <label><input type="checkbox" name="country" value="italy"> Italy</label>
+                <label><input type="checkbox" name="country" value="japan"> Japan</label>
+                <label><input type="checkbox" name="country" value="uk"> UK</label>
+                <label><input type="checkbox" name="country" value="usa"> USA</label>
+                <label><input type="checkbox" name="country" value="other"> Other</label>
+                <label><input type="checkbox" name="country" value="unknown"> Unknown</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Designer (optional) -->
+          <div class="field" style="margin-top:12px">
+            <label class="label" for="designer">Designer / Brand <span class="hint">(optional)</span></label>
+            <input id="designer" class="input" placeholder="e.g., Loro Piana, Liberty, deadstock mill…">
+          </div>
+
+          <!-- Content -->
+          <div class="field" style="margin-top:12px">
+            <label class="label">Fabric Content (multi-select)</label>
+            <div class="hint">Choose all that apply (Unknown and Other supported)</div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="content-list">
+              <label><input type="checkbox" id="contentUnknown" value="unknown"> Unknown</label>
+              <label><input type="checkbox" value="acetate"> Acetate</label>
+              <label><input type="checkbox" value="acrylic"> Acrylic</label>
+              <label><input type="checkbox" value="alpaca"> Alpaca</label>
+              <label><input type="checkbox" value="bamboo"> Bamboo</label>
+              <label><input type="checkbox" value="cashmere"> Cashmere</label>
+              <label><input type="checkbox" value="cotton"> Cotton</label>
+              <label><input type="checkbox" value="cupro"> Cupro</label>
+              <label><input type="checkbox" value="elastane"> Elastane/Spandex</label>
+              <label><input type="checkbox" value="hemp"> Hemp</label>
+              <label><input type="checkbox" value="leather"> Leather</label>
+              <label><input type="checkbox" value="linen"> Linen</label>
+              <label><input type="checkbox" value="modal"> Modal</label>
+              <label><input type="checkbox" value="mohair"> Mohair</label>
+              <label><input type="checkbox" value="nylon"> Nylon</label>
+              <label><input type="checkbox" value="polyamide"> Polyamide</label>
+              <label><input type="checkbox" value="polyester"> Polyester</label>
+              <label><input type="checkbox" value="polyurethane"> Polyurethane</label>
+              <label><input type="checkbox" value="rayon"> Rayon/Viscose</label>
+              <label><input type="checkbox" value="silk"> Silk</label>
+              <label><input type="checkbox" value="tencel"> Tencel</label>
+              <label><input type="checkbox" value="triacetate"> Triacetate</label>
+              <label><input type="checkbox" value="wool"> Wool</label>
+            </div>
+            <div class="row" style="margin-top:6px">
+              <div class="field">
+                <label class="label">Other (content)</label>
+                <input class="input" id="contentOther" placeholder="e.g., ramie blend">
+              </div>
+            </div>
+          </div>
+
+          <!-- Type -->
+          <div class="field" style="margin-top:12px">
+            <label class="label">Fabric Type (multi-select)</label>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="type-list">
+              <label><input type="checkbox" id="typeUnknown" value="unknown"> Unknown</label>
+              <label><input type="checkbox" value="boucle"> Bouclé</label>
+              <label><input type="checkbox" value="canvas"> Canvas</label>
+              <label><input type="checkbox" value="chiffon"> Chiffon</label>
+              <label><input type="checkbox" value="corduroy"> Corduroy</label>
+              <label><input type="checkbox" value="crepe"> Crepe</label>
+              <label><input type="checkbox" value="denim"> Denim</label>
+              <label><input type="checkbox" value="gabardine"> Gabardine</label>
+              <label><input type="checkbox" value="georgette"> Georgette</label>
+              <label><input type="checkbox" value="jersey"> Jersey</label>
+              <label><input type="checkbox" value="lace"> Lace</label>
+              <label><input type="checkbox" value="leather"> Leather</label>
+              <label><input type="checkbox" value="organza"> Organza</label>
+              <label><input type="checkbox" value="poplin"> Poplin</label>
+              <label><input type="checkbox" value="sateen"> Sateen</label>
+              <label><input type="checkbox" value="satin"> Satin</label>
+              <label><input type="checkbox" value="tulle"> Tulle</label>
+              <label><input type="checkbox" value="tweed"> Tweed</label>
+              <label><input type="checkbox" value="twill"> Twill</label>
+              <label><input type="checkbox" value="velvet"> Velvet</label>
+              <label><input type="checkbox" value="voile"> Voile</label>
+            </div>
+            <div class="row" style="margin-top:6px">
+              <div class="field">
+                <label class="label">Other (type)</label>
+                <input class="input" id="typeOther" placeholder="e.g., ottoman weave">
+              </div>
+            </div>
+          </div>
+
+          <!-- Color -->
+          <div class="section">
+            <h3 class="section-title">Color</h3>
+            <div class="chips" id="color-chips">
+              <label class="chip"><input type="checkbox" value="unknown"><span>Unknown</span></label>
+              <label class="chip"><input type="checkbox" value="black"><span class="dot black"></span><span>Black</span></label>
+              <label class="chip"><input type="checkbox" value="white"><span class="dot white"></span><span>White</span></label>
+              <label class="chip"><input type="checkbox" value="grey"><span class="dot grey"></span><span>Grey</span></label>
+              <label class="chip"><input type="checkbox" value="cream"><span class="dot cream"></span><span>Cream</span></label>
+              <label class="chip"><input type="checkbox" value="brown"><span class="dot brown"></span><span>Brown</span></label>
+              <label class="chip"><input type="checkbox" value="pink"><span class="dot pink"></span><span>Pink</span></label>
+              <label class="chip"><input type="checkbox" value="red"><span class="dot red"></span><span>Red</span></label>
+              <label class="chip"><input type="checkbox" value="orange"><span class="dot orange"></span><span>Orange</span></label>
+              <label class="chip"><input type="checkbox" value="yellow"><span class="dot yellow"></span><span>Yellow</span></label>
+              <label class="chip"><input type="checkbox" value="green"><span class="dot green"></span><span>Green</span></label>
+              <label class="chip"><input type="checkbox" value="navy"><span class="dot navy"></span><span>Navy</span></label>
+              <label class="chip"><input type="checkbox" value="blue"><span class="dot blue"></span><span>Blue</span></label>
+              <label class="chip"><input type="checkbox" value="purple"><span class="dot purple"></span><span>Purple</span></label>
+              <label class="chip"><input type="checkbox" value="silver"><span class="dot silver"></span><span>Silver</span></label>
+              <label class="chip"><input type="checkbox" value="gold"><span class="dot gold"></span><span>Gold</span></label>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="btn" id="preview-btn">Preview</button>
+            <button type="submit" class="btn btn-primary" id="publish-btn" disabled>Publish Listing</button>
+          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   </section>
 
   <!-- PREVIEW -->
@@ -394,11 +409,11 @@
   ['dragenter','dragover'].forEach(ev=>uploader?.addEventListener(ev,e=>{e.preventDefault();uploader.classList.add('drag');}));
   ['dragleave','drop'].forEach(ev=>uploader?.addEventListener(ev,e=>{e.preventDefault();uploader.classList.remove('drag');}));
   uploader?.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
-  function addFiles(list){ Array.from(list||[]).slice(0,12).forEach(f=>{const url=URL.createObjectURL(f); images.push({url});}); renderThumbs(); updatePreview(); }
+  function addFiles(list){ Array.from(list||[]).slice(0,12).forEach(f=>{const url=URL.createObjectURL(f); images.push({url});}); renderThumbs(); updatePreview(); validate(); }
   function renderThumbs(){
     thumbs.innerHTML=''; images.forEach((img,idx)=>{ const t=document.createElement('div'); t.className='t';
       const im=document.createElement('img'); im.src=img.url; const rm=document.createElement('button'); rm.className='remove'; rm.type='button'; rm.textContent='×';
-      rm.addEventListener('click',()=>{images.splice(idx,1); renderThumbs(); updatePreview();}); t.appendChild(im); t.appendChild(rm); thumbs.appendChild(t);
+      rm.addEventListener('click',()=>{images.splice(idx,1); renderThumbs(); updatePreview(); validate();}); t.appendChild(im); t.appendChild(rm); thumbs.appendChild(t);
     });
   }
 
@@ -411,12 +426,12 @@
     const chip = cb.closest('.chip'); if (chip) chip.classList.toggle('active', cb.checked);
   });
 
-  // Preview + validation
+  // Preview + validation helpers
   function values(){
     const v={};
     v.title=$('#title')?.value?.trim()||'';
     v.pricePerYd=Number($('#pricePerYd')?.value||0);
-    v.yards=Number($('#yards')?.value||0);
+    v.yards=Number($('#yards')?.value||0.5);
     v.widthIn=Number($('#widthIn')?.value||0);
     v.weightGsm=Number($('#weightGsm')?.value||0);
     v.department=$$('input[name="department"]:checked').map(i=>i.value);
@@ -443,18 +458,55 @@
     const th=$('#preview-thumb');
     if(v.images?.length){ th.style.background=`url('${v.images[0]}') center/cover no-repeat`; } else { th.style.background='linear-gradient(0deg,#e9e9e9,#f5f5f5)'; }
   }
-  function validate(){
-    const v=values(); const errs=[];
-    if(!v.title) errs.push('title');
-    if(isNaN(v.pricePerYd)||v.pricePerYd<0) errs.push('price');
-    if(isNaN(v.yards)||v.yards<0.5) errs.push('yards');
-    $('#publish-btn').disabled=errs.length>0;
-    return !errs.length;
+
+  // ✅ Inline errors
+  const fields = {
+    images: {section:'#sec-images', err:'#err-images', valid:()=>images.length>=3, msg:'Add at least 3 photos (close-up, folded, drape).'},
+    title:  {section:'#fld-title', err:'#err-title',  valid:()=>$('#title').value.trim().length>0, msg:'Please add a title.'},
+    price:  {section:'#fld-price', err:'#err-price',  valid:()=>!isNaN(Number($('#pricePerYd').value)) && Number($('#pricePerYd').value)>=0, msg:'Enter a valid price (0 or higher).'},
+    yards:  {section:'#fld-yards', err:'#err-yards',  valid:()=>Number($('#yards').value)>=0.5, msg:'Choose at least 0.5 yards.'}
+  };
+
+  function showFieldError(key, on){
+    const cfg = fields[key];
+    const sec = $(cfg.section); const em = $(cfg.err);
+    if(!sec||!em) return;
+    sec.classList.toggle('error', on);
+    sec.classList.toggle('good', !on);
+    em.style.display = on ? 'block' : 'none';
   }
+
+  function validate(){
+    const v=values(); // (also ensures hidden yards synced)
+    const failed = Object.keys(fields).filter(k=>!fields[k].valid());
+    // Field highlights
+    Object.keys(fields).forEach(k=>showFieldError(k, failed.includes(k)));
+
+    // Summary
+    const sum = $('#errorSummary'); const list = $('#errorList');
+    if(failed.length){
+      list.innerHTML = failed.map(k=>`<li>${fields[k].msg}</li>`).join('');
+      sum.classList.add('show');
+    } else {
+      sum.classList.remove('show');
+      list.innerHTML = '';
+    }
+
+    // Publish button
+    $('#publish-btn').disabled = failed.length>0;
+    return failed.length===0;
+  }
+
+  // Events
   $('#sell-form')?.addEventListener('input',()=>{updatePreview(); validate();});
   $('#preview-btn')?.addEventListener('click',()=>{updatePreview(); validate();});
   $('#sell-form')?.addEventListener('submit',e=>{
-    e.preventDefault(); updatePreview(); if(!validate()) return;
+    e.preventDefault(); updatePreview();
+    if(!validate()){
+      // Focus the summary so screen readers announce it
+      $('#errorSummary').focus?.();
+      return;
+    }
     const v=values();
     const payload={ ...v, content:[...v.content, ...(v.contentOther?[v.contentOther]:[])], type:[...v.type, ...(v.typeOther?[v.typeOther]:[])] };
     console.log('SELLER_PAYLOAD', payload);
@@ -463,6 +515,8 @@
 
   // init
   updatePreview(); validate();
+
+  // Reusable toggles wired earlier
 })();
 </script>
 
