@@ -1,37 +1,183 @@
-<!doctype html><html lang="en"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline — Listings (public)</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Hemline Market — Listing</title>
+<meta name="theme-color" content="#333333"/>
 <style>
-  :root{--muted:#f5f5f6;--border:#e6e6e7;--ink:#111;--bg:#fff}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-  .hm-filters-bar{position:fixed;left:0;right:0;top:56px;z-index:9999;background:var(--muted);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:10px 12px}
-  .hm-filters{max-width:1100px;margin:0 auto;display:grid;gap:10px;grid-template-columns:repeat(6,minmax(0,1fr))}
-  .hm-filters select,.hm-filters input,.hm-filters button{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
-  .hm-filters .search{grid-column:span 2}
-  @media (max-width:900px){.hm-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.hm-filters .search{grid-column:span 2}}
-  .hm-push{height:66px}
-</style>
-</head><body>
-<div class="hm-filters-bar" id="hm-filters-bar">
-  <div class="hm-filters">
-    <select id="f-fabric"><option value="">Fabric</option><option>Cotton</option><option>Wool</option><option>Linen</option><option>Silk</option><option>Knit</option><option>Terry/Fleece</option></select>
-    <select id="f-weight"><option value="">Weight</option><option>Light</option><option>Mid</option><option>Heavy</option></select>
-    <select id="f-color"><option value="">Color</option><option>Black</option><option>White</option><option>Brown</option><option>Blue</option><option>Green</option><option>Red</option><option>Yellow</option><option>Pink</option><option>Purple</option></select>
-    <select id="f-seller"><option value="">Seller</option></select>
-    <select id="f-sort"><option value="">Sort</option><option value="newest">Newest</option><option value="priceLow">Price: Low → High</option><option value="priceHigh">Price: High → Low</option></select>
-    <input id="f-search" class="search" type="search" placeholder="Search fabrics…">
-    <button id="f-reset" type="button">Reset</button>
-  </div>
-</div>
-<div class="hm-push" aria-hidden="true"></div>
+  :root{
+    --hm-charcoal:#333333; --hm-rosewood:#65000b; --hm-hunter:#355e3b; --hm-black:#000;
+    --hm-bg:#fff; --hm-text:#333333; --hm-muted:#6b7280;
+    --hm-border:1px solid rgba(0,0,0,.12); --hm-shadow:0 8px 24px rgba(0,0,0,.08);
+    --hm-radius:14px; --hm-gap:16px; --hm-cta:#65000b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  a{text-decoration:none;color:#000} a:hover{color:var(--hm-rosewood)}
+  img{max-width:100%;display:block}
 
-<div id="app"></div>
-<script src="/js/filters-bar.js"></script>
+  /* Header (matches homepage/about) + Cart badge */
+  .hm-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);backdrop-filter:saturate(120%) blur(6px);border-bottom:1px solid rgba(0,0,0,.08)}
+  .hm-header-inner{height:90px;max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 16px}
+  .hm-logo img{height:80px}
+  .hm-nav{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+  .hm-nav a{font-weight:700}
+  .hm-nav .cta{font-weight:900;padding:10px 18px;border-radius:999px;background:var(--hm-cta);color:#fff;border:1px solid #000}
+  .cart-link{position:relative;padding-right:10px}
+  .cart-count{position:absolute;top:-8px;right:-12px;min-width:20px;height:20px;border-radius:999px;background:#111;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:1px solid #000}
+  
+  /* Page layout */
+  .wrap{max-width:1200px;margin:26px auto 48px;padding:0 16px;display:grid;grid-template-columns:1.1fr .9fr;gap:26px}
+  @media (max-width:980px){.wrap{grid-template-columns:1fr}}
+  .card{background:#fff;border:var(--hm-border);border-radius:18px;box-shadow:var(--hm-shadow)}
+  .card h2{margin:0;padding:16px 18px;border-bottom:1px solid rgba(0,0,0,.12)}
+  .card-body{padding:18px}
+
+  .gallery{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:640px){.gallery{grid-template-columns:1fr}}
+  .imgbox{border:var(--hm-border);border-radius:12px;overflow:hidden;background:linear-gradient(0deg,#e9e9e9,#f5f5f5);height:260px}
+  .imgbox img{width:100%;height:100%;object-fit:cover}
+
+  .meta{color:var(--hm-muted);font-size:14px;margin-top:6px}
+  .price{font-weight:900;font-size:22px}
+  .actions{display:flex;gap:10px;margin-top:14px}
+  .btn{border:var(--hm-border);background:#fff;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer}
+  .btn-primary{background:var(--hm-cta);color:#fff;border-color:#000}
+  .btn-primary:active{transform:translateY(1px)}
+
+  /* Microinteraction toast */
+  .toast{
+    position:fixed; right:18px; bottom:18px; z-index:60;
+    background:#0b0b0b; color:#fff; border:1px solid #000; 
+    border-radius:999px; padding:10px 14px; font-weight:800;
+    display:flex; align-items:center; gap:10px; opacity:0; transform:translateY(8px) scale(.98);
+    box-shadow:0 10px 30px rgba(0,0,0,.35); pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+  }
+  .toast.show{opacity:1; transform:translateY(0) scale(1)}
+  .toast .check{
+    width:18px; height:18px; border-radius:50%; background:#22c55e;
+    display:inline-flex; align-items:center; justify-content:center; color:#000; font-size:14px; font-weight:900;
+    border:1px solid #0a0a0a; box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  /* Friendly inline error style (we’ll use in later steps too) */
+  .error{background:#fff6f6;border:1px solid #e11d48;color:#7f1d1d;border-radius:12px;padding:10px 14px;font-weight:700}
+
+</style>
+</head>
+<body>
+
+<header class="hm-header">
+  <div class="hm-header-inner">
+    <a class="hm-logo" href="/" aria-label="Hemline Market home">
+      <img src="/logo.png" alt="Hemline Market logo" onerror="this.style.display='none'">
+    </a>
+    <nav class="hm-nav" aria-label="Primary">
+      <a href="/new">New Arrivals</a>
+      <a href="/atelier">My Atelier</a>
+      <a href="/favorites">❤ Favorites</a>
+      <a href="/notifications">🔔 Notifications</a>
+      <a href="/account">My Account</a>
+      <a href="/cart.html" class="cart-link">Cart <span class="cart-count" data-cart-count>0</span></a>
+      <a class="cta" href="/list">List Item</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- LEFT: images -->
+  <section class="card">
+    <h2>Italian Silk Twill — Navy Chain</h2>
+    <div class="card-body">
+      <div class="gallery">
+        <div class="imgbox"><img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1200&auto=format&fit=crop" alt=""></div>
+        <div class="imgbox"><img src="https://images.unsplash.com/photo-1503342217505-b0a15cf70489?q=80&w=1200&auto=format&fit=crop" alt=""></div>
+        <div class="imgbox"><img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1200&auto=format&fit=crop" alt=""></div>
+        <div class="imgbox"><img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1200&auto=format&fit=crop" alt=""></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT: details + Add to cart -->
+  <aside class="card">
+    <h2>Details</h2>
+    <div class="card-body">
+      <div class="price">$68 / yd</div>
+      <div class="meta">6 yd · 54″ · Italy</div>
+      <div class="meta">Content: Silk · Weave: Twill · Hand: Fluid · Transparency: Opaque</div>
+
+      <div class="actions">
+        <button class="btn" onclick="location.href='/catalog-v2.html'">Back to catalog</button>
+        <button class="btn btn-primary" id="addToCart" data-sku="demo-italian-silk-twill" data-name="Italian Silk Twill — Navy Chain" data-price="68" data-qty="1">Add to Cart</button>
+      </div>
+
+      <hr style="margin:18px 0;border:none;border-top:1px solid rgba(0,0,0,.1)">
+
+      <p class="meta">Free returns within 7 days for uncut yardage. Need help? <a href="/faq.html">See FAQ</a>.</p>
+    </div>
+  </aside>
+</main>
+
+<!-- Microinteraction toast -->
+<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+  <span class="check">✓</span>
+  <span>Added to cart</span>
+</div>
+
 <script>
-document.addEventListener('hemline:filters', (e)=> {
-  // Temporary visual proof the bar is live:
-  document.title = 'Hemline — Listings (filters active)';
-});
+/* Tiny cart helper (localStorage) + microinteraction */
+(function(){
+  const CART_KEY='hm_cart_v1';
+
+  function readCart(){
+    try{ return JSON.parse(localStorage.getItem(CART_KEY)||'[]'); }catch(e){ return []; }
+  }
+  function writeCart(items){
+    localStorage.setItem(CART_KEY, JSON.stringify(items));
+    syncCount();
+  }
+  function syncCount(){
+    const count = readCart().reduce((n,i)=>n+(Number(i.qty)||1),0);
+    document.querySelectorAll('[data-cart-count]').forEach(el=>el.textContent = count);
+  }
+  function addItem(item){
+    const items = readCart();
+    const idx = items.findIndex(x=>x.sku===item.sku);
+    if(idx>-1){ items[idx].qty += item.qty; } else { items.push(item); }
+    writeCart(items);
+  }
+
+  // On load: sync existing count
+  syncCount();
+
+  // Wire add-to-cart button
+  const btn = document.getElementById('addToCart');
+  const toast = document.getElementById('toast');
+
+  function showToast(){
+    if(!toast) return;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.classList.remove('show'), 1600);
+  }
+
+  btn?.addEventListener('click', ()=>{
+    // defensively parse attributes
+    const sku = btn.getAttribute('data-sku') || ('sku-'+Date.now());
+    const name = btn.getAttribute('data-name') || 'Fabric';
+    const price = Number(btn.getAttribute('data-price')||0);
+    const qty = Number(btn.getAttribute('data-qty')||1);
+    addItem({sku,name,price,qty});
+    showToast();
+
+    // small tactile scale effect
+    btn.style.transform='scale(.98)';
+    setTimeout(()=>btn.style.transform='scale(1)',120);
+  });
+})();
 </script>
-</body></html>
+
+</body>
+</html>
