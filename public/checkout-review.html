@@ -11,6 +11,7 @@
     --hm-text:#333333; --hm-muted:#6b7280; --hm-bg:#fff;
     --hm-border:1px solid rgba(0,0,0,.12); --hm-shadow:0 8px 24px rgba(0,0,0,.08);
     --hm-radius:14px; --hm-gap:16px; --hm-cta:#65000b;
+    --hm-error-bg:#fff6f7; --hm-error-border:#ff8aa3; --hm-error-text:#7f1d1d;
   }
   *{box-sizing:border-box}
   html,body{margin:0;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
@@ -40,18 +41,32 @@
   .thumb img{width:100%;height:100%;object-fit:cover}
   .line-title{font-weight:800}
   .meta{color:var(--hm-muted);font-size:13px}
+
   .qty{display:flex;align-items:center;gap:6px}
   .qty button{width:30px;height:30px;border:var(--hm-border);border-radius:10px;background:#fff;font-weight:900;cursor:pointer}
+  .qty input{width:56px;text-align:center;padding:8px 10px;border:var(--hm-border);border-radius:10px}
   .remove{color:#7f1d1d;font-weight:800;cursor:pointer}
 
   .summary li{display:flex;justify-content:space-between;margin:8px 0}
   .summary .total{font-weight:900;font-size:18px}
   .cta{display:block;text-align:center;margin-top:14px;padding:12px 16px;border-radius:12px;border:1px solid #000;background:var(--hm-cta);color:#fff;font-weight:900;text-decoration:none}
+  .cta[aria-disabled="true"]{opacity:.6;pointer-events:none}
   .ghost{display:block;text-align:center;margin-top:10px;padding:10px 14px;border-radius:12px;border:var(--hm-border);background:#fff;font-weight:800}
 
   .empty{padding:22px;text-align:center}
   .empty h3{margin:6px 0 4px}
   .empty p{color:var(--hm-muted)}
+
+  /* ✅ Friendly inline errors */
+  .error-summary{
+    display:none; margin:0 0 12px 0; border-radius:14px;
+    background:var(--hm-error-bg); border:2px solid var(--hm-error-border);
+    color:var(--hm-error-text); padding:12px 14px; font-weight:800;
+  }
+  .error-summary.show{display:block}
+  .error-list{margin:8px 0 0 18px; color:var(--hm-error-text)}
+  .row.error{background:linear-gradient(0deg,#fff, #fff) padding-box; border-radius:12px}
+  .row.error .qty input{outline:3px solid rgba(255,0,66,.15); border-color:var(--hm-error-border)}
 </style>
 </head>
 <body>
@@ -62,7 +77,7 @@
       <img src="/logo.png" alt="Hemline Market logo" onerror="this.style.display='none'">
     </a>
     <nav class="hm-nav" aria-label="Primary">
-      <a href="/catalog-v2.html">Browse</a>
+      <a href="/catalog.html">Browse</a>
       <a href="/favorites">❤ Favorites</a>
       <a href="/account">My Account</a>
       <a href="/cart.html" class="cart-link">Cart <span class="cart-count" data-cart-count>0</span></a>
@@ -75,7 +90,15 @@
   <!-- Left: items -->
   <section class="card">
     <h2>Order Review</h2>
-    <div class="card-body" id="lines"></div>
+    <div class="card-body">
+      <!-- ✅ error summary lives here -->
+      <div id="errorSummary" class="error-summary" role="alert" aria-live="assertive">
+        Let’s fix a few things:
+        <ul id="errorList" class="error-list"></ul>
+      </div>
+
+      <div id="lines"></div>
+    </div>
   </section>
 
   <!-- Right: totals -->
@@ -89,17 +112,17 @@
         <li class="total"><span>Total</span><span id="s-total">$0.00</span></li>
       </ul>
       <a href="/checkout.html" class="cta" id="proceed" aria-disabled="true">Proceed to Checkout</a>
-      <a href="/catalog-v2.html" class="ghost">Keep browsing</a>
+      <a href="/catalog.html" class="ghost">Keep browsing</a>
     </div>
   </aside>
 </main>
 
 <script>
-/* Tiny cart util (same key as listing page) */
+/* Tiny cart util (same key as other pages) + friendly errors */
 (function(){
   const CART_KEY='hm_cart_v1';
-  const shipFlat = 6.95;          // placeholder flat rate (Part 14 will wire real shipping)
-  const taxRate  = 0.00;          // placeholder; set by region later
+  const shipFlat = 6.95;   // placeholder (Part 14 = real shipping)
+  const taxRate  = 0.00;   // placeholder; set by region later
 
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -113,29 +136,55 @@
     document.querySelectorAll('[data-cart-count]').forEach(el=>el.textContent=count);
   }
 
+  function addError(msg, list){ const li=document.createElement('li'); li.textContent=msg; list.appendChild(li); }
+
+  function validateItems(items){
+    const errors = [];
+    const MIN_QTY = 1;
+    const MAX_QTY = 500; // sanity cap; adjust later if needed
+    const MIN_PRICE = 0;
+
+    items.forEach((it, idx)=>{
+      const q = Number(it.qty||0);
+      const p = Number(it.price||0);
+      if(!Number.isFinite(q) || q < MIN_QTY) errors.push({idx, type:'qty', msg:`“${it.name||'Item'}” needs at least 1 yard.`});
+      if(q > MAX_QTY) errors.push({idx, type:'qty', msg:`“${it.name||'Item'}” quantity looks too high.`});
+      if(!Number.isFinite(p) || p < MIN_PRICE) errors.push({idx, type:'price', msg:`“${it.name||'Item'}” has an invalid price.`});
+    });
+    return errors;
+  }
+
   function render(){
     const lines = $('#lines');
+    const errorSummary = $('#errorSummary');
+    const errorList = $('#errorList');
+    const proceed = $('#proceed');
+
     const items = readCart();
 
+    // Empty state
     if(!items.length){
       lines.innerHTML = `
         <div class="empty">
           <h3>Your cart is empty</h3>
-          <p>Save favorites for later or keep browsing — we’ll hold your picks here.</p>
-          <a class="ghost" href="/catalog-v2.html">Browse fabrics →</a>
+          <p class="meta">Save favorites for later or keep browsing — we’ll hold your picks here.</p>
+          <a class="ghost" href="/catalog.html">Browse fabrics →</a>
         </div>`;
       $('#s-sub').textContent = fmt(0);
       $('#s-tax').textContent = fmt(0);
       $('#s-total').textContent = fmt(0 + shipFlat);
-      $('#proceed').setAttribute('aria-disabled','true');
+      proceed.setAttribute('aria-disabled','true');
+      errorSummary.classList.remove('show');
+      errorList.innerHTML='';
       return;
     }
 
-    // lines
+    // Render lines
     lines.innerHTML = '';
     items.forEach((it, idx)=>{
       const row = document.createElement('div');
       row.className = 'row';
+      row.setAttribute('data-idx', idx);
 
       const t = document.createElement('div');
       t.className = 'thumb';
@@ -146,9 +195,9 @@
       mid.innerHTML = `
         <div class="line-title">${it.name||'Fabric'}</div>
         <div class="meta">${it.sku||''}</div>
-        <div class="qty" data-idx="${idx}">
+        <div class="qty" aria-label="Quantity controls">
           <button type="button" data-act="dec" aria-label="Decrease quantity">−</button>
-          <span aria-live="polite">${Number(it.qty||1).toFixed(0)}</span>
+          <input type="number" inputmode="numeric" min="1" step="1" value="${Number(it.qty||1)}" aria-label="Quantity">
           <button type="button" data-act="inc" aria-label="Increase quantity">+</button>
           <span class="meta" style="margin-left:8px">yd</span>
           <span class="remove" data-act="rm" style="margin-left:12px">Remove</span>
@@ -163,31 +212,63 @@
       lines.appendChild(row);
     });
 
-    // qty handlers
-    lines.addEventListener('click', e=>{
-      const act = e.target.getAttribute('data-act');
-      if(!act) return;
-      const wrap = e.target.closest('.qty');
-      const idx = Number(wrap?.getAttribute('data-idx'));
-      const items = readCart();
-      if(isNaN(idx) || !items[idx]) return;
+    // Qty handlers + input
+    lines.addEventListener('click', (e)=>{
+      const btn = e.target.closest('[data-act]');
+      if(!btn) return;
+      const act = btn.getAttribute('data-act');
+      const row = btn.closest('.row'); const idx = Number(row?.getAttribute('data-idx')); if(isNaN(idx)) return;
+      const items = readCart(); if(!items[idx]) return;
 
       if(act==='inc'){ items[idx].qty = (Number(items[idx].qty)||1) + 1; }
       if(act==='dec'){ items[idx].qty = Math.max(1, (Number(items[idx].qty)||1) - 1); }
       if(act==='rm'){ items.splice(idx,1); }
       writeCart(items);
       render();
-    });
+    }, { once:true });
 
-    // totals
-    const sub = items.reduce((n,i)=>n + (Number(i.price||0) * (Number(i.qty)||1)), 0);
+    lines.addEventListener('change', (e)=>{
+      const input = e.target.closest('.qty input');
+      if(!input) return;
+      const row = input.closest('.row'); const idx = Number(row?.getAttribute('data-idx')); if(isNaN(idx)) return;
+      const items = readCart(); if(!items[idx]) return;
+
+      const v = Math.max(1, Math.floor(Number(input.value)||1));
+      items[idx].qty = v; writeCart(items); render();
+    }, { once:true });
+
+    // Totals
+    const sub = items.reduce((n,i)=>n + (Number(i.price||0) * (Number(i.qty||1))), 0);
     const tax = sub * taxRate;
     const total = sub + shipFlat + tax;
     $('#s-sub').textContent = fmt(sub);
     $('#s-tax').textContent = fmt(tax);
     $('#s-total').textContent = fmt(total);
-    $('#proceed').removeAttribute('aria-disabled');
+
+    // ✅ Validate & show friendly errors
+    const errs = validateItems(items);
+    // Clear row highlights
+    $$('.row').forEach(r=>r.classList.remove('error'));
+    if(errs.length){
+      errorList.innerHTML='';
+      errs.forEach(er=>{
+        addError(er.msg, errorList);
+        const badRow = $(`.row[data-idx="${er.idx}"]`); badRow?.classList.add('error');
+      });
+      errorSummary.classList.add('show');
+      proceed.setAttribute('aria-disabled','true');
+    } else {
+      errorSummary.classList.remove('show');
+      errorList.innerHTML='';
+      proceed.removeAttribute('aria-disabled');
+    }
   }
+
+  // Prevent navigation when disabled
+  document.addEventListener('click', (e)=>{
+    const a = e.target.closest('a#proceed[aria-disabled="true"]');
+    if(a){ e.preventDefault(); const sum = document.getElementById('errorSummary'); sum?.scrollIntoView({behavior:'smooth', block:'center'}); }
+  });
 
   // init
   syncCount();
