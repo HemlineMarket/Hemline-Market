@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hemline — Seller Profile</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; line-height: 1.4; }
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    label { display:block; margin-top:12px; font-size:14px; }
+    input { width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; }
+    button { margin-top:16px; padding:10px 14px; border:0; border-radius:8px; background:black; color:white; cursor:pointer; }
+    .toast { margin-top:12px; padding:10px; border-radius:6px; display:none; }
+    .ok { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; }
+    .err { background:#fef2f2; border:1px solid #fecaca; color:#7f1d1d; }
+  </style>
+</head>
+<body>
+  <h1>Seller Profile</h1>
+  <p>Set your ship-from address (required before listing items).</p>
+
+  <form id="profileForm">
+    <label>Display Name <input id="display_name" /></label>
+    <label>Origin Name <input id="origin_name" /></label>
+    <label>Street 1 <input id="origin_street1" /></label>
+    <label>Street 2 <input id="origin_street2" /></label>
+    <label>City <input id="origin_city" /></label>
+    <label>State <input id="origin_state" /></label>
+    <label>ZIP <input id="origin_zip" /></label>
+    <label>Country <input id="origin_country" value="US" /></label>
+    <label>Phone <input id="phone" /></label>
+    <button type="submit">Save Profile</button>
+  </form>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // Initialize Supabase client (browser-safe: anon key)
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const toast = (msg, ok=true) => {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = "toast " + (ok ? "ok" : "err");
+      el.style.display = "block";
+      setTimeout(() => el.style.display="none", 4000);
+    };
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) { toast("You must be signed in", false); return; }
+
+      const { error } = await supabase.rpc("set_seller_origin", {
+        p_display_name: document.getElementById('display_name').value,
+        p_origin_name: document.getElementById('origin_name').value,
+        p_street1: document.getElementById('origin_street1').value,
+        p_street2: document.getElementById('origin_street2').value,
+        p_city: document.getElementById('origin_city').value,
+        p_state: document.getElementById('origin_state').value,
+        p_zip: document.getElementById('origin_zip').value,
+        p_country: document.getElementById('origin_country').value,
+        p_phone: document.getElementById('phone').value
+      });
+
+      if (error) { toast("Error: " + error.message, false); }
+      else { toast("Profile saved ✅", true); }
+    });
+  </script>
+</body>
+</html>
