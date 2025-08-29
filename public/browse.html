@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Browse — Hemline Market</title>
+<title>Hemline Market — Browse</title>
+
+<link rel="stylesheet" href="styles/hm-modern.css"/>
+<link rel="stylesheet" href="styles/hem-header.css"/>
+<link rel="stylesheet" href="styles/hm-typography.css"/>
+<link rel="stylesheet" href="styles/hm-footer.css"/>
 
 <style>
   :root{
@@ -12,82 +17,86 @@
     --hm-muted:#6b7280;
     --hm-border:#e5e7eb;
     --hm-chip:#ffffff;
-    --hm-bg:#fafafa;
   }
 
-  html,body{height:100%}
   body{
     margin:0;
-    background:#fff;
-    color:var(--hm-text);
+    background:#fafafa;
     font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
+    color:var(--hm-text);
   }
 
   /* Header */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
   .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
-  .left{display:flex;align-items:center;gap:10px}
-  .hm-brand{font-size:20px;font-weight:800;color:var(--hm-accent);text-decoration:none}
+  .hm-header .left{display:flex;align-items:center;gap:10px}
+  .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
   .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
   .hamburger svg{width:22px;height:22px;stroke-width:2}
   .right{display:flex;align-items:center;gap:14px}
   .hm-icon{color:#444;display:inline-grid;place-items:center}
-  .hm-icon svg{width:22px;height:22px;stroke-width:2}
-  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
+  .hm-icon svg{width:26px;height:26px;stroke-width:2}
+  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+  .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+
+  /* slide-out sheet menu */
+  .sheet{
+    position:fixed; inset:0 auto 0 0; width:min(84vw,340px);
+    background:#fff; border-right:1px solid var(--hm-border);
+    transform:translateX(-100%); transition:transform .25s ease;
+    z-index:1000; display:flex; flex-direction:column;
+    box-shadow:0 10px 30px rgba(0,0,0,.08);
+  }
+  .sheet.open{ transform:translateX(0); }
+  .sheet header{display:flex;align-items:center;justify-content:space-between;
+    padding:10px;border-bottom:1px solid var(--hm-border)}
+  .sheet nav{display:grid;padding:10px}
+  .sheet nav a{
+    padding:10px;border:1px solid var(--hm-border);
+    border-radius:10px;text-decoration:none;color:#1f2937;background:#fff;
+  }
+  .sheet nav a + a{ margin-top:8px; }
+  .sheet .close{
+    display:inline-grid;place-items:center;width:30px;height:30px;
+    border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444;
+  }
+  .sheet .close svg{ width:20px;height:20px; stroke-width:2; }
 
   /* Layout */
-  .page{min-height:calc(100% - 56px - 56px)}
-  .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
-  .grid-2{display:grid;grid-template-columns:280px 1fr;gap:12px}
-  @media (max-width:900px){ .grid-2{grid-template-columns:1fr} }
+  .layout{max-width:1200px;margin:12px auto;padding:0 12px;display:grid;grid-template-columns:260px 1fr;gap:20px}
+  @media (max-width:900px){ .layout{grid-template-columns:1fr} }
 
-  /* Sidebar */
-  .filters{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:8px}
-  .filters h3{margin:6px 8px 8px;font-size:13px;color:#374151}
-  details{border:1px solid var(--hm-border);border-radius:10px;background:#fff;margin:8px 0}
-  summary{list-style:none;padding:10px 12px;cursor:pointer;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:space-between}
-  summary::marker, summary::-webkit-details-marker{display:none}
-  summary .plus{font-weight:800;color:#6b7280;transition:transform .15s ease}
-  details[open] summary .plus{transform:rotate(45deg)}
-  .pane{padding:8px 12px;border-top:1px solid var(--hm-border)}
-  .check{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}
-  .two-col{columns:2; column-gap:16px}
-  .two-col .check{break-inside:avoid}
-  .row{display:flex;gap:8px;flex-wrap:wrap}
-  .field{display:flex;flex-direction:column;gap:4px;min-width:120px}
-  .field input,.field select{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
-  .actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
-  .btn{padding:8px 12px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;color:#374151;cursor:pointer;font-size:13px}
-  .btn-primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
+  /* Sidebar filters */
+  .filters{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:10px}
+  .filters h3{margin:0;font-size:14px;font-weight:700;color:#111}
+  .filter-group{border-top:1px solid var(--hm-border);padding-top:8px}
+  .filter-group:first-child{border-top:0;padding-top:0}
+  .filter-group label{display:block;font-size:13px;margin-bottom:4px;color:#374151}
+  .filter-group input,.filter-group select{width:100%;padding:6px 8px;border:1px solid var(--hm-border);border-radius:8px;font-size:13px}
+  .filter-list{display:grid;gap:4px;margin-top:6px}
+  .filter-list label{display:flex;align-items:center;gap:6px;font-size:13px;color:#374151}
 
-  /* Color swatches */
-  .swatches{display:flex;flex-wrap:wrap;gap:8px}
-  .sw{position:relative;width:22px;height:22px;border-radius:6px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);cursor:pointer}
+  /* Color chips */
+  .color-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .sw{width:26px;height:26px;border-radius:6px;border:1px solid #d1d5db;cursor:pointer;position:relative}
   .sw[data-selected="true"]{outline:2px solid var(--hm-accent);outline-offset:2px}
-  .sw .tip{position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:10}
+  .sw .tip{position:absolute;bottom:125%;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.85);color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:10}
   .sw:hover .tip{opacity:1}
 
-  /* Results */
-  .results{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:8px}
-  .results h2{margin:6px 8px 8px;font-size:16px}
-  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-  @media (max-width:900px){ .cards{grid-template-columns:repeat(2,minmax(0,1fr))} }
-  @media (max-width:560px){ .cards{grid-template-columns:1fr} }
-  .card{border:1px solid var(--hm-border);border-radius:10px;overflow:hidden;background:#fff;text-decoration:none;color:#111827}
+  /* Browse grid */
+  .browse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+  .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;overflow:hidden;text-decoration:none;color:#1f2937}
   .thumb{aspect-ratio:4/3;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#6b7280}
   .info{padding:8px 10px}
   .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .meta{display:flex;justify-content:space-between;color:#6b7280;font-size:12px;margin-top:4px}
-
-  /* Footer */
-  .hm-footer{height:56px;background:#fff;border-top:1px solid var(--hm-border);display:flex;align-items:center}
-  .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;width:100%}
-  .hm-footer .footer-links a{color:#4b5563;text-decoration:none;margin-right:10px}
+  .price{font-weight:800;color:#111827;font-size:14px}
 </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -112,144 +121,98 @@
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
       </a>
-      <a class="hm-avatar" href="account.html">AA</a>
-      <a class="hm-icon" style="border:1px solid var(--hm-accent);padding:6px 10px;border-radius:999px;background:var(--hm-accent);color:#fff;text-decoration:none" href="seller/index.html?list=new">Sell</a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn-primary" href="seller/index.html?list=new">Sell</a>
     </div>
   </div>
 </header>
 
-<div class="page">
-  <div class="wrap grid-2">
-    <!-- Sidebar -->
-    <aside class="filters" aria-label="Filters">
-      <h3>Filters</h3>
+<!-- LEFT MENU -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </header>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="browse.html">Browse</a>
+    <a href="about.html">About</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="favorites.html">Favorites</a>
+    <a href="orders.html">Orders</a>
+    <a href="settings.html">Settings</a>
+    <a href="help.html">Help</a>
+  </nav>
+</aside>
 
-      <details>
-        <summary>Department <span class="plus">+</span></summary>
-        <div class="pane">
-          <div class="check"><input type="radio" name="dept" value="" checked> Any</div>
-          <div class="check"><input type="radio" name="dept" value="Fashion"> Fashion</div>
-          <div class="check"><input type="radio" name="dept" value="Home"> Home</div>
-          <div class="check"><input type="radio" name="dept" value="Quilting"> Quilting</div>
-          <div class="check"><input type="radio" name="dept" value="Notions"> Notions</div>
-        </div>
-      </details>
+<!-- LAYOUT -->
+<div class="layout">
+  <aside class="filters" id="filters">
+    <div class="filter-group">
+      <h3>Content</h3>
+      <div class="filter-list" id="contentFilter"></div>
+    </div>
+    <div class="filter-group">
+      <h3>Color Family</h3>
+      <div class="color-chips" id="colorFilter"></div>
+    </div>
+    <div class="filter-group">
+      <h3>$/yard</h3>
+      <input type="number" id="minPrice" placeholder="Min">
+      <input type="number" id="maxPrice" placeholder="Max">
+    </div>
+    <div class="filter-group">
+      <h3>Yards</h3>
+      <input type="number" id="minYards" placeholder="Min yards">
+    </div>
+    <div class="filter-group">
+      <h3>More</h3>
+      <input type="number" id="minWidth" placeholder="Min width">
+      <input type="number" id="maxWidth" placeholder="Max width">
+      <input type="number" id="minGsm" placeholder="Min GSM">
+      <input type="number" id="maxGsm" placeholder="Max GSM">
+      <select id="dept"><option value="">Department</option><option>Fashion</option><option>Home</option></select>
+      <select id="fabricType"><option value="">Fabric Type</option><option>Canvas</option><option>Satin</option></select>
+      <select id="fiberType"><option value="">Fiber Type</option><option>Natural</option><option>Synthetic</option></select>
+      <input id="designer" placeholder="Designer">
+      <select id="origin"><option value="">Origin</option><option>Italy</option><option>France</option></select>
+      <select id="pattern"><option value="">Pattern</option><option>Solid</option><option>Printed</option></select>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button id="clearAll">Clear</button>
+      <button id="applyAll" class="btn btn-primary">Apply</button>
+    </div>
+  </aside>
 
-      <details>
-        <summary>Content <span class="plus">+</span></summary>
-        <div class="pane two-col" id="contentChecks"></div>
-      </details>
-
-      <details>
-        <summary>Color Family <span class="plus">+</span></summary>
-        <div class="pane">
-          <div class="swatches" id="colorSwatches"></div>
-        </div>
-      </details>
-
-      <details>
-        <summary>$/yard <span class="plus">+</span></summary>
-        <div class="pane row">
-          <div class="field"><label>Min</label><input id="minPrice" type="number" min="0" step="1" placeholder="10"></div>
-          <div class="field"><label>Max</label><input id="maxPrice" type="number" min="0" step="1" placeholder="100"></div>
-        </div>
-      </details>
-
-      <details>
-        <summary>Yards <span class="plus">+</span></summary>
-        <div class="pane row">
-          <div class="field" style="min-width:180px"><label>Min yards</label><input id="minYards" type="number" min="0" step="1" placeholder="e.g., 3"></div>
-        </div>
-      </details>
-
-      <details>
-        <summary>Width (in) <span class="plus">+</span></summary>
-        <div class="pane row">
-          <div class="field"><label>Min</label><input id="minWidth" type="number" min="0" step="1" placeholder="44"></div>
-          <div class="field"><label>Max</label><input id="maxWidth" type="number" min="0" step="1" placeholder="60"></div>
-        </div>
-      </details>
-
-      <details>
-        <summary>Weight (GSM) <span class="plus">+</span></summary>
-        <div class="pane row">
-          <div class="field"><label>Min</label><input id="minGsm" type="number" min="0" step="1" placeholder="80"></div>
-          <div class="field"><label>Max</label><input id="maxGsm" type="number" min="0" step="1" placeholder="400"></div>
-        </div>
-      </details>
-
-      <details>
-        <summary>Fabric Type <span class="plus">+</span></summary>
-        <div class="pane">
-          <select id="fabricType" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px">
-            <option value="">Any</option>
-            <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
-            <option>Crepe</option><option>Denim</option><option>Flannel</option>
-            <option>Georgette</option><option>Jersey</option><option>Lace</option>
-            <option>Lawn</option><option>Organza</option><option>Poplin</option>
-            <option>Sateen</option><option>Satin</option><option>Tulle</option>
-            <option>Twill</option><option>Velvet</option><option>Voile</option>
-          </select>
-        </div>
-      </details>
-
-      <details>
-        <summary>Fiber Type <span class="plus">+</span></summary>
-        <div class="pane">
-          <select id="fiberType" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px">
-            <option value="">Any</option>
-            <option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option>
-          </select>
-        </div>
-      </details>
-
-      <details>
-        <summary>Designer <span class="plus">+</span></summary>
-        <div class="pane">
-          <input id="designer" placeholder="e.g., Loro Piana" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px">
-        </div>
-      </details>
-
-      <details>
-        <summary>Country / Origin <span class="plus">+</span></summary>
-        <div class="pane">
-          <select id="origin" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px">
-            <option value="">Any</option>
-            <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
-            <option>USA</option><option>India</option><option>China</option><option>Korea</option>
-          </select>
-        </div>
-      </details>
-
-      <details>
-        <summary>Pattern <span class="plus">+</span></summary>
-        <div class="pane">
-          <select id="pattern" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px">
-            <option value="">Any</option>
-            <option>Solid</option>
-            <option>Printed</option>
-          </select>
-        </div>
-      </details>
-
-      <div class="actions">
-        <button class="btn" id="clearFilters">Clear</button>
-        <button class="btn btn-primary" id="applyFilters">Apply</button>
-      </div>
-    </aside>
-
-    <!-- Results -->
-    <section class="results">
-      <h2>Browse <span id="count" style="color:var(--hm-muted);font-weight:600;font-size:13px"></span></h2>
-      <div class="cards" id="cards"></div>
-    </section>
-  </div>
+  <main>
+    <h2>Browse</h2>
+    <div class="browse-grid" id="resultsGrid">
+      <a class="card" href="item.html?id=1">
+        <div class="thumb">photo</div>
+        <div class="info"><div class="title">Sample Wool Crepe</div><div class="price">$45 / yd</div></div>
+      </a>
+      <a class="card" href="item.html?id=2">
+        <div class="thumb">photo</div>
+        <div class="info"><div class="title">Italian Silk Twill</div><div class="price">$68 / yd</div></div>
+      </a>
+      <a class="card" href="item.html?id=3">
+        <div class="thumb">photo</div>
+        <div class="info"><div class="title">Cotton Sateen</div><div class="price">$22 / yd</div></div>
+      </a>
+    </div>
+  </main>
 </div>
 
+<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links" aria-label="Footer">
+    <nav class="footer-links">
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
       <a href="faq.html">FAQ</a>
@@ -261,233 +224,73 @@
 </footer>
 
 <script>
-/* ---------- demo data ---------- */
-const ITEMS = [
-  { id:1, title:"Sample Wool Crepe", price:45, yards:8, width:54, gsm:210, content:["Wool"], color:"Brown", dept:"Fashion", fabricType:"Crepe", fiberType:"Natural", designer:"", origin:"Italy", pattern:"Solid" },
-  { id:2, title:"Italian Silk Twill", price:68, yards:6, width:54, gsm:120, content:["Silk"], color:"Blue", dept:"Fashion", fabricType:"Twill", fiberType:"Natural", designer:"", origin:"Italy", pattern:"Printed" },
-  { id:3, title:"Cotton Sateen", price:22, yards:12, width:58, gsm:160, content:["Cotton"], color:"White", dept:"Quilting", fabricType:"Sateen", fiberType:"Natural", designer:"", origin:"USA", pattern:"Solid" },
-];
+(function(){
+  // Menu sheet
+  const sheet=document.getElementById("menuSheet");
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
+  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+  openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
+  closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-/* ---------- build sidebar controls ---------- */
-const contentValues=[
-  "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
-  "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
-  "Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
-];
-const contentPane=document.getElementById('contentChecks');
-contentValues.forEach(v=>{
-  const wrap=document.createElement('label');
-  wrap.className='check';
-  wrap.innerHTML=`<input type="checkbox" value="${v}"><span>${v}</span>`;
-  contentPane.appendChild(wrap);
-});
+  // Avatar
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-const colors=[
-  {name:"Black",hex:"#000"},
-  {name:"Grey",hex:"#9aa0a6"},
-  {name:"White",hex:"#fff",border:"#d1d5db"},
-  {name:"Cream",hex:"#f5efe4"},
-  {name:"Brown",hex:"#7a4a2a"},
-  {name:"Pink",hex:"#f4a4b6"},
-  {name:"Red",hex:"#d21d2b"},
-  {name:"Orange",hex:"#f27a22"},
-  {name:"Yellow",hex:"#f3c321"},
-  {name:"Green",hex:"#2f7d32"},
-  {name:"Blue",hex:"#2166d1"},
-  {name:"Purple",hex:"#6b2da8"},
-  {name:"Gold",hex:"#e2c46d"},
-  {name:"Silver",hex:"#d5d8de"}
-];
-const swRow=document.getElementById('colorSwatches');
-colors.forEach(c=>{
-  const sw=document.createElement('div');
-  sw.className='sw';
-  sw.style.background=c.hex;
-  if(c.border) sw.style.borderColor=c.border;
-  const tip=document.createElement('span');
-  tip.className='tip'; tip.textContent=c.name;
-  sw.appendChild(tip);
-  sw.dataset.name=c.name;
-  sw.addEventListener('click',()=>{ sw.dataset.selected = sw.dataset.selected ? '' : 'true'; });
-  swRow.appendChild(sw);
-});
-
-/* ---------- helpers ---------- */
-const norm = s => String(s||'').toLowerCase().replace(/\s+/g,' ').replace(/\s*\/\s*/g,'/').trim();
-
-/* ---------- parse filters from URL ---------- */
-function getFiltersFromURL(){
-  const u=new URL(location.href);
-  const raw=u.searchParams.get('filters');
-  if(raw){
-    try{ return JSON.parse(decodeURIComponent(raw)); }catch(e){ /* fall through */ }
-  }
-  // Fallback: accept simple query params if ever used
-  const f={};
-  if(u.searchParams.get('content')) f.content = u.searchParams.getAll('content');
-  if(u.searchParams.get('color')) f.colors = u.searchParams.getAll('color');
-  return f;
-}
-
-/* ---------- set controls from incoming filters (robust matching) ---------- */
-function applyIncomingFilters(f){
-  if(!f) return;
-
-  // CONTENT (case/spacing/slash-insensitive)
-  if(Array.isArray(f.content)){
-    const wanted = new Set(f.content.map(norm));
-    document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(cb=>{
-      if(cb.value && wanted.has(norm(cb.value)) && cb.value!=="Any"){ cb.checked = true; }
-    });
-  }
-
-  // COLORS
-  if(Array.isArray(f.colors)){
-    const cset = new Set(f.colors.map(norm));
-    document.querySelectorAll('.sw').forEach(sw=>{
-      if(cset.has(norm(sw.dataset.name))) sw.dataset.selected='true';
-    });
-  }
-
-  // Numeric/text fields (support both exact casing and common aliases)
-  const map = {
-    minPrice:['minPrice','priceMin'],
-    maxPrice:['maxPrice','priceMax'],
-    minYards:['minYards','yardsMin'],
-    minWidth:['minWidth','widthMin'],
-    maxWidth:['maxWidth','widthMax'],
-    minGsm:['minGsm','gsmMin'],
-    maxGsm:['maxGsm','gsmMax'],
-    fabricType:['fabricType'],
-    fiberType:['fiberType'],
-    designer:['designer'],
-    origin:['origin'],
-    pattern:['pattern']
-  };
-  Object.entries(map).forEach(([id,keys])=>{
-    const val = keys.map(k=>f[k]).find(v=>v!=null && v!=='');
-    if(val!=null){
-      const el=document.getElementById(id);
-      if(el) el.value = val;
-    }
+  // Build content filters
+  const contentValues=[
+    "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro","Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester","Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
+  ];
+  const contentFilter=document.getElementById("contentFilter");
+  contentValues.forEach(v=>{
+    const label=document.createElement("label");
+    const input=document.createElement("input");
+    input.type="checkbox"; input.value=v; label.appendChild(input);
+    label.appendChild(document.createTextNode(v));
+    contentFilter.appendChild(label);
   });
 
-  // Department radio
-  const deptVal = f.dept ?? f.department ?? '';
-  if(deptVal!==''){
-    const wanted = norm(deptVal);
-    const radio = [...document.querySelectorAll('input[name="dept"]')]
-      .find(r=>norm(r.value)===wanted);
-    if(radio) radio.checked=true;
-  }
-}
+  // Build color filters
+  const colors=[
+    {name:"Black",hex:"#000000"},
+    {name:"Grey",hex:"#9aa0a6"},
+    {name:"White",hex:"#ffffff",border:"#d1d5db"},
+    {name:"Cream",hex:"#f5efe4"},
+    {name:"Brown",hex:"#7a4a2a"},
+    {name:"Pink",hex:"#f4a4b6"},
+    {name:"Red",hex:"#d21d2b"},
+    {name:"Orange",hex:"#f27a22"},
+    {name:"Yellow",hex:"#f3c321"},
+    {name:"Green",hex:"#2f7d32"},
+    {name:"Blue",hex:"#2166d1"},
+    {name:"Purple",hex:"#6b2da8"},
+    {name:"Gold",hex:"linear-gradient(45deg,#e2c46d,#c9a635)"},
+    {name:"Silver",hex:"linear-gradient(45deg,#d5d8de,#b0b3b8)"}
+  ];
+  const colorFilter=document.getElementById("colorFilter");
+  colors.forEach(c=>{
+    const sw=document.createElement("div");
+    sw.className="sw";
+    if(c.hex.startsWith("linear")) sw.style.background=c.hex; else sw.style.background=c.hex;
+    if(c.border) sw.style.borderColor=c.border;
+    const tip=document.createElement("span");
+    tip.className="tip"; tip.textContent=c.name;
+    sw.appendChild(tip);
+    sw.addEventListener("click",()=>{ sw.dataset.selected = sw.dataset.selected ? '' : 'true'; });
+    colorFilter.appendChild(sw);
+  });
 
-/* ---------- collect current filters from UI ---------- */
-function collectFilters(){
-  const selContent=[...document.querySelectorAll('#contentChecks input:checked')]
-    .map(i=>i.value).filter(v=>v!=="Any");
-
-  const selColors=[...document.querySelectorAll('.sw[data-selected="true"]')]
-    .map(sw=>sw.dataset.name);
-
-  const getVal=id=>{const el=document.getElementById(id); return el?el.value.trim():""};
-  const getNum=id=>{const v=getVal(id); return v===""?null:Number(v)};
-
-  const dept=([...document.querySelectorAll('input[name="dept"]')].find(r=>r.checked)||{value:""}).value;
-
-  return {
-    content: selContent,
-    colors: selColors,
-    minPrice: getNum('minPrice'),
-    maxPrice: getNum('maxPrice'),
-    minYards: getNum('minYards'),
-    minWidth: getNum('minWidth'),
-    maxWidth: getNum('maxWidth'),
-    minGsm: getNum('minGsm'),
-    maxGsm: getNum('maxGsm'),
-    dept,
-    fabricType: getVal('fabricType'),
-    fiberType: getVal('fiberType'),
-    designer: getVal('designer'),
-    origin: getVal('origin'),
-    pattern: getVal('pattern')
-  };
-}
-
-/* ---------- filter logic ---------- */
-function matches(item,f){
-  if(f.content && f.content.length){
-    const wanted = new Set(f.content.map(norm));
-    const has = item.content.some(v=>wanted.has(norm(v)));
-    if(!has) return false;
-  }
-  if(f.colors && f.colors.length){
-    const cset = new Set(f.colors.map(norm));
-    if(!cset.has(norm(item.color))) return false;
-  }
-  const within=(n,min,max)=> (min==null || n>=min) && (max==null || n<=max);
-  if(!within(item.price,f.minPrice,f.maxPrice)) return false;
-  if(f.minYards!=null && item.yards < f.minYards) return false;
-  if(!within(item.width,f.minWidth,f.maxWidth)) return false;
-  if(!within(item.gsm,f.minGsm,f.maxGsm)) return false;
-
-  if(f.dept && norm(item.dept)!==norm(f.dept)) return false;
-  if(f.fabricType && norm(item.fabricType)!==norm(f.fabricType)) return false;
-  if(f.fiberType && norm(item.fiberType)!==norm(f.fiberType)) return false;
-  if(f.origin && norm(item.origin)!==norm(f.origin)) return false;
-  if(f.pattern && norm(item.pattern)!==norm(f.pattern)) return false;
-  if(f.designer && !item.designer.toLowerCase().includes(f.designer.toLowerCase())) return false;
-  return true;
-}
-
-/* ---------- render cards ---------- */
-function render(items){
-  const cards=document.getElementById('cards');
-  cards.innerHTML='';
-  if(!items.length){
-    cards.innerHTML='<div style="padding:12px;color:#6b7280">No matches.</div>';
-  }else{
-    items.forEach(it=>{
-      const a=document.createElement('a');
-      a.href="item.html?id="+it.id;
-      a.className='card';
-      a.innerHTML=`
-        <div class="thumb">photo</div>
-        <div class="info">
-          <div class="title">${it.title}</div>
-          <div class="meta"><span>$${it.price}/yd</span><span>${it.width}″</span></div>
-        </div>`;
-      cards.appendChild(a);
+  // Preselect based on query
+  const params=new URLSearchParams(window.location.search);
+  const q=params.get("q")?.toLowerCase();
+  if(q){
+    document.querySelectorAll("#contentFilter input[type=checkbox]").forEach(cb=>{
+      if(cb.value.toLowerCase()===q){ cb.checked=true; }
     });
   }
-  document.getElementById('count').textContent = ` · ${items.length} result${items.length===1?'':'s'}`;
-}
-
-/* ---------- wire up ---------- */
-const incoming = getFiltersFromURL();
-applyIncomingFilters(incoming);
-render(ITEMS.filter(i=>matches(i, collectFilters())));
-
-document.getElementById('applyFilters').addEventListener('click',()=>{
-  const f=collectFilters();
-  render(ITEMS.filter(i=>matches(i,f)));
-});
-
-document.getElementById('clearFilters').addEventListener('click',()=>{
-  document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(c=>c.checked=false);
-  document.querySelectorAll('.sw').forEach(sw=>sw.removeAttribute('data-selected'));
-  const any=[...document.querySelectorAll('input[name="dept"]')][0]; if(any) any.checked=true;
-  ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
-  });
-  ['fabricType','fiberType','origin','pattern'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.selectedIndex=0;
-  });
-  render(ITEMS);
-});
-
-/* keep panels collapsed by default, per your preference */
-document.querySelectorAll('.filters details').forEach(d=>{ d.open=false; });
+})();
 </script>
 </body>
 </html>
