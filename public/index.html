@@ -28,7 +28,7 @@
     -webkit-font-smoothing:antialiased;
   }
 
-  /* Header (same SVG icons you had) */
+  /* Header */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
   .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .hm-header .left{display:flex;align-items:center;gap:10px}
@@ -61,7 +61,7 @@
   .search-card button{padding:8px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700}
   @media (max-width:640px){ .search-card{grid-template-columns:1fr;gap:6px} }
 
-  /* Chips + panels (unchanged so toggles work) */
+  /* Chips + panels */
   .chip-row{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-top:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .chip-row::-webkit-scrollbar{display:none}
   .chip{display:inline-flex;align-items:center;background:var(--hm-chip);border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;color:#374151;text-decoration:none;white-space:nowrap;cursor:pointer;font-weight:700;font-size:13px}
@@ -77,6 +77,11 @@
   .field input,.field select{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
   .tight{gap:4px}
 
+  /* Content grid + search + show more (Mood-style) */
+  .content-controls{display:flex;gap:6px;align-items:center;margin:0 0 6px}
+  .content-search{flex:1;min-width:220px}
+  .content-search input{width:100%;padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
+  .show-more{font-size:12px;color:#374151;border:1px solid var(--hm-border);background:#fff;border-radius:999px;padding:6px 10px;cursor:pointer}
   .content-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
   .check-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:10px;padding:6px 8px;background:#fff;font-size:12px;cursor:pointer}
   .check-chip input{width:14px;height:14px}
@@ -114,14 +119,11 @@
   .likes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .likes-grid .like{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px}
 
-  .recent-list{display:grid;gap:6px}
-  /* ✅ Make Recent Views thumbs same size as Likes */
-  .recent-item{display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center}
-  .recent-thumb{width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border)}
-  .recent-meta{font-size:12px;color:#374151}
-  .recent-meta .name{font-weight:700;color:#111827}
+  /* Recent Views → grid like Likes */
+  .recent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .recent-tile{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:12px}
 
-  /* Footer: add spacing between links so they don’t run together */
+  /* Footer spacing */
   .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
   .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
   .hm-footer .footer-links a{color:#4b5563;margin-right:12px}
@@ -208,9 +210,13 @@
     <!-- STACKED PANELS -->
     <div class="panel-stack" id="panelStack">
 
-      <!-- Content -->
+      <!-- Content (Mood-style search + show more) -->
       <div class="filter-panel" id="contentPanel" role="region" aria-label="Filter by content">
         <div class="title">Content</div>
+        <div class="content-controls">
+          <div class="content-search"><input id="contentSearch" placeholder="Search content…"></div>
+          <button type="button" id="toggleContentMore" class="show-more" aria-expanded="false">Show more</button>
+        </div>
         <div class="content-grid" id="contentGrid"></div>
       </div>
 
@@ -307,7 +313,6 @@
         </div>
       </div>
 
-      <!-- ONE global action bar -->
       <div class="global-actions" id="globalActions" style="display:none">
         <button class="btn" id="clearAll">Clear</button>
         <button class="btn btn-primary" id="applyAll">Apply</button>
@@ -358,19 +363,10 @@
       <section class="panel" aria-label="Recent Views">
         <header>Recent Views</header>
         <div class="panel-body">
-          <div class="recent-list">
-            <div class="recent-item">
-              <div class="recent-thumb"></div>
-              <div class="recent-meta"><div class="name">Italian Silk Twill</div><div>$68/yd · 54″</div></div>
-            </div>
-            <div class="recent-item">
-              <div class="recent-thumb"></div>
-              <div class="recent-meta"><div class="name">Wool Crepe</div><div>$52/yd · 58″</div></div>
-            </div>
-            <div class="recent-item">
-              <div class="recent-thumb"></div>
-              <div class="recent-meta"><div class="name">Cotton Poplin</div><div>$14/yd · 44″</div></div>
-            </div>
+          <div class="recent-grid" id="recentGrid">
+            <div class="recent-tile">view</div>
+            <div class="recent-tile">view</div>
+            <div class="recent-tile">view</div>
           </div>
         </div>
       </section>
@@ -405,7 +401,7 @@
   closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-  /* Avatar (optional stored url) */
+  /* Avatar */
   const avatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
@@ -418,21 +414,37 @@
     else{ window.location.href="browse.html?q="+q; }
   });
 
-  /* Build Content checklist (compact) */
-  const contentValues=[
+  /* Content values */
+  const CONTENT_VALUES=[
     "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
     "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
     "Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
   ];
+
   const contentGrid=document.getElementById('contentGrid');
-  contentValues.forEach(v=>{
-    const label=document.createElement('label');
-    label.className='check-chip';
-    const input=document.createElement('input');
-    input.type='checkbox'; input.value=v; label.appendChild(input);
-    label.appendChild(document.createTextNode(v));
-    contentGrid.appendChild(label);
-  });
+  const searchInput=document.getElementById('contentSearch');
+  const toggleBtn=document.getElementById('toggleContentMore');
+
+  let showAll=false;
+  function renderContent(filter=''){
+    contentGrid.innerHTML='';
+    const norm= s => s.toLowerCase();
+    const list=CONTENT_VALUES.filter(v=>norm(v).includes(norm(filter)));
+    const visible= showAll ? list : list.slice(0,12);
+    visible.forEach(v=>{
+      const label=document.createElement('label');
+      label.className='check-chip';
+      label.innerHTML=`<input type="checkbox" value="${v}"/> ${v}`;
+      contentGrid.appendChild(label);
+    });
+    toggleBtn.style.display = (list.length>12) ? 'inline-flex' : 'none';
+    toggleBtn.textContent = showAll ? 'Show less' : 'Show more';
+    toggleBtn.setAttribute('aria-expanded', String(showAll));
+  }
+  renderContent();
+
+  searchInput.addEventListener('input',()=>{ renderContent(searchInput.value.trim()); });
+  toggleBtn.addEventListener('click',()=>{ showAll=!showAll; renderContent(searchInput.value.trim()); });
 
   /* Color family */
   const colors=[
@@ -466,7 +478,7 @@
     colorRow.appendChild(sw);
   });
 
-  /* Panel toggling + single global action bar */
+  /* Panels toggle + action bar */
   const chips=[...document.querySelectorAll('.chip[data-panel]')];
   const panels={
     contentPanel:document.getElementById('contentPanel'),
