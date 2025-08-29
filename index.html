@@ -11,18 +11,17 @@
   <link rel="stylesheet" href="styles/hm-typography.css" />
   <link rel="stylesheet" href="styles/hm-footer.css" />
 
-  <!-- Page-scoped tweaks (phone-first, keep current red; light, friendly) -->
+  <!-- Page-scoped tweaks (phone-first; keep Hemline red) -->
   <style>
     :root{
-      /* keep your current Hemline red (matches prior pages’ --hm-accent) */
-      --hm-accent:#991b1b;
+      --hm-accent:#991b1b;     /* keep existing Hemline red */
       --hm-text:#374151;
       --hm-muted:#6b7280;
       --hm-border:#e5e7eb;
       --hm-soft:#f7f7f8;
     }
 
-    /* Slim header — Option B (logo left, actions right; nav in menu) */
+    /* Slim header — Option B (logo left, actions right; nav in slide-in sheet) */
     .hm-header{min-height:56px}
     .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
     .hm-header .left{display:flex;align-items:center;gap:10px}
@@ -34,10 +33,9 @@
     .hm-header .hm-btn.hm-btn-primary{
       background:var(--hm-accent);border-color:var(--hm-accent);padding:7px 12px
     }
-    /* Hide top-level nav; use a simple menu */
-    .hm-nav{display:none}
+    .hm-nav{display:none} /* menu lives in sheet */
 
-    /* Simple hamburger for “Browse / About / My Atelier” etc. */
+    /* Hamburger + sheet */
     .hamburger{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--hm-border);border-radius:8px;color:#6b7280;background:#fff}
     .hamburger:hover{color:var(--hm-accent)}
     .sheet{
@@ -52,13 +50,13 @@
     .sheet .close{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#6b7280}
     .sheet .close:hover{color:var(--hm-accent)}
 
-    /* Hero */
+    /* Hero (tight so New Listings peeks on mobile) */
     .home-hero{max-width:980px;margin:10px auto 0;padding:0 16px;display:grid;gap:8px}
     .home-hero h1{font-size:24px;line-height:1.2;margin:0;color:#111827;font-weight:800}
     .home-hero p{margin:0;color:var(--hm-muted)}
     @media (min-width:900px){ .home-hero h1{font-size:28px} }
 
-    /* Search block (higher on page, right under hero text) */
+    /* Search block (just under hero) */
     .home-search{max-width:980px;margin:8px auto 0;padding:0 16px}
     .search-card{background:#fff;border:1px solid var(--hm-border);border-radius:14px;padding:8px;display:grid;grid-template-columns:120px 1fr auto;gap:8px}
     .search-card select,.search-card input{
@@ -88,12 +86,11 @@
   </style>
 </head>
 <body>
-  <!-- HEADER: Option B -->
+  <!-- HEADER: Option B (Browse in menu) -->
   <header class="hm-header" role="banner">
     <div class="wrap">
       <div class="left">
         <button class="hamburger" id="openMenu" aria-label="Open menu">
-          <!-- simple menu icon -->
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="4" x2="20" y1="6" y2="6"></line>
@@ -107,7 +104,7 @@
       </div>
 
       <div class="right">
-        <!-- Lighter outline icons -->
+        <!-- Light outline icons -->
         <a class="hm-icon" href="favorites.html" aria-label="Favorites">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
@@ -119,7 +116,8 @@
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
         </a>
-        <a class="hm-avatar" href="account.html" aria-label="Your profile" title="Your profile">AA</a>
+        <!-- Avatar: initials fallback; if you later set localStorage.avatarUrl, this swaps to an image -->
+        <a class="hm-avatar" href="account.html" aria-label="Your profile" title="Your profile" id="avatar">AA</a>
         <a class="hm-btn hm-btn-primary" href="seller/index.html?list=new" aria-label="Sell an item">
           <span class="label">Sell</span>
         </a>
@@ -127,7 +125,7 @@
     </div>
   </header>
 
-  <!-- Slide-in menu (Option B) -->
+  <!-- Slide-in menu -->
   <aside class="sheet" id="menuSheet" aria-hidden="true" aria-label="Main menu">
     <header>
       <strong>Menu</strong>
@@ -156,7 +154,7 @@
     <p>Search fabrics by content, weight, width, and more.</p>
   </section>
 
-  <!-- SEARCH (right below hero; includes Listings/Users switch) -->
+  <!-- SEARCH (higher on page; with Listings/Users switch) -->
   <section class="home-search" aria-label="Search">
     <form id="homeSearch" class="search-card" role="search">
       <select name="type" id="searchType" aria-label="Search type">
@@ -222,7 +220,7 @@
     </div>
   </footer>
 
-  <!-- JS (menu + search routing + minor a11y) -->
+  <!-- JS (menu, avatar swap, search routing) -->
   <script>
     (function(){
       // Slide-in menu
@@ -236,14 +234,26 @@
       document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") close(); });
       document.addEventListener("click",(e)=>{ if(sheet.classList.contains("open") && !sheet.contains(e.target) && e.target!==openBtn){ close(); } });
 
-      // Search routing (Listings → browse.html?q=..., Users → favorites.html?q=... as placeholder)
+      // Optional avatar image: set localStorage.avatarUrl to your photo URL to replace initials
+      const avatar=document.getElementById("avatar");
+      try{
+        const url=localStorage.getItem("avatarUrl");
+        if(url){
+          avatar.textContent="";
+          avatar.style.backgroundImage="url('"+url+"')";
+          avatar.style.backgroundSize="cover";
+          avatar.style.backgroundPosition="center";
+        }
+      }catch(e){/* no-op */}
+
+      // Search routing (Listings → browse.html?q=..., Users → favorites.html?q=... placeholder)
       const form=document.getElementById("homeSearch");
       form.addEventListener("submit",function(e){
         e.preventDefault();
         const type=document.getElementById("searchType").value;
         const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
         if(type==="users"){
-          // Placeholder: route to a users page if you add one later; for now send to favorites with query
+          // Placeholder: route to a users page when you add one; for now, send to favorites with query
           window.location.href="favorites.html?q="+q;
         } else {
           window.location.href="browse.html?q="+q;
