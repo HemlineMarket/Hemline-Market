@@ -37,7 +37,7 @@
   .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
 
   /* Layout */
-  .page{min-height:calc(100% - 56px - 56px); /* header+footer */}
+  .page{min-height:calc(100% - 56px - 56px)}
   .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
   .grid-2{display:grid;grid-template-columns:280px 1fr;gap:12px}
   @media (max-width:900px){ .grid-2{grid-template-columns:1fr} }
@@ -48,7 +48,7 @@
   details{border:1px solid var(--hm-border);border-radius:10px;background:#fff;margin:8px 0}
   summary{list-style:none;padding:10px 12px;cursor:pointer;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:space-between}
   summary::marker, summary::-webkit-details-marker{display:none}
-  summary .plus{font-weight:800;color:#6b7280}
+  summary .plus{font-weight:800;color:#6b7280;transition:transform .15s ease}
   details[open] summary .plus{transform:rotate(45deg)}
   .pane{padding:8px 12px;border-top:1px solid var(--hm-border)}
   .check{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}
@@ -137,9 +137,7 @@
 
       <details>
         <summary>Content <span class="plus">+</span></summary>
-        <div class="pane two-col" id="contentChecks">
-          <!-- populated by JS -->
-        </div>
+        <div class="pane two-col" id="contentChecks"></div>
       </details>
 
       <details>
@@ -263,56 +261,11 @@
 </footer>
 
 <script>
-/* ---------- demo data (same three cards) ---------- */
+/* ---------- demo data ---------- */
 const ITEMS = [
-  {
-    id:1,
-    title:"Sample Wool Crepe",
-    price:45,
-    yards:8,
-    width:54,
-    gsm:210,
-    content:["Wool"],
-    color:"Brown",
-    dept:"Fashion",
-    fabricType:"Crepe",
-    fiberType:"Natural",
-    designer:"",
-    origin:"Italy",
-    pattern:"Solid"
-  },
-  {
-    id:2,
-    title:"Italian Silk Twill",
-    price:68,
-    yards:6,
-    width:54,
-    gsm:120,
-    content:["Silk"],
-    color:"Blue",
-    dept:"Fashion",
-    fabricType:"Twill",
-    fiberType:"Natural",
-    designer:"",
-    origin:"Italy",
-    pattern:"Printed"
-  },
-  {
-    id:3,
-    title:"Cotton Sateen",
-    price:22,
-    yards:12,
-    width:58,
-    gsm:160,
-    content:["Cotton"],
-    color:"White",
-    dept:"Quilting",
-    fabricType:"Sateen",
-    fiberType:"Natural",
-    designer:"",
-    origin:"USA",
-    pattern:"Solid"
-  }
+  { id:1, title:"Sample Wool Crepe", price:45, yards:8, width:54, gsm:210, content:["Wool"], color:"Brown", dept:"Fashion", fabricType:"Crepe", fiberType:"Natural", designer:"", origin:"Italy", pattern:"Solid" },
+  { id:2, title:"Italian Silk Twill", price:68, yards:6, width:54, gsm:120, content:["Silk"], color:"Blue", dept:"Fashion", fabricType:"Twill", fiberType:"Natural", designer:"", origin:"Italy", pattern:"Printed" },
+  { id:3, title:"Cotton Sateen", price:22, yards:12, width:58, gsm:160, content:["Cotton"], color:"White", dept:"Quilting", fabricType:"Sateen", fiberType:"Natural", designer:"", origin:"USA", pattern:"Solid" },
 ];
 
 /* ---------- build sidebar controls ---------- */
@@ -323,10 +276,9 @@ const contentValues=[
 ];
 const contentPane=document.getElementById('contentChecks');
 contentValues.forEach(v=>{
-  const id="ct_"+v.replace(/[^\w]/g,'_');
   const wrap=document.createElement('label');
   wrap.className='check';
-  wrap.innerHTML=`<input type="checkbox" value="${v}" id="${id}"><span>${v}</span>`;
+  wrap.innerHTML=`<input type="checkbox" value="${v}"><span>${v}</span>`;
   contentPane.appendChild(wrap);
 });
 
@@ -360,57 +312,72 @@ colors.forEach(c=>{
   swRow.appendChild(sw);
 });
 
+/* ---------- helpers ---------- */
+const norm = s => String(s||'').toLowerCase().replace(/\s+/g,' ').replace(/\s*\/\s*/g,'/').trim();
+
 /* ---------- parse filters from URL ---------- */
 function getFiltersFromURL(){
   const u=new URL(location.href);
   const raw=u.searchParams.get('filters');
-  if(!raw) return {};
-  try{
-    return JSON.parse(decodeURIComponent(raw));
-  }catch(e){
-    return {};
+  if(raw){
+    try{ return JSON.parse(decodeURIComponent(raw)); }catch(e){ /* fall through */ }
   }
+  // Fallback: accept simple query params if ever used
+  const f={};
+  if(u.searchParams.get('content')) f.content = u.searchParams.getAll('content');
+  if(u.searchParams.get('color')) f.colors = u.searchParams.getAll('color');
+  return f;
 }
 
-/* ---------- set controls from incoming filters ---------- */
+/* ---------- set controls from incoming filters (robust matching) ---------- */
 function applyIncomingFilters(f){
   if(!f) return;
 
-  // Content (array of strings)
+  // CONTENT (case/spacing/slash-insensitive)
   if(Array.isArray(f.content)){
-    f.content.forEach(v=>{
-      const id="ct_"+String(v).replace(/[^\w]/g,'_');
-      const el=document.getElementById(id);
-      if(el) el.checked=true;
+    const wanted = new Set(f.content.map(norm));
+    document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(cb=>{
+      if(cb.value && wanted.has(norm(cb.value)) && cb.value!=="Any"){ cb.checked = true; }
     });
   }
 
-  // Colors
+  // COLORS
   if(Array.isArray(f.colors)){
-    [...document.querySelectorAll('.sw')].forEach(sw=>{
-      if(f.colors.includes(sw.dataset.name)) sw.dataset.selected='true';
+    const cset = new Set(f.colors.map(norm));
+    document.querySelectorAll('.sw').forEach(sw=>{
+      if(cset.has(norm(sw.dataset.name))) sw.dataset.selected='true';
     });
   }
 
-  // Simple fields
+  // Numeric/text fields (support both exact casing and common aliases)
   const map = {
-    minPrice:'minPrice', maxPrice:'maxPrice', minYards:'minYards',
-    minWidth:'minWidth', maxWidth:'maxWidth',
-    minGsm:'minGsm', maxGsm:'maxGsm',
-    fabricType:'fabricType', fiberType:'fiberType',
-    designer:'designer', origin:'origin', pattern:'pattern'
+    minPrice:['minPrice','priceMin'],
+    maxPrice:['maxPrice','priceMax'],
+    minYards:['minYards','yardsMin'],
+    minWidth:['minWidth','widthMin'],
+    maxWidth:['maxWidth','widthMax'],
+    minGsm:['minGsm','gsmMin'],
+    maxGsm:['maxGsm','gsmMax'],
+    fabricType:['fabricType'],
+    fiberType:['fiberType'],
+    designer:['designer'],
+    origin:['origin'],
+    pattern:['pattern']
   };
-  Object.entries(map).forEach(([k,id])=>{
-    if(f[k]!=null){
+  Object.entries(map).forEach(([id,keys])=>{
+    const val = keys.map(k=>f[k]).find(v=>v!=null && v!=='');
+    if(val!=null){
       const el=document.getElementById(id);
-      if(el) el.value = f[k];
+      if(el) el.value = val;
     }
   });
 
-  // Department (radio)
-  if(f.dept!=null){
+  // Department radio
+  const deptVal = f.dept ?? f.department ?? '';
+  if(deptVal!==''){
+    const wanted = norm(deptVal);
     const radio = [...document.querySelectorAll('input[name="dept"]')]
-      .find(r=>r.value===f.dept);
+      .find(r=>norm(r.value)===wanted);
     if(radio) radio.checked=true;
   }
 }
@@ -449,30 +416,27 @@ function collectFilters(){
 
 /* ---------- filter logic ---------- */
 function matches(item,f){
-  // Content (all selected must be present)
   if(f.content && f.content.length){
-    const has = f.content.some(v=>item.content.includes(v));
+    const wanted = new Set(f.content.map(norm));
+    const has = item.content.some(v=>wanted.has(norm(v)));
     if(!has) return false;
   }
-  // Color
   if(f.colors && f.colors.length){
-    if(!f.colors.includes(item.color)) return false;
+    const cset = new Set(f.colors.map(norm));
+    if(!cset.has(norm(item.color))) return false;
   }
-  // Numbers
   const within=(n,min,max)=> (min==null || n>=min) && (max==null || n<=max);
   if(!within(item.price,f.minPrice,f.maxPrice)) return false;
   if(f.minYards!=null && item.yards < f.minYards) return false;
   if(!within(item.width,f.minWidth,f.maxWidth)) return false;
   if(!within(item.gsm,f.minGsm,f.maxGsm)) return false;
 
-  // Strings
-  if(f.dept && item.dept!==f.dept) return false;
-  if(f.fabricType && item.fabricType!==f.fabricType) return false;
-  if(f.fiberType && item.fiberType!==f.fiberType) return false;
-  if(f.origin && item.origin!==f.origin) return false;
-  if(f.pattern && item.pattern!==f.pattern) return false;
+  if(f.dept && norm(item.dept)!==norm(f.dept)) return false;
+  if(f.fabricType && norm(item.fabricType)!==norm(f.fabricType)) return false;
+  if(f.fiberType && norm(item.fiberType)!==norm(f.fiberType)) return false;
+  if(f.origin && norm(item.origin)!==norm(f.origin)) return false;
+  if(f.pattern && norm(item.pattern)!==norm(f.pattern)) return false;
   if(f.designer && !item.designer.toLowerCase().includes(f.designer.toLowerCase())) return false;
-
   return true;
 }
 
@@ -510,13 +474,9 @@ document.getElementById('applyFilters').addEventListener('click',()=>{
 });
 
 document.getElementById('clearFilters').addEventListener('click',()=>{
-  // clear content
   document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(c=>c.checked=false);
-  // colors
   document.querySelectorAll('.sw').forEach(sw=>sw.removeAttribute('data-selected'));
-  // radios
   const any=[...document.querySelectorAll('input[name="dept"]')][0]; if(any) any.checked=true;
-  // text/selects
   ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
@@ -526,13 +486,8 @@ document.getElementById('clearFilters').addEventListener('click',()=>{
   render(ITEMS);
 });
 
-/* open the panels if filters came in (nice touch) */
-const anyIncoming = Object.values(incoming||{}).some(v=> (Array.isArray(v)?v.length:v));
-if(anyIncoming){
-  document.querySelectorAll('.filters details').forEach(d=>{
-    d.open = false; // keep collapsed by default as requested
-  });
-}
+/* keep panels collapsed by default, per your preference */
+document.querySelectorAll('.filters details').forEach(d=>{ d.open=false; });
 </script>
 </body>
 </html>
