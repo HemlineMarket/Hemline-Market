@@ -3,77 +3,208 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hemline Market</title>
+  <title>Hemline Market — Find your next fabric creation</title>
+
+  <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css" />
   <link rel="stylesheet" href="styles/hem-header.css" />
-  <link rel="stylesheet" href="styles/hm-profile.css" />
   <link rel="stylesheet" href="styles/hm-typography.css" />
   <link rel="stylesheet" href="styles/hm-footer.css" />
+
+  <!-- Page-scoped tweaks (phone-first, keep current red; light, friendly) -->
   <style>
-    :root{ --hm-border:#e5e7eb; --hm-soft:#f7f7f8; --hm-muted:#6b7280; --hm-text:#1f2937; --hm-accent:#991b1b; }
-    .hero{max-width:1100px;margin:40px auto;padding:0 16px;text-align:center}
-    .hero h1{font-size:2rem;margin-bottom:10px}
-    .hero p{color:var(--hm-muted)}
-    .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:999px;border:1px solid var(--hm-border);background:#fff;font-weight:700;text-decoration:none;color:var(--hm-text)}
-    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff}
+    :root{
+      /* keep your current Hemline red (matches prior pages’ --hm-accent) */
+      --hm-accent:#991b1b;
+      --hm-text:#374151;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+      --hm-soft:#f7f7f8;
+    }
+
+    /* Slim header — Option B (logo left, actions right; nav in menu) */
+    .hm-header{min-height:56px}
+    .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+    .hm-header .left{display:flex;align-items:center;gap:10px}
+    .hm-header .hm-brand{font-weight:700;letter-spacing:.1px}
+    .hm-header .right{display:flex;align-items:center;gap:10px}
+    .hm-header .hm-icon{width:22px;height:22px;color:#6b7280}
+    .hm-header .hm-icon:hover{color:var(--hm-accent)}
+    .hm-header .hm-avatar{width:24px;height:24px;border:1px solid var(--hm-border);font-size:12px;color:#334155;background:#fff}
+    .hm-header .hm-btn.hm-btn-primary{
+      background:var(--hm-accent);border-color:var(--hm-accent);padding:7px 12px
+    }
+    /* Hide top-level nav; use a simple menu */
+    .hm-nav{display:none}
+
+    /* Simple hamburger for “Browse / About / My Atelier” etc. */
+    .hamburger{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--hm-border);border-radius:8px;color:#6b7280;background:#fff}
+    .hamburger:hover{color:var(--hm-accent)}
+    .sheet{
+      position:fixed;inset:0 0 0 auto;width:min(84vw,340px);max-width:100%;background:#fff;border-left:1px solid var(--hm-border);
+      transform:translateX(100%);transition:transform .25s ease;z-index:60;display:flex;flex-direction:column
+    }
+    .sheet.open{transform:translateX(0)}
+    .sheet header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--hm-border)}
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{padding:10px 12px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:var(--hm-text)}
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#6b7280}
+    .sheet .close:hover{color:var(--hm-accent)}
+
+    /* Hero */
+    .home-hero{max-width:980px;margin:10px auto 0;padding:0 16px;display:grid;gap:8px}
+    .home-hero h1{font-size:24px;line-height:1.2;margin:0;color:#111827;font-weight:800}
+    .home-hero p{margin:0;color:var(--hm-muted)}
+    @media (min-width:900px){ .home-hero h1{font-size:28px} }
+
+    /* Search block (higher on page, right under hero text) */
+    .home-search{max-width:980px;margin:8px auto 0;padding:0 16px}
+    .search-card{background:#fff;border:1px solid var(--hm-border);border-radius:14px;padding:8px;display:grid;grid-template-columns:120px 1fr auto;gap:8px}
+    .search-card select,.search-card input{
+      padding:10px 12px;border:1px solid var(--hm-border);border-radius:10px;font-size:14px
+    }
+    .search-card button{
+      padding:10px 14px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700
+    }
+    @media (max-width:640px){
+      .search-card{grid-template-columns:1fr;gap:8px}
+    }
+
+    /* New listings */
+    .section{max-width:1200px;margin:14px auto 20px;padding:0 16px}
+    .section h2{margin:0 0 8px 0;font-size:18px}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    @media (max-width:900px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+    @media (max-width:560px){ .grid{grid-template-columns:1fr} }
+    .card{background:#fff;border:1px solid var(--hm-border);border-radius:14px;overflow:hidden;text-decoration:none;color:var(--hm-text)}
+    .thumb{aspect-ratio:4/3;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:var(--hm-muted)}
+    .info{padding:10px 12px}
+    .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:14px;color:var(--hm-muted)}
+    .price{font-weight:800;color:#111827}
+    .seller{display:flex;align-items:center;gap:6px}
+    .seller .av{width:20px;height:20px;border-radius:999px;border:1px solid var(--hm-border);display:grid;place-items:center;font-size:10px;font-weight:800;background:#fff;color:#374151}
   </style>
 </head>
 <body>
-  <!-- HEADER -->
+  <!-- HEADER: Option B -->
   <header class="hm-header" role="banner">
-    <div class="wrap" style="max-width:1200px;">
+    <div class="wrap">
       <div class="left">
-        <a class="hm-brand" href="index.html" aria-current="page" aria-label="Hemline Market home">
+        <button class="hamburger" id="openMenu" aria-label="Open menu">
+          <!-- simple menu icon -->
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="4" x2="20" y1="6" y2="6"></line>
+            <line x1="4" x2="20" y1="12" y2="12"></line>
+            <line x1="4" x2="20" y1="18" y2="18"></line>
+          </svg>
+        </button>
+        <a class="hm-brand" href="index.html" aria-label="Hemline Market home">
           Hemline<span class="dot">•</span>Market
         </a>
-        <nav class="hm-nav" aria-label="Primary">
-          <a href="browse.html">Browse</a>
-          <a href="about.html">About</a>
-        </nav>
       </div>
-      <div class="hm-search">
-        <form action="browse.html" method="get" role="search">
-          <input type="search" name="q" placeholder="Search fabrics, shops, or styles…" />
-          <button type="submit">Search</button>
-        </form>
-      </div>
-      <div class="hm-actions">
+
+      <div class="right">
+        <!-- Lighter outline icons -->
         <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
         </a>
-        <a class="hm-btn hm-btn-primary" href="seller/index.html?list=new">List Item</a>
-        <div class="hm-profile">
-          <a class="hm-avatar" href="#">?</a>
-          <nav class="hm-profile-menu">
-            <a href="account.html">Account</a>
-            <a href="atelier.html">Atelier</a>
-            <a href="listings.html">Listings</a>
-            <a href="drafts.html">Drafts</a>
-            <a href="favorites.html">Favorites</a>
-            <a href="orders.html">Orders</a>
-            <a href="bundles.html">Bundles</a>
-            <a href="notifications.html">Notifications</a>
-            <a href="settings.html">Settings</a>
-            <a href="help.html">Help</a>
-            <a href="terms.html">Terms</a>
-            <a href="privacy.html">Privacy</a>
-            <a href="shipping.html">Shipping & Returns</a>
-            <a href="faq.html">FAQ</a>
-          </nav>
-        </div>
+        <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </a>
+        <a class="hm-avatar" href="account.html" aria-label="Your profile" title="Your profile">AA</a>
+        <a class="hm-btn hm-btn-primary" href="seller/index.html?list=new" aria-label="Sell an item">
+          <span class="label">Sell</span>
+        </a>
       </div>
     </div>
   </header>
 
+  <!-- Slide-in menu (Option B) -->
+  <aside class="sheet" id="menuSheet" aria-hidden="true" aria-label="Main menu">
+    <header>
+      <strong>Menu</strong>
+      <button class="close" id="closeMenu" aria-label="Close menu">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </header>
+    <nav>
+      <a href="browse.html">Browse</a>
+      <a href="about.html">About</a>
+      <a href="atelier.html">My Atelier</a>
+      <a href="favorites.html">Favorites</a>
+      <a href="orders.html">Orders</a>
+      <a href="settings.html">Settings</a>
+      <a href="help.html">Help</a>
+    </nav>
+  </aside>
+
   <!-- HERO -->
-  <main class="hero">
-    <h1>Welcome to Hemline Market</h1>
-    <p>A curated fabric marketplace for sewists and creators.</p>
-    <p style="margin-top:14px;">
-      <a class="btn btn-primary" href="browse.html">Browse Fabrics</a>
-    </p>
+  <section class="home-hero" aria-label="Intro">
+    <h1>Find your next fabric creation</h1>
+    <p>Search fabrics by content, weight, width, and more.</p>
+  </section>
+
+  <!-- SEARCH (right below hero; includes Listings/Users switch) -->
+  <section class="home-search" aria-label="Search">
+    <form id="homeSearch" class="search-card" role="search">
+      <select name="type" id="searchType" aria-label="Search type">
+        <option value="listings" selected>Listings</option>
+        <option value="users">Users</option>
+      </select>
+      <input type="search" name="q" id="searchQ" placeholder="Search fabrics, shops, or styles…" aria-label="Search query" />
+      <button type="submit" aria-label="Search">Search</button>
+    </form>
+  </section>
+
+  <!-- NEW LISTINGS -->
+  <main class="section" aria-label="New listings">
+    <h2>New Listings</h2>
+    <div class="grid">
+      <a class="card" href="item.html?id=1" aria-label="Wool Crepe — Saffron">
+        <div class="thumb" aria-hidden="true">photo</div>
+        <div class="info">
+          <div class="title">Wool Crepe — Saffron</div>
+          <div class="meta">
+            <span class="price">$28/yd</span>
+            <span class="seller"><span class="av" aria-hidden="true">F</span>@FabricFolio</span>
+          </div>
+        </div>
+      </a>
+
+      <a class="card" href="item.html?id=5" aria-label="Cotton Poplin — Moss">
+        <div class="thumb" aria-hidden="true">photo</div>
+        <div class="info">
+          <div class="title">Cotton Poplin — Moss</div>
+          <div class="meta">
+            <span class="price">$14/yd</span>
+            <span class="seller"><span class="av" aria-hidden="true">S</span>@SewSimple</span>
+          </div>
+        </div>
+      </a>
+
+      <a class="card" href="item.html?id=3" aria-label="Silk Charmeuse — Midnight">
+        <div class="thumb" aria-hidden="true">photo</div>
+        <div class="info">
+          <div class="title">Silk Charmeuse — Midnight</div>
+          <div class="meta">
+            <span class="price">$36/yd</span>
+            <span class="seller"><span class="av" aria-hidden="true">L</span>@LoomLab</span>
+          </div>
+        </div>
+      </a>
+    </div>
   </main>
 
   <!-- FOOTER -->
@@ -91,18 +222,33 @@
     </div>
   </footer>
 
-  <!-- JS -->
+  <!-- JS (menu + search routing + minor a11y) -->
   <script>
     (function(){
-      const profile=document.querySelector(".hm-profile");
-      if(profile){
-        document.addEventListener("click",e=>{
-          if(profile.contains(e.target)){profile.classList.toggle("open");}
-          else{profile.classList.remove("open");}
-        });
-        const avatar=profile.querySelector(".hm-avatar");
-        if(avatar){avatar.addEventListener("click",e=>e.preventDefault());}
-      }
+      // Slide-in menu
+      const sheet=document.getElementById("menuSheet");
+      const openBtn=document.getElementById("openMenu");
+      const closeBtn=document.getElementById("closeMenu");
+      function open(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
+      function close(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+      openBtn.addEventListener("click",(e)=>{ e.preventDefault(); open(); });
+      closeBtn.addEventListener("click",(e)=>{ e.preventDefault(); close(); });
+      document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") close(); });
+      document.addEventListener("click",(e)=>{ if(sheet.classList.contains("open") && !sheet.contains(e.target) && e.target!==openBtn){ close(); } });
+
+      // Search routing (Listings → browse.html?q=..., Users → favorites.html?q=... as placeholder)
+      const form=document.getElementById("homeSearch");
+      form.addEventListener("submit",function(e){
+        e.preventDefault();
+        const type=document.getElementById("searchType").value;
+        const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
+        if(type==="users"){
+          // Placeholder: route to a users page if you add one later; for now send to favorites with query
+          window.location.href="favorites.html?q="+q;
+        } else {
+          window.location.href="browse.html?q="+q;
+        }
+      });
     })();
   </script>
 </body>
