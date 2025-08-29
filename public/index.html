@@ -1,475 +1,152 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline Market — Find your next fabric creation</title>
-
-<link rel="stylesheet" href="styles/hm-modern.css"/>
-<link rel="stylesheet" href="styles/hem-header.css"/>
-<link rel="stylesheet" href="styles/hm-typography.css"/>
-<link rel="stylesheet" href="styles/hm-footer.css"/>
-
 <style>
-  :root{
-    --hm-accent:#991b1b;
-    --hm-text:#111827;
-    --hm-muted:#6b7280;
-    --hm-border:#e5e7eb;
-    --hm-chip:#ffffff;
-    --card-bg:rgba(255,255,255,.96);
-  }
-
-  /* Background & base */
-  body{
-    margin:0;
-    background:url("images/homepage.jpeg") center/cover fixed no-repeat;
-    color:var(--hm-text);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-
-  /* Header */
-  .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
-  .hm-header .wrap{max-width:1100px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
-  .hm-header .left{display:flex;align-items:center;gap:10px}
-  .hm-brand{font-size:22px;font-weight:800;color:var(--hm-accent);text-decoration:none}
-  .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
-  .hamburger svg{width:22px;height:22px;stroke-width:2}
-  .right{display:flex;align-items:center;gap:14px}
-  .hm-icon{color:#444;display:inline-grid;place-items:center}
-  .hm-icon svg{width:26px;height:26px;stroke-width:2}
-  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
-  .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
-
-  /* Slide-out left menu */
-  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);
-         transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
-  .sheet.open{transform:translateX(0)}
-  .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
-  .sheet nav{display:grid;padding:10px}
-  .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
-  .sheet nav a + a{margin-top:8px}
-  .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
-
-  /* Hero shell */
-  .hero-wrap{max-width:1100px;margin:14px auto 0;padding:0 12px}
-  .hero-card{background:var(--card-bg);border-radius:14px;box-shadow:0 6px 14px rgba(0,0,0,.08);padding:12px}
-  .home-hero h1{font-size:22px;margin:0 0 4px;font-weight:800}
-  .home-hero p{margin:0 0 8px;color:var(--hm-muted);font-size:13px}
-
-  /* Search row */
-  .search-card{display:grid;grid-template-columns:130px 1fr auto;gap:8px;margin-bottom:8px}
-  .search-card select,.search-card input{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:14px}
-  .search-card button{padding:8px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700}
-  @media (max-width:680px){ .search-card{grid-template-columns:1fr;gap:6px} }
-
-  /* FIVE equal chips */
-  .chip-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:6px}
-  .chip{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 10px;background:#fff;border:1px solid var(--hm-border);border-radius:999px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}
-  .chip[aria-pressed="true"]{border-color:var(--hm-accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
-  .chip .toggler{font-weight:900;opacity:.85}
-
-  /* Panels grid — each panel under its chip column */
-  .panels-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;align-items:start}
-  .panel-cell{position:relative}
-  .filter-panel{display:none;background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:10px}
-  .filter-panel.open{display:block}
-  .title{font-size:12px;color:#374151;margin-bottom:6px;font-weight:700}
-  .tight input,.tight select{padding:6px 8px;border:1px solid var(--hm-border);border-radius:8px;font-size:13px}
-
-  /* CONTENT — searchable, scrollable list */
-  .content-search{display:flex;margin-bottom:6px}
-  .content-search input{flex:1;padding:6px 8px;border:1px solid var(--hm-border);border-radius:8px}
-  .content-list{max-height:220px;overflow:auto;border:1px solid var(--hm-border);border-radius:10px;padding:6px}
-  .content-list .row{display:flex;align-items:center;gap:6px;padding:4px 2px;font-size:13px}
-  .content-list input{width:14px;height:14px}
-
-  /* COLORS */
-  .color-row{display:grid;grid-template-columns:repeat(8, 22px);gap:6px;justify-content:start}
-  .sw{position:relative;width:22px;height:22px;border-radius:5px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);cursor:pointer}
-  .sw .tip{position:absolute;bottom:120%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none}
-  .sw:hover .tip{opacity:1}
-  .sw.gold{background:linear-gradient(135deg,#f2d78a,#c5a54d)}
-  .sw.silver{background:linear-gradient(135deg,#e6e9ef,#aeb4bf)}
-
-  /* Global Clear/Apply */
-  .global-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
-  .btn{padding:6px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;cursor:pointer}
-  .btn-primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
-
-  /* Below rails */
-  .layout{max-width:1100px;margin:12px auto 0;padding:0 12px}
-  .section h2{margin:0 0 8px;font-size:18px}
-  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-  @media (max-width:900px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
-  @media (max-width:560px){ .grid{grid-template-columns:1fr} }
-  .card{background:rgba(255,255,255,.96);border:1px solid var(--hm-border);border-radius:12px;overflow:hidden;text-decoration:none;color:#1f2937}
-  .thumb{aspect-ratio:4/3;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#6b7280}
-  .info{padding:8px 10px}
-  .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:14px;color:#6b7280}
-  .price{font-weight:800;color:#111827}
-  .seller{display:flex;align-items:center;gap:6px}
-  .seller .av{width:20px;height:20px;border-radius:999px;border:1px solid var(--hm-border);display:grid;place-items:center;font-size:10px;font-weight:800;background:#fff;color:#374151}
-
-  .below-rails{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  @media (max-width:900px){ .below-rails{grid-template-columns:1fr;gap:10px} }
-  .panel{background:rgba(255,255,255,.94);border:1px solid var(--hm-border);border-radius:12px}
-  .panel header{padding:8px 10px;border-bottom:1px solid var(--hm-border);font-weight:700}
-  .panel .panel-body{padding:8px 10px}
-
-  /* Likes & Recent — SAME SIZE square tiles */
-  .likes-grid, .recent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .likes-grid .like, .recent-grid .tile{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px}
-
-  .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
-  .hm-footer .footer-wrap{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-  .hm-footer .footer-links a{color:#4b5563}
+/* Minimal visual state in case your CSS doesn't already style selection */
+.hm-color-selected {
+  outline: 2px solid var(--hm-accent, #991b1b);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(153,27,27,.12);
+  border-radius: 6px;
+}
 </style>
-</head>
-<body>
-
-<!-- HEADER -->
-<header class="hm-header" role="banner">
-  <div class="wrap">
-    <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6" x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
-      </button>
-      <a class="hm-brand" href="index.html">Hemline Market</a>
-    </div>
-    <div class="right">
-      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-      </a>
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-        </svg>
-      </a>
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
-      <a class="hm-btn-primary" href="seller/index.html?list=new">Sell</a>
-    </div>
-  </div>
-</header>
-
-<!-- LEFT MENU (hamburger opens this) -->
-<aside class="sheet" id="menuSheet" aria-hidden="true">
-  <header>
-    <strong>Menu</strong>
-    <button class="close" id="closeMenu" aria-label="Close menu">✕</button>
-  </header>
-  <nav>
-    <a href="browse.html">Browse</a>
-    <a href="about.html">About</a>
-    <a href="atelier.html">My Atelier</a>
-    <a href="favorites.html">Favorites</a>
-    <a href="orders.html">Orders</a>
-    <a href="settings.html">Settings</a>
-    <a href="help.html">Help</a>
-  </nav>
-</aside>
-
-<!-- HERO + FILTERS -->
-<section class="hero-wrap">
-  <div class="hero-card home-hero">
-    <h1>Find your next fabric creation</h1>
-    <p>Search fabrics by content, weight, width, and more.</p>
-
-    <form id="homeSearch" class="search-card" role="search">
-      <select id="searchType"><option value="listings" selected>Listings</option><option value="users">Users</option></select>
-      <input id="searchQ" placeholder="Search fabrics, shops, or styles…"/>
-      <button type="submit">Search</button>
-    </form>
-
-    <div class="chip-row" id="chips">
-      <button class="chip" data-panel="contentPanel" aria-pressed="false">Content <span class="toggler">+</span></button>
-      <button class="chip" data-panel="colorPanel"   aria-pressed="false">Color <span class="toggler">+</span></button>
-      <button class="chip" data-panel="pricePanel"   aria-pressed="false">$/yard <span class="toggler">+</span></button>
-      <button class="chip" data-panel="yardsPanel"   aria-pressed="false">Yards <span class="toggler">+</span></button>
-      <button class="chip" data-panel="morePanel"    aria-pressed="false">More <span class="toggler">+</span></button>
-    </div>
-
-    <div class="panels-grid">
-      <div class="panel-cell">
-        <div class="filter-panel" id="contentPanel" role="region" aria-label="Filter by content">
-          <div class="title">Content</div>
-          <div class="content-search"><input type="search" id="contentSearch" placeholder="Search content…"></div>
-          <div class="content-list" id="contentList"></div>
-        </div>
-      </div>
-
-      <div class="panel-cell">
-        <div class="filter-panel" id="colorPanel" role="region" aria-label="Filter by color family">
-          <div class="title">Color Family</div>
-          <div class="color-row" id="colorRow"></div>
-        </div>
-      </div>
-
-      <div class="panel-cell">
-        <div class="filter-panel tight" id="pricePanel" role="region" aria-label="Filter by price">
-          <div class="title">$/yard</div>
-          <input id="minPrice" type="number" min="0" placeholder="Min $/yd">
-          <input id="maxPrice" type="number" min="0" placeholder="Max $/yd">
-        </div>
-      </div>
-
-      <div class="panel-cell">
-        <div class="filter-panel tight" id="yardsPanel" role="region" aria-label="Filter by yards">
-          <div class="title">Yards Available</div>
-          <input id="minYards" type="number" min="0" placeholder="Min yards">
-        </div>
-      </div>
-
-      <div class="panel-cell">
-        <div class="filter-panel tight" id="morePanel" role="region" aria-label="More filters">
-          <div class="title">More</div>
-          <input id="minWidth" type="number" min="0" placeholder="Min width (in)">
-          <input id="maxWidth" type="number" min="0" placeholder="Max width (in)">
-          <input id="minGsm" type="number" min="0" placeholder="Min GSM">
-          <input id="maxGsm" type="number" min="0" placeholder="Max GSM">
-          <select id="dept"><option value="">Department (Any)</option><option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option></select>
-          <select id="fabricType"><option value="">Fabric Type (Any)</option><option>Canvas</option><option>Chiffon</option><option>Corduroy</option><option>Crepe</option><option>Denim</option><option>Flannel</option><option>Georgette</option><option>Jersey</option><option>Lace</option><option>Lawn</option><option>Organza</option><option>Poplin</option><option>Sateen</option><option>Satin</option><option>Tulle</option><option>Twill</option><option>Velvet</option><option>Voile</option></select>
-          <select id="fiberType"><option value="">Fiber Type (Any)</option><option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option></select>
-          <input id="designer" placeholder="Designer / Mill (e.g., Loro Piana)">
-          <select id="origin"><option value="">Country / Origin (Any)</option><option>Italy</option><option>France</option><option>Japan</option><option>UK</option><option>USA</option><option>India</option><option>China</option><option>Korea</option></select>
-          <select id="pattern"><option value="">Pattern (Any)</option><option>Solid</option><option>Printed</option></select>
-        </div>
-      </div>
-    </div>
-
-    <div class="global-actions">
-      <button class="btn" id="clearAll">Clear</button>
-      <button class="btn btn-primary" id="applyAll">Apply</button>
-    </div>
-  </div>
-</section>
-
-<!-- CONTENT BELOW -->
-<div class="layout">
-  <main class="section" aria-label="New listings">
-    <h2>New Listings</h2>
-    <div class="grid">
-      <a class="card" href="item.html?id=1"><div class="thumb">photo</div><div class="info"><div class="title">Wool Crepe — Saffron</div><div class="meta"><span class="price">$28/yd</span><span class="seller"><span class="av">F</span>@FabricFolio</span></div></div></a>
-      <a class="card" href="item.html?id=5"><div class="thumb">photo</div><div class="info"><div class="title">Cotton Poplin — Moss</div><div class="meta"><span class="price">$14/yd</span><span class="seller"><span class="av">S</span>@SewSimple</span></div></div></a>
-      <a class="card" href="item.html?id=3"><div class="thumb">photo</div><div class="info"><div class="title">Silk Charmeuse — Midnight</div><div class="meta"><span class="price">$36/yd</span><span class="seller"><span class="av">L</span>@LoomLab</span></div></div></a>
-    </div>
-
-    <div class="below-rails">
-      <section class="panel" aria-label="My Likes">
-        <header>My Likes</header>
-        <div class="panel-body">
-          <div class="likes-grid">
-            <div class="like"></div><div class="like"></div><div class="like"></div>
-            <div class="like"></div><div class="like"></div><div class="like"></div>
-          </div>
-          <div class="likes-footer"><a href="favorites.html">All likes →</a></div>
-        </div>
-      </section>
-
-      <section class="panel" aria-label="Recent Views">
-        <header>Recent Views</header>
-        <div class="panel-body">
-          <div class="recent-grid">
-            <div class="tile"></div><div class="tile"></div><div class="tile"></div>
-            <div class="tile"></div><div class="tile"></div><div class="tile"></div>
-          </div>
-        </div>
-      </section>
-    </div>
-  </main>
-</div>
-
-<!-- FOOTER -->
-<footer class="hm-footer" role="contentinfo">
-  <div class="footer-wrap">
-    <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links" aria-label="Footer">
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
-      <a href="faq.html">FAQ</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
-      <a href="shipping.html">Shipping & Returns</a>
-    </nav>
-  </div>
-</footer>
 
 <script>
-/* Menu sheet open/close */
-const sheet=document.getElementById("menuSheet");
-const openBtn=document.getElementById("openMenu");
-const closeBtn=document.getElementById("closeMenu");
-function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
-openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
-closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
-document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+/* ===========================================================
+   Make COLOR selectable on the home page and push to browse.
+   This is defensive and won't change your layout or handlers.
+   =========================================================== */
+(function () {
+  // Find a reasonable container for the color chips
+  const colorRoot =
+    document.getElementById('colorPanel') ||
+    document.getElementById('colorFamilies') ||
+    document.querySelector('[data-panel="colorPanel"]') ||
+    document.querySelector('#panelStack #colorPanel') ||
+    document.querySelector('[aria-label="Filter by color family"]');
 
-/* Avatar (optional image) */
-try{ const url=localStorage.getItem("avatarUrl"); if(url){ const a=document.getElementById("avatar"); a.textContent=''; a.style.backgroundImage="url('"+url+"')"; a.style.backgroundSize='cover'; a.style.backgroundPosition='center'; } }catch(e){}
+  if (!colorRoot) return; // no color UI present
 
-/* Independent chip toggle */
-document.querySelectorAll('.chip').forEach(chip=>{
-  chip.addEventListener('click', ()=>{
-    const id = chip.getAttribute('data-panel');
-    const panel = document.getElementById(id);
-    const open = panel.classList.toggle('open');
-    chip.setAttribute('aria-pressed', open ? 'true' : 'false');
-    chip.querySelector('.toggler').textContent = open ? '–' : '+';
-  });
-});
-
-/* Content list (searchable) */
-const CONTENT_ALL = [
-  "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton",
-  "Cupro","Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon",
-  "Polyester","Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
-];
-const contentList = document.getElementById('contentList');
-const contentSearch = document.getElementById('contentSearch');
-function renderContent(){
-  const q = contentSearch.value.toLowerCase().trim();
-  contentList.innerHTML = '';
-  CONTENT_ALL.filter(v => !q || v.toLowerCase().includes(q)).forEach(v=>{
-    const row = document.createElement('label');
-    row.className = 'row';
-    const cb = document.createElement('input');
-    cb.type='checkbox'; cb.value=v;
-    row.appendChild(cb);
-    row.appendChild(document.createTextNode(v));
-    contentList.appendChild(row);
-  });
-}
-contentSearch.addEventListener('input',renderContent);
-renderContent();
-
-/* Colors */
-const colors = [
-  {name:"Black",hex:"#000000"}, {name:"Grey",hex:"#9aa0a6"},
-  {name:"White",hex:"#ffffff",border:"#d1d5db"}, {name:"Cream",hex:"#f5efe4"},
-  {name:"Brown",hex:"#7a4a2a"}, {name:"Pink",hex:"#f4a4b6"},
-  {name:"Red",hex:"#d21d2b"}, {name:"Orange",hex:"#f27a22"},
-  {name:"Yellow",hex:"#f3c321"}, {name:"Green",hex:"#2f7d32"},
-  {name:"Blue",hex:"#2166d1"}, {name:"Purple",hex:"#6b2da8"},
-  {name:"Gold",className:"gold"}, {name:"Silver",className:"silver"},
-];
-const colorRow = document.getElementById('colorRow');
-colors.forEach(c=>{
-  const sw = document.createElement('div');
-  sw.className = 'sw' + (c.className?(' '+c.className):'');
-  if(c.hex){ sw.style.background = c.hex; if(c.border) sw.style.borderColor=c.border; }
-  const tip = document.createElement('span'); tip.className='tip'; tip.textContent=c.name;
-  sw.appendChild(tip);
-  colorRow.appendChild(sw);
-});
-
-/* Clear / Apply + search routing */
-function collectFilters(){
-  const selectedContent = [...contentList.querySelectorAll('input[type="checkbox"]:checked')].map(i=>i.value);
-  const params = new URLSearchParams();
-  const q = document.getElementById('searchQ').value.trim();
-  if(q) params.set('q', q);
-  if(selectedContent.length) params.set('content', selectedContent.join(','));
-  const minPrice = document.getElementById('minPrice')?.value;
-  const maxPrice = document.getElementById('maxPrice')?.value;
-  const minYards = document.getElementById('minYards')?.value;
-  const extras = {minWidth:'minWidth',maxWidth:'maxWidth',minGsm:'minGsm',maxGsm:'maxGsm',dept:'dept',fabricType:'fabricType',fiberType:'fiberType',designer:'designer',origin:'origin',pattern:'pattern'};
-  if(minPrice) params.set('minPrice',minPrice);
-  if(maxPrice) params.set('maxPrice',maxPrice);
-  if(minYards) params.set('minYards',minYards);
-  for(const k in extras){ const el=document.getElementById(extras[k]); if(el && el.value) params.set(k,el.value); }
-  return params.toString();
-}
-document.getElementById('clearAll').addEventListener('click',()=>{
-  contentList.querySelectorAll('input[type="checkbox"]').forEach(i=>i.checked=false);
-  ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer']
-    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  ['dept','fabricType','fiberType','origin','pattern']
-    .forEach(id=>{ const el=document.getElementById(id); if(el) el.selectedIndex=0; });
-});
-document.getElementById('applyAll').addEventListener('click',()=>{
-  const qs = collectFilters();
-  window.location.href = qs ? ('browse.html?'+qs) : 'browse.html';
-});
-document.getElementById('homeSearch').addEventListener('submit',(e)=>{
-  e.preventDefault();
-  const type = document.getElementById('searchType').value;
-  if(type==='users'){
-    const q = encodeURIComponent(document.getElementById('searchQ').value.trim());
-    window.location.href = 'favorites.html?q='+q;
-  }else{
-    const qs = collectFilters();
-    window.location.href = qs ? ('browse.html?'+qs) : 'browse.html';
+  // Helper: find all swatches inside the color area
+  function allSwatches() {
+    return Array.from(
+      colorRoot.querySelectorAll(
+        '.sw, [data-color], [data-color-name], .color-chip, [role="button"][aria-label]'
+      )
+    );
   }
-});
-</script>
-  <script>
-/* === Enable selectable Color chips on HOME and pass them to browse === */
-(function(){
-  const colorRow = document.getElementById('colorFamilies');
-  if (!colorRow) return;
 
-  // 1) Toggle selection with a visible outline (uses your existing CSS [data-selected="true"])
-  colorRow.addEventListener('click', (e)=>{
-    const sw = e.target.closest('.sw');
-    if (!sw) return;
-    const now = sw.getAttribute('data-selected') === 'true';
-    sw.setAttribute('data-selected', now ? 'false' : 'true');
+  // Extract a human color name for a swatch
+  function getName(el) {
+    const tip = el.querySelector('.tip');
+    const val =
+      (el.getAttribute('data-color-name') || '').trim() ||
+      (tip ? tip.textContent.trim() : '') ||
+      (el.getAttribute('title') || '').trim() ||
+      (el.getAttribute('aria-label') || '').trim() ||
+      (el.textContent || '').trim();
+    return val;
+  }
+
+  // Selection state helpers
+  function isSelected(el) {
+    return (
+      el.classList.contains('hm-color-selected') ||
+      el.getAttribute('data-selected') === 'true' ||
+      el.getAttribute('aria-pressed') === 'true'
+    );
+  }
+  function setSelected(el, on) {
+    el.classList.toggle('hm-color-selected', on);
+    el.setAttribute('data-selected', on ? 'true' : 'false');
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  // Make swatches focusable buttons (no visual/layout change)
+  allSwatches().forEach((el) => {
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+    if (!el.hasAttribute('aria-pressed')) el.setAttribute('aria-pressed', 'false');
   });
 
-  function readSelectedColors(){
-    // read color names from the tooltip span you already render (falls back to title)
-    return [...colorRow.querySelectorAll('.sw[data-selected="true"]')]
-      .map(sw => (sw.querySelector('.tip')?.textContent || sw.title || '').trim())
+  // Toggle selection on click/Enter/Space (event delegation)
+  colorRoot.addEventListener('click', (e) => {
+    const sw = e.target.closest('.sw, [data-color], [data-color-name], .color-chip, [role="button"][aria-label]');
+    if (!sw || !colorRoot.contains(sw)) return;
+    setSelected(sw, !isSelected(sw));
+  });
+  colorRoot.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const sw = e.target.closest('.sw, [data-color], [data-color-name], .color-chip, [role="button"][aria-label]');
+    if (!sw || !colorRoot.contains(sw)) return;
+    e.preventDefault();
+    setSelected(sw, !isSelected(sw));
+  });
+
+  // Read selected colors
+  function readSelectedColors() {
+    return allSwatches()
+      .filter(isSelected)
+      .map(getName)
+      .map((s) => s && s.toLowerCase())
       .filter(Boolean);
   }
 
-  // 2) Include colors when you click Apply (keeps everything else you already add)
-  const applyBtn = document.getElementById('applyAll');
-  if (applyBtn) {
-    applyBtn.addEventListener('click', () => {
-      // build from current URL params so we don't disturb your other filters
-      const params = new URLSearchParams(location.search);
-      const colors = readSelectedColors();
-      if (colors.length) params.set('color', colors.join(','));
-      else params.delete('color');
+  // Apply to URL helper
+  function goToBrowse(extraParamsFromForm) {
+    const url = new URL('browse.html', location);
+    const params = new URLSearchParams();
 
-      const url = new URL('browse.html', location);
-      url.search = params.toString();
-      location.href = url.toString();
-    }, { capture: true });
+    // Include search query if present
+    const q = (extraParamsFromForm && extraParamsFromForm.q) || '';
+    if (q) params.set('q', q);
+
+    // Add color(s)
+    const colors = readSelectedColors();
+    if (colors.length) params.set('color', colors.join(','));
+
+    url.search = params.toString();
+    location.href = url.toString();
   }
 
-  // 3) Include colors on the main Search submit as well
+  // Wire into the main Search submit
   const searchForm = document.getElementById('homeSearch');
   if (searchForm) {
-    searchForm.addEventListener('submit', (e)=>{
+    searchForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const fd = new FormData(searchForm);
-      const type = String(fd.get('type') || 'listings');
+      const type = String(fd.get('type') || 'listings').toLowerCase();
       const q = String(fd.get('q') || '').trim();
 
-      const url = new URL(type === 'users' ? 'favorites.html' : 'browse.html', location);
-      const params = new URLSearchParams();
-      if (q) params.set('q', q);
-
-      const colors = readSelectedColors();
-      if (colors.length) params.set('color', colors.join(','));
-
-      url.search = params.toString();
-      location.href = url.toString();
+      if (type === 'users') {
+        const url = new URL('favorites.html', location);
+        if (q) url.search = new URLSearchParams({ q }).toString();
+        location.href = url.toString();
+      } else {
+        goToBrowse({ q });
+      }
     }, { capture: true });
   }
+
+  // Wire into the hero "Apply" button if present
+  const applyBtn =
+    document.getElementById('applyAll') ||
+    document.querySelector('.global-actions .btn-primary');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => goToBrowse(), { capture: true });
+  }
+
+  // Pre-select if color is already in URL (supports multiple comma-separated)
+  (function hydrateFromURL() {
+    const urlColors = (new URL(location.href)).searchParams.get('color');
+    if (!urlColors) return;
+    const wanted = urlColors
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    if (!wanted.length) return;
+
+    allSwatches().forEach((el) => {
+      const nm = getName(el).toLowerCase();
+      if (nm && wanted.includes(nm)) setSelected(el, true);
+    });
+  })();
 })();
 </script>
-</body>
-</html>
