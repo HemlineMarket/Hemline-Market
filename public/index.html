@@ -18,7 +18,70 @@
     --hm-border:#e5e7eb;
     --hm-chip:#ffffff;
   }
+/* ===== Make home filters functional by stashing to localStorage ===== */
+function collectHomeFilters(){
+  const norm = s => (s||'').toString().trim();
 
+  // Content (checkboxes)
+  const content = [...document.querySelectorAll('#contentPanel input[type="checkbox"]:checked')]
+    .map(i => norm(i.value));
+
+  // Colors (swatches with data-selected)
+  const color = [...document.querySelectorAll('#colorPanel .sw[data-selected="true"]')]
+    .map(sw => norm(sw.title || sw.querySelector('.tip')?.textContent || ''));
+
+  // Price / Yards / Width / GSM
+  const get = id => {
+    const el = document.getElementById(id);
+    return el && el.value !== '' ? Number(el.value) : null;
+  };
+
+  // “More” dropdowns / inputs
+  const selVal = id => {
+    const el = document.getElementById(id);
+    return el && el.value ? norm(el.value) : '';
+  };
+
+  return {
+    content, color,
+    minPrice: get('minPrice'), maxPrice: get('maxPrice'),
+    minYards: get('minYards'),
+    minWidth: get('minWidth'), maxWidth: get('maxWidth'),
+    minGsm: get('minGsm'),   maxGsm: get('maxGsm'),
+    dept: selVal('dept'),
+    fabricType: selVal('fabricType'),
+    fiberType: selVal('fiberType'),
+    designer: norm(document.getElementById('designer')?.value || ''),
+    origin: selVal('origin'),
+    pattern: selVal('pattern')
+  };
+}
+
+function stashFilters(){
+  try{
+    const payload = collectHomeFilters();
+    localStorage.setItem('hm:preselect', JSON.stringify(payload));
+  }catch(e){ /* fail soft */ }
+}
+
+/* Search routing — now stashes filters first */
+document.getElementById("homeSearch").addEventListener("submit", function(e){
+  e.preventDefault();
+  stashFilters();
+  const type = document.getElementById("searchType").value;
+  const qVal = document.getElementById("searchQ").value.trim();
+  const q = encodeURIComponent(qVal);
+  if(type==="users"){ window.location.href = "favorites.html?q="+q; }
+  else{ window.location.href = "browse.html?q="+q; }
+});
+
+/* Also stash & go when the Home “Apply” button is clicked */
+document.getElementById('applyAll').addEventListener('click', ()=>{
+  stashFilters();
+  const qVal = document.getElementById("searchQ").value.trim();
+  const q = encodeURIComponent(qVal);
+  window.location.href = "browse.html?q="+q;
+});
   /* Background */
   body{
     margin:0;
