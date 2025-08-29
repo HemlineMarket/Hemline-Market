@@ -61,29 +61,40 @@
   .search-card button{padding:8px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700}
   @media (max-width:640px){ .search-card{grid-template-columns:1fr;gap:6px} }
 
-  /* Chips + panels */
-  .chip-row{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-top:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .chip-row::-webkit-scrollbar{display:none}
-  .chip{display:inline-flex;align-items:center;background:var(--hm-chip);border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;color:#374151;text-decoration:none;white-space:nowrap;cursor:pointer;font-weight:700;font-size:13px}
+  /* === Filter chips row: exactly 5 equal columns === */
+  .chip-row{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:6px;
+    margin-top:6px;
+  }
+  .chip{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:100%;
+    background:var(--hm-chip);
+    border:1px solid var(--hm-border);border-radius:999px;
+    padding:8px 10px;color:#374151;text-decoration:none;cursor:pointer;
+    font-weight:700;font-size:13px
+  }
   .chip[aria-pressed="true"]{border-color:var(--hm-accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
 
+  /* Panels */
   .panel-stack{margin-top:6px;display:grid;gap:8px}
   .filter-panel{display:none;background:rgba(255,255,255,.98);border:1px solid var(--hm-border);border-radius:12px;padding:8px}
   .filter-panel.open{display:block}
   .filter-panel .title{font-size:12px;color:#374151;margin:0 0 6px 2px;font-weight:700}
-  .row-inline{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-  .field{display:flex;flex-direction:column;gap:2px}
-  .field label{font-size:12px;color:#374151}
-  .field input,.field select{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
-  .tight{gap:4px}
 
-  /* Content grid + search + show more (Mood-style) */
-  .content-controls{display:flex;gap:6px;align-items:center;margin:0 0 6px}
-  .content-search{flex:1;min-width:220px}
+  /* === Content pills on ONE line (scrollable), with search + show more aligned left === */
+  .content-controls{display:flex;align-items:center;gap:6px;margin:0 0 6px}
+  .content-search{flex:0 1 220px}
   .content-search input{width:100%;padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
   .show-more{font-size:12px;color:#374151;border:1px solid var(--hm-border);background:#fff;border-radius:999px;padding:6px 10px;cursor:pointer}
-  .content-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
-  .check-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:10px;padding:6px 8px;background:#fff;font-size:12px;cursor:pointer}
+
+  .content-grid{
+    display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px
+  }
+  .content-grid::-webkit-scrollbar{display:none}
+  .check-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;background:#fff;font-size:12px;white-space:nowrap;cursor:pointer}
   .check-chip input{width:14px;height:14px}
 
   /* Color row + tooltip */
@@ -119,13 +130,13 @@
   .likes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .likes-grid .like{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px}
 
-  /* Recent Views → grid like Likes */
+  /* Recent Views as same-size tiles */
   .recent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .recent-tile{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:12px}
 
   /* Footer spacing */
   .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
-  .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+  .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
   .hm-footer .footer-links a{color:#4b5563;margin-right:12px}
 </style>
 </head>
@@ -199,6 +210,7 @@
       <button type="submit" aria-label="Search">Search</button>
     </form>
 
+    <!-- 5 equal-width chips -->
     <div class="chip-row" aria-label="Primary filters">
       <button class="chip" data-panel="contentPanel" aria-pressed="false">Content</button>
       <button class="chip" data-panel="colorPanel" aria-pressed="false">Color</button>
@@ -210,7 +222,7 @@
     <!-- STACKED PANELS -->
     <div class="panel-stack" id="panelStack">
 
-      <!-- Content (Mood-style search + show more) -->
+      <!-- Content compact row -->
       <div class="filter-panel" id="contentPanel" role="region" aria-label="Filter by content">
         <div class="title">Content</div>
         <div class="content-controls">
@@ -414,13 +426,12 @@
     else{ window.location.href="browse.html?q="+q; }
   });
 
-  /* Content values */
+  /* Content values + compact rendering */
   const CONTENT_VALUES=[
     "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
     "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
     "Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
   ];
-
   const contentGrid=document.getElementById('contentGrid');
   const searchInput=document.getElementById('contentSearch');
   const toggleBtn=document.getElementById('toggleContentMore');
@@ -442,7 +453,6 @@
     toggleBtn.setAttribute('aria-expanded', String(showAll));
   }
   renderContent();
-
   searchInput.addEventListener('input',()=>{ renderContent(searchInput.value.trim()); });
   toggleBtn.addEventListener('click',()=>{ showAll=!showAll; renderContent(searchInput.value.trim()); });
 
@@ -478,7 +488,7 @@
     colorRow.appendChild(sw);
   });
 
-  /* Panels toggle + action bar */
+  /* Panels + actions */
   const chips=[...document.querySelectorAll('.chip[data-panel]')];
   const panels={
     contentPanel:document.getElementById('contentPanel'),
