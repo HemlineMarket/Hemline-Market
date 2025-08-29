@@ -1,152 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Hemline Market — Find your next fabric creation</title>
+
+<link rel="stylesheet" href="styles/hm-modern.css"/>
+<link rel="stylesheet" href="styles/hem-header.css"/>
+<link rel="stylesheet" href="styles/hm-typography.css"/>
+<link rel="stylesheet" href="styles/hm-footer.css"/>
+
 <style>
-/* Minimal visual state in case your CSS doesn't already style selection */
-.hm-color-selected {
-  outline: 2px solid var(--hm-accent, #991b1b);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 2px rgba(153,27,27,.12);
-  border-radius: 6px;
-}
+  :root{
+    --hm-accent:#991b1b;
+    --hm-text:#111827;
+    --hm-muted:#6b7280;
+    --hm-border:#e5e7eb;
+    --hm-chip:#ffffff;
+  }
+
+  /* Background */
+  body{
+    margin:0;
+    background:url("images/homepage.jpeg") center/cover fixed no-repeat;
+    color:var(--hm-text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* Header (you already have hem-header.css; this keeps it consistent) */
+  .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
+  .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+  .hm-header .left{display:flex;align-items:center;gap:10px}
+  .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
+  .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
+  .hamburger svg{width:22px;height:22px;stroke-width:2}
+  .right{display:flex;align-items:center;gap:14px}
+  .hm-icon{color:#444;display:inline-grid;place-items:center}
+  .hm-icon svg{width:26px;height:26px;stroke-width:2}
+  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+  .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+
+  /* Left sheet nav */
+  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+  .sheet.open{transform:translateX(0)}
+  .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
+  .sheet nav{display:grid;padding:10px}
+  .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
+  .sheet nav a + a{margin-top:8px}
+  .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
+
+  /* Hero */
+  .hero-wrap{max-width:1200px;margin:14px auto 0;padding:0 12px}
+  .hero-card{background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 14px rgba(0,0,0,.10);padding:10px}
+  .home-hero h1{font-size:24px;margin:0 0 4px;font-weight:800}
+  .home-hero p{margin:0 0 6px;color:var(--hm-muted);font-size:14px}
+
+  .search-card{display:grid;grid-template-columns:120px 1fr auto;gap:6px;margin-bottom:6px}
+  .search-card select,.search-card input{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
+  .search-card button{padding:8px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700}
+  @media (max-width:640px){ .search-card{grid-template-columns:1fr;gap:6px} }
+
+  /* Filter chips */
+  .chip-row{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-top:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .chip-row::-webkit-scrollbar{display:none}
+  .chip{display:inline-flex;align-items:center;background:var(--hm-chip);border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;color:#374151;text-decoration:none;white-space:nowrap;cursor:pointer;font-weight:700;font-size:13px}
+  .chip[aria-pressed="true"]{border-color:var(--hm-accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
+
+  /* Panel stack (accordion under chips) */
+  .panel-stack{margin-top:6px;display:grid;gap:8px}
+  .filter-panel{display:none;background:rgba(255,255,255,.98);border:1px solid var(--hm-border);border-radius:12px;padding:8px}
+  .filter-panel.open{display:block}
+  .filter-panel .title{font-size:12px;color:#374151;margin:0 0 6px 2px;font-weight:700}
+  .row-inline{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .field{display:flex;flex-direction:column;gap:2px}
+  .field label{font-size:12px;color:#374151}
+  .field input,.field select{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
+  .tight{gap:4px}
+
+  /* Content grid – compact */
+  .content-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  .check-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:10px;padding:6px 8px;background:#fff;font-size:12px;cursor:pointer}
+  .check-chip input{width:14px;height:14px}
+
+  /* Color row + tooltip + selected state */
+  .color-row{display:flex;gap:6px;flex-wrap:wrap;max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .color-row::-webkit-scrollbar{display:none}
+  .sw{position:relative;width:28px;height:28px;border-radius:6px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);cursor:pointer;flex:0 0 auto}
+  .sw[data-selected="true"]{outline:2px solid var(--hm-accent);outline-offset:2px}
+  .sw .tip{position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:9999}
+  .sw:hover .tip{opacity:1}
+
+  /* Global actions */
+  .global-actions{display:flex;justify-content:flex-end;gap:6px}
+  .btn{padding:6px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;color:#374151;cursor:pointer;font-size:13px}
+  .btn-primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
+
+  /* Main layout cards (unchanged) */
+  .layout{max-width:1200px;margin:12px auto 0;padding:0 12px}
+  .section h2{margin:0 0 8px;font-size:18px}
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  @media (max-width:900px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media (max-width:560px){ .grid{grid-template-columns:1fr} }
+  .card{background:rgba(255,255,255,.96);border:1px solid var(--hm-border);border-radius:12px;overflow:hidden;text-decoration:none;color:#1f2937}
+  .thumb{aspect-ratio:4/3;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#6b7280}
+  .info{padding:8px 10px}
+  .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:14px;color:#6b7280}
+  .price{font-weight:800;color:#111827}
+  .seller{display:flex;align-items:center;gap:6px}
+  .seller .av{width:20px;height:20px;border-radius:999px;border:1px solid var(--hm-border);display:grid;place-items:center;font-size:10px;font-weight:800;background:#fff;color:#374151}
+
+  /* Below rails */
+  .below-rails{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  @media (max-width:900px){ .below-rails{grid-template-columns:1fr;gap:10px} }
+  .panel{background:rgba(255,255,255,.94);border:1px solid var(--hm-border);border-radius:12px}
+  .panel header{padding:8px 10px;border-bottom:1px solid var(--hm-border);font-weight:700}
+  .panel .panel-body{padding:8px 10px}
+  .likes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .likes-grid .like{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px}
+  .likes-footer{margin-top:6px;text-align:right}
+  .likes-footer a{font-size:12px;color:#374151;text-decoration:none}
+  .recent-list{display:grid;gap:6px}
+  .recent-item{display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center}
+  .recent-thumb{width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border)}
+  .recent-meta{font-size:12px;color:#374151}
+  .recent-meta .name{font-weight:700;color:#111827}
+
+  /* Footer */
+  .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
+  .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+  .hm-footer .footer-links a{color:#4b5563}
 </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <button class="hamburger" id="openMenu" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
+    </div>
+    <div class="right">
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn-primary" href="seller/index.html?list=new">Sell</a>
+    </div>
+  </div>
+</header>
+
+<!-- LEFT MENU -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y="18"></line>
+        <line x1="6" y1="6" x2="18" y="18"></line>
+      </svg>
+    </button>
+  </header>
+  <nav>
+    <a href="browse.html">Browse</a>
+    <a href="about.html">About</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="favorites.html">Favorites</a>
+    <a href="orders.html">Orders</a>
+    <a href="settings.html">Settings</a>
+    <a href="help.html">Help</a>
+  </nav>
+</aside>
+
+<!-- HERO + FILTERS -->
+<section class="hero-wrap">
+  <div class="hero-card home-hero">
+    <h1>Find your next fabric creation</h1>
+    <p>Search fabrics by content, weight, width, and more.</p>
+
+    <form id="homeSearch" class="search-card" role="search" aria-label="Search">
+      <select name="type" id="searchType" aria-label="Search type">
+        <option value="listings" selected>Listings</option>
+        <option value="users">Users</option>
+      </select>
+      <input type="search" name="q" id="searchQ" placeholder="Search fabrics, shops, or styles…" aria-label="Search query"/>
+      <button type="submit" aria-label="Search">Search</button>
+    </form>
+
+    <div class="chip-row" aria-label="Primary filters">
+      <button class="chip" data-panel="contentPanel" aria-pressed="false">Content</button>
+      <button class="chip" data-panel="colorPanel" aria-pressed="false">Color</button>
+      <button class="chip" data-panel="pricePanel" aria-pressed="false">$/yard</button>
+      <button class="chip" data-panel="yardsPanel" aria-pressed="false">Yards</button>
+      <button class="chip" data-panel="morePanel" aria-pressed="false">More</button>
+    </div>
+
+    <!-- STACKED PANELS -->
+    <div class="panel-stack" id="panelStack">
+
+      <!-- Content -->
+      <div class="filter-panel" id="contentPanel" role="region" aria-label="Filter by content">
+        <div class="title">Content</div>
+        <div class="content-grid" id="contentGrid"></div>
+      </div>
+
+      <!-- Color -->
+      <div class="filter-panel" id="colorPanel" role="region" aria-label="Filter by color family">
+        <div class="title">Color Family</div>
+        <div class="color-row" id="colorFamilies"></div>
+      </div>
+
+      <!-- Price -->
+      <div class="filter-panel" id="pricePanel" role="region" aria-label="Filter by price">
+        <div class="title">$/yard</div>
+        <div class="row-inline tight">
+          <div class="field" style="min-width:140px">
+            <label>Min $/yard</label><input type="number" min="0" step="1" placeholder="10" id="minPrice">
+          </div>
+          <div class="field" style="min-width:140px">
+            <label>Max $/yard</label><input type="number" min="0" step="1" placeholder="100" id="maxPrice">
+          </div>
+        </div>
+      </div>
+
+      <!-- Yards -->
+      <div class="filter-panel" id="yardsPanel" role="region" aria-label="Filter by yards">
+        <div class="title">Yards Available</div>
+        <div class="row-inline tight">
+          <div class="field" style="min-width:170px"><label>Min yards available</label><input type="number" min="0" step="1" placeholder="e.g., 3" id="minYards"></div>
+        </div>
+      </div>
+
+      <!-- More -->
+      <div class="filter-panel" id="morePanel" role="region" aria-label="More filters">
+        <div class="title">More</div>
+
+        <div class="row-inline tight">
+          <div class="field"><label>Min width (in)</label><input type="number" min="0" step="1" placeholder="44" id="minWidth"></div>
+          <div class="field"><label>Max width (in)</label><input type="number" min="0" step="1" placeholder="60" id="maxWidth"></div>
+          <div class="field"><label>Min GSM</label><input type="number" min="0" step="1" placeholder="80" id="minGsm"></div>
+          <div class="field"><label>Max GSM</label><input type="number" min="0" step="1" placeholder="400" id="maxGsm"></div>
+        </div>
+
+        <div class="row-inline tight" style="flex-wrap:wrap">
+          <div class="field">
+            <label>Department</label>
+            <select id="dept">
+              <option value="">Any</option>
+              <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Fabric Type</label>
+            <select id="fabricType">
+              <option value="">Any</option>
+              <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
+              <option>Crepe</option><option>Denim</option><option>Flannel</option>
+              <option>Georgette</option><option>Jersey</option><option>Lace</option>
+              <option>Lawn</option><option>Organza</option><option>Poplin</option>
+              <option>Sateen</option><option>Satin</option><option>Tulle</option>
+              <option>Twill</option><option>Velvet</option><option>Voile</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Fiber Type</label>
+            <select id="fiberType">
+              <option value="">Any</option>
+              <option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option>
+            </select>
+          </div>
+
+          <div class="field" style="min-width:200px">
+            <label>Designer / Mill</label>
+            <input id="designer" placeholder="e.g., Loro Piana">
+          </div>
+
+          <div class="field">
+            <label>Country / Origin</label>
+            <select id="origin">
+              <option value="">Any</option>
+              <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
+              <option>USA</option><option>India</option><option>China</option><option>Korea</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Pattern</label>
+            <select id="pattern">
+              <option value="">Any</option>
+              <option>Solid</option>
+              <option>Printed</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ONE global action bar -->
+      <div class="global-actions" id="globalActions" style="display:none">
+        <button class="btn" id="clearAll">Clear</button>
+        <button class="btn btn-primary" id="applyAll">Apply</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN -->
+<div class="layout">
+  <main class="section" aria-label="New listings">
+    <h2>New Listings</h2>
+    <div class="grid">
+      <a class="card" href="item.html?id=1" aria-label="Wool Crepe — Saffron">
+        <div class="thumb" aria-hidden="true">photo</div>
+        <div class="info">
+          <div class="title">Wool Crepe — Saffron</div>
+          <div class="meta"><span class="price">$28/yd</span><span class="seller"><span class="av" aria-hidden="true">F</span>@FabricFolio</span></div>
+        </div>
+      </a>
+      <a class="card" href="item.html?id=5" aria-label="Cotton Poplin — Moss">
+        <div class="thumb" aria-hidden="true">photo</div>
+        <div class="info">
+          <div class="title">Cotton Poplin — Moss</div>
+          <div class="meta"><span class="price">$14/yd</span><span class="seller"><span class="av" aria-hidden="true">S</span>@SewSimple</span></div>
+        </div>
+      </a>
+      <a class="card" href="item.html?id=3" aria-label="Silk Charmeuse — Midnight">
+        <div class="thumb" aria-hidden="true">photo</div>
+        <div class="info">
+          <div class="title">Silk Charmeuse — Midnight</div>
+          <div class="meta"><span class="price">$36/yd</span><span class="seller"><span class="av" aria-hidden="true">L</span>@LoomLab</span></div>
+        </div>
+      </a>
+    </div>
+
+    <div class="below-rails">
+      <section class="panel" aria-label="My Likes">
+        <header>My Likes</header>
+        <div class="panel-body">
+          <div class="likes-grid">
+            <div class="like"></div><div class="like"></div><div class="like"></div>
+            <div class="like"></div><div class="like"></div><div class="like"></div>
+          </div>
+          <div class="likes-footer"><a href="favorites.html">All likes →</a></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Recent Views">
+        <header>Recent Views</header>
+        <div class="panel-body">
+          <div class="recent-list">
+            <div class="recent-item">
+              <div class="recent-thumb"></div>
+              <div class="recent-meta"><div class="name">Italian Silk Twill</div><div>$68/yd · 54″</div></div>
+            </div>
+            <div class="recent-item">
+              <div class="recent-thumb"></div>
+              <div class="recent-meta"><div class="name">Wool Crepe</div><div>$52/yd · 58″</div></div>
+            </div>
+            <div class="recent-item">
+              <div class="recent-thumb"></div>
+              <div class="recent-meta"><div class="name">Cotton Poplin</div><div>$14/yd · 44″</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a href="faq.html">FAQ</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="shipping.html">Shipping & Returns</a>
+    </nav>
+  </div>
+</footer>
 
 <script>
-/* ===========================================================
-   Make COLOR selectable on the home page and push to browse.
-   This is defensive and won't change your layout or handlers.
-   =========================================================== */
-(function () {
-  // Find a reasonable container for the color chips
-  const colorRoot =
-    document.getElementById('colorPanel') ||
-    document.getElementById('colorFamilies') ||
-    document.querySelector('[data-panel="colorPanel"]') ||
-    document.querySelector('#panelStack #colorPanel') ||
-    document.querySelector('[aria-label="Filter by color family"]');
+(function(){
+  /* Menu sheet */
+  const sheet=document.getElementById("menuSheet");
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
+  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+  openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
+  closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-  if (!colorRoot) return; // no color UI present
+  /* Avatar (optional stored url) */
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  // Helper: find all swatches inside the color area
-  function allSwatches() {
-    return Array.from(
-      colorRoot.querySelectorAll(
-        '.sw, [data-color], [data-color-name], .color-chip, [role="button"][aria-label]'
-      )
-    );
-  }
-
-  // Extract a human color name for a swatch
-  function getName(el) {
-    const tip = el.querySelector('.tip');
-    const val =
-      (el.getAttribute('data-color-name') || '').trim() ||
-      (tip ? tip.textContent.trim() : '') ||
-      (el.getAttribute('title') || '').trim() ||
-      (el.getAttribute('aria-label') || '').trim() ||
-      (el.textContent || '').trim();
-    return val;
-  }
-
-  // Selection state helpers
-  function isSelected(el) {
-    return (
-      el.classList.contains('hm-color-selected') ||
-      el.getAttribute('data-selected') === 'true' ||
-      el.getAttribute('aria-pressed') === 'true'
-    );
-  }
-  function setSelected(el, on) {
-    el.classList.toggle('hm-color-selected', on);
-    el.setAttribute('data-selected', on ? 'true' : 'false');
-    el.setAttribute('aria-pressed', on ? 'true' : 'false');
-  }
-
-  // Make swatches focusable buttons (no visual/layout change)
-  allSwatches().forEach((el) => {
-    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
-    if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
-    if (!el.hasAttribute('aria-pressed')) el.setAttribute('aria-pressed', 'false');
+  /* Build Content checklist (compact) */
+  const contentValues=[
+    "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
+    "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
+    "Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
+  ];
+  const contentGrid=document.getElementById('contentGrid');
+  contentValues.forEach(v=>{
+    const label=document.createElement('label');
+    label.className='check-chip';
+    const input=document.createElement('input');
+    input.type='checkbox'; input.value=v; label.appendChild(input);
+    label.appendChild(document.createTextNode(v));
+    contentGrid.appendChild(label);
   });
 
-  // Toggle selection on click/Enter/Space (event delegation)
-  colorRoot.addEventListener('click', (e) => {
-    const sw = e.target.closest('.sw, [data-color], [data-color-name], .color-chip, [role="button"][aria-label]');
-    if (!sw || !colorRoot.contains(sw)) return;
-    setSelected(sw, !isSelected(sw));
-  });
-  colorRoot.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    const sw = e.target.closest('.sw, [data-color], [data-color-name], .color-chip, [role="button"][aria-label]');
-    if (!sw || !colorRoot.contains(sw)) return;
-    e.preventDefault();
-    setSelected(sw, !isSelected(sw));
+  /* Color family — chips (selectable) */
+  const colors=[
+    {name:"Black",hex:"#000000"},
+    {name:"Grey",hex:"#9aa0a6"},
+    {name:"White",hex:"#ffffff",border:"#d1d5db"},
+    {name:"Cream",hex:"#f5efe4"},
+    {name:"Brown",hex:"#7a4a2a"},
+    {name:"Pink",hex:"#f4a4b6"},
+    {name:"Red",hex:"#d21d2b"},
+    {name:"Orange",hex:"#f27a22"},
+    {name:"Yellow",hex:"#f3c321"},
+    {name:"Green",hex:"#2f7d32"},
+    {name:"Blue",hex:"#2166d1"},
+    {name:"Purple",hex:"#6b2da8"},
+    {name:"Gold",hex:"#e2c46d"},
+    {name:"Silver",hex:"#d5d8de"}
+  ];
+  const colorRow=document.getElementById('colorFamilies');
+  colors.forEach(c=>{
+    const sw=document.createElement('div');
+    sw.className='sw';
+    sw.style.background=c.hex;
+    if(c.border){ sw.style.borderColor=c.border; }
+    sw.title=c.name;                         // native tooltip
+    const tip=document.createElement('span'); // visible tooltip
+    tip.className='tip';
+    tip.textContent=c.name;
+    sw.appendChild(tip);
+    // allow selection
+    sw.addEventListener('click',()=>{ 
+      const on = sw.getAttribute('data-selected')==='true' ? false : true;
+      sw.setAttribute('data-selected', on ? 'true':'false');
+    });
+    colorRow.appendChild(sw);
   });
 
-  // Read selected colors
-  function readSelectedColors() {
-    return allSwatches()
-      .filter(isSelected)
-      .map(getName)
-      .map((s) => s && s.toLowerCase())
+  // Read selected colors (by name)
+  function getSelectedColors(){
+    return Array.from(document.querySelectorAll('#colorPanel .sw[data-selected="true"] .tip'))
+      .map(el=>el.textContent.trim())
       .filter(Boolean);
   }
 
-  // Apply to URL helper
-  function goToBrowse(extraParamsFromForm) {
+  /* Panel toggling (independent accordions) + action bar */
+  const chips=[...document.querySelectorAll('.chip[data-panel]')];
+  const panels={
+    contentPanel:document.getElementById('contentPanel'),
+    colorPanel:document.getElementById('colorPanel'),
+    pricePanel:document.getElementById('pricePanel'),
+    yardsPanel:document.getElementById('yardsPanel'),
+    morePanel:document.getElementById('morePanel'),
+  };
+  const actions=document.getElementById('globalActions');
+
+  function updateActionsVisibility(){
+    const anyOpen=Object.values(panels).some(p=>p.classList.contains('open'));
+    actions.style.display = anyOpen ? 'flex' : 'none';
+  }
+
+  chips.forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      const id=chip.getAttribute('data-panel');
+      const panel=panels[id];
+      const nowOpen=!panel.classList.contains('open');
+      panel.classList.toggle('open', nowOpen);
+      chip.setAttribute('aria-pressed', String(nowOpen));
+      updateActionsVisibility();
+    });
+  });
+
+  // Clear
+  document.getElementById('clearAll').addEventListener('click',()=>{
+    // content
+    document.querySelectorAll('#contentPanel input[type="checkbox"]').forEach(c=>c.checked=false);
+    // colors
+    document.querySelectorAll('#colorPanel .sw').forEach(s=>s.removeAttribute('data-selected'));
+    // numeric/text
+    ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    // selects
+    ['dept','fabricType','fiberType','origin','pattern'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.selectedIndex=0;
+    });
+  });
+
+  // APPLY → go to browse with color param (and q if present)
+  function goToBrowseWithParams(){
     const url = new URL('browse.html', location);
     const params = new URLSearchParams();
-
-    // Include search query if present
-    const q = (extraParamsFromForm && extraParamsFromForm.q) || '';
-    if (q) params.set('q', q);
-
-    // Add color(s)
-    const colors = readSelectedColors();
-    if (colors.length) params.set('color', colors.join(','));
-
+    const qVal = (document.getElementById('searchQ')?.value || '').trim();
+    if (qVal) params.set('q', qVal);
+    const picked = getSelectedColors();
+    if (picked.length) params.set('color', picked.join(','));
     url.search = params.toString();
     location.href = url.toString();
   }
 
-  // Wire into the main Search submit
-  const searchForm = document.getElementById('homeSearch');
-  if (searchForm) {
-    searchForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const fd = new FormData(searchForm);
-      const type = String(fd.get('type') || 'listings').toLowerCase();
-      const q = String(fd.get('q') || '').trim();
+  document.getElementById('applyAll').addEventListener('click',()=>{
+    goToBrowseWithParams();
+  });
 
-      if (type === 'users') {
-        const url = new URL('favorites.html', location);
-        if (q) url.search = new URLSearchParams({ q }).toString();
-        location.href = url.toString();
-      } else {
-        goToBrowse({ q });
-      }
-    }, { capture: true });
-  }
+  /* Search routing (also sends color) */
+  document.getElementById("homeSearch").addEventListener("submit",function(e){
+    e.preventDefault();
+    const type=document.getElementById("searchType").value;
+    if(type==="users"){
+      const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
+      const url = new URL('favorites.html', location);
+      if(q) url.search = 'q='+q;
+      location.href = url.toString();
+      return;
+    }
+    goToBrowseWithParams();
+  });
 
-  // Wire into the hero "Apply" button if present
-  const applyBtn =
-    document.getElementById('applyAll') ||
-    document.querySelector('.global-actions .btn-primary');
-  if (applyBtn) {
-    applyBtn.addEventListener('click', () => goToBrowse(), { capture: true });
-  }
-
-  // Pre-select if color is already in URL (supports multiple comma-separated)
-  (function hydrateFromURL() {
-    const urlColors = (new URL(location.href)).searchParams.get('color');
-    if (!urlColors) return;
-    const wanted = urlColors
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean);
-    if (!wanted.length) return;
-
-    allSwatches().forEach((el) => {
-      const nm = getName(el).toLowerCase();
-      if (nm && wanted.includes(nm)) setSelected(el, true);
-    });
-  })();
+  // Pre-select color chips if ?color= exists (e.g., when returning)
+  try{
+    const urlColors = new URL(location.href).searchParams.get('color');
+    if(urlColors){
+      const want = urlColors.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+      document.querySelectorAll('#colorPanel .sw .tip').forEach(t=>{
+        if (want.includes(t.textContent.trim().toLowerCase())){
+          t.parentElement.setAttribute('data-selected','true');
+        }
+      });
+    }
+  }catch(_){}
 })();
 </script>
+</body>
+</html>
