@@ -412,5 +412,64 @@ document.getElementById('homeSearch').addEventListener('submit',(e)=>{
   }
 });
 </script>
+  <script>
+/* === Enable selectable Color chips on HOME and pass them to browse === */
+(function(){
+  const colorRow = document.getElementById('colorFamilies');
+  if (!colorRow) return;
+
+  // 1) Toggle selection with a visible outline (uses your existing CSS [data-selected="true"])
+  colorRow.addEventListener('click', (e)=>{
+    const sw = e.target.closest('.sw');
+    if (!sw) return;
+    const now = sw.getAttribute('data-selected') === 'true';
+    sw.setAttribute('data-selected', now ? 'false' : 'true');
+  });
+
+  function readSelectedColors(){
+    // read color names from the tooltip span you already render (falls back to title)
+    return [...colorRow.querySelectorAll('.sw[data-selected="true"]')]
+      .map(sw => (sw.querySelector('.tip')?.textContent || sw.title || '').trim())
+      .filter(Boolean);
+  }
+
+  // 2) Include colors when you click Apply (keeps everything else you already add)
+  const applyBtn = document.getElementById('applyAll');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      // build from current URL params so we don't disturb your other filters
+      const params = new URLSearchParams(location.search);
+      const colors = readSelectedColors();
+      if (colors.length) params.set('color', colors.join(','));
+      else params.delete('color');
+
+      const url = new URL('browse.html', location);
+      url.search = params.toString();
+      location.href = url.toString();
+    }, { capture: true });
+  }
+
+  // 3) Include colors on the main Search submit as well
+  const searchForm = document.getElementById('homeSearch');
+  if (searchForm) {
+    searchForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(searchForm);
+      const type = String(fd.get('type') || 'listings');
+      const q = String(fd.get('q') || '').trim();
+
+      const url = new URL(type === 'users' ? 'favorites.html' : 'browse.html', location);
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+
+      const colors = readSelectedColors();
+      if (colors.length) params.set('color', colors.join(','));
+
+      url.search = params.toString();
+      location.href = url.toString();
+    }, { capture: true });
+  }
+})();
+</script>
 </body>
 </html>
