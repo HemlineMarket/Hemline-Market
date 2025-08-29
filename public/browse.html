@@ -1,306 +1,484 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hemline Market — Browse</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Browse • Hemline Market</title>
 
-  <!-- IMPORTANT: This page is self-contained and won't alter global styles. -->
-  <style>
-    /* =============================
-       Scoped styles: .hm-browse only
-       ============================= */
-    .hm-browse { background:#fff; color:#111; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
-    .hm-browse a { text-decoration: none; }
-    .hm-browse .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
-    .hm-browse .visually-hidden { position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; }
+<!-- Same CSS links as homepage for pixel-identical chrome -->
+<link rel="stylesheet" href="styles/hm-modern.css"/>
+<link rel="stylesheet" href="styles/hem-header.css"/>
+<link rel="stylesheet" href="styles/hm-typography.css"/>
+<link rel="stylesheet" href="styles/hm-footer.css"/>
 
-    /* Header/Footer placeholders – minimal so your site CSS can style your pasted header/footer */
-    .hm-browse header, .hm-browse footer { width:100%; }
+<style>
+  :root{
+    --hm-accent:#991b1b;
+    --hm-text:#111827;
+    --hm-muted:#6b7280;
+    --hm-border:#e5e7eb;
+    --hm-chip:#ffffff;
+  }
 
-    /* Filters bar (restored baseline layout; sections in one row, wrapping) */
-    .hm-browse .filters-bar {
-      border-top:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; background:#fafafa;
-    }
-    .hm-browse .filters-inner {
-      display:flex; gap:12px; flex-wrap:wrap; align-items:center; padding:12px 0;
-    }
-    .hm-browse .filter {
-      display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid #e5e7eb; border-radius:999px; background:#fff;
-      line-height:1; font-size:14px;
-    }
-    .hm-browse .filter button.filter-toggle {
-      border:0; background:transparent; cursor:pointer; font-size:16px; line-height:1; width:20px; height:20px;
-    }
-    .hm-browse .filter .label { font-weight:600; color:#111; }
-    .hm-browse .filter-panel {
-      display:none; position:absolute; z-index:10; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-top:6px; box-shadow:0 8px 24px rgba(0,0,0,0.08);
-    }
-    .hm-browse .filter-group { position:relative; }
-    .hm-browse .filter-options { display:flex; gap:8px; flex-wrap:wrap; max-width:580px; }
-    .hm-browse .chip {
-      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; cursor:pointer; font-size:13px;
-    }
-    .hm-browse .chip[data-selected="true"] { border-color:#111; }
+  body{
+    margin:0;
+    background:#fafafa; /* neutral background for browse */
+    color:var(--hm-text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
 
-    /* Icons (heart/bell) as buttons, not links, so they never turn purple/visited */
-    .hm-browse .actions { display:flex; gap:10px; margin-left:auto; }
-    .hm-browse .icon-btn {
-      border:1px solid #e5e7eb; background:#fff; padding:8px 10px; border-radius:999px; cursor:pointer; font-size:14px;
-    }
-    .hm-browse .icon-btn:focus-visible { outline:2px solid #111; outline-offset:2px; }
+  /* Header styles are already in hem-header.css, these keep parity with Home inline rules */
+  .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
+  .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+  .hm-header .left{display:flex;align-items:center;gap:10px}
+  .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
+  .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
+  .hamburger svg{width:22px;height:22px;stroke-width:2}
+  .right{display:flex;align-items:center;gap:14px}
+  .hm-icon{color:#444;display:inline-grid;place-items:center}
+  .hm-icon svg{width:26px;height:26px;stroke-width:2}
+  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+  .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
-    /* Results grid placeholder */
-    .hm-browse .results { padding:18px 0 40px; }
-    .hm-browse .grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; }
-    @media (max-width: 1000px){ .hm-browse .grid { grid-template-columns: repeat(3, 1fr);} }
-    @media (max-width: 700px){ .hm-browse .grid { grid-template-columns: repeat(2, 1fr);} }
+  /* Filter chips (same pattern as Home) */
+  .wrap{max-width:1200px;margin:14px auto 0;padding:0 12px}
+  .page-title{display:flex;justify-content:space-between;align-items:center;margin:0 0 8px}
+  .page-title h1{margin:0;font-size:22px}
+  .subtle{color:var(--hm-muted);font-size:13px}
 
-    .hm-browse .card { border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; background:#fff; }
-    .hm-browse .ph { aspect-ratio: 4/3; background:#f3f4f6; }
-    .hm-browse .card .meta { padding:10px; font-size:14px; display:flex; justify-content:space-between; gap:8px; }
-  </style>
+  .chip-row{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-top:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .chip-row::-webkit-scrollbar{display:none}
+  .chip{display:inline-flex;align-items:center;background:var(--hm-chip);border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;color:#374151;text-decoration:none;white-space:nowrap;cursor:pointer;font-weight:700;font-size:13px}
+  .chip[aria-pressed="true"]{border-color:var(--hm-accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
+
+  .panel-stack{margin-top:6px;display:grid;gap:8px}
+  .filter-panel{display:none;background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:8px}
+  .filter-panel.open{display:block}
+  .filter-panel .title{font-size:12px;color:#374151;margin:0 0 6px 2px;font-weight:700}
+  .row-inline{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .field{display:flex;flex-direction:column;gap:2px}
+  .field label{font-size:12px;color:#374151}
+  .field input,.field select{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
+  .tight{gap:4px}
+
+  /* Content checklist */
+  .content-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  .check-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:10px;padding:6px 8px;background:#fff;font-size:12px;cursor:pointer}
+  .check-chip input{width:14px;height:14px}
+
+  /* Color row + tooltip */
+  .color-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+  .color-row::-webkit-scrollbar{display:none}
+  .sw{position:relative;width:28px;height:28px;border-radius:6px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);cursor:pointer;flex:0 0 auto}
+  .sw[data-selected="true"]{outline:2px solid var(--hm-accent);outline-offset:2px}
+  .sw .tip{position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:9999}
+  .sw:hover .tip{opacity:1}
+
+  /* Global actions for filters */
+  .global-actions{display:flex;justify-content:flex-end;gap:6px}
+  .btn{padding:6px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;color:#374151;cursor:pointer;font-size:13px}
+  .btn-primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
+
+  /* Results grid */
+  .results-wrap{margin-top:10px}
+  .results-head{display:flex;justify-content:space-between;align-items:center;margin:0 0 8px}
+  .results-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  @media (max-width:900px){ .results-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media (max-width:560px){ .results-grid{grid-template-columns:1fr} }
+  .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;overflow:hidden;text-decoration:none;color:#1f2937}
+  .thumb{aspect-ratio:4/3;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#6b7280}
+  .info{padding:8px 10px}
+  .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:14px;color:#6b7280}
+  .price{font-weight:800;color:#111827}
+
+  /* Footer parity */
+  .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
+  .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+  .hm-footer .footer-links a{color:#4b5563}
+</style>
 </head>
-<body class="hm-browse">
+<body>
 
-  <!-- ========= HEADER =========
-       Paste your APPROVED homepage header markup between these comments
-       to guarantee pixel-identical header across pages. -->
-  <header id="site-header">
-    <!-- PASTE APPROVED HEADER HERE -->
+<!-- ========== HEADER (exactly from index.html) ========== -->
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <button class="hamburger" id="openMenu" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
+    </div>
+    <div class="right">
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn-primary" href="seller/index.html?list=new">Sell</a>
+    </div>
+  </div>
+</header>
+
+<!-- ========== LEFT MENU (exactly from index.html) ========== -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
   </header>
-  <!-- ======== /HEADER ========= -->
+  <nav>
+    <a href="browse.html">Browse</a>
+    <a href="about.html">About</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="favorites.html">Favorites</a>
+    <a href="orders.html">Orders</a>
+    <a href="settings.html">Settings</a>
+    <a href="help.html">Help</a>
+  </nav>
+</aside>
 
-  <main>
-    <section class="wrap" aria-label="Browse">
-      <!-- Top row: actions + (optional) search summary -->
-      <div class="filters-bar">
-        <div class="filters-inner">
-          <!-- Filters you loved: restored as discrete groups with + toggles -->
-          <div class="actions">
-            <button class="icon-btn" type="button" id="favBtn" aria-label="Favorites">♥</button>
-            <button class="icon-btn" type="button" id="alertBtn" aria-label="Alerts">🔔</button>
-          </div>
+<!-- ========== BROWSE FILTERS (restored chip row + stacked panels) ========== -->
+<div class="wrap">
+  <div class="page-title">
+    <h1>Browse</h1>
+    <div class="subtle" id="queryEcho"></div>
+  </div>
 
-          <!-- Filter groups -->
-          <div class="filter-group" data-key="width">
-            <div class="filter"><span class="label">Width</span><button class="filter-toggle" aria-expanded="false" aria-controls="panel-width">+</button></div>
-            <div class="filter-panel" id="panel-width">
-              <div class="filter-options" data-options="width">
-                <button class="chip" data-value="36in">36"</button>
-                <button class="chip" data-value="44in">44"</button>
-                <button class="chip" data-value="54in">54"</button>
-                <button class="chip" data-value="60in">60"</button>
-              </div>
-            </div>
-          </div>
+  <!-- Primary chips -->
+  <div class="chip-row" aria-label="Primary filters">
+    <button class="chip" data-panel="contentPanel" aria-pressed="false">Content</button>
+    <button class="chip" data-panel="colorPanel" aria-pressed="false">Color</button>
+    <button class="chip" data-panel="pricePanel" aria-pressed="false">$/yard</button>
+    <button class="chip" data-panel="yardsPanel" aria-pressed="false">Yards</button>
+    <button class="chip" data-panel="morePanel" aria-pressed="false">More</button>
+  </div>
 
-          <div class="filter-group" data-key="weight">
-            <div class="filter"><span class="label">Weight</span><button class="filter-toggle" aria-expanded="false" aria-controls="panel-weight">+</button></div>
-            <div class="filter-panel" id="panel-weight">
-              <div class="filter-options" data-options="weight">
-                <button class="chip" data-value="light">Light</button>
-                <button class="chip" data-value="midweight">Midweight</button>
-                <button class="chip" data-value="heavy">Heavy</button>
-              </div>
-            </div>
-          </div>
+  <!-- Panels -->
+  <div class="panel-stack" id="panelStack">
+    <!-- Content -->
+    <div class="filter-panel" id="contentPanel" role="region" aria-label="Filter by content">
+      <div class="title">Content</div>
+      <div class="content-grid" id="contentGrid"></div>
+    </div>
 
-          <div class="filter-group" data-key="department">
-            <div class="filter"><span class="label">Department</span><button class="filter-toggle" aria-expanded="false" aria-controls="panel-department">+</button></div>
-            <div class="filter-panel" id="panel-department">
-              <div class="filter-options" data-options="department">
-                <button class="chip" data-value="apparel">Apparel</button>
-                <button class="chip" data-value="home">Home</button>
-                <button class="chip" data-value="accessories">Accessories</button>
-              </div>
-            </div>
-          </div>
+    <!-- Color -->
+    <div class="filter-panel" id="colorPanel" role="region" aria-label="Filter by color">
+      <div class="title">Color Family</div>
+      <div class="color-row" id="colorFamilies"></div>
+    </div>
 
-          <div class="filter-group" data-key="fiber">
-            <div class="filter"><span class="label">Fiber Type</span><button class="filter-toggle" aria-expanded="false" aria-controls="panel-fiber">+</button></div>
-            <div class="filter-panel" id="panel-fiber">
-              <div class="filter-options" data-options="fiber">
-                <button class="chip" data-value="cashmere">Cashmere</button>
-                <button class="chip" data-value="wool">Wool</button>
-                <button class="chip" data-value="silk">Silk</button>
-                <button class="chip" data-value="cotton">Cotton</button>
-                <button class="chip" data-value="linen">Linen</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="filter-group" data-key="designer">
-            <div class="filter"><span class="label">Designer</span><button class="filter-toggle" aria-expanded="false" aria-controls="panel-designer">+</button></div>
-            <div class="filter-panel" id="panel-designer">
-              <div class="filter-options" data-options="designer">
-                <button class="chip" data-value="atelier">Atelier</button>
-                <button class="chip" data-value="indie">Indie</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="filter-group" data-key="country">
-            <div class="filter"><span class="label">Country</span><button class="filter-toggle" aria-expanded="false" aria-controls="panel-country">+</button></div>
-            <div class="filter-panel" id="panel-country">
-              <div class="filter-options" data-options="country">
-                <button class="chip" data-value="italy">Italy</button>
-                <button class="chip" data-value="france">France</button>
-                <button class="chip" data-value="japan">Japan</button>
-                <button class="chip" data-value="usa">USA</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="filter-group" data-key="pattern">
-            <div class="filter"><span class="label">Pattern</span><button class="filter-toggle" aria-expanded="false" aria-controls="panel-pattern">+</button></div>
-            <div class="filter-panel" id="panel-pattern">
-              <div class="filter-options" data-options="pattern">
-                <button class="chip" data-value="solid">Solid</button>
-                <button class="chip" data-value="stripe">Stripe</button>
-                <button class="chip" data-value="check">Check</button>
-                <button class="chip" data-value="floral">Floral</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="filter-group" data-key="type">
-            <div class="filter"><span class="label">Fabric Type</span><button class="filter-toggle" aria-expanded="false" aria-controls="panel-type">+</button></div>
-            <div class="filter-panel" id="panel-type">
-              <div class="filter-options" data-options="type">
-                <button class="chip" data-value="suiting">Suiting</button>
-                <button class="chip" data-value="twill">Twill</button>
-                <button class="chip" data-value="jersey">Jersey</button>
-                <button class="chip" data-value="crepe">Crepe</button>
-              </div>
-            </div>
-          </div>
-
+    <!-- Price -->
+    <div class="filter-panel" id="pricePanel" role="region" aria-label="Filter by price">
+      <div class="title">$/yard</div>
+      <div class="row-inline tight">
+        <div class="field" style="min-width:140px">
+          <label>Min $/yard</label><input type="number" min="0" step="1" placeholder="10" id="minPrice">
+        </div>
+        <div class="field" style="min-width:140px">
+          <label>Max $/yard</label><input type="number" min="0" step="1" placeholder="100" id="maxPrice">
         </div>
       </div>
+    </div>
 
-      <!-- Active filters summary (auto-populated) -->
-      <div id="activeSummary" class="visually-hidden" aria-live="polite"></div>
+    <!-- Yards -->
+    <div class="filter-panel" id="yardsPanel" role="region" aria-label="Filter by yards">
+      <div class="title">Yards Available</div>
+      <div class="row-inline tight">
+        <div class="field" style="min-width:170px"><label>Min yards available</label><input type="number" min="0" step="1" placeholder="e.g., 3" id="minYards"></div>
+      </div>
+    </div>
 
-      <!-- Results -->
-      <div class="results">
-        <div class="grid" id="resultsGrid" aria-label="Results">
-          <!-- Placeholder cards -->
-          <article class="card"><div class="ph"></div><div class="meta"><span>Fabric #1</span><span>$—</span></div></article>
-          <article class="card"><div class="ph"></div><div class="meta"><span>Fabric #2</span><span>$—</span></div></article>
-          <article class="card"><div class="ph"></div><div class="meta"><span>Fabric #3</span><span>$—</span></div></article>
-          <article class="card"><div class="ph"></div><div class="meta"><span>Fabric #4</span><span>$—</span></div></article>
+    <!-- More -->
+    <div class="filter-panel" id="morePanel" role="region" aria-label="More filters">
+      <div class="title">More</div>
+      <div class="row-inline tight">
+        <div class="field"><label>Min width (in)</label><input type="number" min="0" step="1" placeholder="44" id="minWidth"></div>
+        <div class="field"><label>Max width (in)</label><input type="number" min="0" step="1" placeholder="60" id="maxWidth"></div>
+        <div class="field"><label>Min GSM</label><input type="number" min="0" step="1" placeholder="80" id="minGsm"></div>
+        <div class="field"><label>Max GSM</label><input type="number" min="0" step="1" placeholder="400" id="maxGsm"></div>
+        <div class="field">
+          <label>Department</label>
+          <select id="dept">
+            <option value="">Any</option>
+            <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Fabric Type</label>
+          <select id="fabricType">
+            <option value="">Any</option>
+            <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
+            <option>Crepe</option><option>Denim</option><option>Flannel</option>
+            <option>Georgette</option><option>Jersey</option><option>Lace</option>
+            <option>Lawn</option><option>Organza</option><option>Poplin</option>
+            <option>Sateen</option><option>Satin</option><option>Tulle</option>
+            <option>Twill</option><option>Velvet</option><option>Voile</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Fiber Type</label>
+          <select id="fiberType">
+            <option value="">Any</option>
+            <option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option>
+          </select>
+        </div>
+        <div class="field" style="min-width:200px">
+          <label>Designer / Mill</label>
+          <input id="designer" placeholder="e.g., Loro Piana">
+        </div>
+        <div class="field">
+          <label>Country / Origin</label>
+          <select id="origin">
+            <option value="">Any</option>
+            <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
+            <option>USA</option><option>India</option><option>China</option><option>Korea</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Pattern</label>
+          <select id="pattern">
+            <option value="">Any</option>
+            <option>Solid</option>
+            <option>Printed</option>
+          </select>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
 
-  <!-- ========= FOOTER =========
-       Paste your APPROVED homepage footer markup between these comments
-       to guarantee pixel-identical footer across pages. -->
-  <footer id="site-footer">
-    <!-- PASTE APPROVED FOOTER HERE -->
-  </footer>
-  <!-- ======== /FOOTER ========= -->
+    <!-- One global action bar (appears when any panel is open) -->
+    <div class="global-actions" id="globalActions" style="display:none">
+      <button class="btn" id="clearAll">Clear</button>
+      <button class="btn btn-primary" id="applyAll">Apply</button>
+    </div>
+  </div>
 
-  <script>
-    (function(){
-      // ---- Utility: parse query string
-      const params = new URLSearchParams(window.location.search);
+  <!-- Results -->
+  <div class="results-wrap">
+    <div class="results-head">
+      <div class="subtle" id="activeSummary"></div>
+      <div class="subtle" id="resultCount">3 results</div>
+    </div>
+    <div class="results-grid" id="resultsGrid" aria-label="Results">
+      <a class="card" href="item.html?id=1">
+        <div class="thumb">photo</div>
+        <div class="info">
+          <div class="title">Sample Wool Crepe</div>
+          <div class="meta"><span class="price">$45 / yd</span></div>
+        </div>
+      </a>
+      <a class="card" href="item.html?id=2">
+        <div class="thumb">photo</div>
+        <div class="info">
+          <div class="title">Italian Silk Twill</div>
+          <div class="meta"><span class="price">$68 / yd</span></div>
+        </div>
+      </a>
+      <a class="card" href="item.html?id=3">
+        <div class="thumb">photo</div>
+        <div class="info">
+          <div class="title">Cotton Sateen</div>
+          <div class="meta"><span class="price">$22 / yd</span></div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
 
-      // Standard keys we agreed to
-      const keys = ["width","weight","department","fiber","designer","country","pattern","type","q","search","tag","fabric","category"];
+<!-- ========== FOOTER (exactly from index.html) ========== -->
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a href="faq.html">FAQ</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="shipping.html">Shipping & Returns</a>
+    </nav>
+  </div>
+</footer>
 
-      // Map generic keys/fallbacks → standardized keys
-      const normalize = (k, v) => {
-        const val = (v||"").toLowerCase();
-        if (k === "q" || k === "search" || k === "tag" || k === "fabric" || k === "category") {
-          // Try to resolve known vocabulary to specific groups
-          const fiberVocab = ["cashmere","wool","silk","cotton","linen","alpaca","mohair"];
-          if (fiberVocab.includes(val)) return ["fiber", val];
-          // Add more vocab maps later if needed
-          return ["q", v];
-        }
-        return [k, v];
-      };
+<script>
+/* ===== Chrome parity (same behavior as Home) ===== */
+(function(){
+  /* Menu sheet */
+  const sheet=document.getElementById("menuSheet");
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
+  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+  openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
+  closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-      // Apply preselection from query string
-      const selections = {};
-      keys.forEach(k => {
-        if (params.has(k)) {
-          const [nk, nv] = normalize(k, params.get(k));
-          if (nv) selections[nk] = nv.toLowerCase();
-        }
-      });
+  /* Avatar (optional stored url) */
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+})();
 
-      // Hook up filter toggles
-      document.querySelectorAll(".hm-browse .filter-group").forEach(group => {
-        const btn = group.querySelector(".filter-toggle");
-        const panel = group.querySelector(".filter-panel");
-        if (!btn || !panel) return;
-        btn.addEventListener("click", () => {
-          const open = panel.style.display === "block";
-          panel.style.display = open ? "none" : "block";
-          btn.setAttribute("aria-expanded", String(!open));
-        });
-        // Close when clicking outside
-        document.addEventListener("click", (e) => {
-          if (!group.contains(e.target)) {
-            panel.style.display = "none";
-            btn.setAttribute("aria-expanded", "false");
-          }
-        });
-      });
+/* ===== Build Content checklist (same list as Home) ===== */
+const contentValues=[
+  "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
+  "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
+  "Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
+];
+(function(){
+  const grid=document.getElementById('contentGrid');
+  contentValues.forEach(v=>{
+    const label=document.createElement('label');
+    label.className='check-chip';
+    const input=document.createElement('input');
+    input.type='checkbox'; input.value=v.toLowerCase();
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(v));
+    grid.appendChild(label);
+  });
+})();
 
-      // Select/deselect chips
-      document.querySelectorAll(".hm-browse .chip").forEach(chip => {
-        chip.addEventListener("click", () => {
-          const was = chip.getAttribute("data-selected") === "true";
-          // Single-select per group
-          const group = chip.closest(".filter-panel");
-          group.querySelectorAll(".chip").forEach(c => c.setAttribute("data-selected","false"));
-          chip.setAttribute("data-selected", was ? "false" : "true");
-          updateSummary();
-        });
-      });
+/* ===== Color family (same pattern as Home) ===== */
+(function(){
+  const colors=[
+    {name:"Black",hex:"#000000"},
+    {name:"Grey",hex:"#9aa0a6"},
+    {name:"White",hex:"#ffffff",border:"#d1d5db"},
+    {name:"Cream",hex:"#f5efe4"},
+    {name:"Brown",hex:"#7a4a2a"},
+    {name:"Pink",hex:"#f4a4b6"},
+    {name:"Red",hex:"#d21d2b"},
+    {name:"Orange",hex:"#f27a22"},
+    {name:"Yellow",hex:"#f3c321"},
+    {name:"Green",hex:"#2f7d32"},
+    {name:"Blue",hex:"#2166d1"},
+    {name:"Purple",hex:"#6b2da8"},
+    {name:"Gold",hex:"#e2c46d"},
+    {name:"Silver",hex:"#d5d8de"}
+  ];
+  const row=document.getElementById('colorFamilies');
+  colors.forEach(c=>{
+    const sw=document.createElement('div');
+    sw.className='sw';
+    sw.style.background=c.hex;
+    if(c.border){ sw.style.borderColor=c.border; }
+    const tip=document.createElement('span');
+    tip.className='tip';
+    tip.textContent=c.name;
+    sw.appendChild(tip);
+    sw.title=c.name;
+    sw.addEventListener('click',()=>{ sw.dataset.selected = sw.dataset.selected ? '' : 'true'; updateSummary();});
+    row.appendChild(sw);
+  });
+})();
 
-      // Apply initial selections (from URL)
-      Object.entries(selections).forEach(([k, v]) => {
-        const panel = document.querySelector(`.hm-browse .filter-panel[id="panel-${k}"]`);
-        if (!panel) return;
-        const target = Array.from(panel.querySelectorAll(".chip")).find(c => (c.dataset.value||"").toLowerCase() === v);
-        if (target) {
-          // open briefly to ensure layout positions, then mark selected
-          target.setAttribute("data-selected","true");
-          // optional: open the panel to show the applied filter
-          const toggle = panel.parentElement.querySelector(".filter-toggle");
-          if (toggle) { panel.style.display = "block"; toggle.setAttribute("aria-expanded","true"); }
-        }
-      });
+/* ===== Chip/panel toggling ===== */
+(function(){
+  const chips=[...document.querySelectorAll('.chip[data-panel]')];
+  const panels={
+    contentPanel:document.getElementById('contentPanel'),
+    colorPanel:document.getElementById('colorPanel'),
+    pricePanel:document.getElementById('pricePanel'),
+    yardsPanel:document.getElementById('yardsPanel'),
+    morePanel:document.getElementById('morePanel'),
+  };
+  const actions=document.getElementById('globalActions');
+  function updateActionsVisibility(){
+    const anyOpen=Object.values(panels).some(p=>p.classList.contains('open'));
+    actions.style.display = anyOpen ? 'flex' : 'none';
+  }
+  chips.forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      const id=chip.getAttribute('data-panel');
+      const panel=panels[id];
+      const nowOpen=!panel.classList.contains('open');
+      panel.classList.toggle('open', nowOpen);
+      chip.setAttribute('aria-pressed', String(nowOpen));
+      updateActionsVisibility();
+    });
+  });
+  document.getElementById('clearAll').addEventListener('click',()=>{
+    document.querySelectorAll('#contentPanel input[type="checkbox"]').forEach(c=>c.checked=false);
+    document.querySelectorAll('#colorPanel .sw').forEach(s=>s.removeAttribute('data-selected'));
+    ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['dept','fabricType','fiberType','origin','pattern'].forEach(id=>{ const el=document.getElementById(id); if(el) el.selectedIndex=0; });
+    updateSummary();
+  });
+  document.getElementById('applyAll').addEventListener('click',()=>{
+    Object.values(panels).forEach(p=>p.classList.remove('open'));
+    chips.forEach(c=>c.setAttribute('aria-pressed','false'));
+    updateActionsVisibility();
+  });
+})();
 
-      function updateSummary(){
-        const active = [];
-        document.querySelectorAll('.hm-browse .filter-group').forEach(group => {
-          const key = group.getAttribute('data-key');
-          const sel = group.querySelector('.chip[data-selected="true"]');
-          if (sel) active.push(`${key}: ${sel.textContent.trim()}`);
-        });
-        const summary = document.getElementById("activeSummary");
-        if (active.length) {
-          summary.textContent = `Active filters — ${active.join(" • ")}`;
-          summary.classList.remove("visually-hidden");
-        } else {
-          summary.textContent = "";
-          summary.classList.add("visually-hidden");
-        }
-      }
-
+/* ===== URL preselect: ?q=cashmere auto-checks Content: Cashmere ===== */
+(function(){
+  const params=new URLSearchParams(window.location.search);
+  const q=(params.get('q')||'').trim().toLowerCase();
+  if(!q) return;
+  document.getElementById('queryEcho').textContent = `Search: “${decodeURIComponent(params.get('q'))}”`;
+  // map synonyms to our content list
+  const map = new Map([
+    ['rayon','rayon / viscose'],['viscose','rayon / viscose'],
+    ['tencel','tencel / lyocell'],['lyocell','tencel / lyocell'],
+    ['spandex','spandex / elastane'],['elastane','spandex / elastane']
+  ]);
+  const normTarget = (map.get(q) || q);
+  // ensure content grid is built
+  const trySelect = () => {
+    const options=[...document.querySelectorAll('#contentGrid input[type="checkbox"]')];
+    const match = options.find(i=>i.value.toLowerCase()===normTarget);
+    if (match){
+      match.checked=true;
+      // open panel to make it visible
+      document.getElementById('contentPanel').classList.add('open');
+      document.querySelector('.chip[data-panel="contentPanel"]').setAttribute('aria-pressed','true');
       updateSummary();
+    }
+  };
+  // slight defer to allow DOM build
+  if (document.readyState === 'complete') trySelect(); else setTimeout(trySelect, 0);
+})();
 
-      // Heart/Bell are buttons (no visited link color)
-      document.getElementById("favBtn")?.addEventListener("click", ()=>{ /* TODO: hook to favorites */ });
-      document.getElementById("alertBtn")?.addEventListener("click", ()=>{ /* TODO: hook to alerts */ });
-    })();
-  </script>
+/* ===== Active summary ===== */
+function updateSummary(){
+  const parts=[];
+  // content
+  const contentSel=[...document.querySelectorAll('#contentGrid input[type="checkbox"]:checked')].map(i=>i.parentElement.textContent.trim());
+  if(contentSel.length) parts.push(`Content: ${contentSel.slice(0,3).join(', ')}${contentSel.length>3?'…':''}`);
+  // color
+  const colorSel=[...document.querySelectorAll('#colorFamilies .sw[data-selected="true"]')].length;
+  if(colorSel) parts.push(`Colors: ${colorSel}`);
+  // price
+  const minP=document.getElementById('minPrice').value;
+  const maxP=document.getElementById('maxPrice').value;
+  if(minP||maxP) parts.push(`$/yd: ${minP||'—'}–${maxP||'—'}`);
+  // yards
+  const minY=document.getElementById('minYards').value;
+  if(minY) parts.push(`Yards ≥ ${minY}`);
+
+  document.getElementById('activeSummary').textContent = parts.join(' • ');
+}
+document.addEventListener('change', (e)=>{
+  if(e.target.closest('#contentPanel') || e.target.closest('#pricePanel') || e.target.closest('#yardsPanel') || e.target.closest('#morePanel')){
+    updateSummary();
+  }
+});
+</script>
 </body>
 </html>
