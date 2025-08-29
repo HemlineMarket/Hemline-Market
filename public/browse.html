@@ -12,10 +12,8 @@
     --hm-muted:#6b7280;
     --hm-border:#e5e7eb;
     --hm-chip:#ffffff;
-    --hm-bg:#fafafa;
   }
 
-  /* Layout scaffold */
   html,body{height:100%}
   body{
     margin:0;
@@ -26,9 +24,10 @@
     background:#fff;
   }
 
-  /* HEADER (same look as home) */
+  /* HEADER */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
-  .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 12px}
+  .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
   .hm-header .left{display:flex;align-items:center;gap:10px}
   .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
   .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
@@ -48,11 +47,21 @@
   .sheet nav a + a{margin-top:8px}
   .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
 
-  /* Main area */
-  .container{max-width:1200px;margin:16px auto;padding:0 12px;display:grid;grid-template-columns:260px 1fr;gap:16px;flex:1 0 auto}
-  @media (max-width:900px){ .container{grid-template-columns:1fr} }
+  /* Page content */
+  .page{flex:1 0 auto}
+  .page .wrap{padding-top:16px}
 
-  /* Filter rail */
+  /* Active filters bar */
+  .activebar{display:none;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .activebar.show{display:flex}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--hm-border);border-radius:999px;background:#fff;font-size:13px;white-space:nowrap}
+  .pill .x{cursor:pointer;font-weight:900;color:#6b7280}
+
+  /* Main grid: align left with header via same .wrap */
+  .grid{display:grid;grid-template-columns:260px 1fr;gap:16px}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+
+  /* Filters rail */
   .filters{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:8px;position:sticky;top:12px;height:max-content}
   .filters h3{margin:4px 8px 10px;font-size:13px;color:#374151}
   .acc{border:1px solid var(--hm-border);border-radius:10px;margin:8px 0}
@@ -72,7 +81,7 @@
   .btn{padding:6px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;color:#374151;cursor:pointer;font-size:13px}
   .btn-primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
 
-  /* Results grid */
+  /* Results */
   .results{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:10px}
   .results h2{margin:2px 4px 10px;font-size:16px}
   .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -85,7 +94,7 @@
 
   /* FOOTER */
   .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
-  .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+  .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
   .hm-footer .footer-links{display:flex;gap:12px;flex-wrap:wrap}
   .hm-footer .footer-links a{color:#4b5563;text-decoration:none}
 </style>
@@ -145,130 +154,134 @@
   </nav>
 </aside>
 
-<!-- MAIN -->
-<div class="container">
-  <!-- FILTERS -->
-  <aside class="filters" id="filterForm">
-    <h3>Filters</h3>
+<!-- PAGE -->
+<main class="page">
+  <div class="wrap">
 
-    <!-- Content -->
-    <section class="acc open" id="acc-content">
-      <header><span>Content</span><span class="plus">+</span></header>
-      <div class="body">
-        <div class="checkgrid" id="contentChecks"></div>
-      </div>
-    </section>
+    <!-- Active filter pills -->
+    <div id="activeBar" class="activebar" aria-live="polite"></div>
 
-    <!-- Color family -->
-    <section class="acc" id="acc-color">
-      <header><span>Color Family</span><span class="plus">+</span></header>
-      <div class="body">
-        <div class="chips" id="colorChips"></div>
-      </div>
-    </section>
+    <!-- two-column grid -->
+    <div class="grid">
 
-    <!-- Price -->
-    <section class="acc" id="acc-price">
-      <header><span>$/yard</span><span class="plus">+</span></header>
-      <div class="body">
-        <div class="row">
-          <div class="field"><input id="minPrice" type="number" placeholder="Min $/yd" min="0"></div>
-          <div class="field"><input id="maxPrice" type="number" placeholder="Max $/yd" min="0"></div>
-        </div>
-      </div>
-    </section>
+      <!-- FILTERS -->
+      <aside class="filters" id="filterForm">
+        <h3>Filters</h3>
 
-    <!-- Yards -->
-    <section class="acc" id="acc-yards">
-      <header><span>Yards</span><span class="plus">+</span></header>
-      <div class="body">
-        <div class="field"><input id="minYards" type="number" placeholder="Min yards" min="0"></div>
-      </div>
-    </section>
-
-    <!-- More -->
-    <section class="acc" id="acc-more">
-      <header><span>More</span><span class="plus">+</span></header>
-      <div class="body">
-        <div class="row">
-          <div class="field"><input id="minWidth" type="number" placeholder="Min width (in)" min="0"></div>
-          <div class="field"><input id="maxWidth" type="number" placeholder="Max width (in)" min="0"></div>
-        </div>
-        <div class="row">
-          <div class="field"><input id="minGsm" type="number" placeholder="Min GSM" min="0"></div>
-          <div class="field"><input id="maxGsm" type="number" placeholder="Max GSM" min="0"></div>
-        </div>
-        <div class="row">
-          <div class="field">
-            <select id="dept">
-              <option value="">Department (Any)</option>
-              <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
-            </select>
+        <section class="acc open" id="acc-content">
+          <header><span>Content</span><span class="plus">+</span></header>
+          <div class="body">
+            <div class="checkgrid" id="contentChecks"></div>
           </div>
-          <div class="field">
-            <select id="fabricType">
-              <option value="">Fabric Type (Any)</option>
-              <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
-              <option>Crepe</option><option>Denim</option><option>Flannel</option>
-              <option>Georgette</option><option>Jersey</option><option>Lace</option>
-              <option>Lawn</option><option>Organza</option><option>Poplin</option>
-              <option>Sateen</option><option>Satin</option><option>Tulle</option>
-              <option>Twill</option><option>Velvet</option><option>Voile</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div class="field">
-            <select id="fiberType">
-              <option value="">Fiber Type (Any)</option>
-              <option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option>
-            </select>
-          </div>
-          <div class="field"><input id="designer" placeholder="Designer (e.g., Loro Piana)"></div>
-        </div>
-        <div class="row">
-          <div class="field">
-            <select id="origin">
-              <option value="">Country / Origin (Any)</option>
-              <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
-              <option>USA</option><option>India</option><option>China</option><option>Korea</option>
-            </select>
-          </div>
-          <div class="field">
-            <select id="pattern">
-              <option value="">Pattern (Any)</option>
-              <option>Solid</option><option>Printed</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </section>
+        </section>
 
-    <div class="actions">
-      <button class="btn" id="clearAll">Clear</button>
-      <button class="btn btn-primary" id="applyAll">Apply</button>
+        <section class="acc" id="acc-color">
+          <header><span>Color Family</span><span class="plus">+</span></header>
+          <div class="body"><div class="chips" id="colorChips"></div></div>
+        </section>
+
+        <section class="acc" id="acc-price">
+          <header><span>$/yard</span><span class="plus">+</span></header>
+          <div class="body">
+            <div class="row">
+              <div class="field"><input id="minPrice" type="number" placeholder="Min $/yd" min="0"></div>
+              <div class="field"><input id="maxPrice" type="number" placeholder="Max $/yd" min="0"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="acc" id="acc-yards">
+          <header><span>Yards</span><span class="plus">+</span></header>
+          <div class="body">
+            <div class="field"><input id="minYards" type="number" placeholder="Min yards" min="0"></div>
+          </div>
+        </section>
+
+        <section class="acc" id="acc-more">
+          <header><span>More</span><span class="plus">+</span></header>
+          <div class="body">
+            <div class="row">
+              <div class="field"><input id="minWidth" type="number" placeholder="Min width (in)" min="0"></div>
+              <div class="field"><input id="maxWidth" type="number" placeholder="Max width (in)" min="0"></div>
+            </div>
+            <div class="row">
+              <div class="field"><input id="minGsm" type="number" placeholder="Min GSM" min="0"></div>
+              <div class="field"><input id="maxGsm" type="number" placeholder="Max GSM" min="0"></div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <select id="dept">
+                  <option value="">Department (Any)</option>
+                  <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
+                </select>
+              </div>
+              <div class="field">
+                <select id="fabricType">
+                  <option value="">Fabric Type (Any)</option>
+                  <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
+                  <option>Crepe</option><option>Denim</option><option>Flannel</option>
+                  <option>Georgette</option><option>Jersey</option><option>Lace</option>
+                  <option>Lawn</option><option>Organza</option><option>Poplin</option>
+                  <option>Sateen</option><option>Satin</option><option>Tulle</option>
+                  <option>Twill</option><option>Velvet</option><option>Voile</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <select id="fiberType">
+                  <option value="">Fiber Type (Any)</option>
+                  <option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option>
+                </select>
+              </div>
+              <div class="field"><input id="designer" placeholder="Designer (e.g., Loro Piana)"></div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <select id="origin">
+                  <option value="">Country / Origin (Any)</option>
+                  <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
+                  <option>USA</option><option>India</option><option>China</option><option>Korea</option>
+                </select>
+              </div>
+              <div class="field">
+                <select id="pattern">
+                  <option value="">Pattern (Any)</option>
+                  <option>Solid</option><option>Printed</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="actions">
+          <button class="btn" id="clearAll">Clear</button>
+          <button class="btn btn-primary" id="applyAll">Apply</button>
+        </div>
+      </aside>
+
+      <!-- RESULTS -->
+      <section class="results">
+        <h2>Browse</h2>
+        <div class="cards">
+          <a class="card" href="item.html?id=1">
+            <div class="thumb">photo</div>
+            <div class="meta"><div>Sample Wool Crepe</div><div class="price">$45 / yd</div></div>
+          </a>
+          <a class="card" href="item.html?id=2">
+            <div class="thumb">photo</div>
+            <div class="meta"><div>Italian Silk Twill</div><div class="price">$68 / yd</div></div>
+          </a>
+          <a class="card" href="item.html?id=3">
+            <div class="thumb">photo</div>
+            <div class="meta"><div>Cotton Sateen</div><div class="price">$22 / yd</div></div>
+          </a>
+        </div>
+      </section>
+
     </div>
-  </aside>
-
-  <!-- RESULTS -->
-  <section class="results">
-    <h2>Browse</h2>
-    <div class="cards">
-      <a class="card" href="item.html?id=1">
-        <div class="thumb">photo</div>
-        <div class="meta"><div>Sample Wool Crepe</div><div class="price">$45 / yd</div></div>
-      </a>
-      <a class="card" href="item.html?id=2">
-        <div class="thumb">photo</div>
-        <div class="meta"><div>Italian Silk Twill</div><div class="price">$68 / yd</div></div>
-      </a>
-      <a class="card" href="item.html?id=3">
-        <div class="thumb">photo</div>
-        <div class="meta"><div>Cotton Sateen</div><div class="price">$22 / yd</div></div>
-      </a>
-    </div>
-  </section>
-</div>
+  </div>
+</main>
 
 <!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
@@ -287,7 +300,7 @@
 
 <script>
 (function(){
-  /* Hamburger drawer (same as home) */
+  /* Drawer */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
@@ -295,11 +308,11 @@
   if(closeBtn){ closeBtn.addEventListener("click",e=>{e.preventDefault();sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}); }
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") sheet.classList.remove("open"); });
 
-  /* Avatar image support (optional) */
+  /* Avatar */
   const avatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  /* Build content checklist */
+  /* Build content list */
   const CONTENTS=[
     "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
     "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
@@ -316,7 +329,7 @@
     contentGrid.appendChild(lbl);
   });
 
-  /* Color chips */
+  /* Colors */
   const COLORS=[
     {name:"Black",hex:"#000000"},
     {name:"Grey",hex:"#9aa0a6"},
@@ -342,42 +355,58 @@
     if(c.border) chip.style.borderColor=c.border;
     chip.title=c.name;
     chip.dataset.name=c.name;
-    chip.addEventListener('click',()=> chip.dataset.sel = chip.dataset.sel === '1' ? '0' : '1');
+    chip.addEventListener('click',()=>{ chip.dataset.sel = chip.dataset.sel === '1' ? '0' : '1'; });
     chipWrap.appendChild(chip);
   });
 
-  /* Accordions toggle */
+  /* Accordions */
   document.querySelectorAll('.acc header').forEach(h=>{
-    h.addEventListener('click',()=>{
-      h.parentElement.classList.toggle('open');
-    });
+    h.addEventListener('click',()=> h.parentElement.classList.toggle('open'));
   });
 
-  /* Clear */
-  document.getElementById('clearAll').addEventListener('click',()=>{
-    document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(c=>c.checked=false);
-    document.querySelectorAll('#colorChips .chip').forEach(ch=>ch.dataset.sel='0');
+  /* Helpers */
+  const SP = new URL(location.href).searchParams;
+  const getMulti = (key)=> (SP.get(key)||'').split(',').map(s=>s.trim()).filter(Boolean);
+
+  function populateFromURL(){
+    // content
+    const wantContents = getMulti('content').map(v=>v.toLowerCase());
+    if(wantContents.length){
+      document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(cb=>{
+        if(wantContents.includes(cb.value.toLowerCase())) cb.checked=true;
+      });
+      document.getElementById('acc-content').classList.add('open');
+    }
+    // colors
+    const wantColors = getMulti('color').map(v=>v.toLowerCase());
+    if(wantColors.length){
+      document.querySelectorAll('#colorChips .chip').forEach(ch=>{
+        if(wantColors.includes(ch.dataset.name.toLowerCase())) ch.dataset.sel='1';
+      });
+      document.getElementById('acc-color').classList.add('open');
+    }
+    // numbers
     ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{
-      const el=document.getElementById(id); if(el) el.value='';
+      const v=SP.get(id); if(v){ const el=document.getElementById(id); if(el) el.value=v; }
     });
+    // selects
     ['dept','fabricType','fiberType','origin','pattern'].forEach(id=>{
-      const el=document.getElementById(id); if(el) el.selectedIndex=0;
+      const v=SP.get(id);
+      if(v){ const el=document.getElementById(id); if(el){ [...el.options].forEach(o=>{ if(o.value.toLowerCase()===v.toLowerCase()) el.value=o.value; }); } }
     });
-    const url=new URL(location.href); url.search=''; history.replaceState(null,'',url);
-  });
+  }
 
-  /* Apply -> rebuild URL (so sharing works) */
-  document.getElementById('applyAll').addEventListener('click',()=>{
+  function urlFromForm(){
     const url=new URL(location.href);
     const params=url.searchParams;
-    params.delete('content'); params.delete('color'); // reset multi
-    // content
+    params.delete('content'); params.delete('color');
+
     const selContents=[...document.querySelectorAll('#contentChecks input:checked')].map(i=>i.value).filter(v=>v!=="Any");
     if(selContents.length) params.set('content', selContents.join(','));
-    // color
+
     const selColors=[...document.querySelectorAll('#colorChips .chip[data-sel="1"]')].map(ch=>ch.dataset.name);
     if(selColors.length) params.set('color', selColors.join(','));
-    // numeric/selects
+
     const map = {
       minPrice:'minPrice', maxPrice:'maxPrice', minYards:'minYards',
       minWidth:'minWidth', maxWidth:'maxWidth', minGsm:'minGsm', maxGsm:'maxGsm',
@@ -390,42 +419,107 @@
       const val=(el.tagName==='SELECT')? el.value : el.value.trim();
       if(val) params.set(key,val); else params.delete(key);
     });
+
     url.search=params.toString();
+    return url;
+  }
+
+  /* Active pills renderer */
+  function renderActivePills(){
+    const bar=document.getElementById('activeBar');
+    bar.innerHTML='';
+
+    const params=new URL(location.href).searchParams;
+    const pills=[];
+
+    // content multi
+    const c= getMulti('content');
+    c.forEach(v=> pills.push({k:'content', v}));
+
+    // color multi
+    const cols= getMulti('color');
+    cols.forEach(v=> pills.push({k:'color', v}));
+
+    // ranges
+    const minP=params.get('minPrice'), maxP=params.get('maxPrice');
+    if(minP || maxP) pills.push({k:'price', v:(minP||'0')+'–'+(maxP||'∞')});
+    const y=params.get('minYards'); if(y) pills.push({k:'yards', v:'≥ '+y});
+    const wMin=params.get('minWidth'), wMax=params.get('maxWidth');
+    if(wMin || wMax) pills.push({k:'width', v:(wMin||'0')+'–'+(wMax||'∞')+'″'});
+    const gMin=params.get('minGsm'), gMax=params.get('maxGsm');
+    if(gMin || gMax) pills.push({k:'gsm', v:(gMin||'0')+'–'+(gMax||'∞')});
+
+    // selects / text
+    ['dept','fabricType','fiberType','origin','pattern','designer'].forEach(k=>{
+      const v=params.get(k); if(v) pills.push({k, v});
+    });
+
+    if(!pills.length){ bar.classList.remove('show'); return; }
+    bar.classList.add('show');
+
+    pills.forEach(p=>{
+      const el=document.createElement('span');
+      el.className='pill';
+      el.dataset.key=p.k; el.dataset.val=p.v;
+      el.innerHTML = `<strong>${labelForKey(p.k)}:</strong> ${escapeHtml(p.v)} <span class="x" title="Remove">×</span>`;
+      el.querySelector('.x').addEventListener('click',()=> removePill(p.k,p.v));
+      bar.appendChild(el);
+    });
+  }
+
+  function labelForKey(k){
+    const map={content:'Content', color:'Color', price:'$/yd', yards:'Yards', width:'Width (in)', gsm:'GSM', dept:'Department', fabricType:'Fabric', fiberType:'Fiber', origin:'Origin', pattern:'Pattern', designer:'Designer'};
+    return map[k]||k;
+  }
+
+  function removePill(k,v){
+    // Update form state then URL
+    if(k==='content'){
+      document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(cb=>{
+        if(cb.value.toLowerCase()===v.toLowerCase()) cb.checked=false;
+      });
+    }else if(k==='color'){
+      document.querySelectorAll('#colorChips .chip').forEach(ch=>{
+        if(ch.dataset.name.toLowerCase()===v.toLowerCase()) ch.dataset.sel='0';
+      });
+    }else if(k==='price'){ document.getElementById('minPrice').value=''; document.getElementById('maxPrice').value='';
+    }else if(k==='yards'){ document.getElementById('minYards').value='';
+    }else if(k==='width'){ document.getElementById('minWidth').value=''; document.getElementById('maxWidth').value='';
+    }else if(k==='gsm'){ document.getElementById('minGsm').value=''; document.getElementById('maxGsm').value='';
+    }else if(k==='dept'||k==='fabricType'||k==='fiberType'||k==='origin'||k==='pattern'){ const el=document.getElementById(k==='dept'?'dept':k); if(el) el.selectedIndex=0;
+    }else if(k==='designer'){ const el=document.getElementById('designer'); if(el) el.value=''; }
+
+    const url=urlFromForm();
     history.replaceState(null,'',url);
-    // (Optional) You can trigger client-side filtering here later.
-    alert('Filters saved to URL. (Results are sample data for now)');
+    renderActivePills();
+  }
+
+  function escapeHtml(s){ return s.replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+  /* Clear / Apply */
+  document.getElementById('clearAll').addEventListener('click',()=>{
+    document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(c=>c.checked=false);
+    document.querySelectorAll('#colorChips .chip').forEach(ch=>ch.dataset.sel='0');
+    ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    ['dept','fabricType','fiberType','origin','pattern'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.selectedIndex=0;
+    });
+    const url=new URL(location.href); url.search=''; history.replaceState(null,'',url);
+    renderActivePills();
   });
 
-  /* Populate from URL */
-  const url=new URL(location.href);
-  const SP=url.searchParams;
+  document.getElementById('applyAll').addEventListener('click',()=>{
+    const url=urlFromForm();
+    history.replaceState(null,'',url);
+    renderActivePills();
+    // (optional) trigger filtering later; for now results stay static
+  });
 
-  // content
-  const contentParam = SP.get('content');
-  if(contentParam){
-    const want=contentParam.split(',').map(s=>s.trim().toLowerCase());
-    document.querySelectorAll('#contentChecks input[type="checkbox"]').forEach(cb=>{
-      if(want.includes(cb.value.toLowerCase())) cb.checked=true;
-    });
-    document.getElementById('acc-content').classList.add('open');
-  }
-
-  // color
-  const colorParam = SP.get('color');
-  if(colorParam){
-    const want=colorParam.split(',').map(s=>s.trim().toLowerCase());
-    document.querySelectorAll('#colorChips .chip').forEach(ch=>{
-      if(want.includes(ch.dataset.name.toLowerCase())) ch.dataset.sel='1';
-    });
-    document.getElementById('acc-color').classList.add('open');
-  }
-
-  // simple fields
-  const fill=(id)=>{ const v=SP.get(id); if(v){ const el=document.getElementById(id); if(el) el.value=v; } };
-  ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(fill);
-  const setSel=(id)=>{ const v=SP.get(id); if(v){ const el=document.getElementById(id); if(el){ [...el.options].forEach(o=>{ if(o.value.toLowerCase()===v.toLowerCase()) el.value=o.value; }); }}};
-  ['dept','fabricType','fiberType','origin','pattern'].forEach(setSel);
-
+  /* Init */
+  populateFromURL();
+  renderActivePills();
 })();
 </script>
 </body>
