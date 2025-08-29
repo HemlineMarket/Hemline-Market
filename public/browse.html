@@ -485,3 +485,81 @@
 </script>
 </body>
 </html>
+<script>
+/* Hemline → Browse preselect handoff (robust) */
+(function(){
+  // Known vocab (lowercase)
+  const CONTENT=["acrylic","alpaca","angora","bamboo","cashmere","cotton","cupro","hemp","leather","linen","lurex","modal","mohair","nylon","polyester","rayon / viscose","rayon","viscose","silk","spandex / elastane","spandex","elastane","tencel / lyocell","tencel","lyocell","wool"];
+  const TYPES=["canvas","chiffon","corduroy","crepe","denim","flannel","georgette","jersey","lace","lawn","organza","poplin","sateen","satin","tulle","twill","velvet","voile"];
+  const COLORS=["black","grey","gray","white","cream","brown","pink","red","orange","yellow","green","blue","purple","gold","silver"];
+
+  // Helper: read all "selected" tokens on the page
+  function collectTokens(root){
+    // 1) Any checked inputs
+    const checked=[...root.querySelectorAll('input[type="checkbox"]:checked,input[type="radio"]:checked')]
+      .map(i => (i.value||i.getAttribute('data-value')||'').trim().toLowerCase());
+
+    // 2) Any pressed/selected chips (covering many patterns)
+    const pressed=[...root.querySelectorAll('[aria-pressed="true"],[data-selected="true"],.selected,.active,.is-active')]
+      .map(el => (el.dataset.value||el.dataset.name||el.textContent||'').trim().toLowerCase());
+
+    // 3) Any <option selected>
+    const options=[...root.querySelectorAll('select option:checked')]
+      .map(o => (o.value||o.textContent||'').trim().toLowerCase());
+
+    // Dedup + sanitize
+    return [...new Set([...checked, ...pressed, ...options].filter(Boolean))];
+  }
+
+  function handoff(evt){
+    try{
+      const tokens = collectTokens(document);
+
+      const inVocab = (list)=>tokens.filter(t=>list.includes(t));
+      const content = inVocab(CONTENT);
+      const type    = inVocab(TYPES);
+      const color   = inVocab(COLORS).map(c=>c.replace('gray','grey')); // normalize
+
+      // Optional numeric/selects if the homepage exposes them
+      const getVal = id => { const el=document.getElementById(id); return el && el.value.trim() ? el.value.trim() : null; };
+
+      const stash={
+        content, type, color,
+        minPrice:getVal('minPrice'), maxPrice:getVal('maxPrice'),
+        minYards:getVal('minYards'),
+        minWidth:getVal('minWidth'), maxWidth:getVal('maxWidth'),
+        minGsm:getVal('minGsm'),   maxGsm:getVal('maxGsm'),
+        dept:getVal('dept'), fiberType:getVal('fiberType'),
+        designer:getVal('designer'), origin:getVal('origin'),
+        pattern:getVal('pattern'),   fabricType:getVal('fabricType')
+      };
+      localStorage.setItem('hm:preselect', JSON.stringify(stash));
+
+      // Also pass free-text query if present
+      const qEl=document.querySelector('input[type="search"], input[name="q"]');
+      if (qEl && qEl.value.trim()){
+        const url = new URL(evt.target.href || 'browse.html', location.href);
+        url.searchParams.set('q', qEl.value.trim());
+        // Let navigation continue to this URL
+        if (evt.target.tagName === 'A') evt.target.href = url.toString();
+        else location.href = url.toString(), evt.preventDefault();
+      }
+    }catch(e){ /* swallow */ }
+  }
+
+  // Hook ANY navigation to browse.html or elements that declare data-nav="browse"
+  document.addEventListener('click', (e)=>{
+    const a = e.target.closest('a,button');
+    if(!a) return;
+    const href = (a.getAttribute('href')||'').toLowerCase();
+    const isBrowseLink = href.includes('browse.html');
+    const isBrowseBtn  = a.dataset && a.dataset.nav === 'browse';
+    const isSearchBtn  = /search|browse/i.test((a.value||a.textContent||'').trim());
+
+    if (isBrowseLink || isBrowseBtn || isSearchBtn){
+      handoff(e);
+      // let navigation proceed (unless we changed location above)
+    }
+  }, true);
+})();
+</script>
