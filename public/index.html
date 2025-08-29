@@ -18,70 +18,7 @@
     --hm-border:#e5e7eb;
     --hm-chip:#ffffff;
   }
-/* ===== Make home filters functional by stashing to localStorage ===== */
-function collectHomeFilters(){
-  const norm = s => (s||'').toString().trim();
 
-  // Content (checkboxes)
-  const content = [...document.querySelectorAll('#contentPanel input[type="checkbox"]:checked')]
-    .map(i => norm(i.value));
-
-  // Colors (swatches with data-selected)
-  const color = [...document.querySelectorAll('#colorPanel .sw[data-selected="true"]')]
-    .map(sw => norm(sw.title || sw.querySelector('.tip')?.textContent || ''));
-
-  // Price / Yards / Width / GSM
-  const get = id => {
-    const el = document.getElementById(id);
-    return el && el.value !== '' ? Number(el.value) : null;
-  };
-
-  // “More” dropdowns / inputs
-  const selVal = id => {
-    const el = document.getElementById(id);
-    return el && el.value ? norm(el.value) : '';
-  };
-
-  return {
-    content, color,
-    minPrice: get('minPrice'), maxPrice: get('maxPrice'),
-    minYards: get('minYards'),
-    minWidth: get('minWidth'), maxWidth: get('maxWidth'),
-    minGsm: get('minGsm'),   maxGsm: get('maxGsm'),
-    dept: selVal('dept'),
-    fabricType: selVal('fabricType'),
-    fiberType: selVal('fiberType'),
-    designer: norm(document.getElementById('designer')?.value || ''),
-    origin: selVal('origin'),
-    pattern: selVal('pattern')
-  };
-}
-
-function stashFilters(){
-  try{
-    const payload = collectHomeFilters();
-    localStorage.setItem('hm:preselect', JSON.stringify(payload));
-  }catch(e){ /* fail soft */ }
-}
-
-/* Search routing — now stashes filters first */
-document.getElementById("homeSearch").addEventListener("submit", function(e){
-  e.preventDefault();
-  stashFilters();
-  const type = document.getElementById("searchType").value;
-  const qVal = document.getElementById("searchQ").value.trim();
-  const q = encodeURIComponent(qVal);
-  if(type==="users"){ window.location.href = "favorites.html?q="+q; }
-  else{ window.location.href = "browse.html?q="+q; }
-});
-
-/* Also stash & go when the Home “Apply” button is clicked */
-document.getElementById('applyAll').addEventListener('click', ()=>{
-  stashFilters();
-  const qVal = document.getElementById("searchQ").value.trim();
-  const q = encodeURIComponent(qVal);
-  window.location.href = "browse.html?q="+q;
-});
   /* Background */
   body{
     margin:0;
@@ -236,7 +173,7 @@ document.getElementById('applyAll').addEventListener('click', ()=>{
     <button class="close" id="closeMenu" aria-label="Close menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <line x1="18" y1="6" x2="6" y="18"></line>
-        <line x1="6" y1="6" x2="18" y="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
       </svg>
     </button>
   </header>
@@ -479,16 +416,7 @@ document.getElementById('applyAll').addEventListener('click', ()=>{
   const avatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  /* Search routing */
-  document.getElementById("homeSearch").addEventListener("submit",function(e){
-    e.preventDefault();
-    const type=document.getElementById("searchType").value;
-    const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
-    if(type==="users"){ window.location.href="favorites.html?q="+q; }
-    else{ window.location.href="browse.html?q="+q; }
-  });
-
-  /* Build Content checklist (compact) */
+  /* ===== Build Content checklist (compact) ===== */
   const contentValues=[
     "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
     "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
@@ -504,7 +432,7 @@ document.getElementById('applyAll').addEventListener('click', ()=>{
     contentGrid.appendChild(label);
   });
 
-  /* Color family — one row; title + tooltip bubble */
+  /* Color family — one row; tooltip bubble */
   const colors=[
     {name:"Black",hex:"#000000"},
     {name:"Grey",hex:"#9aa0a6"},
@@ -527,8 +455,8 @@ document.getElementById('applyAll').addEventListener('click', ()=>{
     sw.className='sw';
     sw.style.background=c.hex;
     if(c.border){ sw.style.borderColor=c.border; }
-    sw.title=c.name;                         // native tooltip
-    const tip=document.createElement('span'); // visible tooltip
+    sw.title=c.name;
+    const tip=document.createElement('span');
     tip.className='tip';
     tip.textContent=c.name;
     sw.appendChild(tip);
@@ -568,7 +496,7 @@ document.getElementById('applyAll').addEventListener('click', ()=>{
     document.querySelectorAll('#contentPanel input[type="checkbox"]').forEach(c=>c.checked=false);
     // colors
     document.querySelectorAll('#colorPanel .sw').forEach(s=>s.removeAttribute('data-selected'));
-    // price
+    // price and more fields
     ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
@@ -578,14 +506,65 @@ document.getElementById('applyAll').addEventListener('click', ()=>{
     });
   });
 
-  document.getElementById('applyAll').addEventListener('click',()=>{
-    // In v1 we simply close panels; wiring to results happens on browse.html.
-    Object.values(panels).forEach(p=>p.classList.remove('open'));
-    chips.forEach(c=>c.setAttribute('aria-pressed','false'));
-    updateActionsVisibility();
+  /* ===== NEW: stash filters to localStorage before navigating ===== */
+  function collectHomeFilters(){
+    const norm = s => (s||'').toString().trim();
+
+    const content = [...document.querySelectorAll('#contentPanel input[type="checkbox"]:checked')]
+      .map(i => norm(i.value.toLowerCase()));
+
+    const color = [...document.querySelectorAll('#colorPanel .sw[data-selected="true"]')]
+      .map(sw => norm(sw.title || sw.querySelector('.tip')?.textContent || '').toLowerCase());
+
+    const getNum = id => {
+      const el = document.getElementById(id);
+      return el && el.value !== '' ? Number(el.value) : null;
+    };
+    const getSel = id => {
+      const el = document.getElementById(id);
+      return el && el.value ? norm(el.value) : '';
+    };
+
+    return {
+      content, color,
+      minPrice:getNum('minPrice'), maxPrice:getNum('maxPrice'),
+      minYards:getNum('minYards'),
+      minWidth:getNum('minWidth'), maxWidth:getNum('maxWidth'),
+      minGsm:getNum('minGsm'),   maxGsm:getNum('maxGsm'),
+      dept:getSel('dept'),
+      fabricType:getSel('fabricType'),
+      fiberType:getSel('fiberType'),
+      designer: norm(document.getElementById('designer')?.value || ''),
+      origin:getSel('origin'),
+      pattern:getSel('pattern')
+    };
+  }
+
+  function stashFilters(){
+    try{
+      const payload = collectHomeFilters();
+      localStorage.setItem('hm:preselect', JSON.stringify(payload));
+    }catch(e){}
+  }
+
+  /* Search routing — stashes first, then goes to browse */
+  document.getElementById("homeSearch").addEventListener("submit",function(e){
+    e.preventDefault();
+    stashFilters();
+    const type=document.getElementById("searchType").value;
+    const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
+    if(type==="users"){ window.location.href="favorites.html?q="+q; }
+    else{ window.location.href="browse.html?q="+q; }
   });
 
-  // Close all on Escape/click-outside of the hero-card area if no panel body clicked
+  /* Apply button should also stash & go to browse */
+  document.getElementById('applyAll').addEventListener('click',()=>{
+    stashFilters();
+    const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
+    window.location.href="browse.html?q="+q;
+  });
+
+  // Close all on Escape
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
       Object.values(panels).forEach(p=>p.classList.remove('open'));
