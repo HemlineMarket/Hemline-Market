@@ -1,186 +1,211 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hemline Market</title>
+  <title>Hemline Market — Find your next fabric creation</title>
+
+  <!-- Shared styles -->
+  <link rel="stylesheet" href="styles/hm-modern.css" />
+  <link rel="stylesheet" href="styles/hem-header.css" />
+  <link rel="stylesheet" href="styles/hm-typography.css" />
+  <link rel="stylesheet" href="styles/hm-footer.css" />
+
   <style>
     :root{
-      --container:1200px;
-      --pad:20px;
-      --brand:#800000;
-      --ink:#111;
-      --muted:#555;
-      --card:#fff;
-      --border:#e5e7eb;
-      --radius:12px;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%}
-    body{
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--ink);
-      min-height:100%;
-      display:flex;flex-direction:column;
-      position:relative;
-      background:#fafafa;
+      --hm-accent:#991b1b; /* keep current Hemline red */
+      --hm-text:#374151;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+      --hm-soft:#f7f7f8;
     }
 
-    /* Full-bleed background image (reliable on all devices) */
-    body::before{
-      content:"";
-      position:fixed; inset:0; z-index:-2;
-      background:center / cover no-repeat url('/images/homepage.jpeg');
-      background-image:
-        image-set(
-          url('/images/homepage.jpeg') type('image/jpeg'),
-          url('/images/homepage.jpg') type('image/jpeg'),
-          url('/images/fabric_row.jpeg') type('image/jpeg')
-        );
+    /* Header (Option B: logo left, actions right, nav in menu) */
+    .hm-header{min-height:56px}
+    .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+    .hm-header .left{display:flex;align-items:center;gap:10px}
+    .hm-header .hm-brand{font-weight:700;letter-spacing:.1px}
+    .hm-header .right{display:flex;align-items:center;gap:10px}
+    .hm-header .hm-icon{width:22px;height:22px;color:#6b7280}
+    .hm-header .hm-icon:hover{color:var(--hm-accent)}
+    .hm-header .hm-avatar{width:24px;height:24px;border:1px solid var(--hm-border);font-size:12px;color:#334155;background:#fff}
+    .hm-header .hm-btn.hm-btn-primary{
+      background:var(--hm-accent);border-color:var(--hm-accent);padding:7px 12px
     }
-    /* Subtle dark + very light blur for readability (reduced for crispness) */
-    body::after{
-      content:"";
-      position:fixed; inset:0; z-index:-1;
-      background:rgba(0,0,0,.15);
-      backdrop-filter:blur(1px);
-    }
+    .hm-nav{display:none}
 
-    .container{max-width:var(--container);margin-inline:auto;padding-inline:var(--pad);width:100%}
-
-    /* Header */
-    header.navbar{
-      position:sticky;top:0;z-index:10;
-      background:rgba(255,255,255,.9);
-      backdrop-filter:saturate(120%) blur(6px);
-      border-bottom:1px solid #eee;
+    /* Hamburger menu */
+    .hamburger{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--hm-border);border-radius:8px;color:#6b7280;background:#fff}
+    .hamburger:hover{color:var(--hm-accent)}
+    .sheet{
+      position:fixed;inset:0 0 0 auto;width:min(84vw,340px);background:#fff;border-left:1px solid var(--hm-border);
+      transform:translateX(100%);transition:transform .25s ease;z-index:60;display:flex;flex-direction:column
     }
-    .nav-row{height:56px;display:flex;align-items:center;justify-content:space-between}
-    .nav-left,.nav-right{display:flex;align-items:center;gap:18px}
-    .brand{text-decoration:none;color:var(--brand);font-size:18px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
-    .nav-link{color:var(--ink);text-decoration:none;font-weight:600;font-size:15px}
-    .icon-link{font-size:18px;line-height:1;text-decoration:none;color:var(--ink)}
-    .cta-outline{
-      text-decoration:none;color:var(--brand);border:2px solid var(--brand);
-      padding:6px 12px;border-radius:8px;font-weight:800;background:#fff;
-    }
-    @media (max-width:700px){ .nav-left .nav-link{display:none} }
+    .sheet.open{transform:translateX(0)}
+    .sheet header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--hm-border)}
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{padding:10px 12px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:var(--hm-text)}
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#6b7280}
+    .sheet .close:hover{color:var(--hm-accent)}
 
     /* Hero */
-    .hero{display:grid;place-items:center;text-align:center;min-height:60vh}
-    .hero-card{
-      background:rgba(255,255,255,.95);
-      width:min(92vw,760px);
-      border-radius:16px;padding:28px;
-      box-shadow:0 12px 32px rgba(0,0,0,.12)
-    }
-    .hero h1{
-      font-size:clamp(28px,3.2vw,38px);
-      font-weight:800;letter-spacing:-.02em;margin-bottom:10px
-    }
-    .hero p{color:var(--muted);margin-bottom:16px}
+    .home-hero{max-width:980px;margin:10px auto 0;padding:0 16px;display:grid;gap:8px}
+    .home-hero h1{font-size:24px;line-height:1.2;margin:0;color:#111827;font-weight:800}
+    .home-hero p{margin:0;color:var(--hm-muted)}
+    @media (min-width:900px){ .home-hero h1{font-size:28px} }
 
-    /* Pill search */
-    .search-pill{
-      display:flex;gap:8px;align-items:center;justify-content:center;
-      background:#fff;border:1px solid #dcdcdc;border-radius:999px;
-      padding:6px 6px;max-width:640px;margin-inline:auto
+    /* Search (just under hero) */
+    .home-search{max-width:980px;margin:8px auto 0;padding:0 16px}
+    .search-card{background:#fff;border:1px solid var(--hm-border);border-radius:14px;padding:8px;display:grid;grid-template-columns:120px 1fr auto;gap:8px}
+    .search-card select,.search-card input{
+      padding:10px 12px;border:1px solid var(--hm-border);border-radius:10px;font-size:14px
     }
-    .search-pill input{flex:1;border:0;outline:0;padding:10px 12px;border-radius:999px;font-size:14px}
-    .search-pill button{
-      background:var(--brand);color:#fff;border:0;border-radius:999px;
-      padding:10px 16px;font-weight:700;cursor:pointer
+    .search-card button{
+      padding:10px 14px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700
+    }
+    @media (max-width:640px){
+      .search-card{grid-template-columns:1fr;gap:8px}
     }
 
-    /* Cards */
-    main.section{padding:42px 0 56px}
-    .cards{display:grid;gap:16px;grid-template-columns:repeat(3,1fr)}
-    @media (max-width:900px){.cards{grid-template-columns:1fr 1fr}}
-    @media (max-width:640px){.cards{grid-template-columns:1fr}.hero{min-height:54vh}}
-    .card{
-      background:var(--card);border:1px solid var(--border);
-      border-radius:var(--radius);padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.08)
-    }
-    .card h2{font-size:18px;margin:0 0 8px;font-weight:700}
-    .card p{font-size:14px;color:var(--muted);margin:0 0 10px}
-    .card .cta-small{
-      display:inline-block;background:#000;color:#fff;text-decoration:none;
-      padding:8px 12px;border-radius:8px;font-weight:700
-    }
-
-    /* Footer */
-    footer{background:rgba(255,255,255,.95);border-top:1px solid #eee;padding:18px 0;margin-top:auto}
-    .footer-links{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;font-size:14px;color:#666}
-    .footer-links a{color:#666;text-decoration:none}
-    .copy{text-align:center;color:#777;font-size:13px;margin-top:8px}
+    /* New listings */
+    .section{max-width:1200px;margin:14px auto 20px;padding:0 16px}
+    .section h2{margin:0 0 8px 0;font-size:18px}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    @media (max-width:900px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+    @media (max-width:560px){ .grid{grid-template-columns:1fr} }
+    .card{background:#fff;border:1px solid var(--hm-border);border-radius:14px;overflow:hidden;text-decoration:none;color:var(--hm-text)}
+    .thumb{aspect-ratio:4/3;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:var(--hm-muted)}
+    .info{padding:10px 12px}
+    .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:14px;color:var(--hm-muted)}
+    .price{font-weight:800;color:#111827}
+    .seller{display:flex;align-items:center;gap:6px}
+    .seller .av{width:20px;height:20px;border-radius:999px;border:1px solid var(--hm-border);display:grid;place-items:center;font-size:10px;font-weight:800;background:#fff;color:#374151}
   </style>
 </head>
 <body>
   <!-- HEADER -->
-  <header class="navbar">
-    <div class="container nav-row">
-      <div class="nav-left">
-        <a href="/" class="brand">Hemline Market</a>
-        <a class="nav-link" href="/new.html">New Arrivals</a>
-        <a class="nav-link" href="/atelier.html">My Atelier</a>
+  <header class="hm-header" role="banner">
+    <div class="wrap">
+      <div class="left">
+        <button class="hamburger" id="openMenu" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg>
+        </button>
+        <a class="hm-brand" href="index.html">Hemline Market</a>
       </div>
-      <div class="nav-right">
-        <a class="icon-link" href="/favorites.html" title="Favorites" aria-label="Favorites">❤️</a>
-        <a class="icon-link" href="/notifications.html" title="Notifications" aria-label="Notifications">🔔</a>
-        <a class="icon-link" href="/account.html" title="My Account" aria-label="My Account">👤</a>
-        <a class="cta-outline" href="/seller/list.html">List Item</a>
+      <div class="right">
+        <a class="hm-icon" href="favorites.html" aria-label="Favorites"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg></a>
+        <a class="hm-icon" href="notifications.html" aria-label="Notifications"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></a>
+        <a class="hm-avatar" href="account.html">AA</a>
+        <a class="hm-btn hm-btn-primary" href="seller/index.html?list=new">Sell</a>
       </div>
     </div>
   </header>
 
+  <!-- Slide-in menu -->
+  <aside class="sheet" id="menuSheet" aria-hidden="true">
+    <header>
+      <strong>Menu</strong>
+      <button class="close" id="closeMenu" aria-label="Close menu"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </header>
+    <nav>
+      <a href="browse.html">Browse</a>
+      <a href="about.html">About</a>
+      <a href="atelier.html">My Atelier</a>
+      <a href="favorites.html">Favorites</a>
+      <a href="orders.html">Orders</a>
+      <a href="settings.html">Settings</a>
+      <a href="help.html">Help</a>
+    </nav>
+  </aside>
+
   <!-- HERO -->
-  <section class="hero">
-    <div class="hero-card">
-      <h1>Find the perfect fabric for your next creation</h1>
-      <p>Search by content, weight, width, and more.</p>
-      <form class="search-pill" action="/browse.html" method="get">
-        <input type="text" name="q" placeholder="Search silk, wool, lawn…" />
-        <button type="submit">Browse</button>
-      </form>
-    </div>
+  <section class="home-hero">
+    <h1>Find your next fabric creation</h1>
+    <p>Search fabrics by content, weight, width, and more.</p>
   </section>
 
-  <!-- FEATURE CARDS -->
+  <!-- SEARCH -->
+  <section class="home-search">
+    <form id="homeSearch" class="search-card">
+      <select name="type" id="searchType">
+        <option value="listings" selected>Listings</option>
+        <option value="users">Users</option>
+      </select>
+      <input type="search" name="q" id="searchQ" placeholder="Search fabrics, shops, or styles…" />
+      <button type="submit">Search</button>
+    </form>
+  </section>
+
+  <!-- NEW LISTINGS -->
   <main class="section">
-    <div class="container">
-      <div class="cards">
-        <article class="card">
-          <h2>Shop by Material</h2>
-          <p>Silk, wool, cotton, linen, leather, blends, and more.</p>
-          <a class="cta-small" href="/browse.html">Explore materials →</a>
-        </article>
-        <article class="card">
-          <h2>Trending Colors</h2>
-          <p>Charcoal, rosewood, hunter, and modern neutrals.</p>
-          <a class="cta-small" href="/browse.html?tab=colors">See colors →</a>
-        </article>
-        <article class="card">
-          <h2>Recently Listed</h2>
-          <p>Fresh fabrics added by sellers — see what just landed.</p>
-          <a class="cta-small" href="/listings.html">View new listings →</a>
-        </article>
-      </div>
+    <h2>New Listings</h2>
+    <div class="grid">
+      <a class="card" href="item.html?id=1">
+        <div class="thumb">photo</div>
+        <div class="info">
+          <div class="title">Wool Crepe — Saffron</div>
+          <div class="meta">
+            <span class="price">$28/yd</span>
+            <span class="seller"><span class="av">F</span>@FabricFolio</span>
+          </div>
+        </div>
+      </a>
+      <a class="card" href="item.html?id=5">
+        <div class="thumb">photo</div>
+        <div class="info">
+          <div class="title">Cotton Poplin — Moss</div>
+          <div class="meta">
+            <span class="price">$14/yd</span>
+            <span class="seller"><span class="av">S</span>@SewSimple</span>
+          </div>
+        </div>
+      </a>
+      <a class="card" href="item.html?id=3">
+        <div class="thumb">photo</div>
+        <div class="info">
+          <div class="title">Silk Charmeuse — Midnight</div>
+          <div class="meta">
+            <span class="price">$36/yd</span>
+            <span class="seller"><span class="av">L</span>@LoomLab</span>
+          </div>
+        </div>
+      </a>
     </div>
   </main>
 
   <!-- FOOTER -->
-  <footer>
-    <div class="container">
-      <div class="footer-links">
-        <a href="/faq.html">FAQ</a> •
-        <a href="/contact.html">Contact Us</a> •
-        <a href="/feedback.html">Site Feedback</a> •
-        <a href="/privacy.html">Privacy</a> •
-        <a href="/terms.html">Terms &amp; Conditions</a> •
-        <a href="/subscribe.html">Subscribe</a>
-      </div>
+  <footer class="hm-footer">
+    <div class="footer-wrap">
       <div class="copy">© 2025 Hemline Market</div>
+      <nav class="footer-links">
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+        <a href="faq.html">FAQ</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="shipping.html">Shipping & Returns</a>
+      </nav>
     </div>
   </footer>
+
+  <script>
+    (function(){
+      // menu toggle
+      const sheet=document.getElementById("menuSheet");
+      document.getElementById("openMenu").onclick=(e)=>{e.preventDefault();sheet.classList.add("open");};
+      document.getElementById("closeMenu").onclick=(e)=>{e.preventDefault();sheet.classList.remove("open");};
+
+      // search routing
+      document.getElementById("homeSearch").onsubmit=function(e){
+        e.preventDefault();
+        const type=document.getElementById("searchType").value;
+        const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
+        if(type==="users"){window.location.href="favorites.html?q="+q;}
+        else{window.location.href="browse.html?q="+q;}
+      };
+    })();
+  </script>
 </body>
 </html>
