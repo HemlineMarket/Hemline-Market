@@ -83,6 +83,13 @@
   .check-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:10px;padding:6px 8px;background:#fff;font-size:12px;cursor:pointer}
   .check-chip input{width:14px;height:14px}
 
+  /* >>> Make homepage content checkboxes smaller (only in hero) <<< */
+  .home-hero .check-chip{
+    padding:4px 6px;
+    font-size:11px;
+    border-radius:8px;
+  }
+
   /* Color row + robust tooltip */
   .color-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
   .color-row::-webkit-scrollbar{display:none}
@@ -119,11 +126,19 @@
   .panel .panel-body{padding:8px 10px}
   .likes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .likes-grid .like{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px}
+
   .likes-footer{margin-top:6px;text-align:right}
   .likes-footer a{font-size:12px;color:#374151;text-decoration:none}
+
   .recent-list{display:grid;gap:6px}
-  .recent-item{display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center}
-  .recent-thumb{width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border)}
+  /* >>> Make Recent Views thumbs same compact size as Likes tiles <<< */
+  .recent-thumb{
+    width:40px;
+    height:40px;
+    border-radius:10px;
+    background:linear-gradient(180deg,#f8fafc,#eef2f7);
+    border:1px solid var(--hm-border);
+  }
   .recent-meta{font-size:12px;color:#374151}
   .recent-meta .name{font-weight:700;color:#111827}
 
@@ -416,7 +431,16 @@
   const avatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  /* ===== Build Content checklist (compact) ===== */
+  /* Search routing */
+  document.getElementById("homeSearch").addEventListener("submit",function(e){
+    e.preventDefault();
+    const type=document.getElementById("searchType").value;
+    const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
+    if(type==="users"){ window.location.href="favorites.html?q="+q; }
+    else{ window.location.href="browse.html?q="+q; }
+  });
+
+  /* Build Content checklist (compact) */
   const contentValues=[
     "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
     "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
@@ -432,7 +456,7 @@
     contentGrid.appendChild(label);
   });
 
-  /* Color family — one row; tooltip bubble */
+  /* Color family — one row; title + tooltip bubble */
   const colors=[
     {name:"Black",hex:"#000000"},
     {name:"Grey",hex:"#9aa0a6"},
@@ -496,7 +520,7 @@
     document.querySelectorAll('#contentPanel input[type="checkbox"]').forEach(c=>c.checked=false);
     // colors
     document.querySelectorAll('#colorPanel .sw').forEach(s=>s.removeAttribute('data-selected'));
-    // price and more fields
+    // price & more fields
     ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
@@ -506,65 +530,12 @@
     });
   });
 
-  /* ===== NEW: stash filters to localStorage before navigating ===== */
-  function collectHomeFilters(){
-    const norm = s => (s||'').toString().trim();
-
-    const content = [...document.querySelectorAll('#contentPanel input[type="checkbox"]:checked')]
-      .map(i => norm(i.value.toLowerCase()));
-
-    const color = [...document.querySelectorAll('#colorPanel .sw[data-selected="true"]')]
-      .map(sw => norm(sw.title || sw.querySelector('.tip')?.textContent || '').toLowerCase());
-
-    const getNum = id => {
-      const el = document.getElementById(id);
-      return el && el.value !== '' ? Number(el.value) : null;
-    };
-    const getSel = id => {
-      const el = document.getElementById(id);
-      return el && el.value ? norm(el.value) : '';
-    };
-
-    return {
-      content, color,
-      minPrice:getNum('minPrice'), maxPrice:getNum('maxPrice'),
-      minYards:getNum('minYards'),
-      minWidth:getNum('minWidth'), maxWidth:getNum('maxWidth'),
-      minGsm:getNum('minGsm'),   maxGsm:getNum('maxGsm'),
-      dept:getSel('dept'),
-      fabricType:getSel('fabricType'),
-      fiberType:getSel('fiberType'),
-      designer: norm(document.getElementById('designer')?.value || ''),
-      origin:getSel('origin'),
-      pattern:getSel('pattern')
-    };
-  }
-
-  function stashFilters(){
-    try{
-      const payload = collectHomeFilters();
-      localStorage.setItem('hm:preselect', JSON.stringify(payload));
-    }catch(e){}
-  }
-
-  /* Search routing — stashes first, then goes to browse */
-  document.getElementById("homeSearch").addEventListener("submit",function(e){
-    e.preventDefault();
-    stashFilters();
-    const type=document.getElementById("searchType").value;
-    const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
-    if(type==="users"){ window.location.href="favorites.html?q="+q; }
-    else{ window.location.href="browse.html?q="+q; }
-  });
-
-  /* Apply button should also stash & go to browse */
   document.getElementById('applyAll').addEventListener('click',()=>{
-    stashFilters();
-    const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
-    window.location.href="browse.html?q="+q;
+    Object.values(panels).forEach(p=>p.classList.remove('open'));
+    chips.forEach(c=>c.setAttribute('aria-pressed','false'));
+    updateActionsVisibility();
   });
 
-  // Close all on Escape
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
       Object.values(panels).forEach(p=>p.classList.remove('open'));
