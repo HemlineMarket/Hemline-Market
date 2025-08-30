@@ -14,7 +14,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Browse — Hemline Market</title>
 
-  <!-- shared styles (unchanged) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -26,9 +25,8 @@
       --hm-text:#111827;
       --hm-muted:#6b7280;
       --hm-border:#e5e7eb;
-      --ring:#0ea5b7;
     }
-    body{margin:0;background:#fafafa;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#111827;min-height:100vh;display:flex;flex-direction:column}
+    body{margin:0;background:#fafafa;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#111827}
 
     /* Header (shared) */
     .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
@@ -56,44 +54,58 @@
     .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
     .topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
     .topbar input[type="search"]{flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
-    .topbar button{padding:9px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700;display:inline-flex;gap:8px;align-items:center}
-    .topbar .filter-open svg{width:18px;height:18px}
+    .topbar button{padding:9px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700}
 
     .layout{display:grid;grid-template-columns:280px 1fr;gap:14px}
-    /* HIDE sidebar on mobile so panel is the only filter UI */
-    @media (max-width:960px){
-      .layout{grid-template-columns:1fr}
-      .filters{display:none}
-    }
+    @media (max-width:900px){ .layout{grid-template-columns:1fr} }
 
-    /* Sidebar filters (restored structure) */
-    .filters{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:10px}
+    /* Sidebar filters */
+    .filters{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:10px; position:relative; z-index:1; }
     .filters h3{margin:0 0 6px;font-size:14px;color:#374151}
     .section{border-top:1px solid var(--hm-border);padding-top:8px;margin-top:8px}
     .section:first-of-type{border-top:0;padding-top:0;margin-top:0}
     .section .title{font-weight:700;font-size:13px;color:#374151;margin:0 0 6px}
-
-    /* Listbox styles (Content + Fabric Type) */
     .listbox{height:230px;overflow:auto;border:1px solid var(--hm-border);border-radius:10px;padding:6px;background:#fff}
     .row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px dashed #f3f4f6}
     .row:last-child{border-bottom:0}
     .row input{width:14px;height:14px}
     .row label{font-size:12px;color:#374151}
 
-    /* Chips + swatches */
-    .chiprow{display:flex;flex-wrap:wrap;gap:8px}
-    .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:999px;background:#fff;padding:6px 10px;font-size:12px;cursor:pointer}
-    .chip[data-on="true"]{background:#0f766e;color:#fff;border-color:#0f766e}
-    .sw-grid{display:grid;grid-template-columns:repeat(8,22px);gap:6px}
-    .sw{width:22px;height:22px;border-radius:6px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);cursor:pointer;position:relative}
-    .sw[data-on="true"]{outline:2px solid var(--ring);outline-offset:2px}
-    .sw .tip{position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;opacity:0;pointer-events:none}
-    .sw:hover .tip{opacity:1}
-    .sw.gold{background:linear-gradient(135deg,#d4b870 0%,#f0dc97 50%,#ceb86b 100%)}
-    .sw.silver{background:linear-gradient(135deg,#bfc6cf 0%,#e6eaef 50%,#a9b0ba 100%)}
+    /* === Color grid: exactly 3 rows, 14 colors, compact === */
+    #colorBox {
+      --sw: 22px;
+      --gap: 6px;
+      --cols: 5; /* 14 colors → ceil(14/3)=5 columns */
+      display: grid;
+      grid-template-columns: repeat(var(--cols), var(--sw));
+      grid-template-rows: repeat(3, var(--sw));
+      gap: var(--gap);
+      align-content: start;
+      justify-content: start;
+      padding: 6px;
+      background:#fff;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+    }
+    #colorBox .sw{
+      width:var(--sw); height:var(--sw); border-radius:6px;
+      border:1px solid #d1d5db; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);
+      cursor:pointer; position:relative;
+      touch-action: manipulation; /* mobile: remove 300ms delay & allow taps */
+      -webkit-tap-highlight-color: transparent;
+    }
+    #colorBox .sw[data-selected="true"]{ outline:2px solid var(--hm-accent); outline-offset:2px; }
+    #colorBox .sw .tip{
+      position:absolute; bottom:130%; left:50%; transform:translateX(-50%);
+      background:rgba(0,0,0,.85); color:#fff; padding:2px 5px; border-radius:4px;
+      font-size:10px; white-space:nowrap; opacity:0; pointer-events:none;
+    }
+    #colorBox .sw:hover .tip{ opacity:1; }
+    @media (max-width:480px){
+      #colorBox { --sw: 20px; --gap: 5px; }
+    }
 
-    /* Compact numeric inputs */
-    .mini{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     .mini .field{display:flex;flex-direction:column;gap:4px}
     .mini label{font-size:12px;color:#374151}
     .mini input{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
@@ -107,7 +119,8 @@
 
     /* Selected chips */
     .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
-    .chips .chip button{border:0;background:transparent;cursor:pointer;color:#6b7280;font-weight:900}
+    .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:999px;background:#fff;padding:6px 10px;font-size:12px}
+    .chip button{border:0;background:transparent;cursor:pointer;color:#6b7280;font-weight:900}
 
     /* Results */
     .results{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:12px;min-height:300px}
@@ -120,26 +133,6 @@
     .meta{padding:8px 10px}
     .meta .title{font-weight:700}
     .meta .sub{display:flex;justify-content:space-between;color:#6b7280;margin-top:6px}
-
-    /* Slide-in FILTER PANEL (mobile; matches desktop options) */
-    .scrim{ position:fixed; inset:0; background:rgba(0,0,0,.35); opacity:0; pointer-events:none; transition:.2s; z-index:120}
-    .scrim.on{ opacity:1; pointer-events:auto}
-    .panel{
-      position:fixed; inset:0 auto 0 0; width:min(50vw,560px); max-width:90vw; background:#fff;
-      transform:translateX(-100%); transition:.25s; z-index:130; border-right:1px solid var(--hm-border);
-      display:flex; flex-direction:column;
-    }
-    .panel.on{ transform:none }
-    .panel header{ position:sticky; top:0; background:#fff; border-bottom:1px solid var(--hm-border); z-index:2}
-    .panel h2{ margin:0; padding:14px 16px}
-    .panel .body{ padding:10px 16px 90px; overflow:auto}
-    .panel .section{ border:1px solid var(--hm-border); border-radius:12px; margin:10px 0; background:#fff}
-    .panel .section summary{ list-style:none; cursor:pointer; user-select:none; padding:12px; font-weight:700; display:flex; justify-content:space-between; align-items:center; }
-    .panel .section summary::-webkit-details-marker{ display:none }
-    .panel .section .inner{ padding:12px; border-top:1px solid var(--hm-border)}
-    .applybar{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(255,255,255,.6), #fff 40%); border-top:1px solid var(--hm-border); padding:12px 16px; display:flex; gap:10px }
-    .apply{ flex:1; padding:12px 14px; border-radius:12px; border:0; background:var(--hm-accent); color:#fff; font-weight:700; cursor:pointer }
-    .ghost{ background:transparent; color:var(--hm-accent); border:1px solid var(--hm-accent) }
   </style>
 </head>
 <body>
@@ -201,22 +194,14 @@
   <!-- Search + Chips -->
   <div class="topbar">
     <input id="q" type="search" placeholder="Search fabrics…">
-    <button id="openFilters" class="filter-open" aria-haspopup="dialog" aria-controls="filterPanel">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
-      Filters
-    </button>
+    <button id="doSearch">Search</button>
   </div>
   <div id="selectedChips" class="chips" aria-live="polite"></div>
 
   <div class="layout">
-    <!-- Filters (DESKTOP) -->
+    <!-- Filters -->
     <aside class="filters" id="filters">
       <h3>Filters</h3>
-
-      <section class="section">
-        <div class="title">Department</div>
-        <div class="chiprow" id="deptBox"></div>
-      </section>
 
       <section class="section">
         <div class="title">Content</div>
@@ -224,28 +209,12 @@
       </section>
 
       <section class="section">
-        <div class="title">Color</div>
-        <div class="sw-grid" id="colorBox"></div>
+        <div class="title">Color Family</div>
+        <div id="colorBox"></div>
       </section>
 
       <section class="section">
-        <div class="title">Fabric Type</div>
-        <!-- CHANGED: listbox like Content -->
-        <div class="listbox" id="fabricTypeBox"></div>
-      </section>
-
-      <section class="section">
-        <div class="title">Fiber Type</div>
-        <div class="chiprow" id="fiberTypeBox"></div>
-      </section>
-
-      <section class="section">
-        <div class="title">Pattern</div>
-        <div class="chiprow" id="patternBox"></div>
-      </section>
-
-      <section class="section">
-        <div class="title">Price ($/yd)</div>
+        <div class="title">$/yard</div>
         <div class="mini">
           <div class="field"><label>Min</label><input id="minPrice" type="number" min="0" step="1"></div>
           <div class="field"><label>Max</label><input id="maxPrice" type="number" min="0" step="1"></div>
@@ -276,8 +245,49 @@
       </section>
 
       <section class="section">
-        <div class="title">Country</div>
-        <!-- CHANGED: dropdown (8 originals only) -->
+        <div class="title">Department</div>
+        <div class="selects">
+          <select id="dept">
+            <option value="">Any</option>
+            <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Fabric Type</div>
+        <div class="selects">
+          <select id="fabricType">
+            <option value="">Any</option>
+            <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
+            <option>Crepe</option><option>Denim</option><option>Flannel</option>
+            <option>Georgette</option><option>Jersey</option><option>Lace</option>
+            <option>Lawn</option><option>Organza</option><option>Poplin</option>
+            <option>Sateen</option><option>Satin</option><option>Tulle</option>
+            <option>Twill</option><option>Velvet</option><option>Voile</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Fiber Type</div>
+        <div class="selects">
+          <select id="fiberType">
+            <option value="">Any</option>
+            <option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Designer / Mill</div>
+        <div class="selects">
+          <input id="designer" placeholder="e.g., Loro Piana">
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Country / Origin</div>
         <div class="selects">
           <select id="origin">
             <option value="">Any</option>
@@ -288,9 +298,12 @@
       </section>
 
       <section class="section">
-        <div class="title">Designer / Mill</div>
+        <div class="title">Pattern</div>
         <div class="selects">
-          <input id="designer" placeholder="e.g., Loro Piana">
+          <select id="pattern">
+            <option value="">Any</option>
+            <option>Solid</option><option>Printed</option>
+          </select>
         </div>
       </section>
 
@@ -315,7 +328,7 @@
 <!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo" style="margin-top:14px">
   <div class="footer-wrap">
-    <div class="copy">© <span id="yr"></span> Hemline Market</div>
+    <div class="copy">© 2025 Hemline Market</div>
     <nav class="footer-links" aria-label="Footer">
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
@@ -326,30 +339,6 @@
     </nav>
   </div>
 </footer>
-
-<!-- SCRIM + MOBILE FILTER PANEL -->
-<div class="scrim" id="scrim" aria-hidden="true"></div>
-<aside class="panel" id="filterPanel" role="dialog" aria-modal="true" aria-labelledby="filterTitle">
-  <header><h2 id="filterTitle">Filters</h2></header>
-  <div class="body" id="panelBody">
-    <details class="section" open><summary>Department</summary><div class="inner chiprow" data-panel="deptBox"></div></details>
-    <details class="section"><summary>Content</summary><div class="inner"><div class="listbox" data-panel="contentBox"></div></div></details>
-    <details class="section"><summary>Color</summary><div class="inner sw-grid" data-panel="colorBox"></div></details>
-    <details class="section"><summary>Fabric Type</summary><div class="inner"><div class="listbox" data-panel="fabricTypeBox"></div></div></details>
-    <details class="section"><summary>Fiber Type</summary><div class="inner chiprow" data-panel="fiberTypeBox"></div></details>
-    <details class="section"><summary>Pattern</summary><div class="inner chiprow" data-panel="patternBox"></div></details>
-    <details class="section"><summary>Price ($/yd)</summary><div class="inner mini"><div class="field"><label>Min</label><input id="minPrice_p" type="number"></div><div class="field"><label>Max</label><input id="maxPrice_p" type="number"></div></div></details>
-    <details class="section"><summary>Yards</summary><div class="inner mini"><div class="field" style="grid-column:1/-1"><label>Min yards</label><input id="minYards_p" type="number"></div></div></details>
-    <details class="section"><summary>Width (in)</summary><div class="inner mini"><div class="field"><label>Min</label><input id="minWidth_p" type="number"></div><div class="field"><label>Max</label><input id="maxWidth_p" type="number"></div></div></details>
-    <details class="section"><summary>Weight (GSM)</summary><div class="inner mini"><div class="field"><label>Min GSM</label><input id="minGsm_p" type="number"></div><div class="field"><label>Max GSM</label><input id="maxGsm_p" type="number"></div></div></details>
-    <details class="section"><summary>Country</summary><div class="inner"><select id="origin_p" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff"><option value="">Any</option><option>Italy</option><option>France</option><option>Japan</option><option>UK</option><option>USA</option><option>India</option><option>China</option><option>Korea</option></select></div></details>
-    <details class="section"><summary>Designer / Mill</summary><div class="inner"><input id="designer_p" placeholder="e.g., Loro Piana" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff"></div></details>
-  </div>
-  <div class="applybar">
-    <button class="apply ghost" id="clear_p" type="button">Clear</button>
-    <button class="apply" id="apply_p" type="button">Apply</button>
-  </div>
-</aside>
 
 <script>
 (function(){
@@ -363,17 +352,22 @@
   closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-  /* ORIGINAL facet sets (exact) */
-  const DEPTS = ["Fashion","Home","Quilting","Notions"];
+  /* Avatar (optional) */
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+
+  /* Data */
   const CONTENT = [
     "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
     "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
     "Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
   ];
+
+  // 14 colors exactly
   const COLORS = [
     {name:"Black",hex:"#000"},
     {name:"Grey",hex:"#9aa0a6"},
-    {name:"White",hex:"#ffffff",border:"#d1d5db"},
+    {name:"White",hex:"#fff",border:"#d1d5db"},
     {name:"Cream",hex:"#f5efe4"},
     {name:"Brown",hex:"#7a4a2a"},
     {name:"Pink",hex:"#f4a4b6"},
@@ -383,257 +377,244 @@
     {name:"Green",hex:"#2f7d32"},
     {name:"Blue",hex:"#2166d1"},
     {name:"Purple",hex:"#6b2da8"},
-    {name:"Gold",hex:"gold"},
-    {name:"Silver",hex:"silver"}
+    {name:"Gold",hex:"#e2c46d"},
+    {name:"Silver",hex:"#d5d8de"}
   ];
-  const FABRIC_TYPES = ["Canvas","Chiffon","Corduroy","Crepe","Denim","Flannel","Georgette","Jersey","Lace","Lawn","Organza","Poplin","Sateen","Satin","Tulle","Twill","Velvet","Voile"];
-  const FIBER_TYPES = ["Natural","Modified Natural","Synthetic","Blend"];
-  const PATTERNS = ["Solid","Printed"];
-  const COUNTRIES = ["Italy","France","Japan","UK","USA","India","China","Korea"]; // dropdown only; no extras
+
+  /* Build Content UI */
+  const contentBox=document.getElementById('contentBox');
+  CONTENT.forEach(v=>{
+    const id='cb_'+v.replace(/[^a-z0-9]/gi,'_');
+    const row=document.createElement('div'); row.className='row';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.id=id; cb.value=v;
+    const lb=document.createElement('label'); lb.setAttribute('for',id); lb.textContent=v;
+    row.appendChild(cb); row.appendChild(lb);
+    contentBox.appendChild(row);
+  });
+
+  /* Build Colors — 3-row grid */
+  const colorBox=document.getElementById('colorBox');
+  colorBox.innerHTML='';
+  COLORS.forEach(c=>{
+    const sw=document.createElement('div'); sw.className='sw'; sw.dataset.name=c.name; sw.title=c.name;
+    sw.style.background=c.hex; if(c.border) sw.style.borderColor=c.border;
+    const tip=document.createElement('span'); tip.className='tip'; tip.textContent=c.name; sw.appendChild(tip);
+    colorBox.appendChild(sw);
+  });
+  colorBox.style.setProperty('--cols','5'); // 14 -> 3 rows -> 5 cols
 
   const $ = (id)=>document.getElementById(id);
   const params = new URLSearchParams(location.search);
 
-  /* Build desktop UI */
-  function addChipRow(arr, host, key){
-    host.innerHTML='';
-    arr.forEach(v=>{
-      const b=document.createElement('button');
-      b.className='chip'; b.type='button';
-      b.dataset.value=v.toLowerCase();
-      b.textContent=v;
-      b.addEventListener('click',()=>{ toggleCSV(key, v); b.dataset.on = isInCSV(key,v) ? 'true' : 'false'; });
-      host.appendChild(b);
+  /* Restore initial selections from URL */
+  function setCheckboxesFromCSV(container, csv){
+    if(!csv) return;
+    const set=new Set(csv.split(',').map(s=>s.trim()).filter(Boolean));
+    container.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
+      if(set.has(cb.value)) cb.checked=true;
     });
   }
-  function addListbox(arr, host, key){
-    host.innerHTML='';
-    arr.forEach(v=>{
-      const id='cb_'+key+'_'+v.replace(/[^a-z0-9]/gi,'_');
-      const row=document.createElement('div'); row.className='row';
-      const cb=document.createElement('input'); cb.type='checkbox'; cb.id=id; cb.value=v;
-      const lb=document.createElement('label'); lb.setAttribute('for',id); lb.textContent=v;
-      cb.addEventListener('change', ()=>{ toggleCSV(key, v, cb.checked); });
-      row.appendChild(cb); row.appendChild(lb);
-      host.appendChild(row);
+  function setSwatchesFromCSV(container, csv){
+    if(!csv) return;
+    const set=new Set(csv.split(',').map(s=>s.trim()).filter(Boolean));
+    container.querySelectorAll('.sw').forEach(sw=>{
+      if(set.has(sw.dataset.name)) sw.dataset.selected="true";
     });
   }
-  addChipRow(DEPTS, $('deptBox'), 'dept');
-  addListbox(CONTENT, $('contentBox'), 'content');
-  addListbox(FABRIC_TYPES, $('fabricTypeBox'), 'fabricType');
-  addChipRow(FIBER_TYPES, $('fiberTypeBox'), 'fiberType');
-  addChipRow(PATTERNS, $('patternBox'), 'pattern');
 
-  // Colors
-  const colorBox=$('colorBox');
-  COLORS.forEach(c=>{
-    const sw=document.createElement('div'); sw.className='sw'; sw.dataset.value=c.name.toLowerCase();
-    if(c.name==="Gold"){ sw.classList.add('gold'); }
-    else if(c.name==="Silver"){ sw.classList.add('silver'); }
-    else{ sw.style.background=c.hex; if(c.border) sw.style.borderColor=c.border; }
-    const tip=document.createElement('span'); tip.className='tip'; tip.textContent=c.name; sw.appendChild(tip);
-    sw.addEventListener('click',()=>{ toggleCSV('color', c.name); sw.dataset.on = isInCSV('color', c.name) ? 'true' : 'false'; });
-    colorBox.appendChild(sw);
-  });
+  $('q').value = params.get('q')||'';
+  ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','dept','fabricType','fiberType','designer','origin','pattern']
+    .forEach(k=>{ const v=params.get(k); if(v!==null){ $(k).value=v; }});
 
-  /* Clone controls into MOBILE panel */
-  const map = {
-    deptBox:'deptBox',
-    contentBox:'contentBox',
-    colorBox:'colorBox',
-    fabricTypeBox:'fabricTypeBox',
-    fiberTypeBox:'fiberTypeBox',
-    patternBox:'patternBox'
-  };
-  document.querySelectorAll('[data-panel]').forEach(holder=>{
-    const id=holder.getAttribute('data-panel');
-    holder.appendChild($(id).cloneNode(true));
-  });
+  setCheckboxesFromCSV(contentBox, params.get('content')||'');
+  setSwatchesFromCSV(colorBox, params.get('colors')||'');
 
-  /* Selected chips (summary) */
+  /* Chip UI */
   const chipsEl=$('selectedChips');
   function chip(label, key, value){
     const d=document.createElement('span');
     d.className='chip';
     d.textContent=label+': '+value+' ';
     const x=document.createElement('button'); x.type='button'; x.setAttribute('aria-label','Remove '+label); x.textContent='×';
-    x.addEventListener('click',()=>{ removeFromCSV(key,value); syncUIFromParams(); render(); });
-    d.appendChild(x); return d;
+    x.addEventListener('click',()=>{
+      if(key==='content'){
+        const set=new Set((params.get('content')||'').split(',').filter(Boolean)); set.delete(value);
+        if(set.size) params.set('content',[...set].join(',')); else params.delete('content');
+        contentBox.querySelectorAll('input[type="checkbox"]').forEach(cb=>{ if(cb.value===value) cb.checked=false; });
+      }else if(key==='colors'){
+        const set=new Set((params.get('colors')||'').split(',').filter(Boolean)); set.delete(value);
+        if(set.size) params.set('colors',[...set].join(',')); else params.delete('colors');
+        colorBox.querySelectorAll('.sw').forEach(sw=>{ if(sw.dataset.name===value) sw.removeAttribute('data-selected'); });
+      }else{
+        params.delete(key);
+        const el=$(key); if(el){ if(el.tagName==='SELECT'||el.tagName==='INPUT') el.value=''; }
+      }
+      history.replaceState(null,'','?'+params.toString());
+      syncChips(); render();
+    });
+    d.appendChild(x);
+    return d;
   }
   function syncChips(){
     chipsEl.innerHTML='';
     const q=params.get('q'); if(q) chipsEl.appendChild(chip('Search','q',q));
-    ['content','fabricType','fiberType','pattern','dept','color'].forEach(k=>{
-      (params.get(k)||'').split(',').filter(Boolean).forEach(v=>chipsEl.appendChild(chip(k,k,v)));
-    });
-    [['minPrice','Min $/yd'],['maxPrice','Max $/yd'],['minYards','Min yards'],
-     ['minWidth','Min width'],['maxWidth','Max width'],
-     ['minGsm','Min GSM'],['maxGsm','Max GSM'],
-     ['origin','Country'],['designer','Designer']]
-      .forEach(([k,l])=>{ const v=params.get(k); if(v) chipsEl.appendChild(chip(l,k,v)); });
+    (params.get('content')||'').split(',').filter(Boolean).forEach(v=>chipsEl.appendChild(chip('Content','content',v)));
+    (params.get('colors')||'').split(',').filter(Boolean).forEach(v=>chipsEl.appendChild(chip('Color','colors',v)));
+    [
+      ['minPrice','Min $/yd'],['maxPrice','Max $/yd'],
+      ['minYards','Min yards'],
+      ['minWidth','Min width'],['maxWidth','Max width'],
+      ['minGsm','Min GSM'],['maxGsm','Max GSM'],
+      ['dept','Department'],['fabricType','Fabric'],['fiberType','Fiber'],
+      ['designer','Designer'],['origin','Origin'],['pattern','Pattern']
+    ].forEach(([k,label])=>{ const v=params.get(k); if(v) chipsEl.appendChild(chip(label,k,v)); });
   }
+  syncChips();
 
-  /* URL CSV helpers */
-  function isInCSV(k, v){
-    const set=new Set((params.get(k)||'').split(',').filter(Boolean));
-    return set.has(v);
+  /* Live-sync text/select inputs */
+  function live(k){
+    const el=$(k); if(!el) return;
+    el.addEventListener('input',()=>{
+      const val=el.value.trim();
+      if(val) params.set(k,val); else params.delete(k);
+      history.replaceState(null,'','?'+params.toString());
+      syncChips(); render();
+    });
   }
-  function toggleCSV(k, v, force){
-    const set=new Set((params.get(k)||'').split(',').filter(Boolean));
-    if(force===true) set.add(v);
-    else if(force===false) set.delete(v);
-    else if(set.has(v)) set.delete(v); else set.add(v);
-    if(set.size) params.set(k,[...set].join(',')); else params.delete(k);
-    history.replaceState(null,'','?'+params.toString());
-    syncChips();
-  }
-  function removeFromCSV(k,v){
-    const set=new Set((params.get(k)||'').split(',').filter(Boolean));
-    set.delete(v);
-    if(set.size) params.set(k,[...set].join(',')); else params.delete(k);
-    history.replaceState(null,'','?'+params.toString());
-    syncChips();
-  }
+  ['q','minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','dept','fabricType','fiberType','designer','origin','pattern']
+    .forEach(live);
 
-  /* Prepopulate UI from params */
-  function syncUIFromParams(){
-    // checkboxes (Content + FabricType)
-    ['content','fabricType'].forEach(key=>{
-      const set=new Set((params.get(key)||'').split(',').filter(Boolean));
-      document.querySelectorAll(`#${key}Box input[type="checkbox"]`).forEach(cb=>{ cb.checked = set.has(cb.value); });
-      document.querySelectorAll(`[data-panel="${key}Box"] input[type="checkbox"]`).forEach(cb=>{ cb.checked = set.has(cb.value); });
-    });
-    // chips (dept/fiber/pattern)
-    ['dept','fiberType','pattern'].forEach(key=>{
-      const set=new Set((params.get(key)||'').split(',').filter(Boolean));
-      document.querySelectorAll(`#${key}Box .chip`).forEach(b=>{ b.dataset.on = set.has(b.textContent)?'true':'false'; });
-      document.querySelectorAll(`[data-panel="${key}Box"] .chip`).forEach(b=>{ b.dataset.on = set.has(b.textContent)?'true':'false'; });
-    });
-    // colors
-    const col=new Set((params.get('color')||'').split(',').filter(Boolean));
-    document.querySelectorAll('#colorBox .sw').forEach(sw=>{
-      const name=(sw.querySelector('.tip')?.textContent)||'';
-      sw.dataset.on = col.has(name)?'true':'false';
-    });
-    document.querySelectorAll('[data-panel="colorBox"] .sw').forEach(sw=>{
-      const name=(sw.querySelector('.tip')?.textContent)||'';
-      sw.dataset.on = col.has(name)?'true':'false';
-    });
-    // numeric + text
-    ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(k=>{
-      const v=params.get(k)||'';
-      if($(k)) $(k).value=v;
-      const p=$(k+'_p'); if(p) p.value=v;
-    });
-    // country (dropdown)
-    const origin=params.get('origin')||'';
-    if($('origin')) $('origin').value=origin;
-    if($('origin_p')) $('origin_p').value=origin;
-
-    syncChips();
-  }
-  syncUIFromParams();
-
-  // Wire inputs
-  document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ params.set('q', e.target.value.trim()); history.replaceState(null,'','?'+params.toString()); syncChips(); render(); }});
-  ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(k=>{
-    const el=$(k); if(el) el.addEventListener('input',()=>{ const v=el.value.trim(); if(v) params.set(k,v); else params.delete(k); history.replaceState(null,'','?'+params.toString()); syncChips(); });
-    const elp=$(k+'_p'); if(elp) elp.addEventListener('input',()=>{ const v=elp.value.trim(); if($(k)) $(k).value=v; if(v) params.set(k,v); else params.delete(k); history.replaceState(null,'','?'+params.toString()); syncChips(); });
+  /* Checkbox changes (Content) */
+  contentBox.addEventListener('change',()=>{
+    const picked=[...contentBox.querySelectorAll('input[type="checkbox"]:checked')].map(cb=>cb.value).filter(v=>v!=='Any');
+    if(picked.length) params.set('content',picked.join(',')); else params.delete('content');
+    history.replaceState(null,'','?'+params.toString()); syncChips(); render();
   });
-  if($('origin')) $('origin').addEventListener('change',()=>{ const v=$('origin').value; if(v) params.set('origin',v); else params.delete('origin'); history.replaceState(null,'','?'+params.toString()); syncChips(); });
-  if($('origin_p')) $('origin_p').addEventListener('change',()=>{ const v=$('origin_p').value; if($('origin')) $('origin').value=v; if(v) params.set('origin',v); else params.delete('origin'); history.replaceState(null,'','?'+params.toString()); syncChips(); });
 
-  // Desktop apply/clear
-  $('apply').addEventListener('click',()=>{ location.href = location.pathname + '?' + params.toString(); });
-  $('clear').addEventListener('click',()=>{ history.replaceState(null,'',location.pathname); location.reload(); });
+  /* Swatch tap handling — mobile friendly (pointerdown + click) */
+  function toggleSwatch(sw){
+    if(!sw || !sw.classList.contains('sw')) return;
+    if(sw.dataset.selected) sw.removeAttribute('data-selected');
+    else sw.dataset.selected = 'true';
+    const picked=[...colorBox.querySelectorAll('.sw[data-selected="true"]')].map(s=>s.dataset.name);
+    if(picked.length) params.set('colors',picked.join(',')); else params.delete('colors');
+    history.replaceState(null,'','?'+params.toString());
+    syncChips(); render();
+  }
 
-  // Panel open/close + one-open accordion
-  const scrim=$('scrim'), panel=$('filterPanel');
-  function openPanel(){ scrim.classList.add('on'); panel.classList.add('on'); scrim.setAttribute('aria-hidden','false'); document.addEventListener('keydown',trapTab); }
-  function closePanel(){ scrim.classList.remove('on'); panel.classList.remove('on'); scrim.setAttribute('aria-hidden','true'); document.removeEventListener('keydown',trapTab); }
-  $('openFilters').addEventListener('click', openPanel);
-  scrim.addEventListener('click', closePanel);
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && panel.classList.contains('on')) closePanel(); });
-  document.querySelectorAll('.panel details.section summary').forEach(s=>{
-    s.addEventListener('click', ()=>{
-      const d = s.parentElement;
-      if(!d.open){ document.querySelectorAll('.panel details.section').forEach(o=>{ if(o!==d) o.open=false; }); }
-    });
+  colorBox.addEventListener('pointerdown', (e)=>{
+    const sw = e.target.closest('.sw');
+    if(sw){ e.preventDefault(); toggleSwatch(sw); }
+  }, {passive:false});
+
+  colorBox.addEventListener('click', (e)=>{
+    const sw = e.target.closest('.sw');
+    if(sw){ toggleSwatch(sw); }
   });
-  function trapTab(e){
-    if(e.key!=='Tab') return;
-    const f = panel.querySelectorAll('button,[href],input,summary,select,textarea,[tabindex]:not([tabindex="-1"])');
-    const a = Array.from(f).filter(el=>!el.disabled && el.offsetParent!==null);
-    const first=a[0], last=a[a.length-1];
-    if(e.shiftKey && document.activeElement===first){ last.focus(); e.preventDefault(); }
-    else if(!e.shiftKey && document.activeElement===last){ first.focus(); e.preventDefault(); }
-  }
-  // Panel apply/clear
-  $('apply_p').addEventListener('click',()=>{ location.href = location.pathname + '?' + params.toString(); });
-  $('clear_p').addEventListener('click',()=>{ history.replaceState(null,'',location.pathname); location.reload(); });
 
-  /* Results (demo) */
-  const grid=$('grid'), empty=$('empty'), resultCount=$('resultCount');
-  let ALL=[];
-  async function load(){
-    try{
-      const res=await fetch('data/listings.json',{cache:'no-store'});
-      ALL = res.ok ? await res.json() : [];
-    }catch(_){ ALL=[]; }
-    render();
+  /* Ensure no overlay blocks taps on mobile */
+  const filterEl = document.querySelector('.filters');
+  if (filterEl){
+    filterEl.style.pointerEvents = 'auto';
+    filterEl.style.zIndex = 2;
   }
 
+  /* Gather filters -> predicate */
   function toFilters(){
+    const getCSV=(k)=> (params.get(k)||'').split(',').map(s=>s.trim()).filter(Boolean);
     const term=(params.get('q')||'').toLowerCase();
-    const csv=(k)=> new Set((params.get(k)||'').split(',').map(s=>s.trim()).filter(Boolean));
-    const contents=csv('content'), colors=csv('color'), dept=(params.get('dept')||'').toLowerCase(),
-          fabricType=(params.get('fabricType')||'').toLowerCase(), fiberType=(params.get('fiberType')||'').toLowerCase(),
-          origin=(params.get('origin')||'').toLowerCase(), pattern=(params.get('pattern')||'').toLowerCase(),
-          designer=(params.get('designer')||'').toLowerCase();
+    const contents=new Set(getCSV('content'));
+    const colors=new Set(getCSV('colors'));
     const num=(k)=>{ const v=params.get(k); return v==null||v===''?null:Number(v); };
-    const pmin=num('minPrice'), pmax=num('maxPrice'), ymin=num('minYards'),
-          wmin=num('minWidth'), wmax=num('maxWidth'), gmin=num('minGsm'), gmax=num('maxGsm');
+    const minPrice=num('minPrice'), maxPrice=num('maxPrice');
+    const minYards=num('minYards');
+    const minWidth=num('minWidth'), maxWidth=num('maxWidth');
+    const minGsm=num('minGsm'), maxGsm=num('maxGsm');
+    const dept=(params.get('dept')||'').toLowerCase();
+    const fabricType=(params.get('fabricType')||'').toLowerCase();
+    const fiberType=(params.get('fiberType')||'').toLowerCase();
+    const designer=(params.get('designer')||'').toLowerCase();
+    const origin=(params.get('origin')||'').toLowerCase();
+    const pattern=(params.get('pattern')||'').toLowerCase();
 
-    return (it)=>{
-      if(term && !((it.title||'').toLowerCase().includes(term) || (it.designer||'').toLowerCase().includes(term))) return false;
-      if(contents.size){ const lc=(it.content||[]).map(s=>s.toLowerCase()); if(![...contents].some(c=>lc.includes(c))) return false; }
-      if(colors.size && !colors.has((it.color||'').toLowerCase())) return false;
-      if(dept && (it.dept||'').toLowerCase()!==dept) return false;
-      if(fabricType && (it.fabricType||'').toLowerCase()!==fabricType) return false;
-      if(fiberType && (it.fiberType||'').toLowerCase()!==fiberType) return false;
-      if(origin && (it.origin||'').toLowerCase()!==origin) return false;
-      if(pattern && (it.pattern||'').toLowerCase()!==pattern) return false;
-      if(designer && !((it.designer||'').toLowerCase().includes(designer))) return false;
-      if(pmin!=null && (it.price||0) < pmin) return false;
-      if(pmax!=null && (it.price||0) > pmax) return false;
-      if(ymin!=null && (it.yards||0) < ymin) return false;
-      if(wmin!=null && (it.width||0) < wmin) return false;
-      if(wmax!=null && (it.width||9999) > wmax) return false;
-      if(gmin!=null && (it.gsm||0) < gmin) return false;
-      if(gmax!=null && (it.gsm||9999) > gmax) return false;
+    return (item)=>{
+      if(term){
+        const hay=(item.title+' '+(item.designer||'')).toLowerCase();
+        if(!hay.includes(term)) return false;
+      }
+      if(contents.size){
+        const lc = item.content.map(s=>s.toLowerCase());
+        const has = [...contents].some(c=> lc.includes(c.toLowerCase()));
+        if(!has) return false;
+      }
+      if(colors.size && !colors.has(item.color)) return false;
+      if(minPrice!=null && item.price < minPrice) return false;
+      if(maxPrice!=null && item.price > maxPrice) return false;
+      if(minYards!=null && item.yards < minYards) return false;
+      if(minWidth!=null && item.width < minWidth) return false;
+      if(maxWidth!=null && item.width > maxWidth) return false;
+      if(minGsm!=null && item.gsm < minGsm) return false;
+      if(maxGsm!=null && item.gsm > maxGsm) return false;
+      if(dept && item.dept.toLowerCase()!==dept) return false;
+      if(fabricType && item.fabricType.toLowerCase()!==fabricType) return false;
+      if(fiberType && item.fiberType.toLowerCase()!==fiberType) return false;
+      if(designer && !(item.designer||'').toLowerCase().includes(designer)) return false;
+      if(origin && (item.origin||'').toLowerCase()!==origin) return false;
+      if(pattern && (item.pattern||'').toLowerCase()!==pattern) return false;
+
       return true;
     };
   }
 
+  /* Render results */
+  const grid=document.getElementById('grid');
+  const empty=document.getElementById('empty');
+  const resultCount=document.getElementById('resultCount');
+
+  let ALL=[];
+  async function load(){
+    try{
+      const res=await fetch('data/listings.json');
+      ALL=await res.json();
+    }catch(e){
+      console.error('Failed to load data/listings.json', e);
+      ALL=[];
+    }
+    render();
+  }
+
   function render(){
-    const list = ALL.filter(toFilters());
-    resultCount.textContent = list.length + (list.length===1 ? ' result' : ' results');
+    const match=ALL.filter(toFilters());
+    resultCount.textContent = match.length + (match.length===1 ? ' result' : ' results');
     grid.innerHTML='';
-    if(list.length===0){ empty.style.display='block'; return; }
+    if(match.length===0){ empty.style.display='block'; return; }
     empty.style.display='none';
-    list.forEach(it=>{
+    match.forEach(it=>{
       const a=document.createElement('article'); a.className='card';
       a.innerHTML=`
-        <div class="ph"></div>
+        <div class="ph">${it.photo ? '' : 'photo'}</div>
         <div class="meta">
-          <div class="title">${it.title||''}</div>
-          <div class="sub"><span>${it.origin||''}</span><span>${it.width||'–'}″ • ${it.gsm||'–'} GSM</span></div>
+          <div class="title">${it.title}</div>
+          <div class="sub"><span>$${it.price}/yd</span><span>${it.width}″ • ${it.gsm} GSM</span></div>
         </div>`;
       grid.appendChild(a);
     });
   }
 
-  $('yr').textContent = new Date().getFullYear();
+  /* Buttons */
+  document.getElementById('apply').addEventListener('click',()=>{
+    location.href = location.pathname + '?' + params.toString();
+  });
+  document.getElementById('clear').addEventListener('click',()=>{
+    history.replaceState(null,'',location.pathname);
+    location.reload();
+  });
+  document.getElementById('doSearch').addEventListener('click',()=>{
+    params.set('q', document.getElementById('q').value.trim());
+    history.replaceState(null,'','?'+params.toString());
+    render();
+  });
+
   load();
 })();
 </script>
