@@ -29,12 +29,15 @@
   .sell-wrap{max-width:1100px;margin:14px auto;padding:0 12px}
   h1{margin:0 0 10px}
 
-  /* Wizard chips */
-  .chips{display:flex;gap:8px;overflow:auto;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+  /* Wizard chips + progress */
+  .topbar{display:flex;align-items:center;gap:10px}
+  .chips{display:flex;gap:8px;overflow:auto;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 6px 16px rgba(0,0,0,.06);flex:1}
   .chip{white-space:nowrap;display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 12px;font-weight:700;color:#374151}
   .chip[aria-current="step"]{border-color:var(--accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
   .dot{width:10px;height:10px;border-radius:999px;background:#d1d5db}
   .chip[aria-current="step"] .dot{background:var(--accent)}
+  .progress{height:6px;background:#f3f4f6;border-radius:999px;overflow:hidden;margin-top:8px}
+  .progress > i{display:block;height:100%;width:0;background:var(--accent)}
 
   /* Panels */
   .panel{display:none;margin-top:10px;border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff;box-shadow:0 6px 16px rgba(0,0,0,.06)}
@@ -47,18 +50,20 @@
   .shots{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   @media (max-width:680px){ .shots{grid-template-columns:1fr 1fr} .shots .slot:last-child{grid-column:1 / -1} }
   .slot{position:relative;border:2px dashed var(--border);border-radius:12px;min-height:200px;display:grid;place-items:center;background:#f8fafc;color:#6b7280;overflow:hidden}
+  .slot[draggable="true"]{cursor:grab}
+  .slot.drag{border-color:var(--accent);background:#fff}
   .slot input{display:none}
   .slot .hint{font-size:13px;text-align:center;padding:10px}
   .slot .badge{position:absolute;top:8px;left:8px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:4px 8px;font-size:12px;font-weight:700}
+  .slot .handle{position:absolute;bottom:8px;left:8px;font-size:12px;background:#fff;border:1px solid var(--border);padding:2px 6px;border-radius:8px}
   .slot img{width:100%;height:100%;object-fit:cover}
   .slot .tools{position:absolute;top:8px;right:8px;display:flex;gap:6px}
   .slot .btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer}
-  .slot.drag{border-color:var(--accent);background:#fff}
 
   /* Tips card */
   .tips{border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff}
   .tips h3{margin:0 0 6px;font-size:16px}
-  .tips ul{margin:0 0 10px 18px;color:#374151}
+  .tips ul{margin:0 10px 10px 22px;color:#374151}
   .tips a{color:var(--accent);font-weight:700;text-decoration:none}
   .mini-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
   .mini{border:1px solid var(--border);border-radius:10px;padding:8px;background:#fafafa}
@@ -92,6 +97,7 @@
 
   .success{display:none;border-left:4px solid var(--ok);background:#ecfdf5;padding:10px;border-radius:10px;margin-top:10px}
   .success.show{display:block}
+  .autosave{font-size:12px;color:var(--muted);margin-left:8px}
 </style>
 </head>
 <body>
@@ -109,35 +115,35 @@
 <main class="sell-wrap" id="sellApp">
   <h1>Create a new listing</h1>
 
-  <!-- Wizard chips -->
-  <nav class="chips" id="chips" aria-label="Steps">
-    <button class="chip" data-step="0" aria-current="step"><span class="dot"></span> Photos</button>
-    <button class="chip" data-step="1"><span class="dot"></span> Basics</button>
-    <button class="chip" data-step="2"><span class="dot"></span> Details</button>
-    <button class="chip" data-step="3"><span class="dot"></span> Price & Shipping</button>
-    <button class="chip" data-step="4"><span class="dot"></span> Preview & Publish</button>
-  </nav>
+  <div class="topbar">
+    <nav class="chips" id="chips" aria-label="Steps">
+      <button class="chip" data-step="0" aria-current="step"><span class="dot"></span> Photos</button>
+      <button class="chip" data-step="1"><span class="dot"></span> Basics</button>
+      <button class="chip" data-step="2"><span class="dot"></span> Details</button>
+      <button class="chip" data-step="3"><span class="dot"></span> Price & Shipping</button>
+      <button class="chip" data-step="4"><span class="dot"></span> Preview & Publish</button>
+    </nav>
+    <span class="autosave" id="autosave">Draft not saved</span>
+  </div>
+  <div class="progress"><i id="prog"></i></div>
 
-  <!-- Step 0: Photos (restored three-shot flow, ruler link, directions) -->
+  <!-- Step 0: Photos (3-shot flow, ruler link, directions) -->
   <section class="panel active" data-panel="0">
     <div class="two-col">
       <div>
         <div class="shots" id="shots">
-          <!-- COVER -->
-          <div class="slot" data-idx="0">
-            <div class="badge">Cover</div>
+          <div class="slot" data-idx="0" draggable="true">
+            <div class="badge">Cover</div><div class="handle">⇅ drag to reorder</div>
             <input type="file" accept="image/*"/>
             <div class="hint"><strong>Front-on</strong><br/>Good lighting, full piece visible.<br/><em>Click or drop photo</em></div>
           </div>
-          <!-- CLOSE-UP -->
-          <div class="slot" data-idx="1">
-            <div class="badge">Close-up</div>
+          <div class="slot" data-idx="1" draggable="true">
+            <div class="badge">Close-up</div><div class="handle">⇅ drag to reorder</div>
             <input type="file" accept="image/*"/>
             <div class="hint"><strong>Texture & weave</strong><br/>Fill the frame.<br/><em>Click or drop photo</em></div>
           </div>
-          <!-- MEASUREMENT -->
-          <div class="slot" data-idx="2">
-            <div class="badge">Measurement</div>
+          <div class="slot" data-idx="2" draggable="true">
+            <div class="badge">Measurement</div><div class="handle">⇅ drag to reorder</div>
             <input type="file" accept="image/*"/>
             <div class="hint"><strong>With a ruler</strong><br/>Show width or motif scale.<br/><em>Click or drop photo</em></div>
           </div>
@@ -355,15 +361,17 @@
 (function(){
   const $ = (id)=>document.getElementById(id);
 
-  /* ----- Wizard nav ----- */
+  /* ----- Wizard nav + progress ----- */
   const chips=[...document.querySelectorAll('.chip')];
   const panels=[...document.querySelectorAll('[data-panel]')];
+  const prog=$('prog');
   let step=0;
 
   function setStep(n){
     step=n;
     chips.forEach((c,i)=>c.setAttribute('aria-current', i===n ? 'step':'false'));
     panels.forEach((p,i)=>p.classList.toggle('active', i===n));
+    prog.style.width = (n/(panels.length-1))*100 + '%';
     window.scrollTo({top:0,behavior:'smooth'});
     if(n===4) renderReview();
   }
@@ -380,65 +388,113 @@
   $('back3').addEventListener('click',()=>setStep(2));
   $('back4').addEventListener('click',()=>setStep(3));
 
-  /* ----- Three-slot uploader (click or drag & drop) ----- */
-  const state={ photos:[null,null,null] }; // each {src}
-  const KEY='hm.sell.v2.draft';
+  /* ----- Three-slot uploader: drag+drop, reorder, canvas compress, EXIF strip (by re-encode) ----- */
+  const MAX_W = 1600;       // compress width
+  const JPEG_Q = 0.85;      // quality
+  const state={ photos:[null,null,null] }; // {src,dataUrl}
+  const shotsWrap = $('shots');
 
-  function bindSlot(slot){
-    const input=slot.querySelector('input[type=file]');
-    const idx=Number(slot.dataset.idx);
+  // helpers
+  async function fileToDataURL(file){
+    const img = await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); });
+    // draw to canvas (strips EXIF), scale down
+    const scale = Math.min(1, MAX_W / img.width);
+    const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,w,h);
+    const data=c.toDataURL('image/jpeg', JPEG_Q);
+    URL.revokeObjectURL(img.src);
+    return data;
+  }
 
-    function loadFile(file){
-      if(!file) return;
-      const url=URL.createObjectURL(file);
-      state.photos[idx] = {src:url};
-      slot.innerHTML = `
-        <div class="badge">${idx===0?'Cover':idx===1?'Close-up':'Measurement'}</div>
-        <img src="${url}" alt="photo ${idx+1}"/>
-        <div class="tools">
-          <button type="button" class="btn" data-act="replace">Replace</button>
-          <button type="button" class="btn" data-act="remove">Remove</button>
-        </div>
-        <input type="file" accept="image/*" style="display:none"/>
-      `;
-      slot.querySelector('[data-act="replace"]').addEventListener('click',()=>slot.querySelector('input').click());
-      slot.querySelector('[data-act="remove"]').addEventListener('click',()=>{
-        URL.revokeObjectURL(url);
-        state.photos[idx]=null;
-        resetSlot(slot, idx);
-      });
-      slot.querySelector('input').addEventListener('change',e=>{
-        const f=e.target.files?.[0]; if(f){ URL.revokeObjectURL(url); loadFile(f); }
-      });
-    }
-
-    input.addEventListener('change',e=>{
-      const file=e.target.files?.[0]; loadFile(file);
+  function paintSlot(slot, idx, dataUrl){
+    slot.innerHTML = `
+      <div class="badge">${idx===0?'Cover':idx===1?'Close-up':'Measurement'}</div>
+      <div class="handle">⇅ drag to reorder</div>
+      <img src="${dataUrl}" alt="photo ${idx+1}"/>
+      <div class="tools">
+        <button type="button" class="btn" data-act="replace">Replace</button>
+        <button type="button" class="btn" data-act="remove">Remove</button>
+      </div>
+      <input type="file" accept="image/*" style="display:none"/>
+    `;
+    // actions
+    slot.querySelector('[data-act="replace"]').addEventListener('click',()=>slot.querySelector('input').click());
+    slot.querySelector('[data-act="remove"]').addEventListener('click',()=>{
+      state.photos[idx]=null; resetSlot(slot, idx);
+      markAutosaveDirty();
     });
-
-    ['dragenter','dragover'].forEach(ev=>{
-      slot.addEventListener(ev,(e)=>{e.preventDefault();slot.classList.add('drag');});
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      slot.addEventListener(ev,(e)=>{e.preventDefault();slot.classList.remove('drag');});
-    });
-    slot.addEventListener('drop',(e)=>{
-      const file=e.dataTransfer.files?.[0]; loadFile(file);
-    });
-    slot.addEventListener('click',()=>{
-      if(!state.photos[idx]) input.click();
+    slot.querySelector('input').addEventListener('change',async e=>{
+      const f=e.target.files?.[0]; if(!f) return;
+      const du = await fileToDataURL(f);
+      state.photos[idx] = {src:du};
+      paintSlot(slot, idx, du);
+      markAutosaveDirty();
     });
   }
 
   function resetSlot(slot, idx){
     slot.innerHTML = `
       <div class="badge">${idx===0?'Cover':idx===1?'Close-up':'Measurement'}</div>
+      <div class="handle">⇅ drag to reorder</div>
       <input type="file" accept="image/*"/>
-      <div class="hint"><strong>${idx===0?'Front-on':''
-        || idx===1?'Texture & weave':'With a ruler'}</strong><br/>${idx===0?'Good lighting, full piece visible.'
-        : idx===1?'Fill the frame.':'Show width or motif scale.'}<br/><em>Click or drop photo</em></div>
+      <div class="hint"><strong>${idx===0?'Front-on': idx===1?'Texture & weave':'With a ruler'}</strong><br/>${idx===0?'Good lighting, full piece visible.': idx===1?'Fill the frame.':'Show width or motif scale.'}<br/><em>Click or drop photo</em></div>
     `;
     bindSlot(slot);
+  }
+
+  function bindSlot(slot){
+    const idx = Number(slot.dataset.idx);
+    const input = slot.querySelector('input[type=file]');
+
+    slot.addEventListener('click',e=>{
+      if(e.target.tagName!=='BUTTON' && !state.photos[idx]) input.click();
+    });
+    input.addEventListener('change', async e=>{
+      const f=e.target.files?.[0]; if(!f) return;
+      const du=await fileToDataURL(f);
+      state.photos[idx] = {src:du};
+      paintSlot(slot, idx, du);
+      markAutosaveDirty();
+    });
+
+    // drag & drop files
+    ['dragenter','dragover'].forEach(ev=>{
+      slot.addEventListener(ev,(e)=>{e.preventDefault();slot.classList.add('drag');});
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      slot.addEventListener(ev,(e)=>{e.preventDefault();slot.classList.remove('drag');});
+    });
+    slot.addEventListener('drop', async (e)=>{
+      const f=e.dataTransfer.files?.[0]; if(!f) return;
+      const du=await fileToDataURL(f);
+      state.photos[idx]={src:du}; paintSlot(slot, idx, du); markAutosaveDirty();
+    });
+
+    // drag re-order between slots
+    slot.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', idx.toString());
+      setTimeout(()=>slot.classList.add('drag'),0);
+    });
+    slot.addEventListener('dragend', ()=>slot.classList.remove('drag'));
+    slot.addEventListener('dragover', e=>e.preventDefault());
+    slot.addEventListener('drop', e=>{
+      e.preventDefault();
+      const from = Number(e.dataTransfer.getData('text/plain'));
+      const to = idx;
+      if(from===to) return;
+      const tmp = state.photos[from];
+      state.photos[from] = state.photos[to];
+      state.photos[to] = tmp;
+      // repaint both
+      const slots=[...shotsWrap.querySelectorAll('.slot')];
+      [from,to].forEach(i=>{
+        const s=slots[i];
+        if(state.photos[i]) paintSlot(s,i,state.photos[i].src);
+        else resetSlot(s,i);
+      });
+      markAutosaveDirty();
+    });
   }
 
   document.querySelectorAll('.slot').forEach(bindSlot);
@@ -476,12 +532,50 @@
     return !!price;
   }
 
-  /* ----- Drafts ----- */
-  $('saveDraft').addEventListener('click', ()=>{
-    const draft = collectState(true);
-    localStorage.setItem(KEY, JSON.stringify(draft));
-    alert('Draft saved.');
-  });
+  /* ----- Drafts: manual + autosave ----- */
+  const KEY='hm.sell.v3.draft';
+  const autosaveEl=$('autosave');
+  let dirty=false, autosaveTimer=null;
+
+  function markAutosaveDirty(){
+    dirty=true;
+    autosaveEl.textContent='Unsaved changes…';
+  }
+  document.addEventListener('input', markAutosaveDirty, {capture:true});
+
+  function collectState(includePhotos=false){
+    const s = {
+      title:$('title')?.value.trim()||'',
+      dept:$('dept')?.value.trim()||'',
+      desc:$('desc')?.value.trim()||'',
+      content:$('content')?.value.trim()||'',
+      fabricType:$('fabricType')?.value.trim()||'',
+      color:$('color')?.value.trim()||'',
+      pattern:$('pattern')?.value.trim()||'',
+      width:$('width')?.value.trim()||'',
+      gsm:$('gsm')?.value.trim()||'',
+      yards:$('yards')?.value.trim()||'',
+      origin:$('origin')?.value.trim()||'',
+      designer:$('designer')?.value.trim()||'',
+      price:$('price')?.value.trim()||'',
+      handling:$('handling')?.value.trim()||'',
+      shipProfile:$('shipProfile')?.value.trim()||'',
+      notes:$('notes')?.value.trim()||''
+    };
+    if(includePhotos) s.photos = state.photos.map(p=>p?.src||null);
+    return s;
+  }
+
+  function doAutosave(){
+    if(!dirty) return;
+    localStorage.setItem(KEY, JSON.stringify(collectState(true)));
+    dirty=false;
+    const t=new Date();
+    autosaveEl.textContent='Draft saved at ' + t.toLocaleTimeString();
+  }
+  autosaveTimer = setInterval(doAutosave, 5000);
+
+  $('saveDraft').addEventListener('click', ()=>{ doAutosave(); alert('Draft saved.'); });
   $('loadDraft').addEventListener('click', ()=>{
     const raw = localStorage.getItem(KEY);
     if(!raw) return alert('No draft found.');
@@ -491,61 +585,20 @@
       .forEach(id=>{ const el=$(id); if(el && d[id]!=null) el.value=d[id]; });
     // photos
     state.photos = [null,null,null];
-    document.querySelectorAll('.slot').forEach((slot,i)=>{
-      resetSlot(slot,i);
+    const slots=[...shotsWrap.querySelectorAll('.slot')];
+    slots.forEach((s,i)=>{
       if(d.photos && d.photos[i]){
-        // simulate load from data url
-        const url = d.photos[i];
-        state.photos[i] = {src:url};
-        slot.innerHTML = `
-          <div class="badge">${i===0?'Cover':i===1?'Close-up':'Measurement'}</div>
-          <img src="${url}" alt="photo ${i+1}"/>
-          <div class="tools">
-            <button type="button" class="btn" data-act="replace">Replace</button>
-            <button type="button" class="btn" data-act="remove">Remove</button>
-          </div>
-          <input type="file" accept="image/*" style="display:none"/>
-        `;
-        slot.querySelector('[data-act="replace"]').addEventListener('click',()=>slot.querySelector('input').click());
-        slot.querySelector('[data-act="remove"]').addEventListener('click',()=>{
-          state.photos[i]=null; resetSlot(slot,i);
-        });
-        slot.querySelector('input').addEventListener('change',e=>{
-          const f=e.target.files?.[0]; if(f){ const nu=URL.createObjectURL(f); state.photos[i]={src:nu}; slot.querySelector('img').src=nu; }
-        });
-      }
+        state.photos[i]={src:d.photos[i]}; paintSlot(s,i,d.photos[i]);
+      }else resetSlot(s,i);
     });
-    alert('Draft loaded.');
+    autosaveEl.textContent='Draft loaded';
+    dirty=false;
   });
   $('clearDraft').addEventListener('click', ()=>{
     localStorage.removeItem(KEY);
-    alert('Draft cleared.');
+    autosaveEl.textContent='Draft cleared';
+    dirty=false;
   });
-
-  function collectState(includePhotos=false){
-    const s = {
-      title:$('title').value.trim(),
-      dept:$('dept').value.trim(),
-      desc:$('desc').value.trim(),
-      content:$('content').value.trim(),
-      fabricType:$('fabricType').value.trim(),
-      color:$('color').value.trim(),
-      pattern:$('pattern').value.trim(),
-      width:$('width').value.trim(),
-      gsm:$('gsm').value.trim(),
-      yards:$('yards').value.trim(),
-      origin:$('origin').value.trim(),
-      designer:$('designer').value.trim(),
-      price:$('price').value.trim(),
-      handling:$('handling').value.trim(),
-      shipProfile:$('shipProfile').value.trim(),
-      notes:$('notes').value.trim()
-    };
-    if(includePhotos){
-      s.photos = state.photos.map(p=>p?.src||null);
-    }
-    return s;
-  }
 
   /* ----- Review + Publish ----- */
   function renderReview(){
@@ -578,7 +631,7 @@
   }
 
   $('publishBtn').addEventListener('click', ()=>{
-    // In production: POST to your serverless endpoint.
+    // In production: POST to serverless endpoint (images first → storage, then metadata row).
     $('publishSuccess').classList.add('show');
   });
 
