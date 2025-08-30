@@ -1,672 +1,149 @@
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hemline Market — Find your next fabric creation</title>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Hemline Market — Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <style>
+    /* --- Minimal reset --- */
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    img{max-width:100%;display:block}
+    button,input,select{font:inherit}
+    a{color:inherit;text-decoration:none}
 
-<!-- Your existing styles -->
-<!-- Shared styles you already ship -->
-<link rel="stylesheet" href="styles/hm-modern.css"/>
-<link rel="stylesheet" href="styles/hem-header.css"/>
-<link rel="stylesheet" href="styles/hm-typography.css"/>
-@@ -20,6 +20,7 @@
---hm-chip:#ffffff;
-}
+    :root{
+      --bg:#ffffff;
+      --text:#111111;
+      --muted:#666666;
+      --line:#e9e9e9;
+      --chip:#f5f5f5;
+      --chip-border:#d9d9d9;
+      --brand:#111111;
+      --accent:#0b72ff;
+      --danger:#e44343;
+      --radius:14px;
+      --safe-bottom:env(safe-area-inset-bottom,0px);
+      --safe-top:env(safe-area-inset-top,0px);
+    }
+    body{
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background:var(--bg);
+      min-height:100dvh;
+      display:flex;
+      flex-direction:column;
+    }
 
-  /* Page background (home only) */
-body{
-margin:0;
-background:url("images/homepage.jpeg") center/cover fixed no-repeat;
-@@ -28,7 +29,7 @@
--webkit-font-smoothing:antialiased;
-}
+    /* --- Sticky header --- */
+    .header{
+      position:sticky; top:0; z-index:20;
+      background:var(--bg);
+      border-bottom:1px solid var(--line);
+      padding: calc(8px + var(--safe-top)) 12px 8px 12px;
+    }
+    .row{display:flex;align-items:center;gap:10px}
+    .grow{flex:1}
+    .logo{font-weight:700;letter-spacing:.3px}
+    .icon-btn{
+      width:36px;height:36px;border-radius:12px;border:1px solid var(--line);
+      display:inline-grid;place-items:center;background:#fff;
+    }
+    .icon{width:18px;height:18px;display:block}
 
-  /* Header (kept minimal to match working version) */
-  /* Header uses your shared CSS; light border for clarity */
-.hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
-.hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
-.hm-header .left{display:flex;align-items:center;gap:10px}
-@@ -50,88 +51,98 @@
-.sheet nav a + a{margin-top:8px}
-.sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
+    .search{
+      display:flex;align-items:center;gap:8px;
+      border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff;
+    }
+    .search input{border:0;outline:0;width:100%}
 
-  /* Hero */
-  .hero-wrap{max-width:1200px;margin:14px auto 0;padding:0 12px}
-  .hero-card{background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 14px rgba(0,0,0,.10);padding:10px}
-  .home-hero h1{font-size:24px;margin:0 0 4px;font-weight:800}
-  .home-hero p{margin:0 0 6px;color:var(--hm-muted);font-size:14px}
+    /* --- Horizontal chip rail --- */
+    .rail{
+      display:flex;gap:8px;overflow:auto;padding:10px 12px;border-bottom:1px solid var(--line);
+      scroll-snap-type:x proximity;
+    }
+    .chip{
+      white-space:nowrap; padding:8px 12px; background:var(--chip);
+      border:1px solid var(--chip-border); border-radius:999px; font-size:14px;
+      scroll-snap-align:start;
+    }
+    .chip--dark{background:var(--text);color:#fff;border-color:var(--text)}
 
-  .search-card{display:grid;grid-template-columns:120px 1fr auto;gap:6px;margin-bottom:6px}
-  .search-card select,.search-card input{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
-  .search-card button{padding:8px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700}
-  @media (max-width:640px){ .search-card{grid-template-columns:1fr;gap:6px} }
+    main{flex:1; display:flex; flex-direction:column}
+    .section{padding:12px}
+    .section h2{font-size:18px;margin:6px 0 10px 0}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .card{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
+    .card .img{aspect-ratio:1/1;background:#f3f3f3}
+    .card .meta{padding:8px}
+    .price{font-weight:700}
+    .sub{color:var(--muted);font-size:12px}
+    .card-actions{display:flex;gap:8px;margin-top:8px}
+    .btn{display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:#fff}
+    .btn--heart[aria-pressed="true"]{border-color:#ff7b7b;background:#ffecec}
 
-  /* Filter chips */
-  .chip-row{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-top:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .chip-row::-webkit-scrollbar{display:none}
-  .chip{display:inline-flex;align-items:center;background:var(--hm-chip);border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;color:#374151;text-decoration:none;white-space:nowrap;cursor:pointer;font-weight:700;font-size:13px}
-  .chip[aria-pressed="true"]{border-color:var(--hm-accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
+    .tabbar{
+      position:sticky;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--line);
+      padding:8px 10px calc(8px + var(--safe-bottom)) 10px;
+    }
+    .tabs{display:flex;justify-content:space-between}
+    .tab{flex:1; text-align:center; font-size:12px; color:#333}
+    .tab .icon{margin: 0 auto 4px auto}
 
-  /* Panel stack */
-  .panel-stack{margin-top:6px;display:grid;gap:8px}
-  .filter-panel{display:none;background:rgba(255,255,255,.98);border:1px solid var(--hm-border);border-radius:12px;padding:8px}
-  .filter-panel.open{display:block}
-  .filter-panel .title{font-size:12px;color:#374151;margin:0 0 6px 2px;font-weight:700}
-  .row-inline{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-  .field{display:flex;flex-direction:column;gap:2px}
-  .field label{font-size:12px;color:#374151}
-  .field input,.field select{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
-
-  /* Content checklist (compact) */
-  .content-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
-  .check-chip{display:flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:10px;padding:6px 8px;background:#fff;font-size:12px;cursor:pointer}
-  .check-chip input{width:14px;height:14px}
-  .content-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .content-actions input[type="search"]{flex:1;padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
-
-  /* Color swatches (2–3 rows, hover name) */
-  .color-row{display:flex;gap:6px;flex-wrap:wrap}
-  .sw{position:relative;width:28px;height:28px;border-radius:6px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);cursor:pointer}
-  .sw[data-selected="true"]{outline:2px solid var(--hm-accent);outline-offset:2px}
-  .sw .tip{position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:9999}
-  .sw:hover .tip{opacity:1}
-  /* ===== Home page scoped styles ===== */
-  .home-page .hero-wrap{max-width:1200px;margin:14px auto 0;padding:0 12px}
-  .home-page .hero-card{background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 14px rgba(0,0,0,.10);padding:12px}
-
-  .home-page .home-hero h1{font-size:22px;margin:0 0 4px;font-weight:800}
-  .home-page .home-hero p{margin:0 0 8px;color:var(--hm-muted);font-size:13px}
-
-  /* Search row */
-  .home-page .search-card{display:grid;grid-template-columns:120px 1fr auto;gap:8px;margin-bottom:10px}
-  .home-page .search-card select,
-  .home-page .search-card input{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
-  .home-page .search-card button{padding:8px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700}
-  @media (max-width:760px){ .home-page .search-card{grid-template-columns:1fr;gap:6px} }
-
-  /* 1/5 width filter tabs (always five columns) */
-  .home-page .tab-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:8px}
-  .home-page .tab{display:flex;align-items:center;justify-content:center;height:36px;border:1.5px solid var(--hm-border);border-radius:999px;background:#fff;font-weight:700;font-size:13px;color:#374151;cursor:pointer;user-select:none}
-  .home-page .tab:after{content:"+";margin-left:6px;font-weight:900;color:#6b7280}
-  .home-page .tab[aria-expanded="true"]{border-color:var(--hm-accent);box-shadow:0 0 0 2px rgba(153,27,27,.10)}
-  .home-page .tab[aria-expanded="true"]:after{content:"–"}
-
-  /* Panels below each tab (multi-open allowed) */
-  .home-page .panel-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-  .home-page .panel{display:none;background:rgba(255,255,255,.98);border:1px solid var(--hm-border);border-radius:12px;padding:8px;min-height:54px}
-  .home-page .panel.open{display:block}
-
-  /* Content checklist (compact, single column with internal scroll) */
-  .home-page .content-panel .list{max-height:160px;overflow:auto;padding:4px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
-  .home-page .check{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px dashed #f1f5f9}
-  .home-page .check:last-child{border-bottom:0}
-  .home-page .check input{width:14px;height:14px}
-  .home-page .check label{font-size:12px;color:#374151}
-
-  /* Color chips: 3 rows max under the Color column; with tooltip + selected outline */
-  .home-page .color-grid{display:grid;grid-template-columns:repeat(8,24px);gap:6px;align-items:center}
-  .home-page .sw{position:relative;width:24px;height:24px;border-radius:6px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);cursor:pointer}
-  .home-page .sw[data-selected="true"]{outline:2px solid var(--hm-accent);outline-offset:2px}
-  .home-page .sw .tip{position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:10}
-  .home-page .sw:hover .tip{opacity:1}
-  /* Gold/Silver sheen */
-  .home-page .sw[data-name="Gold"]{background:linear-gradient(135deg,#d4b870 0%,#f0dc97 50%,#ceb86b 100%)}
-  .home-page .sw[data-name="Silver"]{background:linear-gradient(135deg,#bfc6cf 0%,#e6eaef 50%,#a9b0ba 100%)}
-
-  /* Inputs within panels */
-  .home-page .row{display:flex;gap:8px;flex-wrap:wrap}
-  .home-page .field{display:flex;flex-direction:column;gap:4px}
-  .home-page .field label{font-size:12px;color:#374151}
-  .home-page .field input,.home-page .field select{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px;min-width:120px}
-
-/* Global actions */
-  .global-actions{display:flex;justify-content:flex-end;gap:6px}
-  .btn{padding:6px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;color:#374151;cursor:pointer;font-size:13px}
-  .btn-primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
-
-  /* Main layout (cards etc.) */
-  .layout{max-width:1200px;margin:12px auto 0;padding:0 12px}
-  .section h2{margin:0 0 8px;font-size:18px}
-  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-  @media (max-width:900px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
-  @media (max-width:560px){ .grid{grid-template-columns:1fr} }
-  .card{background:rgba(255,255,255,.96);border:1px solid var(--hm-border);border-radius:12px;overflow:hidden;text-decoration:none;color:#1f2937}
-  .thumb{aspect-ratio:4/3;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#6b7280}
-  .info{padding:8px 10px}
-  .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:14px;color:#6b7280}
-  .price{font-weight:800;color:#111827}
-  .seller{display:flex;align-items:center;gap:6px}
-  .seller .av{width:20px;height:20px;border-radius:999px;border:1px solid var(--hm-border);display:grid;place-items:center;font-size:10px;font-weight:800;background:#fff;color:#374151}
-
-  .below-rails{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  @media (max-width:900px){ .below-rails{grid-template-columns:1fr;gap:10px} }
-  .panel{background:rgba(255,255,255,.94);border:1px solid var(--hm-border);border-radius:12px}
-  .panel header{padding:8px 10px;border-bottom:1px solid var(--hm-border);font-weight:700}
-  .panel .panel-body{padding:8px 10px}
-  .likes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .likes-grid .like{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px}
-  .likes-footer{margin-top:6px;text-align:right}
-  .likes-footer a{font-size:12px;color:#374151;text-decoration:none}
-  .recent-list{display:grid;gap:6px}
-  .recent-item{display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center}
-  .recent-thumb{width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border)}
-  .recent-meta{font-size:12px;color:#374151}
-  .recent-meta .name{font-weight:700;color:#111827}
-
-  .home-page .global-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
-  .home-page .btn{padding:6px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;color:#374151;cursor:pointer;font-size:13px}
-  .home-page .btn-primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
-
-  /* Main sections */
-  .home-page .layout{max-width:1200px;margin:12px auto 0;padding:0 12px}
-  .home-page .section h2{margin:0 0 8px;font-size:18px}
-  .home-page .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-  @media (max-width:900px){ .home-page .grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
-  @media (max-width:560px){ .home-page .grid{grid-template-columns:1fr} }
-  .home-page .card{background:rgba(255,255,255,.96);border:1px solid var(--hm-border);border-radius:12px;overflow:hidden;text-decoration:none;color:#1f2937}
-  .home-page .thumb{aspect-ratio:4/3;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#6b7280}
-  .home-page .info{padding:8px 10px}
-  .home-page .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .home-page .meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:14px;color:#6b7280}
-  .home-page .price{font-weight:800;color:#111827}
-  .home-page .seller{display:flex;align-items:center;gap:6px}
-  .home-page .seller .av{width:20px;height:20px;border-radius:999px;border:1px solid var(--hm-border);display:grid;place-items:center;font-size:10px;font-weight:800;background:#fff;color:#374151}
-
-  /* Likes & Recent — same card heights and thumb sizing */
-  .home-page .below-rails{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  @media (max-width:900px){ .home-page .below-rails{grid-template-columns:1fr;gap:10px} }
-  .home-page .panel{background:rgba(255,255,255,.94);border:1px solid var(--hm-border);border-radius:12px}
-  .home-page .panel header{padding:8px 10px;border-bottom:1px solid var(--hm-border);font-weight:700}
-  .home-page .panel .panel-body{padding:8px 10px}
-
-  .home-page .likes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .home-page .likes-grid .like,
-  .home-page .recent-thumb{aspect-ratio:1/1;background:linear-gradient(180deg,#f8fafc,#eef2f7);border:1px solid var(--hm-border);border-radius:10px}
-
-  .home-page .recent-list{display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center}
-  .home-page .recent-item{display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center}
-  .home-page .recent-meta{font-size:12px;color:#374151}
-  .home-page .recent-meta .name{font-weight:700;color:#111827}
-
-  /* Footer */
-.hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
-.hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-.hm-footer .footer-links a{color:#4b5563}
-</style>
+    @media (min-width:768px){
+      .header, .rail, .section, .tabbar{max-width:1100px;margin:0 auto}
+      .search{max-width:560px;margin:0 auto}
+      .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+    }
+  </style>
 </head>
 <body>
-<body class="home-page">
-
-<!-- HEADER -->
-<header class="hm-header" role="banner">
-@@ -201,63 +212,62 @@ <h1>Find your next fabric creation</h1>
-<button type="submit" aria-label="Search">Search</button>
-</form>
-
-    <div class="chip-row" aria-label="Primary filters">
-      <button class="chip" data-panel="contentPanel" aria-pressed="false">Content</button>
-      <button class="chip" data-panel="colorPanel"   aria-pressed="false">Color</button>
-      <button class="chip" data-panel="pricePanel"   aria-pressed="false">$/yard</button>
-      <button class="chip" data-panel="yardsPanel"   aria-pressed="false">Yards</button>
-      <button class="chip" data-panel="morePanel"    aria-pressed="false">More</button>
-    <!-- Five equal tabs -->
-    <div class="tab-row" id="tabRow">
-      <button type="button" class="tab" data-panel="pContent" aria-expanded="false">Content</button>
-      <button type="button" class="tab" data-panel="pColor"   aria-expanded="false">Color</button>
-      <button type="button" class="tab" data-panel="pPrice"   aria-expanded="false">$/yard</button>
-      <button type="button" class="tab" data-panel="pYards"   aria-expanded="false">Yards</button>
-      <button type="button" class="tab" data-panel="pMore"    aria-expanded="false">More</button>
-</div>
-
-    <div class="panel-stack" id="panelStack">
-    <!-- Panels in a 5-column grid (each panel sits underneath its tab column) -->
-    <div class="panel-grid">
-
-<!-- Content -->
-      <div class="filter-panel" id="contentPanel" role="region" aria-label="Filter by content">
-        <div class="title">Content</div>
-        <div class="content-actions">
-          <input type="search" id="contentSearch" placeholder="Search content…"/>
-          <button type="button" class="btn" id="contentShowMore">Show more</button>
-        </div>
-        <div class="content-grid" id="contentGrid"></div>
-      <div id="pContent" class="panel content-panel" role="region" aria-label="Filter by content">
-        <div class="list" id="contentList"></div>
-</div>
-
-<!-- Color -->
-      <div class="filter-panel" id="colorPanel" role="region" aria-label="Filter by color family">
-        <div class="title">Color Family</div>
-        <div class="color-row" id="colorFamilies"></div>
-      <div id="pColor" class="panel" role="region" aria-label="Filter by color">
-        <div class="color-grid" id="colorGrid"></div>
-</div>
-
-<!-- Price -->
-      <div class="filter-panel" id="pricePanel" role="region" aria-label="Filter by price">
-        <div class="title">$/yard</div>
-        <div class="row-inline">
-          <div class="field" style="min-width:140px"><label>Min $/yard</label><input type="number" min="0" step="1" placeholder="10" id="minPrice"></div>
-          <div class="field" style="min-width:140px"><label>Max $/yard</label><input type="number" min="0" step="1" placeholder="100" id="maxPrice"></div>
-      <div id="pPrice" class="panel" role="region" aria-label="Filter by price">
-        <div class="row">
-          <div class="field"><label>Min $/yard</label><input id="minPrice" type="number" min="0" step="1" placeholder="10"></div>
-          <div class="field"><label>Max $/yard</label><input id="maxPrice" type="number" min="0" step="1" placeholder="100"></div>
-</div>
-</div>
-
-<!-- Yards -->
-      <div class="filter-panel" id="yardsPanel" role="region" aria-label="Filter by yards">
-        <div class="title">Yards Available</div>
-        <div class="row-inline">
-          <div class="field" style="min-width:170px"><label>Min yards available</label><input type="number" min="0" step="1" placeholder="e.g., 3" id="minYards"></div>
-      <div id="pYards" class="panel" role="region" aria-label="Filter by yards">
-        <div class="row">
-          <div class="field"><label>Min yards available</label><input id="minYards" type="number" min="0" step="1" placeholder="e.g., 3"></div>
-</div>
-</div>
-
-<!-- More -->
-      <div class="filter-panel" id="morePanel" role="region" aria-label="More filters">
-        <div class="title">More</div>
-        <div class="row-inline" style="flex-wrap:wrap">
-          <div class="field"><label>Min width (in)</label><input type="number" min="0" step="1" placeholder="44" id="minWidth"></div>
-          <div class="field"><label>Max width (in)</label><input type="number" min="0" step="1" placeholder="60" id="maxWidth"></div>
-          <div class="field"><label>Min GSM</label><input type="number" min="0" step="1" placeholder="80" id="minGsm"></div>
-          <div class="field"><label>Max GSM</label><input type="number" min="0" step="1" placeholder="400" id="maxGsm"></div>
-
-          <div class="field"><label>Department</label>
-            <select id="dept"><option value="">Any</option><option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option></select>
-          </div>
-      <div id="pMore" class="panel" role="region" aria-label="More filters">
-        <div class="row">
-          <div class="field"><label>Min width (in)</label><input id="minWidth" type="number" min="0" step="1" placeholder="44"></div>
-          <div class="field"><label>Max width (in)</label><input id="maxWidth" type="number" min="0" step="1" placeholder="60"></div>
-          <div class="field"><label>Min GSM</label><input id="minGsm" type="number" min="0" step="1" placeholder="80"></div>
-          <div class="field"><label>Max GSM</label><input id="maxGsm" type="number" min="0" step="1" placeholder="400"></div>
-        </div>
-
-          <div class="field"><label>Fabric Type</label>
-        <div class="row">
-          <div class="field">
-            <label>Department</label>
-            <select id="dept">
-              <option value="">Any</option>
-              <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Fabric Type</label>
-<select id="fabricType">
-<option value="">Any</option>
-<option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
-@@ -268,34 +278,40 @@ <h1>Find your next fabric creation</h1>
-<option>Twill</option><option>Velvet</option><option>Voile</option>
-</select>
-</div>
-
-          <div class="field"><label>Fiber Type</label>
-          <div class="field">
-            <label>Fiber Type</label>
-<select id="fiberType">
-<option value="">Any</option>
-<option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option>
-</select>
-</div>
-
-          <div class="field" style="min-width:200px"><label>Designer / Mill</label><input id="designer" placeholder="e.g., Loro Piana"></div>
-
-          <div class="field"><label>Country / Origin</label>
-          <div class="field" style="min-width:220px">
-            <label>Designer / Mill</label>
-            <input id="designer" placeholder="e.g., Loro Piana">
-          </div>
-          <div class="field">
-            <label>Country / Origin</label>
-<select id="origin">
-<option value="">Any</option>
-<option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
-<option>USA</option><option>India</option><option>China</option><option>Korea</option>
-</select>
-</div>
-
-          <div class="field"><label>Pattern</label>
-            <select id="pattern"><option value="">Any</option><option>Solid</option><option>Printed</option></select>
-          <div class="field">
-            <label>Pattern</label>
-            <select id="pattern">
-              <option value="">Any</option>
-              <option>Solid</option><option>Printed</option>
-            </select>
-</div>
-</div>
-</div>
-    </div>
-
-      <div class="global-actions" id="globalActions" style="display:none">
-        <button class="btn" id="clearAll">Clear</button>
-        <button class="btn btn-primary" id="applyAll">Apply</button>
+  <!-- Header -->
+  <header class="header">
+    <div class="row" style="justify-content:space-between">
+      <div class="logo">Hemline</div>
+      <div class="row">
+        <a class="icon-btn" href="browse.html" aria-label="Cart" title="Cart">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 7h12l1 12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L6 7Z"/><path d="M9 7a3 3 0 1 1 6 0"/></svg>
+        </a>
+        <a class="icon-btn" href="#" aria-label="Account" title="Account">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="7" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg>
+        </a>
       </div>
-    <!-- Clear/Apply -->
-    <div class="global-actions" id="globalActions">
-      <button class="btn" id="clearAll" type="button">Clear</button>
-      <button class="btn btn-primary" id="applyAll" type="button">Apply</button>
-</div>
-</div>
-</section>
-@@ -305,9 +321,27 @@ <h1>Find your next fabric creation</h1>
-<main class="section" aria-label="New listings">
-<h2>New Listings</h2>
-<div class="grid">
-      <a class="card" href="item.html?id=1"><div class="thumb">photo</div><div class="info"><div class="title">Wool Crepe — Saffron</div><div class="meta"><span class="price">$28/yd</span><span class="seller"><span class="av">F</span>@FabricFolio</span></div></div></a>
-      <a class="card" href="item.html?id=5"><div class="thumb">photo</div><div class="info"><div class="title">Cotton Poplin — Moss</div><div class="meta"><span class="price">$14/yd</span><span class="seller"><span class="av">S</span>@SewSimple</span></div></div></a>
-      <a class="card" href="item.html?id=3"><div class="thumb">photo</div><div class="info"><div class="title">Silk Charmeuse — Midnight</div><div class="meta"><span class="price">$36/yd</span><span class="seller"><span class="av">L</span>@LoomLab</span></div></div></a>
-      <a class="card" href="item.html?id=1" aria-label="Wool Crepe — Saffron">
-        <div class="thumb" aria-hidden="true">photo</div>
-        <div class="info">
-          <div class="title">Wool Crepe — Saffron</div>
-          <div class="meta"><span class="price">$28/yd</span><span class="seller"><span class="av" aria-hidden="true">F</span>@FabricFolio</span></div>
-        </div>
-      </a>
-      <a class="card" href="item.html?id=5" aria-label="Cotton Poplin — Moss">
-        <div class="thumb" aria-hidden="true">photo</div>
-        <div class="info">
-          <div class="title">Cotton Poplin — Moss</div>
-          <div class="meta"><span class="price">$14/yd</span><span class="seller"><span class="av" aria-hidden="true">S</span>@SewSimple</span></div>
-        </div>
-      </a>
-      <a class="card" href="item.html?id=3" aria-label="Silk Charmeuse — Midnight">
-        <div class="thumb" aria-hidden="true">photo</div>
-        <div class="info">
-          <div class="title">Silk Charmeuse — Midnight</div>
-          <div class="meta"><span class="price">$36/yd</span><span class="seller"><span class="av" aria-hidden="true">L</span>@LoomLab</span></div>
-        </div>
-      </a>
-</div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="search grow">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="homeSearch" type="search" placeholder="Search fabrics…" />
+      </div>
+    </div>
+  </header>
 
-<div class="below-rails">
-@@ -318,17 +352,25 @@ <h2>New Listings</h2>
-<div class="like"></div><div class="like"></div><div class="like"></div>
-<div class="like"></div><div class="like"></div><div class="like"></div>
-</div>
-          <div class="likes-footer"><a href="favorites.html">All likes →</a></div>
-</div>
-</section>
+  <!-- Quick filters -->
+  <nav class="rail">
+    <div class="chip"><a href="browse.html?department=Fabric">Department</a></div>
+    <div class="chip"><a href="browse.html?content=Cashmere">Content</a></div>
+    <div class="chip"><a href="browse.html?color=Ivory">Color</a></div>
+    <div class="chip chip--dark"><a href="browse.html">Browse All</a></div>
+  </nav>
 
-<section class="panel" aria-label="Recent Views">
-<header>Recent Views</header>
-<div class="panel-body">
-<div class="recent-list">
-            <div class="recent-item"><div class="recent-thumb"></div><div class="recent-meta"><div class="name">Italian Silk Twill</div><div>$68/yd · 54″</div></div></div>
-            <div class="recent-item"><div class="recent-thumb"></div><div class="recent-meta"><div class="name">Wool Crepe</div><div>$52/yd · 58″</div></div></div>
-            <div class="recent-item"><div class="recent-thumb"></div><div class="recent-meta"><div class="name">Cotton Poplin</div><div>$14/yd · 44″</div></div></div>
-            <div class="recent-item">
-              <div class="recent-thumb"></div>
-              <div class="recent-meta"><div class="name">Italian Silk Twill</div><div>$68/yd · 54″</div></div>
-            </div>
-            <div class="recent-item">
-              <div class="recent-thumb"></div>
-              <div class="recent-meta"><div class="name">Wool Crepe</div><div>$52/yd · 58″</div></div>
-            </div>
-            <div class="recent-item">
-              <div class="recent-thumb"></div>
-              <div class="recent-meta"><div class="name">Cotton Poplin</div><div>$14/yd · 44″</div></div>
-            </div>
-</div>
-</div>
-</section>
-@@ -367,47 +409,16 @@ <h2>New Listings</h2>
-const avatar=document.getElementById("avatar");
-try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+  <main>
+    <section class="section">
+      <h2>New Arrivals</h2>
+      <div class="grid">
+        <article class="card"><div class="img"></div><div class="meta"><div>Italian Wool Crepe — Saffron</div><div class="price">$48<span class="sub">/yd</span></div></div></article>
+        <article class="card"><div class="img"></div><div class="meta"><div>Bamboo French Terry — Natural</div><div class="price">$22<span class="sub">/yd</span></div></div></article>
+      </div>
+    </section>
+  </main>
 
-  /* ------- Build Content checklist ------- */
-  const ALL_CONTENT=[
-  /* ----- Data ----- */
-  const CONTENT = [
-"Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
-"Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
-"Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
-];
-  const contentGrid=document.getElementById('contentGrid');
-  function renderContent(list){
-    contentGrid.innerHTML='';
-    list.forEach(v=>{
-      const label=document.createElement('label');
-      label.className='check-chip';
-      const input=document.createElement('input');
-      input.type='checkbox'; input.value=v; label.appendChild(input);
-      label.appendChild(document.createTextNode(' '+v));
-      contentGrid.appendChild(label);
-    });
-  }
-  renderContent(ALL_CONTENT.slice(0,12)); // collapsed default
-  document.getElementById('contentShowMore').addEventListener('click',()=>{
-    const showing=contentGrid.childElementCount>=ALL_CONTENT.length;
-    if(showing){
-      renderContent(ALL_CONTENT.slice(0,12));
-      contentShowMore.textContent='Show more';
-    }else{
-      renderContent(ALL_CONTENT);
-      contentShowMore.textContent='Show less';
-    }
-  });
-  const contentShowMore=document.getElementById('contentShowMore');
-  document.getElementById('contentSearch').addEventListener('input',e=>{
-    const q=e.target.value.toLowerCase();
-    const src=(contentShowMore.textContent==='Show less')?ALL_CONTENT:ALL_CONTENT.slice(0,12);
-    renderContent(src.filter(x=>x.toLowerCase().includes(q)));
-  });
-
-  /* ------- Color family swatches ------- */
-  const COLORS=[
-    {name:"Black",hex:"#000000"},
-  const COLORS = [
-    {name:"Black",hex:"#000"},
-{name:"Grey",hex:"#9aa0a6"},
-    {name:"White",hex:"#ffffff",border:"#d1d5db"},
-    {name:"White",hex:"#fff",border:"#d1d5db"},
-{name:"Cream",hex:"#f5efe4"},
-{name:"Brown",hex:"#7a4a2a"},
-{name:"Pink",hex:"#f4a4b6"},
-@@ -420,115 +431,120 @@ <h2>New Listings</h2>
-{name:"Gold",hex:"#e2c46d"},
-{name:"Silver",hex:"#d5d8de"}
-];
-  const colorRow=document.getElementById('colorFamilies');
-
-  /* Build Content UI (single-column, compact) */
-  const contentList=document.getElementById('contentList');
-  CONTENT.forEach(v=>{
-    const id='c_'+v.replace(/[^a-z0-9]/gi,'_');
-    const row=document.createElement('div'); row.className='check';
-    const cb=document.createElement('input'); cb.type='checkbox'; cb.id=id; cb.value=v;
-    const label=document.createElement('label'); label.setAttribute('for',id); label.textContent=v;
-    row.appendChild(cb); row.appendChild(label);
-    contentList.appendChild(row);
-  });
-
-  /* Build Colors (chips with tooltip + selectable outline) */
-  const colorGrid=document.getElementById('colorGrid');
-COLORS.forEach(c=>{
-const sw=document.createElement('div');
-sw.className='sw';
-    sw.dataset.name=c.name;
-    sw.title=c.name;
-sw.style.background=c.hex;
-if(c.border) sw.style.borderColor=c.border;
-    sw.dataset.name=c.name;
-    const tip=document.createElement('span');
-    tip.className='tip'; tip.textContent=c.name;
-    const tip=document.createElement('span'); tip.className='tip'; tip.textContent=c.name;
-sw.appendChild(tip);
-sw.addEventListener('click',()=>{ sw.dataset.selected = sw.dataset.selected ? '' : 'true'; });
-    colorRow.appendChild(sw);
-    colorGrid.appendChild(sw);
-});
-
-  /* ------- Panels: allow multiple open ------- */
-  const chips=[...document.querySelectorAll('.chip[data-panel]')];
-  /* Tabs -> Panels (multi-open) */
-  const tabs=[...document.querySelectorAll('.tab')];
-const panels={
-    contentPanel:document.getElementById('contentPanel'),
-    colorPanel:document.getElementById('colorPanel'),
-    pricePanel:document.getElementById('pricePanel'),
-    yardsPanel:document.getElementById('yardsPanel'),
-    morePanel:document.getElementById('morePanel'),
-    pContent:document.getElementById('pContent'),
-    pColor:document.getElementById('pColor'),
-    pPrice:document.getElementById('pPrice'),
-    pYards:document.getElementById('pYards'),
-    pMore:document.getElementById('pMore')
-};
-  const actions=document.getElementById('globalActions');
-  function updateActionsVisibility(){
-    const anyOpen=Object.values(panels).some(p=>p.classList.contains('open'));
-    actions.style.display = anyOpen ? 'flex' : 'none';
-  }
-  chips.forEach(chip=>{
-    chip.addEventListener('click',()=>{
-      const id=chip.getAttribute('data-panel');
-      const panel=panels[id];
-      const nowOpen=!panel.classList.contains('open');
-      panel.classList.toggle('open', nowOpen);
-      chip.setAttribute('aria-pressed', String(nowOpen));
-      updateActionsVisibility();
-  tabs.forEach(t=>{
-    t.addEventListener('click',()=>{
-      const id=t.dataset.panel;
-      const p=panels[id];
-      const willOpen=!p.classList.contains('open');
-      p.classList.toggle('open',willOpen);
-      t.setAttribute('aria-expanded',String(willOpen));
-});
-});
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){
-      Object.values(panels).forEach(p=>p.classList.remove('open'));
-      chips.forEach(c=>c.setAttribute('aria-pressed','false'));
-      updateActionsVisibility();
-    }
-  });
-
-  /* ------- CLEAR / APPLY ------- */
-  /* Gather filters → object */
-  function gatherFilters(){
-    const selectedContent=[...contentList.querySelectorAll('input[type="checkbox"]:checked')]
-      .map(i=>i.value).filter(v=>v && v!=="Any");
-
-    const selectedColors=[...colorGrid.querySelectorAll('.sw[data-selected="true"]')]
-      .map(n=>n.dataset.name);
-
-    const v=(id)=>document.getElementById(id)?.value?.trim()||'';
-    return {
-      q: document.getElementById('searchQ').value.trim(),
-      content: selectedContent.join(','),
-      colors: selectedColors.join(','),
-      minPrice: v('minPrice'),
-      maxPrice: v('maxPrice'),
-      minYards: v('minYards'),
-      minWidth: v('minWidth'),
-      maxWidth: v('maxWidth'),
-      minGsm: v('minGsm'),
-      maxGsm: v('maxGsm'),
-      dept: v('dept'),
-      fabricType: v('fabricType'),
-      fiberType: v('fiberType'),
-      designer: v('designer'),
-      origin: v('origin'),
-      pattern: v('pattern')
-    };
-  }
-
-  function toQuery(obj){
-    const params=new URLSearchParams();
-    Object.entries(obj).forEach(([k,val])=>{
-      if(val) params.set(k,val);
-    });
-    return params.toString();
-  }
-
-  /* Clear / Apply buttons */
-document.getElementById('clearAll').addEventListener('click',()=>{
-    document.querySelectorAll('#contentPanel input[type="checkbox"]').forEach(c=>c.checked=false);
-    document.querySelectorAll('#colorPanel .sw').forEach(s=>s.removeAttribute('data-selected'));
-    // content
-    contentList.querySelectorAll('input[type="checkbox"]').forEach(c=>c.checked=false);
-    // colors
-    colorGrid.querySelectorAll('.sw').forEach(s=>s.removeAttribute('data-selected'));
-    // numeric/text
-['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(id=>{
-const el=document.getElementById(id); if(el) el.value='';
-});
-    // selects
-['dept','fabricType','fiberType','origin','pattern'].forEach(id=>{
-const el=document.getElementById(id); if(el) el.selectedIndex=0;
-});
-});
-
-  function collectHomeFilters(){
-    const pick = sel => [...document.querySelectorAll(sel)]
-      .filter(x => x.checked).map(x => x.value);
-    const val = id => {
-      const el = document.getElementById(id);
-      return el && el.value.trim() ? el.value.trim() : "";
-    };
-    const content = pick('#contentPanel input[type="checkbox"]');
-    const colors = [...document.querySelectorAll('#colorPanel .sw[data-selected="true"]')]
-      .map(el => el.querySelector('.tip')?.textContent || el.dataset.name || "");
-    return {
-      content, colors,
-      minPrice: val('minPrice'), maxPrice: val('maxPrice'),
-      minYards: val('minYards'),
-      minWidth: val('minWidth'), maxWidth: val('maxWidth'),
-      minGsm: val('minGsm'),     maxGsm: val('maxGsm'),
-      dept:       document.getElementById('dept')?.value || "",
-      fabricType: document.getElementById('fabricType')?.value || "",
-      fiberType:  document.getElementById('fiberType')?.value || "",
-      designer:   val('designer'),
-      origin:     document.getElementById('origin')?.value || "",
-      pattern:    document.getElementById('pattern')?.value || ""
-    };
-  }
-
-  // APPLY: persist filters in URL (so Search later still has them)
-  const applyBtn=document.getElementById('applyAll');
-  if(applyBtn){
-    applyBtn.addEventListener('click',()=>{
-      const f=encodeURIComponent(JSON.stringify(collectHomeFilters()));
-      const url=new URL(window.location.href);
-      url.searchParams.set('f',f);
-      history.replaceState(null,'',url.toString());
-
-      // close panels (keep your established behavior)
-      Object.values(panels).forEach(p=>p.classList.remove('open'));
-      chips.forEach(c=>c.setAttribute('aria-pressed','false'));
-      updateActionsVisibility();
-    });
-  }
-  document.getElementById('applyAll').addEventListener('click',()=>{
-    const q=toQuery(gatherFilters());
-    if(q){ window.location.href='browse.html?'+q; }
-    else { window.location.href='browse.html'; }
-  });
-
-  // SEARCH: always include filters (even if Apply wasn’t clicked)
-  document.getElementById("homeSearch").addEventListener("submit",function(e){
-  /* Search submits current selections even without Apply */
-  document.getElementById('homeSearch').addEventListener('submit',function(e){
-e.preventDefault();
-    const type=document.getElementById("searchType").value;
-    const q=encodeURIComponent(document.getElementById("searchQ").value.trim());
-    const f=encodeURIComponent(JSON.stringify(collectHomeFilters()));
-    const dest=(type==="users" ? "favorites.html" : "browse.html");
-    const query=(q?`q=${q}&`:"")+`f=${f}`;
-    window.location.href=`${dest}?${query}`;
-    const type=document.getElementById('searchType').value;
-    const params=toQuery(gatherFilters());
-    if(type==='users'){ window.location.href='favorites.html?'+params; }
-    else{ window.location.href='browse.html?'+params; }
-});
-
-})();
-</script>
+  <nav class="tabbar">
+    <div class="tabs">
+      <a class="tab" href="index.html" aria-current="page">Home</a>
+      <a class="tab" href="browse.html">Browse</a>
+      <a class="tab" href="seller.html">Sell</a>
+    </div>
+  </nav>
 </body>
+</html>
