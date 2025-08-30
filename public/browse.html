@@ -60,7 +60,11 @@
     .topbar .filter-open svg{width:18px;height:18px}
 
     .layout{display:grid;grid-template-columns:280px 1fr;gap:14px}
-    @media (max-width:960px){ .layout{grid-template-columns:1fr} }
+    /* HIDE sidebar on mobile so panel is the only filter UI */
+    @media (max-width:960px){
+      .layout{grid-template-columns:1fr}
+      .filters{display:none}
+    }
 
     /* Sidebar filters (restored structure) */
     .filters{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:10px}
@@ -68,7 +72,9 @@
     .section{border-top:1px solid var(--hm-border);padding-top:8px;margin-top:8px}
     .section:first-of-type{border-top:0;padding-top:0;margin-top:0}
     .section .title{font-weight:700;font-size:13px;color:#374151;margin:0 0 6px}
-    .listbox{height:230px;overflow:auto;border:1px solid var(--hm-border);border-radius:10px;padding:6px}
+
+    /* Listbox styles (Content + Fabric Type) */
+    .listbox{height:230px;overflow:auto;border:1px solid var(--hm-border);border-radius:10px;padding:6px;background:#fff}
     .row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px dashed #f3f4f6}
     .row:last-child{border-bottom:0}
     .row input{width:14px;height:14px}
@@ -80,13 +86,14 @@
     .chip[data-on="true"]{background:#0f766e;color:#fff;border-color:#0f766e}
     .sw-grid{display:grid;grid-template-columns:repeat(8,22px);gap:6px}
     .sw{width:22px;height:22px;border-radius:6px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);cursor:pointer;position:relative}
-    .sw[data-selected="true"], .sw[data-on="true"]{outline:2px solid var(--ring);outline-offset:2px}
+    .sw[data-on="true"]{outline:2px solid var(--ring);outline-offset:2px}
     .sw .tip{position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;opacity:0;pointer-events:none}
     .sw:hover .tip{opacity:1}
     .sw.gold{background:linear-gradient(135deg,#d4b870 0%,#f0dc97 50%,#ceb86b 100%)}
     .sw.silver{background:linear-gradient(135deg,#bfc6cf 0%,#e6eaef 50%,#a9b0ba 100%)}
 
-    .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    /* Compact numeric inputs */
+    .mini{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
     .mini .field{display:flex;flex-direction:column;gap:4px}
     .mini label{font-size:12px;color:#374151}
     .mini input{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
@@ -223,7 +230,8 @@
 
       <section class="section">
         <div class="title">Fabric Type</div>
-        <div class="chiprow" id="fabricTypeBox"></div>
+        <!-- CHANGED: listbox like Content -->
+        <div class="listbox" id="fabricTypeBox"></div>
       </section>
 
       <section class="section">
@@ -269,7 +277,14 @@
 
       <section class="section">
         <div class="title">Country</div>
-        <div class="chiprow" id="countryBox"></div>
+        <!-- CHANGED: dropdown (8 originals only) -->
+        <div class="selects">
+          <select id="origin">
+            <option value="">Any</option>
+            <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
+            <option>USA</option><option>India</option><option>China</option><option>Korea</option>
+          </select>
+        </div>
       </section>
 
       <section class="section">
@@ -320,14 +335,14 @@
     <details class="section" open><summary>Department</summary><div class="inner chiprow" data-panel="deptBox"></div></details>
     <details class="section"><summary>Content</summary><div class="inner"><div class="listbox" data-panel="contentBox"></div></div></details>
     <details class="section"><summary>Color</summary><div class="inner sw-grid" data-panel="colorBox"></div></details>
-    <details class="section"><summary>Fabric Type</summary><div class="inner chiprow" data-panel="fabricTypeBox"></div></details>
+    <details class="section"><summary>Fabric Type</summary><div class="inner"><div class="listbox" data-panel="fabricTypeBox"></div></div></details>
     <details class="section"><summary>Fiber Type</summary><div class="inner chiprow" data-panel="fiberTypeBox"></div></details>
     <details class="section"><summary>Pattern</summary><div class="inner chiprow" data-panel="patternBox"></div></details>
     <details class="section"><summary>Price ($/yd)</summary><div class="inner mini"><div class="field"><label>Min</label><input id="minPrice_p" type="number"></div><div class="field"><label>Max</label><input id="maxPrice_p" type="number"></div></div></details>
     <details class="section"><summary>Yards</summary><div class="inner mini"><div class="field" style="grid-column:1/-1"><label>Min yards</label><input id="minYards_p" type="number"></div></div></details>
     <details class="section"><summary>Width (in)</summary><div class="inner mini"><div class="field"><label>Min</label><input id="minWidth_p" type="number"></div><div class="field"><label>Max</label><input id="maxWidth_p" type="number"></div></div></details>
     <details class="section"><summary>Weight (GSM)</summary><div class="inner mini"><div class="field"><label>Min GSM</label><input id="minGsm_p" type="number"></div><div class="field"><label>Max GSM</label><input id="maxGsm_p" type="number"></div></div></details>
-    <details class="section"><summary>Country</summary><div class="inner chiprow" data-panel="countryBox"></div></details>
+    <details class="section"><summary>Country</summary><div class="inner"><select id="origin_p" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff"><option value="">Any</option><option>Italy</option><option>France</option><option>Japan</option><option>UK</option><option>USA</option><option>India</option><option>China</option><option>Korea</option></select></div></details>
     <details class="section"><summary>Designer / Mill</summary><div class="inner"><input id="designer_p" placeholder="e.g., Loro Piana" style="width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff"></div></details>
   </div>
   <div class="applybar">
@@ -348,7 +363,7 @@
   closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-  /* Data — ORIGINAL facet sets restored */
+  /* ORIGINAL facet sets (exact) */
   const DEPTS = ["Fashion","Home","Quilting","Notions"];
   const CONTENT = [
     "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
@@ -356,181 +371,195 @@
     "Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
   ];
   const COLORS = [
-    {name:"Black",hex:"#000"}, {name:"Grey",hex:"#9aa0a6"}, {name:"White",hex:"#ffffff",border:"#d1d5db"},
-    {name:"Cream",hex:"#f5efe4"}, {name:"Brown",hex:"#7a4a2a"}, {name:"Pink",hex:"#f4a4b6"},
-    {name:"Red",hex:"#d21d2b"}, {name:"Orange",hex:"#f27a22"}, {name:"Yellow",hex:"#f3c321"},
-    {name:"Green",hex:"#2f7d32"}, {name:"Blue",hex:"#2166d1"}, {name:"Purple",hex:"#6b2da8"},
-    {name:"Gold",hex:"gold"}, {name:"Silver",hex:"silver"}
+    {name:"Black",hex:"#000"},
+    {name:"Grey",hex:"#9aa0a6"},
+    {name:"White",hex:"#ffffff",border:"#d1d5db"},
+    {name:"Cream",hex:"#f5efe4"},
+    {name:"Brown",hex:"#7a4a2a"},
+    {name:"Pink",hex:"#f4a4b6"},
+    {name:"Red",hex:"#d21d2b"},
+    {name:"Orange",hex:"#f27a22"},
+    {name:"Yellow",hex:"#f3c321"},
+    {name:"Green",hex:"#2f7d32"},
+    {name:"Blue",hex:"#2166d1"},
+    {name:"Purple",hex:"#6b2da8"},
+    {name:"Gold",hex:"gold"},
+    {name:"Silver",hex:"silver"}
   ];
   const FABRIC_TYPES = ["Canvas","Chiffon","Corduroy","Crepe","Denim","Flannel","Georgette","Jersey","Lace","Lawn","Organza","Poplin","Sateen","Satin","Tulle","Twill","Velvet","Voile"];
   const FIBER_TYPES = ["Natural","Modified Natural","Synthetic","Blend"];
   const PATTERNS = ["Solid","Printed"];
-  const COUNTRIES = ["Italy","France","Japan","UK","USA","India","China","Korea","Belgium","Austria"];
+  const COUNTRIES = ["Italy","France","Japan","UK","USA","India","China","Korea"]; // dropdown only; no extras
 
-  /* DOM helpers */
   const $ = (id)=>document.getElementById(id);
   const params = new URLSearchParams(location.search);
 
-  /* Normalize legacy vs new names (Home uses 'color') */
-  function normalizeIn(p){
-    if(p.get('colors')){ p.set('color', p.get('colors')); p.delete('colors'); }
-    if(p.get('minGsm')){ p.set('minGsm', p.get('minGsm')); } // keep for back-compat
-  }
-  normalizeIn(params);
-
-  /* Build UI (desktop) */
-  function addChips(arr, host, key){
+  /* Build desktop UI */
+  function addChipRow(arr, host, key){
     host.innerHTML='';
     arr.forEach(v=>{
-      const btn=document.createElement('button');
-      btn.className='chip'; btn.type='button';
-      btn.dataset.value=v.toLowerCase().replace(/\s+/g,' ').trim();
-      btn.textContent=v;
-      btn.addEventListener('click',()=>toggleCSV(key, v, btn));
-      host.appendChild(btn);
+      const b=document.createElement('button');
+      b.className='chip'; b.type='button';
+      b.dataset.value=v.toLowerCase();
+      b.textContent=v;
+      b.addEventListener('click',()=>{ toggleCSV(key, v); b.dataset.on = isInCSV(key,v) ? 'true' : 'false'; });
+      host.appendChild(b);
     });
   }
-  addChips(DEPTS, $('deptBox'), 'dept');
-  addChips(FABRIC_TYPES, $('fabricTypeBox'), 'fabricType');
-  addChips(FIBER_TYPES, $('fiberTypeBox'), 'fiberType');
-  addChips(PATTERNS, $('patternBox'), 'pattern');
-  addChips(COUNTRIES, $('countryBox'), 'origin');
+  function addListbox(arr, host, key){
+    host.innerHTML='';
+    arr.forEach(v=>{
+      const id='cb_'+key+'_'+v.replace(/[^a-z0-9]/gi,'_');
+      const row=document.createElement('div'); row.className='row';
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.id=id; cb.value=v;
+      const lb=document.createElement('label'); lb.setAttribute('for',id); lb.textContent=v;
+      cb.addEventListener('change', ()=>{ toggleCSV(key, v, cb.checked); });
+      row.appendChild(cb); row.appendChild(lb);
+      host.appendChild(row);
+    });
+  }
+  addChipRow(DEPTS, $('deptBox'), 'dept');
+  addListbox(CONTENT, $('contentBox'), 'content');
+  addListbox(FABRIC_TYPES, $('fabricTypeBox'), 'fabricType');
+  addChipRow(FIBER_TYPES, $('fiberTypeBox'), 'fiberType');
+  addChipRow(PATTERNS, $('patternBox'), 'pattern');
 
-  /* Content listbox */
-  const contentBox=$('contentBox');
-  CONTENT.forEach(v=>{
-    const id='cb_'+v.replace(/[^a-z0-9]/gi,'_');
-    const row=document.createElement('div'); row.className='row';
-    const cb=document.createElement('input'); cb.type='checkbox'; cb.id=id; cb.value=v;
-    const lb=document.createElement('label'); lb.setAttribute('for',id); lb.textContent=v;
-    row.appendChild(cb); row.appendChild(lb);
-    contentBox.appendChild(row);
-  });
-
-  /* Colors with Gold/Silver special swatches */
+  // Colors
   const colorBox=$('colorBox');
   COLORS.forEach(c=>{
-    const sw=document.createElement('div'); sw.className='sw'; sw.dataset.name=c.name;
+    const sw=document.createElement('div'); sw.className='sw'; sw.dataset.value=c.name.toLowerCase();
     if(c.name==="Gold"){ sw.classList.add('gold'); }
     else if(c.name==="Silver"){ sw.classList.add('silver'); }
     else{ sw.style.background=c.hex; if(c.border) sw.style.borderColor=c.border; }
     const tip=document.createElement('span'); tip.className='tip'; tip.textContent=c.name; sw.appendChild(tip);
-    sw.addEventListener('click',()=>{ sw.dataset.selected = sw.dataset.selected ? '' : 'true'; syncFromUI(); });
+    sw.addEventListener('click',()=>{ toggleCSV('color', c.name); sw.dataset.on = isInCSV('color', c.name) ? 'true' : 'false'; });
     colorBox.appendChild(sw);
   });
 
-  /* MOBILE PANEL: clone desktop controls */
+  /* Clone controls into MOBILE panel */
   const map = {
     deptBox:'deptBox',
     contentBox:'contentBox',
     colorBox:'colorBox',
     fabricTypeBox:'fabricTypeBox',
     fiberTypeBox:'fiberTypeBox',
-    patternBox:'patternBox',
-    countryBox:'countryBox'
+    patternBox:'patternBox'
   };
   document.querySelectorAll('[data-panel]').forEach(holder=>{
     const id=holder.getAttribute('data-panel');
     holder.appendChild($(id).cloneNode(true));
   });
 
-  /* Selected chips */
+  /* Selected chips (summary) */
   const chipsEl=$('selectedChips');
   function chip(label, key, value){
     const d=document.createElement('span');
     d.className='chip';
     d.textContent=label+': '+value+' ';
     const x=document.createElement('button'); x.type='button'; x.setAttribute('aria-label','Remove '+label); x.textContent='×';
-    x.addEventListener('click',()=>{
-      if(key==='content'){
-        const set=new Set((params.get('content')||'').split(',').filter(Boolean)); set.delete(value);
-        if(set.size) params.set('content',[...set].join(',')); else params.delete('content');
-        document.querySelectorAll('#contentBox input[type="checkbox"]').forEach(cb=>{ if(cb.value===value) cb.checked=false; });
-        document.querySelectorAll('[data-panel="contentBox"] input[type="checkbox"]').forEach(cb=>{ if(cb.value===value) cb.checked=false; });
-      }else if(key==='color'){
-        const set=new Set((params.get('color')||'').split(',').filter(Boolean)); set.delete(value);
-        if(set.size) params.set('color',[...set].join(',')); else params.delete('color');
-        document.querySelectorAll('.sw').forEach(sw=>{ if(sw.dataset.name===value) sw.removeAttribute('data-selected'); });
-      }else{
-        params.delete(key);
-        const el=$(key); if(el){ el.value=''; }
-        const elp=$(key+'_p'); if(elp){ elp.value=''; }
-      }
-      history.replaceState(null,'','?'+params.toString());
-      syncChips(); render();
-    });
-    d.appendChild(x);
-    return d;
+    x.addEventListener('click',()=>{ removeFromCSV(key,value); syncUIFromParams(); render(); });
+    d.appendChild(x); return d;
   }
   function syncChips(){
     chipsEl.innerHTML='';
     const q=params.get('q'); if(q) chipsEl.appendChild(chip('Search','q',q));
-    (params.get('content')||'').split(',').filter(Boolean).forEach(v=>chipsEl.appendChild(chip('Content','content',v)));
-    (params.get('color')||'').split(',').filter(Boolean).forEach(v=>chipsEl.appendChild(chip('Color','color',v)));
-    [
-      ['minPrice','Min $/yd'],['maxPrice','Max $/yd'],
-      ['minYards','Min yards'],
-      ['minWidth','Min width'],['maxWidth','Max width'],
-      ['minGsm','Min GSM'],['maxGsm','Max GSM'],
-      ['dept','Department'],['fabricType','Fabric'],['fiberType','Fiber'],
-      ['designer','Designer'],['origin','Origin'],['pattern','Pattern']
-    ].forEach(([k,label])=>{ const v=params.get(k); if(v) chipsEl.appendChild(chip(label,k,v)); });
+    ['content','fabricType','fiberType','pattern','dept','color'].forEach(k=>{
+      (params.get(k)||'').split(',').filter(Boolean).forEach(v=>chipsEl.appendChild(chip(k,k,v)));
+    });
+    [['minPrice','Min $/yd'],['maxPrice','Max $/yd'],['minYards','Min yards'],
+     ['minWidth','Min width'],['maxWidth','Max width'],
+     ['minGsm','Min GSM'],['maxGsm','Max GSM'],
+     ['origin','Country'],['designer','Designer']]
+      .forEach(([k,l])=>{ const v=params.get(k); if(v) chipsEl.appendChild(chip(l,k,v)); });
   }
 
-  /* Read UI into params */
-  function syncFromUI(){
-    // Content
-    const picked=[...document.querySelectorAll('#contentBox input[type="checkbox"]:checked')].map(cb=>cb.value).filter(v=>v!=='Any');
-    if(picked.length) params.set('content',picked.join(',')); else params.delete('content');
-
-    // Colors
-    const colors=[...document.querySelectorAll('#colorBox .sw[data-selected="true"]')].map(sw=>sw.dataset.name);
-    if(colors.length) params.set('color',colors.join(',')); else params.delete('color');
-
-    // Simple fields
-    ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','dept','fabricType','fiberType','designer','origin','pattern']
-      .forEach(k=>{
-        const el=$(k);
-        const val=el && el.value ? el.value.trim() : '';
-        if(val) params.set(k,val); else params.delete(k);
-      });
-
+  /* URL CSV helpers */
+  function isInCSV(k, v){
+    const set=new Set((params.get(k)||'').split(',').filter(Boolean));
+    return set.has(v);
+  }
+  function toggleCSV(k, v, force){
+    const set=new Set((params.get(k)||'').split(',').filter(Boolean));
+    if(force===true) set.add(v);
+    else if(force===false) set.delete(v);
+    else if(set.has(v)) set.delete(v); else set.add(v);
+    if(set.size) params.set(k,[...set].join(',')); else params.delete(k);
     history.replaceState(null,'','?'+params.toString());
-    syncChips(); render();
+    syncChips();
+  }
+  function removeFromCSV(k,v){
+    const set=new Set((params.get(k)||'').split(',').filter(Boolean));
+    set.delete(v);
+    if(set.size) params.set(k,[...set].join(',')); else params.delete(k);
+    history.replaceState(null,'','?'+params.toString());
+    syncChips();
   }
 
   /* Prepopulate UI from params */
-  (function hydrate(){
-    $('q').value = params.get('q')||'';
-    ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','dept','fabricType','fiberType','designer','origin','pattern']
-      .forEach(k=>{ const v=params.get(k); if(v!==null){ $(k).value=v; const p=$(k+'_p'); if(p) p.value=v; }});
-
-    // Content checkboxes
-    const setC=new Set((params.get('content')||'').split(',').filter(Boolean));
-    document.querySelectorAll('#contentBox input[type="checkbox"]').forEach(cb=>{ if(setC.has(cb.value)) cb.checked=true; });
-    // Colors
-    const setCol=new Set((params.get('color')||'').split(',').filter(Boolean));
-    document.querySelectorAll('#colorBox .sw').forEach(sw=>{ if(setCol.has(sw.dataset.name)) sw.dataset.selected="true"; });
+  function syncUIFromParams(){
+    // checkboxes (Content + FabricType)
+    ['content','fabricType'].forEach(key=>{
+      const set=new Set((params.get(key)||'').split(',').filter(Boolean));
+      document.querySelectorAll(`#${key}Box input[type="checkbox"]`).forEach(cb=>{ cb.checked = set.has(cb.value); });
+      document.querySelectorAll(`[data-panel="${key}Box"] input[type="checkbox"]`).forEach(cb=>{ cb.checked = set.has(cb.value); });
+    });
+    // chips (dept/fiber/pattern)
+    ['dept','fiberType','pattern'].forEach(key=>{
+      const set=new Set((params.get(key)||'').split(',').filter(Boolean));
+      document.querySelectorAll(`#${key}Box .chip`).forEach(b=>{ b.dataset.on = set.has(b.textContent)?'true':'false'; });
+      document.querySelectorAll(`[data-panel="${key}Box"] .chip`).forEach(b=>{ b.dataset.on = set.has(b.textContent)?'true':'false'; });
+    });
+    // colors
+    const col=new Set((params.get('color')||'').split(',').filter(Boolean));
+    document.querySelectorAll('#colorBox .sw').forEach(sw=>{
+      const name=(sw.querySelector('.tip')?.textContent)||'';
+      sw.dataset.on = col.has(name)?'true':'false';
+    });
+    document.querySelectorAll('[data-panel="colorBox"] .sw').forEach(sw=>{
+      const name=(sw.querySelector('.tip')?.textContent)||'';
+      sw.dataset.on = col.has(name)?'true':'false';
+    });
+    // numeric + text
+    ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(k=>{
+      const v=params.get(k)||'';
+      if($(k)) $(k).value=v;
+      const p=$(k+'_p'); if(p) p.value=v;
+    });
+    // country (dropdown)
+    const origin=params.get('origin')||'';
+    if($('origin')) $('origin').value=origin;
+    if($('origin_p')) $('origin_p').value=origin;
 
     syncChips();
-  })();
+  }
+  syncUIFromParams();
 
-  // Live inputs
-  ['q','minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','dept','fabricType','fiberType','designer','origin','pattern']
-    .forEach(k=>{
-      const el=$(k); if(el) el.addEventListener('input',()=>syncFromUI());
-      const elp=$(k+'_p'); if(elp) elp.addEventListener('input',()=>{ if(el) el.value=elp.value; syncFromUI(); });
-    });
-  contentBox.addEventListener('change',syncFromUI);
-  colorBox.addEventListener('click',e=>{ if(e.target.closest('.sw')) syncFromUI(); });
+  // Wire inputs
+  document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ params.set('q', e.target.value.trim()); history.replaceState(null,'','?'+params.toString()); syncChips(); render(); }});
+  ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'].forEach(k=>{
+    const el=$(k); if(el) el.addEventListener('input',()=>{ const v=el.value.trim(); if(v) params.set(k,v); else params.delete(k); history.replaceState(null,'','?'+params.toString()); syncChips(); });
+    const elp=$(k+'_p'); if(elp) elp.addEventListener('input',()=>{ const v=elp.value.trim(); if($(k)) $(k).value=v; if(v) params.set(k,v); else params.delete(k); history.replaceState(null,'','?'+params.toString()); syncChips(); });
+  });
+  if($('origin')) $('origin').addEventListener('change',()=>{ const v=$('origin').value; if(v) params.set('origin',v); else params.delete('origin'); history.replaceState(null,'','?'+params.toString()); syncChips(); });
+  if($('origin_p')) $('origin_p').addEventListener('change',()=>{ const v=$('origin_p').value; if($('origin')) $('origin').value=v; if(v) params.set('origin',v); else params.delete('origin'); history.replaceState(null,'','?'+params.toString()); syncChips(); });
 
-  /* Mobile panel behavior */
-  const scrim=$('scrim'), panel=$('filterPanel'), openFilters=$('openFilters');
+  // Desktop apply/clear
+  $('apply').addEventListener('click',()=>{ location.href = location.pathname + '?' + params.toString(); });
+  $('clear').addEventListener('click',()=>{ history.replaceState(null,'',location.pathname); location.reload(); });
+
+  // Panel open/close + one-open accordion
+  const scrim=$('scrim'), panel=$('filterPanel');
   function openPanel(){ scrim.classList.add('on'); panel.classList.add('on'); scrim.setAttribute('aria-hidden','false'); document.addEventListener('keydown',trapTab); }
   function closePanel(){ scrim.classList.remove('on'); panel.classList.remove('on'); scrim.setAttribute('aria-hidden','true'); document.removeEventListener('keydown',trapTab); }
-  openFilters.addEventListener('click', openPanel);
+  $('openFilters').addEventListener('click', openPanel);
   scrim.addEventListener('click', closePanel);
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && panel.classList.contains('on')) closePanel(); });
+  document.querySelectorAll('.panel details.section summary').forEach(s=>{
+    s.addEventListener('click', ()=>{
+      const d = s.parentElement;
+      if(!d.open){ document.querySelectorAll('.panel details.section').forEach(o=>{ if(o!==d) o.open=false; }); }
+    });
+  });
   function trapTab(e){
     if(e.key!=='Tab') return;
     const f = panel.querySelectorAll('button,[href],input,summary,select,textarea,[tabindex]:not([tabindex="-1"])');
@@ -539,21 +568,9 @@
     if(e.shiftKey && document.activeElement===first){ last.focus(); e.preventDefault(); }
     else if(!e.shiftKey && document.activeElement===last){ first.focus(); e.preventDefault(); }
   }
-  // Only one details open at a time (mobile)
-  document.querySelectorAll('.panel details.section summary').forEach(s=>{
-    s.addEventListener('click', (e)=>{
-      const d = s.parentElement;
-      if(!d.open){ document.querySelectorAll('.panel details.section').forEach(o=>{ if(o!==d) o.open=false; }); }
-    });
-  });
-
-  // Panel Apply/Clear
-  $('apply_p').addEventListener('click', ()=>{ location.href = location.pathname + '?' + params.toString(); });
-  $('clear_p').addEventListener('click', ()=>{ history.replaceState(null,'',location.pathname); location.reload(); });
-
-  /* Apply/Clear (desktop) */
-  $('apply').addEventListener('click', ()=>{ location.href = location.pathname + '?' + params.toString(); });
-  $('clear').addEventListener('click', ()=>{ history.replaceState(null,'',location.pathname); location.reload(); });
+  // Panel apply/clear
+  $('apply_p').addEventListener('click',()=>{ location.href = location.pathname + '?' + params.toString(); });
+  $('clear_p').addEventListener('click',()=>{ history.replaceState(null,'',location.pathname); location.reload(); });
 
   /* Results (demo) */
   const grid=$('grid'), empty=$('empty'), resultCount=$('resultCount');
@@ -568,22 +585,18 @@
 
   function toFilters(){
     const term=(params.get('q')||'').toLowerCase();
-    const getCSV=(k)=> new Set((params.get(k)||'').split(',').map(s=>s.trim()).filter(Boolean));
-    const contents=getCSV('content');
-    const colors=getCSV('color');
-    const dept=(params.get('dept')||'').toLowerCase();
-    const fabricType=(params.get('fabricType')||'').toLowerCase();
-    const fiberType=(params.get('fiberType')||'').toLowerCase();
-    const origin=(params.get('origin')||'').toLowerCase();
-    const pattern=(params.get('pattern')||'').toLowerCase();
-    const designer=(params.get('designer')||'').toLowerCase();
-    const n=(k)=>{const v=params.get(k); return v==null||v===''?null:Number(v);}
-    const pmin=n('minPrice'), pmax=n('maxPrice'), ymin=n('minYards'),
-          wmin=n('minWidth'), wmax=n('maxWidth'), gmin=n('minGsm'), gmax=n('maxGsm');
+    const csv=(k)=> new Set((params.get(k)||'').split(',').map(s=>s.trim()).filter(Boolean));
+    const contents=csv('content'), colors=csv('color'), dept=(params.get('dept')||'').toLowerCase(),
+          fabricType=(params.get('fabricType')||'').toLowerCase(), fiberType=(params.get('fiberType')||'').toLowerCase(),
+          origin=(params.get('origin')||'').toLowerCase(), pattern=(params.get('pattern')||'').toLowerCase(),
+          designer=(params.get('designer')||'').toLowerCase();
+    const num=(k)=>{ const v=params.get(k); return v==null||v===''?null:Number(v); };
+    const pmin=num('minPrice'), pmax=num('maxPrice'), ymin=num('minYards'),
+          wmin=num('minWidth'), wmax=num('maxWidth'), gmin=num('minGsm'), gmax=num('maxGsm');
 
     return (it)=>{
       if(term && !((it.title||'').toLowerCase().includes(term) || (it.designer||'').toLowerCase().includes(term))) return false;
-      if(contents.size){ const lc=(it.content||[]).map(s=>s.toLowerCase()); if(![...contents].some(c=> lc.includes(c))) return false; }
+      if(contents.size){ const lc=(it.content||[]).map(s=>s.toLowerCase()); if(![...contents].some(c=>lc.includes(c))) return false; }
       if(colors.size && !colors.has((it.color||'').toLowerCase())) return false;
       if(dept && (it.dept||'').toLowerCase()!==dept) return false;
       if(fabricType && (it.fabricType||'').toLowerCase()!==fabricType) return false;
@@ -620,7 +633,7 @@
     });
   }
 
-  $('yr').textContent=new Date().getFullYear();
+  $('yr').textContent = new Date().getFullYear();
   load();
 })();
 </script>
