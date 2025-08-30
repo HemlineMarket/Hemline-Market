@@ -12,62 +12,85 @@
 
 <style>
   :root{
-    --ink:#111827; --muted:#6b7280; --border:#e5e7eb; --accent:#991b1b; --bg:#fafafa;
-    --chip:#fff; --ok:#065f46; --warn:#92400e; --err:#b91c1c;
+    --ink:#111827; --muted:#6b7280; --border:#e5e7eb; --accent:#991b1b; --bg:#ffffff;
+    --ok:#065f46; --warn:#92400e; --err:#b91c1c;
   }
   html,body{height:100%}
   body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (uses shared) */
+  /* Header */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .hm-brand{font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
+  .head-links{display:flex;gap:12px;align-items:center}
+  .head-links a{color:#374151;text-decoration:none;border:1px solid var(--border);padding:6px 10px;border-radius:10px}
 
-  /* Layout */
+  /* Page */
   .sell-wrap{max-width:1100px;margin:14px auto;padding:0 12px}
-  .wizard{background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.06);overflow:hidden}
-  .steps{display:flex;gap:8px;overflow:auto;padding:10px;border-bottom:1px solid var(--border);background:#fff}
-  .step-chip{white-space:nowrap;display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 12px;font-weight:700;color:#374151}
-  .step-chip[aria-current="step"]{border-color:var(--accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
-  .step-chip .dot{width:18px;height:18px;border-radius:999px;border:2px solid var(--border);display:inline-block}
-  .step-chip[aria-current="step"] .dot{border-color:var(--accent)}
+  h1{margin:0 0 10px}
 
-  .panel{display:none;padding:14px;background:#fff}
+  /* Wizard chips */
+  .chips{display:flex;gap:8px;overflow:auto;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+  .chip{white-space:nowrap;display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 12px;font-weight:700;color:#374151}
+  .chip[aria-current="step"]{border-color:var(--accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
+  .dot{width:10px;height:10px;border-radius:999px;background:#d1d5db}
+  .chip[aria-current="step"] .dot{background:var(--accent)}
+
+  /* Panels */
+  .panel{display:none;margin-top:10px;border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff;box-shadow:0 6px 16px rgba(0,0,0,.06)}
   .panel.active{display:block}
 
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+  .two-col{display:grid;grid-template-columns:3fr 2fr;gap:14px}
+  @media (max-width:980px){ .two-col{grid-template-columns:1fr} }
 
+  /* 3-photo uploader */
+  .shots{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media (max-width:680px){ .shots{grid-template-columns:1fr 1fr} .shots .slot:last-child{grid-column:1 / -1} }
+  .slot{position:relative;border:2px dashed var(--border);border-radius:12px;min-height:200px;display:grid;place-items:center;background:#f8fafc;color:#6b7280;overflow:hidden}
+  .slot input{display:none}
+  .slot .hint{font-size:13px;text-align:center;padding:10px}
+  .slot .badge{position:absolute;top:8px;left:8px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:4px 8px;font-size:12px;font-weight:700}
+  .slot img{width:100%;height:100%;object-fit:cover}
+  .slot .tools{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+  .slot .btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer}
+  .slot.drag{border-color:var(--accent);background:#fff}
+
+  /* Tips card */
+  .tips{border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff}
+  .tips h3{margin:0 0 6px;font-size:16px}
+  .tips ul{margin:0 0 10px 18px;color:#374151}
+  .tips a{color:var(--accent);font-weight:700;text-decoration:none}
+  .mini-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .mini{border:1px solid var(--border);border-radius:10px;padding:8px;background:#fafafa}
+  .mini strong{display:block;margin-bottom:4px}
+
+  /* Forms (other steps) */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
   .field{display:flex;flex-direction:column;gap:6px}
   .field label{font-size:13px;color:#374151;font-weight:700}
   .field input[type="text"],
   .field input[type="number"],
-  .field input[type="file"],
   .field textarea,
   .field select{padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:14px}
   .field textarea{min-height:120px;resize:vertical}
-  .hint{color:var(--muted);font-size:12px}
-  .error{color:#fff;background:var(--err);border-radius:8px;padding:8px 10px;font-size:13px;display:none}
+  .error{display:none;color:#fff;background:var(--err);border-radius:8px;padding:8px 10px;font-size:13px}
   .error.show{display:block}
 
-  .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .thumb{aspect-ratio:4/3;border:1px dashed var(--border);border-radius:10px;display:grid;place-items:center;overflow:hidden;background:#f8fafc;color:#6b7280;position:relative}
-  .thumb img{width:100%;height:100%;object-fit:cover}
-  .thumb .rm{position:absolute;top:6px;right:6px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:2px 6px;font-size:12px;cursor:pointer}
-
-  .actions{display:flex;justify-content:space-between;border-top:1px solid var(--border);padding:12px;background:#fff}
-  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
-  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
-  .btn-ghost{background:#fff}
-  .btn:disabled{opacity:.6;cursor:not-allowed}
-
+  /* Review */
   .review{display:grid;grid-template-columns:320px 1fr;gap:14px}
   @media (max-width:900px){ .review{grid-template-columns:1fr} }
-  .review .gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .review .shot{aspect-ratio:4/3;background:#f8fafc;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-  .review .shot img{width:100%;height:100%;object-fit:cover}
+  .gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .shot{aspect-ratio:4/3;background:#f8fafc;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .shot img{width:100%;height:100%;object-fit:cover}
 
-  .success{display:none;border-left:4px solid var(--ok);background:#ecfdf5;padding:10px;border-radius:10px}
+  /* Bottom actions */
+  .actions{display:flex;justify-content:space-between;gap:10px;margin-top:12px}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+
+  .success{display:none;border-left:4px solid var(--ok);background:#ecfdf5;padding:10px;border-radius:10px;margin-top:10px}
   .success.show{display:block}
 </style>
 </head>
@@ -76,195 +99,242 @@
 <header class="hm-header">
   <div class="wrap">
     <a class="hm-brand" href="index.html">Hemline Market</a>
-    <a class="btn" href="browse.html">Browse</a>
+    <div class="head-links">
+      <a href="browse.html">Browse</a>
+      <a href="account.html">Account</a>
+    </div>
   </div>
 </header>
 
 <main class="sell-wrap" id="sellApp">
-  <h1 style="margin:0 0 10px">Create a new listing</h1>
+  <h1>Create a new listing</h1>
 
-  <div class="wizard">
-    <div class="steps" id="steps">
-      <div class="step-chip" data-step="0" aria-current="step"><span class="dot"></span>Photos</div>
-      <div class="step-chip" data-step="1"><span class="dot"></span>Basics</div>
-      <div class="step-chip" data-step="2"><span class="dot"></span>Details</div>
-      <div class="step-chip" data-step="3"><span class="dot"></span>Price & Shipping</div>
-      <div class="step-chip" data-step="4"><span class="dot"></span>Preview & Publish</div>
+  <!-- Wizard chips -->
+  <nav class="chips" id="chips" aria-label="Steps">
+    <button class="chip" data-step="0" aria-current="step"><span class="dot"></span> Photos</button>
+    <button class="chip" data-step="1"><span class="dot"></span> Basics</button>
+    <button class="chip" data-step="2"><span class="dot"></span> Details</button>
+    <button class="chip" data-step="3"><span class="dot"></span> Price & Shipping</button>
+    <button class="chip" data-step="4"><span class="dot"></span> Preview & Publish</button>
+  </nav>
+
+  <!-- Step 0: Photos (restored three-shot flow, ruler link, directions) -->
+  <section class="panel active" data-panel="0">
+    <div class="two-col">
+      <div>
+        <div class="shots" id="shots">
+          <!-- COVER -->
+          <div class="slot" data-idx="0">
+            <div class="badge">Cover</div>
+            <input type="file" accept="image/*"/>
+            <div class="hint"><strong>Front-on</strong><br/>Good lighting, full piece visible.<br/><em>Click or drop photo</em></div>
+          </div>
+          <!-- CLOSE-UP -->
+          <div class="slot" data-idx="1">
+            <div class="badge">Close-up</div>
+            <input type="file" accept="image/*"/>
+            <div class="hint"><strong>Texture & weave</strong><br/>Fill the frame.<br/><em>Click or drop photo</em></div>
+          </div>
+          <!-- MEASUREMENT -->
+          <div class="slot" data-idx="2">
+            <div class="badge">Measurement</div>
+            <input type="file" accept="image/*"/>
+            <div class="hint"><strong>With a ruler</strong><br/>Show width or motif scale.<br/><em>Click or drop photo</em></div>
+          </div>
+        </div>
+        <div class="error" id="err-photos" style="margin-top:10px">Please add at least 1 photo (3 recommended).</div>
+      </div>
+
+      <aside class="tips">
+        <h3>Photo directions</h3>
+        <ul>
+          <li>Natural light, true-to-color, no heavy filters.</li>
+          <li>Iron/steam if needed; shoot on plain background.</li>
+          <li>Include fiber content tag if available.</li>
+          <li>For prints, add a shot with a ruler for scale.</li>
+        </ul>
+        <div class="mini-info">
+          <div class="mini">
+            <strong>Need a ruler?</strong>
+            <a href="ruler.svg" target="_blank" rel="noopener">Print our 6″ ruler (SVG)</a>
+          </div>
+          <div class="mini">
+            <strong>Aspect ratio</strong>
+            Use 4:3; min 1200×900px
+          </div>
+        </div>
+      </aside>
     </div>
 
-    <!-- Step 0: Photos -->
-    <section class="panel active" data-step-panel="0">
-      <div class="grid">
-        <div class="field">
-          <label>Upload photos <span class="hint">(first photo will be the cover)</span></label>
-          <input type="file" id="photos" accept="image/*" multiple />
-          <div class="hint">JPEG/PNG, max ~10MB each. You can reorder later in dashboard.</div>
-          <div class="error" id="err-photos">Please add at least 1 photo.</div>
-        </div>
-        <div class="field">
-          <label>Preview</label>
-          <div class="thumbs" id="thumbs">
-            <div class="thumb">No photos yet</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Step 1: Basics -->
-    <section class="panel" data-step-panel="1">
-      <div class="grid">
-        <div class="field">
-          <label>Title *</label>
-          <input type="text" id="title" placeholder="e.g., Italian Wool Suiting — Navy"/>
-          <div class="error" id="err-title">Title is required.</div>
-        </div>
-        <div class="field">
-          <label>Department *</label>
-          <select id="dept">
-            <option value="">Select…</option>
-            <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
-          </select>
-          <div class="error" id="err-dept">Department is required.</div>
-        </div>
-        <div class="field" style="grid-column:1 / -1">
-          <label>Description</label>
-          <textarea id="desc" placeholder="Tell buyers about the fabric’s hand, drape, ideal uses…"></textarea>
-        </div>
-      </div>
-    </section>
-
-    <!-- Step 2: Details -->
-    <section class="panel" data-step-panel="2">
-      <div class="grid">
-        <div class="field">
-          <label>Content *</label>
-          <select id="content">
-            <option value="">Select…</option>
-            <option>Cashmere</option><option>Wool</option><option>Silk</option><option>Cotton</option>
-            <option>Linen</option><option>Bamboo</option><option>Alpaca</option><option>Rayon/Viscose</option>
-            <option>Polyester</option><option>Nylon</option><option>Other Fibers</option>
-          </select>
-          <div class="error" id="err-content">Content is required.</div>
-        </div>
-        <div class="field">
-          <label>Fabric Type</label>
-          <select id="fabricType">
-            <option value="">Any</option>
-            <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
-            <option>Crepe</option><option>Denim</option><option>Flannel</option>
-            <option>Georgette</option><option>Jersey</option><option>Lace</option>
-            <option>Lawn</option><option>Organza</option><option>Poplin</option>
-            <option>Sateen</option><option>Satin</option><option>Tulle</option>
-            <option>Twill</option><option>Velvet</option><option>Voile</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Color</label>
-          <input type="text" id="color" placeholder="e.g., Navy / Champagne"/>
-        </div>
-        <div class="field">
-          <label>Pattern</label>
-          <select id="pattern"><option value="">Any</option><option>Solid</option><option>Printed</option></select>
-        </div>
-        <div class="field">
-          <label>Width (in) *</label>
-          <input type="number" id="width" min="0" step="1" placeholder="54"/>
-          <div class="error" id="err-width">Width is required.</div>
-        </div>
-        <div class="field">
-          <label>Weight (GSM) *</label>
-          <input type="number" id="gsm" min="0" step="1" placeholder="180"/>
-          <div class="error" id="err-gsm">GSM is required.</div>
-        </div>
-        <div class="field">
-          <label>Min yards available *</label>
-          <input type="number" id="yards" min="0" step="1" placeholder="3"/>
-          <div class="error" id="err-yards">Please enter available yards.</div>
-        </div>
-        <div class="field">
-          <label>Country / Origin</label>
-          <select id="origin">
-            <option value="">Any</option>
-            <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
-            <option>USA</option><option>India</option><option>China</option><option>Korea</option>
-          </select>
-        </div>
-        <div class="field" style="grid-column:1 / -1">
-          <label>Designer / Mill</label>
-          <input type="text" id="designer" placeholder="e.g., Loro Piana"/>
-        </div>
-      </div>
-    </section>
-
-    <!-- Step 3: Price & Shipping -->
-    <section class="panel" data-step-panel="3">
-      <div class="grid">
-        <div class="field">
-          <label>Price ($/yard) *</label>
-          <input type="number" id="price" min="0" step="1" placeholder="28"/>
-          <div class="error" id="err-price">Price is required.</div>
-        </div>
-        <div class="field">
-          <label>Handling time (days)</label>
-          <input type="number" id="handling" min="0" step="1" placeholder="2"/>
-        </div>
-        <div class="field">
-          <label>Shipping profile</label>
-          <select id="shipProfile">
-            <option value="">Standard</option>
-            <option>Express</option>
-            <option>International</option>
-          </select>
-        </div>
-        <div class="field" style="grid-column:1 / -1">
-          <label>Notes (visible to buyer)</label>
-          <textarea id="notes" placeholder="Any special handling or shipping notes…"></textarea>
-        </div>
-      </div>
-    </section>
-
-    <!-- Step 4: Preview & Publish -->
-    <section class="panel" data-step-panel="4">
-      <div class="success" id="publishSuccess">✅ Listing created! You can manage it from your dashboard.</div>
-      <div class="review" id="review">
-        <div>
-          <div class="gallery" id="gallery">
-            <div class="shot"></div><div class="shot"></div><div class="shot"></div><div class="shot"></div>
-          </div>
-        </div>
-        <div>
-          <h2 id="r-title" style="margin:0 0 6px">—</h2>
-          <div style="color:var(--muted);margin-bottom:10px" id="r-sub">—</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div><strong>Price</strong><div id="r-price">$— / yd</div></div>
-            <div><strong>Yards</strong><div id="r-yards">—</div></div>
-            <div><strong>Width</strong><div id="r-width">—″</div></div>
-            <div><strong>Weight</strong><div id="r-gsm">— GSM</div></div>
-            <div><strong>Content</strong><div id="r-content">—</div></div>
-            <div><strong>Fabric Type</strong><div id="r-fabric">—</div></div>
-            <div><strong>Pattern</strong><div id="r-pattern">—</div></div>
-            <div><strong>Origin</strong><div id="r-origin">—</div></div>
-            <div style="grid-column:1 / -1"><strong>Description</strong><div id="r-desc" style="white-space:pre-wrap">—</div></div>
-            <div style="grid-column:1 / -1"><strong>Notes</strong><div id="r-notes" style="white-space:pre-wrap">—</div></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Nav -->
     <div class="actions">
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" id="saveDraft" type="button">Save draft</button>
-        <button class="btn btn-ghost" id="loadDraft" type="button">Load draft</button>
-        <button class="btn btn-ghost" id="clearDraft" type="button">Clear draft</button>
+        <button class="btn" id="saveDraft" type="button">Save draft</button>
+        <button class="btn" id="loadDraft" type="button">Load draft</button>
+        <button class="btn" id="clearDraft" type="button">Clear draft</button>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn" id="backBtn" disabled>Back</button>
-        <button class="btn btn-primary" id="nextBtn">Next</button>
-        <button class="btn btn-primary" id="publishBtn" style="display:none">Publish</button>
+      <div>
+        <button class="btn" id="back0" disabled>Back</button>
+        <button class="btn-primary" id="next0">Next</button>
       </div>
     </div>
-  </div>
+  </section>
+
+  <!-- Step 1: Basics -->
+  <section class="panel" data-panel="1">
+    <div class="grid">
+      <div class="field">
+        <label>Title *</label>
+        <input type="text" id="title" placeholder="e.g., Italian Wool Suiting — Navy"/>
+        <div class="error" id="err-title">Title is required.</div>
+      </div>
+      <div class="field">
+        <label>Department *</label>
+        <select id="dept">
+          <option value="">Select…</option>
+          <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
+        </select>
+        <div class="error" id="err-dept">Department is required.</div>
+      </div>
+      <div class="field" style="grid-column:1 / -1">
+        <label>Description</label>
+        <textarea id="desc" placeholder="Tell buyers about the fabric’s hand, drape, ideal uses…"></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="back1">Back</button>
+      <button class="btn-primary" id="next1">Next</button>
+    </div>
+  </section>
+
+  <!-- Step 2: Details -->
+  <section class="panel" data-panel="2">
+    <div class="grid">
+      <div class="field">
+        <label>Content *</label>
+        <select id="content">
+          <option value="">Select…</option>
+          <option>Cashmere</option><option>Wool</option><option>Silk</option><option>Cotton</option>
+          <option>Linen</option><option>Bamboo</option><option>Alpaca</option><option>Rayon/Viscose</option>
+          <option>Polyester</option><option>Nylon</option><option>Other Fibers</option>
+        </select>
+        <div class="error" id="err-content">Content is required.</div>
+      </div>
+      <div class="field">
+        <label>Fabric Type</label>
+        <select id="fabricType">
+          <option value="">Any</option>
+          <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
+          <option>Crepe</option><option>Denim</option><option>Flannel</option>
+          <option>Georgette</option><option>Jersey</option><option>Lace</option>
+          <option>Lawn</option><option>Organza</option><option>Poplin</option>
+          <option>Sateen</option><option>Satin</option><option>Tulle</option>
+          <option>Twill</option><option>Velvet</option><option>Voile</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Color</label>
+        <input type="text" id="color" placeholder="e.g., Navy / Champagne"/>
+      </div>
+      <div class="field">
+        <label>Pattern</label>
+        <select id="pattern"><option value="">Any</option><option>Solid</option><option>Printed</option></select>
+      </div>
+      <div class="field">
+        <label>Width (in) *</label>
+        <input type="number" id="width" min="0" step="1" placeholder="54"/>
+        <div class="error" id="err-width">Width is required.</div>
+      </div>
+      <div class="field">
+        <label>Weight (GSM) *</label>
+        <input type="number" id="gsm" min="0" step="1" placeholder="180"/>
+        <div class="error" id="err-gsm">GSM is required.</div>
+      </div>
+      <div class="field">
+        <label>Min yards available *</label>
+        <input type="number" id="yards" min="0" step="1" placeholder="3"/>
+        <div class="error" id="err-yards">Please enter available yards.</div>
+      </div>
+      <div class="field">
+        <label>Country / Origin</label>
+        <select id="origin">
+          <option value="">Any</option>
+          <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
+          <option>USA</option><option>India</option><option>China</option><option>Korea</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:1 / -1">
+        <label>Designer / Mill</label>
+        <input type="text" id="designer" placeholder="e.g., Loro Piana"/>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="back2">Back</button>
+      <button class="btn-primary" id="next2">Next</button>
+    </div>
+  </section>
+
+  <!-- Step 3: Price & Shipping -->
+  <section class="panel" data-panel="3">
+    <div class="grid">
+      <div class="field">
+        <label>Price ($/yard) *</label>
+        <input type="number" id="price" min="0" step="1" placeholder="28"/>
+        <div class="error" id="err-price">Price is required.</div>
+      </div>
+      <div class="field">
+        <label>Handling time (days)</label>
+        <input type="number" id="handling" min="0" step="1" placeholder="2"/>
+      </div>
+      <div class="field">
+        <label>Shipping profile</label>
+        <select id="shipProfile">
+          <option value="">Standard</option>
+          <option>Express</option>
+          <option>International</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:1 / -1">
+        <label>Notes (visible to buyer)</label>
+        <textarea id="notes" placeholder="Any special handling or shipping notes…"></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="back3">Back</button>
+      <button class="btn-primary" id="next3">Next</button>
+    </div>
+  </section>
+
+  <!-- Step 4: Preview & Publish -->
+  <section class="panel" data-panel="4">
+    <div class="success" id="publishSuccess">✅ Listing created! You can manage it from your dashboard.</div>
+    <div class="review" id="review">
+      <div>
+        <div class="gallery" id="gallery">
+          <div class="shot"></div><div class="shot"></div><div class="shot"></div><div class="shot"></div>
+        </div>
+      </div>
+      <div>
+        <h2 id="r-title" style="margin:0 0 6px">—</h2>
+        <div style="color:var(--muted);margin-bottom:10px" id="r-sub">—</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><strong>Price</strong><div id="r-price">$— / yd</div></div>
+          <div><strong>Yards</strong><div id="r-yards">—</div></div>
+          <div><strong>Width</strong><div id="r-width">—″</div></div>
+          <div><strong>Weight</strong><div id="r-gsm">— GSM</div></div>
+          <div><strong>Content</strong><div id="r-content">—</div></div>
+          <div><strong>Fabric Type</strong><div id="r-fabric">—</div></div>
+          <div><strong>Pattern</strong><div id="r-pattern">—</div></div>
+          <div><strong>Origin</strong><div id="r-origin">—</div></div>
+          <div style="grid-column:1 / -1"><strong>Description</strong><div id="r-desc" style="white-space:pre-wrap">—</div></div>
+          <div style="grid-column:1 / -1"><strong>Notes</strong><div id="r-notes" style="white-space:pre-wrap">—</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="back4">Back</button>
+      <button class="btn-primary" id="publishBtn">Publish</button>
+    </div>
+  </section>
 </main>
 
 <footer class="hm-footer" role="contentinfo" style="margin-top:18px">
@@ -284,151 +354,131 @@
 <script>
 (function(){
   const $ = (id)=>document.getElementById(id);
-  const steps = [...document.querySelectorAll('.step-chip')];
-  const panels = [...document.querySelectorAll('[data-step-panel]')];
-  let step = 0;
 
-  const state = {
-    photos: [], // {src}
-    title:'', dept:'', desc:'',
-    content:'', fabricType:'', color:'', pattern:'', width:'', gsm:'', yards:'', origin:'', designer:'',
-    price:'', handling:'', shipProfile:'', notes:''
-  };
+  /* ----- Wizard nav ----- */
+  const chips=[...document.querySelectorAll('.chip')];
+  const panels=[...document.querySelectorAll('[data-panel]')];
+  let step=0;
 
-  /* ---- Photos ---- */
-  const photosInput = $('photos');
-  const thumbs = $('thumbs');
-  photosInput.addEventListener('change', async (e)=>{
-    const files = [...e.target.files].slice(0,12);
-    state.photos = [];
-    thumbs.innerHTML = '';
-    if(!files.length){
-      thumbs.innerHTML = '<div class="thumb">No photos yet</div>';
-      return;
-    }
-    for (const file of files){
-      const url = URL.createObjectURL(file);
-      state.photos.push({src:url});
-      const slot = document.createElement('div');
-      slot.className = 'thumb';
-      const img = document.createElement('img');
-      img.src = url;
-      const rm = document.createElement('button');
-      rm.type='button'; rm.className='rm'; rm.textContent='Remove';
-      rm.addEventListener('click', ()=>{
-        URL.revokeObjectURL(url);
-        state.photos = state.photos.filter(p=>p.src!==url);
-        slot.remove();
-        if(!state.photos.length) thumbs.innerHTML = '<div class="thumb">No photos yet</div>';
-      });
-      slot.appendChild(img); slot.appendChild(rm);
-      thumbs.appendChild(slot);
-    }
-  });
-
-  /* ---- Navigation ---- */
   function setStep(n){
-    step = n;
-    steps.forEach((chip,i)=>chip.setAttribute('aria-current', i===step ? 'step' : 'false'));
-    panels.forEach((p,i)=>p.classList.toggle('active', i===step));
-    $('backBtn').disabled = step===0;
-    $('nextBtn').style.display = step<panels.length-1 ? '' : 'none';
-    $('publishBtn').style.display = step===panels.length-1 ? '' : 'none';
-    window.scrollTo({top:0, behavior:'smooth'});
-    if(step===4) renderReview();
+    step=n;
+    chips.forEach((c,i)=>c.setAttribute('aria-current', i===n ? 'step':'false'));
+    panels.forEach((p,i)=>p.classList.toggle('active', i===n));
+    window.scrollTo({top:0,behavior:'smooth'});
+    if(n===4) renderReview();
+  }
+  chips.forEach((c,i)=>c.addEventListener('click',()=>{ if(i<=step){ setStep(i); } }));
+
+  /* Bottom buttons */
+  $('next0').addEventListener('click',()=>{ if(validatePhotos()) setStep(1); });
+  $('back0').addEventListener('click',()=>{});
+  $('next1').addEventListener('click',()=>{ if(validateBasics()) setStep(2); });
+  $('back1').addEventListener('click',()=>setStep(0));
+  $('next2').addEventListener('click',()=>{ if(validateDetails()) setStep(3); });
+  $('back2').addEventListener('click',()=>setStep(1));
+  $('next3').addEventListener('click',()=>{ if(validatePrice()) setStep(4); });
+  $('back3').addEventListener('click',()=>setStep(2));
+  $('back4').addEventListener('click',()=>setStep(3));
+
+  /* ----- Three-slot uploader (click or drag & drop) ----- */
+  const state={ photos:[null,null,null] }; // each {src}
+  const KEY='hm.sell.v2.draft';
+
+  function bindSlot(slot){
+    const input=slot.querySelector('input[type=file]');
+    const idx=Number(slot.dataset.idx);
+
+    function loadFile(file){
+      if(!file) return;
+      const url=URL.createObjectURL(file);
+      state.photos[idx] = {src:url};
+      slot.innerHTML = `
+        <div class="badge">${idx===0?'Cover':idx===1?'Close-up':'Measurement'}</div>
+        <img src="${url}" alt="photo ${idx+1}"/>
+        <div class="tools">
+          <button type="button" class="btn" data-act="replace">Replace</button>
+          <button type="button" class="btn" data-act="remove">Remove</button>
+        </div>
+        <input type="file" accept="image/*" style="display:none"/>
+      `;
+      slot.querySelector('[data-act="replace"]').addEventListener('click',()=>slot.querySelector('input').click());
+      slot.querySelector('[data-act="remove"]').addEventListener('click',()=>{
+        URL.revokeObjectURL(url);
+        state.photos[idx]=null;
+        resetSlot(slot, idx);
+      });
+      slot.querySelector('input').addEventListener('change',e=>{
+        const f=e.target.files?.[0]; if(f){ URL.revokeObjectURL(url); loadFile(f); }
+      });
+    }
+
+    input.addEventListener('change',e=>{
+      const file=e.target.files?.[0]; loadFile(file);
+    });
+
+    ['dragenter','dragover'].forEach(ev=>{
+      slot.addEventListener(ev,(e)=>{e.preventDefault();slot.classList.add('drag');});
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      slot.addEventListener(ev,(e)=>{e.preventDefault();slot.classList.remove('drag');});
+    });
+    slot.addEventListener('drop',(e)=>{
+      const file=e.dataTransfer.files?.[0]; loadFile(file);
+    });
+    slot.addEventListener('click',()=>{
+      if(!state.photos[idx]) input.click();
+    });
   }
 
-  function next(){
-    if(!validateStep(step)) return;
-    if(step < panels.length-1) setStep(step+1);
-  }
-  function back(){
-    if(step>0) setStep(step-1);
-  }
-
-  $('nextBtn').addEventListener('click', next);
-  $('backBtn').addEventListener('click', back);
-
-  /* ---- Collect + Validate ---- */
-  function syncState(){
-    state.title = $('title').value.trim();
-    state.dept = $('dept').value.trim();
-    state.desc = $('desc').value.trim();
-    state.content = $('content').value.trim();
-    state.fabricType = $('fabricType').value.trim();
-    state.color = $('color').value.trim();
-    state.pattern = $('pattern').value.trim();
-    state.width = $('width').value.trim();
-    state.gsm = $('gsm').value.trim();
-    state.yards = $('yards').value.trim();
-    state.origin = $('origin').value.trim();
-    state.designer = $('designer').value.trim();
-    state.price = $('price').value.trim();
-    state.handling = $('handling').value.trim();
-    state.shipProfile = $('shipProfile').value.trim();
-    state.notes = $('notes').value.trim();
+  function resetSlot(slot, idx){
+    slot.innerHTML = `
+      <div class="badge">${idx===0?'Cover':idx===1?'Close-up':'Measurement'}</div>
+      <input type="file" accept="image/*"/>
+      <div class="hint"><strong>${idx===0?'Front-on':''
+        || idx===1?'Texture & weave':'With a ruler'}</strong><br/>${idx===0?'Good lighting, full piece visible.'
+        : idx===1?'Fill the frame.':'Show width or motif scale.'}<br/><em>Click or drop photo</em></div>
+    `;
+    bindSlot(slot);
   }
 
-  function showErr(id, show){ const el=$(id); if(!el) return; el.classList.toggle('show', !!show); }
+  document.querySelectorAll('.slot').forEach(bindSlot);
 
-  function validateStep(s){
-    syncState();
-    let ok = true;
-    if(s===0){
-      const has = state.photos.length>0;
-      showErr('err-photos', !has);
-      ok = has;
-    }
-    if(s===1){
-      showErr('err-title', !state.title);
-      showErr('err-dept', !state.dept);
-      ok = !!(state.title && state.dept);
-    }
-    if(s===2){
-      const w = !!state.width, g = !!state.gsm, y = !!state.yards, c = !!state.content;
-      showErr('err-width', !w); showErr('err-gsm', !g); showErr('err-yards', !y); showErr('err-content', !c);
-      ok = w && g && y && c;
-    }
-    if(s===3){
-      showErr('err-price', !state.price);
-      ok = !!state.price;
-    }
+  function validatePhotos(){
+    const ok = state.photos.some(Boolean);
+    $('err-photos').classList.toggle('show', !ok);
     return ok;
   }
 
-  /* ---- Preview ---- */
-  function renderReview(){
-    $('r-title').textContent = state.title || '—';
-    $('r-sub').textContent = [state.dept, state.fabricType, state.color].filter(Boolean).join(' • ') || '—';
-    $('r-price').textContent = state.price ? `$${Number(state.price)}/ yd` : '—';
-    $('r-yards').textContent = state.yards || '—';
-    $('r-width').textContent = state.width ? `${state.width}″` : '—';
-    $('r-gsm').textContent = state.gsm ? `${state.gsm} GSM` : '—';
-    $('r-content').textContent = state.content || '—';
-    $('r-fabric').textContent = state.fabricType || '—';
-    $('r-pattern').textContent = state.pattern || '—';
-    $('r-origin').textContent = state.origin || '—';
-    $('r-desc').textContent = state.desc || '—';
-    $('r-notes').textContent = state.notes || '—';
-
-    const gallery = $('gallery');
-    gallery.innerHTML = '';
-    if(state.photos.length){
-      state.photos.slice(0,4).forEach(p=>{
-        const d=document.createElement('div'); d.className='shot';
-        const img=document.createElement('img'); img.src=p.src; d.appendChild(img);
-        gallery.appendChild(d);
-      });
-    }else{
-      gallery.innerHTML = '<div class="shot"></div><div class="shot"></div><div class="shot"></div><div class="shot"></div>';
-    }
+  /* ----- Basics / Details / Price validation ----- */
+  function validateBasics(){
+    const title = $('title').value.trim();
+    const dept = $('dept').value.trim();
+    $('err-title').classList.toggle('show', !title);
+    $('err-dept').classList.toggle('show', !dept);
+    return !!(title && dept);
+  }
+  function validateDetails(){
+    const req = {
+      content: $('content').value.trim(),
+      width: $('width').value.trim(),
+      gsm: $('gsm').value.trim(),
+      yards: $('yards').value.trim()
+    };
+    $('err-content').classList.toggle('show', !req.content);
+    $('err-width').classList.toggle('show', !req.width);
+    $('err-gsm').classList.toggle('show', !req.gsm);
+    $('err-yards').classList.toggle('show', !req.yards);
+    return Object.values(req).every(Boolean);
+  }
+  function validatePrice(){
+    const price = $('price').value.trim();
+    $('err-price').classList.toggle('show', !price);
+    return !!price;
   }
 
-  /* ---- Drafts ---- */
-  const KEY='hm.sell.draft.v1';
+  /* ----- Drafts ----- */
   $('saveDraft').addEventListener('click', ()=>{
-    syncState();
-    const draft = {...state, photos: state.photos.map(p=>p.src)};
+    const draft = collectState(true);
     localStorage.setItem(KEY, JSON.stringify(draft));
     alert('Draft saved.');
   });
@@ -436,31 +486,35 @@
     const raw = localStorage.getItem(KEY);
     if(!raw) return alert('No draft found.');
     const d = JSON.parse(raw);
-    // restore basic fields
-    [
-      ['title','title'],['dept','dept'],['desc','desc'],['content','content'],['fabricType','fabricType'],
-      ['color','color'],['pattern','pattern'],['width','width'],['gsm','gsm'],['yards','yards'],
-      ['origin','origin'],['designer','designer'],['price','price'],['handling','handling'],
-      ['shipProfile','shipProfile'],['notes','notes']
-    ].forEach(([k,id])=>{ if(d[k]!=null){ const el=$(id); if(el) el.value=d[k]; }});
-    // restore photos
-    state.photos = (d.photos||[]).map(src=>({src}));
-    thumbs.innerHTML='';
-    if(!state.photos.length){ thumbs.innerHTML='<div class="thumb">No photos yet</div>'; }
-    else{
-      state.photos.forEach(p=>{
-        const slot=document.createElement('div'); slot.className='thumb';
-        const img=document.createElement('img'); img.src=p.src;
-        const rm=document.createElement('button'); rm.type='button'; rm.className='rm'; rm.textContent='Remove';
-        rm.addEventListener('click', ()=>{
-          state.photos = state.photos.filter(x=>x.src!==p.src);
-          slot.remove();
-          if(!state.photos.length) thumbs.innerHTML='<div class="thumb">No photos yet</div>';
+    // fields
+    ['title','dept','desc','content','fabricType','color','pattern','width','gsm','yards','origin','designer','price','handling','shipProfile','notes']
+      .forEach(id=>{ const el=$(id); if(el && d[id]!=null) el.value=d[id]; });
+    // photos
+    state.photos = [null,null,null];
+    document.querySelectorAll('.slot').forEach((slot,i)=>{
+      resetSlot(slot,i);
+      if(d.photos && d.photos[i]){
+        // simulate load from data url
+        const url = d.photos[i];
+        state.photos[i] = {src:url};
+        slot.innerHTML = `
+          <div class="badge">${i===0?'Cover':i===1?'Close-up':'Measurement'}</div>
+          <img src="${url}" alt="photo ${i+1}"/>
+          <div class="tools">
+            <button type="button" class="btn" data-act="replace">Replace</button>
+            <button type="button" class="btn" data-act="remove">Remove</button>
+          </div>
+          <input type="file" accept="image/*" style="display:none"/>
+        `;
+        slot.querySelector('[data-act="replace"]').addEventListener('click',()=>slot.querySelector('input').click());
+        slot.querySelector('[data-act="remove"]').addEventListener('click',()=>{
+          state.photos[i]=null; resetSlot(slot,i);
         });
-        slot.appendChild(img); slot.appendChild(rm);
-        thumbs.appendChild(slot);
-      });
-    }
+        slot.querySelector('input').addEventListener('change',e=>{
+          const f=e.target.files?.[0]; if(f){ const nu=URL.createObjectURL(f); state.photos[i]={src:nu}; slot.querySelector('img').src=nu; }
+        });
+      }
+    });
     alert('Draft loaded.');
   });
   $('clearDraft').addEventListener('click', ()=>{
@@ -468,21 +522,64 @@
     alert('Draft cleared.');
   });
 
-  /* ---- Publish (placeholder) ---- */
-  $('publishBtn').addEventListener('click', ()=>{
-    if(!validateStep(4)) return;
-    // In production: POST to your serverless/Edge endpoint.
-    $('publishSuccess').classList.add('show');
-  });
+  function collectState(includePhotos=false){
+    const s = {
+      title:$('title').value.trim(),
+      dept:$('dept').value.trim(),
+      desc:$('desc').value.trim(),
+      content:$('content').value.trim(),
+      fabricType:$('fabricType').value.trim(),
+      color:$('color').value.trim(),
+      pattern:$('pattern').value.trim(),
+      width:$('width').value.trim(),
+      gsm:$('gsm').value.trim(),
+      yards:$('yards').value.trim(),
+      origin:$('origin').value.trim(),
+      designer:$('designer').value.trim(),
+      price:$('price').value.trim(),
+      handling:$('handling').value.trim(),
+      shipProfile:$('shipProfile').value.trim(),
+      notes:$('notes').value.trim()
+    };
+    if(includePhotos){
+      s.photos = state.photos.map(p=>p?.src||null);
+    }
+    return s;
+  }
 
-  /* Allow clicking step chips to navigate, honoring validation forward */
-  steps.forEach((chip,i)=>{
-    chip.addEventListener('click',()=>{
-      if(i<=step){ setStep(i); return; }
-      // moving forward: validate intermediate steps
-      for(let s=step; s<i; s++){ if(!validateStep(s)) return; }
-      setStep(i);
-    });
+  /* ----- Review + Publish ----- */
+  function renderReview(){
+    const s = collectState();
+    $('r-title').textContent = s.title || '—';
+    $('r-sub').textContent = [s.dept, s.fabricType, s.color].filter(Boolean).join(' • ') || '—';
+    $('r-price').textContent = s.price ? `$${Number(s.price)}/ yd` : '—';
+    $('r-yards').textContent = s.yards || '—';
+    $('r-width').textContent = s.width ? `${s.width}″` : '—';
+    $('r-gsm').textContent = s.gsm ? `${s.gsm} GSM` : '—';
+    $('r-content').textContent = s.content || '—';
+    $('r-fabric').textContent = s.fabricType || '—';
+    $('r-pattern').textContent = s.pattern || '—';
+    $('r-origin').textContent = s.origin || '—';
+    $('r-desc').textContent = s.desc || '—';
+    $('r-notes').textContent = s.notes || '—';
+
+    const gallery = $('gallery');
+    gallery.innerHTML = '';
+    const imgs = state.photos.filter(Boolean).map(p=>p.src).slice(0,4);
+    if(imgs.length){
+      imgs.forEach(src=>{
+        const d=document.createElement('div'); d.className='shot';
+        const img=document.createElement('img'); img.src=src; d.appendChild(img);
+        gallery.appendChild(d);
+      });
+    }else{
+      gallery.innerHTML = '<div class="shot"></div><div class="shot"></div><div class="shot"></div><div class="shot"></div>';
+    }
+  }
+
+  $('publishBtn').addEventListener('click', ()=>{
+    // In production: POST to your serverless endpoint.
+    $('publishSuccess').classList.add('show');
   });
 
 })();
