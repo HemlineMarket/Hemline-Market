@@ -134,6 +134,37 @@
 
   .success{display:none;border-left:4px solid var(--ok);background:#ecfdf5;padding:10px;border-radius:10px;margin-top:10px}
   .success.show{display:block}
+
+  /* ===== Mobile clarity: sticky step bar + sticky bottom actions ===== */
+  @media (max-width: 760px){
+    .topbar{
+      position: sticky;
+      top: 56px;                 /* header height */
+      z-index: 50;
+      background: #fff;
+      padding-top: 6px;
+      margin-top: -6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .chips{ box-shadow: none; padding: 8px; }
+    .aside-meta{ display: none; }
+    .progress{
+      position: sticky;
+      top: calc(56px + 56px);   /* header + chips */
+      z-index: 49;
+      margin: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel .actions{
+      position: sticky;
+      bottom: 0;
+      z-index: 40;
+      background: #fff;
+      border-top: 1px solid var(--border);
+      padding: 10px 0;
+      margin-top: 12px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -200,8 +231,8 @@
             <a href="ruler.svg" target="_blank" rel="noopener">Print our 8″ ruler (SVG)</a>
           </div>
           <div class="mini">
-            <strong>Aspect ratio</strong>
-            Use 4:3; min 1200×900px
+            <strong>Photo shape</strong>
+            Landscape 4:3 works best (e.g., 1200×900px). Bigger is fine.
           </div>
         </div>
       </aside>
@@ -490,7 +521,7 @@
         state.media.push({type:'image',src:du});
       }else if(f.type.startsWith('video/')){
         const url=URL.createObjectURL(f);
-        state.media.push({type:'video',src:url,ephemeral:true});
+        state.media.push({type:'video',src=url,ephemeral:true});
         hasVideo=true;
       }
     }
@@ -646,7 +677,6 @@
       pill.addEventListener('click',()=>{
         if(single){
           state[stateKey] = (state[stateKey]===v) ? '' : v;
-          // reset all to reflect single selection
           [...container.children].forEach(ch=>ch.removeAttribute('data-selected'));
           if(state[stateKey]) pill.dataset.selected="true";
         }else{
