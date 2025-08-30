@@ -2,526 +2,490 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<meta name="description" content="Hemline Market — List fabric with clear photos and transparent specs. Accessible, seller-friendly form with live validation.">
-<title>Hemline Market — List an Item</title>
-<meta name="theme-color" content="#333333"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sell — Hemline Market</title>
+
+<link rel="stylesheet" href="styles/hm-modern.css"/>
+<link rel="stylesheet" href="styles/hem-header.css"/>
+<link rel="stylesheet" href="styles/hm-typography.css"/>
+<link rel="stylesheet" href="styles/hm-footer.css"/>
+
 <style>
   :root{
-    --hm-charcoal:#333333; --hm-rosewood:#65000b; --hm-hunter:#355e3b; --hm-black:#000;
-    --hm-bg:#fff; --hm-text:#333333; --hm-muted:#6b7280;
-    --hm-border:1px solid rgba(0,0,0,.12); --hm-shadow:0 8px 24px rgba(0,0,0,.08);
-    --hm-radius:14px; --hm-gap:16px; --hm-cta:#65000b;
-    --hm-error-bg:#fff6f7; --hm-error-border:#ff8aa3; --hm-error-text:#7f1d1d;
-    --hm-good:#22c55e;
+    --ink:#111827; --muted:#6b7280; --border:#e5e7eb; --accent:#991b1b; --bg:#fafafa;
+    --chip:#fff; --ok:#065f46; --warn:#92400e; --err:#b91c1c;
   }
-  *{box-sizing:border-box}
-  html,body{margin:0;color:var(--hm-text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  html,body{height:100%}
+  body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* FULL-BLEED BACKGROUND (brand) */
-  body{position:relative;min-height:100vh}
-  body::before{
-    content:""; position:fixed; inset:0; z-index:-2;
-    background:url('/bodyforms.jpg') center/cover no-repeat;
-    background-position:50% 40%;
-  }
-  body::after{
-    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
-    background:
-      radial-gradient(1200px 520px at 8% 20%, rgba(0,0,0,.46), transparent 58%),
-      linear-gradient(to bottom, rgba(255,255,255,.06), rgba(255,255,255,.36) 65%, rgba(255,255,255,.44));
-  }
-
-  a{text-decoration:none;color:#000} a:hover{color:var(--hm-rosewood)}
-  img{max-width:100%;display:block}
-
-  /* ✅ Visible keyboard focus */
-  :focus-visible{ outline:3px solid var(--hm-rosewood); outline-offset:2px; border-radius:6px; }
-
-  /* Header (site) */
-  .hm-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);backdrop-filter:saturate(120%) blur(6px);border-bottom:1px solid rgba(0,0,0,.08)}
-  .hm-header-inner{height:90px;max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 16px}
-  .hm-logo img{height:80px}
-  .hm-nav{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
-  .hm-nav a{font-weight:700}
-  .hm-nav .cta{font-weight:900;padding:10px 18px;border-radius:999px;background:var(--hm-cta);color:#fff;border:1px solid #000}
+  /* Header (uses shared) */
+  .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
+  .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+  .hm-brand{font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
 
   /* Layout */
-  .wrap{max-width:1200px;margin:26px auto 48px;padding:0 16px;display:grid;grid-template-columns:1.15fr .85fr;gap:22px}
-  @media (max-width:980px){.wrap{grid-template-columns:1fr}}
-  .card{
-    background:rgba(255,255,255,.92); backdrop-filter:saturate(115%) blur(4px);
-    border:1px solid rgba(0,0,0,.08); border-radius:18px; box-shadow:var(--hm-shadow)
-  }
-  .card h2{margin:0;padding:16px 18px;border-bottom:1px solid rgba(0,0,0,.12)}
-  .card-body{padding:18px}
+  .sell-wrap{max-width:1100px;margin:14px auto;padding:0 12px}
+  .wizard{background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.06);overflow:hidden}
+  .steps{display:flex;gap:8px;overflow:auto;padding:10px;border-bottom:1px solid var(--border);background:#fff}
+  .step-chip{white-space:nowrap;display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 12px;font-weight:700;color:#374151}
+  .step-chip[aria-current="step"]{border-color:var(--accent);box-shadow:0 0 0 2px rgba(153,27,27,.12)}
+  .step-chip .dot{width:18px;height:18px;border-radius:999px;border:2px solid var(--border);display:inline-block}
+  .step-chip[aria-current="step"] .dot{border-color:var(--accent)}
 
-  /* Sections */
-  .section{border:var(--hm-border);border-radius:14px;padding:16px;margin-bottom:16px;background:#fff}
-  .section-title{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px 0;font-weight:800}
-  .field{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-  .label{font-weight:700}
-  .hint{font-size:12px;color:var(--hm-muted)}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media (max-width:640px){.row{grid-template-columns:1fr}}
-  .input, .select, textarea{padding:12px 14px;border:var(--hm-border);border-radius:12px;font-size:14px;background:#fff}
-  textarea{min-height:140px;resize:vertical}
+  .panel{display:none;padding:14px;background:#fff}
+  .panel.active{display:block}
 
-  /* $ prefix input */
-  .prefix{position:relative}
-  .prefix .prefix-tag{position:absolute;inset:0 auto 0 10px;display:flex;align-items:center;color:#6b7280}
-  .prefix input{padding-left:30px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
 
-  /* Uploader */
-  .uploader{border:2px dashed rgba(0,0,0,.15);border-radius:14px;padding:18px;text-align:center;background:#fafafa}
-  .uploader.drag{background:#f1f7f3;border-color:var(--hm-hunter)}
-  .uploader input[type=file]{display:none}
-  .thumbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
-  .t{position:relative;border:var(--hm-border);border-radius:12px;overflow:hidden;background:#fff}
-  .t img{width:100%;height:120px;object-fit:cover}
-  .t .remove{position:absolute;top:6px;right:6px;background:#fff;border:var(--hm-border);border-radius:999px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:13px;color:#374151;font-weight:700}
+  .field input[type="text"],
+  .field input[type="number"],
+  .field input[type="file"],
+  .field textarea,
+  .field select{padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:14px}
+  .field textarea{min-height:120px;resize:vertical}
+  .hint{color:var(--muted);font-size:12px}
+  .error{color:#fff;background:var(--err);border-radius:8px;padding:8px 10px;font-size:13px;display:none}
+  .error.show{display:block}
 
-  /* Color chips */
-  .chips{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
-  @media (max-width:900px){.chips{grid-template-columns:repeat(4,minmax(0,1fr))}}
-  @media (max-width:600px){.chips{grid-template-columns:repeat(3,minmax(0,1fr))}}
-  .chip{display:flex;align-items:center;gap:8px;border:var(--hm-border);border-radius:999px;padding:8px 12px;cursor:pointer;user-select:none;background:#fff}
-  .chip input{appearance:none;width:0;height:0;position:absolute;pointer-events:none}
-  .chip .dot{flex:0 0 16px;width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.15);display:inline-block}
-  .chip.active{outline:3px solid rgba(53,94,59,.18);box-shadow:0 0 0 2px rgba(0,0,0,.05) inset}
-  .dot.black{background:#000} .dot.white{background:#fff}
-  .dot.grey{background:#a1a1a1} .dot.cream{background:#f6f3e9}
-  .dot.brown{background:#8a5a44} .dot.pink{background:#f6b6c6}
-  .dot.red{background:#e21e2d} .dot.orange{background:#f59e0b}
-  .dot.yellow{background:#f5d142} .dot.green{background:#2f8f2f}
-  .dot.navy{background:#1b2a4a} .dot.blue{background:#2563eb}
-  .dot.purple{background:#6d28d9}
-  .dot.silver{background:linear-gradient(145deg,#bbb,#eee)}
-  .dot.gold{background:linear-gradient(145deg,#d6b25e,#f7e7a2)}
+  .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .thumb{aspect-ratio:4/3;border:1px dashed var(--border);border-radius:10px;display:grid;place-items:center;overflow:hidden;background:#f8fafc;color:#6b7280;position:relative}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .thumb .rm{position:absolute;top:6px;right:6px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:2px 6px;font-size:12px;cursor:pointer}
 
-  .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
-  .btn{border:var(--hm-border);background:#fff;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer}
-  .btn-primary{background:var(--hm-cta);color:#fff;border-color:#000}
-  .btn-primary[disabled]{opacity:.6;cursor:not-allowed}
+  .actions{display:flex;justify-content:space-between;border-top:1px solid var(--border);padding:12px;background:#fff}
+  .btn{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+  .btn-ghost{background:#fff}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
 
-  .preview .thumb{width:100%;height:200px;border-radius:12px;background:linear-gradient(0deg,#e9e9e9,#f5f5f5)}
-  .meta{color:var(--hm-muted);font-size:13px}
-  .price{font-weight:800}
+  .review{display:grid;grid-template-columns:320px 1fr;gap:14px}
+  @media (max-width:900px){ .review{grid-template-columns:1fr} }
+  .review .gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .review .shot{aspect-ratio:4/3;background:#f8fafc;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .review .shot img{width:100%;height:100%;object-fit:cover}
 
-  /* ✅ Inline error components */
-  .error-summary{
-    display:none; margin-bottom:14px; border-radius:14px;
-    background:var(--hm-error-bg); border:2px solid var(--hm-error-border);
-    color:var(--hm-error-text); padding:12px 14px; font-weight:800;
-  }
-  .error-summary.show{display:block}
-  .error-list{margin:8px 0 0 18px; color:var(--hm-error-text)}
-  .error-msg{
-    display:none; margin-top:6px; border-radius:10px;
-    background:var(--hm-error-bg); border:1px solid var(--hm-error-border);
-    color:var(--hm-error-text); padding:8px 10px; font-weight:700; font-size:13px;
-  }
-  .error .input, .error .select, .error textarea{
-    border-color: var(--hm-error-border); outline: 3px solid rgba(255, 0, 66, .15);
-  }
-  .good .input, .good .select, .good textarea{
-    outline: 3px solid rgba(34, 197, 94, .15);
-  }
+  .success{display:none;border-left:4px solid var(--ok);background:#ecfdf5;padding:10px;border-radius:10px}
+  .success.show{display:block}
 </style>
 </head>
 <body>
 
 <header class="hm-header">
-  <div class="hm-header-inner">
-    <a class="hm-logo" href="/" aria-label="Hemline Market home">
-      <img src="/logo.png" alt="Hemline Market logo" onerror="this.style.display='none'">
-    </a>
-    <nav class="hm-nav" aria-label="Primary">
-      <a href="/new">New Arrivals</a>
-      <a href="/atelier">My Atelier</a>
-      <a href="/favorites" aria-label="Favorites">❤ Favorites</a>
-      <a href="/notifications" aria-label="Notifications">🔔 Notifications</a>
-      <a href="/account">My Account</a>
-      <a class="cta" href="/list">List Item</a>
-    </nav>
+  <div class="wrap">
+    <a class="hm-brand" href="index.html">Hemline Market</a>
+    <a class="btn" href="browse.html">Browse</a>
   </div>
 </header>
 
-<main class="wrap">
-  <!-- FORM -->
-  <section class="card" aria-label="List item form">
-    <h2>List an Item</h2>
-    <div class="card-body">
-      <!-- ✅ friendly error summary -->
-      <div id="errorSummary" class="error-summary" role="alert" aria-live="assertive" tabindex="-1">
-        Let’s fix a few things:
-        <ul id="errorList" class="error-list"></ul>
+<main class="sell-wrap" id="sellApp">
+  <h1 style="margin:0 0 10px">Create a new listing</h1>
+
+  <div class="wizard">
+    <div class="steps" id="steps">
+      <div class="step-chip" data-step="0" aria-current="step"><span class="dot"></span>Photos</div>
+      <div class="step-chip" data-step="1"><span class="dot"></span>Basics</div>
+      <div class="step-chip" data-step="2"><span class="dot"></span>Details</div>
+      <div class="step-chip" data-step="3"><span class="dot"></span>Price & Shipping</div>
+      <div class="step-chip" data-step="4"><span class="dot"></span>Preview & Publish</div>
+    </div>
+
+    <!-- Step 0: Photos -->
+    <section class="panel active" data-step-panel="0">
+      <div class="grid">
+        <div class="field">
+          <label>Upload photos <span class="hint">(first photo will be the cover)</span></label>
+          <input type="file" id="photos" accept="image/*" multiple />
+          <div class="hint">JPEG/PNG, max ~10MB each. You can reorder later in dashboard.</div>
+          <div class="error" id="err-photos">Please add at least 1 photo.</div>
+        </div>
+        <div class="field">
+          <label>Preview</label>
+          <div class="thumbs" id="thumbs">
+            <div class="thumb">No photos yet</div>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <form id="sell-form" novalidate aria-describedby="formHelp">
-        <p id="formHelp" class="hint">Fields marked required must be completed before publishing.</p>
-
-        <!-- Images -->
-        <div class="section" id="sec-images" aria-labelledby="imagesTitle">
-          <h3 class="section-title" id="imagesTitle">Images</h3>
-          <div class="hint" id="imagesHint" style="margin-bottom:10px">
-            Please include at least three photos: <strong>one close-up</strong>, <strong>one folded</strong>, and <strong>one drape</strong>. Place a <strong>ruler in-frame</strong> in at least one photo (you can <a href="/ruler.svg" download>print this ruler</a>).
-          </div>
-          <div id="uploader" class="uploader" role="region" aria-label="Image uploader" aria-describedby="imagesHint">
-            <input id="files" type="file" accept="image/*" multiple aria-label="Choose images to upload">
-            <div>Drag & drop images here or</div>
-            <button type="button" class="btn" id="pickFiles" aria-label="Pick images">Choose Images</button>
-          </div>
-          <div id="thumbs" class="thumbs" role="list" aria-label="Selected images"></div>
-          <div id="err-images" class="error-msg" role="alert">Add at least 3 photos.</div>
+    <!-- Step 1: Basics -->
+    <section class="panel" data-step-panel="1">
+      <div class="grid">
+        <div class="field">
+          <label>Title *</label>
+          <input type="text" id="title" placeholder="e.g., Italian Wool Suiting — Navy"/>
+          <div class="error" id="err-title">Title is required.</div>
         </div>
-
-        <!-- Description -->
-        <div class="section" id="sec-desc" aria-labelledby="descTitle">
-          <h3 class="section-title" id="descTitle">Description</h3>
-          <div class="field" id="fld-desc">
-            <label class="label" for="description">Details</label>
-            <textarea id="description" class="input" placeholder="Mention drape, structure/hand, weave, care, defects, stretch, finish, end-use, etc." aria-describedby="descHint"></textarea>
-            <div id="descHint" class="hint">Examples: “fluid drape”, “light structure”, “hand-wash cold”, “tiny pull near selvage”.</div>
-            <div id="err-desc" class="error-msg" role="alert">Add a brief description (a sentence or two).</div>
-          </div>
-          <div class="field" id="fld-title" style="margin-top:12px">
-            <label class="label" for="title">Title <span class="hint">(required)</span></label>
-            <input id="title" class="input" placeholder="e.g., Italian Silk Twill — Navy Chain" required aria-required="true">
-            <div id="err-title" class="error-msg" role="alert">Please add a title.</div>
-          </div>
+        <div class="field">
+          <label>Department *</label>
+          <select id="dept">
+            <option value="">Select…</option>
+            <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
+          </select>
+          <div class="error" id="err-dept">Department is required.</div>
         </div>
-
-        <!-- Price & Availability -->
-        <div class="section" id="sec-price" aria-labelledby="priceTitle">
-          <h3 class="section-title" id="priceTitle">Price & Availability</h3>
-          <div class="row">
-            <div class="field" id="fld-price">
-              <label class="label" for="pricePerYd">Price (per yard) <span class="hint">(required)</span></label>
-              <div class="prefix">
-                <span class="prefix-tag" aria-hidden="true">$</span>
-                <input id="pricePerYd" type="number" min="0" step="0.01" class="input" placeholder="e.g., 48" required aria-required="true" aria-describedby="priceHint">
-              </div>
-              <div id="priceHint" class="hint">Charged per yard.</div>
-              <div id="err-price" class="error-msg" role="alert">Enter a valid price (0 or higher).</div>
-            </div>
-            <div class="field" id="fld-yards">
-              <label class="label" for="yardsSelect">Yards Available <span class="hint">(0.5 increments, required)</span></label>
-              <select id="yardsSelect" class="select" aria-required="true" aria-describedby="yardsHint"></select>
-              <input type="hidden" id="yards" aria-hidden="true">
-              <div id="yardsHint" class="hint">Choose total yardage you’re listing.</div>
-              <div id="err-yards" class="error-msg" role="alert">Choose at least 0.5 yards.</div>
-            </div>
-          </div>
-          <fieldset class="field" style="margin-top:12px">
-            <legend class="label">Selling Mode</legend>
-            <label><input type="radio" name="sellingMode" value="lot" checked> Sell all yardage together as one lot</label>
-            <label style="margin-top:6px"><input type="radio" name="sellingMode" value="increments"> Sell in 0.5 yard increments (buyer chooses quantity)</label>
-          </fieldset>
+        <div class="field" style="grid-column:1 / -1">
+          <label>Description</label>
+          <textarea id="desc" placeholder="Tell buyers about the fabric’s hand, drape, ideal uses…"></textarea>
         </div>
+      </div>
+    </section>
 
-        <!-- Specs -->
-        <div class="section" id="sec-specs" aria-labelledby="specsTitle">
-          <h3 class="section-title" id="specsTitle">Specs</h3>
-          <div class="row">
-            <div class="field" id="fld-width">
-              <label class="label" for="widthIn">Width (inches)</label>
-              <input id="widthIn" type="number" min="1" step="0.1" class="input" placeholder="e.g., 54" aria-describedby="widthHelp">
-              <div class="hint" id="widthHelp"><label><input type="checkbox" id="widthUnknown"> Unknown</label></div>
-            </div>
-            <div class="field" id="fld-weight">
-              <label class="label" for="weightGsm">Weight (GSM)</label>
-              <input id="weightGsm" type="number" min="0" step="1" class="input" placeholder="e.g., 95" aria-describedby="weightHelp">
-              <div class="hint" id="weightHelp"><label><input type="checkbox" id="weightUnknown"> Unknown</label></div>
-            </div>
-          </div>
+    <!-- Step 2: Details -->
+    <section class="panel" data-step-panel="2">
+      <div class="grid">
+        <div class="field">
+          <label>Content *</label>
+          <select id="content">
+            <option value="">Select…</option>
+            <option>Cashmere</option><option>Wool</option><option>Silk</option><option>Cotton</option>
+            <option>Linen</option><option>Bamboo</option><option>Alpaca</option><option>Rayon/Viscose</option>
+            <option>Polyester</option><option>Nylon</option><option>Other Fibers</option>
+          </select>
+          <div class="error" id="err-content">Content is required.</div>
+        </div>
+        <div class="field">
+          <label>Fabric Type</label>
+          <select id="fabricType">
+            <option value="">Any</option>
+            <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
+            <option>Crepe</option><option>Denim</option><option>Flannel</option>
+            <option>Georgette</option><option>Jersey</option><option>Lace</option>
+            <option>Lawn</option><option>Organza</option><option>Poplin</option>
+            <option>Sateen</option><option>Satin</option><option>Tulle</option>
+            <option>Twill</option><option>Velvet</option><option>Voile</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Color</label>
+          <input type="text" id="color" placeholder="e.g., Navy / Champagne"/>
+        </div>
+        <div class="field">
+          <label>Pattern</label>
+          <select id="pattern"><option value="">Any</option><option>Solid</option><option>Printed</option></select>
+        </div>
+        <div class="field">
+          <label>Width (in) *</label>
+          <input type="number" id="width" min="0" step="1" placeholder="54"/>
+          <div class="error" id="err-width">Width is required.</div>
+        </div>
+        <div class="field">
+          <label>Weight (GSM) *</label>
+          <input type="number" id="gsm" min="0" step="1" placeholder="180"/>
+          <div class="error" id="err-gsm">GSM is required.</div>
+        </div>
+        <div class="field">
+          <label>Min yards available *</label>
+          <input type="number" id="yards" min="0" step="1" placeholder="3"/>
+          <div class="error" id="err-yards">Please enter available yards.</div>
+        </div>
+        <div class="field">
+          <label>Country / Origin</label>
+          <select id="origin">
+            <option value="">Any</option>
+            <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
+            <option>USA</option><option>India</option><option>China</option><option>Korea</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1 / -1">
+          <label>Designer / Mill</label>
+          <input type="text" id="designer" placeholder="e.g., Loro Piana"/>
+        </div>
+      </div>
+    </section>
 
-          <div class="row" style="margin-top:12px">
-            <fieldset class="field">
-              <legend class="label">Department</legend>
-              <div class="hint">Select at least one or mark Unknown</div>
-              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px" role="group" aria-label="Department">
-                <label><input type="checkbox" name="department" value="fashion"> Fashion</label>
-                <label><input type="checkbox" name="department" value="home"> Home</label>
-                <label><input type="checkbox" name="department" value="quilting"> Quilting</label>
-                <label><input type="checkbox" name="department" value="notions"> Notions</label>
-                <label><input type="checkbox" name="department" value="unknown"> Unknown</label>
-              </div>
-            </fieldset>
-            <fieldset class="field">
-              <legend class="label">Country Made</legend>
-              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px" role="group" aria-label="Country made">
-                <label><input type="checkbox" name="country" value="france"> France</label>
-                <label><input type="checkbox" name="country" value="italy"> Italy</label>
-                <label><input type="checkbox" name="country" value="japan"> Japan</label>
-                <label><input type="checkbox" name="country" value="uk"> UK</label>
-                <label><input type="checkbox" name="country" value="usa"> USA</label>
-                <label><input type="checkbox" name="country" value="other"> Other</label>
-                <label><input type="checkbox" name="country" value="unknown"> Unknown</label>
-              </div>
-            </fieldset>
-          </div>
+    <!-- Step 3: Price & Shipping -->
+    <section class="panel" data-step-panel="3">
+      <div class="grid">
+        <div class="field">
+          <label>Price ($/yard) *</label>
+          <input type="number" id="price" min="0" step="1" placeholder="28"/>
+          <div class="error" id="err-price">Price is required.</div>
+        </div>
+        <div class="field">
+          <label>Handling time (days)</label>
+          <input type="number" id="handling" min="0" step="1" placeholder="2"/>
+        </div>
+        <div class="field">
+          <label>Shipping profile</label>
+          <select id="shipProfile">
+            <option value="">Standard</option>
+            <option>Express</option>
+            <option>International</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1 / -1">
+          <label>Notes (visible to buyer)</label>
+          <textarea id="notes" placeholder="Any special handling or shipping notes…"></textarea>
+        </div>
+      </div>
+    </section>
 
-          <!-- Designer (optional) -->
-          <div class="field" style="margin-top:12px">
-            <label class="label" for="designer">Designer / Brand <span class="hint">(optional)</span></label>
-            <input id="designer" class="input" placeholder="e.g., Loro Piana, Liberty, deadstock mill…" aria-describedby="designerHelp">
-            <div id="designerHelp" class="hint">If unknown, leave blank.</div>
-          </div>
-
-          <!-- Content -->
-          <fieldset class="field" style="margin-top:12px">
-            <legend class="label">Fabric Content (multi-select)</legend>
-            <div class="hint">Choose all that apply (Unknown and Other supported)</div>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="content-list" role="group" aria-label="Fabric content">
-              <label><input type="checkbox" id="contentUnknown" value="unknown"> Unknown</label>
-              <label><input type="checkbox" value="acetate"> Acetate</label>
-              <label><input type="checkbox" value="acrylic"> Acrylic</label>
-              <label><input type="checkbox" value="alpaca"> Alpaca</label>
-              <label><input type="checkbox" value="bamboo"> Bamboo</label>
-              <label><input type="checkbox" value="cashmere"> Cashmere</label>
-              <label><input type="checkbox" value="cotton"> Cotton</label>
-              <label><input type="checkbox" value="cupro"> Cupro</label>
-              <label><input type="checkbox" value="elastane"> Elastane/Spandex</label>
-              <label><input type="checkbox" value="hemp"> Hemp</label>
-              <label><input type="checkbox" value="leather"> Leather</label>
-              <label><input type="checkbox" value="linen"> Linen</label>
-              <label><input type="checkbox" value="modal"> Modal</label>
-              <label><input type="checkbox" value="mohair"> Mohair</label>
-              <label><input type="checkbox" value="nylon"> Nylon</label>
-              <label><input type="checkbox" value="polyamide"> Polyamide</label>
-              <label><input type="checkbox" value="polyester"> Polyester</label>
-              <label><input type="checkbox" value="polyurethane"> Polyurethane</label>
-              <label><input type="checkbox" value="rayon"> Rayon/Viscose</label>
-              <label><input type="checkbox" value="silk"> Silk</label>
-              <label><input type="checkbox" value="tencel"> Tencel</label>
-              <label><input type="checkbox" value="triacetate"> Triacetate</label>
-              <label><input type="checkbox" value="wool"> Wool</label>
-            </div>
-            <div class="row" style="margin-top:6px">
-              <div class="field">
-                <label class="label" for="contentOther">Other (content)</label>
-                <input class="input" id="contentOther" placeholder="e.g., ramie blend">
-              </div>
-            </div>
-          </fieldset>
-
-          <!-- Type -->
-          <fieldset class="field" style="margin-top:12px">
-            <legend class="label">Fabric Type (multi-select)</legend>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;margin-top:6px" id="type-list" role="group" aria-label="Fabric type">
-              <label><input type="checkbox" id="typeUnknown" value="unknown"> Unknown</label>
-              <label><input type="checkbox" value="boucle"> Bouclé</label>
-              <label><input type="checkbox" value="canvas"> Canvas</label>
-              <label><input type="checkbox" value="chiffon"> Chiffon</label>
-              <label><input type="checkbox" value="corduroy"> Corduroy</label>
-              <label><input type="checkbox" value="crepe"> Crepe</label>
-              <label><input type="checkbox" value="denim"> Denim</label>
-              <label><input type="checkbox" value="gabardine"> Gabardine</label>
-              <label><input type="checkbox" value="georgette"> Georgette</label>
-              <label><input type="checkbox" value="jersey"> Jersey</label>
-              <label><input type="checkbox" value="lace"> Lace</label>
-              <label><input type="checkbox" value="leather"> Leather</label>
-              <label><input type="checkbox" value="organza"> Organza</label>
-              <label><input type="checkbox" value="poplin"> Poplin</label>
-              <label><input type="checkbox" value="sateen"> Sateen</label>
-              <label><input type="checkbox" value="satin"> Satin</label>
-              <label><input type="checkbox" value="tulle"> Tulle</label>
-              <label><input type="checkbox" value="tweed"> Tweed</label>
-              <label><input type="checkbox" value="twill"> Twill</label>
-              <label><input type="checkbox" value="velvet"> Velvet</label>
-              <label><input type="checkbox" value="voile"> Voile</label>
-            </div>
-            <div class="row" style="margin-top:6px">
-              <div class="field">
-                <label class="label" for="typeOther">Other (type)</label>
-                <input class="input" id="typeOther" placeholder="e.g., ottoman weave">
-              </div>
-            </div>
-          </fieldset>
-
-          <!-- Color -->
-          <div class="section" aria-labelledby="colorTitle">
-            <h3 class="section-title" id="colorTitle">Color</h3>
-            <div class="chips" id="color-chips" role="group" aria-label="Color">
-              <label class="chip"><input type="checkbox" value="unknown"><span>Unknown</span></label>
-              <label class="chip"><input type="checkbox" value="black"><span class="dot black"></span><span>Black</span></label>
-              <label class="chip"><input type="checkbox" value="white"><span class="dot white"></span><span>White</span></label>
-              <label class="chip"><input type="checkbox" value="grey"><span class="dot grey"></span><span>Grey</span></label>
-              <label class="chip"><input type="checkbox" value="cream"><span class="dot cream"></span><span>Cream</span></label>
-              <label class="chip"><input type="checkbox" value="brown"><span class="dot brown"></span><span>Brown</span></label>
-              <label class="chip"><input type="checkbox" value="pink"><span class="dot pink"></span><span>Pink</span></label>
-              <label class="chip"><input type="checkbox" value="red"><span class="dot red"></span><span>Red</span></label>
-              <label class="chip"><input type="checkbox" value="orange"><span class="dot orange"></span><span>Orange</span></label>
-              <label class="chip"><input type="checkbox" value="yellow"><span class="dot yellow"></span><span>Yellow</span></label>
-              <label class="chip"><input type="checkbox" value="green"><span class="dot green"></span><span>Green</span></label>
-              <label class="chip"><input type="checkbox" value="navy"><span class="dot navy"></span><span>Navy</span></label>
-              <label class="chip"><input type="checkbox" value="blue"><span class="dot blue"></span><span>Blue</span></label>
-              <label class="chip"><input type="checkbox" value="purple"><span class="dot purple"></span><span>Purple</span></label>
-              <label class="chip"><input type="checkbox" value="silver"><span class="dot silver"></span><span>Silver</span></label>
-              <label class="chip"><input type="checkbox" value="gold"><span class="dot gold"></span><span>Gold</span></label>
-            </div>
-          </div>
-
-          <div class="actions" aria-label="Form actions">
-            <button type="button" class="btn" id="preview-btn">Preview</button>
-            <button type="submit" class="btn btn-primary" id="publish-btn" disabled aria-disabled="true">Publish Listing</button>
+    <!-- Step 4: Preview & Publish -->
+    <section class="panel" data-step-panel="4">
+      <div class="success" id="publishSuccess">✅ Listing created! You can manage it from your dashboard.</div>
+      <div class="review" id="review">
+        <div>
+          <div class="gallery" id="gallery">
+            <div class="shot"></div><div class="shot"></div><div class="shot"></div><div class="shot"></div>
           </div>
         </div>
-      </form>
+        <div>
+          <h2 id="r-title" style="margin:0 0 6px">—</h2>
+          <div style="color:var(--muted);margin-bottom:10px" id="r-sub">—</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><strong>Price</strong><div id="r-price">$— / yd</div></div>
+            <div><strong>Yards</strong><div id="r-yards">—</div></div>
+            <div><strong>Width</strong><div id="r-width">—″</div></div>
+            <div><strong>Weight</strong><div id="r-gsm">— GSM</div></div>
+            <div><strong>Content</strong><div id="r-content">—</div></div>
+            <div><strong>Fabric Type</strong><div id="r-fabric">—</div></div>
+            <div><strong>Pattern</strong><div id="r-pattern">—</div></div>
+            <div><strong>Origin</strong><div id="r-origin">—</div></div>
+            <div style="grid-column:1 / -1"><strong>Description</strong><div id="r-desc" style="white-space:pre-wrap">—</div></div>
+            <div style="grid-column:1 / -1"><strong>Notes</strong><div id="r-notes" style="white-space:pre-wrap">—</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Nav -->
+    <div class="actions">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" id="saveDraft" type="button">Save draft</button>
+        <button class="btn btn-ghost" id="loadDraft" type="button">Load draft</button>
+        <button class="btn btn-ghost" id="clearDraft" type="button">Clear draft</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="backBtn" disabled>Back</button>
+        <button class="btn btn-primary" id="nextBtn">Next</button>
+        <button class="btn btn-primary" id="publishBtn" style="display:none">Publish</button>
+      </div>
     </div>
-  </section>
-
-  <!-- PREVIEW -->
-  <aside class="card preview" aria-label="Listing preview">
-    <h2>Preview</h2>
-    <div class="card-body">
-      <div class="thumb" id="preview-thumb" role="img" aria-label="Preview image"></div>
-      <h3 id="p-title" style="margin:12px 0 6px">Your Title</h3>
-      <div class="meta" id="p-meta">0 yd • 0″ • —</div>
-      <div class="price" id="p-price">$0 / yd</div>
-      <div class="meta" id="p-tags" style="margin-top:6px"></div>
-      <p class="meta" id="p-desc" style="margin-top:8px"></p>
-    </div>
-  </aside>
+  </div>
 </main>
+
+<footer class="hm-footer" role="contentinfo" style="margin-top:18px">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links">
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a href="faq.html">FAQ</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="shipping.html">Shipping & Returns</a>
+    </nav>
+  </div>
+</footer>
 
 <script>
 (function(){
-  const $=(s,r=document)=>r.querySelector(s);
-  const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+  const $ = (id)=>document.getElementById(id);
+  const steps = [...document.querySelectorAll('.step-chip')];
+  const panels = [...document.querySelectorAll('[data-step-panel]')];
+  let step = 0;
 
-  // 0.5-step yards
-  const yardsSelect = $('#yardsSelect'); const yardsHidden = $('#yards');
-  if (yardsSelect) {
-    const frag = document.createDocumentFragment();
-    for (let v=0.5; v<=100; v+=0.5){ const o=document.createElement('option'); o.value=v.toFixed(1); o.textContent=v.toFixed(1); frag.appendChild(o); }
-    yardsSelect.appendChild(frag); yardsSelect.value='0.5'; yardsHidden.value='0.5';
-    yardsSelect.addEventListener('change',()=>yardsHidden.value=yardsSelect.value);
-  }
-
-  // Unknown toggles lock others
-  function wireUnknown(id, containerSel){
-    const unk=$(id); if(!unk) return;
-    unk.addEventListener('change',()=>{
-      $$(containerSel+' input[type="checkbox"]').forEach(cb=>{ if(cb!==unk){cb.disabled=unk.checked; if(unk.checked) cb.checked=false;} });
-    });
-  }
-  $('#widthUnknown')?.addEventListener('change',e=>{const i=$('#widthIn'); i.disabled=e.target.checked; if(e.target.checked) i.value='';});
-  $('#weightUnknown')?.addEventListener('change',e=>{const i=$('#weightGsm'); i.disabled=e.target.checked; if(e.target.checked) i.value='';});
-  wireUnknown('#contentUnknown','#content-list');
-  wireUnknown('#typeUnknown','#type-list');
-
-  // Uploader
-  const uploader=$('#uploader'); const fileInput=$('#files'); const pickBtn=$('#pickFiles'); const thumbs=$('#thumbs'); let images=[];
-  pickBtn?.addEventListener('click',()=>fileInput?.click());
-  fileInput?.addEventListener('change',e=>addFiles(e.target.files));
-  ['dragenter','dragover'].forEach(ev=>uploader?.addEventListener(ev,e=>{e.preventDefault();uploader.classList.add('drag');}));
-  ['dragleave','drop'].forEach(ev=>uploader?.addEventListener(ev,e=>{e.preventDefault();uploader.classList.remove('drag');}));
-  uploader?.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
-  function addFiles(list){ Array.from(list||[]).slice(0,12).forEach(f=>{const url=URL.createObjectURL(f); images.push({url});}); renderThumbs(); updatePreview(); validate(); }
-  function renderThumbs(){
-    thumbs.innerHTML=''; images.forEach((img,idx)=>{ const t=document.createElement('div'); t.className='t';
-      const im=document.createElement('img'); im.src=img.url; const rm=document.createElement('button'); rm.className='remove'; rm.type='button'; rm.setAttribute('aria-label','Remove image'); rm.textContent='×';
-      rm.addEventListener('click',()=>{images.splice(idx,1); renderThumbs(); updatePreview(); validate();}); t.appendChild(im); t.appendChild(rm); thumbs.appendChild(t);
-    });
-  }
-
-  // Color chips visual active state
-  $('#color-chips')?.addEventListener('change',(e)=>{
-    const chip = e.target.closest('.chip'); if(!chip) return;
-    chip.classList.toggle('active', e.target.checked);
-  });
-  $$('#color-chips input[type="checkbox"]').forEach(cb=>{
-    const chip = cb.closest('.chip'); if (chip) chip.classList.toggle('active', cb.checked);
-  });
-
-  function values(){
-    const v={};
-    v.title=$('#title')?.value?.trim()||'';
-    v.pricePerYd=Number($('#pricePerYd')?.value||0);
-    v.yards=Number($('#yards')?.value||0.5);
-    v.widthIn=Number($('#widthIn')?.value||0);
-    v.weightGsm=Number($('#weightGsm')?.value||0);
-    v.department=$$('input[name="department"]:checked').map(i=>i.value);
-    v.country=$$('input[name="country"]:checked').map(i=>i.value);
-    v.content=$$('#content-list input[type="checkbox"]:checked').map(i=>i.value);
-    v.type=$$('#type-list input[type="checkbox"]:checked').map(i=>i.value);
-    v.colors=$$('#color-chips input[type="checkbox"]:checked').map(i=>i.value);
-    v.sellingMode=$('input[name="sellingMode"]:checked')?.value||'lot';
-    v.desc=$('#description')?.value?.trim()||'';
-    v.images=images.map(m=>m.url);
-    v.contentOther=$('#contentOther')?.value?.trim()||'';
-    v.typeOther=$('#typeOther')?.value?.trim()||'';
-    v.designer=$('#designer')?.value?.trim()||'';
-    return v;
-  }
-
-  function updatePreview(){
-    const v=values();
-    $('#p-title').textContent=v.title||'Your Title';
-    $('#p-meta').textContent=`${v.yards||0} yd • ${v.widthIn||0}″ • ${(v.country[0]||'—').toUpperCase()}`;
-    $('#p-price').textContent=`$${v.pricePerYd||0} / yd`;
-    const extra = v.designer ? `Designer: ${v.designer}` : '';
-    $('#p-tags').textContent=[v.type.join(', '), v.content.join(', '), v.colors.join(', '), extra, v.sellingMode==='increments'?'0.5 yd increments':'sold as one lot'].filter(Boolean).join(' • ');
-    $('#p-desc').textContent=v.desc||'';
-    const th=$('#preview-thumb');
-    if(v.images?.length){ th.style.background=`url('${v.images[0]}') center/cover no-repeat`; th.setAttribute('aria-label','Preview image from the first uploaded photo'); }
-    else { th.style.background='linear-gradient(0deg,#e9e9e9,#f5f5f5)'; th.setAttribute('aria-label','Preview placeholder'); }
-  }
-
-  // ✅ Inline errors
-  const fields = {
-    images: {section:'#sec-images', err:'#err-images', valid:()=>images.length>=3, msg:'Add at least 3 photos (close-up, folded, drape).'},
-    title:  {section:'#fld-title', err:'#err-title',  valid:()=>$('#title').value.trim().length>0, msg:'Please add a title.'},
-    price:  {section:'#fld-price', err:'#err-price',  valid:()=>!isNaN(Number($('#pricePerYd').value)) && Number($('#pricePerYd').value)>=0, msg:'Enter a valid price (0 or higher).'},
-    yards:  {section:'#fld-yards', err:'#err-yards',  valid:()=>Number($('#yards').value)>=0.5, msg:'Choose at least 0.5 yards.'}
+  const state = {
+    photos: [], // {src}
+    title:'', dept:'', desc:'',
+    content:'', fabricType:'', color:'', pattern:'', width:'', gsm:'', yards:'', origin:'', designer:'',
+    price:'', handling:'', shipProfile:'', notes:''
   };
 
-  function showFieldError(key, on){
-    const cfg = fields[key];
-    const sec = document.querySelector(cfg.section); const em = document.querySelector(cfg.err);
-    if(!sec||!em) return;
-    sec.classList.toggle('error', on);
-    sec.classList.toggle('good', !on);
-    em.style.display = on ? 'block' : 'none';
-  }
-
-  function validate(){
-    const v=values(); // ensures hidden yards synced
-    const failed = Object.keys(fields).filter(k=>!fields[k].valid());
-    Object.keys(fields).forEach(k=>showFieldError(k, failed.includes(k)));
-
-    const sum = $('#errorSummary'); const list = $('#errorList');
-    if(failed.length){
-      list.innerHTML = failed.map(k=>`<li>${fields[k].msg}</li>`).join('');
-      sum.classList.add('show'); sum.setAttribute('tabindex','-1'); sum.focus();
-    } else {
-      sum.classList.remove('show');
-      list.innerHTML = '';
+  /* ---- Photos ---- */
+  const photosInput = $('photos');
+  const thumbs = $('thumbs');
+  photosInput.addEventListener('change', async (e)=>{
+    const files = [...e.target.files].slice(0,12);
+    state.photos = [];
+    thumbs.innerHTML = '';
+    if(!files.length){
+      thumbs.innerHTML = '<div class="thumb">No photos yet</div>';
+      return;
     }
-
-    $('#publish-btn').disabled = failed.length>0;
-    $('#publish-btn').setAttribute('aria-disabled', String(failed.length>0));
-    return failed.length===0;
-  }
-
-  // Events
-  $('#sell-form')?.addEventListener('input',()=>{updatePreview(); validate();});
-  $('#preview-btn')?.addEventListener('click',()=>{updatePreview(); validate();});
-  $('#sell-form')?.addEventListener('submit',e=>{
-    e.preventDefault(); updatePreview();
-    if(!validate()) return;
-    const v=values();
-    const payload={ ...v, content:[...v.content, ...(v.contentOther?[v.contentOther]:[])], type:[...v.type, ...(v.typeOther?[v.typeOther]:[])] };
-    console.log('SELLER_PAYLOAD', payload);
-    alert('✅ Listing looks good. (Demo) Check console for payload.');
+    for (const file of files){
+      const url = URL.createObjectURL(file);
+      state.photos.push({src:url});
+      const slot = document.createElement('div');
+      slot.className = 'thumb';
+      const img = document.createElement('img');
+      img.src = url;
+      const rm = document.createElement('button');
+      rm.type='button'; rm.className='rm'; rm.textContent='Remove';
+      rm.addEventListener('click', ()=>{
+        URL.revokeObjectURL(url);
+        state.photos = state.photos.filter(p=>p.src!==url);
+        slot.remove();
+        if(!state.photos.length) thumbs.innerHTML = '<div class="thumb">No photos yet</div>';
+      });
+      slot.appendChild(img); slot.appendChild(rm);
+      thumbs.appendChild(slot);
+    }
   });
 
-  // init
-  updatePreview(); validate();
+  /* ---- Navigation ---- */
+  function setStep(n){
+    step = n;
+    steps.forEach((chip,i)=>chip.setAttribute('aria-current', i===step ? 'step' : 'false'));
+    panels.forEach((p,i)=>p.classList.toggle('active', i===step));
+    $('backBtn').disabled = step===0;
+    $('nextBtn').style.display = step<panels.length-1 ? '' : 'none';
+    $('publishBtn').style.display = step===panels.length-1 ? '' : 'none';
+    window.scrollTo({top:0, behavior:'smooth'});
+    if(step===4) renderReview();
+  }
+
+  function next(){
+    if(!validateStep(step)) return;
+    if(step < panels.length-1) setStep(step+1);
+  }
+  function back(){
+    if(step>0) setStep(step-1);
+  }
+
+  $('nextBtn').addEventListener('click', next);
+  $('backBtn').addEventListener('click', back);
+
+  /* ---- Collect + Validate ---- */
+  function syncState(){
+    state.title = $('title').value.trim();
+    state.dept = $('dept').value.trim();
+    state.desc = $('desc').value.trim();
+    state.content = $('content').value.trim();
+    state.fabricType = $('fabricType').value.trim();
+    state.color = $('color').value.trim();
+    state.pattern = $('pattern').value.trim();
+    state.width = $('width').value.trim();
+    state.gsm = $('gsm').value.trim();
+    state.yards = $('yards').value.trim();
+    state.origin = $('origin').value.trim();
+    state.designer = $('designer').value.trim();
+    state.price = $('price').value.trim();
+    state.handling = $('handling').value.trim();
+    state.shipProfile = $('shipProfile').value.trim();
+    state.notes = $('notes').value.trim();
+  }
+
+  function showErr(id, show){ const el=$(id); if(!el) return; el.classList.toggle('show', !!show); }
+
+  function validateStep(s){
+    syncState();
+    let ok = true;
+    if(s===0){
+      const has = state.photos.length>0;
+      showErr('err-photos', !has);
+      ok = has;
+    }
+    if(s===1){
+      showErr('err-title', !state.title);
+      showErr('err-dept', !state.dept);
+      ok = !!(state.title && state.dept);
+    }
+    if(s===2){
+      const w = !!state.width, g = !!state.gsm, y = !!state.yards, c = !!state.content;
+      showErr('err-width', !w); showErr('err-gsm', !g); showErr('err-yards', !y); showErr('err-content', !c);
+      ok = w && g && y && c;
+    }
+    if(s===3){
+      showErr('err-price', !state.price);
+      ok = !!state.price;
+    }
+    return ok;
+  }
+
+  /* ---- Preview ---- */
+  function renderReview(){
+    $('r-title').textContent = state.title || '—';
+    $('r-sub').textContent = [state.dept, state.fabricType, state.color].filter(Boolean).join(' • ') || '—';
+    $('r-price').textContent = state.price ? `$${Number(state.price)}/ yd` : '—';
+    $('r-yards').textContent = state.yards || '—';
+    $('r-width').textContent = state.width ? `${state.width}″` : '—';
+    $('r-gsm').textContent = state.gsm ? `${state.gsm} GSM` : '—';
+    $('r-content').textContent = state.content || '—';
+    $('r-fabric').textContent = state.fabricType || '—';
+    $('r-pattern').textContent = state.pattern || '—';
+    $('r-origin').textContent = state.origin || '—';
+    $('r-desc').textContent = state.desc || '—';
+    $('r-notes').textContent = state.notes || '—';
+
+    const gallery = $('gallery');
+    gallery.innerHTML = '';
+    if(state.photos.length){
+      state.photos.slice(0,4).forEach(p=>{
+        const d=document.createElement('div'); d.className='shot';
+        const img=document.createElement('img'); img.src=p.src; d.appendChild(img);
+        gallery.appendChild(d);
+      });
+    }else{
+      gallery.innerHTML = '<div class="shot"></div><div class="shot"></div><div class="shot"></div><div class="shot"></div>';
+    }
+  }
+
+  /* ---- Drafts ---- */
+  const KEY='hm.sell.draft.v1';
+  $('saveDraft').addEventListener('click', ()=>{
+    syncState();
+    const draft = {...state, photos: state.photos.map(p=>p.src)};
+    localStorage.setItem(KEY, JSON.stringify(draft));
+    alert('Draft saved.');
+  });
+  $('loadDraft').addEventListener('click', ()=>{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return alert('No draft found.');
+    const d = JSON.parse(raw);
+    // restore basic fields
+    [
+      ['title','title'],['dept','dept'],['desc','desc'],['content','content'],['fabricType','fabricType'],
+      ['color','color'],['pattern','pattern'],['width','width'],['gsm','gsm'],['yards','yards'],
+      ['origin','origin'],['designer','designer'],['price','price'],['handling','handling'],
+      ['shipProfile','shipProfile'],['notes','notes']
+    ].forEach(([k,id])=>{ if(d[k]!=null){ const el=$(id); if(el) el.value=d[k]; }});
+    // restore photos
+    state.photos = (d.photos||[]).map(src=>({src}));
+    thumbs.innerHTML='';
+    if(!state.photos.length){ thumbs.innerHTML='<div class="thumb">No photos yet</div>'; }
+    else{
+      state.photos.forEach(p=>{
+        const slot=document.createElement('div'); slot.className='thumb';
+        const img=document.createElement('img'); img.src=p.src;
+        const rm=document.createElement('button'); rm.type='button'; rm.className='rm'; rm.textContent='Remove';
+        rm.addEventListener('click', ()=>{
+          state.photos = state.photos.filter(x=>x.src!==p.src);
+          slot.remove();
+          if(!state.photos.length) thumbs.innerHTML='<div class="thumb">No photos yet</div>';
+        });
+        slot.appendChild(img); slot.appendChild(rm);
+        thumbs.appendChild(slot);
+      });
+    }
+    alert('Draft loaded.');
+  });
+  $('clearDraft').addEventListener('click', ()=>{
+    localStorage.removeItem(KEY);
+    alert('Draft cleared.');
+  });
+
+  /* ---- Publish (placeholder) ---- */
+  $('publishBtn').addEventListener('click', ()=>{
+    if(!validateStep(4)) return;
+    // In production: POST to your serverless/Edge endpoint.
+    $('publishSuccess').classList.add('show');
+  });
+
+  /* Allow clicking step chips to navigate, honoring validation forward */
+  steps.forEach((chip,i)=>{
+    chip.addEventListener('click',()=>{
+      if(i<=step){ setStep(i); return; }
+      // moving forward: validate intermediate steps
+      for(let s=step; s<i; s++){ if(!validateStep(s)) return; }
+      setStep(i);
+    });
+  });
+
 })();
 </script>
-
 </body>
 </html>
