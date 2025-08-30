@@ -1,517 +1,567 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Hemline Market — Browse</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111111" />
-  <style>
-    *,*::before,*::after{box-sizing:border-box}
-    html,body{margin:0;padding:0}
-    img{max-width:100%;display:block}
-    a{color:inherit;text-decoration:none}
-    button,input,select{font:inherit}
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Browse – Hemline Market</title>
 
-    :root{
-      --bg:#ffffff; --text:#111; --muted:#666; --line:#e9e9e9; --chip:#f5f5f5; --chip-border:#d9d9d9;
-      --brand:#111; --accent:#0b72ff; --radius:14px; --safe-bottom:env(safe-area-inset-bottom,0px); --safe-top:env(safe-area-inset-top,0px);
-    }
-    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text); background:var(--bg); min-height:100dvh; display:flex; flex-direction:column}
+<link rel="stylesheet" href="styles/hm-modern.css"/>
+<link rel="stylesheet" href="styles/hem-header.css"/>
+<link rel="stylesheet" href="styles/hm-typography.css"/>
+<link rel="stylesheet" href="styles/hm-footer.css"/>
 
-    /* Header */
-    .header{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);padding:calc(8px + var(--safe-top)) 12px 8px}
-    .row{display:flex;align-items:center;gap:10px}
-    .grow{flex:1}
-    .logo{font-weight:700}
-    .icon-btn{width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:inline-grid;place-items:center;background:#fff}
-    .icon{width:18px;height:18px}
-    .search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff}
-    .search input{border:0;outline:0;width:100%}
+<style>
+  :root{
+    --hm-accent:#991b1b;
+    --hm-text:#111827;
+    --hm-muted:#6b7280;
+    --hm-border:#e5e7eb;
+  }
+  body{margin:0;background:#fafafa;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#111827}
 
-    /* Toolbar */
-    .toolbar{display:flex;gap:8px;align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); background:#fff; position:sticky; top:64px; z-index:25}
-    .btn{display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;font-size:14px}
-    .pill{background:var(--chip);border:1px solid var(--chip-border);border-radius:999px;padding:8px 12px;font-size:14px;white-space:nowrap}
-    .chips{display:flex;gap:8px;overflow:auto;padding:8px 12px;border-bottom:1px solid var(--line);background:#fff}
-    .chips .pill[data-active="1"]{background:#111;color:#fff;border-color:#111}
+  /* Header (shared) */
+  .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
+  .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+  .hm-header .left{display:flex;align-items:center;gap:10px}
+  .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
+  .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
+  .hamburger svg{width:22px;height:22px;stroke-width:2}
+  .right{display:flex;align-items:center;gap:14px}
+  .hm-icon{color:#444;display:inline-grid;place-items:center}
+  .hm-icon svg{width:26px;height:26px;stroke-width:2}
+  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+  .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
-    main{flex:1}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}
-    .card{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
-    .card .img{aspect-ratio:1/1;background:#f3f3f3}
-    .meta{padding:8px}
-    .price{font-weight:700}
-    .sub{color:var(--muted);font-size:12px}
-    .card-actions{display:flex;gap:8px;margin-top:8px}
-    .btn--heart[aria-pressed="true"]{border-color:#ff7b7b;background:#ffecec}
+  /* Left sheet nav */
+  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+  .sheet.open{transform:translateX(0)}
+  .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
+  .sheet nav{display:grid;padding:10px}
+  .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
+  .sheet nav a + a{margin-top:8px}
+  .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
 
-    .results-meta{padding:8px 12px;color:var(--muted);font-size:13px;border-bottom:1px solid var(--line);background:#fff}
+  /* Page layout */
+  .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
+  .topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .topbar input[type="search"]{flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
+  .topbar button{padding:9px 12px;border-radius:10px;border:1px solid var(--hm-accent);background:var(--hm-accent);color:#fff;font-weight:700}
 
-    /* Drawer */
-    .drawer{position:fixed;inset:0;z-index:50;display:none}
-    .drawer[data-open="1"]{display:block}
-    .scrim{position:absolute;inset:0;background:rgba(0,0,0,.35)}
-    .sheet{position:absolute;inset:auto 0 0 0;background:#fff;border-top-left-radius:20px;border-top-right-radius:20px;max-height:85dvh;overflow:auto;padding-bottom:calc(16px + var(--safe-bottom))}
-    .sheet-header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px}
-    .group{padding:12px;border-bottom:1px solid var(--line)}
-    .group h3{margin:0 0 10px 0;font-size:16px}
-    .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .check{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px}
-    .range{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .range input{padding:10px;border:1px solid var(--line);border-radius:10px}
-    .sheet-actions{position:sticky;bottom:0;display:flex;gap:10px;background:#fff;border-top:1px solid var(--line);padding:12px}
-    .cta{flex:1;padding:12px;border-radius:999px;border:0;background:#111;color:#fff;font-weight:600}
-    .ghost{flex:1;padding:12px;border-radius:999px;border:1px solid var(--line);background:#fff}
+  .layout{display:grid;grid-template-columns:280px 1fr;gap:14px}
+  @media (max-width:900px){ .layout{grid-template-columns:1fr} }
 
-    /* Tabbar */
-    .tabbar{position:sticky;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:8px 10px calc(8px + var(--safe-bottom)) 10px}
-    .tabs{display:flex;justify-content:space-between}
-    .tab{flex:1;text-align:center;font-size:12px;color:#333}
-    .tab .icon{margin:0 auto 4px auto}
+  /* Sidebar filters (structure preserved from your working version) */
+  .filters{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:10px}
+  .filters h3{margin:0 0 6px;font-size:14px;color:#374151}
+  .section{border-top:1px solid var(--hm-border);padding-top:8px;margin-top:8px}
+  .section:first-of-type{border-top:0;padding-top:0;margin-top:0}
+  .section .title{font-weight:700;font-size:13px;color:#374151;margin:0 0 6px}
+  .listbox{height:230px;overflow:auto;border:1px solid var(--hm-border);border-radius:10px;padding:6px}
+  .row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px dashed #f3f4f6}
+  .row:last-child{border-bottom:0}
+  .row input{width:14px;height:14px}
+  .row label{font-size:12px;color:#374151}
 
-    @media (min-width:768px){
-      .header,.toolbar,.chips,.results-meta,.grid,.tabbar{max-width:1100px;margin:0 auto}
-      .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-      .sheet{max-width:800px;margin:0 auto}
-    }
-  </style>
+  .sw-grid{display:grid;grid-template-columns:repeat(8,22px);gap:6px}
+  .sw{width:22px;height:22px;border-radius:6px;border:1px solid #d1d5db;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);cursor:pointer;position:relative}
+  .sw[data-selected="true"]{outline:2px solid var(--hm-accent);outline-offset:2px}
+  .sw .tip{position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:2px 5px;border-radius:4px;font-size:10px;white-space:nowrap;opacity:0;pointer-events:none}
+  .sw:hover .tip{opacity:1}
+  .sw[data-name="Gold"]{background:linear-gradient(135deg,#d4b870 0%,#f0dc97 50%,#ceb86b 100%)}
+  .sw[data-name="Silver"]{background:linear-gradient(135deg,#bfc6cf 0%,#e6eaef 50%,#a9b0ba 100%)}
+
+  .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .mini .field{display:flex;flex-direction:column;gap:4px}
+  .mini label{font-size:12px;color:#374151}
+  .mini input{padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:13px}
+
+  .selects{display:grid;gap:8px}
+  .selects select,.selects input{width:100%;padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
+
+  .bar-actions{display:flex;justify-content:space-between;margin-top:10px}
+  .btn{padding:6px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;color:#374151;font-size:13px;cursor:pointer}
+  .btn-primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
+
+  /* Selected chips */
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:999px;background:#fff;padding:6px 10px;font-size:12px}
+  .chip button{border:0;background:transparent;cursor:pointer;color:#6b7280;font-weight:900}
+
+  /* Results */
+  .results{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:12px;min-height:300px}
+  .results-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .browse-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  @media (max-width:900px){ .browse-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media (max-width:560px){ .browse-grid{grid-template-columns:1fr} }
+  .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;overflow:hidden}
+  .ph{aspect-ratio:4/3;display:grid;place-items:center;color:#6b7280;background:linear-gradient(180deg,#f8fafc,#eef2f7)}
+  .meta{padding:8px 10px}
+  .meta .title{font-weight:700}
+  .meta .sub{display:flex;justify-content:space-between;color:#6b7280;margin-top:6px}
+</style>
 </head>
 <body>
-  <!-- Header -->
-  <header class="header">
-    <div class="row" style="justify-content:space-between">
-      <a class="logo" href="index.html">Hemline</a>
-      <div class="row">
-        <button class="icon-btn" id="btn-bell" aria-label="Notifications" title="Notifications">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3a6 6 0 0 0-6 6v3.1l-1.6 2.9A1 1 0 0 0 5.3 17h13.4a1 1 0 0 0 .9-1.4L18 12.1V9a6 6 0 0 0-6-6Z"/><path d="M9 18a3 3 0 0 0 6 0"/></svg>
-        </button>
-        <a class="icon-btn" href="#" aria-label="Account" title="Account">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="7" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg>
-        </a>
-      </div>
+
+<!-- HEADER -->
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <button class="hamburger" id="openMenu" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
-    <div class="row" style="margin-top:8px">
-      <div class="search grow">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input id="q" type="search" placeholder="Search fabrics…" />
-        <button class="icon-btn" id="go" aria-label="Go">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-        </button>
-      </div>
+    <div class="right">
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn-primary" href="seller/index.html?list=new">Sell</a>
     </div>
+  </div>
+</header>
+
+<!-- LEFT MENU -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
   </header>
-
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <button class="btn" id="openFilters">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
-      &nbsp;Filters
-    </button>
-    <button class="btn" id="openSort">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7h12M3 12h8M3 17h16"/></svg>
-      &nbsp;Sort
-    </button>
-    <div class="grow"></div>
-    <div class="btn" id="resultCount">0 results</div>
-  </div>
-
-  <!-- Active filter chips -->
-  <div class="chips" id="activeChips" aria-label="Active filters"></div>
-
-  <!-- Results meta -->
-  <div class="results-meta" id="meta">Showing best match</div>
-
-  <!-- Grid -->
-  <main>
-    <div class="grid" id="grid"></div>
-  </main>
-
-  <!-- Bottom Tabbar -->
-  <nav class="tabbar" role="navigation" aria-label="Primary">
-    <div class="tabs">
-      <a class="tab" href="index.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5Z"/></svg>
-        Home
-      </a>
-      <a class="tab" href="browse.html" aria-current="page">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        Browse
-      </a>
-      <a class="tab" href="seller.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7h18l-2 12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L3 7Z"/><path d="M16 7a4 4 0 0 0-8 0"/></svg>
-        Sell
-      </a>
-      <a class="tab" href="#fav" id="jumpFav">
-        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.2-9.5-8.6C1.2 8.8 3.5 6 6.6 6c1.9 0 3.1 1 3.9 2 0 0 .3.4.5.4s.5-.4.5-.4c.8-1 2-2 3.9-2 3.1 0 5.4 2.8 4.1 6.4C19.5 16.8 12 21 12 21Z"/></svg>
-        Saved
-      </a>
-    </div>
+  <nav>
+    <a href="browse.html">Browse</a>
+    <a href="about.html">About</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="favorites.html">Favorites</a>
+    <a href="orders.html">Orders</a>
+    <a href="settings.html">Settings</a>
+    <a href="help.html">Help</a>
   </nav>
+</aside>
 
-  <!-- Filter Drawer -->
-  <div class="drawer" id="drawer">
-    <div class="scrim" id="closeFilters" aria-label="Close"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="filtersTitle">
-      <div class="sheet-header row" style="justify-content:space-between">
-        <div id="filtersTitle" style="font-weight:700">Filters</div>
-        <button class="icon-btn" id="closeX" aria-label="Close">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-      </div>
+<div class="wrap">
 
-      <!-- Department -->
-      <div class="group">
-        <h3>Department</h3>
-        <div class="opts" id="f-dept"></div>
-      </div>
-
-      <!-- Content (fiber) -->
-      <div class="group">
-        <h3>Content</h3>
-        <div class="opts" id="f-content"></div>
-      </div>
-
-      <!-- Color -->
-      <div class="group">
-        <h3>Color</h3>
-        <div class="opts" id="f-color"></div>
-      </div>
-
-      <!-- Width / Weight -->
-      <div class="group">
-        <h3>Width (inches)</h3>
-        <div class="range">
-          <input id="width_min" type="number" placeholder="min" inputmode="numeric">
-          <input id="width_max" type="number" placeholder="max" inputmode="numeric">
-        </div>
-      </div>
-      <div class="group">
-        <h3>Weight (gsm)</h3>
-        <div class="range">
-          <input id="weight_min" type="number" placeholder="min" inputmode="numeric">
-          <input id="weight_max" type="number" placeholder="max" inputmode="numeric">
-        </div>
-      </div>
-
-      <!-- Designer -->
-      <div class="group">
-        <h3>Designer</h3>
-        <div class="opts" id="f-designer"></div>
-      </div>
-
-      <!-- Country -->
-      <div class="group">
-        <h3>Country</h3>
-        <div class="opts" id="f-country"></div>
-      </div>
-
-      <!-- Pattern -->
-      <div class="group">
-        <h3>Pattern</h3>
-        <div class="opts" id="f-pattern"></div>
-      </div>
-
-      <!-- Fabric Type -->
-      <div class="group">
-        <h3>Fabric Type</h3>
-        <div class="opts" id="f-type"></div>
-      </div>
-
-      <div class="sheet-actions">
-        <button class="ghost" id="clearAll">Clear</button>
-        <button class="cta" id="apply">Show results</button>
-      </div>
-    </div>
+  <!-- Search + Chips -->
+  <div class="topbar">
+    <input id="q" type="search" placeholder="Search fabrics…">
+    <button id="doSearch">Search</button>
   </div>
+  <div id="selectedChips" class="chips" aria-live="polite"></div>
 
-  <script>
-    // ----- Data (shared ids w/ home) -----
-    const DATA=[
-      {id:'itm-1', name:'Italian Wool Crepe — Saffron', price:48, unit:'/yd', img:'', tags:['New','Solid'], content:'Wool', color:'Yellow', width:54, weight:210, designer:'Atelier', country:'Italy', pattern:'Solid', type:'Wool Crepe', dept:'Fabric'},
-      {id:'itm-2', name:'Bamboo French Terry — Natural', price:22, unit:'/yd', img:'', tags:['New','Cozy'], content:'Bamboo', color:'Ivory', width:60, weight:260, designer:'Everyday', country:'USA', pattern:'Solid', type:'Jersey', dept:'Fabric'},
-      {id:'itm-3', name:'Silk Habotai Lining — Blush', price:18, unit:'/yd', img:'', tags:['New','Lining'], content:'Silk', color:'Pink', width:45, weight:50, designer:'Atelier', country:'China', pattern:'Solid', type:'Lining', dept:'Lining'},
-      {id:'itm-4', name:'Japanese Denim — Indigo 11oz', price:32, unit:'/yd', img:'', tags:['New','Denim'], content:'Cotton', color:'Navy', width:59, weight:370, designer:'Everyday', country:'Japan', pattern:'Solid', type:'Denim', dept:'Fabric'}
-    ];
+  <div class="layout">
+    <!-- Filters (your existing structure preserved) -->
+    <aside class="filters" id="filters">
+      <h3>Filters</h3>
 
-    // ----- Helpers -----
-    const $=(s,r=document)=>r.querySelector(s);
-    const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
-    function qs(){return new URLSearchParams(location.search)}
-    function upsertQuery(obj){
-      const p=qs();
-      Object.entries(obj).forEach(([k,v])=>{
-        if(v===undefined||v===null||v===''){p.delete(k)} else {p.set(k,v)}
-      });
-      history.replaceState(null,'',`${location.pathname}?${p}`);
-    }
-    function lsGet(k, fallback){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(fallback)); }catch{ return fallback; } }
-    function lsSet(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+      <section class="section">
+        <div class="title">Content</div>
+        <div class="listbox" id="contentBox"></div>
+      </section>
 
-    // ----- Build chips from active filters -----
-    function renderActiveChips(filters){
-      const chip = (label,key,val)=>`<button class="pill" data-key="${key}" data-val="${val}" title="Remove">${label}</button>`;
-      const out=[];
-      if(filters.q) out.push(chip(`“${filters.q}”`,'q',''));
-      if(filters.dept) out.push(chip(filters.dept,'department',''));
-      if(filters.content?.length) filters.content.forEach(v=>out.push(chip(v,'content',v)));
-      if(filters.color?.length) filters.color.forEach(v=>out.push(chip(v,'color',v)));
-      if(filters.designer?.length) filters.designer.forEach(v=>out.push(chip(v,'designer',v)));
-      if(filters.country?.length) filters.country.forEach(v=>out.push(chip(v,'country',v)));
-      if(filters.pattern?.length) filters.pattern.forEach(v=>out.push(chip(v,'pattern',v)));
-      if(filters.type?.length) filters.type.forEach(v=>out.push(chip(v,'type',v)));
-      if(filters.width_min) out.push(chip(`≥ ${filters.width_min}"`,'width_min',''));
-      if(filters.width_max) out.push(chip(`≤ ${filters.width_max}"`,'width_max',''));
-      if(filters.weight_min) out.push(chip(`≥ ${filters.weight_min} gsm`,'weight_min',''));
-      if(filters.weight_max) out.push(chip(`≤ ${filters.weight_max} gsm`,'weight_max',''));
-      $('#activeChips').innerHTML = out.join('');
-      // Highlight active pills
-      $$('#activeChips .pill').forEach(p=>p.setAttribute('data-active','1'));
-      // Remove handler
-      $$('#activeChips .pill').forEach(p=>{
-        p.addEventListener('click',()=>{
-          const key=p.dataset.key, val=p.dataset.val;
-          const cur=readFilters();
-          if(['content','color','designer','country','pattern','type'].includes(key)){
-            cur[key]=cur[key].filter(x=>x!==val);
-          }else{
-            cur[key]='';
-          }
-          writeFiltersToURL(cur);
-          hydrateFromURL();
-        })
-      })
-    }
+      <section class="section">
+        <div class="title">Color Family</div>
+        <div class="sw-grid" id="colorBox"></div>
+      </section>
 
-    // ----- Filters state <-> URL -----
-    function readFilters(){
-      const p=qs();
-      const array = k => p.getAll(k).length ? p.getAll(k) : (p.get(k)?[p.get(k)]:[]);
-      return {
-        q: p.get('q')||'',
-        dept: p.get('department')||'',
-        content: array('content'),
-        color: array('color'),
-        width_min: p.get('width_min')||'',
-        width_max: p.get('width_max')||'',
-        weight_min: p.get('weight_min')||'',
-        weight_max: p.get('weight_max')||'',
-        designer: array('designer'),
-        country: array('country'),
-        pattern: array('pattern'),
-        type: array('type')
-      };
-    }
-    function writeFiltersToURL(f){
-      const p=new URLSearchParams();
-      if(f.q) p.set('q',f.q);
-      if(f.dept) p.set('department',f.dept);
-      const multi=['content','color','designer','country','pattern','type'];
-      multi.forEach(k=>f[k].forEach(v=>p.append(k,v)));
-      ['width_min','width_max','weight_min','weight_max'].forEach(k=>{ if(f[k]) p.set(k,f[k]) });
-      history.replaceState(null,'',`${location.pathname}?${p}`);
-    }
+      <section class="section">
+        <div class="title">$/yard</div>
+        <div class="mini">
+          <div class="field"><label>Min</label><input id="minPrice" type="number" min="0" step="1"></div>
+          <div class="field"><label>Max</label><input id="maxPrice" type="number" min="0" step="1"></div>
+        </div>
+      </section>
 
-    // ----- Drawer options -----
-    const OPTIONS = {
-      department: ['Fabric','Lining','Trims'],
-      content: ['Wool','Cashmere','Silk','Cotton','Linen','Bamboo','Viscose','Polyester'],
-      color: ['Ivory','Beige','Camel','Brown','Black','Navy','Blue','Green','Yellow','Orange','Red','Pink','Purple','Grey','White'],
-      designer: ['Atelier','Everyday','Chloé','Dior','YSL','Cavalli'],
-      country: ['Italy','France','Japan','UK','USA','India','China','Korea'],
-      pattern: ['Solid','Printed'],
-      type: ['Canvas','Chiffon','Corduroy','Crepe','Denim','Flannel','Georgette','Jersey','Lace','Lawn','Organza','Poplin','Sateen','Satin','Tulle','Twill','Velvet','Voile','Wool Crepe','Lining']
+      <section class="section">
+        <div class="title">Yards</div>
+        <div class="mini">
+          <div class="field" style="grid-column:1 / -1"><label>Min yards</label><input id="minYards" type="number" min="0" step="1"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Width (in)</div>
+        <div class="mini">
+          <div class="field"><label>Min</label><input id="minWidth" type="number" min="0" step="1"></div>
+          <div class="field"><label>Max</label><input id="maxWidth" type="number" min="0" step="1"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Weight (GSM)</div>
+        <div class="mini">
+          <div class="field"><label>Min GSM</label><input id="minGsm" type="number" min="0" step="1"></div>
+          <div class="field"><label>Max GSM</label><input id="maxGsm" type="number" min="0" step="1"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Department</div>
+        <div class="selects">
+          <select id="dept">
+            <option value="">Any</option>
+            <option>Fashion</option><option>Home</option><option>Quilting</option><option>Notions</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Fabric Type</div>
+        <div class="selects">
+          <select id="fabricType">
+            <option value="">Any</option>
+            <option>Canvas</option><option>Chiffon</option><option>Corduroy</option>
+            <option>Crepe</option><option>Denim</option><option>Flannel</option>
+            <option>Georgette</option><option>Jersey</option><option>Lace</option>
+            <option>Lawn</option><option>Organza</option><option>Poplin</option>
+            <option>Sateen</option><option>Satin</option><option>Tulle</option>
+            <option>Twill</option><option>Velvet</option><option>Voile</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Fiber Type</div>
+        <div class="selects">
+          <select id="fiberType">
+            <option value="">Any</option>
+            <option>Natural</option><option>Modified Natural</option><option>Synthetic</option><option>Blend</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Designer / Mill</div>
+        <div class="selects">
+          <input id="designer" placeholder="e.g., Loro Piana">
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Country / Origin</div>
+        <div class="selects">
+          <select id="origin">
+            <option value="">Any</option>
+            <option>Italy</option><option>France</option><option>Japan</option><option>UK</option>
+            <option>USA</option><option>India</option><option>China</option><option>Korea</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="title">Pattern</div>
+        <div class="selects">
+          <select id="pattern">
+            <option value="">Any</option>
+            <option>Solid</option><option>Printed</option>
+          </select>
+        </div>
+      </section>
+
+      <div class="bar-actions">
+        <button class="btn" id="clear">Clear</button>
+        <button class="btn btn-primary" id="apply">Apply</button>
+      </div>
+    </aside>
+
+    <!-- Results -->
+    <section class="results">
+      <div class="results-head">
+        <h2 id="resultTitle" style="margin:0;font-size:18px">Browse</h2>
+        <div id="resultCount" style="color:#6b7280;font-size:13px">0 results</div>
+      </div>
+      <div id="grid" class="browse-grid"></div>
+      <div id="empty" style="display:none;color:#6b7280">No results. Try relaxing a filter.</div>
+    </section>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="hm-footer" role="contentinfo" style="margin-top:14px">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+      <a href="faq.html">FAQ</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="shipping.html">Shipping & Returns</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* Menu sheet */
+  const sheet=document.getElementById("menuSheet");
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
+  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+  openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
+  closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+
+  /* Avatar (optional) */
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+
+  /* Data (same options as home) */
+  const CONTENT = [
+    "Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro",
+    "Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester",
+    "Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"
+  ];
+  const COLORS = [
+    {name:"Black",hex:"#000"},
+    {name:"Grey",hex:"#9aa0a6"},
+    {name:"White",hex:"#fff",border:"#d1d5db"},
+    {name:"Cream",hex:"#f5efe4"},
+    {name:"Brown",hex:"#7a4a2a"},
+    {name:"Pink",hex:"#f4a4b6"},
+    {name:"Red",hex:"#d21d2b"},
+    {name:"Orange",hex:"#f27a22"},
+    {name:"Yellow",hex:"#f3c321"},
+    {name:"Green",hex:"#2f7d32"},
+    {name:"Blue",hex:"#2166d1"},
+    {name:"Purple",hex:"#6b2da8"},
+    {name:"Gold",hex:"#e2c46d"},
+    {name:"Silver",hex:"#d5d8de"}
+  ];
+
+  /* Build Content UI */
+  const contentBox=document.getElementById('contentBox');
+  CONTENT.forEach(v=>{
+    const id='cb_'+v.replace(/[^a-z0-9]/gi,'_');
+    const row=document.createElement('div'); row.className='row';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.id=id; cb.value=v;
+    const lb=document.createElement('label'); lb.setAttribute('for',id); lb.textContent=v;
+    row.appendChild(cb); row.appendChild(lb);
+    contentBox.appendChild(row);
+  });
+
+  /* Build Colors */
+  const colorBox=document.getElementById('colorBox');
+  COLORS.forEach(c=>{
+    const sw=document.createElement('div'); sw.className='sw'; sw.dataset.name=c.name; sw.title=c.name;
+    sw.style.background=c.hex; if(c.border) sw.style.borderColor=c.border;
+    const tip=document.createElement('span'); tip.className='tip'; tip.textContent=c.name; sw.appendChild(tip);
+    sw.addEventListener('click',()=>{ sw.dataset.selected = sw.dataset.selected ? '' : 'true'; syncChips(); });
+    colorBox.appendChild(sw);
+  });
+
+  const $ = (id)=>document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+
+  /* Prepopulate from URL */
+  $('q').value = params.get('q')||'';
+  ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','dept','fabricType','fiberType','designer','origin','pattern']
+    .forEach(k=>{ const v=params.get(k); if(v!==null){ $(k).value=v; }});
+
+  function setCheckboxesFromCSV(container, csv){
+    if(!csv) return;
+    const set=new Set(csv.split(',').map(s=>s.trim()).filter(Boolean));
+    container.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
+      if(set.has(cb.value)) cb.checked=true;
+    });
+  }
+  function setSwatchesFromCSV(container, csv){
+    if(!csv) return;
+    const set=new Set(csv.split(',').map(s=>s.trim()).filter(Boolean));
+    container.querySelectorAll('.sw').forEach(sw=>{
+      if(set.has(sw.dataset.name)) sw.dataset.selected="true";
+    });
+  }
+  setCheckboxesFromCSV(contentBox, params.get('content')||'');
+  setSwatchesFromCSV(colorBox, params.get('colors')||'');
+
+  /* Chips */
+  const chipsEl=$('selectedChips');
+  function chip(label, key, value){
+    const d=document.createElement('span');
+    d.className='chip';
+    d.textContent=label+': '+value+' ';
+    const x=document.createElement('button'); x.type='button'; x.setAttribute('aria-label','Remove '+label); x.textContent='×';
+    x.addEventListener('click',()=>{
+      if(key==='content'){
+        const set=new Set((params.get('content')||'').split(',').filter(Boolean)); set.delete(value);
+        if(set.size) params.set('content',[...set].join(',')); else params.delete('content');
+        contentBox.querySelectorAll('input[type="checkbox"]').forEach(cb=>{ if(cb.value===value) cb.checked=false; });
+      }else if(key==='colors'){
+        const set=new Set((params.get('colors')||'').split(',').filter(Boolean)); set.delete(value);
+        if(set.size) params.set('colors',[...set].join(',')); else params.delete('colors');
+        colorBox.querySelectorAll('.sw').forEach(sw=>{ if(sw.dataset.name===value) sw.removeAttribute('data-selected'); });
+      }else{
+        params.delete(key);
+        const el=$(key); if(el){ if(el.tagName==='SELECT'||el.tagName==='INPUT') el.value=''; }
+      }
+      history.replaceState(null,'','?'+params.toString());
+      syncChips(); render();
+    });
+    d.appendChild(x);
+    return d;
+  }
+  function syncChips(){
+    chipsEl.innerHTML='';
+    const q=params.get('q'); if(q) chipsEl.appendChild(chip('Search','q',q));
+    (params.get('content')||'').split(',').filter(Boolean).forEach(v=>chipsEl.appendChild(chip('Content','content',v)));
+    (params.get('colors')||'').split(',').filter(Boolean).forEach(v=>chipsEl.appendChild(chip('Color','colors',v)));
+    [
+      ['minPrice','Min $/yd'],['maxPrice','Max $/yd'],
+      ['minYards','Min yards'],
+      ['minWidth','Min width'],['maxWidth','Max width'],
+      ['minGsm','Min GSM'],['maxGsm','Max GSM'],
+      ['dept','Department'],['fabricType','Fabric'],['fiberType','Fiber'],
+      ['designer','Designer'],['origin','Origin'],['pattern','Pattern']
+    ].forEach(([k,label])=>{ const v=params.get(k); if(v) chipsEl.appendChild(chip(label,k,v)); });
+  }
+  syncChips();
+
+  /* Keep URL in sync as user types (so chips update) */
+  function live(k){
+    const el=$(k); if(!el) return;
+    el.addEventListener('input',()=>{
+      const val=el.value.trim();
+      if(val) params.set(k,val); else params.delete(k);
+      history.replaceState(null,'','?'+params.toString());
+      syncChips(); render();
+    });
+  }
+  ['q','minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','dept','fabricType','fiberType','designer','origin','pattern']
+    .forEach(live);
+
+  contentBox.addEventListener('change',()=>{
+    const picked=[...contentBox.querySelectorAll('input[type="checkbox"]:checked')].map(cb=>cb.value).filter(v=>v!=='Any');
+    if(picked.length) params.set('content',picked.join(',')); else params.delete('content');
+    history.replaceState(null,'','?'+params.toString()); syncChips(); render();
+  });
+  colorBox.addEventListener('click',e=>{
+    if(!e.target.closest('.sw')) return;
+    const picked=[...colorBox.querySelectorAll('.sw[data-selected="true"]')].map(sw=>sw.dataset.name);
+    if(picked.length) params.set('colors',picked.join(',')); else params.delete('colors');
+    history.replaceState(null,'','?'+params.toString()); syncChips(); render();
+  });
+
+  /* Gather filters to a predicate */
+  function toFilters(){
+    const getCSV=(k)=> (params.get(k)||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const term=(params.get('q')||'').toLowerCase();
+    const contents=new Set(getCSV('content'));
+    const colors=new Set(getCSV('colors'));
+    const num=(k)=>{ const v=params.get(k); return v==null||v===''?null:Number(v); };
+    const minPrice=num('minPrice'), maxPrice=num('maxPrice');
+    const minYards=num('minYards');
+    const minWidth=num('minWidth'), maxWidth=num('maxWidth');
+    const minGsm=num('minGsm'), maxGsm=num('maxGsm');
+    const dept=(params.get('dept')||'').toLowerCase();
+    const fabricType=(params.get('fabricType')||'').toLowerCase();
+    const fiberType=(params.get('fiberType')||'').toLowerCase();
+    const designer=(params.get('designer')||'').toLowerCase();
+    const origin=(params.get('origin')||'').toLowerCase();
+    const pattern=(params.get('pattern')||'').toLowerCase();
+
+    return (item)=>{
+      // q
+      if(term){
+        const hay=(item.title+' '+(item.designer||'')).toLowerCase();
+        if(!hay.includes(term)) return false;
+      }
+      // content (any match)
+      if(contents.size){
+        const lc = item.content.map(s=>s.toLowerCase());
+        const has = [...contents].some(c=> lc.includes(c.toLowerCase()));
+        if(!has) return false;
+      }
+      // colors
+      if(colors.size && !colors.has(item.color)) return false;
+      // numeric ranges
+      if(minPrice!=null && item.price < minPrice) return false;
+      if(maxPrice!=null && item.price > maxPrice) return false;
+      if(minYards!=null && item.yards < minYards) return false;
+      if(minWidth!=null && item.width < minWidth) return false;
+      if(maxWidth!=null && item.width > maxWidth) return false;
+      if(minGsm!=null && item.gsm < minGsm) return false;
+      if(maxGsm!=null && item.gsm > maxGsm) return false;
+      // selects / text
+      if(dept && item.dept.toLowerCase()!==dept) return false;
+      if(fabricType && item.fabricType.toLowerCase()!==fabricType) return false;
+      if(fiberType && item.fiberType.toLowerCase()!==fiberType) return false;
+      if(designer && !(item.designer||'').toLowerCase().includes(designer)) return false;
+      if(origin && (item.origin||'').toLowerCase()!==origin) return false;
+      if(pattern && (item.pattern||'').toLowerCase()!==pattern) return false;
+
+      return true;
     };
+  }
 
-    function optionGrid(id, key){
-      const root = $(id);
-      root.innerHTML = OPTIONS[key].map(v=>`
-        <label class="check">
-          <input type="checkbox" value="${v}" data-key="${key}"/>
-          <span>${v}</span>
-        </label>
-      `).join('');
+  /* Render results */
+  const grid=document.getElementById('grid');
+  const empty=document.getElementById('empty');
+  const resultCount=document.getElementById('resultCount');
+
+  let ALL=[];
+  async function load(){
+    try{
+      const res=await fetch('data/listings.json');
+      ALL=await res.json();
+    }catch(e){
+      console.error('Failed to load data/listings.json', e);
+      ALL=[];
     }
+    render();
+  }
 
-    // ----- Render Product Cards -----
-    function cardHTML(item){
-      const isFav = new Set(lsGet('hm_favs', [])).has(item.id);
-      return `
-        <article class="card" id="${item.id}" data-id="${item.id}">
-          <div class="img" role="img" aria-label="${item.name}"></div>
-          <div class="meta">
-            <div style="font-size:14px;line-height:1.2">${item.name}</div>
-            <div class="row" style="justify-content:space-between;margin-top:6px">
-              <div class="price">$${item.price}<span class="sub">${item.unit}</span></div>
-              <div class="card-actions">
-                <button class="btn btn--heart" data-heart aria-pressed="${isFav?'true':'false'}" title="Save">
-                  <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.2-9.5-8.6C1.2 8.8 3.5 6 6.6 6c1.9 0 3.1 1 3.9 2 0 0 .3.4.5.4s.5-.4.5-.4c.8-1 2-2 3.9-2 3.1 0 5.4 2.8 4.1 6.4C19.5 16.8 12 21 12 21Z"/></svg>
-                </button>
-                <button class="btn" data-view title="View">View</button>
-              </div>
-            </div>
-          </div>
-        </article>
-      `;
-    }
-
-    function applyFilters(items,f){
-      const q = (f.q||'').toLowerCase();
-      const txt = s=> (s||'').toLowerCase();
-      return items.filter(x=>{
-        if(f.dept && x.dept!==f.dept) return false;
-        if(f.content.length && !f.content.includes(x.content)) return false;
-        if(f.color.length && !f.color.includes(x.color)) return false;
-        if(f.designer.length && !f.designer.includes(x.designer)) return false;
-        if(f.country.length && !f.country.includes(x.country)) return false;
-        if(f.pattern.length && !f.pattern.includes(x.pattern)) return false;
-        if(f.type.length && !f.type.includes(x.type)) return false;
-        if(f.width_min && x.width < Number(f.width_min)) return false;
-        if(f.width_max && x.width > Number(f.width_max)) return false;
-        if(f.weight_min && x.weight < Number(f.weight_min)) return false;
-        if(f.weight_max && x.weight > Number(f.weight_max)) return false;
-        if(q && !(txt(x.name).includes(q) || txt(x.type).includes(q) || txt(x.content).includes(q))) return false;
-        return true;
-      });
-    }
-
-    function paint(){
-      const f = readFilters();
-      $('#q').value = f.q || '';
-      renderActiveChips(f);
-      const items = applyFilters(DATA,f);
-      $('#grid').innerHTML = items.map(cardHTML).join('');
-      $('#resultCount').textContent = `${items.length} result${items.length===1?'':'s'}`;
-      $('#meta').textContent = f.q ? `Results for “${f.q}”` : 'Showing best match';
-
-      // wire up fav/view + recents
-      const favs = new Set(lsGet('hm_favs', []));
-      $$('#grid [data-heart]').forEach(btn=>{
-        const id = btn.closest('.card').dataset.id;
-        btn.addEventListener('click', ()=>{
-          const pressed = btn.getAttribute('aria-pressed')==='true';
-          if(pressed){ favs.delete(id); btn.setAttribute('aria-pressed','false'); }
-          else{ favs.add(id); btn.setAttribute('aria-pressed','true'); }
-          lsSet('hm_favs', Array.from(favs));
-        });
-      });
-      $$('#grid [data-view]').forEach(btn=>{
-        const id = btn.closest('.card').dataset.id;
-        btn.addEventListener('click', ()=>{
-          const rec = lsGet('hm_recents', []);
-          const next = [id, ...rec.filter(x=>x!==id)];
-          lsSet('hm_recents', next.slice(0,20));
-          alert('Sample “View” — this would open the PDP.');
-        })
-      });
-
-      // Jump to specific id via hash (and record recent)
-      const h = location.hash.replace('#','');
-      if(h){
-        const el = document.getElementById(h);
-        if(el){ el.scrollIntoView({behavior:'smooth', block:'center'}); }
-        const rec = lsGet('hm_recents', []);
-        const next = [h, ...rec.filter(x=>x!==h)];
-        lsSet('hm_recents', next.slice(0,20));
-      }
-    }
-
-    // ----- Build drawer UI -----
-    function buildDrawer(){
-      optionGrid('#f-dept','department');
-      optionGrid('#f-content','content');
-      optionGrid('#f-color','color');
-      optionGrid('#f-designer','designer');
-      optionGrid('#f-country','country');
-      optionGrid('#f-pattern','pattern');
-      optionGrid('#f-type','type');
-    }
-
-    // ----- Drawer open/close -----
-    const drawer = $('#drawer');
-    $('#openFilters').addEventListener('click', ()=> drawer.setAttribute('data-open','1'));
-    $('#closeFilters').addEventListener('click', ()=> drawer.removeAttribute('data-open'));
-    $('#closeX').addEventListener('click', ()=> drawer.removeAttribute('data-open'));
-
-    // ----- Apply/Clear -----
-    $('#apply').addEventListener('click', ()=>{
-      const cur = readFilters();
-      // collect multi
-      const collect = key => $$('#drawer input[type="checkbox"][data-key="'+key+'"]:checked').map(i=>i.value);
-      cur.dept = $$('#f-dept input[type="checkbox"]:checked').map(i=>i.value)[0] || '';
-      cur.content = collect('content');
-      cur.color = collect('color');
-      cur.designer = collect('designer');
-      cur.country = collect('country');
-      cur.pattern = collect('pattern');
-      cur.type = collect('type');
-      cur.width_min = $('#width_min').value.trim();
-      cur.width_max = $('#width_max').value.trim();
-      cur.weight_min = $('#weight_min').value.trim();
-      cur.weight_max = $('#weight_max').value.trim();
-      writeFiltersToURL(cur);
-      drawer.removeAttribute('data-open');
-      hydrateFromURL();
+  function render(){
+    const match=ALL.filter(toFilters());
+    resultCount.textContent = match.length + (match.length===1 ? ' result' : ' results');
+    grid.innerHTML='';
+    if(match.length===0){ empty.style.display='block'; return; }
+    empty.style.display='none';
+    match.forEach(it=>{
+      const a=document.createElement('article'); a.className='card';
+      a.innerHTML=`
+        <div class="ph">${it.photo ? '' : 'photo'}</div>
+        <div class="meta">
+          <div class="title">${it.title}</div>
+          <div class="sub"><span>$${it.price}/yd</span><span>${it.width}″ • ${it.gsm} GSM</span></div>
+        </div>`;
+      grid.appendChild(a);
     });
+  }
 
-    $('#clearAll').addEventListener('click', ()=>{
-      history.replaceState(null,'',location.pathname);
-      hydrateFromURL();
-    });
+  /* Buttons */
+  document.getElementById('apply').addEventListener('click',()=>{
+    // Rebuild URL from current UI (already live-synced, but keep consistent)
+    location.href = location.pathname + '?' + params.toString();
+  });
+  document.getElementById('clear').addEventListener('click',()=>{
+    history.replaceState(null,'',location.pathname);
+    location.reload();
+  });
+  document.getElementById('doSearch').addEventListener('click',()=>{
+    params.set('q', document.getElementById('q').value.trim());
+    history.replaceState(null,'','?'+params.toString());
+    render();
+  });
 
-    // ----- Preselect drawer inputs from URL -----
-    function syncDrawerFromFilters(f){
-      // clear
-      $$('#drawer input[type="checkbox"]').forEach(i=>i.checked=false);
-      ['content','color','designer','country','pattern','type'].forEach(key=>{
-        f[key].forEach(v=>{
-          const el = $(`#drawer input[type="checkbox"][data-key="${key}"][value="${CSS.escape(v)}"]`);
-          if(el) el.checked = true;
-        });
-      });
-      // dept single
-      $$('#f-dept input[type="checkbox"]').forEach(i=> i.checked = (i.value===f.dept));
-      // ranges
-      $('#width_min').value = f.width_min || '';
-      $('#width_max').value = f.width_max || '';
-      $('#weight_min').value = f.weight_min || '';
-      $('#weight_max').value = f.weight_max || '';
-    }
-
-    // ----- Initial URL decode + paint -----
-    function hydrateFromURL(){
-      const f = readFilters();
-      syncDrawerFromFilters(f);
-      renderActiveChips(f);
-      paint();
-    }
-
-    // ----- Search box -----
-    $('#go').addEventListener('click', ()=>{
-      const f=readFilters();
-      f.q = ($('#q').value||'').trim();
-      writeFiltersToURL(f);
-      hydrateFromURL();
-    });
-    $('#q').addEventListener('keydown',(e)=>{ if(e.key==='Enter') $('#go').click(); });
-
-    // ----- Sort (simple demo) -----
-    $('#openSort').addEventListener('click', ()=>{
-      const choice = prompt('Sort by:\n1) Price: Low to High\n2) Price: High to Low','1');
-      if(!choice) return;
-      if(choice==='1'){
-        DATA.sort((a,b)=>a.price-b.price);
-      }else if(choice==='2'){
-        DATA.sort((a,b)=>b.price-a.price);
-      }
-      paint();
-    });
-
-    // ----- Build + hydrate on load -----
-    buildDrawer();
-    hydrateFromURL();
-
-    // Make notifications button feel alive
-    $('#btn-bell').addEventListener('click',()=>alert('Notifications demo'));
-  </script>
+  load();
+})();
+</script>
 </body>
 </html>
