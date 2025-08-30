@@ -8,50 +8,510 @@
   <style>
     *,*::before,*::after{box-sizing:border-box}
     html,body{margin:0;padding:0}
-    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;min-height:100dvh}
-    .header{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #e9e9e9;padding:12px}
+    img{max-width:100%;display:block}
+    a{color:inherit;text-decoration:none}
+    button,input,select{font:inherit}
+
+    :root{
+      --bg:#ffffff; --text:#111; --muted:#666; --line:#e9e9e9; --chip:#f5f5f5; --chip-border:#d9d9d9;
+      --brand:#111; --accent:#0b72ff; --radius:14px; --safe-bottom:env(safe-area-inset-bottom,0px); --safe-top:env(safe-area-inset-top,0px);
+    }
+    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text); background:var(--bg); min-height:100dvh; display:flex; flex-direction:column}
+
+    /* Header */
+    .header{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);padding:calc(8px + var(--safe-top)) 12px 8px}
+    .row{display:flex;align-items:center;gap:10px}
+    .grow{flex:1}
     .logo{font-weight:700}
-    .search{display:flex;gap:8px;border:1px solid #e9e9e9;border-radius:12px;padding:8px 10px;background:#fff}
+    .icon-btn{width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:inline-grid;place-items:center;background:#fff}
+    .icon{width:18px;height:18px}
+    .search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff}
     .search input{border:0;outline:0;width:100%}
-    .toolbar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid #e9e9e9;background:#fff}
-    .btn{border:1px solid #e9e9e9;border-radius:10px;padding:8px 12px;background:#fff}
+
+    /* Toolbar */
+    .toolbar{display:flex;gap:8px;align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); background:#fff; position:sticky; top:64px; z-index:25}
+    .btn{display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;font-size:14px}
+    .pill{background:var(--chip);border:1px solid var(--chip-border);border-radius:999px;padding:8px 12px;font-size:14px;white-space:nowrap}
+    .chips{display:flex;gap:8px;overflow:auto;padding:8px 12px;border-bottom:1px solid var(--line);background:#fff}
+    .chips .pill[data-active="1"]{background:#111;color:#fff;border-color:#111}
+
+    main{flex:1}
     .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}
-    .card{border:1px solid #e9e9e9;border-radius:16px;overflow:hidden;background:#fff}
+    .card{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
     .card .img{aspect-ratio:1/1;background:#f3f3f3}
-    .card .meta{padding:8px}
+    .meta{padding:8px}
     .price{font-weight:700}
-    .sub{color:#666;font-size:12px}
-    .tabbar{position:sticky;bottom:0;background:#fff;border-top:1px solid #e9e9e9;padding:8px 10px}
+    .sub{color:var(--muted);font-size:12px}
+    .card-actions{display:flex;gap:8px;margin-top:8px}
+    .btn--heart[aria-pressed="true"]{border-color:#ff7b7b;background:#ffecec}
+
+    .results-meta{padding:8px 12px;color:var(--muted);font-size:13px;border-bottom:1px solid var(--line);background:#fff}
+
+    /* Drawer */
+    .drawer{position:fixed;inset:0;z-index:50;display:none}
+    .drawer[data-open="1"]{display:block}
+    .scrim{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+    .sheet{position:absolute;inset:auto 0 0 0;background:#fff;border-top-left-radius:20px;border-top-right-radius:20px;max-height:85dvh;overflow:auto;padding-bottom:calc(16px + var(--safe-bottom))}
+    .sheet-header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px}
+    .group{padding:12px;border-bottom:1px solid var(--line)}
+    .group h3{margin:0 0 10px 0;font-size:16px}
+    .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .check{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px}
+    .range{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .range input{padding:10px;border:1px solid var(--line);border-radius:10px}
+    .sheet-actions{position:sticky;bottom:0;display:flex;gap:10px;background:#fff;border-top:1px solid var(--line);padding:12px}
+    .cta{flex:1;padding:12px;border-radius:999px;border:0;background:#111;color:#fff;font-weight:600}
+    .ghost{flex:1;padding:12px;border-radius:999px;border:1px solid var(--line);background:#fff}
+
+    /* Tabbar */
+    .tabbar{position:sticky;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:8px 10px calc(8px + var(--safe-bottom)) 10px}
     .tabs{display:flex;justify-content:space-between}
     .tab{flex:1;text-align:center;font-size:12px;color:#333}
-    @media(min-width:768px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    .tab .icon{margin:0 auto 4px auto}
+
+    @media (min-width:768px){
+      .header,.toolbar,.chips,.results-meta,.grid,.tabbar{max-width:1100px;margin:0 auto}
+      .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+      .sheet{max-width:800px;margin:0 auto}
+    }
   </style>
 </head>
 <body>
+  <!-- Header -->
   <header class="header">
-    <div class="logo">Hemline</div>
-    <div class="search"><input type="search" placeholder="Search fabrics…" /></div>
+    <div class="row" style="justify-content:space-between">
+      <a class="logo" href="index.html">Hemline</a>
+      <div class="row">
+        <button class="icon-btn" id="btn-bell" aria-label="Notifications" title="Notifications">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3a6 6 0 0 0-6 6v3.1l-1.6 2.9A1 1 0 0 0 5.3 17h13.4a1 1 0 0 0 .9-1.4L18 12.1V9a6 6 0 0 0-6-6Z"/><path d="M9 18a3 3 0 0 0 6 0"/></svg>
+        </button>
+        <a class="icon-btn" href="#" aria-label="Account" title="Account">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="7" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg>
+        </a>
+      </div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="search grow">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Search fabrics…" />
+        <button class="icon-btn" id="go" aria-label="Go">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
   </header>
 
+  <!-- Toolbar -->
   <div class="toolbar">
-    <button class="btn">Filters</button>
-    <button class="btn">Sort</button>
-    <div style="margin-left:auto" class="btn">0 results</div>
+    <button class="btn" id="openFilters">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+      &nbsp;Filters
+    </button>
+    <button class="btn" id="openSort">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7h12M3 12h8M3 17h16"/></svg>
+      &nbsp;Sort
+    </button>
+    <div class="grow"></div>
+    <div class="btn" id="resultCount">0 results</div>
   </div>
 
+  <!-- Active filter chips -->
+  <div class="chips" id="activeChips" aria-label="Active filters"></div>
+
+  <!-- Results meta -->
+  <div class="results-meta" id="meta">Showing best match</div>
+
+  <!-- Grid -->
   <main>
-    <div class="grid">
-      <article class="card"><div class="img"></div><div class="meta"><div>Italian Wool Crepe — Saffron</div><div class="price">$48<span class="sub">/yd</span></div></div></article>
-      <article class="card"><div class="img"></div><div class="meta"><div>Bamboo French Terry — Natural</div><div class="price">$22<span class="sub">/yd</span></div></div></article>
-    </div>
+    <div class="grid" id="grid"></div>
   </main>
 
-  <nav class="tabbar">
+  <!-- Bottom Tabbar -->
+  <nav class="tabbar" role="navigation" aria-label="Primary">
     <div class="tabs">
-      <a class="tab" href="index.html">Home</a>
-      <a class="tab" href="browse.html" aria-current="page">Browse</a>
-      <a class="tab" href="seller.html">Sell</a>
+      <a class="tab" href="index.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-10.5Z"/></svg>
+        Home
+      </a>
+      <a class="tab" href="browse.html" aria-current="page">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Browse
+      </a>
+      <a class="tab" href="seller.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7h18l-2 12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L3 7Z"/><path d="M16 7a4 4 0 0 0-8 0"/></svg>
+        Sell
+      </a>
+      <a class="tab" href="#fav" id="jumpFav">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.2-9.5-8.6C1.2 8.8 3.5 6 6.6 6c1.9 0 3.1 1 3.9 2 0 0 .3.4.5.4s.5-.4.5-.4c.8-1 2-2 3.9-2 3.1 0 5.4 2.8 4.1 6.4C19.5 16.8 12 21 12 21Z"/></svg>
+        Saved
+      </a>
     </div>
   </nav>
+
+  <!-- Filter Drawer -->
+  <div class="drawer" id="drawer">
+    <div class="scrim" id="closeFilters" aria-label="Close"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="filtersTitle">
+      <div class="sheet-header row" style="justify-content:space-between">
+        <div id="filtersTitle" style="font-weight:700">Filters</div>
+        <button class="icon-btn" id="closeX" aria-label="Close">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <!-- Department -->
+      <div class="group">
+        <h3>Department</h3>
+        <div class="opts" id="f-dept"></div>
+      </div>
+
+      <!-- Content (fiber) -->
+      <div class="group">
+        <h3>Content</h3>
+        <div class="opts" id="f-content"></div>
+      </div>
+
+      <!-- Color -->
+      <div class="group">
+        <h3>Color</h3>
+        <div class="opts" id="f-color"></div>
+      </div>
+
+      <!-- Width / Weight -->
+      <div class="group">
+        <h3>Width (inches)</h3>
+        <div class="range">
+          <input id="width_min" type="number" placeholder="min" inputmode="numeric">
+          <input id="width_max" type="number" placeholder="max" inputmode="numeric">
+        </div>
+      </div>
+      <div class="group">
+        <h3>Weight (gsm)</h3>
+        <div class="range">
+          <input id="weight_min" type="number" placeholder="min" inputmode="numeric">
+          <input id="weight_max" type="number" placeholder="max" inputmode="numeric">
+        </div>
+      </div>
+
+      <!-- Designer -->
+      <div class="group">
+        <h3>Designer</h3>
+        <div class="opts" id="f-designer"></div>
+      </div>
+
+      <!-- Country -->
+      <div class="group">
+        <h3>Country</h3>
+        <div class="opts" id="f-country"></div>
+      </div>
+
+      <!-- Pattern -->
+      <div class="group">
+        <h3>Pattern</h3>
+        <div class="opts" id="f-pattern"></div>
+      </div>
+
+      <!-- Fabric Type -->
+      <div class="group">
+        <h3>Fabric Type</h3>
+        <div class="opts" id="f-type"></div>
+      </div>
+
+      <div class="sheet-actions">
+        <button class="ghost" id="clearAll">Clear</button>
+        <button class="cta" id="apply">Show results</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ----- Data (shared ids w/ home) -----
+    const DATA=[
+      {id:'itm-1', name:'Italian Wool Crepe — Saffron', price:48, unit:'/yd', img:'', tags:['New','Solid'], content:'Wool', color:'Yellow', width:54, weight:210, designer:'Atelier', country:'Italy', pattern:'Solid', type:'Wool Crepe', dept:'Fabric'},
+      {id:'itm-2', name:'Bamboo French Terry — Natural', price:22, unit:'/yd', img:'', tags:['New','Cozy'], content:'Bamboo', color:'Ivory', width:60, weight:260, designer:'Everyday', country:'USA', pattern:'Solid', type:'Jersey', dept:'Fabric'},
+      {id:'itm-3', name:'Silk Habotai Lining — Blush', price:18, unit:'/yd', img:'', tags:['New','Lining'], content:'Silk', color:'Pink', width:45, weight:50, designer:'Atelier', country:'China', pattern:'Solid', type:'Lining', dept:'Lining'},
+      {id:'itm-4', name:'Japanese Denim — Indigo 11oz', price:32, unit:'/yd', img:'', tags:['New','Denim'], content:'Cotton', color:'Navy', width:59, weight:370, designer:'Everyday', country:'Japan', pattern:'Solid', type:'Denim', dept:'Fabric'}
+    ];
+
+    // ----- Helpers -----
+    const $=(s,r=document)=>r.querySelector(s);
+    const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+    function qs(){return new URLSearchParams(location.search)}
+    function upsertQuery(obj){
+      const p=qs();
+      Object.entries(obj).forEach(([k,v])=>{
+        if(v===undefined||v===null||v===''){p.delete(k)} else {p.set(k,v)}
+      });
+      history.replaceState(null,'',`${location.pathname}?${p}`);
+    }
+    function lsGet(k, fallback){ try{ return JSON.parse(localStorage.getItem(k)||JSON.stringify(fallback)); }catch{ return fallback; } }
+    function lsSet(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+    // ----- Build chips from active filters -----
+    function renderActiveChips(filters){
+      const chip = (label,key,val)=>`<button class="pill" data-key="${key}" data-val="${val}" title="Remove">${label}</button>`;
+      const out=[];
+      if(filters.q) out.push(chip(`“${filters.q}”`,'q',''));
+      if(filters.dept) out.push(chip(filters.dept,'department',''));
+      if(filters.content?.length) filters.content.forEach(v=>out.push(chip(v,'content',v)));
+      if(filters.color?.length) filters.color.forEach(v=>out.push(chip(v,'color',v)));
+      if(filters.designer?.length) filters.designer.forEach(v=>out.push(chip(v,'designer',v)));
+      if(filters.country?.length) filters.country.forEach(v=>out.push(chip(v,'country',v)));
+      if(filters.pattern?.length) filters.pattern.forEach(v=>out.push(chip(v,'pattern',v)));
+      if(filters.type?.length) filters.type.forEach(v=>out.push(chip(v,'type',v)));
+      if(filters.width_min) out.push(chip(`≥ ${filters.width_min}"`,'width_min',''));
+      if(filters.width_max) out.push(chip(`≤ ${filters.width_max}"`,'width_max',''));
+      if(filters.weight_min) out.push(chip(`≥ ${filters.weight_min} gsm`,'weight_min',''));
+      if(filters.weight_max) out.push(chip(`≤ ${filters.weight_max} gsm`,'weight_max',''));
+      $('#activeChips').innerHTML = out.join('');
+      // Highlight active pills
+      $$('#activeChips .pill').forEach(p=>p.setAttribute('data-active','1'));
+      // Remove handler
+      $$('#activeChips .pill').forEach(p=>{
+        p.addEventListener('click',()=>{
+          const key=p.dataset.key, val=p.dataset.val;
+          const cur=readFilters();
+          if(['content','color','designer','country','pattern','type'].includes(key)){
+            cur[key]=cur[key].filter(x=>x!==val);
+          }else{
+            cur[key]='';
+          }
+          writeFiltersToURL(cur);
+          hydrateFromURL();
+        })
+      })
+    }
+
+    // ----- Filters state <-> URL -----
+    function readFilters(){
+      const p=qs();
+      const array = k => p.getAll(k).length ? p.getAll(k) : (p.get(k)?[p.get(k)]:[]);
+      return {
+        q: p.get('q')||'',
+        dept: p.get('department')||'',
+        content: array('content'),
+        color: array('color'),
+        width_min: p.get('width_min')||'',
+        width_max: p.get('width_max')||'',
+        weight_min: p.get('weight_min')||'',
+        weight_max: p.get('weight_max')||'',
+        designer: array('designer'),
+        country: array('country'),
+        pattern: array('pattern'),
+        type: array('type')
+      };
+    }
+    function writeFiltersToURL(f){
+      const p=new URLSearchParams();
+      if(f.q) p.set('q',f.q);
+      if(f.dept) p.set('department',f.dept);
+      const multi=['content','color','designer','country','pattern','type'];
+      multi.forEach(k=>f[k].forEach(v=>p.append(k,v)));
+      ['width_min','width_max','weight_min','weight_max'].forEach(k=>{ if(f[k]) p.set(k,f[k]) });
+      history.replaceState(null,'',`${location.pathname}?${p}`);
+    }
+
+    // ----- Drawer options -----
+    const OPTIONS = {
+      department: ['Fabric','Lining','Trims'],
+      content: ['Wool','Cashmere','Silk','Cotton','Linen','Bamboo','Viscose','Polyester'],
+      color: ['Ivory','Beige','Camel','Brown','Black','Navy','Blue','Green','Yellow','Orange','Red','Pink','Purple','Grey','White'],
+      designer: ['Atelier','Everyday','Chloé','Dior','YSL','Cavalli'],
+      country: ['Italy','France','Japan','UK','USA','India','China','Korea'],
+      pattern: ['Solid','Printed'],
+      type: ['Canvas','Chiffon','Corduroy','Crepe','Denim','Flannel','Georgette','Jersey','Lace','Lawn','Organza','Poplin','Sateen','Satin','Tulle','Twill','Velvet','Voile','Wool Crepe','Lining']
+    };
+
+    function optionGrid(id, key){
+      const root = $(id);
+      root.innerHTML = OPTIONS[key].map(v=>`
+        <label class="check">
+          <input type="checkbox" value="${v}" data-key="${key}"/>
+          <span>${v}</span>
+        </label>
+      `).join('');
+    }
+
+    // ----- Render Product Cards -----
+    function cardHTML(item){
+      const isFav = new Set(lsGet('hm_favs', [])).has(item.id);
+      return `
+        <article class="card" id="${item.id}" data-id="${item.id}">
+          <div class="img" role="img" aria-label="${item.name}"></div>
+          <div class="meta">
+            <div style="font-size:14px;line-height:1.2">${item.name}</div>
+            <div class="row" style="justify-content:space-between;margin-top:6px">
+              <div class="price">$${item.price}<span class="sub">${item.unit}</span></div>
+              <div class="card-actions">
+                <button class="btn btn--heart" data-heart aria-pressed="${isFav?'true':'false'}" title="Save">
+                  <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.2-9.5-8.6C1.2 8.8 3.5 6 6.6 6c1.9 0 3.1 1 3.9 2 0 0 .3.4.5.4s.5-.4.5-.4c.8-1 2-2 3.9-2 3.1 0 5.4 2.8 4.1 6.4C19.5 16.8 12 21 12 21Z"/></svg>
+                </button>
+                <button class="btn" data-view title="View">View</button>
+              </div>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function applyFilters(items,f){
+      const q = (f.q||'').toLowerCase();
+      const txt = s=> (s||'').toLowerCase();
+      return items.filter(x=>{
+        if(f.dept && x.dept!==f.dept) return false;
+        if(f.content.length && !f.content.includes(x.content)) return false;
+        if(f.color.length && !f.color.includes(x.color)) return false;
+        if(f.designer.length && !f.designer.includes(x.designer)) return false;
+        if(f.country.length && !f.country.includes(x.country)) return false;
+        if(f.pattern.length && !f.pattern.includes(x.pattern)) return false;
+        if(f.type.length && !f.type.includes(x.type)) return false;
+        if(f.width_min && x.width < Number(f.width_min)) return false;
+        if(f.width_max && x.width > Number(f.width_max)) return false;
+        if(f.weight_min && x.weight < Number(f.weight_min)) return false;
+        if(f.weight_max && x.weight > Number(f.weight_max)) return false;
+        if(q && !(txt(x.name).includes(q) || txt(x.type).includes(q) || txt(x.content).includes(q))) return false;
+        return true;
+      });
+    }
+
+    function paint(){
+      const f = readFilters();
+      $('#q').value = f.q || '';
+      renderActiveChips(f);
+      const items = applyFilters(DATA,f);
+      $('#grid').innerHTML = items.map(cardHTML).join('');
+      $('#resultCount').textContent = `${items.length} result${items.length===1?'':'s'}`;
+      $('#meta').textContent = f.q ? `Results for “${f.q}”` : 'Showing best match';
+
+      // wire up fav/view + recents
+      const favs = new Set(lsGet('hm_favs', []));
+      $$('#grid [data-heart]').forEach(btn=>{
+        const id = btn.closest('.card').dataset.id;
+        btn.addEventListener('click', ()=>{
+          const pressed = btn.getAttribute('aria-pressed')==='true';
+          if(pressed){ favs.delete(id); btn.setAttribute('aria-pressed','false'); }
+          else{ favs.add(id); btn.setAttribute('aria-pressed','true'); }
+          lsSet('hm_favs', Array.from(favs));
+        });
+      });
+      $$('#grid [data-view]').forEach(btn=>{
+        const id = btn.closest('.card').dataset.id;
+        btn.addEventListener('click', ()=>{
+          const rec = lsGet('hm_recents', []);
+          const next = [id, ...rec.filter(x=>x!==id)];
+          lsSet('hm_recents', next.slice(0,20));
+          alert('Sample “View” — this would open the PDP.');
+        })
+      });
+
+      // Jump to specific id via hash (and record recent)
+      const h = location.hash.replace('#','');
+      if(h){
+        const el = document.getElementById(h);
+        if(el){ el.scrollIntoView({behavior:'smooth', block:'center'}); }
+        const rec = lsGet('hm_recents', []);
+        const next = [h, ...rec.filter(x=>x!==h)];
+        lsSet('hm_recents', next.slice(0,20));
+      }
+    }
+
+    // ----- Build drawer UI -----
+    function buildDrawer(){
+      optionGrid('#f-dept','department');
+      optionGrid('#f-content','content');
+      optionGrid('#f-color','color');
+      optionGrid('#f-designer','designer');
+      optionGrid('#f-country','country');
+      optionGrid('#f-pattern','pattern');
+      optionGrid('#f-type','type');
+    }
+
+    // ----- Drawer open/close -----
+    const drawer = $('#drawer');
+    $('#openFilters').addEventListener('click', ()=> drawer.setAttribute('data-open','1'));
+    $('#closeFilters').addEventListener('click', ()=> drawer.removeAttribute('data-open'));
+    $('#closeX').addEventListener('click', ()=> drawer.removeAttribute('data-open'));
+
+    // ----- Apply/Clear -----
+    $('#apply').addEventListener('click', ()=>{
+      const cur = readFilters();
+      // collect multi
+      const collect = key => $$('#drawer input[type="checkbox"][data-key="'+key+'"]:checked').map(i=>i.value);
+      cur.dept = $$('#f-dept input[type="checkbox"]:checked').map(i=>i.value)[0] || '';
+      cur.content = collect('content');
+      cur.color = collect('color');
+      cur.designer = collect('designer');
+      cur.country = collect('country');
+      cur.pattern = collect('pattern');
+      cur.type = collect('type');
+      cur.width_min = $('#width_min').value.trim();
+      cur.width_max = $('#width_max').value.trim();
+      cur.weight_min = $('#weight_min').value.trim();
+      cur.weight_max = $('#weight_max').value.trim();
+      writeFiltersToURL(cur);
+      drawer.removeAttribute('data-open');
+      hydrateFromURL();
+    });
+
+    $('#clearAll').addEventListener('click', ()=>{
+      history.replaceState(null,'',location.pathname);
+      hydrateFromURL();
+    });
+
+    // ----- Preselect drawer inputs from URL -----
+    function syncDrawerFromFilters(f){
+      // clear
+      $$('#drawer input[type="checkbox"]').forEach(i=>i.checked=false);
+      ['content','color','designer','country','pattern','type'].forEach(key=>{
+        f[key].forEach(v=>{
+          const el = $(`#drawer input[type="checkbox"][data-key="${key}"][value="${CSS.escape(v)}"]`);
+          if(el) el.checked = true;
+        });
+      });
+      // dept single
+      $$('#f-dept input[type="checkbox"]').forEach(i=> i.checked = (i.value===f.dept));
+      // ranges
+      $('#width_min').value = f.width_min || '';
+      $('#width_max').value = f.width_max || '';
+      $('#weight_min').value = f.weight_min || '';
+      $('#weight_max').value = f.weight_max || '';
+    }
+
+    // ----- Initial URL decode + paint -----
+    function hydrateFromURL(){
+      const f = readFilters();
+      syncDrawerFromFilters(f);
+      renderActiveChips(f);
+      paint();
+    }
+
+    // ----- Search box -----
+    $('#go').addEventListener('click', ()=>{
+      const f=readFilters();
+      f.q = ($('#q').value||'').trim();
+      writeFiltersToURL(f);
+      hydrateFromURL();
+    });
+    $('#q').addEventListener('keydown',(e)=>{ if(e.key==='Enter') $('#go').click(); });
+
+    // ----- Sort (simple demo) -----
+    $('#openSort').addEventListener('click', ()=>{
+      const choice = prompt('Sort by:\n1) Price: Low to High\n2) Price: High to Low','1');
+      if(!choice) return;
+      if(choice==='1'){
+        DATA.sort((a,b)=>a.price-b.price);
+      }else if(choice==='2'){
+        DATA.sort((a,b)=>b.price-a.price);
+      }
+      paint();
+    });
+
+    // ----- Build + hydrate on load -----
+    buildDrawer();
+    hydrateFromURL();
+
+    // Make notifications button feel alive
+    $('#btn-bell').addEventListener('click',()=>alert('Notifications demo'));
+  </script>
 </body>
 </html>
