@@ -83,8 +83,8 @@
         </svg>
       </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
-      <!-- Route Sell to create listing (not /seller/index.html) -->
-      <a class="hm-btn-primary" href="create-listing.html">Sell</a>
+      <!-- Route Sell to the multi-step listing flow -->
+      <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
@@ -123,7 +123,7 @@
 
   <div class="notice" id="emptyState">No listings yet.</div>
 
-  <!-- future: listings grid will render here -->
+  <!-- listings grid renders here -->
   <section class="grid" id="listingsGrid" hidden></section>
 </main>
 
@@ -156,9 +156,37 @@
 
   /* Avatar image (optional from localStorage) */
   const avatar=document.getElementById("avatar");
-  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+  try{
+    const url=localStorage.getItem("avatarUrl");
+    if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }
+  }catch(e){}
 
-  /* TEMP name/handle (until Supabase profile is wired) */
-  const name = localStorage.getItem('displayName') || 'Your Atelier';
-  const handle = localStorage.getItem('handle') || 'you';
-  document.getElementById
+  /* Temp name/handle (until Supabase profile is wired) */
+  const shopName = localStorage.getItem('displayName') || 'Your Atelier';
+  const shopHandle = localStorage.getItem('handle') || 'you';
+  document.getElementById('shopName').textContent = shopName;
+  document.getElementById('shopHandle').textContent = '@' + shopHandle;
+  document.getElementById('shopAvatar').textContent = (shopName || 'S').trim().charAt(0).toLowerCase();
+
+  /* (Optional) render any locally saved draft listings so page isn’t empty in demos) */
+  try{
+    const grid=document.getElementById('listingsGrid');
+    const empty=document.getElementById('emptyState');
+    const drafts = JSON.parse(localStorage.getItem('hm.sell.v6.draft')||'null');
+    if(drafts && drafts.title){
+      grid.hidden=false; empty.style.display='none';
+      const card=document.createElement('a');
+      card.className='card'; card.href='item.html?draft=1';
+      card.innerHTML = `
+        <div class="thumb">photo</div>
+        <div class="info">
+          <div class="title">${drafts.title}</div>
+          <div class="meta"><span class="price">$${drafts.price||'—'}/yd</span><span class="seller">@${shopHandle}</span></div>
+        </div>`;
+      grid.appendChild(card);
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
