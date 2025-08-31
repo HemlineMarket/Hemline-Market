@@ -12,7 +12,7 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (same structure/ids used elsewhere so the menu JS works) */
+  /* Header (same pattern used elsewhere) */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .hm-header .left{display:flex;align-items:center;gap:10px}
@@ -34,40 +34,16 @@
   .sheet nav a + a{margin-top:8px}
   .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
 
-  /* Page */
+  /* Page layout */
   .wrap{max-width:1100px;margin:14px auto 24px;padding:0 12px}
-  h1{margin:0 0 6px;font-size:22px}
-  .muted{color:var(--muted);font-size:13px;margin:0 0 12px}
+  h1{margin:0 0 8px;font-size:22px}
+  .section{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px}
+  .section header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .muted{color:var(--muted);font-size:13px}
+  .empty{border:1px dashed var(--border);border-radius:10px;padding:12px;background:#fafafa;color:#6b7280}
 
-  /* Tabs */
-  .tabs{display:flex;gap:8px;margin-top:8px}
-  .tab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 12px;font-weight:700;color:#374151;cursor:pointer}
-  .tab[aria-selected="true"]{border-color:var(--accent);box-shadow:0 0 0 2px rgba(153,27,27,.10)}
-
-  /* Orders list */
-  .list{margin-top:12px;display:grid;gap:10px}
-  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;display:grid;grid-template-columns:80px 1fr auto;gap:10px;align-items:center}
-  .thumb{width:80px;height:60px;border:1px solid var(--border);border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#6b7280}
-  .title{font-weight:800}
-  .meta{color:#6b7280;font-size:13px;margin-top:4px}
-  .rightcol{text-align:right}
-  .status{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:4px 8px;font-size:12px;background:#fff}
-  .status[data-kind="open"]{border-color:#f59e0b;color:#92400e;background:#fffbeb}
-  .status[data-kind="done"]{border-color:#10b981;color:#065f46;background:#ecfdf5}
-  .actions{margin-top:6px;display:flex;justify-content:flex-end;gap:8px}
-  .btn{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font-weight:700;cursor:pointer}
-  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
-
-  /* Empty state */
-  .empty{border:1px dashed var(--border);border-radius:12px;background:#fff;padding:16px;text-align:center;color:#6b7280}
-  .empty a{color:#111827;text-decoration:none;border-bottom:1px dotted #cbd5e1}
-  .empty a:hover{color:var(--accent);border-bottom-color:var(--accent)}
-
-  @media (max-width:700px){
-    .card{grid-template-columns:1fr; text-align:left}
-    .rightcol{text-align:left}
-    .actions{justify-content:flex-start}
-  }
+  /* Footer spacing harmony */
+  footer.hm-footer{margin-top:18px}
 </style>
 </head>
 <body>
@@ -98,7 +74,6 @@
         </svg>
       </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
-      <!-- Sell goes to create listing -->
       <a class="hm-btn-primary" href="create-listing.html">Sell</a>
     </div>
   </div>
@@ -129,16 +104,22 @@
   <h1>Orders</h1>
   <p class="muted">Track purchases and sales.</p>
 
-  <div class="tabs" role="tablist" aria-label="Orders Tabs">
-    <button class="tab" id="tabOpen" role="tab" aria-selected="true" aria-controls="panelOpen">Open</button>
-    <button class="tab" id="tabDone" role="tab" aria-selected="false" aria-controls="panelDone">Completed</button>
-  </div>
+  <section class="section" aria-labelledby="openOrders">
+    <header>
+      <h2 id="openOrders" style="margin:0;font-size:18px">Open Orders</h2>
+    </header>
+    <div class="empty">No open orders.</div>
+  </section>
 
-  <section id="panelOpen" class="list" role="tabpanel" aria-labelledby="tabOpen"></section>
-  <section id="panelDone" class="list" role="tabpanel" aria-labelledby="tabDone" hidden></section>
+  <section class="section" aria-labelledby="pastOrders">
+    <header>
+      <h2 id="pastOrders" style="margin:0;font-size:18px">Past Orders</h2>
+    </header>
+    <div class="empty">No past orders.</div>
+  </section>
 </main>
 
-<!-- FOOTER (shared & ordered correctly) -->
+<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -155,7 +136,7 @@
 
 <script>
 (function(){
-  /* Slide menu wiring */
+  /* Menu sheet */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
@@ -165,73 +146,9 @@
   closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-  /* Avatar image (optional from localStorage) */
+  /* Avatar (optional image from localStorage) */
   const avatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
-
-  /* Tabs */
-  const tabOpen=document.getElementById('tabOpen');
-  const tabDone=document.getElementById('tabDone');
-  const panelOpen=document.getElementById('panelOpen');
-  const panelDone=document.getElementById('panelDone');
-  function show(which){
-    const isOpen = which==='open';
-    tabOpen.setAttribute('aria-selected', isOpen?'true':'false');
-    tabDone.setAttribute('aria-selected', isOpen?'false':'true');
-    panelOpen.hidden = !isOpen;
-    panelDone.hidden = isOpen;
-  }
-  tabOpen.addEventListener('click',()=>show('open'));
-  tabDone.addEventListener('click',()=>show('done'));
-
-  /* Mock data for layout (replace with Supabase later) */
-  const OPEN = []; // leave empty to see empty state
-  const DONE = [
-    { id:'HM-1024', title:'Italian Wool Suiting — Navy', price:96, qty:3, seller:'@FabricFolio', when:'Mar 2, 2025' },
-    { id:'HM-1019', title:'Cotton Poplin — White', price:28, qty:2, seller:'@SewSimple', when:'Feb 18, 2025' }
-  ];
-
-  function line(o, kind){
-    const el=document.createElement('article');
-    el.className='card';
-    el.innerHTML = `
-      <div class="thumb">photo</div>
-      <div>
-        <div class="title">${o.title}</div>
-        <div class="meta">Order <strong>${o.id}</strong> • ${o.qty} yd • ${o.seller} • ${o.when}</div>
-      </div>
-      <div class="rightcol">
-        <div class="status" data-kind="${kind==='open'?'open':'done'}">${kind==='open'?'Awaiting shipment':'Completed'}</div>
-        <div class="actions">
-          ${kind==='open'
-            ? '<button class="btn">View details</button><button class="btn btn-primary">Message</button>'
-            : '<button class="btn">View receipt</button>'}
-        </div>
-      </div>`;
-    return el;
-  }
-
-  function render(){
-    panelOpen.innerHTML='';
-    panelDone.innerHTML='';
-    if(OPEN.length===0){
-      const empty=document.createElement('div');
-      empty.className='empty';
-      empty.innerHTML='No open orders. <a href="browse.html">Find fabrics</a> or <a href="create-listing.html">list an item</a>.';
-      panelOpen.appendChild(empty);
-    }else{
-      OPEN.forEach(o=>panelOpen.appendChild(line(o,'open')));
-    }
-    if(DONE.length===0){
-      const empty=document.createElement('div');
-      empty.className='empty';
-      empty.textContent='No completed orders yet.';
-      panelDone.appendChild(empty);
-    }else{
-      DONE.forEach(o=>panelDone.appendChild(line(o,'done')));
-    }
-  }
-  render();
 })();
 </script>
 </body>
