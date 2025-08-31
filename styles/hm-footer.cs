@@ -34,7 +34,7 @@ footer.hm-footer{
 /* Link row */
 .hm-footer .footer-links{
   display:flex;
-  gap:14px;
+  gap:18px;  /* more space between links */
   flex-wrap:wrap;
 }
 
@@ -46,6 +46,12 @@ footer.hm-footer{
 
 .hm-footer .footer-links a:hover{
   text-decoration:underline;
+}
+
+/* Highlight "How It Works" */
+.hm-footer .footer-links a.how{
+  font-weight:700;
+  color:#111827;
 }
 
 /* Current page hint (optional; add aria-current="page" on the link) */
