@@ -9,6 +9,13 @@ function looksLikeEmail(s) {
   return typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 }
 
+// very small HTML escaper
+function esc(s = "") {
+  return String(s).replace(/[&<>"]/g, c => (
+    { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]
+  ));
+}
+
 // CORS helper
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -41,7 +48,7 @@ module.exports = async (req, res) => {
 
   try {
     // Expecting JSON from the frontend
-    const { name, email, message, honeypot } = req.body || {};
+    const { name, email, message, subject, honeypot } = req.body || {};
 
     // Simple spam trap (hidden field on the form)
     if (honeypot && String(honeypot).trim() !== "") {
@@ -56,22 +63,30 @@ module.exports = async (req, res) => {
       return res.status(400).json({ ok: false, error: "Invalid email." });
     }
 
+    const cleanName = String(name).trim();
+    const cleanEmail = String(email).trim();
+    const cleanMsg = String(message);
+    const cleanSubject = String(subject || "").trim();
+    const subjectLine = cleanSubject || `Hemline Market Contact: ${cleanName}`;
+
     const html = `
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
         <h2 style="margin:0 0 12px">New Contact Message</h2>
-        <p><strong>From:</strong> ${String(name).trim()} &lt;${String(email).trim()}&gt;</p>
+        <p><strong>From:</strong> ${esc(cleanName)} &lt;${esc(cleanEmail)}&gt;</p>
+        <p><strong>Subject:</strong> ${esc(subjectLine)}</p>
         <p><strong>Message:</strong></p>
         <div style="white-space: pre-wrap; border:1px solid #eee; padding:12px; border-radius:8px;">
-          ${String(message).replace(/[<>]/g, c => ({'<':'&lt;','>':'&gt;'}[c]))}
+          ${esc(cleanMsg)}
         </div>
       </div>
     `;
 
     const text = `New Contact Message
 
-From: ${String(name).trim()} <${String(email).trim()}>
+From: ${cleanName} <${cleanEmail}>
+Subject: ${subjectLine}
 ----------------------------------------
-${String(message)}
+${cleanMsg}
 `;
 
     // Send the email through Resend
@@ -84,8 +99,8 @@ ${String(message)}
       body: JSON.stringify({
         from: "Hemline Market Contact <onboarding@resend.dev>",
         to: ["hello@hemlinemarket.com"],
-        reply_to: [String(email).trim()],
-        subject: `Hemline Market Contact: ${String(name).trim()}`,
+        reply_to: [cleanEmail],
+        subject: subjectLine,
         html,
         text
       })
