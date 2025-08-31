@@ -46,6 +46,14 @@
   .note{font-size:12px;color:var(--muted)}
   .link{color:#1f2937;text-decoration:none;border-bottom:1px dotted #cbd5e1}
   .link:hover{color:var(--accent);border-bottom-color:var(--accent)}
+
+  /* Status toast */
+  .toast{display:none;margin-top:10px;border-left:4px solid #065f46;background:#ecfdf5;padding:10px;border-radius:10px;font-size:14px}
+  .toast.error{border-left-color:#991b1b;background:#fef2f2}
+  .toast.show{display:block}
+
+  /* Signed-in panel */
+  #signedInCard .welcome{font-weight:800}
 </style>
 </head>
 <body>
@@ -85,35 +93,55 @@
   <h1>Account</h1>
   <p class="subtle">Sign in or create your account. Sellers can list fabrics right after sign-in.</p>
 
-  <div class="grid">
+  <!-- Signed-in state (hidden until we detect a session) -->
+  <section id="signedInCard" class="card" style="display:none; margin-bottom:16px">
+    <h2>Welcome</h2>
+    <p class="welcome" id="welcomeEmail"></p>
+    <div class="row" style="margin-top:8px">
+      <a class="btn btn-primary" href="seller/index.html">Go to Seller Dashboard</a>
+      <button id="signOutBtn" class="btn" type="button">Sign out</button>
+    </div>
+  </section>
+
+  <div id="authGrid" class="grid">
     <!-- Sign in -->
     <section class="card">
       <h2>Sign in</h2>
       <div class="field">
-        <label for="email">Email</label>
-        <input id="email" type="email" autocomplete="email" placeholder="you@example.com">
+        <label for="si_email">Email</label>
+        <input id="si_email" type="email" autocomplete="email" placeholder="you@example.com" required>
+      </div>
+      <div class="field">
+        <label for="si_password">Password</label>
+        <input id="si_password" type="password" autocomplete="current-password" placeholder="Your password" required>
       </div>
       <div class="row">
-        <a class="btn btn-primary" href="seller/index.html">Continue</a>
-        <span class="note">No password yet? You’ll be able to create one next.</span>
+        <button id="signInBtn" class="btn btn-primary" type="button">Sign in</button>
+        <a class="link" id="resetLink" href="#">Forgot your password?</a>
       </div>
+      <div id="si_toast" class="toast" aria-live="polite"></div>
     </section>
 
     <!-- Create account -->
     <section class="card">
       <h2>Create an account</h2>
       <div class="field">
-        <label for="name">Full name</label>
-        <input id="name" type="text" autocomplete="name" placeholder="First Last">
+        <label for="su_name">Full name</label>
+        <input id="su_name" type="text" autocomplete="name" placeholder="First Last">
       </div>
       <div class="field">
-        <label for="email2">Email</label>
-        <input id="email2" type="email" autocomplete="email" placeholder="you@example.com">
+        <label for="su_email">Email</label>
+        <input id="su_email" type="email" autocomplete="email" placeholder="you@example.com" required>
+      </div>
+      <div class="field">
+        <label for="su_password">Password</label>
+        <input id="su_password" type="password" autocomplete="new-password" placeholder="Create a password" required>
       </div>
       <div class="row">
-        <a class="btn btn-primary" href="seller/index.html">Create account</a>
-        <span class="note">You’ll land on the Seller Dashboard to start your first listing.</span>
+        <button id="signUpBtn" class="btn btn-primary" type="button">Create account</button>
+        <span class="note">We’ll send a confirmation link if required.</span>
       </div>
+      <div id="su_toast" class="toast" aria-live="polite"></div>
     </section>
   </div>
 
@@ -143,12 +171,143 @@
   </div>
 </footer>
 
+<!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Your env vars -->
+<script src="env.js"></script>
+
 <script>
-  // (Optional) Replace avatar with stored image if present
-  (function(){
-    const avatar=document.getElementById("avatar");
-    try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
-  })();
+(function(){
+  // Avatar from localStorage, if any
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+
+  // Init Supabase
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = (window.__env || {});
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('Missing Supabase env values. Check public/env.js');
+  }
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Elements
+  const signedInCard = document.getElementById('signedInCard');
+  const welcomeEmail  = document.getElementById('welcomeEmail');
+  const signOutBtn    = document.getElementById('signOutBtn');
+
+  const authGrid   = document.getElementById('authGrid');
+  const siEmail    = document.getElementById('si_email');
+  const siPassword = document.getElementById('si_password');
+  const signInBtn  = document.getElementById('signInBtn');
+  const siToast    = document.getElementById('si_toast');
+
+  const suName     = document.getElementById('su_name');
+  const suEmail    = document.getElementById('su_email');
+  const suPassword = document.getElementById('su_password');
+  const signUpBtn  = document.getElementById('signUpBtn');
+  const suToast    = document.getElementById('su_toast');
+  const resetLink  = document.getElementById('resetLink');
+
+  function showToast(el, msg, isError=false){
+    el.textContent = msg;
+    el.classList.toggle('error', !!isError);
+    el.classList.add('show');
+    setTimeout(()=> el.classList.remove('show'), 5000);
+  }
+
+  async function refreshSessionUI(){
+    const { data: { session } } = await sb.auth.getSession();
+    if(session && session.user){
+      const email = session.user.email || 'Signed in';
+      welcomeEmail.textContent = email;
+      signedInCard.style.display = '';
+      authGrid.style.display = 'none';
+    }else{
+      signedInCard.style.display = 'none';
+      authGrid.style.display = '';
+    }
+  }
+
+  // Handle URL hash parameters after redirect (email confirms, etc.)
+  // Supabase v2 can parse these automatically via getSession(), but we also force-refresh UI.
+  sb.auth.onAuthStateChange((_event, _session) => {
+    refreshSessionUI();
+  });
+
+  // Sign in with email + password
+  signInBtn.addEventListener('click', async ()=>{
+    siToast.classList.remove('show','error');
+    const email = siEmail.value.trim();
+    const password = siPassword.value;
+    if(!email || !password){
+      showToast(siToast, 'Enter email and password.', true); return;
+    }
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){
+      showToast(siToast, error.message || 'Sign-in failed.', true);
+    }else{
+      showToast(siToast, 'Signed in! Redirecting…');
+      // optional: go straight to seller dashboard
+      setTimeout(()=> window.location.href = 'seller/index.html', 600);
+    }
+  });
+
+  // Sign up (email + password). If "Confirm email" is ON in Supabase, a link will be sent.
+  signUpBtn.addEventListener('click', async ()=>{
+    suToast.classList.remove('show','error');
+    const email = suEmail.value.trim();
+    const password = suPassword.value;
+    const fullName = suName.value.trim();
+    if(!email || !password){
+      showToast(suToast, 'Enter email and a password.', true); return;
+    }
+    const { data, error } = await sb.auth.signUp({
+      email, password,
+      options: {
+        data: { full_name: fullName || null },
+        emailRedirectTo: window.location.origin + '/account.html'
+      }
+    });
+    if(error){
+      showToast(suToast, error.message || 'Sign-up failed.', true);
+      return;
+    }
+    if(data.user && !data.session){
+      // Email confirmation required
+      showToast(suToast, 'Check your email to confirm your account. Then come back here.');
+    }else{
+      // Auto-signed-in (if confirm not required)
+      showToast(suToast, 'Account created!');
+      setTimeout(()=> window.location.href = 'seller/index.html', 600);
+    }
+  });
+
+  // Reset password (sends email)
+  resetLink.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    siToast.classList.remove('show','error');
+    const email = siEmail.value.trim();
+    if(!email){
+      showToast(siToast, 'Enter your email above first.', true); return;
+    }
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/account.html'
+    });
+    if(error){
+      showToast(siToast, error.message || 'Could not send reset email.', true);
+    }else{
+      showToast(siToast, 'Password reset email sent.');
+    }
+  });
+
+  // Sign out
+  signOutBtn.addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+    await refreshSessionUI();
+  });
+
+  // Initial UI
+  refreshSessionUI();
+})();
 </script>
 </body>
 </html>
