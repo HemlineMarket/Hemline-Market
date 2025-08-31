@@ -12,7 +12,7 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (minimal, matches your style) */
+  /* Header */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .hm-header .left{display:flex;align-items:center;gap:10px}
@@ -47,7 +47,7 @@
   .link{color:#1f2937;text-decoration:none;border-bottom:1px dotted #cbd5e1}
   .link:hover{color:var(--accent);border-bottom-color:var(--accent)}
 
-  /* Status toast */
+  /* Toasts */
   .toast{display:none;margin-top:10px;border-left:4px solid #065f46;background:#ecfdf5;padding:10px;border-radius:10px;font-size:14px}
   .toast.error{border-left-color:#991b1b;background:#fef2f2}
   .toast.show{display:block}
@@ -83,7 +83,8 @@
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
       </a>
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <!-- Avatar now points to seller dashboard -->
+      <a class="hm-avatar" id="avatar" href="seller/index.html" title="Your dashboard">AA</a>
       <a class="hm-btn-primary" href="seller/index.html">Sell</a>
     </div>
   </div>
@@ -93,7 +94,7 @@
   <h1>Account</h1>
   <p class="subtle">Sign in or create your account. Sellers can list fabrics right after sign-in.</p>
 
-  <!-- Signed-in state (hidden until we detect a session) -->
+  <!-- Signed-in state -->
   <section id="signedInCard" class="card" style="display:none; margin-bottom:16px">
     <h2>Welcome</h2>
     <p class="welcome" id="welcomeEmail"></p>
@@ -171,30 +172,23 @@
   </div>
 </footer>
 
-<!-- Supabase client -->
+<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Your env vars -->
 <script src="env.js"></script>
 
 <script>
 (function(){
-  // Avatar from localStorage, if any
   const avatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  // Init Supabase
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = (window.__env || {});
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.error('Missing Supabase env values. Check public/env.js');
-  }
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // Elements
   const signedInCard = document.getElementById('signedInCard');
-  const welcomeEmail  = document.getElementById('welcomeEmail');
-  const signOutBtn    = document.getElementById('signOutBtn');
+  const welcomeEmail = document.getElementById('welcomeEmail');
+  const authGrid     = document.getElementById('authGrid');
+  const signOutBtn   = document.getElementById('signOutBtn');
 
-  const authGrid   = document.getElementById('authGrid');
   const siEmail    = document.getElementById('si_email');
   const siPassword = document.getElementById('si_password');
   const signInBtn  = document.getElementById('signInBtn');
@@ -217,8 +211,7 @@
   async function refreshSessionUI(){
     const { data: { session } } = await sb.auth.getSession();
     if(session && session.user){
-      const email = session.user.email || 'Signed in';
-      welcomeEmail.textContent = email;
+      welcomeEmail.textContent = session.user.email || 'Signed in';
       signedInCard.style.display = '';
       authGrid.style.display = 'none';
     }else{
@@ -227,85 +220,45 @@
     }
   }
 
-  // Handle URL hash parameters after redirect (email confirms, etc.)
-  // Supabase v2 can parse these automatically via getSession(), but we also force-refresh UI.
-  sb.auth.onAuthStateChange((_event, _session) => {
-    refreshSessionUI();
-  });
+  sb.auth.onAuthStateChange((_event, _session) => refreshSessionUI());
 
-  // Sign in with email + password
   signInBtn.addEventListener('click', async ()=>{
     siToast.classList.remove('show','error');
     const email = siEmail.value.trim();
     const password = siPassword.value;
-    if(!email || !password){
-      showToast(siToast, 'Enter email and password.', true); return;
-    }
+    if(!email || !password){ showToast(siToast, 'Enter email and password.', true); return; }
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){
-      showToast(siToast, error.message || 'Sign-in failed.', true);
-    }else{
-      showToast(siToast, 'Signed in! Redirecting…');
-      // optional: go straight to seller dashboard
-      setTimeout(()=> window.location.href = 'seller/index.html', 600);
-    }
+    if(error){ showToast(siToast, error.message || 'Sign-in failed.', true); }
+    else { showToast(siToast, 'Signed in! Redirecting…'); setTimeout(()=> window.location.href='seller/index.html',600); }
   });
 
-  // Sign up (email + password). If "Confirm email" is ON in Supabase, a link will be sent.
   signUpBtn.addEventListener('click', async ()=>{
     suToast.classList.remove('show','error');
     const email = suEmail.value.trim();
     const password = suPassword.value;
     const fullName = suName.value.trim();
-    if(!email || !password){
-      showToast(suToast, 'Enter email and a password.', true); return;
-    }
+    if(!email || !password){ showToast(suToast, 'Enter email and a password.', true); return; }
     const { data, error } = await sb.auth.signUp({
       email, password,
-      options: {
-        data: { full_name: fullName || null },
-        emailRedirectTo: window.location.origin + '/account.html'
-      }
+      options: { data:{ full_name:fullName||null }, emailRedirectTo: window.location.origin+'/account.html' }
     });
-    if(error){
-      showToast(suToast, error.message || 'Sign-up failed.', true);
-      return;
-    }
-    if(data.user && !data.session){
-      // Email confirmation required
-      showToast(suToast, 'Check your email to confirm your account. Then come back here.');
-    }else{
-      // Auto-signed-in (if confirm not required)
-      showToast(suToast, 'Account created!');
-      setTimeout(()=> window.location.href = 'seller/index.html', 600);
-    }
+    if(error){ showToast(suToast, error.message || 'Sign-up failed.', true); return; }
+    if(data.user && !data.session){ showToast(suToast, 'Check your email to confirm your account.'); }
+    else { showToast(suToast, 'Account created! Redirecting…'); setTimeout(()=> window.location.href='seller/index.html',600); }
   });
 
-  // Reset password (sends email)
-  resetLink.addEventListener('click', async (e)=>{
+  resetLink.addEventListener('click', async e=>{
     e.preventDefault();
     siToast.classList.remove('show','error');
     const email = siEmail.value.trim();
-    if(!email){
-      showToast(siToast, 'Enter your email above first.', true); return;
-    }
-    const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/account.html'
-    });
-    if(error){
-      showToast(siToast, error.message || 'Could not send reset email.', true);
-    }else{
-      showToast(siToast, 'Password reset email sent.');
-    }
+    if(!email){ showToast(siToast, 'Enter your email above first.', true); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin+'/account.html' });
+    if(error){ showToast(siToast, error.message || 'Could not send reset email.', true); }
+    else { showToast(siToast, 'Password reset email sent.'); }
   });
 
-  // Sign out
-  signOutBtn.addEventListener('click', async ()=>{
-    await sb.auth.signOut();
-    await refreshSessionUI();
-  });
+  signOutBtn.addEventListener('click', async ()=>{ await sb.auth.signOut(); await refreshSessionUI(); });
 
-  // Initial UI
   refreshSessionUI();
 })();
 </script>
