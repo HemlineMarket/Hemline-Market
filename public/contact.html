@@ -50,8 +50,6 @@
   .field textarea{min-height:150px;resize:vertical}
   .row{display:flex;gap:8px;align-items:center}
   .btn{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;font-weight:700;cursor:pointer}
-
-  /* Ensure the Send button is red like other primary CTAs */
   .btn.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 8px rgba(153,27,27,.25)}
   .btn.btn-primary:hover{filter:brightness(.97)}
   .btn-primary.solid{border-radius:10px}
@@ -137,6 +135,11 @@
     <section class="card">
       <h2>Send a message</h2>
       <form id="contactForm" novalidate>
+        <!-- FormSubmit hidden config -->
+        <input type="hidden" name="_subject" value="Hemline Market — Contact Form">
+        <input type="hidden" name="_captcha" value="false">
+        <input type="hidden" name="_template" value="table">
+
         <div class="field">
           <label for="name">Your name</label>
           <input id="name" name="name" type="text" autocomplete="name" required>
@@ -157,7 +160,7 @@
           <button type="submit" class="btn btn-primary solid">Send</button>
           <span class="note">Or email directly: <a class="link" href="mailto:hello@hemlinemarket.com">hello@hemlinemarket.com</a></span>
         </div>
-        <div id="toast" class="toast">Thanks! Your email app should open with your message. If not, use the email link above.</div>
+        <div id="toast" class="toast">Thanks! Your message has been sent.</div>
       </form>
     </section>
   </div>
@@ -187,32 +190,43 @@
     closeBtn.onclick=()=>{sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true')};
   }
 
-  // mailto submit
+  // contact submit via FormSubmit
   const form=document.getElementById('contactForm');
   const toast=document.getElementById('toast');
 
-  // IMPORTANT: keep spaces as %20 (do NOT turn them into '+')
-  const enc = s => encodeURIComponent(s);
-
-  form.addEventListener('submit',e=>{
+  form.addEventListener('submit', async (e)=>{
     e.preventDefault();
+
     const name=document.getElementById('name').value.trim();
     const email=document.getElementById('email').value.trim();
-    const subject=(document.getElementById('subject').value.trim()||'Hemline Market contact');
+    const subject=document.getElementById('subject').value.trim() || 'Hemline Market contact';
     const message=document.getElementById('msg').value.trim();
-    if(!name||!email||!message){
+
+    if(!name || !email || !message){
       toast.textContent='Please complete all fields before sending.';
       toast.classList.add('show'); return;
     }
-    const body=[
-      `Name: ${name}`,
-      `Email: ${email}`,
-      '',
-      message
-    ].join('\n');
-    window.location.href=`mailto:hello@hemlinemarket.com?subject=${enc(subject)}&body=${enc(body)}`;
-    toast.textContent='Thanks! Your email app should open with your message. If not, use the email link above.';
-    toast.classList.add('show');
+
+    const data=new FormData(form);
+    data.set('subject', subject);
+    data.append('Name', name);
+    data.append('Email', email);
+    data.append('Message', message);
+
+    try {
+      const res=await fetch('https://formsubmit.co/ajax/hello@hemlinemarket.com', {
+        method:'POST',
+        headers:{'Accept':'application/json'},
+        body:data
+      });
+      if(!res.ok) throw new Error('Network response not ok');
+      form.reset();
+      toast.textContent='Thanks! Your message has been sent.';
+      toast.classList.add('show');
+    } catch (err){
+      toast.textContent='Sorry—something went wrong. Please email hello@hemlinemarket.com.';
+      toast.classList.add('show');
+    }
   });
 </script>
 </body>
