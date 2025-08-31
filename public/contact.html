@@ -190,7 +190,7 @@
     closeBtn.onclick=()=>{sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true')};
   }
 
-  /* contact submit via /api/contact (Resend) */
+  /* contact submit via /api/contact (Resend) — send RAW message, subject separate */
   const form=document.getElementById('contactForm');
   const toast=document.getElementById('toast');
   const btn=document.getElementById('sendBtn');
@@ -217,11 +217,10 @@
     btn.disabled=true; btn.textContent='Sending…';
 
     try{
-      // include subject at the top of the message so it appears in the email body
       const r=await fetch('/api/contact',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ name, email, message: subject + "\\n\\n" + message, honeypot })
+        body:JSON.stringify({ name, email, subject, message, honeypot })
       });
       const data=await r.json().catch(()=>({}));
 
