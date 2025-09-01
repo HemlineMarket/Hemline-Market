@@ -32,7 +32,7 @@
     /* Page shell */
     .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
 
-    /* Header (shared; styles come from hem-header.css, structure mirrors FAQ) */
+    /* Header (structure mirrored from FAQ) */
     .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
     .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
     .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
@@ -59,6 +59,7 @@
     .sidebar{background:#fff;border:1px solid var(--hm-border);border-radius:12px;overflow:hidden}
     .thread{padding:12px;border-bottom:1px solid var(--hm-border);cursor:pointer}
     .thread:hover{background:#f9fafb}
+    .thread.active{background:#eef2ff}
     .thread strong{display:block}
     .thread small{color:var(--hm-muted)}
 
@@ -81,7 +82,7 @@
 </head>
 <body>
 
-<!-- HEADER (identical structure to FAQ) -->
+<!-- HEADER -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -127,7 +128,7 @@
   </div>
 </header>
 
-<!-- LEFT MENU (same as FAQ) -->
+<!-- LEFT MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -153,18 +154,23 @@
 
   <div class="messages">
     <!-- Threads -->
-    <div class="sidebar">
-      <div class="thread"><strong>Jamie L.</strong><small>Is the silk prewashed?</small></div>
-      <div class="thread"><strong>Casey R.</strong><small>Can you ship by Friday?</small></div>
-      <div class="thread"><strong>Maya P.</strong><small>Interested in wool crepe</small></div>
+    <div class="sidebar" id="threadList">
+      <div class="thread active" data-id="jamie">
+        <strong>Jamie L.</strong><small>Is the silk prewashed?</small>
+      </div>
+      <div class="thread" data-id="casey">
+        <strong>Casey R.</strong><small>Can you ship by Friday?</small>
+      </div>
+      <div class="thread" data-id="maya">
+        <strong>Maya P.</strong><small>Interested in wool crepe</small>
+      </div>
     </div>
 
     <!-- Chat -->
     <div class="chat">
-      <div class="chat-header">Chat with Jamie L.</div>
+      <div class="chat-header" id="chatHeader">Chat with Jamie L.</div>
       <div class="chat-body" id="chatBody">
-        <div class="chat-msg"><span>Hi, is the silk twill prewashed?</span></div>
-        <div class="chat-msg me"><span>No, it’s unwashed. You may want to prewash before sewing.</span></div>
+        <!-- messages will be rendered by JS -->
       </div>
       <div class="chat-footer">
         <input id="chatInput" type="text" placeholder="Type your message…"/>
@@ -174,7 +180,7 @@
   </div>
 </main>
 
-<!-- FOOTER (match FAQ) -->
+<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -190,7 +196,7 @@
 
 <script>
 (function(){
-  /* Menu sheet (same behavior as FAQ) */
+  /* Menu sheet (same as FAQ) */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
@@ -204,22 +210,85 @@
   const avatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  /* Demo chat send (no persistence) */
-  const input=document.getElementById('chatInput');
-  const send=document.getElementById('chatSend');
-  const body=document.getElementById('chatBody');
-  function sendMsg(){
-    const text=(input.value||'').trim(); if(!text) return;
-    const div=document.createElement('div');
-    div.className='chat-msg me';
-    div.innerHTML='<span></span>';
-    div.querySelector('span').textContent=text;
-    body.appendChild(div);
-    input.value='';
-    body.scrollTop=body.scrollHeight;
+  /* Mock conversation data */
+  const conversations = {
+    jamie: {
+      name: 'Jamie L.',
+      msgs: [
+        { from:'them', text:'Hi, is the silk twill prewashed?' },
+        { from:'me',   text:'No, it’s unwashed. You may want to prewash before sewing.' }
+      ]
+    },
+    casey: {
+      name: 'Casey R.',
+      msgs: [
+        { from:'them', text:'Could you ship by Friday? I need it for a weekend project.' },
+        { from:'me',   text:'Yes! If you order today, I can drop it at USPS tomorrow.' }
+      ]
+    },
+    maya: {
+      name: 'Maya P.',
+      msgs: [
+        { from:'them', text:'Is your wool crepe medium weight? I’m making trousers.' },
+        { from:'me',   text:'It’s ~220 GSM with good drape—great for trousers.' }
+      ]
+    }
+  };
+
+  const chatHeader = document.getElementById('chatHeader');
+  const chatBody   = document.getElementById('chatBody');
+  const chatInput  = document.getElementById('chatInput');
+  const chatSend   = document.getElementById('chatSend');
+  const threadList = document.getElementById('threadList');
+
+  let currentId = 'jamie';
+
+  function renderConversation(id){
+    const conv = conversations[id];
+    if(!conv) return;
+    currentId = id;
+    chatHeader.textContent = 'Chat with ' + conv.name;
+    chatBody.innerHTML = '';
+    conv.msgs.forEach(m=>{
+      const div=document.createElement('div');
+      div.className = 'chat-msg' + (m.from==='me' ? ' me':'');
+      const span=document.createElement('span');
+      span.textContent=m.text;
+      div.appendChild(span);
+      chatBody.appendChild(div);
+    });
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    // active style on thread
+    threadList.querySelectorAll('.thread').forEach(t=>t.classList.remove('active'));
+    const activeEl = threadList.querySelector('[data-id="'+id+'"]');
+    if(activeEl) activeEl.classList.add('active');
   }
-  send.addEventListener('click',sendMsg);
-  input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendMsg(); } });
+
+  // initial render
+  renderConversation(currentId);
+
+  // switch threads
+  threadList.addEventListener('click', (e)=>{
+    const item = e.target.closest('.thread');
+    if(!item) return;
+    const id = item.getAttribute('data-id');
+    if(id && id!==currentId){
+      renderConversation(id);
+    }
+  });
+
+  // send message (demo only; pushes into mock data)
+  function sendMsg(){
+    const text=(chatInput.value||'').trim();
+    if(!text) return;
+    conversations[currentId].msgs.push({from:'me', text});
+    chatInput.value='';
+    renderConversation(currentId);
+  }
+  chatSend.addEventListener('click', sendMsg);
+  chatInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendMsg(); } });
+
 })();
 </script>
 </body>
