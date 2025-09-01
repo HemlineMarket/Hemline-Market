@@ -3,85 +3,268 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Hemline — Seller Dashboard</title>
+  <title>Seller Dashboard — Hemline Market</title>
 
-  <!-- Shared footer styles (for consistent footer across the site) -->
+  <!-- Shared site styles (match homepage) -->
+  <link rel="stylesheet" href="../styles/hm-modern.css"/>
+  <link rel="stylesheet" href="../styles/hem-header.css"/>
+  <link rel="stylesheet" href="../styles/hm-typography.css"/>
   <link rel="stylesheet" href="../styles/hm-footer.css"/>
 
   <style>
-    :root{--bg:#ffffff;--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--card:#f8fafc}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-    a{text-decoration:none;color:inherit}
-    .wrap{max-width:1040px;margin:0 auto;padding:20px}
-    .header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
-    .brand{font-weight:800;letter-spacing:.2px}
-    .nav a{padding:10px 12px;border-radius:10px}
-    .nav a:hover{background:var(--card)}
-    .h1{font-size:28px;margin:20px 0 6px}
-    .muted{color:var(--muted);margin:0 0 18px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
-    .tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:block;transition:transform .08s ease, box-shadow .08s ease}
-    .tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.06)}
-    .tile h2{margin:8px 0 4px;font-size:18px}
-    .tile p{margin:0;color:var(--muted);font-size:14px}
-    .icon{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:#fff;font-weight:700}
+    :root{
+      --hm-accent:#991b1b;
+      --hm-text:#111827;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+      --hm-bg:#fafafa;
+    }
+    body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+
+    /* Page shell */
+    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
+
+    /* ===== DASHBOARD UI ===== */
+    .dash-head{display:flex;align-items:center;justify-content:space-between;margin:8px 0 12px}
+    .dash-head h1{margin:0;font-size:22px}
+    .actions{display:flex;gap:8px}
+    .btn{padding:10px 14px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-weight:700;cursor:pointer;text-decoration:none;color:#111827}
+    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+    .btn-ghost{background:#fff}
+
+    /* Stats */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+    @media (max-width:900px){ .stats{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:520px){ .stats{grid-template-columns:1fr} }
+    .stat{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:12px}
+    .stat .k{font-size:12px;color:var(--hm-muted);margin-bottom:4px}
+    .stat .v{font-size:22px;font-weight:800}
+
+    /* Two-column layout */
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+    @media (max-width:980px){ .grid{grid-template-columns:1fr} }
+
+    /* Cards */
+    .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+    .card h2{margin:0;padding:12px 12px 4px 12px;font-size:18px}
+    .card .body{padding:10px 12px 12px}
+
+    /* Listings table */
+    .table{width:100%;border-collapse:separate;border-spacing:0}
+    .table th,.table td{padding:10px;border-top:1px solid var(--hm-border);text-align:left;font-size:14px}
+    .table th{background:#fafafa;color:#374151;border-top:0;font-weight:700}
+    .table tr:first-of-type td{border-top:0}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid var(--hm-border);font-size:12px;background:#fff;color:#374151}
+    .row-actions{display:flex;gap:8px}
+    .row-actions a{font-size:13px;text-decoration:none;color:#374151;border:1px solid var(--hm-border);border-radius:8px;padding:6px 8px;background:#fff}
+
+    /* Sidebar bits */
+    .note{color:var(--hm-muted);font-size:14px;line-height:1.5}
+    .list{display:grid;gap:8px}
+    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;background:#fff;font-size:13px}
+
+    /* Header/Footer overrides are handled by shared CSS files */
   </style>
 </head>
 <body>
-  <header class="wrap header">
-    <a class="brand" href="../index.html">Hemline Market</a>
-    <nav class="nav">
-      <a href="../index.html">Home</a>
-      <a href="../browse.html">Browse</a>
-      <a href="../account.html">Account</a>
-    </nav>
-  </header>
 
-  <main class="wrap">
-    <h1 class="h1">Seller Dashboard</h1>
-    <p class="muted">Post fabrics, manage listings, and track your shop.</p>
-
-    <section class="grid">
-      <a class="tile" href="../create-listing.html">
-        <div class="icon">+</div>
-        <h2>New Listing</h2>
-        <p>Add a fabric with photos, price, and details.</p>
-      </a>
-
-      <a class="tile" href="../listings.html">
-        <div class="icon">📦</div>
-        <h2>My Listings</h2>
-        <p>Edit, hide, or delete existing listings.</p>
-      </a>
-
-      <a class="tile" href="../seller-dashboard.html">
-        <div class="icon">💳</div>
-        <h2>Payouts</h2>
-        <p>Sales summary and payout status. (Coming soon)</p>
-      </a>
-
-      <a class="tile" href="../settings.html">
-        <div class="icon">⚙️</div>
-        <h2>Settings</h2>
-        <p>Shop name, avatar, and preferences. (Coming soon)</p>
-      </a>
-    </section>
-  </main>
-
-  <!-- Shared footer (same on every page) -->
-  <footer class="hm-footer" role="contentinfo">
-    <div class="footer-wrap">
-      <div class="copy">© 2025 Hemline Market</div>
-      <nav class="footer-links" aria-label="Footer">
-        <a href="../how.html" class="how">How It Works</a>
-        <a href="../about.html">About</a>
-        <a href="../contact.html">Contact</a>
-        <a href="../faq.html">FAQ</a>
-        <a href="../privacy.html">Privacy</a>
-        <a href="../terms.html">Terms</a>
-      </nav>
+<!-- ===== HEADER (canonical) ===== -->
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <button class="hamburger" id="openMenu" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="../index.html">Hemline Market</a>
     </div>
-  </footer>
+    <div class="right">
+      <!-- Search → browse.html -->
+      <a class="hm-icon" href="../browse.html" aria-label="Browse & search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </a>
+      <!-- Favorites -->
+      <a class="hm-icon" href="../favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </a>
+      <!-- Notifications -->
+      <a class="hm-icon" href="../notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </a>
+      <!-- Cart -->
+      <a class="hm-icon" href="../cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="9"  cy="21" r="1"></circle>
+          <circle cx="18" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+      </a>
+      <!-- Avatar & Sell -->
+      <a class="hm-avatar" id="avatar" href="../account.html" title="Your profile">AA</a>
+      <a class="hm-btn-primary" href="../sell.html">Sell</a>
+    </div>
+  </div>
+</header>
+
+<!-- ===== LEFT MENU (canonical) ===== -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </header>
+  <nav>
+    <a href="../dashboard.html">Dashboard</a>
+    <a href="../atelier.html">My Atelier</a>
+    <a href="../how.html">How It Works</a>
+    <a href="./index.html?list=new">Sell Fabric</a>
+    <a href="../contact.html">Contact</a>
+  </nav>
+</aside>
+
+<!-- ===== CONTENT ===== -->
+<main class="wrap" role="main">
+  <div class="dash-head">
+    <h1>Seller Dashboard</h1>
+    <div class="actions">
+      <a class="btn" href="../how.html">How it works</a>
+      <a class="btn btn-primary" href="./index.html?list=new">+ Add new listing</a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <section class="stats" aria-label="Quick stats">
+    <div class="stat">
+      <div class="k">Active listings</div>
+      <div class="v">3</div>
+    </div>
+    <div class="stat">
+      <div class="k">Orders pending</div>
+      <div class="v">1</div>
+    </div>
+    <div class="stat">
+      <div class="k">Units sold (30d)</div>
+      <div class="v">5</div>
+    </div>
+    <div class="stat">
+      <div class="k">Payouts (30d)</div>
+      <div class="v">$142.00</div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <!-- Listings -->
+    <section class="card">
+      <h2>Your listings</h2>
+      <div class="body" style="overflow:auto">
+        <table class="table" aria-label="Listings">
+          <thead>
+            <tr>
+              <th style="min-width:180px">Title</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th style="min-width:220px">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Italian Silk Twill — Navy</td>
+              <td>1.5 yards</td>
+              <td>$28.00/yd</td>
+              <td><span class="badge">Active</span></td>
+              <td class="row-actions">
+                <a href="../listing.html">View</a>
+                <a href="./index.html?list=edit&id=1">Edit</a>
+                <a href="./index.html?list=duplicate&id=1">Duplicate</a>
+              </td>
+            </tr>
+            <tr>
+              <td>Wool Crepe — Saffron</td>
+              <td>1 yard</td>
+              <td>$42.00/yd</td>
+              <td><span class="badge">Active</span></td>
+              <td class="row-actions">
+                <a href="../listing.html">View</a>
+                <a href="./index.html?list=edit&id=2">Edit</a>
+                <a href="./index.html?list=duplicate&id=2">Duplicate</a>
+              </td>
+            </tr>
+            <tr>
+              <td>Cotton Poplin — Moss</td>
+              <td>2 yards</td>
+              <td>$14.00/yd</td>
+              <td><span class="badge">Draft</span></td>
+              <td class="row-actions">
+                <a href="../listing.html">Preview</a>
+                <a href="./index.html?list=edit&id=3">Edit</a>
+                <a href="./index.html?list=publish&id=3">Publish</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Right rail -->
+    <aside class="card" aria-label="Shortcuts">
+      <h2>Shortcuts</h2>
+      <div class="body">
+        <div class="list" style="margin-bottom:10px">
+          <a class="pill" href="./index.html?list=new">+ Add new listing</a>
+          <a class="pill" href="../orders.html">View orders</a>
+          <a class="pill" href="../settings.html">Payout settings</a>
+        </div>
+        <p class="note">Tip: great photos and clear yardage details help your listings sell faster.</p>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- ===== FOOTER (canonical) ===== -->
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="../about.html">About</a>
+      <a href="../faq.html">FAQ</a>
+      <a href="../contact.html">Contact</a>
+      <a href="../terms.html">Terms</a>
+      <a href="../privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+/* Header sheet + avatar (canonical behavior) */
+(function(){
+  const sheet=document.getElementById('menuSheet');
+  const openBtn=document.getElementById('openMenu');
+  const closeBtn=document.getElementById('closeMenu');
+  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
+  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+  openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
+  closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
+
+  const avatar=document.getElementById('avatar');
+  try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+})();
+</script>
 </body>
 </html>
