@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Auth — Hemline Market</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <!-- HEADER (simple, no CSS) -->
+  <header>
+    <button id="openMenu" aria-label="Open menu">☰</button>
+    <a href="index.html">Hemline Market</a>
+    <nav>
+      <a href="search.html" aria-label="Search">🔎</a>
+      <a href="favorites.html" aria-label="Favorites">♡</a>
+      <a href="notifications.html" aria-label="Notifications">🔔</a>
+      <a href="cart.html" aria-label="Cart">🛒</a>
+      <a id="avatar" href="dashboard.html" aria-label="Account">AA</a>
+      <a href="sell.html">Sell</a>
+    </nav>
+  </header>
+
+  <!-- HAMBURGER SHEET -->
+  <aside id="menuSheet" hidden>
+    <button id="closeMenu" aria-label="Close menu">✕</button>
+    <ul>
+      <li><a href="browse.html">Browse</a></li>
+      <li><a href="sell.html">Sell Fabric</a></li>
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="how-it-works.html">How It Works</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+  </aside>
+
+  <main>
+    <h1>Sign up / Log in</h1>
+    <div id="status">Checking session…</div>
+
+    <h2>Sign Up</h2>
+    <form id="signup">
+      <input type="email" id="su-email" placeholder="Email" required>
+      <input type="password" id="su-pass" placeholder="Password" required>
+      <button>Sign Up</button>
+    </form>
+
+    <h2>Log In</h2>
+    <form id="login">
+      <input type="email" id="li-email" placeholder="Email" required>
+      <input type="password" id="li-pass" placeholder="Password" required>
+      <button>Log In</button>
+    </form>
+
+    <p><button id="logout">Log Out</button></p>
+  </main>
+
+  <!-- FOOTER (FAQ style) -->
+  <footer>
+    <p>© 2025 Hemline Market —
+      <a href="about.html">About</a> ·
+      <a href="faq.html">FAQ</a> ·
+      <a href="contact.html">Contact</a> ·
+      <a href="terms.html">Terms</a> ·
+      <a href="privacy.html">Privacy</a>
+    </p>
+  </footer>
+
+  <script>
+    // Menu toggle
+    const sheet = document.getElementById('menuSheet');
+    document.getElementById('openMenu').onclick = () => { sheet.hidden = false; };
+    document.getElementById('closeMenu').onclick = () => { sheet.hidden = true; };
+
+    // Supabase client
+    const supabase = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+    );
+
+    async function refreshStatus(){
+      const { data: { session } } = await supabase.auth.getSession();
+      document.getElementById('status').textContent =
+        session && session.user ? `Logged in: ${session.user.email}` : 'Not logged in.';
+    }
+    refreshStatus();
+    supabase.auth.onAuthStateChange(() => refreshStatus());
+
+    document.getElementById("signup").onsubmit = async (e) => {
+      e.preventDefault();
+      const { error } = await supabase.auth.signUp({
+        email: document.getElementById("su-email").value,
+        password: document.getElementById("su-pass").value
+      });
+      alert(error ? error.message : "Check your email to confirm.");
+    };
+
+    document.getElementById("login").onsubmit = async (e) => {
+      e.preventDefault();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: document.getElementById("li-email").value,
+        password: document.getElementById("li-pass").value
+      });
+      alert(error ? error.message : "Logged in!");
+    };
+
+    document.getElementById("logout").onclick = async () => {
+      await supabase.auth.signOut();
+      alert("Logged out.");
+    };
+  </script>
+</body>
+</html>
