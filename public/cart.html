@@ -1,75 +1,98 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <!-- MOBILE HOTFIX (match FAQ/about exactly) -->
+  <style id="hm-mobile-hotfix">
+    html, body { max-width:100%; overflow-x:hidden; }
+    .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
+    .grid, .section, .toolbar, .header, .tabbar { max-width:100%; }
+    img, video, canvas, svg { max-width:100%; height:auto; }
+    [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
+  </style>
+
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Cart — Hemline Market</title>
 
-  <!-- Shared site styles (absolute paths + cache-bust) -->
-  <link rel="stylesheet" href="/styles/hm-modern.css?v=2">
-  <link rel="stylesheet" href="/styles/hem-header.css?v=2">
-  <link rel="stylesheet" href="/styles/hm-typography.css?v=2">
-  <link rel="stylesheet" href="/styles/hm-footer.css?v=2">
+  <!-- Shared site styles (match homepage/FAQ) -->
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hem-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
 
-  <!-- Page-specific styles (kept minimal; does not override header/footer) -->
   <style>
     :root{
       --hm-accent:#991b1b;
       --hm-text:#111827;
       --hm-muted:#6b7280;
       --hm-border:#e5e7eb;
-      --hm-bg:#fafafa;
     }
-    body{ margin:0; background:var(--hm-bg); color:var(--hm-text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+    body{margin:0;background:#fafafa;color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-    /* Fallback sizing in case any broad svg rule sneaks in */
-    .hm-icon svg{ width:26px; height:26px; stroke-width:2; }
-    .hamburger svg{ width:22px; height:22px; stroke-width:2; }
+    /* Page shell */
+    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
 
-    .cart-wrap{ max-width:1200px; margin:20px auto; padding:0 16px;
-      display:grid; grid-template-columns:2fr 1fr; gap:16px; }
-    @media (max-width:900px){ .cart-wrap{ grid-template-columns:1fr; } }
+    /* Header (same sizing as FAQ) */
+    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
+    .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
+    .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
+    .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
+    .hamburger svg{width:22px;height:22px;stroke-width:2}
+    .right{display:flex;align-items:center;gap:14px}
+    .hm-icon{color:#444;display:inline-grid;place-items:center}
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+    .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+    .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
-    .panel{ background:#fff; border:1px solid var(--hm-border); border-radius:12px; }
-    .panel h2{ margin:0; padding:14px 16px; border-bottom:1px solid var(--hm-border); font-size:20px; }
-    .note{ color:var(--hm-muted); font-size:14px; padding:0 16px 12px; }
+    /* Left sheet nav (identical to FAQ) */
+    .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+    .sheet.open{transform:translateX(0)}
+    .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
 
-    .seller{ border-top:1px solid var(--hm-border); }
-    .seller:first-of-type{ border-top:0; }
-    .seller-head{ padding:12px 16px; font-weight:800; background:#fafbff; border-bottom:1px solid var(--hm-border); }
+    /* Cart layout */
+    .cart-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+    @media (max-width:900px){ .cart-grid{grid-template-columns:1fr} }
 
-    .item{ display:grid; grid-template-columns:56px 1fr auto; gap:12px; align-items:center;
-      padding:12px 16px; border-top:1px solid #f3f4f6; }
-    .item:first-of-type{ border-top:0; }
-    .thumb{ width:56px; height:56px; border:1px solid var(--hm-border); border-radius:10px;
-      display:grid; place-items:center; color:#9ca3af; background:#f9fafb; font-size:12px; }
-    .meta .name{ font-weight:800; }
-    .meta .sub{ color:var(--hm-muted); font-size:13px; }
-    .fixed{ font-size:12px; color:#6b7280; }
-    .actions{ margin-top:6px; }
-    .actions button, .actions a{ background:#fff; border:1px solid var(--hm-border); border-radius:8px;
-      padding:6px 10px; font-size:13px; cursor:pointer; text-decoration:none; color:#374151; }
-    .price{ font-weight:800; white-space:nowrap; }
+    .panel{background:#fff;border:1px solid var(--hm-border);border-radius:12px;overflow:hidden}
+    .panel h2{margin:0;padding:12px 14px;border-bottom:1px solid var(--hm-border);font-size:20px}
 
-    .seller-sub{ padding:10px 16px; text-align:right; border-top:1px dashed #eef2f7; font-weight:700; color:#111827; }
+    .group{border-top:1px solid var(--hm-border)}
+    .group .ghead{padding:10px 14px;background:#fafafa;border-bottom:1px solid var(--hm-border);font-weight:700}
+    .row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid #f3f4f6}
+    .row:first-child{border-top:0}
+    .thumb{width:54px;height:54px;border:1px solid var(--hm-border);border-radius:10px;display:grid;place-items:center;color:#9ca3af;background:linear-gradient(180deg,#f8fafc,#eef2f7)}
+    .title{font-weight:800}
+    .sub{color:#6b7280;font-size:12px;margin-top:2px}
+    .fixed{color:#6b7280;font-size:12px}
+    .remove{margin-top:6px;background:#fff;border:1px solid var(--hm-border);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}
+    .money{font-weight:700}
 
-    .summary{ padding:12px 12px 14px; }
-    .row{ display:flex; justify-content:space-between; margin:10px 4px; }
-    .total{ font-weight:800; font-size:18px; }
-    .btn{ padding:10px 14px; border-radius:10px; border:1px solid var(--hm-border); background:#fff; cursor:pointer; width:100%; }
-    .btn-primary{ background:var(--hm-accent); border-color:var(--hm-accent); color:#fff; font-weight:800; }
-    .btn-ghost{ background:#f3f4f6; }
-    .sum-actions{ display:grid; gap:10px; margin-top:10px; }
-    .link{ color:#374151; font-size:13px; text-decoration:underline; text-align:left; background:none; border:0; padding:0; cursor:pointer; }
+    .subtotal{padding:10px 14px;border-top:1px solid var(--hm-border);text-align:right;font-weight:700}
 
-    .cart-title{ margin:0 0 8px; font-size:24px; font-weight:800; }
-    .cart-kicker{ color:var(--hm-muted); font-size:14px; margin-bottom:14px; padding:0 2px; }
+    /* Summary */
+    .summary{padding:0}
+    .summary .sec{padding:12px 14px;border-top:1px solid var(--hm-border)}
+    .summary .sec:first-child{border-top:0}
+    .summary .line{display:flex;justify-content:space-between;margin:6px 0}
+    .summary .total{display:flex;justify-content:space-between;font-weight:800}
+    .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;font-weight:700;cursor:pointer}
+    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25);width:100%}
+    .btn-ghost{width:100%}
+    .link{color:#374151;text-decoration:underline;font-size:13px}
+
+    /* Footer (match FAQ) */
+    .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
+    .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+    .hm-footer .footer-links a{color:#4b5563}
   </style>
 </head>
 <body>
 
-<!-- HEADER (canonical, shared) -->
+<!-- HEADER (copied from FAQ) -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -80,28 +103,41 @@
           <line x1="4" y1="18" x2="20" y2="18"></line>
         </svg>
       </button>
-      <a class="hm-brand" href="/index.html">Hemline Market</a>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
+
     <div class="right">
-      <a class="hm-icon" href="/browse.html" aria-label="Browse & search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
       </a>
-      <a class="hm-icon" href="/favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
       </a>
-      <a class="hm-icon" href="/notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
       </a>
-      <a class="hm-icon" href="/cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="9"  cy="21" r="1"></circle>
+          <circle cx="18" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
       </a>
-      <a class="hm-avatar" id="avatar" href="/account.html" title="Your profile">AA</a>
-      <a class="hm-btn-primary" href="/sell.html">Sell</a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
 
-<!-- LEFT MENU (shared) -->
+<!-- LEFT MENU (copied from FAQ) -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -113,159 +149,124 @@
     </button>
   </header>
   <nav>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/atelier.html">My Atelier</a>
-    <a href="/how.html">How It Works</a>
-    <a href="/seller/index.html?list=new">Sell Fabric</a>
-    <a href="/contact.html">Contact</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="how.html">How It Works</a>
+    <a href="seller/index.html?list=new">Sell Fabric</a>
+    <a href="contact.html">Contact</a>
   </nav>
 </aside>
 
-<!-- CONTENT -->
-<main class="cart-wrap" role="main">
-  <!-- LEFT: Items -->
-  <section class="panel">
-    <h2 class="cart-title">Cart</h2>
-    <div class="cart-kicker">Items are grouped by seller. You’ll pay each seller once at checkout.</div>
+<main class="wrap">
+  <div class="cart-grid">
+    <!-- Items -->
+    <section class="panel">
+      <h2>Cart</h2>
 
-    <!-- Seller: LoomLab -->
-    <div class="seller">
-      <div class="seller-head">LoomLab</div>
+      <!-- Seller: LoomLab -->
+      <div class="group">
+        <div class="ghead">LoomLab</div>
 
-      <div class="item" data-price="42.00">
-        <div class="thumb">img</div>
-        <div class="meta">
-          <div class="name">Italian Silk Twill — Navy</div>
-          <div class="sub">54″ · $28/yd <span class="fixed">· 1.5 yards (fixed)</span></div>
-          <div class="actions">
+        <div class="row">
+          <div class="thumb">img</div>
+          <div>
+            <div class="title">Italian Silk Twill — Navy</div>
+            <div class="sub">54″ · $28/yd · <span class="fixed">1.5 yards (fixed)</span></div>
             <button class="remove">Remove</button>
           </div>
+          <div class="money">$42.00</div>
         </div>
-        <div class="price">$42.00</div>
-      </div>
 
-      <div class="item" data-price="42.00">
-        <div class="thumb">img</div>
-        <div class="meta">
-          <div class="name">Wool Crepe — Saffron</div>
-          <div class="sub">58″ · $42/yd <span class="fixed">· 1 yard (fixed)</span></div>
-          <div class="actions">
+        <div class="row">
+          <div class="thumb">img</div>
+          <div>
+            <div class="title">Wool Crepe — Saffron</div>
+            <div class="sub">58″ · $42/yd · <span class="fixed">1 yard (fixed)</span></div>
             <button class="remove">Remove</button>
           </div>
+          <div class="money">$42.00</div>
         </div>
-        <div class="price">$42.00</div>
+
+        <div class="subtotal">Subtotal: $84.00</div>
       </div>
 
-      <div class="seller-sub">Subtotal: <span class="seller-total" data-seller="LoomLab">$84.00</span></div>
-    </div>
+      <!-- Seller: Weave&Co -->
+      <div class="group">
+        <div class="ghead">Weave&Co</div>
 
-    <!-- Seller: Weave&Co -->
-    <div class="seller">
-      <div class="seller-head">Weave&Co</div>
-
-      <div class="item" data-price="56.00">
-        <div class="thumb">img</div>
-        <div class="meta">
-          <div class="name">Cotton Poplin — Moss</div>
-          <div class="sub">44″ · $28/yd <span class="fixed">· 2 yards (fixed)</span></div>
-          <div class="actions">
+        <div class="row">
+          <div class="thumb">img</div>
+          <div>
+            <div class="title">Cotton Poplin — Moss</div>
+            <div class="sub">44″ · $28/yd · <span class="fixed">2 yards (fixed)</span></div>
             <button class="remove">Remove</button>
           </div>
+          <div class="money">$56.00</div>
         </div>
-        <div class="price">$56.00</div>
-      </div>
 
-      <div class="seller-sub">Subtotal: <span class="seller-total" data-seller="Weave&Co">$56.00</span></div>
-    </div>
-  </section>
-
-  <!-- RIGHT: Summary -->
-  <aside class="panel">
-    <h2 class="cart-title" style="padding:14px 16px;border-bottom:1px solid var(--hm-border);">Summary</h2>
-    <div class="summary" id="summary">
-      <div class="row"><span>Items</span><strong id="itemsTotal">$140.00</strong></div>
-      <div class="row total"><span>Total</span><span id="grandTotal">$140.00</span></div>
-      <div class="sum-actions">
-        <button class="btn btn-primary" id="checkout">Proceed to checkout</button>
-        <a class="btn btn-ghost" href="/browse.html">Continue shopping</a>
-        <button class="link" id="clearCart">Clear cart</button>
+        <div class="subtotal">Subtotal: $56.00</div>
       </div>
-    </div>
-  </aside>
+    </section>
+
+    <!-- Summary -->
+    <aside class="panel summary">
+      <div class="sec">
+        <strong>Summary</strong>
+      </div>
+      <div class="sec">
+        <div class="line"><span>Items</span><span>$140.00</span></div>
+      </div>
+      <div class="sec total">
+        <span>Total</span><span>$140.00</span>
+      </div>
+      <div class="sec">
+        <button class="btn btn-primary">Proceed to checkout</button>
+      </div>
+      <div class="sec">
+        <button class="btn btn-ghost" onclick="location.href='browse.html'">Continue shopping</button>
+      </div>
+      <div class="sec">
+        <a class="link" href="#" id="clearCart">Clear cart</a>
+      </div>
+    </aside>
+  </div>
 </main>
 
-<!-- FOOTER (canonical, shared) -->
+<!-- FOOTER (copied from FAQ) -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/about.html">About</a>
-      <a href="/faq.html">FAQ</a>
-      <a href="/contact.html">Contact</a>
-      <a href="/terms.html">Terms</a>
-      <a href="/privacy.html">Privacy</a>
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
     </nav>
   </div>
 </footer>
 
 <script>
 (function(){
-  /* Header sheet controls */
-  const sheet=document.getElementById('menuSheet');
-  const openBtn=document.getElementById('openMenu');
-  const closeBtn=document.getElementById('closeMenu');
-  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
-  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
-  openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
-  closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
+  /* Header sheet (same as FAQ) */
+  const sheet=document.getElementById("menuSheet");
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
+  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
+  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
   /* Optional avatar image */
-  const avatar=document.getElementById('avatar');
-  try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  /* Cart math (fixed quantities only) */
-  const fmt = v => '$' + Number(v).toFixed(2);
-  function recompute(){
-    let items = [...document.querySelectorAll('.item')];
-    let bySeller = {};
-    let total = 0;
-    items.forEach(it=>{
-      const price = Number(it.dataset.price||0);
-      total += price;
-      // seller subtotal: walk up to seller container and read its head text
-      const sellerBlock = it.closest('.seller');
-      const sellerName = sellerBlock.querySelector('.seller-head').textContent.trim();
-      bySeller[sellerName] = (bySeller[sellerName]||0) + price;
-    });
-    // write seller subtotals
-    document.querySelectorAll('.seller').forEach(s=>{
-      const name = s.querySelector('.seller-head').textContent.trim();
-      const el = s.querySelector('.seller-total');
-      if(el) el.textContent = fmt(bySeller[name]||0);
-      // hide empty sellers
-      const hasItems = s.querySelectorAll('.item').length>0;
-      s.style.display = hasItems ? '' : 'none';
-    });
-    // write summary
-    document.getElementById('itemsTotal').textContent = fmt(total);
-    document.getElementById('grandTotal').textContent = fmt(total);
-  }
-  // remove buttons
-  document.querySelectorAll('.remove').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const row = btn.closest('.item');
-      row.parentNode.removeChild(row);
-      recompute();
-    });
+  /* Clear cart (demo) */
+  document.getElementById('clearCart').addEventListener('click', (e)=>{
+    e.preventDefault();
+    alert('Cart cleared (demo).');
   });
-  // clear cart
-  document.getElementById('clearCart').addEventListener('click',()=>{
-    document.querySelectorAll('.item').forEach(n=>n.remove());
-    recompute();
-  });
-
-  recompute();
 })();
 </script>
 </body>
