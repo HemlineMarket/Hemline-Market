@@ -3,67 +3,258 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-
   <title>Checkout — Hemline Market</title>
-  <meta name="description" content="Secure checkout on Hemline Market. Review your order and complete your purchase of fabrics and handmade sewing items."/>
-  <link rel="canonical" href="https://www.hemlinemarket.com/checkout.html"/>
 
-  <!-- Open Graph -->
-  <meta property="og:type" content="website"/>
-  <meta property="og:url" content="https://www.hemlinemarket.com/checkout.html"/>
-  <meta property="og:title" content="Checkout — Hemline Market"/>
-  <meta property="og:description" content="Secure checkout on Hemline Market for fabrics and handmade sewing items."/>
-  <meta property="og:image" content="https://www.hemlinemarket.com/comingsoon.jpg"/>
+  <!-- Shared site styles (match homepage) -->
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hem-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
 
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image"/>
-  <meta name="twitter:title" content="Checkout — Hemline Market"/>
-  <meta name="twitter:description" content="Secure checkout for fabrics and handmade sewing items on Hemline Market."/>
-  <meta name="twitter:image" content="https://www.hemlinemarket.com/comingsoon.jpg"/>
+  <style>
+    :root{
+      --hm-accent:#991b1b;
+      --hm-text:#111827;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+    }
+    body{margin:0;background:#fafafa;color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/css/tokens.css">
-  <link rel="stylesheet" href="/css/main.css">
+    /* Page shell */
+    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
+
+    /* Header (canonical like about/faq) */
+    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
+    .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
+    .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
+    .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
+    .hamburger svg{width:22px;height:22px;stroke-width:2}
+    .right{display:flex;align-items:center;gap:14px}
+    .hm-icon{color:#444;display:inline-grid;place-items:center}
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+    .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+    .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+
+    /* Left sheet nav (canonical) */
+    .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+    .sheet.open{transform:translateX(0)}
+    .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
+
+    /* Checkout layout */
+    .checkout{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+    @media (max-width:900px){ .checkout{grid-template-columns:1fr} }
+
+    .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px}
+    .card h2{margin:2px 0 10px;font-size:18px}
+
+    /* Form */
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .form-grid .full{grid-column:1 / -1}
+    label{display:block;font-size:13px;color:#374151;margin:6px 0 4px}
+    input,select{width:100%;padding:10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
+
+    /* Order summary */
+    .row{display:flex;justify-content:space-between;align-items:center;padding:6px 0}
+    .row.total{border-top:1px solid var(--hm-border);padding-top:10px;font-weight:800}
+    .item{display:grid;grid-template-columns:64px 1fr auto;gap:10px;padding:10px 0;border-top:1px solid var(--hm-border)}
+    .item:first-of-type{border-top:0}
+    .thumb{width:64px;height:64px;border:1px solid var(--hm-border);border-radius:10px;background:#f8fafc}
+    .title{font-weight:700}
+    .sub{color:var(--hm-muted);font-size:13px}
+    .price{font-weight:800;white-space:nowrap}
+
+    .btn{padding:10px 14px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-weight:700;cursor:pointer}
+    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25);width:100%}
+
+    /* Footer (canonical) */
+    .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
+    .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+    .hm-footer .footer-links a{color:#4b5563;text-decoration:none}
+  </style>
 </head>
 <body>
 
-<!-- Navbar -->
-<nav class="navbar" aria-label="Primary">
-  <div>
-    <a href="/index.html"><strong>Hemline</strong></a>
-  </div>
-  <div>
-    <a href="/browse.html">Browse</a>
-    <a href="/seller.html">Seller</a>
-    <a href="/orders.html">Orders</a>
-    <a href="/checkout.html" aria-current="page">Checkout</a>
-  </div>
-</nav>
-
-<main class="container-md" id="main">
-  <div class="card stack text-center">
-    <h1>Checkout</h1>
-    <p class="muted">Review your items and complete your purchase securely.</p>
-    <div id="checkout-form">
-      <!-- Stripe integration or order summary will render here -->
+<!-- HEADER (canonical) -->
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <button class="hamburger" id="openMenu" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
+    <div class="right">
+      <!-- Search → browse.html -->
+      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </a>
+      <!-- Favorites -->
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </a>
+      <!-- Notifications -->
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </a>
+      <!-- Cart -->
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="9"  cy="21" r="1"></circle>
+          <circle cx="18" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+      </a>
+      <!-- Avatar & Sell -->
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn-primary" href="sell.html">Sell</a>
+    </div>
+  </div>
+</header>
+
+<!-- LEFT MENU (canonical) -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </header>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="how.html">How It Works</a>
+    <a href="seller/index.html?list=new">Sell Fabric</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
+
+<main class="wrap" role="main">
+  <h1 style="font-size:22px;margin:8px 0 10px">Checkout</h1>
+  <div class="checkout">
+    <!-- Left: Shipping & Payment -->
+    <section class="card">
+      <h2>Shipping address</h2>
+      <div class="form-grid">
+        <div>
+          <label>First name</label>
+          <input>
+        </div>
+        <div>
+          <label>Last name</label>
+          <input>
+        </div>
+        <div class="full">
+          <label>Street address</label>
+          <input>
+        </div>
+        <div>
+          <label>City</label>
+          <input>
+        </div>
+        <div>
+          <label>State</label>
+          <input>
+        </div>
+        <div>
+          <label>ZIP</label>
+          <input>
+        </div>
+        <div class="full">
+          <label>Email (for updates)</label>
+          <input type="email">
+        </div>
+      </div>
+
+      <h2 style="margin-top:16px">Payment</h2>
+      <div style="color:#6b7280;font-size:14px">Payment UI goes here.</div>
+    </section>
+
+    <!-- Right: Order summary -->
+    <aside class="card">
+      <h2>Order summary</h2>
+
+      <!-- Example fixed items (no quantity controls) -->
+      <article class="item">
+        <div class="thumb"></div>
+        <div>
+          <div class="title">Italian Silk Twill — Navy</div>
+          <div class="sub">1.5 yards</div>
+        </div>
+        <div class="price">$42.00</div>
+      </article>
+
+      <article class="item">
+        <div class="thumb"></div>
+        <div>
+          <div class="title">Cotton Poplin — Moss</div>
+          <div class="sub">2 yards</div>
+        </div>
+        <div class="price">$28.00</div>
+      </article>
+
+      <div class="row"><span>Items</span><strong>$70.00</strong></div>
+      <div class="row"><span>Shipping</span><strong>$12.00</strong></div>
+      <div class="row total"><span>Total</span><strong>$82.00</strong></div>
+
+      <div style="margin-top:10px">
+        <button class="btn-primary">Place order</button>
+      </div>
+      <div style="margin-top:8px">
+        <a class="btn" href="cart.html">Back to cart</a>
+      </div>
+    </aside>
   </div>
 </main>
 
-<!-- Footer -->
-<footer class="container-md mt-7">
-  <div class="card cluster items-center justify-between gap-4">
-    <p class="muted m-0">© <span id="y"></span> Hemline Market</p>
-    <div class="cluster">
-      <a class="btn" href="/about.html">About</a>
-      <a class="btn" href="/contact.html">Contact</a>
-      <a class="btn" href="/faq.html">FAQ</a>
-      <a class="btn" href="/privacy.html">Privacy</a>
-      <a class="btn" href="/terms.html">Terms</a>
-    </div>
+<!-- FOOTER (canonical) -->
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
   </div>
-  <script>document.getElementById("y").textContent = new Date().getFullYear();</script>
 </footer>
 
+<script>
+(function(){
+  // Header sheet controls (same behavior as about/faq)
+  const sheet=document.getElementById('menuSheet');
+  const openBtn=document.getElementById('openMenu');
+  const closeBtn=document.getElementById('closeMenu');
+  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
+  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+  openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
+  closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
+
+  // Optional avatar image
+  const avatar=document.getElementById('avatar');
+  try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+})();
+</script>
 </body>
 </html>
