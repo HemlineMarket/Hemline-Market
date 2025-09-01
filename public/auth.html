@@ -1,40 +1,73 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <!-- MOBILE HOTFIX (from FAQ) -->
+  <style id="hm-mobile-hotfix">
+    html, body { max-width:100%; overflow-x:hidden; }
+    .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
+    .grid, .section, .toolbar, .header, .tabbar { max-width:100%; }
+    img, video, canvas, svg { max-width:100%; height:auto; }
+    [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
+  </style>
+
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Sign In — Hemline Market</title>
 
-  <!-- Shared CSS (same as FAQ) -->
+  <!-- Shared site styles (FAQ canonical) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
+  <!-- Inline scale rules (from FAQ) + small tweaks -->
   <style>
-    /* Ensure header/footer match FAQ, but bump hamburger clarity */
-    .hamburger{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;color:#374151}
-    .hamburger svg{width:26px;height:26px;stroke-width:2.5}
+    :root{ --hm-accent:#991b1b; --hm-text:#111827; --hm-muted:#6b7280; --hm-border:#e5e7eb; }
+    body{margin:0;background:#fafafa;color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
 
-    /* Auth panel (streamlined like eBay) */
-    .auth-container{max-width:420px;margin:40px auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;display:grid;gap:16px}
+    /* Header/footer base (from FAQ) */
+    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
+    .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
+    .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
+    .hamburger{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
+    .hamburger svg{width:26px;height:26px;stroke-width:2.5}
+    .right{display:flex;align-items:center;gap:14px}
+    .hm-icon{color:#444;display:inline-grid;place-items:center}
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+    .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+
+    .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+    .sheet.open{transform:translateX(0)}
+    .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
+
+    .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
+    .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+    .hm-footer .footer-links a{color:#4b5563}
+
+    /* Auth panel */
+    .auth-container{max-width:420px;margin:40px auto;background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:24px;display:grid;gap:16px}
     h1{text-align:center;margin:0 0 8px}
-    .muted{text-align:center;color:#6b7280;margin:0}
+    .muted{text-align:center;color:var(--hm-muted);margin:0}
     form{display:grid;gap:12px}
-    input{padding:12px;border:1px solid #e5e7eb;border-radius:8px}
-    button.primary{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:12px;font-weight:600;cursor:pointer}
+    input{padding:12px;border:1px solid var(--hm-border);border-radius:8px}
+    button.primary{background:var(--hm-accent);color:#fff;border:none;border-radius:8px;padding:12px;font-weight:700;cursor:pointer}
     button.oauth{border:1px solid #d1d5db;border-radius:8px;padding:12px;display:flex;align-items:center;gap:8px;justify-content:center;background:#fff;cursor:pointer}
     .divider{display:flex;align-items:center;gap:12px;color:#6b7280;font-size:14px}
     .divider::before,.divider::after{content:"";flex:1;height:1px;background:#e5e7eb}
     .links{text-align:center;display:grid;gap:6px;font-size:14px}
-    .links a{color:#2563eb;text-decoration:none}
+    .links a{color:var(--hm-accent);text-decoration:none}
   </style>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<!-- HEADER (FAQ structure) -->
+<!-- HEADER (FAQ canonical) -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -66,18 +99,17 @@
       </a>
       <a class="hm-icon" href="cart.html" aria-label="Cart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="9" cy="21" r="1"></circle>
-          <circle cx="18" cy="21" r="1"></circle>
+          <circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle>
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-      <a class="hm-avatar" id="avatar" href="account.html">AA</a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
 
-<!-- LEFT MENU (FAQ structure) -->
+<!-- MENU (FAQ canonical) -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -101,7 +133,7 @@
 <main class="wrap">
   <div class="auth-container">
     <h1>Sign in to your account</h1>
-    <p class="muted">New here? <a href="#" id="show-signup">Create account</a></p>
+    <p class="muted">New to Hemline? <a href="#" id="show-signup">Create account</a></p>
 
     <!-- Email + Password (single step) -->
     <form id="login">
@@ -133,17 +165,18 @@
     <div class="links">
       <a href="#" id="forgot">Forgot password?</a>
       <a href="#" id="email-code">Email me a sign-in code</a>
+      <span class="muted">Tip: keep your stitches even — passwords too.</span>
     </div>
 
     <p id="status" class="muted">Not logged in.</p>
   </div>
 </main>
 
-<!-- FOOTER (FAQ structure) -->
+<!-- FOOTER (FAQ canonical) -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links">
+    <nav class="footer-links" aria-label="Footer">
       <a href="about.html">About</a>
       <a href="faq.html">FAQ</a>
       <a href="contact.html">Contact</a>
@@ -153,9 +186,9 @@
   </div>
 </footer>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<!-- Scripts -->
 <script>
-  // Menu behavior (same as FAQ)
+  // Menu behavior (FAQ)
   (function(){
     const sheet=document.getElementById("menuSheet");
     const openBtn=document.getElementById("openMenu");
@@ -166,8 +199,10 @@
     if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
     document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
   })();
+</script>
 
-  // Supabase client
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
   const supabase = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
@@ -181,16 +216,16 @@
   refreshStatus();
   supabase.auth.onAuthStateChange(() => refreshStatus());
 
-  // Email + Password login (single step)
+  // Email + Password login
   document.getElementById("login").onsubmit = async (e)=>{
     e.preventDefault();
     const email=document.getElementById("li-email").value;
     const password=document.getElementById("li-pass").value;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    alert(error ? error.message : "Logged in!");
+    alert(error ? error.message : "Welcome back to the studio!");
   };
 
-  // OAuth: Google
+  // Google OAuth
   document.getElementById("login-google").onclick = async ()=>{
     const { error } = await supabase.auth.signInWithOAuth({
       provider:"google",
@@ -199,7 +234,7 @@
     if (error) alert(error.message);
   };
 
-  // OAuth: Apple
+  // Apple OAuth
   document.getElementById("login-apple").onclick = async ()=>{
     const { error } = await supabase.auth.signInWithOAuth({
       provider:"apple",
