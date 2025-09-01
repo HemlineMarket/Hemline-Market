@@ -4,90 +4,61 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Cart — Hemline Market</title>
+
+  <!-- Shared site styles -->
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hem-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
+
   <style>
     :root{
       --hm-accent:#991b1b;
       --hm-text:#111827;
       --hm-muted:#6b7280;
       --hm-border:#e5e7eb;
+      --hm-bg:#fafafa;
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:#fafafa;color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+    body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-    /* ===== HM SHELL (header + hamburger) ===== */
-    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
-    .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
-    .left{display:flex;align-items:center;gap:10px}
-    .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
-    .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
-    .hamburger svg{width:22px;height:22px;stroke-width:2}
-    .right{display:flex;align-items:center;gap:14px}
-    .hm-icon{color:#444;display:inline-grid;place-items:center}
-    .hm-icon svg{width:26px;height:26px;stroke-width:2}
-    .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
-    .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+    .cart-wrap{max-width:1200px;margin:16px auto;padding:0 16px;display:grid;grid-template-columns:2fr 1fr;gap:16px}
+    @media (max-width:960px){ .cart-wrap{grid-template-columns:1fr} }
 
-    /* Left sheet */
-    .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
-    .sheet.open{transform:translateX(0)}
-    .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
-    .sheet nav{display:grid;padding:10px}
-    .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
-    .sheet nav a + a{margin-top:8px}
-    .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
+    .panel{background:#fff;border:1px solid var(--hm-border);border-radius:12px}
+    .panel h2{font-size:18px;margin:0 0 10px}
+    .seller{border-top:1px solid var(--hm-border);padding:12px}
+    .seller:first-child{border-top:0}
+    .seller-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .seller-name{font-weight:800}
+    .line{display:grid;grid-template-columns:1fr 180px 120px 100px;gap:12px;align-items:center;padding:10px 0;border-top:1px dashed #f1f5f9}
+    .line:first-of-type{border-top:0}
+    .title{font-weight:600}
+    .muted{color:var(--hm-muted);font-size:13px}
+    .qty{display:flex;align-items:center;gap:8px}
+    .qty input{width:90px;padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
+    .price,.total{font-weight:700}
+    .remove{border:1px solid var(--hm-border);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+    .seller-sub{display:flex;justify-content:flex-end;margin-top:10px;font-weight:700}
 
-    /* ===== Page ===== */
-    .wrap{max-width:1200px;margin:0 auto;padding:14px 12px}
-    h1{margin:2px 0 6px;font-size:28px;font-weight:800}
-    .kicker{color:var(--hm-muted);margin-bottom:12px}
-
-    .grid{display:grid;grid-template-columns:1fr 360px;gap:16px}
-    @media (max-width:980px){ .grid{grid-template-columns:1fr} }
-
-    .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px}
-    .card h2{font-size:18px;margin:4px 0 10px}
-
-    /* Seller group */
-    .seller{border:1px solid var(--hm-border);border-radius:10px;padding:10px;margin-bottom:12px}
-    .seller .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-    .seller .meta{color:var(--hm-muted);font-size:13px}
-
-    /* Line items */
-    .item{display:grid;grid-template-columns:72px 1fr auto;gap:10px;padding:10px 0;border-top:1px solid var(--hm-border)}
-    .item:first-of-type{border-top:0}
-    .thumb{width:72px;height:72px;border:1px solid var(--hm-border);border-radius:10px;background:#f8fafc}
-    .title{font-weight:700}
-    .sub{color:var(--hm-muted);font-size:13px}
-    .qty{display:flex;align-items:center;gap:6px;margin-top:6px}
-    .qty button{width:28px;height:28px;border:1px solid var(--hm-border);background:#fff;border-radius:8px;font-weight:800;cursor:pointer}
-    .qty input{width:46px;text-align:center;border:1px solid var(--hm-border);border-radius:8px;padding:6px}
-    .price{font-weight:800;white-space:nowrap}
-    .remove{margin-top:6px;color:#991b1b;cursor:pointer;font-size:13px;text-decoration:none}
-
-    /* Summary */
-    .row{display:flex;justify-content:space-between;align-items:center;padding:6px 0}
-    .row.total{border-top:1px solid var(--hm-border);padding-top:10px;font-weight:800}
-    .note{color:var(--hm-muted);font-size:13px}
-    .btn{padding:10px 14px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-weight:700;cursor:pointer}
-    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25);width:100%}
-
-    /* ===== Footer (links LEFT) ===== */
-    .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
-    .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-    .footer-left{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-    .footer-links a{color:#4b5563;text-decoration:none}
-    .copy{color:#6b7280;font-size:14px}
+    .summary{padding:12px}
+    .sum-row{display:flex;justify-content:space-between;margin:8px 0}
+    .sum-row.total{font-size:18px;font-weight:800;border-top:1px solid var(--hm-border);padding-top:10px;margin-top:12px}
+    .sum-actions{display:grid;gap:8px;margin-top:12px}
+    .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;cursor:pointer}
+    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;font-weight:800;box-shadow:0 2px 8px rgba(153,27,27,.20)}
+    .empty{padding:24px;text-align:center;color:var(--hm-muted)}
+    .cart-title{font-size:28px;font-weight:900;margin:8px 0 12px}
   </style>
 </head>
 <body>
 
-<!-- HEADER -->
+<!-- HEADER (canonical) -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
       <button class="hamburger" id="openMenu" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
           <line x1="4" y1="18" x2="20" y2="18"></line>
         </svg>
@@ -95,29 +66,17 @@
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
     <div class="right">
-      <a class="hm-icon" href="search.html" aria-label="Search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="11" cy="11" r="8"/>
-          <path d="m21 21-4.3-4.3"/>
-        </svg>
+      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
       </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-      </a>
-      <a class="hm-icon" href="cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="9" cy="21" r="1"/>
-          <circle cx="20" cy="21" r="1"/>
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-        </svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
       </a>
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-        </svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
       </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
@@ -125,188 +84,192 @@
   </div>
 </header>
 
-<!-- SHEET MENU -->
+<!-- LEFT MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
     <button class="close" id="closeMenu" aria-label="Close menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
     </button>
   </header>
   <nav>
-    <a href="browse.html">Browse</a>
+    <a href="dashboard.html">Dashboard</a>
     <a href="atelier.html">My Atelier</a>
-    <a href="orders.html">Orders</a>
-    <a href="favorites.html">Favorites</a>
-    <a href="account.html">Account</a>
-    <a href="help.html">Help</a>
+    <a href="how.html">How It Works</a>
+    <a href="seller/index.html?list=new">Sell Fabric</a>
+    <a href="contact.html">Contact</a>
   </nav>
 </aside>
 
-<main class="wrap">
-  <h1>Cart</h1>
-  <div class="kicker">Items are grouped by seller. You’ll pay each seller once at checkout.</div>
+<!-- CONTENT -->
+<main class="cart-wrap" role="main">
+  <section class="panel" id="cartPanel">
+    <div style="padding:12px 12px 0">
+      <h1 class="cart-title">Cart</h1>
+      <div class="muted">Items are grouped by seller. You’ll pay each seller once at checkout.</div>
+    </div>
+    <div id="cartContent" class="empty">Loading…</div>
+  </section>
 
-  <div class="grid">
-    <!-- LEFT: line items -->
-    <section class="card">
-      <h2>Your Items</h2>
-
-      <!-- Seller group example -->
-      <div class="seller" data-seller="LoomLab">
-        <div class="head">
-          <strong>LoomLab</strong>
-          <div class="meta">Ships from MA · Est. $8–$12</div>
-        </div>
-
-        <article class="item" data-price="28" data-width="54">
-          <div class="thumb"></div>
-          <div>
-            <div class="title">Italian Silk Twill — Navy</div>
-            <div class="sub">54″ · $28/yd</div>
-            <div class="qty">
-              <button class="dec" aria-label="Decrease">–</button>
-              <input class="yards" type="number" min="0.5" step="0.5" value="1.5" aria-label="Yards">
-              <button class="inc" aria-label="Increase">+</button>
-              <a class="remove" href="#" aria-label="Remove item">Remove</a>
-            </div>
-          </div>
-          <div class="price">$42.00</div>
-        </article>
-
-        <article class="item" data-price="42" data-width="58">
-          <div class="thumb"></div>
-          <div>
-            <div class="title">Wool Crepe — Saffron</div>
-            <div class="sub">58″ · $42/yd</div>
-            <div class="qty">
-              <button class="dec">–</button>
-              <input class="yards" type="number" min="0.5" step="0.5" value="1" aria-label="Yards">
-              <button class="inc">+</button>
-              <a class="remove" href="#" aria-label="Remove item">Remove</a>
-            </div>
-          </div>
-          <div class="price">$42.00</div>
-        </article>
-
-        <div class="row" style="margin-top:6px"><span>Subtotal</span><strong class="seller-sub">$84.00</strong></div>
-      </div>
-
-      <!-- Another seller (demo) -->
-      <div class="seller" data-seller="Weave&Co">
-        <div class="head">
-          <strong>Weave&Co</strong>
-          <div class="meta">Ships from CA · Est. $7–$10</div>
-        </div>
-
-        <article class="item" data-price="14" data-width="44">
-          <div class="thumb"></div>
-          <div>
-            <div class="title">Cotton Poplin — Moss</div>
-            <div class="sub">44″ · $14/yd</div>
-            <div class="qty">
-              <button class="dec">–</button>
-              <input class="yards" type="number" min="0.5" step="0.5" value="2" aria-label="Yards">
-              <button class="inc">+</button>
-              <a class="remove" href="#" aria-label="Remove item">Remove</a>
-            </div>
-          </div>
-          <div class="price">$28.00</div>
-        </article>
-
-        <div class="row" style="margin-top:6px"><span>Subtotal</span><strong class="seller-sub">$28.00</strong></div>
-      </div>
-    </section>
-
-    <!-- RIGHT: summary -->
-    <aside class="card">
-      <h2>Summary</h2>
-      <div class="row"><span>Items</span><span id="sum-items">$112.00</span></div>
-      <div class="row"><span>Estimated shipping</span><span id="sum-ship">$18.00</span></div>
-      <div class="row note">Final shipping is shown at checkout.</div>
-      <div class="row total"><span>Total</span><span id="sum-total">$130.00</span></div>
-      <div style="margin-top:10px">
-        <a class="btn-primary" href="checkout.html">Proceed to checkout</a>
-      </div>
-      <div style="margin-top:8px;display:flex;gap:8px">
-        <a class="btn" href="browse.html">Continue shopping</a>
-        <a class="btn" href="#" id="clearCart">Clear cart</a>
-      </div>
-    </aside>
-  </div>
+  <aside class="panel summary" aria-label="Order summary">
+    <h2>Summary</h2>
+    <div class="sum-row"><span>Items</span><span id="sumItems">$0.00</span></div>
+    <div class="sum-row total"><span>Total</span><span id="sumTotal">$0.00</span></div>
+    <div class="sum-actions">
+      <a class="btn-primary" style="text-align:center;text-decoration:none" href="checkout.html">Proceed to checkout</a>
+      <a class="btn" style="text-align:center;text-decoration:none" href="browse.html">Continue shopping</a>
+      <button class="btn" id="clearCart">Clear cart</button>
+    </div>
+  </aside>
 </main>
 
-<!-- FOOTER -->
+<!-- FOOTER (canonical) -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
-    <div class="footer-left">
-      <nav class="footer-links" aria-label="Footer">
-        <a href="about.html">About</a>
-        <a href="faq.html">FAQ</a>
-        <a href="contact.html">Contact</a>
-        <a href="terms.html">Terms</a>
-        <a href="privacy.html">Privacy</a>
-      </nav>
-      <div class="copy">© 2025 Hemline Market</div>
-    </div>
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
   </div>
 </footer>
 
 <script>
-  // HM shell
-  (function(){
-    const sheet=document.getElementById('menuSheet');
-    const openBtn=document.getElementById('openMenu');
-    const closeBtn=document.getElementById('closeMenu');
-    function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
-    function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
-    openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
-    closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
-    document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
+(function(){
+  // Header sheet toggle (canonical)
+  const sheet=document.getElementById("menuSheet");
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
+  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+  openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
+  closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-    const avatar=document.getElementById('avatar');
-    try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
-  })();
+  // Optional avatar image
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  // Tiny cart math (demo)
-  (function(){
-    const money = n => '$' + n.toFixed(2);
-    function lineTotal(item){
-      const price = Number(item.dataset.price||0);
-      const qty = Number(item.querySelector('.yards').value||0);
-      return price * qty;
+  // --- CART LOGIC -----------------------------------------------------------
+  /**
+   * Cart item shape:
+   * { id, title, seller, pricePerUnit, unitLabel, qty, width, gsm }
+   * unitLabel = 'yd' by default but can be any string (e.g., 'ea')
+   */
+  const SAMPLE = [
+    { id:"twl-navy", title:"Italian Silk Twill — Navy", seller:"LoomLab", pricePerUnit:28, unitLabel:"yd", qty:1.5, width:54, gsm:180 },
+    { id:"crepe-saf", title:"Wool Crepe — Saffron", seller:"LoomLab", pricePerUnit:42, unitLabel:"yd", qty:1, width:58, gsm:180 },
+    { id:"poplin-moss", title:"Cotton Poplin — Moss", seller:"Weave&Co", pricePerUnit:14, unitLabel:"yd", qty:2, width:44, gsm:120 },
+  ];
+
+  function loadCart(){
+    try{
+      const raw = localStorage.getItem("hm_cart");
+      if(!raw){ return [...SAMPLE]; }
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed) || parsed.length===0) return [...SAMPLE];
+      return parsed;
+    }catch(e){ return [...SAMPLE]; }
+  }
+  function saveCart(items){ localStorage.setItem("hm_cart", JSON.stringify(items)); }
+
+  const elContent = document.getElementById("cartContent");
+  const elItems   = document.getElementById("sumItems");
+  const elTotal   = document.getElementById("sumTotal");
+  const clearBtn  = document.getElementById("clearCart");
+
+  let CART = loadCart();
+
+  function money(n){ return "$" + (Math.round(n*100)/100).toFixed(2); }
+
+  function groupBySeller(items){
+    const map = new Map();
+    for(const it of items){
+      if(!map.has(it.seller)) map.set(it.seller, []);
+      map.get(it.seller).push(it);
     }
-    function render(){
-      // per-line
-      document.querySelectorAll('.item').forEach(it=>{
-        it.querySelector('.price').textContent = money(lineTotal(it));
-      });
-      // per-seller
-      document.querySelectorAll('.seller').forEach(s=>{
-        let sub=0; s.querySelectorAll('.item').forEach(it=> sub+=lineTotal(it));
-        s.querySelector('.seller-sub').textContent = money(sub);
-      });
-      // summary
-      let items=0; document.querySelectorAll('.item').forEach(it=> items+=lineTotal(it));
-      const ship = items>0 ? 18 : 0; // demo flat estimate
-      document.getElementById('sum-items').textContent = money(items);
-      document.getElementById('sum-ship').textContent  = money(ship);
-      document.getElementById('sum-total').textContent = money(items+ship);
+    return [...map.entries()].map(([seller, items])=>({seller, items}));
+  }
+
+  function render(){
+    if(!CART.length){
+      elContent.className = "empty";
+      elContent.textContent = "Your cart is empty.";
+      elItems.textContent = "$0.00";
+      elTotal.textContent = "$0.00";
+      return;
     }
-    // qty buttons + inputs
-    document.querySelectorAll('.item').forEach(it=>{
-      const input = it.querySelector('.yards');
-      it.querySelector('.inc').onclick = ()=>{ input.stepUp(); render(); };
-      it.querySelector('.dec').onclick = ()=>{ input.stepDown(); render(); };
-      input.addEventListener('input', render);
-      it.querySelector('.remove').onclick = (e)=>{ e.preventDefault(); it.remove(); render(); };
+    elContent.className = "";
+    const groups = groupBySeller(CART);
+    elContent.innerHTML = groups.map(group=>{
+      const lines = group.items.map(it=>{
+        const lineTotal = it.qty * it.pricePerUnit;
+        return `
+          <div class="line" data-id="${it.id}">
+            <div>
+              <div class="title">${it.title}</div>
+              <div class="muted">${it.width}″ · ${it.gsm} GSM</div>
+            </div>
+            <div class="qty">
+              <label class="muted" for="q_${it.id}" style="min-width:36px">Qty</label>
+              <input id="q_${it.id}" type="number" min="0" step="0.5" value="${it.qty}">
+              <button class="remove" data-remove="${it.id}">Remove</button>
+            </div>
+            <div class="price">${money(it.pricePerUnit)}/${it.unitLabel}</div>
+            <div class="total">${money(lineTotal)}</div>
+          </div>`;
+      }).join("");
+      const sub = group.items.reduce((s,i)=>s+i.qty*i.pricePerUnit,0);
+      return `
+        <div class="seller">
+          <div class="seller-head">
+            <div class="seller-name">${group.seller}</div>
+          </div>
+          ${lines}
+          <div class="seller-sub">Subtotal: ${money(sub)}</div>
+        </div>`;
+    }).join("");
+
+    const itemsTotal = CART.reduce((s,i)=>s+i.qty*i.pricePerUnit,0);
+    elItems.textContent = money(itemsTotal);
+    elTotal.textContent = money(itemsTotal);
+
+    // Wire qty inputs & remove buttons
+    elContent.querySelectorAll("input[type='number']").forEach(inp=>{
+      inp.addEventListener("input", (e)=>{
+        const id = e.target.id.replace("q_","");
+        const item = CART.find(x=>x.id===id);
+        const v = parseFloat(e.target.value);
+        item.qty = isNaN(v) || v<0 ? 0 : v;
+        saveCart(CART);
+        render();
+      });
     });
-    document.getElementById('clearCart').onclick = (e)=>{ e.preventDefault(); document.querySelectorAll('.item').forEach(n=>n.remove()); render(); };
+    elContent.querySelectorAll("button[data-remove]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-remove");
+        CART = CART.filter(x=>x.id!==id);
+        saveCart(CART);
+        render();
+      });
+    });
+  }
+
+  clearBtn.addEventListener("click", ()=>{
+    CART = [];
+    saveCart(CART);
     render();
-  })();
+  });
+
+  render();
+})();
 </script>
+
 </body>
 </html>
