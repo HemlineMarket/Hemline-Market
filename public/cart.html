@@ -21,33 +21,46 @@
     }
     body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-    .cart-wrap{max-width:1200px;margin:16px auto;padding:0 16px;display:grid;grid-template-columns:2fr 1fr;gap:16px}
-    @media (max-width:960px){ .cart-wrap{grid-template-columns:1fr} }
+    .cart-wrap{max-width:1200px;margin:18px auto;padding:0 16px}
+    .cart-head h1{margin:6px 0 8px;font-size:28px}
+    .cart-kicker{color:var(--hm-muted);font-size:14px;margin-bottom:12px}
+
+    .cart-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+    @media (max-width:900px){ .cart-grid{grid-template-columns:1fr} }
 
     .panel{background:#fff;border:1px solid var(--hm-border);border-radius:12px}
-    .panel h2{font-size:18px;margin:0 0 10px}
-    .seller{border-top:1px solid var(--hm-border);padding:12px}
-    .seller:first-child{border-top:0}
-    .seller-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-    .seller-name{font-weight:800}
-    .line{display:grid;grid-template-columns:1fr 180px 120px 100px;gap:12px;align-items:center;padding:10px 0;border-top:1px dashed #f1f5f9}
-    .line:first-of-type{border-top:0}
-    .title{font-weight:600}
-    .muted{color:var(--hm-muted);font-size:13px}
-    .qty{display:flex;align-items:center;gap:8px}
-    .qty input{width:90px;padding:7px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
-    .price,.total{font-weight:700}
-    .remove{border:1px solid var(--hm-border);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
-    .seller-sub{display:flex;justify-content:flex-end;margin-top:10px;font-weight:700}
 
-    .summary{padding:12px}
+    /* Sellers / items list */
+    .seller{border-bottom:1px solid var(--hm-border)}
+    .seller:last-child{border-bottom:0}
+    .seller-head{padding:12px 14px;font-weight:800;border-bottom:1px dashed #f1f5f9}
+    .item{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid #f8fafc}
+    .item:first-of-type{border-top:0}
+    .thumb{width:72px;height:72px;border:1px solid var(--hm-border);border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#9ca3af;font-size:12px}
+    .title{font-weight:800}
+    .meta{color:var(--hm-muted);font-size:12px;margin-top:2px}
+    .controls{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .qty{display:inline-grid;grid-auto-flow:column;align-items:center;gap:8px;border:1px solid var(--hm-border);border-radius:10px;padding:6px 10px}
+    .qty button{background:#fff;border:0;font-weight:900;cursor:pointer}
+    .qty input{width:46px;border:0;text-align:center}
+    .remove{background:#fff;border:1px solid var(--hm-border);border-radius:10px;padding:6px 10px;cursor:pointer}
+    .price{font-weight:800}
+
+    .seller-sub{display:flex;justify-content:flex-end;padding:10px 14px;border-top:1px solid var(--hm-border);color:#111827}
+    .seller-sub strong{margin-left:8px}
+
+    /* Summary */
+    .summary{position:sticky;top:12px;padding:12px}
     .sum-row{display:flex;justify-content:space-between;margin:8px 0}
-    .sum-row.total{font-size:18px;font-weight:800;border-top:1px solid var(--hm-border);padding-top:10px;margin-top:12px}
+    .sum-row .label{color:#374151}
+    .sum-total{border-top:1px solid var(--hm-border);margin-top:10px;padding-top:10px;font-weight:800}
     .sum-actions{display:grid;gap:8px;margin-top:12px}
     .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;cursor:pointer}
-    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;font-weight:800;box-shadow:0 2px 8px rgba(153,27,27,.20)}
-    .empty{padding:24px;text-align:center;color:var(--hm-muted)}
-    .cart-title{font-size:28px;font-weight:900;margin:8px 0 12px}
+    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;font-weight:800}
+    .btn-link{background:transparent;border:0;color:#1f2937;text-decoration:underline;cursor:pointer;text-align:left}
+
+    /* Footer spacing on mobile */
+    .cart-wrap + .hm-footer{margin-top:18px}
   </style>
 </head>
 <body>
@@ -84,14 +97,13 @@
   </div>
 </header>
 
-<!-- LEFT MENU -->
+<!-- LEFT MENU (canonical) -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
     <button class="close" id="closeMenu" aria-label="Close menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
     </button>
   </header>
@@ -104,26 +116,102 @@
   </nav>
 </aside>
 
-<!-- CONTENT -->
+<!-- CART CONTENT -->
 <main class="cart-wrap" role="main">
-  <section class="panel" id="cartPanel">
-    <div style="padding:12px 12px 0">
-      <h1 class="cart-title">Cart</h1>
-      <div class="muted">Items are grouped by seller. You’ll pay each seller once at checkout.</div>
-    </div>
-    <div id="cartContent" class="empty">Loading…</div>
-  </section>
+  <div class="cart-head">
+    <h1>Cart</h1>
+    <div class="cart-kicker">Items are grouped by seller. You’ll pay each seller at checkout.</div>
+  </div>
 
-  <aside class="panel summary" aria-label="Order summary">
-    <h2>Summary</h2>
-    <div class="sum-row"><span>Items</span><span id="sumItems">$0.00</span></div>
-    <div class="sum-row total"><span>Total</span><span id="sumTotal">$0.00</span></div>
-    <div class="sum-actions">
-      <a class="btn-primary" style="text-align:center;text-decoration:none" href="checkout.html">Proceed to checkout</a>
-      <a class="btn" style="text-align:center;text-decoration:none" href="browse.html">Continue shopping</a>
-      <button class="btn" id="clearCart">Clear cart</button>
-    </div>
-  </aside>
+  <div class="cart-grid">
+    <!-- Items -->
+    <section class="panel">
+      <!-- Seller 1 -->
+      <div class="seller" data-seller="LoomLab">
+        <div class="seller-head">LoomLab</div>
+
+        <article class="item" data-price="42">
+          <div class="thumb">img</div>
+          <div>
+            <div class="title">Italian Silk Twill — Navy</div>
+            <div class="meta">54″ · $42</div>
+            <div class="controls">
+              <div class="qty" aria-label="Quantity">
+                <button class="minus" aria-label="Decrease">−</button>
+                <input class="q" type="number" min="1" step="1" value="1" inputmode="numeric">
+                <button class="plus" aria-label="Increase">+</button>
+              </div>
+              <button class="remove">Remove</button>
+            </div>
+          </div>
+          <div class="price">$42.00</div>
+        </article>
+
+        <article class="item" data-price="42">
+          <div class="thumb">img</div>
+          <div>
+            <div class="title">Wool Crepe — Saffron</div>
+            <div class="meta">58″ · $42</div>
+            <div class="controls">
+              <div class="qty" aria-label="Quantity">
+                <button class="minus" aria-label="Decrease">−</button>
+                <input class="q" type="number" min="1" step="1" value="1" inputmode="numeric">
+                <button class="plus" aria-label="Increase">+</button>
+              </div>
+              <button class="remove">Remove</button>
+            </div>
+          </div>
+          <div class="price">$42.00</div>
+        </article>
+
+        <div class="seller-sub">Subtotal: <strong class="seller-subtotal">$84.00</strong></div>
+      </div>
+
+      <!-- Seller 2 -->
+      <div class="seller" data-seller="Weave&Co">
+        <div class="seller-head">Weave&Co</div>
+
+        <article class="item" data-price="28">
+          <div class="thumb">img</div>
+          <div>
+            <div class="title">Cotton Poplin — Moss</div>
+            <div class="meta">44″ · $28</div>
+            <div class="controls">
+              <div class="qty" aria-label="Quantity">
+                <button class="minus" aria-label="Decrease">−</button>
+                <input class="q" type="number" min="1" step="1" value="2" inputmode="numeric">
+                <button class="plus" aria-label="Increase">+</button>
+              </div>
+              <button class="remove">Remove</button>
+            </div>
+          </div>
+          <div class="price">$56.00</div>
+        </article>
+
+        <div class="seller-sub">Subtotal: <strong class="seller-subtotal">$56.00</strong></div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <aside class="panel summary" aria-label="Order summary">
+      <h2 style="margin:4px 0 6px;font-size:18px">Summary</h2>
+      <div class="sum-row">
+        <div class="label">Items</div>
+        <div id="sumItems">$140.00</div>
+      </div>
+
+      <div class="sum-row sum-total">
+        <div class="label">Total</div>
+        <div id="sumTotal">$140.00</div>
+      </div>
+
+      <div class="sum-actions">
+        <button class="btn btn-primary" id="checkoutBtn">Proceed to checkout</button>
+        <button class="btn" id="continueBtn">Continue shopping</button>
+        <button class="btn-link" id="clearBtn">Clear cart</button>
+      </div>
+    </aside>
+  </div>
 </main>
 
 <!-- FOOTER (canonical) -->
@@ -142,134 +230,80 @@
 
 <script>
 (function(){
-  // Header sheet toggle (canonical)
-  const sheet=document.getElementById("menuSheet");
-  const openBtn=document.getElementById("openMenu");
-  const closeBtn=document.getElementById("closeMenu");
-  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
-  openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
-  closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+  /* Header sheet controls */
+  const sheet=document.getElementById('menuSheet');
+  const openBtn=document.getElementById('openMenu');
+  const closeBtn=document.getElementById('closeMenu');
+  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
+  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+  openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
+  closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
 
-  // Optional avatar image
-  const avatar=document.getElementById("avatar");
-  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+  /* Optional avatar image */
+  const avatar=document.getElementById('avatar');
+  try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  // --- CART LOGIC -----------------------------------------------------------
-  /**
-   * Cart item shape:
-   * { id, title, seller, pricePerUnit, unitLabel, qty, width, gsm }
-   * unitLabel = 'yd' by default but can be any string (e.g., 'ea')
-   */
-  const SAMPLE = [
-    { id:"twl-navy", title:"Italian Silk Twill — Navy", seller:"LoomLab", pricePerUnit:28, unitLabel:"yd", qty:1.5, width:54, gsm:180 },
-    { id:"crepe-saf", title:"Wool Crepe — Saffron", seller:"LoomLab", pricePerUnit:42, unitLabel:"yd", qty:1, width:58, gsm:180 },
-    { id:"poplin-moss", title:"Cotton Poplin — Moss", seller:"Weave&Co", pricePerUnit:14, unitLabel:"yd", qty:2, width:44, gsm:120 },
-  ];
+  /* Cart math */
+  const money = n => '$' + n.toFixed(2);
 
-  function loadCart(){
-    try{
-      const raw = localStorage.getItem("hm_cart");
-      if(!raw){ return [...SAMPLE]; }
-      const parsed = JSON.parse(raw);
-      if(!Array.isArray(parsed) || parsed.length===0) return [...SAMPLE];
-      return parsed;
-    }catch(e){ return [...SAMPLE]; }
-  }
-  function saveCart(items){ localStorage.setItem("hm_cart", JSON.stringify(items)); }
-
-  const elContent = document.getElementById("cartContent");
-  const elItems   = document.getElementById("sumItems");
-  const elTotal   = document.getElementById("sumTotal");
-  const clearBtn  = document.getElementById("clearCart");
-
-  let CART = loadCart();
-
-  function money(n){ return "$" + (Math.round(n*100)/100).toFixed(2); }
-
-  function groupBySeller(items){
-    const map = new Map();
-    for(const it of items){
-      if(!map.has(it.seller)) map.set(it.seller, []);
-      map.get(it.seller).push(it);
-    }
-    return [...map.entries()].map(([seller, items])=>({seller, items}));
+  function updateItem(article){
+    const price = parseFloat(article.dataset.price);
+    const qty = Math.max(1, parseInt(article.querySelector('.q').value || '1', 10));
+    article.querySelector('.q').value = qty;
+    const line = price * qty;
+    article.querySelector('.price').textContent = money(line);
   }
 
-  function render(){
-    if(!CART.length){
-      elContent.className = "empty";
-      elContent.textContent = "Your cart is empty.";
-      elItems.textContent = "$0.00";
-      elTotal.textContent = "$0.00";
-      return;
-    }
-    elContent.className = "";
-    const groups = groupBySeller(CART);
-    elContent.innerHTML = groups.map(group=>{
-      const lines = group.items.map(it=>{
-        const lineTotal = it.qty * it.pricePerUnit;
-        return `
-          <div class="line" data-id="${it.id}">
-            <div>
-              <div class="title">${it.title}</div>
-              <div class="muted">${it.width}″ · ${it.gsm} GSM</div>
-            </div>
-            <div class="qty">
-              <label class="muted" for="q_${it.id}" style="min-width:36px">Qty</label>
-              <input id="q_${it.id}" type="number" min="0" step="0.5" value="${it.qty}">
-              <button class="remove" data-remove="${it.id}">Remove</button>
-            </div>
-            <div class="price">${money(it.pricePerUnit)}/${it.unitLabel}</div>
-            <div class="total">${money(lineTotal)}</div>
-          </div>`;
-      }).join("");
-      const sub = group.items.reduce((s,i)=>s+i.qty*i.pricePerUnit,0);
-      return `
-        <div class="seller">
-          <div class="seller-head">
-            <div class="seller-name">${group.seller}</div>
-          </div>
-          ${lines}
-          <div class="seller-sub">Subtotal: ${money(sub)}</div>
-        </div>`;
-    }).join("");
-
-    const itemsTotal = CART.reduce((s,i)=>s+i.qty*i.pricePerUnit,0);
-    elItems.textContent = money(itemsTotal);
-    elTotal.textContent = money(itemsTotal);
-
-    // Wire qty inputs & remove buttons
-    elContent.querySelectorAll("input[type='number']").forEach(inp=>{
-      inp.addEventListener("input", (e)=>{
-        const id = e.target.id.replace("q_","");
-        const item = CART.find(x=>x.id===id);
-        const v = parseFloat(e.target.value);
-        item.qty = isNaN(v) || v<0 ? 0 : v;
-        saveCart(CART);
-        render();
-      });
+  function updateSeller(seller){
+    let sub = 0;
+    seller.querySelectorAll('.item').forEach(a=>{
+      const price = parseFloat(a.dataset.price);
+      const qty = Math.max(1, parseInt(a.querySelector('.q').value || '1', 10));
+      sub += price * qty;
     });
-    elContent.querySelectorAll("button[data-remove]").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        const id = btn.getAttribute("data-remove");
-        CART = CART.filter(x=>x.id!==id);
-        saveCart(CART);
-        render();
-      });
-    });
+    seller.querySelector('.seller-subtotal').textContent = money(sub);
+    return sub;
   }
 
-  clearBtn.addEventListener("click", ()=>{
-    CART = [];
-    saveCart(CART);
-    render();
+  function updateSummary(){
+    let items = 0;
+    document.querySelectorAll('.seller').forEach(s=>{
+      items += updateSeller(s);
+    });
+    document.getElementById('sumItems').textContent = money(items);
+    document.getElementById('sumTotal').textContent = money(items);
+  }
+
+  // Wire quantity buttons, remove, clear
+  document.querySelectorAll('.item').forEach(a=>{
+    updateItem(a);
+    a.querySelector('.minus').addEventListener('click', ()=>{
+      const inp=a.querySelector('.q');
+      inp.value = Math.max(1, (parseInt(inp.value||'1',10)-1));
+      updateItem(a); updateSummary();
+    });
+    a.querySelector('.plus').addEventListener('click', ()=>{
+      const inp=a.querySelector('.q');
+      inp.value = (parseInt(inp.value||'1',10)+1);
+      updateItem(a); updateSummary();
+    });
+    a.querySelector('.q').addEventListener('input', ()=>{ updateItem(a); updateSummary(); });
+    a.querySelector('.remove').addEventListener('click', ()=>{
+      a.remove(); updateSummary();
+    });
   });
 
-  render();
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    document.querySelectorAll('.item').forEach(n=>n.remove());
+    updateSummary();
+  });
+  document.getElementById('continueBtn').addEventListener('click', ()=>{ location.href='browse.html'; });
+  document.getElementById('checkoutBtn').addEventListener('click', ()=>{ alert('Proceeding to checkout…'); });
+
+  // Initial totals
+  updateSummary();
 })();
 </script>
-
 </body>
 </html>
