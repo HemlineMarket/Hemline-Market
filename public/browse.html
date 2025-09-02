@@ -36,10 +36,20 @@
     .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
     .hamburger svg{width:22px;height:22px;stroke-width:2}
     .right{display:flex;align-items:center;gap:14px}
-    .hm-icon{color:#444;display:inline-grid;place-items:center}
+    .hm-icon{color:#444;display:inline-grid;place-items:center;position:relative}
     .hm-icon svg{width:26px;height:26px;stroke-width:2}
     .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
     .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+
+    /* Cart badge */
+    .cart-badge{
+      position:absolute; top:-6px; right:-8px;
+      min-width:18px; height:18px; padding:0 4px;
+      display:none; align-items:center; justify-content:center;
+      background:var(--hm-accent); color:#fff; border-radius:999px;
+      font-size:11px; font-weight:800; line-height:18px;
+      border:1px solid #fff;
+    }
 
     /* Left sheet nav */
     .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
@@ -139,12 +149,12 @@
     .meta{padding:8px 10px}
     .meta .title{font-weight:700}
     .meta .sub{display:flex;justify-content:space-between;color:#6b7280;margin-top:6px}
-    .buy-btn{
+    .add-btn{
       width:100%; margin-top:10px; padding:10px 12px;
       border-radius:10px; border:1px solid var(--hm-accent);
       background:var(--hm-accent); color:#fff; font-weight:700; cursor:pointer;
     }
-    .buy-btn[disabled]{opacity:.6; cursor:not-allowed;}
+    .add-btn[disabled]{opacity:.6; cursor:not-allowed;}
 
     /* ===== MOBILE FILTER SIDE SHEET ===== */
     .hm-filter-sheet {
@@ -266,6 +276,7 @@
           <circle cx="18" cy="21" r="1"></circle>
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
+        <span class="cart-badge" data-cart-badge></span>
       </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
@@ -541,6 +552,10 @@
 </aside>
 <!-- ===== /MOBILE FILTER SIDE SHEET MARKUP ===== -->
 
+<!-- Cart scripts (added) -->
+<script src="scripts/cart.js"></script>
+<script src="scripts/cart-hooks.js"></script>
+
 <script>
 (function(){
   /* Menu sheet */
@@ -773,6 +788,10 @@
     render();
   }
 
+  function slugify(s){
+    return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  }
+
   function render(){
     const match=ALL.filter(toFilters());
     resultCount.textContent = match.length + (match.length===1 ? ' result' : ' results');
@@ -780,15 +799,27 @@
     if(match.length===0){ empty.style.display='block'; return; }
     empty.style.display='none';
     match.forEach(it=>{
+      const id = it.id || it.sku || it.slug || slugify(it.title);
+      const cents = Math.round(Number(it.price||0)*100);
+      const img = it.photo || '';
+      const url = it.url || '#';
+
       const a=document.createElement('article'); a.className='card';
       a.innerHTML=`
         <div class="ph">${it.photo ? '' : 'photo'}</div>
         <div class="meta">
           <div class="title">${it.title}</div>
           <div class="sub"><span>$${it.price}/yd</span><span>${it.width}″ • ${it.gsm} GSM</span></div>
-          <button class="buy-btn" data-name="${it.title}" data-amount="${Math.round(it.price*100)}">
-            Buy – $${it.price}
-          </button>
+          <button class="add-btn"
+            data-add-to-cart
+            data-id="${id}"
+            data-name="${it.title.replace(/"/g,'&quot;')}"
+            data-price="${cents}"
+            data-currency="usd"
+            data-image="${img}"
+            data-url="${url}"
+            data-qty="1"
+          >Add to Cart</button>
         </div>`;
       grid.appendChild(a);
     });
@@ -796,7 +827,7 @@
 
   /* Desktop Buttons */
   document.getElementById('apply').addEventListener('click',()=>{
-    location.href = location.pathname + '?' + params.toString();
+    location.href = location.pathname + '?' + new URLSearchParams(params).toString();
   });
   document.getElementById('clear').addEventListener('click',()=>{
     history.replaceState(null,'',location.pathname);
@@ -848,10 +879,8 @@
   // Populate mobile sections
   buildMobileCheckboxList('mContent', CONTENT, 'content');
   buildMobileChips('mDept', ['Fashion','Home','Quilting','Notions'], 'dept');
-
   const FABRIC_TYPES = ["Canvas","Chiffon","Corduroy","Crepe","Denim","Flannel","Georgette","Jersey","Lace","Lawn","Organza","Poplin","Sateen","Satin","Tulle","Twill","Velvet","Voile"];
   buildMobileCheckboxList('mFabricType', FABRIC_TYPES, 'fabricType');
-
   buildMobileChips('mFiberType', ['Natural','Modified Natural','Synthetic','Blend'], 'fiberType');
   buildMobileChips('mPattern', ['Solid','Printed'], 'pattern');
 
@@ -909,32 +938,7 @@
 
   load();
 
-  /* ====== BUY BUTTON -> STRIPE CHECKOUT ====== */
-  grid.addEventListener('click', async (e)=>{
-    const btn = e.target.closest('.buy-btn');
-    if(!btn) return;
-    btn.disabled = true;
-    try{
-      const name = btn.dataset.name;
-      const amount = parseInt(btn.dataset.amount, 10); // cents (1 yard)
-      const res = await fetch('/api/checkout/stripe', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ name, amount })
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || 'Could not start checkout.');
-      }
-    } catch(err){
-      alert('Could not start checkout.');
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
+  /* (Removed Buy-Now handler) — Add-to-Cart is handled by scripts/cart-hooks.js */
 })();
 </script>
 </body>
