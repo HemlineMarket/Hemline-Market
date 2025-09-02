@@ -1,8 +1,123 @@
-<!doctype html><meta charset="utf-8">
-<title>Payment successful — Hemline Market</title>
-<link rel="stylesheet" href="styles/hm-modern.css">
-<body style="font-family:system-ui;max-width:720px;margin:40px auto;padding:0 16px">
-  <h1>✅ Payment successful</h1>
-  <p>Thanks! Your order was received.</p>
-  <p><a href="browse.html">Back to browsing</a></p>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Order Status — Hemline Market</title>
+
+  <!-- MOBILE HOTFIX -->
+  <style>
+    html, body { max-width:100%; overflow-x:hidden; }
+    img, video, canvas, svg { max-width:100%; height:auto; }
+  </style>
+
+  <!-- Shared styles -->
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hem-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
+
+  <!-- Stripe.js -->
+  <script src="https://js.stripe.com/v3"></script>
+
+  <style>
+    :root{ --hm-accent:#991b1b; --hm-border:#e5e7eb; --hm-text:#111827; --hm-muted:#6b7280; }
+    body{ margin:0; background:#fafafa; color:var(--hm-text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
+    .wrap{ max-width:1200px; margin:12px auto; padding:0 12px; }
+    .card{ background:#fff; border:1px solid var(--hm-border); border-radius:16px; padding:18px; }
+    .status{ display:flex; align-items:center; gap:10px; font-weight:700; }
+    .ok{ color:#065f46; } .warn{ color:#92400e; } .err{ color:#7f1d1d; }
+    .muted{ color:var(--hm-muted); }
+    .hm-footer{ background:#fff; border-top:1px solid var(--hm-border); margin-top:18px }
+    .hm-footer .footer-wrap{ max-width:1200px; margin:0 auto; padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between }
+    .hm-footer .footer-links a{ color:#4b5563 }
+  </style>
+</head>
+<body>
+
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <a class="hm-brand" href="index.html">Hemline Market</a>
+    </div>
+    <div class="right">
+      <a class="hm-icon" href="browse.html" aria-label="Browse">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html">AA</a>
+      <a class="hm-btn-primary" href="sell.html">Sell</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <h1>Order status</h1>
+  <section class="card">
+    <div id="status" class="status muted">Checking payment status…</div>
+    <p id="details" class="muted" style="margin-top:8px"></p>
+    <div style="margin-top:14px">
+      <a href="index.html" class="hm-link">Back to home</a>
+    </div>
+  </section>
+</div>
+
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(async function(){
+  const stripe = Stripe("pk_live_51Rx9wcFi9JRhHIdilaCZYt1NWKVQZNeG5gCMLEHmh7Wf1udmexaBQNLNv9hTZH3V3Ah2dTmuB0e6s5nT36CWqMLG003wl8DtPq");
+
+  // Read client secret from URL: ?payment_intent_client_secret=...
+  const params = new URLSearchParams(window.location.search);
+  const clientSecret = params.get("payment_intent_client_secret");
+
+  const statusEl = document.getElementById("status");
+  const detailsEl = document.getElementById("details");
+
+  if (!clientSecret) {
+    statusEl.textContent = "Missing payment information.";
+    statusEl.className = "status err";
+    return;
+  }
+
+  const {paymentIntent} = await stripe.retrievePaymentIntent(clientSecret);
+  switch (paymentIntent.status) {
+    case "succeeded":
+      statusEl.textContent = "Payment successful. Thank you!";
+      statusEl.className = "status ok";
+      detailsEl.textContent = `Confirmation: ${paymentIntent.id}`;
+      break;
+    case "processing":
+      statusEl.textContent = "Payment is processing…";
+      statusEl.className = "status warn";
+      break;
+    case "requires_payment_method":
+      statusEl.textContent = "Payment failed. Please try another method.";
+      statusEl.className = "status err";
+      break;
+    default:
+      statusEl.textContent = "Payment status: " + paymentIntent.status;
+      statusEl.className = "status warn";
+  }
+
+  // Optional avatar load
+  const avatar = document.getElementById("avatar");
+  try { const url = localStorage.getItem("avatarUrl"); if (url) { avatar.textContent=''; avatar.style.backgroundImage = "url('"+url+"')"; } } catch(e){}
+})();
+</script>
 </body>
+</html>
