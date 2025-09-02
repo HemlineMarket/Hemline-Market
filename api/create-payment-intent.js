@@ -1,22 +1,21 @@
-// Vercel serverless function
-import Stripe from "stripe";
+// /api/create-payment-intent.js  (Vercel Serverless Function - CommonJS)
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
-});
-
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end();
+module.exports = async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).end();
+    return;
+  }
 
   try {
-    // TODO: compute amount server-side from your cart/session
-    const amount = 8600; // $86.00 (cents) — placeholder for now
+    // TODO: replace with your server-side cart total (in cents)
+    const amount = 8600; // $86.00
 
     const intent = await stripe.paymentIntents.create({
       amount,
       currency: "usd",
       automatic_payment_methods: { enabled: true },
-      metadata: { source: "hemlinemarket-web", cart_example: "demo" },
+      metadata: { source: "hemlinemarket-web" },
     });
 
     res.status(200).json({ clientSecret: intent.client_secret });
@@ -24,4 +23,4 @@ export default async function handler(req, res) {
     console.error(err);
     res.status(400).json({ error: err.message });
   }
-}
+};
