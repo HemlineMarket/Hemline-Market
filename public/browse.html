@@ -792,38 +792,44 @@
     return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
   }
 
-  function render(){
-    const match=ALL.filter(toFilters());
-    resultCount.textContent = match.length + (match.length===1 ? ' result' : ' results');
-    grid.innerHTML='';
-    if(match.length===0){ empty.style.display='block'; return; }
-    empty.style.display='none';
-    match.forEach(it=>{
-      const id = it.id || it.sku || it.slug || slugify(it.title);
-      const cents = Math.round(Number(it.price||0)*100);
-      const img = it.photo || '';
-      const url = it.url || '#';
+<script>
+// REPLACE your existing render() with this one.
+function render(){
+  const match = ALL.filter(toFilters());
+  resultCount.textContent = match.length + (match.length===1 ? ' result' : ' results');
+  grid.innerHTML = '';
+  if (match.length === 0) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
 
-      const a=document.createElement('article'); a.className='card';
-      a.innerHTML=`
-        <div class="ph">${it.photo ? '' : 'photo'}</div>
-        <div class="meta">
-          <div class="title">${it.title}</div>
-          <div class="sub"><span>$${it.price}/yd</span><span>${it.width}″ • ${it.gsm} GSM</span></div>
-          <button class="add-btn"
-            data-add-to-cart
-            data-id="${id}"
-            data-name="${it.title.replace(/"/g,'&quot;')}"
-            data-price="${cents}"
-            data-currency="usd"
-            data-image="${img}"
-            data-url="${url}"
-            data-qty="1"
-          >Add to Cart</button>
-        </div>`;
-      grid.appendChild(a);
-    });
-  }
+  // Build cards with a data-id and make the whole card clickable (except the Buy button)
+  match.forEach(it=>{
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.dataset.id = it.id || it.slug || it.title; // fallbacks
+    card.innerHTML = `
+      <div class="ph">${it.photo ? '' : 'photo'}</div>
+      <div class="meta">
+        <div class="title">${it.title}</div>
+        <div class="sub"><span>$${it.price}/yd</span><span>${it.width}″ • ${it.gsm} GSM</span></div>
+        <button class="buy-btn" data-name="${it.title}" data-amount="${Math.round(it.price*100)}">
+          Add to Cart – $${it.price}
+        </button>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  // Click anywhere on the card (except the Buy button) to go to a details page
+  grid.onclick = (e)=>{
+    const btn = e.target.closest('.buy-btn');
+    if (btn) return; // let the Add-to-Cart handler run
+    const card = e.target.closest('.card');
+    if (!card) return;
+    const id = card.dataset.id || '';
+    // Navigate to a product detail page (we'll add this page next)
+    window.location.href = `/product.html?id=${encodeURIComponent(id)}`;
+  };
+}
+</script>
 
   /* Desktop Buttons */
   document.getElementById('apply').addEventListener('click',()=>{
