@@ -1,16 +1,39 @@
-// api/checkout/stripe.js
-import Stripe from "stripe";
+// api/checkout/stripe.js (CommonJS)
+const Stripe = require("stripe");
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
+async function readJson(req) {
+  if (req.body) return req.body; // Next.js-style
+  return await new Promise((resolve) => {
+    let data = "";
+    req.on("data", (c) => (data += c));
+    req.on("end", () => {
+      try { resolve(JSON.parse(data || "{}")); }
+      catch { resolve({}); }
+    });
+  });
+}
 
-  const { name, amount } = req.body || {};
-  if (!name || !Number.isInteger(amount) || amount <= 0) {
-    return res.status(400).json({ error: "Invalid payload" });
+module.exports = async (req, res) => {
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    return res.status(204).end();
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+    const { name, amount } = await readJson(req);
+    if (!name || !Number.isInteger(amount) || amount <= 0) {
+      return res.status(400).json({ error: "Invalid payload" });
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2024-06-20",
+    });
 
     const origin = req.headers.origin || `https://${req.headers.host}`;
     const session = await stripe.checkout.sessions.create({
@@ -37,4 +60,4 @@ export default async function handler(req, res) {
     console.error(err);
     return res.status(500).json({ error: "Stripe error" });
   }
-}
+};
