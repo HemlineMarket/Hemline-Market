@@ -21,15 +21,16 @@
     .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px}
     .card h2{margin:0 0 12px;font-size:18px}
     .row{display:flex;gap:12px}
-    .row > *{flex:1}
+    .row>*{flex:1}
     .muted{color:#6b7280}
-    .total{display:flex;justify-content:space-between;margin-top:12px;font-weight:600}
+    .line{height:1px;background:#e5e7eb;margin:12px 0}
+    .total{display:flex;justify-content:space-between;margin-top:8px;font-weight:600}
     .btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:999px;border:1px solid transparent;background:#991b1b;color:#fff;text-decoration:none}
     .btn:focus,.btn:hover{filter:brightness(0.96)}
     .btn-outline{background:#fff;color:#991b1b;border-color:#e5e7eb}
-    .line{height:1px;background:#e5e7eb;margin:12px 0}
-    .item{display:flex;gap:12px;align-items:center}
+    input,select{height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px;width:100%}
     .thumb{width:56px;height:56px;border-radius:10px;background:#f3f4f6;border:1px solid #e5e7eb}
+    .item{display:flex;gap:12px;align-items:center}
     .grow{flex:1}
   </style>
 </head>
@@ -86,30 +87,32 @@
     <div class="container">
       <h1>Checkout</h1>
       <div class="grid">
-        <!-- Left: shipping + email -->
+        <!-- Left: contact + shipping -->
         <section class="card">
           <h2>Contact & Shipping</h2>
           <div class="row">
             <div>
               <label class="muted">Email</label>
-              <input type="email" placeholder="you@example.com" style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px"/>
+              <input type="email" placeholder="you@example.com" autocomplete="email"/>
             </div>
             <div>
               <label class="muted">Phone (optional)</label>
-              <input type="tel" placeholder="(555) 555-5555" style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px"/>
+              <input type="tel" placeholder="(555) 555-5555" autocomplete="tel"/>
             </div>
           </div>
+
           <div class="row" style="margin-top:12px">
-            <input placeholder="Address line 1" style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px"/>
+            <input placeholder="Address line 1" autocomplete="address-line1"/>
           </div>
           <div class="row" style="margin-top:12px">
-            <input placeholder="Address line 2 (optional)" style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px"/>
+            <input placeholder="Address line 2 (optional)" autocomplete="address-line2"/>
           </div>
           <div class="row" style="margin-top:12px">
-            <input placeholder="City" style="height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px"/>
-            <input placeholder="State" style="height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px"/>
-            <input placeholder="ZIP" style="height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px"/>
+            <input placeholder="City" autocomplete="address-level2"/>
+            <input placeholder="State" autocomplete="address-level1"/>
+            <input placeholder="ZIP" autocomplete="postal-code"/>
           </div>
+
           <div style="margin-top:16px">
             <a class="btn-outline" href="cart.html">Back to cart</a>
           </div>
@@ -119,7 +122,7 @@
         <aside class="card">
           <h2>Order summary</h2>
 
-          <!-- Example item rows; replace with dynamic later -->
+          <!-- Static example items (replace with dynamic later) -->
           <div class="item">
             <div class="thumb" aria-hidden="true"></div>
             <div class="grow">
@@ -154,7 +157,7 @@
     </div>
   </main>
 
-  <!-- FOOTER (canonical) -->
+  <!-- FOOTER -->
   <footer class="hm-footer" role="contentinfo">
     <div class="wrap">
       <div>© 2025 Hemline Market</div>
@@ -182,60 +185,5 @@
       document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
     })();
   </script>
-  <script>
-/* Hemline Market — Cart → Checkout harden
-   Goal: ensure any Checkout button/link goes to checkout.html
-   without popups or JS bounce-backs. Non-destructive add-on. */
-(function () {
-  // Helper: send user to checkout
-  function goCheckout() {
-    window.location.href = 'checkout.html';
-  }
-
-  // Collect likely Checkout controls
-  const candidates = Array.from(document.querySelectorAll('a, button'))
-    .filter(el => {
-      const id = (el.id || '').toLowerCase();
-      const role = (el.getAttribute('role') || '').toLowerCase();
-      const data = (el.dataset.action || '').toLowerCase();
-      const text = (el.textContent || '').trim().toLowerCase();
-      return (
-        id === 'checkout' ||
-        id === 'checkoutbtn' ||
-        role === 'checkout' ||
-        data === 'checkout' ||
-        /checkout/.test(text)
-      );
-    });
-
-  // Normalize behavior for each candidate
-  candidates.forEach(el => {
-    try {
-      // Remove any inline onclick that might alert() or reroute
-      el.removeAttribute && el.removeAttribute('onclick');
-
-      if (el.tagName === 'A') {
-        // Make it a plain link to checkout.html
-        el.setAttribute('href', 'checkout.html');
-        // Stop any previously attached handlers from canceling navigation
-        el.addEventListener('click', function (e) {
-          e.stopImmediatePropagation();
-          // Let default link navigation proceed (no preventDefault)
-        }, { capture: true });
-      } else {
-        // For <button> etc., attach a clean click handler
-        el.addEventListener('click', function (e) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          goCheckout();
-        }, { capture: true });
-      }
-    } catch (_) { /* ignore */ }
-  });
-
-  // Backstop: if some code still calls window.checkout(), make it navigate.
-  try { window.checkout = goCheckout; } catch (_) {}
-})();
-</script>
 </body>
 </html>
