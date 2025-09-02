@@ -1,41 +1,41 @@
-// /api/stripe.js  (repo root)
-const Stripe = require('stripe');
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+import { buffer } from "micro";
+import Stripe from "stripe";
 
-async function readBuffer(req) {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
-}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2025-07-30.basil",
+});
 
-module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).send('Method Not Allowed');
+export const config = {
+  api: {
+    bodyParser: false, // Stripe requires raw body
+  },
+};
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).send("Method Not Allowed");
   }
+
+  const sig = req.headers["stripe-signature"];
 
   let event;
   try {
-    const buf = await readBuffer(req);
-    const sig = req.headers['stripe-signature'];
+    const buf = await buffer(req);
     event = stripe.webhooks.constructEvent(
       buf,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET // whsec_...
+      process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error('Signature verification failed:', err.message);
+    console.error("Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type === 'checkout.session.completed') {
+  // Handle checkout.session.completed
+  if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    console.log('✅ checkout.session.completed', session.id);
-  } else {
-    console.log('ℹ️ event:', event.type);
+    console.log("✅ Checkout session completed:", session.id);
   }
 
-  return res.status(200).json({ received: true });
-};
+  res.json({ received: true });
+}
