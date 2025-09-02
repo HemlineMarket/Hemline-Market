@@ -2,9 +2,7 @@ import Stripe from 'stripe';
 import { buffer } from 'micro';
 
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  api: { bodyParser: false },
 };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -30,7 +28,6 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the event
   switch (event.type) {
     case 'checkout.session.completed':
       console.log('✅ Payment success:', event.data.object);
