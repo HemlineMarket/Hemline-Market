@@ -29,6 +29,9 @@
     .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
     .sheet nav a+a{margin-top:8px}
     .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
+    .sheet .actions{margin:10px;padding:10px;border-top:1px solid var(--hm-border);display:flex;justify-content:space-between;gap:8px}
+    .btn{border:1px solid var(--hm-border);background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer}
+    .btn.primary{background:var(--hm-accent);color:#fff;border-color:var(--hm-accent)}
 
     .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
     .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
@@ -101,6 +104,10 @@
     <a href="sell.html">Sell Fabric</a>
     <a href="contact.html">Contact</a>
   </nav>
+  <div class="actions">
+    <a class="btn" href="account.html">Account</a>
+    <button id="menuLogout" class="btn">Sign out</button>
+  </div>
 </aside>
 
 <main class="wrap">
@@ -162,23 +169,24 @@
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  (async ()=>{
+  async function fillUser(){
     const { data:{ session } } = await supabase.auth.getSession();
     if(!session?.user){ window.location.href="auth.html"; return; }
     const email = session.user.email || "";
-    // header welcome + avatar initials
     document.getElementById('who').textContent = email;
+    document.getElementById('menuEmail').textContent = email;
     const avatar = document.getElementById('avatar');
     if(avatar){ avatar.textContent = initialsFrom(email); avatar.style.backgroundImage=''; }
-    // menu sheet email line
-    const me = document.getElementById('menuEmail');
-    if(me) me.textContent = email;
-  })();
+  }
 
-  document.getElementById('logout').onclick = async ()=>{
+  fillUser();
+
+  async function doLogout(){
     await supabase.auth.signOut();
     window.location.href = "auth.html";
-  };
+  }
+  document.getElementById('logout').onclick = doLogout;
+  document.getElementById('menuLogout').onclick = doLogout;
 </script>
 </body>
 </html>
