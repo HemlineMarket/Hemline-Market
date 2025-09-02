@@ -129,6 +129,15 @@
     <a class="card" href="messages.html"><h3>Messages</h3><p>Talk with buyers and sellers</p></a>
     <a class="card" href="favorites.html"><h3>Favorites</h3><p>Saved fabrics you like</p></a>
   </section>
+
+  <!-- Tiny test checkout button (keeps layout intact) -->
+  <div style="margin:20px 0 8px; text-align:center;">
+    <button id="checkout-button" style="
+      background:#991b1b; color:#fff; border:none;
+      padding:12px 20px; border-radius:8px; font-weight:700; cursor:pointer;">
+      Test Checkout
+    </button>
+  </div>
 </main>
 
 <footer class="hm-footer" role="contentinfo">
@@ -187,6 +196,22 @@
   }
   document.getElementById('logout').onclick = doLogout;
   document.getElementById('menuLogout').onclick = doLogout;
+</script>
+
+<!-- Stripe (for the test button redirect) -->
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+  const checkoutBtn = document.getElementById("checkout-button");
+  checkoutBtn.addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/create-checkout-session", { method: "POST" });
+      const data = await res.json();
+      if (data?.url) window.location.href = data.url;
+      else alert("Could not start checkout.");
+    } catch (e) {
+      alert("Checkout error.");
+    }
+  });
 </script>
 </body>
 </html>
