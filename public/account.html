@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Account — Hemline Market</title>
   <style>
-    :root{--hm-border:#e5e7eb;--hm-accent:#991b1b;--ink:#111827;--muted:#6b7280}
-    html,body{margin:0;max-width:100%;overflow-x:hidden;background:#fafafa;color:var(--ink);
+    :root{--hm-border:#e5e7eb;--hm-accent:#991b1b;--ink:#111827;--muted:#6b7280;--card:#fff;--bg:#fafafa}
+    html,body{margin:0;max-width:100%;overflow-x:hidden;background:var(--bg);color:var(--ink);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .wrap{max-width:1200px;margin:0 auto;padding:0 12px}
 
-    /* Header / footer (canonical) */
+    /* header/footer (match working pages) */
     .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
     .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
-    .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
+    .hm-brand{font-size:24px;font-weight:800;color:#991b1b;text-decoration:none}
     .right{display:flex;align-items:center;gap:14px}
     .hamburger{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
     .hamburger svg{width:26px;height:26px;stroke-width:2.5}
@@ -39,17 +39,20 @@
     .hm-footer .footer-links a{color:#4b5563;text-decoration:none}
     .hm-footer .footer-links a:hover{text-decoration:underline}
 
-    /* Page content */
-    .pagehead{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:16px 0}
-    .pagehead h1{margin:0;font-size:22px}
+    /* account */
+    h1{font-size:22px;margin:16px 0 8px}
     .muted{color:var(--muted)}
-    .panel{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:16px;margin:16px 0}
-    .grid{display:grid;gap:12px}
-    label{font-weight:600}
-    input{padding:12px;border:1px solid var(--hm-border);border-radius:10px;font:inherit;width:100%}
-    .actions{display:flex;gap:8px;align-items:center}
-    .save{background:var(--hm-accent);color:#fff;border:0;border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:700}
-    .note{font-size:13px;color:var(--muted)}
+    .grid{display:grid;gap:12px;margin:16px 0}
+    @media(min-width:880px){.grid{grid-template-columns:1fr 1fr}}
+    .card{background:var(--card);border:1px solid var(--hm-border);border-radius:12px;padding:16px}
+    .card h2{font-size:16px;margin:0 0 10px}
+    label{font-size:12px;font-weight:600;color:#374151;display:block;margin:10px 0 6px}
+    input,select{width:100%;padding:12px;border:1px solid var(--hm-border);border-radius:8px;background:#fff}
+    .row{display:grid;gap:10px}
+    @media(min-width:560px){.row{grid-template-columns:1fr 1fr}}
+    .actions{display:flex;gap:10px;align-items:center;margin-top:10px}
+    .note{font-size:12px;color:var(--muted)}
+    .ok{color:#0a7a28}.err{color:#b00020}
   </style>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
@@ -112,27 +115,65 @@
 </aside>
 
 <main class="wrap">
-  <div class="pagehead">
-    <div>
-      <h1>Account</h1>
-      <div class="muted">Profile & sign-in settings</div>
-    </div>
-  </div>
+  <h1>Account</h1>
+  <div class="muted">Profile &amp; sign-in settings</div>
 
-  <section class="panel">
-    <div class="grid">
-      <div>
-        <label>Email</label>
-        <input id="email" type="email" disabled>
-        <div class="note">Email comes from your login provider.</div>
-      </div>
-
+  <div class="grid">
+    <section class="card">
+      <h2>Sign-in</h2>
+      <label>Email</label>
+      <input id="email" type="email" disabled>
       <div class="actions">
-        <button id="save" class="save" disabled>Save changes</button>
-        <span id="msg" class="note">Nothing to save.</span>
+        <button id="changePw" class="btn">Change password</button>
+        <span id="pwMsg" class="note"></span>
       </div>
-    </div>
-  </section>
+      <div class="note">Email comes from your login provider.</div>
+    </section>
+
+    <section class="card">
+      <h2>Profile</h2>
+      <label for="displayName">Display name</label>
+      <input id="displayName" type="text" placeholder="e.g., Roza A.">
+      <label for="company">Business / Studio</label>
+      <input id="company" type="text" placeholder="e.g., LoomLab">
+      <div class="actions">
+        <button id="saveProfile" class="btn primary">Save changes</button>
+        <span id="saveMsg" class="note"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Shipping address</h2>
+      <label for="addr1">Address line 1</label>
+      <input id="addr1" type="text" placeholder="Street address">
+      <label for="addr2">Address line 2</label>
+      <input id="addr2" type="text" placeholder="Apt / Suite (optional)">
+      <div class="row">
+        <div>
+          <label for="city">City</label>
+          <input id="city" type="text">
+        </div>
+        <div>
+          <label for="state">State</label>
+          <input id="state" type="text" maxlength="2" placeholder="NH">
+        </div>
+      </div>
+      <label for="zip">ZIP</label>
+      <input id="zip" type="text" maxlength="10">
+      <div class="actions">
+        <button id="saveAddress" class="btn">Save address</button>
+        <span id="addrMsg" class="note"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Payouts</h2>
+      <div class="note">Connect payouts (Stripe) coming in a later step.</div>
+      <div class="actions">
+        <button class="btn" disabled>Manage payouts</button>
+      </div>
+    </section>
+  </div>
 </main>
 
 <footer class="hm-footer" role="contentinfo">
@@ -168,28 +209,81 @@
   function initialsFrom(email){
     if(!email) return "AA";
     const name = email.split("@")[0].replace(/[\.\_\-]+/g," ").trim();
-    const parts = name.split(" ").filter(Boolean);
-    if(parts.length===1) return (parts[0][0] + parts[0].slice(1,2)).toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
+    const p = name.split(" ").filter(Boolean);
+    if(p.length===1) return (p[0][0] + p[0].slice(1,2)).toUpperCase();
+    return (p[0][0] + p[1][0]).toUpperCase();
   }
 
-  async function guard(){
+  async function guardAndLoad(){
     const { data:{ session } } = await supabase.auth.getSession();
     if(!session?.user){ window.location.href="auth.html"; return; }
-    const email = session.user.email || "";
+
+    const user = session.user;
+    const email = user.email || "";
+    const md   = user.user_metadata || {};
+
+    // header/menu bits
     document.getElementById('menuEmail').textContent = email;
     const avatar = document.getElementById('avatar');
     if(avatar){ avatar.textContent = initialsFrom(email); avatar.style.backgroundImage=''; }
+
+    // populate form
     document.getElementById('email').value = email;
+    document.getElementById('displayName').value = md.display_name || "";
+    document.getElementById('company').value     = md.company || "";
+    document.getElementById('addr1').value       = md.addr1 || "";
+    document.getElementById('addr2').value       = md.addr2 || "";
+    document.getElementById('city').value        = md.city  || "";
+    document.getElementById('state').value       = md.state || "";
+    document.getElementById('zip').value         = md.zip   || "";
   }
 
-  guard();
+  guardAndLoad();
 
-  async function doLogout(){
+  // Save: profile
+  document.getElementById('saveProfile').onclick = async ()=>{
+    const display_name = document.getElementById('displayName').value.trim();
+    const company = document.getElementById('company').value.trim();
+    const msg = document.getElementById('saveMsg');
+    msg.textContent = "Saving…";
+    const { error } = await supabase.auth.updateUser({ data:{ display_name, company } });
+    msg.textContent = error ? ("Error: "+error.message) : "Saved ✓";
+    msg.className = "note " + (error ? "err":"ok");
+    if(!error){
+      // also refresh initials if name present in email spot? (keep email avatar)
+    }
+  };
+
+  // Save: address
+  document.getElementById('saveAddress').onclick = async ()=>{
+    const addr1=document.getElementById('addr1').value.trim();
+    const addr2=document.getElementById('addr2').value.trim();
+    const city =document.getElementById('city').value.trim();
+    const state=document.getElementById('state').value.trim();
+    const zip  =document.getElementById('zip').value.trim();
+    const msg = document.getElementById('addrMsg');
+    msg.textContent = "Saving…";
+    const { error } = await supabase.auth.updateUser({ data:{ addr1,addr2,city,state,zip } });
+    msg.textContent = error ? ("Error: "+error.message) : "Saved ✓";
+    msg.className = "note " + (error ? "err":"ok");
+  };
+
+  // Password reset
+  document.getElementById('changePw').onclick = async ()=>{
+    const email = document.getElementById('email').value;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/auth.html"
+    });
+    const pwMsg = document.getElementById('pwMsg');
+    pwMsg.textContent = error ? ("Error: "+error.message) : "Check your email for a secure reset link.";
+    pwMsg.className = "note " + (error ? "err":"ok");
+  };
+
+  // Menu sign out
+  document.getElementById('menuLogout').onclick = async ()=>{
     await supabase.auth.signOut();
     window.location.href = "auth.html";
-  }
-  document.getElementById('menuLogout').onclick = doLogout;
+  };
 </script>
 </body>
 </html>
