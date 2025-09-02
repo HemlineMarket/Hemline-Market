@@ -508,17 +508,28 @@
     history.replaceState(null,'','?'+params.toString()); syncChips(); render();
   });
 
-  /* Swatch handling */
+    /* Swatch handling (multi-select, OR logic) */
   function toggleSwatch(sw){
     if(!sw || !sw.classList.contains('sw')) return;
-    if(sw.dataset.selected) sw.removeAttribute('data-selected'); else sw.dataset.selected='true';
-    const picked=[...colorBox.querySelectorAll('.sw[data-selected="true"]')].map(s=>s.dataset.name);
-    if(picked.length) params.set('colors',picked.join(',')); else params.delete('colors');
+    if(sw.dataset.selected) sw.removeAttribute('data-selected');
+    else sw.dataset.selected = 'true';
+
+    // collect all selected colors and write to URL params
+    const picked = [...colorBox.querySelectorAll('.sw[data-selected="true"]')]
+      .map(s=>s.dataset.name);
+    if (picked.length) params.set('colors', picked.join(','));
+    else params.delete('colors');
+
     history.replaceState(null,'','?'+params.toString());
-    syncChips(); render();
+    syncChips();
+    render();
   }
-  colorBox.addEventListener('pointerdown', (e)=>{ const sw=e.target.closest('.sw'); if(sw){ e.preventDefault(); toggleSwatch(sw); } }, {passive:false});
-  colorBox.addEventListener('click', (e)=>{ const sw=e.target.closest('.sw'); if(sw){ toggleSwatch(sw); } });
+
+  // IMPORTANT: single click handler only (remove pointerdown to avoid double toggles)
+  colorBox.addEventListener('click', (e)=>{
+    const sw = e.target.closest('.sw');
+    if(sw){ toggleSwatch(sw); }
+  }, {passive:true});
 
   /* Filter predicate */
   function toFilters(){
