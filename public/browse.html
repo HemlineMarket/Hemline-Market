@@ -723,5 +723,58 @@
   load();
 })();
 </script>
+  <script>
+/* Minimal cart: adds items to localStorage and updates the badge */
+(function () {
+  const badge = document.querySelector('[data-cart-badge]');
+
+  function readCart() {
+    try { return JSON.parse(localStorage.getItem('hm_cart') || '[]'); }
+    catch (_) { return []; }
+  }
+  function writeCart(items) {
+    localStorage.setItem('hm_cart', JSON.stringify(items));
+    updateBadge(items);
+  }
+  function updateBadge(items = readCart()) {
+    if (!badge) return;
+    const n = items.reduce((sum, i) => sum + (i.qty || 1), 0);
+    if (n > 0) { badge.textContent = n; badge.style.display = 'inline-flex'; }
+    else { badge.textContent = ''; badge.style.display = 'none'; }
+  }
+  updateBadge();
+
+  // Delegate clicks for any ".add-to-cart" button
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.add-to-cart');
+    if (!btn) return;
+    e.preventDefault();
+
+    btn.disabled = true;
+    try {
+      const card = btn.closest('.card');
+      const id = card?.dataset.id || btn.dataset.name || 'item';
+      const name = btn.dataset.name || 'Fabric';
+      const amount = parseInt(btn.dataset.amount || '0', 10); // cents
+
+      const cart = readCart();
+      const idx = cart.findIndex(x => x.id === id);
+      if (idx >= 0) cart[idx].qty = (cart[idx].qty || 1) + 1;
+      else cart.push({ id, name, amount, qty: 1 });
+
+      writeCart(cart);
+
+      const original = btn.textContent;
+      btn.textContent = 'Added ✓';
+      setTimeout(() => { btn.textContent = original; }, 1200);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // expose so other pages (cart.html) can update the badge after changes
+  window.HM_CART_BADGE_UPDATE = updateBadge;
+})();
+</script>
 </body>
 </html>
