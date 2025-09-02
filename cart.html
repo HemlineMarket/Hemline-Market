@@ -140,6 +140,98 @@
         if(avatar){ avatar.addEventListener("click", e => e.preventDefault()); }
       }
     })();
-  </script>
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const listEl = document.getElementById('cartList');
+  const subtotalEl = document.getElementById('subtotal');
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  const continueBtn = document.getElementById('continueBtn');
+
+  function fmt(cents){ return '$' + (cents/100).toFixed(2); }
+
+  function render(){
+    const items = window.Cart.get();
+    listEl.innerHTML = '';
+    if (!items.length){
+      listEl.innerHTML = '<p>Your cart is empty.</p>';
+      subtotalEl.textContent = fmt(0);
+      checkoutBtn.disabled = true;
+    } else {
+      items.forEach(it=>{
+        const row = document.createElement('div');
+        row.className = 'cart-row';
+        row.innerHTML = `
+          <div class="info">
+            <div class="title">${it.name}</div>
+            <div class="price">${fmt(it.price)}</div>
+          </div>
+          <div class="qty">
+            <button class="dec" aria-label="Decrease">−</button>
+            <span class="q">${it.quantity}</span>
+            <button class="inc" aria-label="Increase">+</button>
+          </div>
+          <div class="line">${fmt(it.price * it.quantity)}</div>
+          <button class="remove" aria-label="Remove">Remove</button>
+        `;
+        // qty handlers
+        row.querySelector('.inc').addEventListener('click', ()=>{ Cart.setQty(it.id, it.quantity+1); render(); });
+        row.querySelector('.dec').addEventListener('click', ()=>{ Cart.setQty(it.id, Math.max(0, it.quantity-1)); render(); });
+        row.querySelector('.remove').addEventListener('click', ()=>{ Cart.remove(it.id); render(); });
+        listEl.appendChild(row);
+      });
+      subtotalEl.textContent = fmt(Cart.totalCents());
+      checkoutBtn.disabled = false;
+    }
+    // keep the header badge in sync
+    if (window.HM_CART_BADGE_UPDATE) window.HM_CART_BADGE_UPDATE();
+  }
+
+  // CONTINUE SHOPPING → back to browse
+  continueBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    window.location.href = 'browse.html';
+  });
+
+  // CHECKOUT
+  checkoutBtn.addEventListener('click', async ()=>{
+    const items = Cart.get();
+    if (!items.length) return;
+    checkoutBtn.disabled = true;
+    checkoutBtn.textContent = 'Processing…';
+    try{
+      // minimal payload your server can accept
+      const payload = {
+        items: items.map(i=>({
+          id: i.id,
+          name: i.name,
+          amount: i.price,       // cents
+          quantity: i.quantity,
+          currency: i.currency
+        }))
+      };
+      const res = await fetch('/api/checkout/stripe', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(()=> ({}));
+      if (res.ok && data.url){
+        window.location.href = data.url;  // Stripe hosted checkout
+      } else {
+        alert(data.error || 'Could not start checkout.');
+      }
+    } catch(err){
+      alert('Could not start checkout.');
+    } finally{
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = 'Checkout';
+    }
+  });
+
+  // initial render
+  render();
+})();
+</script>
 </body>
 </html>
