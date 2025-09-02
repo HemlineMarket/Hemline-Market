@@ -1,8 +1,7 @@
-<!-- File: public/dashboard.html -->
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- MOBILE HOTFIX (match FAQ) -->
+  <!-- MOBILE HOTFIX (same as FAQ) -->
   <style id="hm-mobile-hotfix">
     html, body { max-width:100%; overflow-x:hidden; }
     .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
@@ -15,27 +14,23 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Dashboard — Hemline Market</title>
 
-  <!-- Shared site styles (FAQ canonical) -->
+  <!-- Shared site styles (exactly like FAQ) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
   <style>
-    :root{ --hm-accent:#991b1b; --hm-border:#e5e7eb; --hm-muted:#6b7280; }
-    body{margin:0;background:#fafafa;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+    :root{ --hm-border:#e5e7eb; }
+    body{margin:0;background:#fafafa}
     .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
-    .panel{max-width:820px;margin:24px auto;background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:18px}
-    .row{display:flex;gap:10px;align-items:center;justify-content:space-between}
-    .muted{color:var(--hm-muted)}
-    .btn{padding:10px 14px;border-radius:8px;border:1px solid var(--hm-border);background:#fff;cursor:pointer}
-    .btn.primary{background:var(--hm-accent);color:#fff;border-color:var(--hm-accent)}
+    .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:16px}
+    .row{display:grid;gap:10px}
   </style>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
-
 <!-- HEADER (FAQ canonical) -->
 <header class="hm-header" role="banner">
   <div class="wrap">
@@ -98,30 +93,19 @@
   </nav>
 </aside>
 
-<!-- MAIN -->
 <main class="wrap">
-  <div class="panel">
-    <div class="row">
-      <div>
-        <h2 style="margin:0;">Welcome back 👋</h2>
-        <p id="who" class="muted" style="margin:.25rem 0 0;">Loading…</p>
-      </div>
-      <button id="logout" class="btn">Log out</button>
-    </div>
-
-    <hr style="margin:16px 0;border:none;border-top:1px solid var(--hm-border)"/>
-
-    <div class="row">
-      <div>
-        <strong>Your Atelier</strong>
-        <div class="muted">List new fabrics, track sales, and keep your stash tidy.</div>
-      </div>
-      <a class="btn primary" href="sell.html">List a Fabric</a>
+  <h1>Dashboard</h1>
+  <div class="card row">
+    <div><strong>Welcome back</strong> 👋</div>
+    <div id="dash-email" style="color:#6b7280"></div>
+    <div class="row" style="grid-auto-flow:column;grid-auto-columns:max-content;gap:8px">
+      <a class="hm-btn-primary" href="seller/index.html?list=new" style="text-decoration:none;padding:10px 14px;border-radius:10px">List a Fabric</a>
+      <button id="btn-logout" class="hm-btn-secondary" style="padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;background:#fff">Log out</button>
     </div>
   </div>
 </main>
 
-<!-- FOOTER -->
+<!-- FOOTER (FAQ canonical) -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -135,9 +119,8 @@
   </div>
 </footer>
 
-<!-- Scripts -->
 <script>
-  /* Menu sheet behavior */
+  // Menu (same as FAQ)
   (function(){
     const sheet=document.getElementById("menuSheet");
     const openBtn=document.getElementById("openMenu");
@@ -148,32 +131,25 @@
     if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
     document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
   })();
-</script>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script>
+  // Supabase
   const supabase = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
   );
 
-  // Gate: if no session → send to auth
-  (async function guard(){
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session || !session.user) {
-      location.href = "auth.html";
-      return;
-    }
-    // show who
-    const who = document.getElementById('who');
-    if (who) who.textContent = session.user.email || "Signed in";
+  // Guard: if no session, send to auth
+  (async () => {
+    const { data:{session} } = await supabase.auth.getSession();
+    if (!session?.user) { window.location.href = "auth.html"; return; }
+    document.getElementById('dash-email').textContent = session.user.email;
   })();
 
-  // Log out
-  document.getElementById('logout').addEventListener('click', async ()=>{
+  // Logout
+  document.getElementById('btn-logout').onclick = async ()=>{
     await supabase.auth.signOut();
-    location.href = "auth.html";
-  });
+    window.location.href = "auth.html";
+  };
 </script>
 </body>
 </html>
