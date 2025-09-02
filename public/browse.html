@@ -139,6 +139,12 @@
     .meta{padding:8px 10px}
     .meta .title{font-weight:700}
     .meta .sub{display:flex;justify-content:space-between;color:#6b7280;margin-top:6px}
+    .buy-btn{
+      width:100%; margin-top:10px; padding:10px 12px;
+      border-radius:10px; border:1px solid var(--hm-accent);
+      background:var(--hm-accent); color:#fff; font-weight:700; cursor:pointer;
+    }
+    .buy-btn[disabled]{opacity:.6; cursor:not-allowed;}
 
     /* ===== MOBILE FILTER SIDE SHEET ===== */
     .hm-filter-sheet {
@@ -237,30 +243,23 @@
     </div>
 
     <div class="right">
-      <!-- Search → browse.html -->
       <a class="hm-icon" href="browse.html" aria-label="Browse & search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="M21 21l-4.3-4.3"></path>
         </svg>
       </a>
-
-      <!-- Favorites -->
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
         </svg>
       </a>
-
-      <!-- Notifications -->
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
       </a>
-
-      <!-- Cart -->
       <a class="hm-icon" href="cart.html" aria-label="Cart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9"  cy="21" r="1"></circle>
@@ -268,8 +267,6 @@
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-
-      <!-- Avatar & Sell -->
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
@@ -287,14 +284,14 @@
       </svg>
     </button>
   </header>
-<nav>
-  <a href="browse.html">Browse</a>
-  <a href="atelier.html">My Atelier</a>
-  <a href="orders.html">Orders</a>
-  <a href="favorites.html">Favorites</a>
-  <a href="account.html">Account</a>
-  <a href="help.html">Help</a>
-</nav>
+  <nav>
+    <a href="browse.html">Browse</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="orders.html">Orders</a>
+    <a href="favorites.html">Favorites</a>
+    <a href="account.html">Account</a>
+    <a href="help.html">Help</a>
+  </nav>
 </aside>
 
 <div class="wrap">
@@ -789,6 +786,9 @@
         <div class="meta">
           <div class="title">${it.title}</div>
           <div class="sub"><span>$${it.price}/yd</span><span>${it.width}″ • ${it.gsm} GSM</span></div>
+          <button class="buy-btn" data-name="${it.title}" data-amount="${Math.round(it.price*100)}">
+            Buy – $${it.price}
+          </button>
         </div>`;
       grid.appendChild(a);
     });
@@ -847,14 +847,11 @@
 
   // Populate mobile sections
   buildMobileCheckboxList('mContent', CONTENT, 'content');
-  // Department as chips for simplicity
   buildMobileChips('mDept', ['Fashion','Home','Quilting','Notions'], 'dept');
 
-  // Fabric types list
   const FABRIC_TYPES = ["Canvas","Chiffon","Corduroy","Crepe","Denim","Flannel","Georgette","Jersey","Lace","Lawn","Organza","Poplin","Sateen","Satin","Tulle","Twill","Velvet","Voile"];
   buildMobileCheckboxList('mFabricType', FABRIC_TYPES, 'fabricType');
 
-  // Fiber / Pattern chips
   buildMobileChips('mFiberType', ['Natural','Modified Natural','Synthetic','Blend'], 'fiberType');
   buildMobileChips('mPattern', ['Solid','Printed'], 'pattern');
 
@@ -895,21 +892,12 @@
   }
 
   $('mApply').addEventListener('click', ()=>{
-    // collect colors
     setOrDelete('colors', [...selectedColors]);
-
-    // numeric/texts
     map.forEach(([mid,key])=> setOrDelete(key, $(mid).value));
-
-    // content (collect checked)
     const selContent=[...$('mContent').querySelectorAll('input[type="checkbox"]:checked')].map(cb=>cb.value).filter(v=>v!=='Any');
     setOrDelete('content', selContent);
-
-    // fabric types (collect checked)
     const selFabric=[...$('mFabricType').querySelectorAll('input[type="checkbox"]:checked')].map(cb=>cb.value);
     setOrDelete('fabricType', selFabric.join(','));
-
-    // dept chip already set in params by click handler
     location.search = params.toString();
   });
 
@@ -920,6 +908,33 @@
   });
 
   load();
+
+  /* ====== BUY BUTTON -> STRIPE CHECKOUT ====== */
+  grid.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('.buy-btn');
+    if(!btn) return;
+    btn.disabled = true;
+    try{
+      const name = btn.dataset.name;
+      const amount = parseInt(btn.dataset.amount, 10); // cents (1 yard)
+      const res = await fetch('/api/checkout/stripe', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, amount })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Could not start checkout.');
+      }
+    } catch(err){
+      alert('Could not start checkout.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
 })();
 </script>
 </body>
