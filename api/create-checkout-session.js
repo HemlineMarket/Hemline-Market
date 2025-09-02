@@ -1,6 +1,6 @@
-import Stripe from "stripe";
+const Stripe = require("stripe");
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).end("Method Not Allowed");
@@ -16,20 +16,18 @@ export default async function handler(req, res) {
         {
           price_data: {
             currency: "usd",
-            product_data: {
-              name: "Fabric Test Product",
-            },
-            unit_amount: 2000, // $20.00
+            product_data: { name: "Fabric Test Product" },
+            unit_amount: 2000 // $20.00
           },
-          quantity: 1,
-        },
+          quantity: 1
+        }
       ],
       success_url: `${req.headers.origin}/dashboard.html?success=true`,
-      cancel_url: `${req.headers.origin}/dashboard.html?canceled=true`,
+      cancel_url: `${req.headers.origin}/dashboard.html?canceled=true`
     });
 
     res.status(200).json({ url: session.url });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-}
+};
