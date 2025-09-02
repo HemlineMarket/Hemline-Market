@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Sign In — Hemline Market</title>
 
-  <!-- INLINE ONLY: site shell, header, footer, auth card -->
   <style>
     :root{--hm-border:#e5e7eb;--hm-accent:#991b1b;--ink:#111827;--muted:#6b7280}
     html,body{margin:0;max-width:100%;overflow-x:hidden;background:#fafafa;color:var(--ink);
@@ -13,7 +12,6 @@
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .wrap{max-width:1200px;margin:0 auto;padding:0 12px}
 
-    /* Header (fixed small icons) */
     .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
     .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
     .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
@@ -24,7 +22,6 @@
     .hm-icon svg{width:26px;height:26px;stroke-width:2}
     .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
 
-    /* Left sheet nav */
     .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
     .sheet.open{transform:translateX(0)}
     .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
@@ -33,13 +30,11 @@
     .sheet nav a+a{margin-top:8px}
     .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
 
-    /* Footer */
     .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
     .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
     .hm-footer .footer-links a{color:#4b5563;text-decoration:none}
     .hm-footer .footer-links a:hover{text-decoration:underline}
 
-    /* Auth UI */
     .auth-container{max-width:420px;margin:40px auto;background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:24px;display:grid;gap:16px}
     h1{margin:0 0 8px;text-align:center}
     .muted{text-align:center;color:var(--muted);margin:0}
@@ -58,7 +53,6 @@
 </head>
 <body>
 
-<!-- HEADER -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -90,7 +84,6 @@
   </div>
 </header>
 
-<!-- LEFT MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -110,7 +103,6 @@
   </nav>
 </aside>
 
-<!-- MAIN -->
 <main class="wrap">
   <div class="auth-container" id="card-login">
     <h1>Sign in to your account</h1>
@@ -134,7 +126,6 @@
     </div>
   </div>
 
-  <!-- Create account -->
   <div class="auth-container hidden" id="card-signup">
     <h1>Create your account</h1>
     <p class="muted">Spin up your seller profile and start listing fabric finds.</p>
@@ -146,7 +137,6 @@
     <div class="links"><a href="#" id="back-from-signup">Back to sign in</a></div>
   </div>
 
-  <!-- Forgot password -->
   <div class="auth-container hidden" id="card-forgot">
     <h1>Reset your password</h1>
     <p class="muted">We’ll send a secure reset link to your inbox.</p>
@@ -157,7 +147,6 @@
     <div class="links"><a href="#" id="back-from-forgot">Back to sign in</a></div>
   </div>
 
-  <!-- Email sign-in code -->
   <div class="auth-container hidden" id="card-otp">
     <h1>Email a sign-in code</h1>
     <p class="muted">Quick like a running stitch — no password needed.</p>
@@ -169,7 +158,6 @@
   </div>
 </main>
 
-<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -183,9 +171,7 @@
   </div>
 </footer>
 
-<!-- Behavior scripts -->
 <script>
-  /* Menu sheet */
   (function(){
     const sheet=document.getElementById("menuSheet");
     const openBtn=document.getElementById("openMenu");
@@ -208,17 +194,12 @@
   const show = id => document.getElementById(id).classList.remove('hidden');
   const hide = id => document.getElementById(id).classList.add('hidden');
 
-  // Redirect if already logged in
-  supabase.auth.getSession().then(({ data:{ session } })=>{
-    if(session?.user) location.href = "dashboard.html";
-    else { const el=document.getElementById('status'); if(el) el.textContent='Not logged in.'; }
-  });
+  // NO auto-redirect on page load anymore.
 
   supabase.auth.onAuthStateChange((_evt, session)=>{
     if(session?.user) location.href = "dashboard.html";
   });
 
-  // Card toggles
   document.getElementById('link-signup').onclick=(e)=>{e.preventDefault(); hide('card-login'); show('card-signup');};
   document.getElementById('back-from-signup').onclick=(e)=>{e.preventDefault(); hide('card-signup'); show('card-login');};
   document.getElementById('link-forgot').onclick=(e)=>{e.preventDefault(); hide('card-login'); show('card-forgot');};
@@ -226,7 +207,6 @@
   document.getElementById('link-otp').onclick=(e)=>{e.preventDefault(); hide('card-login'); show('card-otp');};
   document.getElementById('back-from-otp').onclick=(e)=>{e.preventDefault(); hide('card-otp'); show('card-login');};
 
-  // Email + Password
   document.getElementById("login").onsubmit=async (e)=>{
     e.preventDefault();
     const email=document.getElementById("li-email").value.trim();
@@ -235,7 +215,6 @@
     if(!error) location.href="dashboard.html"; else alert(error.message);
   };
 
-  // Create account
   document.getElementById("signup").onsubmit=async (e)=>{
     e.preventDefault();
     const email=document.getElementById("su-email").value.trim();
@@ -245,7 +224,6 @@
     hide('card-signup'); show('card-login');
   };
 
-  // Forgot password
   document.getElementById("reset").onsubmit=async (e)=>{
     e.preventDefault();
     const email=document.getElementById("rp-email").value.trim();
@@ -254,7 +232,6 @@
     hide('card-forgot'); show('card-login');
   };
 
-  // OTP
   document.getElementById("otp").onsubmit=async (e)=>{
     e.preventDefault();
     const email=document.getElementById("otp-email").value.trim();
@@ -263,7 +240,6 @@
     hide('card-otp'); show('card-login');
   };
 
-  // OAuth
   document.getElementById("login-google").onclick=async ()=>{
     const { error } = await supabase.auth.signInWithOAuth({ provider:"google", options:{ redirectTo: location.origin + "/dashboard.html" } });
     if(error) alert(error.message);
