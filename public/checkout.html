@@ -182,5 +182,60 @@
       document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
     })();
   </script>
+  <script>
+/* Hemline Market — Cart → Checkout harden
+   Goal: ensure any Checkout button/link goes to checkout.html
+   without popups or JS bounce-backs. Non-destructive add-on. */
+(function () {
+  // Helper: send user to checkout
+  function goCheckout() {
+    window.location.href = 'checkout.html';
+  }
+
+  // Collect likely Checkout controls
+  const candidates = Array.from(document.querySelectorAll('a, button'))
+    .filter(el => {
+      const id = (el.id || '').toLowerCase();
+      const role = (el.getAttribute('role') || '').toLowerCase();
+      const data = (el.dataset.action || '').toLowerCase();
+      const text = (el.textContent || '').trim().toLowerCase();
+      return (
+        id === 'checkout' ||
+        id === 'checkoutbtn' ||
+        role === 'checkout' ||
+        data === 'checkout' ||
+        /checkout/.test(text)
+      );
+    });
+
+  // Normalize behavior for each candidate
+  candidates.forEach(el => {
+    try {
+      // Remove any inline onclick that might alert() or reroute
+      el.removeAttribute && el.removeAttribute('onclick');
+
+      if (el.tagName === 'A') {
+        // Make it a plain link to checkout.html
+        el.setAttribute('href', 'checkout.html');
+        // Stop any previously attached handlers from canceling navigation
+        el.addEventListener('click', function (e) {
+          e.stopImmediatePropagation();
+          // Let default link navigation proceed (no preventDefault)
+        }, { capture: true });
+      } else {
+        // For <button> etc., attach a clean click handler
+        el.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          goCheckout();
+        }, { capture: true });
+      }
+    } catch (_) { /* ignore */ }
+  });
+
+  // Backstop: if some code still calls window.checkout(), make it navigate.
+  try { window.checkout = goCheckout; } catch (_) {}
+})();
+</script>
 </body>
 </html>
