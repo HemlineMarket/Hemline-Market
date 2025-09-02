@@ -217,16 +217,30 @@
   const paymentElement = elements.create("payment");
   paymentElement.mount("#payment-element");
 
-  // Handle Pay
+  // Handle Pay (always land on success with client_secret)
   const payBtn = document.getElementById("payBtn");
   const payMsg = document.getElementById("payMsg");
   payBtn.addEventListener("click", async () => {
-    payMsg.textContent = "Processing payment...";
-    const { error } = await stripe.confirmPayment({
+    payMsg.textContent = "Processing…";
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
-      confirmParams: { return_url: window.location.origin + "/success.html" }
+      confirmParams: { return_url: window.location.origin + "/success.html" },
+      redirect: "if_required"
     });
-    if (error) payMsg.textContent = error.message || "Payment failed.";
+
+    if (error) {
+      payMsg.textContent = error.message || "Payment failed.";
+      return;
+    }
+
+    if (paymentIntent && paymentIntent.status === "succeeded") {
+      const secret = encodeURIComponent(paymentIntent.client_secret);
+      window.location.href = `/success.html?payment_intent_client_secret=${secret}`;
+      return;
+    }
+
+    payMsg.textContent = "Checking payment status…";
   });
 
   /* Menu sheet (match FAQ) */
