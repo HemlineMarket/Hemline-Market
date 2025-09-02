@@ -24,6 +24,7 @@
     .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
     .sheet.open{transform:translateX(0)}
     .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
+    .sheet header .who{font-size:12px;color:var(--muted);display:block;margin-top:2px}
     .sheet nav{display:grid;padding:10px}
     .sheet nav a{padding:10px;border:1px solid var(--hm-border);border-radius:10px;text-decoration:none;color:#1f2937}
     .sheet nav a+a{margin-top:8px}
@@ -82,7 +83,10 @@
 
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
-    <strong>Menu</strong>
+    <div>
+      <strong>Menu</strong>
+      <span class="who" id="menuEmail"></span>
+    </div>
     <button class="close" id="closeMenu" aria-label="Close menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -162,9 +166,13 @@
     const { data:{ session } } = await supabase.auth.getSession();
     if(!session?.user){ window.location.href="auth.html"; return; }
     const email = session.user.email || "";
+    // header welcome + avatar initials
     document.getElementById('who').textContent = email;
     const avatar = document.getElementById('avatar');
     if(avatar){ avatar.textContent = initialsFrom(email); avatar.style.backgroundImage=''; }
+    // menu sheet email line
+    const me = document.getElementById('menuEmail');
+    if(me) me.textContent = email;
   })();
 
   document.getElementById('logout').onclick = async ()=>{
