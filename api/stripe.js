@@ -1,15 +1,8 @@
 // /api/stripe.js
-// Prereqs in Vercel env: STRIPE_WEBHOOK_SECRET, STRIPE_SECRET_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Purpose: verify Stripe signature and log key fields for checkout.session.completed
 const Stripe = require('stripe');
-const { createClient } = require('@supabase/supabase-js');
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const stripe = new Stripe(STRIPE_SECRET_KEY);
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 async function readRawBody(req) {
   const chunks = [];
@@ -52,41 +45,21 @@ module.exports = async (req, res) => {
     return;
   }
 
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        const orderId = session?.metadata?.order_id; // you must set this when creating the Checkout Session
-        if (!orderId) {
-          console.warn('checkout.session.completed without metadata.order_id');
-          break;
-        }
-
-        // Mark order as paid
-        const { error } = await supabase
-          .from('orders')
-          .update({ status: 'paid', stripe_session_id: session.id })
-          .eq('id', orderId);
-
-        if (error) {
-          console.error('Supabase update error:', error);
-          // Return 200 so Stripe doesn’t keep retrying forever; we’ll observe logs and fix
-          break;
-        }
-
-        console.log(`✅ Order ${orderId} marked paid`);
-        break;
-      }
-
-      default:
-        // no-op for other events (we can add more later)
-        break;
-    }
-
-    res.status(200).end(`Received ${event.type}`);
-  } catch (err) {
-    console.error('Webhook handler error:', err);
-    // 200 is safer for webhooks (prevents endless retries if our bug is on our side)
-    res.status(200).end('Handled with warnings');
+  if (event.type === 'checkout.session.completed') {
+    const s = event.data.object || {};
+    const payload = {
+      tag: 'HM_WEBHOOK',
+      type: event.type,
+      session_id: s.id || null,
+      order_id: (s.metadata && s.metadata.order_id) || null,
+      payment_intent: s.payment_intent || null,
+      amount_total: s.amount_total || null,
+      currency: s.currency || null,
+      customer_email: (s.customer_details && s.customer_details.email) || null,
+      created: event.created
+    };
+    console.log(JSON.stringify(payload));
   }
+
+  res.status(200).end(`Received ${event.type}`);
 };
