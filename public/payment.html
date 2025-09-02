@@ -2,177 +2,147 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Payment — Hemline Market</title>
+
+  <!-- Stripe.js -->
+  <script src="https://js.stripe.com/v3"></script>
 
   <!-- Shared site styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
-
-  <!-- Stripe.js -->
-  <script src="https://js.stripe.com/v3"></script>
-
-  <style>
-    :root{
-      --hm-accent:#991b1b;
-      --hm-text:#111827;
-      --hm-muted:#6b7280;
-      --hm-border:#e5e7eb;
-    }
-    body{margin:0;background:#fafafa;color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-    main{flex:1}
-    .container{max-width:1000px;margin:24px auto;padding:0 16px}
-    .grid{display:grid;grid-template-columns:1fr 360px;gap:24px}
-    @media(max-width:900px){.grid{grid-template-columns:1fr}}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px}
-    .card h2{margin:0 0 12px;font-size:18px}
-    .line{height:1px;background:#e5e7eb;margin:12px 0}
-    .total{display:flex;justify-content:space-between;margin-top:8px;font-weight:600}
-    .btn{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 16px;border-radius:999px;border:1px solid transparent;background:#991b1b;color:#fff;text-decoration:none;cursor:pointer}
-    .btn:focus,.btn:hover{filter:brightness(0.96)}
-    .btn-outline{background:#fff;color:#991b1b;border-color:#e5e7eb}
-    .muted{color:#6b7280}
-  </style>
 </head>
 <body>
+  <!-- HEADER -->
+  <header class="hm-header" role="banner">
+    <div class="wrap">
+      <div class="left">
+        <button class="hamburger" id="openMenu" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <line x1="4" y1="6" x2="20" y2="6"/>
+            <line x1="4" y1="12" x2="20" y2="12"/>
+            <line x1="4" y1="18" x2="20" y2="18"/>
+          </svg>
+        </button>
+        <a class="hm-brand" href="index.html">Hemline Market</a>
+      </div>
+      <div class="right">
+        <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </a>
+        <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </a>
+        <a class="hm-icon" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="9" cy="21" r="1"/>
+            <circle cx="18" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+        </a>
+        <a class="hm-avatar" id="avatar" href="account.html">AA</a>
+        <a class="hm-btn-primary" href="sell.html">Sell</a>
+      </div>
+    </div>
+  </header>
 
-<!-- HEADER -->
-<header class="hm-header" role="banner">
-  <div class="wrap">
-    <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6"  x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
+  <!-- MENU -->
+  <aside class="sheet" id="menuSheet" aria-hidden="true">
+    <header>
+      <strong>Menu</strong>
+      <button class="close" id="closeMenu" aria-label="Close menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
       </button>
-      <a class="hm-brand" href="index.html">Hemline Market</a>
-    </div>
-
-    <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg>
-      </a>
-      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-      </a>
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-      </a>
-      <a class="hm-icon" href="cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-      </a>
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
-      <a class="hm-btn-primary" href="sell.html">Sell</a>
-    </div>
-  </div>
-</header>
-
-<!-- LEFT MENU -->
-<aside class="sheet" id="menuSheet" aria-hidden="true">
-  <header>
-    <strong>Menu</strong>
-    <button class="close" id="closeMenu" aria-label="Close menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
-    </button>
-  </header>
-  <nav>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="atelier.html">My Atelier</a>
-    <a href="how.html">How It Works</a>
-    <a href="seller/index.html?list=new">Sell Fabric</a>
-    <a href="contact.html">Contact</a>
-  </nav>
-</aside>
-
-<!-- MAIN -->
-<main class="container">
-  <h1>Payment</h1>
-  <div class="grid">
-    <!-- Left: Stripe form -->
-    <section class="card">
-      <h2>Card details</h2>
-      <div id="payment-element"></div>
-      <div style="margin-top:16px;display:flex;gap:12px">
-        <a class="btn-outline" href="checkout.html">Back</a>
-        <button id="payBtn" class="btn" type="button">Pay</button>
-      </div>
-      <p class="muted" id="payMsg" style="margin-top:8px"></p>
-    </section>
-
-    <!-- Right: summary -->
-    <aside class="card">
-      <h2>Order summary</h2>
-      <div class="line"></div>
-      <div class="total"><span>Items</span><span>$86.00</span></div>
-      <div class="total"><span>Shipping</span><span>$—</span></div>
-      <div class="total"><span>Tax</span><span>$—</span></div>
-      <div class="line"></div>
-      <div class="total" style="font-size:18px"><span>Total</span><span>$86.00</span></div>
-    </aside>
-  </div>
-</main>
-
-<!-- FOOTER -->
-<footer class="hm-footer" role="contentinfo">
-  <div class="footer-wrap">
-    <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links" aria-label="Footer">
-      <a href="about.html">About</a>
-      <a href="faq.html">FAQ</a>
+    </header>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="atelier.html">My Atelier</a>
+      <a href="how.html">How It Works</a>
+      <a href="seller/index.html?list=new">Sell Fabric</a>
       <a href="contact.html">Contact</a>
-      <a href="terms.html">Terms</a>
-      <a href="privacy.html">Privacy</a>
     </nav>
-  </div>
-</footer>
+  </aside>
 
-<script>
-(async function(){
-  // Setup Stripe
-  const STRIPE_PUBLISHABLE_KEY = "pk_test_xxxxxxxxxxxxxxxxx"; // TODO: replace with your real publishable key
-  const stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+  <!-- MAIN -->
+  <main class="wrap">
+    <h1>Payment</h1>
+    <div class="grid">
+      <!-- Left -->
+      <section class="card">
+        <h2>Card details</h2>
+        <div id="payment-element"></div>
+        <div style="margin-top:16px;display:flex;gap:12px">
+          <a class="btn-outline" href="checkout.html">Back</a>
+          <button id="payBtn" class="btn" type="button">Pay</button>
+        </div>
+        <p class="muted" id="payMsg" style="margin-top:8px"></p>
+      </section>
 
-  // Call server to create PaymentIntent
-  const resp = await fetch("/api/create-payment-intent", { method: "POST" });
-  const data = await resp.json();
-  const clientSecret = data.clientSecret;
+      <!-- Right -->
+      <aside class="card">
+        <h2>Order summary</h2>
+        <div class="total"><span>Items</span><span>$86.00</span></div>
+        <div class="total"><span>Shipping</span><span>$—</span></div>
+        <div class="total"><span>Tax</span><span>$—</span></div>
+        <div class="line"></div>
+        <div class="total" style="font-size:18px"><span>Total</span><span>$86.00</span></div>
+      </aside>
+    </div>
+  </main>
 
-  // Mount payment element
-  const elements = stripe.elements({ clientSecret });
-  const paymentElement = elements.create("payment");
-  paymentElement.mount("#payment-element");
+  <!-- FOOTER -->
+  <footer class="hm-footer" role="contentinfo">
+    <div class="footer-wrap">
+      <div class="copy">© 2025 Hemline Market</div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="about.html">About</a>
+        <a href="faq.html">FAQ</a>
+        <a href="contact.html">Contact</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+    </div>
+  </footer>
 
-  // Handle Pay button
-  document.getElementById("payBtn").addEventListener("click", async () => {
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: { return_url: window.location.origin + "/success.html" }
+  <!-- JS -->
+  <script>
+  (async function(){
+    const stripe = Stripe("pk_live_51Rx9wcFi9JRhHIdilaCZYt1NWKVQZNeG5gCMLEHmh7Wf1udmexaBQNLNv9hTZH3V3Ah2dTmuB0e6s5nT36CWqMLG003wl8DtPq");
+
+    // Create PaymentIntent on server
+    const resp = await fetch("/api/create-payment-intent", { method: "POST" });
+    const data = await resp.json();
+    const clientSecret = data.clientSecret;
+
+    // Mount Stripe Element
+    const elements = stripe.elements({ clientSecret });
+    const paymentElement = elements.create("payment");
+    paymentElement.mount("#payment-element");
+
+    // Handle pay button
+    const payBtn = document.getElementById("payBtn");
+    const payMsg = document.getElementById("payMsg");
+    payBtn.addEventListener("click", async () => {
+      payMsg.textContent = "Processing payment...";
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: window.location.origin + "/success.html" }
+      });
+      if (error) {
+        payMsg.textContent = error.message;
+      }
     });
-    const msg = document.getElementById("payMsg");
-    if (error) {
-      msg.textContent = error.message;
-    } else {
-      msg.textContent = "Processing payment...";
-    }
-  });
-
-  // Menu script
-  const sheet=document.getElementById("menuSheet");
-  const openBtn=document.getElementById("openMenu");
-  const closeBtn=document.getElementById("closeMenu");
-  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
-  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
-  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
-})();
-</script>
+  })();
+  </script>
 </body>
 </html>
