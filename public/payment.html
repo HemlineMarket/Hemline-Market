@@ -178,11 +178,11 @@
       <aside class="card">
         <h2>Order summary</h2>
         <div class="line"></div>
-        <div class="total"><span>Items</span><span>$86.00</span></div>
+        <div class="total"><span>Items</span><span id="itemsAmt">$—</span></div>
         <div class="total"><span>Shipping</span><span>$—</span></div>
         <div class="total"><span>Tax</span><span>$—</span></div>
         <div class="line"></div>
-        <div class="total" style="font-size:18px"><span>Total</span><span>$86.00</span></div>
+        <div class="total" style="font-size:18px"><span>Total</span><span id="totalAmt">$—</span></div>
       </aside>
     </div>
   </div>
@@ -204,7 +204,7 @@
 
 <script>
 (async function(){
-  // Stripe client (publishable key provided)
+  // LIVE publishable key
   const stripe = Stripe("pk_live_51Rx9wcFi9JRhHIdilaCZYt1NWKVQZNeG5gCMLEHmh7Wf1udmexaBQNLNv9hTZH3V3Ah2dTmuB0e6s5nT36CWqMLG003wl8DtPq");
 
   // Create PaymentIntent via Vercel API
@@ -216,6 +216,16 @@
   const elements = stripe.elements({ clientSecret });
   const paymentElement = elements.create("payment");
   paymentElement.mount("#payment-element");
+
+  // --- NEW: show the amount from the PaymentIntent in the summary ---
+  try {
+    const { paymentIntent } = await stripe.retrievePaymentIntent(clientSecret);
+    const dollars = (paymentIntent.amount / 100).toFixed(2);
+    document.getElementById("itemsAmt").textContent = `$${dollars}`;
+    document.getElementById("totalAmt").textContent = `$${dollars}`;
+  } catch(e) {
+    console.warn("Could not load PI for summary", e);
+  }
 
   // Handle Pay (always land on success with client_secret)
   const payBtn = document.getElementById("payBtn");
