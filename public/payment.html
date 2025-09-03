@@ -205,97 +205,76 @@
 </footer>
 
 <script>
-(async function(){
-  // --- Config / helpers ------------------------------------------------------
-  const SHIPPING = { light: 500, standard: 800, heavy: 1400 }; // cents
-  const fmt = n => (n/100).toLocaleString(undefined,{style:"currency",currency:"USD"});
-
-  // Subtotal: read from cart (set this in your cart/checkout), fallback to $86.00
-  const subtotalCents = (()=>{
-    const v = Number(localStorage.getItem("hmSubtotalCents"));
-    return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 8600;
-  })();
-
+(async function () {
   // Stripe client
   const stripe = Stripe("pk_live_51Rx9wcFi9JRhHIdilaCZYt1NWKVQZNeG5gCMLEHmh7Wf1udmexaBQNLNv9hTZH3V3Ah2dTmuB0e6s5nT36CWqMLG003wl8DtPq");
 
-  let elements = null;
-  let mounted = false;
+  // UI refs
+  const shippingSelect = document.getElementById("shippingTier");     // your <select> for shipping
+  const payBtn = document.getElementById("payBtn");
+  const payMsg = document.getElementById("payMsg");
 
-  const shipTierSel = document.getElementById("shipTier");
-  const sumItems = document.getElementById("sumItems");
-  const sumShip  = document.getElementById("sumShip");
-  const sumTotal = document.getElementById("sumTotal");
-  const emailEl  = document.getElementById("email");
-  const payBtn   = document.getElementById("payBtn");
-  const payMsg   = document.getElementById("payMsg");
+  let elements, paymentElement, clientSecret;
 
-  // Prefill email if we saved one previously
-  try {
-    const savedEmail = localStorage.getItem("hmEmail");
-    if (savedEmail) emailEl.value = savedEmail;
-  } catch(e){}
+  // Create/refresh a PaymentIntent on the server with the chosen shipping tier
+  async function createIntentWithShipping() {
+    const shippingTier = shippingSelect ? shippingSelect.value : "standard";
 
-  // Update right-hand summary
-  function renderSummary(){
-    const tier = shipTierSel.value || "standard";
-    const ship = SHIPPING[tier] ?? SHIPPING.standard;
-    sumItems.textContent = fmt(subtotalCents);
-    sumShip.textContent  = fmt(ship);
-    sumTotal.textContent = fmt(subtotalCents + ship);
-  }
-
-  // Create or update a PaymentIntent for the chosen tier
-  async function createOrUpdatePI(){
-    const shippingTier = shipTierSel.value || "standard";
     const resp = await fetch("/api/create-payment-intent", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ subtotalCents, shippingTier })
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shippingTier })   // 👈 pass the selected tier to the server
     });
-    const data = await resp.json();
-    const clientSecret = data.clientSecret;
 
-    if (!elements){
+    const data = await resp.json();
+    if (!resp.ok || !data.clientSecret) {
+      payMsg.textContent = data.error || "Could not start payment.";
+      throw new Error(data.error || "create-payment-intent failed");
+    }
+
+    clientSecret = data.clientSecret;
+
+    if (!elements) {
       elements = stripe.elements({ clientSecret });
-      const paymentElement = elements.create("payment", { fields: { billingDetails: { email: 'never' } }});
+      paymentElement = elements.create("payment");
       paymentElement.mount("#payment-element");
-      mounted = true;
     } else {
-      // Swap PI when tier changes
+      // If the user changes shipping, point Elements at the new PI
       elements.update({ clientSecret });
     }
   }
 
-  // Initialize
-  renderSummary();
-  await createOrUpdatePI();
+  // First load
+  await createIntentWithShipping();
 
-  // When tier changes: update summary + PI
-  shipTierSel.addEventListener("change", async ()=>{
-    renderSummary();
-    payMsg.textContent = "Updating…";
-    await createOrUpdatePI();
-    payMsg.textContent = "";
-  });
+  // If user changes shipping, refresh the PaymentIntent so the amount is correct
+  if (shippingSelect) {
+    shippingSelect.addEventListener("change", async () => {
+      payMsg.textContent = "";
+      await createIntentWithShipping();
+    });
+  }
 
-  // Pay
-  payBtn.addEventListener("click", async ()=>{
-    payMsg.textContent = "Processing…";
-    // Save email locally so it pre-fills next time (for receipts only)
-    try{ if(emailEl.value) localStorage.setItem("hmEmail", emailEl.value); }catch(e){}
+  // Confirm payment
+  payBtn.addEventListener("click", async () => {
+    payMsg.textContent = "Processing payment...";
+    const emailEl = document.querySelector('input[type="email"]');
+    const receipt_email = emailEl ? emailEl.value.trim() : "";
 
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        // We pass receipt email through Stripe’s Link/Element UI (buyer can edit); this is just a fallback
-        return_url: window.location.origin + "/success.html"
+        return_url: window.location.origin + "/success.html",
+        receipt_email
       }
     });
-    if (error) payMsg.textContent = error.message || "Payment failed.";
+
+    if (error) {
+      payMsg.textContent = error.message || "Payment failed.";
+    }
   });
 
-  // Menu sheet (match FAQ)
+  // Menu sheet from your shared header
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
