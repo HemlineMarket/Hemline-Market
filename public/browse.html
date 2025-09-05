@@ -671,5 +671,52 @@
   window.HM_CART_BADGE_UPDATE = update;
 })();
 </script>
+  <!-- FIX: keep badge ONLY on cart; force clean wrap for card stats -->
+<style id="hm-browse-card-fixes">
+  /* Stack price on its own row at tight widths; stats wrap neatly below */
+  .card .meta .sub{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:6px;
+    align-items:center;
+  }
+  .card .meta .sub .price{
+    font-weight:800;
+    grid-column: 1 / -1;      /* full row */
+  }
+  .card .meta .sub .stats{
+    display:flex;
+    flex-wrap:wrap;           /* allow wrap onto next line */
+    gap:8px;
+    justify-content:flex-start;
+    min-width:0;
+  }
+  .card .meta .sub .stats span{
+    white-space:nowrap;       /* keep each token intact: 54″ / 180 GSM */
+  }
+  /* On wider screens, put price left and stats right, still safe */
+  @media (min-width: 860px){
+    .card .meta .sub{ grid-template-columns:auto 1fr; }
+    .card .meta .sub .price{ grid-column:auto; }
+    .card .meta .sub .stats{ justify-content:flex-end; }
+  }
+</style>
+
+<script>
+  // Remove any stray badges on heart/bell; badge only on Cart
+  document.querySelectorAll(
+    'a[aria-label="Favorites"] [data-cart-badge], a[aria-label="Notifications"] [data-cart-badge]'
+  ).forEach(el => el.remove());
+
+  // If cards were rendered earlier with a single long string, split once into spans
+  document.querySelectorAll('.card .meta .sub').forEach(sub=>{
+    const stats = sub.querySelector('.stats') || (()=>{ const d=document.createElement('div'); d.className='stats'; sub.appendChild(d); return d; })();
+    if(stats.childElementCount===0 && stats.textContent.trim()){
+      const tokens = stats.textContent.split('•').map(t=>t.trim()).filter(Boolean);
+      stats.textContent = '';
+      tokens.forEach(t=>{ const s=document.createElement('span'); s.textContent = t; stats.appendChild(s); });
+    }
+  });
+</script>
 </body>
 </html>
