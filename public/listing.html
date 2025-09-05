@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Listing — Hemline Market</title>
 
-<!-- ==== Shell variables & header/footer styles (IDENTICAL TO TERMS) ==== -->
+<!-- Header/Footer shell identical to Terms -->
 <style>
   :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (same structure & classes as Terms) */
+  /* Header (same as Terms) */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .left{display:flex;align-items:center;gap:10px}
@@ -21,7 +21,7 @@
   .right{display:flex;align-items:center;gap:14px}
   .hm-icon{color:#444;display:inline-grid;place-items:center}
   .hm-icon svg{width:26px;height:26px;stroke-width:2}
-  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
+  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
   .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
   /* Slide-out menu (same as Terms) */
@@ -40,7 +40,7 @@
   .footer a{text-decoration:none;color:#1f2937}
   .copy{color:#6b7280;font-size:14px}
 
-  /* ==== Listing page only (scoped) ==== */
+  /* Listing page layout */
   .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
   .listing-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}
   @media (max-width:980px){.listing-grid{grid-template-columns:1fr}}
@@ -62,6 +62,7 @@
   .buy input{width:90px;padding:8px;border:1px solid var(--border);border-radius:10px}
   .btn{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn[disabled]{opacity:.6;cursor:not-allowed}
 
   /* Specs + description */
   .meta-grid{display:grid;grid-template-columns:280px 1fr;gap:12px}
@@ -74,11 +75,12 @@
   @media (max-width:980px){.qa{grid-template-columns:1fr}}
   .qa textarea{width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:10px}
   .empty-qa{color:var(--muted)}
+  .qa-item{border-top:1px dashed #eef2f7;padding-top:10px;margin-top:10px}
 </style>
 </head>
 <body>
 
-<!-- ===== HEADER (identical structure to Terms) ===== -->
+<!-- HEADER -->
 <header class="hm-header" role="banner">
   <div class="hm-wrap">
     <div class="left">
@@ -110,7 +112,7 @@
   </div>
 </header>
 
-<!-- ===== Slide-out menu (identical to Terms) ===== -->
+<!-- MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -131,7 +133,7 @@
   </nav>
 </aside>
 
-<!-- ===== CONTENT ===== -->
+<!-- CONTENT -->
 <main class="wrap" role="main">
   <div class="listing-grid">
     <!-- Gallery -->
@@ -158,8 +160,8 @@
         <div class="buy">
           <label for="yards">Yards</label>
           <input id="yards" type="number" min="0.5" step="0.5" value="1.5" aria-label="Yards">
-          <button class="btn primary">Add to cart</button>
-          <button class="btn">❤ Save</button>
+          <button id="addToCart" class="btn primary" type="button">Add to cart</button>
+          <button id="saveListing" class="btn" type="button" title="Save to favorites">❤ Save</button>
         </div>
 
         <div class="meta-grid" aria-label="Details">
@@ -186,23 +188,23 @@
     <article class="card">
       <div class="hd">Q&amp;A</div>
       <div class="bd" id="qaBody">
-        <p class="empty-qa">No questions yet. Be the first to ask!</p>
+        <p class="empty-qa" id="qaEmpty">No questions yet. Be the first to ask!</p>
       </div>
     </article>
     <article class="card">
       <div class="hd">Ask a question</div>
       <div class="bd">
-        <textarea id="askBox" placeholder="Ask about drape, handfeel, care, opacity..."></textarea>
+        <textarea id="askBox" placeholder="Ask about drape, stretch, care, or color accuracy…"></textarea>
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-          <button class="btn primary" id="postQuestion">Post question</button>
-          <span class="empty-qa">You must be signed in.</span>
+          <button class="btn primary" id="postQuestion" type="button" disabled>Post question</button>
+          <span id="authHint" class="empty-qa">You must be signed in.</span>
         </div>
       </div>
     </article>
   </section>
 </main>
 
-<!-- ===== FOOTER (identical to Terms) ===== -->
+<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -216,9 +218,11 @@
   </div>
 </footer>
 
+<!-- Supabase v2 -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
 (function(){
-  /* Slide-out menu (same behavior as Terms) */
+  /* ===== Shell controls (hamburger, avatar) ===== */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
@@ -227,20 +231,101 @@
   if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
   if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape") close();});
+  const headerAvatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+url+"')"; }}catch(e){}
 
-  /* Optional avatar image (keeps shell consistent with Terms) */
-  const avatar=document.getElementById("avatar");
-  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }}catch(e){}
-
-  /* Simple price updater for yards input */
+  /* ===== Price calculator (no auth) ===== */
   const yardInput=document.getElementById('yards');
   const displayPrice=document.getElementById('displayPrice');
-  const perYard=28;
-  function update(){
+  const PRICE_PER_YARD = 28;
+  function updatePrice(){
     const y=parseFloat(yardInput.value)||0;
-    displayPrice.textContent = `$${(y*perYard).toFixed(2)}`;
+    displayPrice.textContent = `$${(y*PRICE_PER_YARD).toFixed(2)}`;
   }
-  yardInput.addEventListener('input',update); update();
+  yardInput.addEventListener('input', updatePrice); updatePrice();
+
+  /* ===== Minimal cart (no auth required) ===== */
+  const addBtn = document.getElementById('addToCart');
+  addBtn.addEventListener('click', ()=>{
+    const qty = Math.max(0.5, parseFloat(yardInput.value)||0.5);
+    const cart = JSON.parse(localStorage.getItem('hm_cart')||'[]');
+    const id = 'italian-silk-twill-navy'; // demo id
+    const existing = cart.find(i=>i.id===id);
+    if(existing){ existing.qty = (existing.qty||0) + qty; }
+    else cart.push({ id, name:'Italian Silk Twill — Navy', amount: PRICE_PER_YARD*100, qty });
+    localStorage.setItem('hm_cart', JSON.stringify(cart));
+    addBtn.textContent='Added ✓'; setTimeout(()=>addBtn.textContent='Add to cart', 1200);
+    if(typeof window.HM_CART_BADGE_UPDATE==='function'){ window.HM_CART_BADGE_UPDATE(); }
+  });
+
+  /* ===== Supabase Auth: robust session detection ===== */
+  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  });
+
+  const postBtn = document.getElementById('postQuestion');
+  const saveBtn = document.getElementById('saveListing');
+  const authHint = document.getElementById('authHint');
+
+  async function refreshAuthUI(){
+    const { data, error } = await supabase.auth.getUser();
+    const user = data?.user || null;
+
+    // Enable/disable gated actions
+    const authed = !!user;
+    postBtn.disabled = !authed;
+    saveBtn.disabled = !authed;
+
+    // Friendly hint
+    authHint.textContent = authed ? 'Signed in' : 'You must be signed in.';
+    authHint.style.color = authed ? '#6b7280' : '#991b1b';
+
+    // Optional: show initials in avatar when authed
+    if(authed && user.email){
+      headerAvatar.textContent = (user.email[0]||'U').toUpperCase();
+      headerAvatar.style.backgroundImage='';
+    }
+  }
+
+  // Handle session changes (login/logout in another tab or redirected flow)
+  supabase.auth.onAuthStateChange((_event, _session)=>{ refreshAuthUI(); });
+
+  // Initial check (fixes “must sign in” after signing in)
+  refreshAuthUI();
+
+  /* ===== Favorites (requires auth) ===== */
+  saveBtn.addEventListener('click', async ()=>{
+    const { data } = await supabase.auth.getUser();
+    if(!data?.user){ authHint.textContent='You must be signed in.'; authHint.style.color='#991b1b'; return; }
+    const favsKey = 'hm_favorites';
+    const favs = new Set(JSON.parse(localStorage.getItem(favsKey)||'[]'));
+    favs.add('italian-silk-twill-navy');
+    localStorage.setItem(favsKey, JSON.stringify([...favs]));
+    saveBtn.textContent='Saved ✓'; setTimeout(()=>saveBtn.textContent='❤ Save', 1200);
+  });
+
+  /* ===== Q&A (local-only demo, requires auth; DB wiring in a later step) ===== */
+  const qaBody = document.getElementById('qaBody');
+  const qaEmpty = document.getElementById('qaEmpty');
+  const askBox = document.getElementById('askBox');
+
+  postBtn.addEventListener('click', async ()=>{
+    const { data } = await supabase.auth.getUser();
+    if(!data?.user){ authHint.textContent='You must be signed in.'; authHint.style.color='#991b1b'; return; }
+    const text = (askBox.value||'').trim();
+    if(!text){ askBox.focus(); return; }
+    // Append to UI
+    if(qaEmpty) qaEmpty.remove();
+    const item = document.createElement('div');
+    item.className='qa-item';
+    item.innerHTML = '<strong>Q:</strong> ' + text.replace(/[<>&]/g, s=>({ '<':'&lt;','>':'&gt;','&':'&amp;' }[s])) +
+                     '<div class="empty-qa" style="margin-top:6px">Thanks for asking — the seller will reply here.</div>';
+    qaBody.prepend(item);
+    askBox.value='';
+    postBtn.textContent='Posted ✓'; setTimeout(()=>postBtn.textContent='Post question', 1200);
+  });
 })();
 </script>
 </body>
