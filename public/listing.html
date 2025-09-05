@@ -16,9 +16,8 @@
   .hm-brand{font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
   .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#374151}
   .hamburger svg{width:22px;height:22px;stroke-width:2}
-
   .right{display:flex;align-items:center;gap:14px}
-  .hm-icon{line-height:0; display:inline-grid; place-items:center;} /* fix bell clipping */
+  .hm-icon{line-height:0; display:inline-grid; place-items:center;}
   .hm-icon svg{width:26px;height:26px;stroke-width:2; display:block;}
   .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
   .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
@@ -54,6 +53,7 @@
   .btn{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#374151;font-size:12px}
 
   .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
   @media (max-width:720px){ .meta-grid{grid-template-columns:1fr} }
@@ -65,7 +65,7 @@
   @media (max-width:980px){ .qa{grid-template-columns:1fr} }
   .empty-qa{color:var(--muted)}
 
-  /* ===== Footer (matches Terms page) ===== */
+  /* Footer */
   .hm-footer{background:#fff;border-top:1px solid var(--border)}
   .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .footer-links{display:flex;gap:14px;flex-wrap:wrap}
@@ -147,16 +147,17 @@
     <article class="card">
       <div class="hd">Listing</div>
       <div class="bd">
-        <h1 style="margin:0 0 4px;font-size:20px">Italian Silk Twill — Navy</h1>
+        <h1 id="title" style="margin:0 0 4px;font-size:20px">Italian Silk Twill — Navy</h1>
         <div class="row" style="margin-bottom:6px">
-          <div class="price">$42.00</div>
-          <div class="sub-price">$28.00/yd</div>
+          <div class="price" id="priceLabel">$42.00</div>
+          <div class="sub-price" id="unitLabel">$28.00/yd</div>
+          <span id="favPill" class="pill" style="display:none">Saved</span>
         </div>
         <div class="row" style="margin-bottom:10px">
           <label for="yards">Yards</label>
           <input class="qty" id="yards" type="number" min="0.5" step="0.5" value="1.5"/>
           <button class="btn primary" id="addToCart">Add to cart</button>
-          <button class="btn" id="saveBtn" disabled>❤ Save</button>
+          <button class="btn" id="saveBtn">♡ Save</button>
         </div>
 
         <div class="meta-grid">
@@ -194,9 +195,9 @@
                   style="width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff"></textarea>
         <div class="row" style="margin-top:10px;justify-content:space-between">
           <div>
-            <button class="btn primary" id="postQuestion" type="button" disabled>Post question</button>
+            <button class="btn primary" id="postQuestion" type="button">Post question</button>
           </div>
-          <div class="empty-qa" id="authHint">You must be signed in.</div>
+          <div class="empty-qa" id="authHint"></div>
         </div>
       </div>
     </article>
@@ -219,48 +220,131 @@
 
 <script>
 (function(){
+  /* ----- Helpers ----- */
+  const $ = (id)=>document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const LISTING_ID = params.get('id') || '1';
+  const TITLE = $('title').textContent = (document.getElementById('title').textContent + ' — Hemline Market');
+  const pricePerYard = 28; // dollars
+  const basePrice = 42;     // sample total label
+
   /* Hamburger sheet */
-  const sheet=document.getElementById("menuSheet");
-  const openBtn=document.getElementById("openMenu");
-  const closeBtn=document.getElementById("closeMenu");
-  function open(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
-  function close(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
-  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
-  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
-  document.addEventListener("keydown",e=>{if(e.key==="Escape") close();});
+  const sheet=$('menuSheet'), openBtn=$('openMenu'), closeBtn=$('closeMenu');
+  function open(){sheet.classList.add('open');sheet.setAttribute('aria-hidden','false');}
+  function close(){sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');}
+  if(openBtn) openBtn.addEventListener('click',e=>{e.preventDefault();open();});
+  if(closeBtn) closeBtn.addEventListener('click',e=>{e.preventDefault();close();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape') close();});
 
-  /* Optional avatar image in header */
-  const headerAvatar=document.getElementById('avatar');
-  try{ const url=localStorage.getItem('avatarUrl'); if(url){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+  /* Optional avatar */
+  try{ const av=$('avatar'); const url=localStorage.getItem('avatarUrl'); if(url){ av.textContent=''; av.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  /* Price math demo */
-  const pricePerYard=28;
-  const yards=document.getElementById('yards');
+  /* ----- Favorites (local) ----- */
+  const favKey = 'hm_faves';
+  function readFaves(){ try{ return new Set(JSON.parse(localStorage.getItem(favKey)||'[]')); }catch(_){ return new Set(); } }
+  function writeFaves(set){ localStorage.setItem(favKey, JSON.stringify([...set])); }
+  const faves = readFaves();
+  const saveBtn = $('saveBtn');
+  const favPill = $('favPill');
+  function refreshFavUI(){
+    const saved = faves.has(LISTING_ID);
+    saveBtn.textContent = saved ? 'Saved ✓' : '♡ Save';
+    favPill.style.display = saved ? 'inline-block' : 'none';
+  }
+  saveBtn.addEventListener('click', ()=>{
+    if(faves.has(LISTING_ID)) faves.delete(LISTING_ID);
+    else faves.add(LISTING_ID);
+    writeFaves(faves);
+    refreshFavUI();
+  });
+  refreshFavUI();
+
+  /* ----- Cart (local) ----- */
+  const yards = $('yards');
   function clampVal(){
-    let v=parseFloat(yards.value)||0;
+    let v=parseFloat(yards.value)||0.5;
     if(v<0.5) v=0.5;
-    v=Math.round(v*2)/2;
-    yards.value=v.toFixed(1);
+    v = Math.round(v*2)/2;
+    yards.value = v.toFixed(1);
   }
   yards.addEventListener('change', clampVal);
 
-  /* Q&A UI (no backend yet; just keeps the friendly empty state) */
-  const qaBody=document.getElementById('qaBody');
-  function setEmptyQA(){
-    qaBody.innerHTML='';
-    const p=document.createElement('p');
-    p.className='empty-qa';
-    p.textContent='No questions yet—be the first to ask!';
-    qaBody.appendChild(p);
-  }
-  setEmptyQA();
+  function readCart(){ try{ return JSON.parse(localStorage.getItem('hm_cart')||'[]'); }catch(_){ return []; } }
+  function writeCart(items){ localStorage.setItem('hm_cart', JSON.stringify(items)); }
 
-  /* Auth gate placeholders (front-end only for now) */
-  const authed = !!localStorage.getItem('hm_authed'); // simple stub
-  const postBtn = document.getElementById('postQuestion');
-  const authHint = document.getElementById('authHint');
-  postBtn.disabled = !authed;
-  authHint.textContent = authed ? '' : 'You must be signed in.';
+  $('addToCart').addEventListener('click', ()=>{
+    clampVal();
+    const qtyYards = parseFloat(yards.value) || 0.5;
+    const amountCents = Math.round(pricePerYard * qtyYards * 100); // total for chosen yards
+    const name = $('title').textContent;
+
+    const cart = readCart();
+    const key = LISTING_ID + '@' + qtyYards; // simple line uniqueness
+    const idx = cart.findIndex(i => i.key === key);
+    if(idx>=0){ cart[idx].qty = (cart[idx].qty||1) + 1; }
+    else{
+      cart.push({ key, id: LISTING_ID, name, amount: amountCents, qty: 1, yards: qtyYards });
+    }
+    writeCart(cart);
+
+    const btn = $('addToCart');
+    const original = btn.textContent;
+    btn.textContent = 'Added ✓';
+    btn.disabled = true;
+    setTimeout(()=>{ btn.textContent = original; btn.disabled=false; }, 1000);
+  });
+
+  /* Update price labels (static sample) */
+  $('priceLabel').textContent = `$${basePrice.toFixed(2)}`;
+  $('unitLabel').textContent = `$${pricePerYard.toFixed(2)}/yd`;
+
+  /* ----- Q&A (local when "signed in") ----- */
+  const qaKey = 'hm.qa.'+LISTING_ID;
+  function readQA(){ try{ return JSON.parse(localStorage.getItem(qaKey)||'[]'); }catch(_){ return []; } }
+  function writeQA(list){ localStorage.setItem(qaKey, JSON.stringify(list)); }
+
+  const qaBody = $('qaBody');
+  function renderQA(){
+    const qs = readQA();
+    qaBody.innerHTML = '';
+    if(!qs.length){
+      const p=document.createElement('p'); p.className='empty-qa'; p.textContent='No questions yet—be the first to ask!'; qaBody.appendChild(p);
+      return;
+    }
+    qs.forEach(q=>{
+      const d=document.createElement('div');
+      d.style.borderTop='1px solid var(--border)';
+      d.style.padding='10px 0';
+      d.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Q:</div><div>${q}</div>`;
+      qaBody.appendChild(d);
+    });
+  }
+  renderQA();
+
+  const postBtn = $('postQuestion');
+  const askBox = $('askBox');
+  const authHint = $('authHint');
+
+  function authed(){ return !!localStorage.getItem('hm_authed'); }
+  function syncAuthUI(){
+    if(authed()){ postBtn.disabled=false; authHint.textContent=''; }
+    else { postBtn.disabled=true; authHint.textContent='You must be signed in.'; }
+  }
+  syncAuthUI();
+
+  postBtn.addEventListener('click', ()=>{
+    if(!authed()) return;
+    const txt = (askBox.value||'').trim();
+    if(!txt) return;
+    const qs = readQA(); qs.push(txt); writeQA(qs);
+    askBox.value=''; renderQA();
+    const original = postBtn.textContent; postBtn.textContent='Posted ✓'; postBtn.disabled=true;
+    setTimeout(()=>{ postBtn.textContent=original; postBtn.disabled=false; }, 900);
+  });
+
+  /* Image zoom placeholder */
+  $('zoomPhoto').addEventListener('click', ()=> alert('Image zoom would open here.'));
+
 })();
 </script>
 </body>
