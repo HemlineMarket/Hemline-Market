@@ -723,5 +723,115 @@
   document.head.appendChild(style);
 })();
 </script>
+  <!-- Fix cart badge + keep meta within cards -->
+<style>
+  /* 1) Card meta never overflows */
+  .card{ overflow:hidden; }
+  .card .info{ padding:8px 10px; }
+
+  /* Title wraps naturally; prevent crowding */
+  .card .title{
+    white-space:normal;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    display:block;
+    margin-bottom:4px;
+    line-height:1.2;
+  }
+
+  /* Meta row: price on left, specs on right that can wrap */
+  .card .meta{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .card .meta .price{
+    flex:0 0 auto;
+    font-weight:800;
+  }
+  .card .meta .sub{
+    display:flex;
+    flex-wrap:wrap;          /* allow wrap to next line */
+    gap:8px;
+    justify-content:flex-end;
+    flex:1 1 auto;           /* take remaining space */
+    min-width:0;             /* enable wrapping instead of overflow */
+    text-align:right;
+  }
+  .card .meta .sub span{
+    white-space:nowrap;      /* keep each token intact: 54" / 180 GSM */
+  }
+
+  /* Seller/handle strip stays inside */
+  .card .seller{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* Buttons never bleed text */
+  .card .add-to-cart, .card .add-to-cart *{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* Slightly narrower layout on medium screens */
+  @media (max-width: 1200px){
+    .card .meta{ gap:6px; }
+    .card .meta .sub{ gap:6px; }
+  }
+  /* Stack meta on tight screens (price above specs) */
+  @media (max-width: 900px){
+    .card .meta{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:4px;
+    }
+    .card .meta .sub{
+      justify-content:flex-start;
+      text-align:left;
+    }
+  }
+</style>
+
+<script>
+  (function(){
+    /* 2) Keep badge only on Cart: remove any accidental badges on Heart/Bell */
+    const stray = document.querySelectorAll(
+      'a[aria-label="Favorites"] [data-cart-badge], a[aria-label="Notifications"] [data-cart-badge]'
+    );
+    stray.forEach(el => el.remove());
+
+    /* If your meta HTML is plain text, normalize it once so CSS can target it.
+       This wraps specs into <span>s inside .meta .sub without altering the text. */
+    document.querySelectorAll('.card .info .meta').forEach(meta=>{
+      if(meta.dataset.enhanced) return; // run once
+      const priceEl = meta.querySelector('.price');
+      let subEl = meta.querySelector('.sub');
+      if(!subEl){
+        subEl = document.createElement('div');
+        subEl.className = 'sub';
+        // Move all non-price nodes into .sub
+        [...meta.childNodes].forEach(n=>{
+          if(n!==priceEl) subEl.appendChild(n);
+        });
+        meta.appendChild(subEl);
+      }
+      // If sub is plain text like: `$28/yd • 54" • 180 GSM`
+      if(subEl.childElementCount===0 && subEl.textContent.trim()){
+        const tokens = subEl.textContent.split('•').map(t=>t.trim()).filter(Boolean);
+        subEl.textContent = '';
+        tokens.forEach(t=>{
+          const s=document.createElement('span');
+          s.textContent=t;
+          subEl.appendChild(s);
+        });
+      }
+      meta.dataset.enhanced = '1';
+    });
+  })();
+</script>
 </body>
 </html>
