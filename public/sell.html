@@ -3,13 +3,18 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Sell Fabric — Hemline Market</title>
+<title>Create a Listing — Hemline Market</title>
+
+<link rel="stylesheet" href="styles/hm-modern.css"/>
+<link rel="stylesheet" href="styles/hem-header.css"/>
+<link rel="stylesheet" href="styles/hm-typography.css"/>
+<link rel="stylesheet" href="styles/hm-footer.css"/>
+
 <style>
   :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
-  *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (matches Terms page shell) */
+  /* Header/Footers match Terms page */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .left{display:flex;align-items:center;gap:10px}
@@ -22,7 +27,6 @@
   .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
   .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
-  /* Slide-out menu */
   .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
   .sheet.open{transform:translateX(0)}
   .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)}
@@ -33,40 +37,44 @@
 
   /* Page */
   .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
-  h1{margin:0 0 6px;font-size:28px;font-weight:800}
-  .grid{display:grid;grid-template-columns:1.25fr 1fr;gap:14px}
-  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+  h1{margin:0 0 12px;font-size:28px;font-weight:800}
+  .subtle{color:var(--muted);margin:0 0 14px}
+
+  /* Stepper */
+  .stepper{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .bubble{display:flex;align-items:center;gap:8px;justify-content:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fff;font-weight:700}
+  .bubble[data-active="true"]{border-color:var(--accent);box-shadow:0 0 0 2px rgba(153,27,27,.10)}
+  .bubble .num{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;border:1px solid var(--border);background:#f9fafb;font-weight:800}
+  .bubble[data-active="true"] .num{border-color:var(--accent);color:#fff;background:var(--accent)}
+
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:14px}
+  @media (max-width:980px){ .grid{grid-template-columns:1fr} }
 
   .card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
   .card .hd{padding:12px;border-bottom:1px solid var(--border);font-weight:800}
   .card .bd{padding:12px}
 
+  /* Upload areas */
+  .drop{border:2px dashed #d1d5db;border-radius:12px;padding:18px;text-align:center;background:#fafafa}
+  .drop.drag{border-color:var(--accent);background:#fff}
+  .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+  .ph{aspect-ratio:4/3;border:1px solid var(--border);border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#9ca3af;font-size:12px;overflow:hidden}
+  .ph img, .ph video{width:100%;height:100%;object-fit:cover;border-radius:10px}
+
+  /* Form */
   .field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
   .field label{font-size:13px;color:#374151;font-weight:700}
-  .field input[type="text"],
-  .field input[type="number"],
-  .field textarea{padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:14px}
+  .field input[type="text"], .field input[type="number"], .field textarea, .field select{padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:14px}
   .field textarea{min-height:120px;resize:vertical}
 
-  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
   .btn{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
-  .hint{font-size:12px;color:#6b7280}
+  .btn.ghost{background:#fff}
+  .note{font-size:12px;color:#6b7280}
 
-  /* Media uploader */
-  .media-grid{display:grid;grid-template-columns:1fr;gap:10px}
-  .drop{border:2px dashed #d1d5db;border-radius:12px;padding:16px;display:grid;place-items:center;text-align:center}
-  .drop.drag{border-color:var(--accent);background:#fff7f7}
-  .thumbs{display:flex;gap:10px;flex-wrap:wrap}
-  .ph{width:120px;height:80px;border:1px solid var(--border);border-radius:10px;display:grid;place-items:center;color:#6b7280;background:linear-gradient(180deg,#f8fafc,#eef2f7)}
-  .vthumb{position:relative}
-  .vthumb::after{content:"▶";position:absolute;right:6px;bottom:4px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;line-height:1;padding:3px 5px;border-radius:6px}
-
-  /* Footer */
-  .hm-footer{background:#fff;border-top:1px solid var(--border)}
-  .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
-  .copy{color:#6b7280;font-size:14px}
+  /* Review table */
+  .kv{display:grid;grid-template-columns:120px 1fr;gap:6px}
 </style>
 </head>
 <body>
@@ -85,10 +93,18 @@
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
     <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Browse & search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg></a>
-      <a class="hm-icon" href="favorites.html" aria-label="Favorites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg></a>
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></a>
-      <a class="hm-icon" href="cart.html" aria-label="Cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></a>
+      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+      </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html" aria-current="page">Sell</a>
     </div>
@@ -108,49 +124,95 @@
   </header>
   <nav>
     <a href="browse.html">Browse</a>
-    <a href="sell.html" aria-current="page">Sell Fabric</a>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="how.html">How It Works</a>
-    <a href="about.html">About</a>
-    <a href="contact.html">Contact</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="orders.html">Orders</a>
+    <a href="favorites.html">Favorites</a>
+    <a href="account.html">Account</a>
+    <a href="help.html">Help</a>
   </nav>
 </aside>
 
-<main class="wrap">
+<main class="wrap" id="maincontent">
   <h1>Create a Listing</h1>
+  <p class="subtle">Showcase your fabric in three quick steps.</p>
+
+  <!-- Stepper -->
+  <div class="stepper" id="stepper">
+    <div class="bubble" data-step="1" data-active="true"><span class="num">1</span> Photos & Video</div>
+    <div class="bubble" data-step="2"><span class="num">2</span> Details</div>
+    <div class="bubble" data-step="3"><span class="num">3</span> Review & Publish</div>
+  </div>
+
   <div class="grid">
-    <!-- LEFT: Media -->
-    <section class="card">
-      <div class="hd">Photos & Video</div>
+    <!-- LEFT: Stage -->
+    <section class="card" id="stage">
+      <div class="hd" id="stageTitle">Step 1 — Photos & Video</div>
       <div class="bd">
-        <div class="media-grid">
-          <div id="photoDrop" class="drop" aria-label="Upload photos">Drop photos here or <label class="btn"><input id="photoInput" type="file" accept="image/*" multiple hidden>choose files</label></div>
-          <div id="videoDrop" class="drop" aria-label="Upload video">
-            Drop one video here or
-            <label class="btn"><input id="videoInput" type="file" accept="video/mp4,video/webm" hidden>choose a video</label>
-            <div class="hint">MP4 or WebM · up to ~60s recommended</div>
+
+        <!-- STEP 1 -->
+        <div class="step step-1">
+          <div class="drop" id="photoDrop">
+            <strong>Drop photos here</strong> or
+            <label class="btn" style="margin-left:6px">
+              <input id="photoInput" type="file" accept="image/*" multiple hidden>
+              choose files
+            </label>
+            <div class="note" style="margin-top:6px">Up to 8 photos. First photo becomes the cover.</div>
           </div>
-          <div class="thumbs" id="thumbs"></div>
-          <div id="videoThumbs" class="thumbs"></div>
+          <div class="thumbs" id="photoThumbs" aria-live="polite" style="margin-top:10px"></div>
+
+          <div class="drop" id="videoDrop" style="margin-top:14px">
+            <strong>Drop one video here</strong> or
+            <label class="btn" style="margin-left:6px">
+              <input id="videoInput" type="file" accept="video/mp4,video/webm" hidden>
+              choose a video
+            </label>
+            <div class="note" style="margin-top:6px">MP4 or WebM, up to ~60s recommended.</div>
+          </div>
+          <div class="thumbs" id="videoThumb" style="grid-template-columns:1fr;margin-top:10px"></div>
         </div>
+
+        <!-- STEP 2 -->
+        <div class="step step-2" hidden>
+          <div class="field"><label for="title">Title</label><input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy"></div>
+          <div class="field"><label for="price">Price ($/yd)</label><input id="price" type="number" min="0" step="0.01" placeholder="28.00"></div>
+          <div class="field"><label for="yards">Yards</label><input id="yards" type="number" min="0" step="0.5" placeholder="1.5"></div>
+          <div class="field"><label for="desc">Description</label><textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea></div>
+
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+            <div class="field"><label for="content">Content</label><select id="content"><option value="">Select…</option><option>Silk</option><option>Wool</option><option>Cotton</option><option>Linen</option><option>Rayon / Viscose</option><option>Polyester</option><option>Blend</option></select></div>
+            <div class="field"><label for="fabric">Fabric</label><select id="fabric"><option value="">Select…</option><option>Twill</option><option>Crepe</option><option>Poplin</option><option>Denim</option><option>Satin</option><option>Jersey</option><option>Canvas</option></select></div>
+            <div class="field"><label for="color">Color</label><input id="color" type="text" placeholder="Navy"></div>
+            <div class="field"><label for="pattern">Pattern</label><select id="pattern"><option value="">Select…</option><option>Solid</option><option>Printed</option></select></div>
+            <div class="field"><label for="width">Width (in)</label><input id="width" type="number" min="0" step="1"></div>
+            <div class="field"><label for="gsm">Weight (GSM)</label><input id="gsm" type="number" min="0" step="1"></div>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="step step-3" hidden>
+          <div class="field"><label>Preview</label>
+            <div class="thumbs" id="reviewMedia"></div>
+          </div>
+          <div class="kv" id="reviewKv" style="margin-top:10px"></div>
+          <p class="note" style="margin-top:8px">Review your details. You can go back to make changes.</p>
+        </div>
+
       </div>
     </section>
 
-    <!-- RIGHT: Details -->
-    <section class="card">
-      <div class="hd">Details</div>
+    <!-- RIGHT: Actions -->
+    <aside class="card">
+      <div class="hd">Actions</div>
       <div class="bd">
-        <div class="field"><label>Title</label><input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy"></div>
-        <div class="field"><label>Price ($/yd)</label><input id="price" type="number" min="0" step="0.01" placeholder="28.00"></div>
-        <div class="field"><label>Yards</label><input id="yards" type="number" min="0" step="0.5" placeholder="1.5"></div>
-        <div class="field"><label>Description</label><textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea></div>
         <div class="actions">
-          <button id="saveBtn" class="btn primary" type="button">Publish</button>
-          <button id="draftBtn" class="btn" type="button">Save Draft</button>
-          <span id="toast" class="hint" role="status" aria-live="polite"></span>
+          <button class="btn" id="backBtn" type="button" disabled>Back</button>
+          <button class="btn primary" id="nextBtn" type="button">Next</button>
+          <button class="btn" id="saveDraftBtn" type="button">Save Draft</button>
         </div>
+        <p class="note" style="margin-top:8px">We’ll guide you through each step.</p>
       </div>
-    </section>
+    </aside>
   </div>
 </main>
 
@@ -167,10 +229,9 @@
   </div>
 </footer>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
 (function(){
-  /* ===== Shell ===== */
+  /* Header sheet + avatar */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
@@ -179,171 +240,133 @@
   if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
   if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape") close();});
-  const headerAvatar=document.getElementById("avatar");
-  try{ const url=localStorage.getItem("avatarUrl"); if(url){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }}catch(e){}
 
-  /* ===== Supabase ===== */
-  const supabase = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
-    { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }
-  );
+  /* Wizard state */
+  let step = 1;
+  const MAX_STEP = 3;
+  const stepper = document.getElementById('stepper');
+  const stageTitle = document.getElementById('stageTitle');
+  const backBtn = document.getElementById('backBtn');
+  const nextBtn = document.getElementById('nextBtn');
 
-  /* ===== Simple form state ===== */
-  const $ = (id)=>document.getElementById(id);
-  const thumbs = $("thumbs");
-  const vthumbs = $("videoThumbs");
-  let listingId = crypto.randomUUID(); // new listing id (client-side)
-  let uploadedVideoUrl = "";           // public URL we will write to DB
-
-  // photo previews (client-side only for now)
-  $("photoInput").addEventListener("change", (e)=>{
-    [...e.target.files].forEach(file=>{
-      const url = URL.createObjectURL(file);
-      const div = document.createElement("div");
-      div.className = "ph";
-      const img = new Image();
-      img.src = url; img.alt = "photo";
-      img.style.width = "100%"; img.style.height="100%"; img.style.objectFit="cover"; img.onload=()=>URL.revokeObjectURL(url);
-      div.appendChild(img);
-      thumbs.appendChild(div);
+  function setStep(n){
+    step = Math.max(1, Math.min(MAX_STEP, n));
+    document.querySelectorAll('.step').forEach((el,i)=>{
+      el.hidden = (i+1)!==step;
     });
+    document.querySelectorAll('.bubble').forEach(b=>{
+      b.dataset.active = (Number(b.dataset.step)===step) ? 'true' : '';
+    });
+    const titles = ['Step 1 — Photos & Video','Step 2 — Details','Step 3 — Review & Publish'];
+    stageTitle.textContent = titles[step-1];
+    backBtn.disabled = (step===1);
+    nextBtn.textContent = (step===MAX_STEP ? 'Publish' : 'Next');
+    if(step===3) buildReview();
+  }
+  backBtn.addEventListener('click', ()=> setStep(step-1));
+  nextBtn.addEventListener('click', ()=>{
+    if(step<MAX_STEP) setStep(step+1);
+    else alert('Publish would submit the listing here.');
+  });
+  stepper.addEventListener('click', (e)=>{
+    const b=e.target.closest('.bubble'); if(!b) return;
+    setStep(Number(b.dataset.step||1));
   });
 
-  // drag styles (photo)
-  setupDragDrop($("photoDrop"), $("photoInput"));
-  setupDragDrop($("videoDrop"), $("videoInput"));
-  function setupDragDrop(drop, input){
-    drop.addEventListener("dragover",(e)=>{e.preventDefault(); drop.classList.add("drag");});
-    drop.addEventListener("dragleave",()=>drop.classList.remove("drag"));
-    drop.addEventListener("drop",(e)=>{e.preventDefault(); drop.classList.remove("drag"); if(input && e.dataTransfer.files.length){ input.files=e.dataTransfer.files; input.dispatchEvent(new Event("change")); }});
+  /* Simple local preview store */
+  const state = { photos: [], video: null, fields:{} };
+
+  // Photos
+  const photoDrop = document.getElementById('photoDrop');
+  const photoInput = document.getElementById('photoInput');
+  const photoThumbs = document.getElementById('photoThumbs');
+
+  function handlePhotoFiles(files){
+    const arr=[...files].slice(0,8);
+    state.photos = arr;
+    photoThumbs.innerHTML='';
+    arr.forEach(f=>{
+      const url = URL.createObjectURL(f);
+      const ph = document.createElement('div'); ph.className='ph';
+      const img = document.createElement('img'); img.src=url; img.alt='photo';
+      ph.appendChild(img); photoThumbs.appendChild(ph);
+    });
+  }
+  photoInput.addEventListener('change', e=> handlePhotoFiles(e.target.files));
+  ;['dragenter','dragover'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.add('drag');}));
+  ;['dragleave','drop'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.remove('drag');}));
+  photoDrop.addEventListener('drop', e=> handlePhotoFiles(e.dataTransfer.files));
+
+  // Video
+  const videoDrop = document.getElementById('videoDrop');
+  const videoInput = document.getElementById('videoInput');
+  const videoThumb = document.getElementById('videoThumb');
+
+  function handleVideoFile(file){
+    state.video = file || null;
+    videoThumb.innerHTML='';
+    if(!file) return;
+    const url = URL.createObjectURL(file);
+    const ph = document.createElement('div'); ph.className='ph';
+    const vid = document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
+    ph.appendChild(vid); videoThumb.appendChild(ph);
+  }
+  videoInput.addEventListener('change', e=> handleVideoFile(e.target.files[0]));
+  ;['dragenter','dragover'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.add('drag');}));
+  ;['dragleave','drop'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.remove('drag');}));
+  videoDrop.addEventListener('drop', e=> handleVideoFile(e.dataTransfer.files[0]));
+
+  // Collect fields before review
+  function read(id){ return document.getElementById(id)?.value?.trim()||''; }
+  function buildReview(){
+    state.fields = {
+      title: read('title'),
+      price: read('price'),
+      yards: read('yards'),
+      desc: read('desc'),
+      content: read('content'),
+      fabric: read('fabric'),
+      color: read('color'),
+      pattern: read('pattern'),
+      width: read('width'),
+      gsm: read('gsm')
+    };
+    const media = document.getElementById('reviewMedia');
+    media.innerHTML='';
+    state.photos.forEach(f=>{
+      const url = URL.createObjectURL(f);
+      const ph = document.createElement('div'); ph.className='ph';
+      const img = document.createElement('img'); img.src=url; ph.appendChild(img); media.appendChild(ph);
+    });
+    if(state.video){
+      const url = URL.createObjectURL(state.video);
+      const ph = document.createElement('div'); ph.className='ph';
+      const vid = document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
+      ph.appendChild(vid); media.appendChild(ph);
+    }
+    const kv=document.getElementById('reviewKv');
+    kv.innerHTML='';
+    Object.entries(state.fields).forEach(([k,v])=>{
+      const K=k.charAt(0).toUpperCase()+k.slice(1);
+      const row=document.createElement('div'); row.style.display='contents';
+      const a=document.createElement('div'); a.textContent=K;
+      const b=document.createElement('div'); b.textContent=v||'—';
+      kv.appendChild(a); kv.appendChild(b);
+    });
   }
 
-  // ===== VIDEO UPLOAD → Supabase Storage =====
-  $("videoInput").addEventListener("change", async (e)=>{
-    const file = e.target.files?.[0];
-    if(!file) return;
-    setToast("Uploading video…");
-
+  // Save draft (local demo)
+  document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
     try{
-      // Ensure user is signed in (required for write if RLS rules demand auth)
-      const { data: { user } } = await supabase.auth.getUser();
-      if(!user){ setToast("Please sign in first."); alert("You must be signed in to upload."); return; }
-
-      const ext = file.name.split(".").pop().toLowerCase();
-      const path = `videos/${user.id}/${listingId}-${Date.now()}.${ext}`;
-
-      // Upload to a bucket named: listing-media  (create in Supabase → Storage)
-      const up = await supabase.storage.from("listing-media").upload(path, file, {
-        cacheControl: "3600", upsert: false, contentType: file.type
-      });
-      if(up.error) throw up.error;
-
-      // Public URL
-      const { data: pub } = supabase.storage.from("listing-media").getPublicUrl(path);
-      uploadedVideoUrl = pub.publicUrl;
-
-      // Show a tiny video thumb
-      const dv = document.createElement("div");
-      dv.className = "ph vthumb";
-      dv.title = "Video uploaded";
-      const v = document.createElement("video");
-      v.src = uploadedVideoUrl; v.muted = true; v.playsInline = true;
-      v.style.width="100%"; v.style.height="100%"; v.style.objectFit="cover";
-      dv.appendChild(v); vthumbs.innerHTML=""; vthumbs.appendChild(dv);
-
-      setToast("Video uploaded ✓");
-    }catch(err){
-      console.error(err);
-      setToast("Upload failed");
-      alert("Video upload failed. Check your Storage bucket name/permissions.");
-    }
+      const data={ fields:state.fields, ts:Date.now() };
+      localStorage.setItem('hm.draft.listing', JSON.stringify(data));
+      alert('Draft saved locally.');
+    }catch(e){ alert('Unable to save draft.'); }
   });
 
-  // ===== Publish (writes video_url to listings table) =====
-  $("saveBtn").addEventListener("click", async ()=>{
-    const title = $("title").value.trim();
-    const price = parseFloat($("price").value||"0");
-    const yards = parseFloat($("yards").value||"0");
-    const desc  = $("desc").value.trim();
-
-    if(!title || !price){ alert("Title and price are required."); return; }
-
-    setToast("Saving listing…");
-
-    // Require auth for publish
-    const { data:{ user } } = await supabase.auth.getUser();
-    if(!user){ setToast("Please sign in first."); alert("You must be signed in to publish."); return; }
-
-    try{
-      // Upsert minimal fields; ensure your table name/columns exist
-      const { error } = await supabase
-        .from("listings")
-        .upsert({
-          id: listingId,
-          user_id: user.id,
-          title,
-          price_per_yard: price,
-          yards,
-          description: desc,
-          video_url: uploadedVideoUrl || null,
-          updated_at: new Date().toISOString()
-        }, { onConflict: "id" });
-
-      if(error) throw error;
-
-      // Also stash video for the client listing page as a fallback
-      if(uploadedVideoUrl){
-        localStorage.setItem(`hm.video.${listingId}`, uploadedVideoUrl);
-      }
-
-      setToast("Listing published ✓");
-      // Go to the listing page
-      location.href = `listing.html?id=${encodeURIComponent(listingId)}`;
-    }catch(err){
-      console.error(err);
-      setToast("Save failed");
-      alert("Save failed. Make sure the 'listings' table and 'video_url' column exist.");
-    }
-  });
-
-  // Save Draft locally (no network)
-  $("draftBtn").addEventListener("click", ()=>{
-    const draft = {
-      id: listingId,
-      title: $("title").value,
-      price: $("price").value,
-      yards: $("yards").value,
-      desc: $("desc").value,
-      video_url: uploadedVideoUrl
-    };
-    localStorage.setItem("hm.sell.draft", JSON.stringify(draft));
-    setToast("Draft saved ✓");
-  });
-
-  // Restore draft if present
-  (function restore(){
-    try{
-      const raw = localStorage.getItem("hm.sell.draft");
-      if(!raw) return;
-      const d = JSON.parse(raw);
-      if(d.id) listingId = d.id;
-      $("title").value = d.title||"";
-      $("price").value = d.price||"";
-      $("yards").value = d.yards||"";
-      $("desc").value  = d.desc||"";
-      if(d.video_url){
-        uploadedVideoUrl = d.video_url;
-        const dv = document.createElement("div"); dv.className="ph vthumb";
-        const v = document.createElement("video"); v.src = uploadedVideoUrl; v.muted=true; v.playsInline=true;
-        v.style.width="100%"; v.style.height="100%"; v.style.objectFit="cover";
-        dv.appendChild(v); vthumbs.appendChild(dv);
-      }
-      setToast("Draft restored");
-    }catch(_){}
-  })();
-
-  function setToast(msg){ $("toast").textContent = msg; }
+  setStep(1);
 })();
 </script>
 </body>
