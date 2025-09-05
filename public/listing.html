@@ -40,10 +40,15 @@
   .card .hd{padding:12px;border-bottom:1px solid var(--border);font-weight:800}
   .card .bd{padding:12px}
 
-  /* Photos */
-  .ph-main{min-height:300px;border:1px dashed #eef2f7;border-radius:12px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#9ca3af}
-  .thumbs{display:flex;gap:10px;margin-top:10px}
-  .thumb{flex:0 0 92px;height:72px;border:1px solid var(--border);border-radius:10px;background:#fff;display:grid;place-items:center;color:#9ca3af}
+  /* Photos & Video */
+  .ph-main{min-height:300px;border:1px dashed #eef2f7;border-radius:12px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#9ca3af;overflow:hidden}
+  .ph-main video{width:100%;height:100%;max-height:520px;outline:0}
+  .thumbs{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .thumb{flex:0 0 92px;height:72px;border:1px solid var(--border);border-radius:10px;background:#fff;display:grid;place-items:center;color:#374151;font-size:12px;cursor:pointer}
+  .thumb[data-active="true"]{outline:2px solid var(--accent);outline-offset:2px}
+  .media-actions{display:flex;gap:8px;margin-top:10px}
+  .btn-mini{padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;font-weight:700;cursor:pointer}
+  .btn-mini.danger{border-color:#ef4444;color:#ef4444}
 
   /* Listing info */
   .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -130,15 +135,24 @@
 <!-- ===== MAIN ===== -->
 <main class="wrap" role="main">
   <section class="top">
-    <!-- Photos -->
+    <!-- Photos / Video -->
     <article class="card">
       <div class="hd">Photos</div>
       <div class="bd">
-        <div class="ph-main" id="zoomPhoto" tabindex="0" aria-label="Open image zoom">Fabric photo</div>
-        <div class="thumbs">
+        <div class="ph-main" id="mediaMain" tabindex="0" aria-label="Main media">Fabric photo</div>
+        <div class="thumbs" id="thumbs">
+          <div class="thumb" data-kind="photo" data-active="true">photo</div>
           <div class="thumb">thumb</div>
           <div class="thumb">thumb</div>
-          <div class="thumb">thumb</div>
+          <div class="thumb" id="videoThumb" data-kind="video" style="display:none">video</div>
+        </div>
+
+        <!-- Dev controls shown only when "signed in" locally -->
+        <div class="media-actions" id="videoActions" style="display:none">
+          <input id="videoFile" type="file" accept="video/*" hidden>
+          <button class="btn-mini" id="addVideo">Add video</button>
+          <button class="btn-mini danger" id="removeVideo">Remove</button>
+          <span class="empty-qa" style="align-self:center">MP4/WebM · Short clips recommended</span>
         </div>
       </div>
     </article>
@@ -220,15 +234,14 @@
 
 <script>
 (function(){
-  /* ----- Helpers ----- */
+  /* ----- Setup ----- */
   const $ = (id)=>document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const LISTING_ID = params.get('id') || '1';
-  const TITLE = $('title').textContent = (document.getElementById('title').textContent + ' — Hemline Market');
-  const pricePerYard = 28; // dollars
-  const basePrice = 42;     // sample total label
+  const pricePerYard = 28;
+  const basePrice = 42;
 
-  /* Hamburger sheet */
+  /* Header sheet */
   const sheet=$('menuSheet'), openBtn=$('openMenu'), closeBtn=$('closeMenu');
   function open(){sheet.classList.add('open');sheet.setAttribute('aria-hidden','false');}
   function close(){sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');}
@@ -236,114 +249,116 @@
   if(closeBtn) closeBtn.addEventListener('click',e=>{e.preventDefault();close();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape') close();});
 
-  /* Optional avatar */
+  /* Avatar */
   try{ const av=$('avatar'); const url=localStorage.getItem('avatarUrl'); if(url){ av.textContent=''; av.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  /* ----- Favorites (local) ----- */
-  const favKey = 'hm_faves';
+  /* ===== Favorites ===== */
+  const favKey='hm_faves';
   function readFaves(){ try{ return new Set(JSON.parse(localStorage.getItem(favKey)||'[]')); }catch(_){ return new Set(); } }
   function writeFaves(set){ localStorage.setItem(favKey, JSON.stringify([...set])); }
-  const faves = readFaves();
-  const saveBtn = $('saveBtn');
-  const favPill = $('favPill');
-  function refreshFavUI(){
-    const saved = faves.has(LISTING_ID);
-    saveBtn.textContent = saved ? 'Saved ✓' : '♡ Save';
-    favPill.style.display = saved ? 'inline-block' : 'none';
-  }
-  saveBtn.addEventListener('click', ()=>{
-    if(faves.has(LISTING_ID)) faves.delete(LISTING_ID);
-    else faves.add(LISTING_ID);
-    writeFaves(faves);
-    refreshFavUI();
-  });
+  const faves=readFaves();
+  const saveBtn=$('saveBtn'), favPill=$('favPill');
+  function refreshFavUI(){ const s=faves.has(LISTING_ID); saveBtn.textContent=s?'Saved ✓':'♡ Save'; favPill.style.display=s?'inline-block':'none'; }
+  saveBtn.addEventListener('click',()=>{ if(faves.has(LISTING_ID)) faves.delete(LISTING_ID); else faves.add(LISTING_ID); writeFaves(faves); refreshFavUI(); });
   refreshFavUI();
 
-  /* ----- Cart (local) ----- */
-  const yards = $('yards');
-  function clampVal(){
-    let v=parseFloat(yards.value)||0.5;
-    if(v<0.5) v=0.5;
-    v = Math.round(v*2)/2;
-    yards.value = v.toFixed(1);
-  }
-  yards.addEventListener('change', clampVal);
-
+  /* ===== Cart ===== */
+  const yards=$('yards');
+  function clampVal(){ let v=parseFloat(yards.value)||0.5; if(v<0.5) v=0.5; v=Math.round(v*2)/2; yards.value=v.toFixed(1); }
+  yards.addEventListener('change',clampVal);
   function readCart(){ try{ return JSON.parse(localStorage.getItem('hm_cart')||'[]'); }catch(_){ return []; } }
   function writeCart(items){ localStorage.setItem('hm_cart', JSON.stringify(items)); }
-
-  $('addToCart').addEventListener('click', ()=>{
+  $('addToCart').addEventListener('click',()=>{
     clampVal();
-    const qtyYards = parseFloat(yards.value) || 0.5;
-    const amountCents = Math.round(pricePerYard * qtyYards * 100); // total for chosen yards
-    const name = $('title').textContent;
-
-    const cart = readCart();
-    const key = LISTING_ID + '@' + qtyYards; // simple line uniqueness
-    const idx = cart.findIndex(i => i.key === key);
-    if(idx>=0){ cart[idx].qty = (cart[idx].qty||1) + 1; }
-    else{
-      cart.push({ key, id: LISTING_ID, name, amount: amountCents, qty: 1, yards: qtyYards });
-    }
+    const qty=parseFloat(yards.value)||0.5;
+    const amount=Math.round(pricePerYard*qty*100);
+    const cart=readCart();
+    const key=LISTING_ID+'@'+qty;
+    const i=cart.findIndex(x=>x.key===key);
+    if(i>=0) cart[i].qty=(cart[i].qty||1)+1; else cart.push({key,id:LISTING_ID,name:$('title').textContent,amount,qty:1,yards:qty});
     writeCart(cart);
-
-    const btn = $('addToCart');
-    const original = btn.textContent;
-    btn.textContent = 'Added ✓';
-    btn.disabled = true;
-    setTimeout(()=>{ btn.textContent = original; btn.disabled=false; }, 1000);
+    const b=$('addToCart'), t=b.textContent; b.textContent='Added ✓'; b.disabled=true; setTimeout(()=>{b.textContent=t;b.disabled=false;},900);
   });
+  $('priceLabel').textContent=`$${basePrice.toFixed(2)}`;
+  $('unitLabel').textContent=`$${pricePerYard.toFixed(2)}/yd`;
 
-  /* Update price labels (static sample) */
-  $('priceLabel').textContent = `$${basePrice.toFixed(2)}`;
-  $('unitLabel').textContent = `$${pricePerYard.toFixed(2)}/yd`;
-
-  /* ----- Q&A (local when "signed in") ----- */
-  const qaKey = 'hm.qa.'+LISTING_ID;
+  /* ===== Q&A (local) ===== */
+  const qaKey='hm.qa.'+LISTING_ID;
   function readQA(){ try{ return JSON.parse(localStorage.getItem(qaKey)||'[]'); }catch(_){ return []; } }
   function writeQA(list){ localStorage.setItem(qaKey, JSON.stringify(list)); }
-
-  const qaBody = $('qaBody');
+  const qaBody=$('qaBody');
   function renderQA(){
-    const qs = readQA();
-    qaBody.innerHTML = '';
-    if(!qs.length){
-      const p=document.createElement('p'); p.className='empty-qa'; p.textContent='No questions yet—be the first to ask!'; qaBody.appendChild(p);
-      return;
-    }
-    qs.forEach(q=>{
-      const d=document.createElement('div');
-      d.style.borderTop='1px solid var(--border)';
-      d.style.padding='10px 0';
-      d.innerHTML = `<div style="font-weight:700;margin-bottom:4px">Q:</div><div>${q}</div>`;
-      qaBody.appendChild(d);
-    });
+    const qs=readQA(); qaBody.innerHTML='';
+    if(!qs.length){ const p=document.createElement('p'); p.className='empty-qa'; p.textContent='No questions yet—be the first to ask!'; qaBody.appendChild(p); return; }
+    qs.forEach(q=>{ const d=document.createElement('div'); d.style.borderTop='1px solid var(--border)'; d.style.padding='10px 0'; d.innerHTML='<div style="font-weight:700;margin-bottom:4px">Q:</div><div>'+q+'</div>'; qaBody.appendChild(d); });
   }
   renderQA();
-
-  const postBtn = $('postQuestion');
-  const askBox = $('askBox');
-  const authHint = $('authHint');
-
   function authed(){ return !!localStorage.getItem('hm_authed'); }
-  function syncAuthUI(){
-    if(authed()){ postBtn.disabled=false; authHint.textContent=''; }
-    else { postBtn.disabled=true; authHint.textContent='You must be signed in.'; }
-  }
+  const postBtn=$('postQuestion'), askBox=$('askBox'), authHint=$('authHint');
+  function syncAuthUI(){ if(authed()){ postBtn.disabled=false; authHint.textContent=''; } else{ postBtn.disabled=true; authHint.textContent='You must be signed in.'; } }
   syncAuthUI();
+  postBtn.addEventListener('click',()=>{ if(!authed()) return; const t=(askBox.value||'').trim(); if(!t) return; const qs=readQA(); qs.push(t); writeQA(qs); askBox.value=''; renderQA(); const o=postBtn.textContent; postBtn.textContent='Posted ✓'; postBtn.disabled=true; setTimeout(()=>{postBtn.textContent=o; postBtn.disabled=false;},900); });
 
-  postBtn.addEventListener('click', ()=>{
-    if(!authed()) return;
-    const txt = (askBox.value||'').trim();
-    if(!txt) return;
-    const qs = readQA(); qs.push(txt); writeQA(qs);
-    askBox.value=''; renderQA();
-    const original = postBtn.textContent; postBtn.textContent='Posted ✓'; postBtn.disabled=true;
-    setTimeout(()=>{ postBtn.textContent=original; postBtn.disabled=false; }, 900);
+  /* ===== Media (Photo/Video) ===== */
+  const VID_KEY='hm.video.'+LISTING_ID;
+  function readVideo(){ try{ return localStorage.getItem(VID_KEY)||''; }catch(_){ return ''; } }
+  function writeVideo(data){ localStorage.setItem(VID_KEY,data); }
+  function removeVideo(){ localStorage.removeItem(VID_KEY); }
+
+  const mediaMain=$('mediaMain');
+  const thumbs=$('thumbs');
+  const videoThumb=$('videoThumb');
+  const videoActions=$('videoActions');
+  const addVideo=$('addVideo');
+  const removeVideoBtn=$('removeVideo');
+  const videoFile=$('videoFile');
+
+  function showPhoto(){
+    mediaMain.innerHTML='Fabric photo';
+    thumbs.querySelectorAll('.thumb').forEach(t=>t.removeAttribute('data-active'));
+    const first=thumbs.querySelector('.thumb[data-kind="photo"]')||thumbs.children[0];
+    if(first) first.setAttribute('data-active','true');
+  }
+  function showVideo(url){
+    mediaMain.innerHTML='';
+    const v=document.createElement('video');
+    v.setAttribute('controls','');
+    v.setAttribute('playsinline','');
+    v.src=url;
+    mediaMain.appendChild(v);
+    thumbs.querySelectorAll('.thumb').forEach(t=>t.removeAttribute('data-active'));
+    videoThumb.setAttribute('data-active','true');
+  }
+
+  function refreshVideoUI(){
+    const url=readVideo();
+    const has=!!url;
+    videoThumb.style.display=has?'grid':'none';
+    if(!has){ if(videoThumb.getAttribute('data-active')==='true') showPhoto(); }
+    if(authed()){ videoActions.style.display='flex'; } else { videoActions.style.display='none'; }
+  }
+
+  thumbs.addEventListener('click',(e)=>{
+    const th=e.target.closest('.thumb'); if(!th) return;
+    if(th.dataset.kind==='video'){ const url=readVideo(); if(url) showVideo(url); }
+    else showPhoto();
   });
 
-  /* Image zoom placeholder */
-  $('zoomPhoto').addEventListener('click', ()=> alert('Image zoom would open here.'));
+  if(authed()){ videoActions.style.display='flex'; }
+  if(readVideo()){ videoThumb.style.display='grid'; }
+
+  addVideo.addEventListener('click',()=> videoFile.click());
+  videoFile.addEventListener('change',()=>{
+    const f=videoFile.files?.[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=()=>{ try{ writeVideo(reader.result); refreshVideoUI(); showVideo(reader.result); }catch(e){ alert('Video too large for local storage. Use a smaller clip.'); } };
+    reader.readAsDataURL(f); // stores as Data URL for demo
+  });
+  removeVideoBtn.addEventListener('click',()=>{ removeVideo(); refreshVideoUI(); showPhoto(); });
+
+  // init
+  refreshVideoUI();
+  if(readVideo()) showVideo(readVideo()); else showPhoto();
 
 })();
 </script>
