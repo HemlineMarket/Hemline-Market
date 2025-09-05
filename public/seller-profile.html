@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Seller Profile — Hemline Market</title>
 
-<!-- Shared styles (same as Terms/home) -->
+<!-- Shared styles -->
 <link rel="stylesheet" href="styles/hm-modern.css"/>
 <link rel="stylesheet" href="styles/hem-header.css"/>
 <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -16,7 +16,7 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (match Terms page) */
+  /* Header (match Terms) */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .left{display:flex;align-items:center;gap:10px}
@@ -38,7 +38,7 @@
   .sheet nav a + a{margin-top:8px}
   .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
 
-  /* Page shell */
+  /* Page */
   .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
   h1{margin:0 0 8px;font-size:26px;font-weight:800}
   .subtle{color:var(--muted);margin:0 0 14px}
@@ -64,13 +64,17 @@
   /* Avatar */
   .avatar{width:84px;height:84px;border-radius:999px;border:1px solid var(--border);display:grid;place-items:center;font-weight:800;color:#334155;background:#fff}
 
-  /* Shop Rating panel */
+  /* Rating */
   .rating-wrap{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .meter{height:8px;background:#f3f4f6;border-radius:999px;overflow:hidden}
   .meter > span{display:block;height:100%;background:var(--accent);width:0}
   .stat{border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff}
   .stat .big{font-weight:800;font-size:18px}
   .stat .label{color:var(--muted);font-size:12px}
+
+  /* Copy link row */
+  .copyrow{display:grid;grid-template-columns:1fr auto;gap:8px}
+  .pill{border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-weight:700;display:inline-block}
 
   /* Footer */
   .hm-footer{background:#fff;border-top:1px solid var(--border)}
@@ -143,7 +147,7 @@
       <article class="card">
         <div class="hd">Shop Info</div>
         <div class="bd">
-          <div class="field"><label>Shop name</label><input type="text" placeholder="@e.g., LoomLab"></div>
+          <div class="field"><label>Shop name</label><input id="shopName" type="text" placeholder="@e.g., LoomLab"></div>
           <div class="field"><label>Tagline</label><input type="text" placeholder="Designer deadstock & luxury fabrics"></div>
           <div class="field"><label>About</label><textarea placeholder="Tell buyers about your sourcing, favorite textiles, or specialties…"></textarea></div>
           <p class="subtle" style="margin:0">Shows on your profile and listing pages.</p>
@@ -199,6 +203,21 @@
       </article>
 
       <article class="card" style="margin-top:12px">
+        <div class="hd">Share your shop</div>
+        <div class="bd">
+          <div class="field" style="margin-bottom:8px">
+            <label>Public link</label>
+            <div class="copyrow">
+              <input id="shopLink" type="text" readonly value="">
+              <button id="copyBtn" class="btn" type="button">Copy</button>
+            </div>
+            <div id="copyMsg" class="subtle" style="margin-top:6px;display:none">Link copied!</div>
+          </div>
+          <span class="pill">Tip: your link updates as you edit your shop name.</span>
+        </div>
+      </article>
+
+      <article class="card" style="margin-top:12px">
         <div class="hd">✨ Thank You</div>
         <div class="bd">
           <p style="margin:0">From your atelier to the world — thank you for sharing them here.</p>
@@ -233,14 +252,14 @@
   if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape") close();});
 
-  /* Avatar initial from localStorage (optional) */
+  /* Avatar from localStorage (optional) */
   const avatar=document.getElementById("av");
   try{
     const url=localStorage.getItem("avatarUrl");
     if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; avatar.style.backgroundSize='cover'; avatar.style.backgroundPosition='center'; }
   }catch(e){}
 
-  /* Demo: populate rating UI if saved in localStorage (non-auth placeholder) */
+  /* Demo rating values (optional local preview) */
   try{
     const completed = Number(localStorage.getItem("hm.seller.completed")||0);
     const ontime = Number(localStorage.getItem("hm.seller.ontime")||0);
@@ -248,6 +267,40 @@
     document.getElementById('onTimePct').textContent = Math.max(0, Math.min(100, ontime));
     document.getElementById('meterFill').style.width = Math.max(0, Math.min(100, ontime))+'%';
   }catch(e){}
+
+  /* Share link that follows shop name */
+  const shopName = document.getElementById('shopName');
+  const shopLink = document.getElementById('shopLink');
+  const copyBtn  = document.getElementById('copyBtn');
+  const copyMsg  = document.getElementById('copyMsg');
+
+  function slugify(str){
+    return (str||'').toLowerCase().trim()
+      .replace(/&/g,' and ')
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/^-+|-+$/g,'')
+      .substring(0,60);
+  }
+  function updateLink(){
+    const slug = slugify(shopName.value||'my-shop');
+    const base = window.location.origin || (location.protocol+'//'+location.host);
+    shopLink.value = base + '/atelier.html?shop=' + encodeURIComponent(slug);
+  }
+  updateLink();
+  shopName.addEventListener('input', updateLink);
+
+  copyBtn.addEventListener('click', async ()=>{
+    try{
+      await navigator.clipboard.writeText(shopLink.value);
+      copyMsg.style.display='block';
+      setTimeout(()=>copyMsg.style.display='none', 1200);
+    }catch(e){
+      // Fallback
+      shopLink.select(); document.execCommand('copy');
+      copyMsg.style.display='block';
+      setTimeout(()=>copyMsg.style.display='none', 1200);
+    }
+  });
 })();
 </script>
 </body>
