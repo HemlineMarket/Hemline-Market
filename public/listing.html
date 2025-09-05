@@ -4,12 +4,17 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Listing — Hemline Market</title>
+
+<link rel="stylesheet" href="styles/hm-modern.css"/>
+<link rel="stylesheet" href="styles/hem-header.css"/>
+<link rel="stylesheet" href="styles/hm-typography.css"/>
+<link rel="stylesheet" href="styles/hm-footer.css"/>
+
 <style>
   :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
-  *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (matches Terms page) */
+  /* Header/footer (canonical) */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .left{display:flex;align-items:center;gap:10px}
@@ -17,15 +22,11 @@
   .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#374151}
   .hamburger svg{width:22px;height:22px;stroke-width:2}
   .right{display:flex;align-items:center;gap:14px}
-  .hm-icon{color:#444;display:inline-grid;place-items:center;position:relative}
+  .hm-icon{color:#444;display:inline-grid;place-items:center}
   .hm-icon svg{width:26px;height:26px;stroke-width:2}
-  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
   .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
-  /* Bell alignment fix */
-  .hm-icon .badge{display:none}
-
-  /* Slide-out menu */
   .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
   .sheet.open{transform:translateX(0)}
   .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)}
@@ -34,38 +35,44 @@
   .sheet nav a + a{margin-top:8px}
   .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
 
-  /* Page layout */
-  .container{max-width:1200px;margin:14px auto;padding:0 12px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media (max-width:980px){ .container{grid-template-columns:1fr} }
+  /* Page */
+  .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
 
-  .card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
-  .card .hd{padding:12px;border-bottom:1px solid var(--border);font-weight:800}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:960px){ .grid{grid-template-columns:1fr} }
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px}
+  .card .hd{padding:10px 12px;border-bottom:1px solid var(--border);font-weight:800}
   .card .bd{padding:12px}
 
-  /* Media gallery */
-  .main-media{aspect-ratio:4/3;border:1px solid var(--border);border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#9ca3af;overflow:hidden}
-  .main-media video, .main-media img{width:100%;height:100%;object-fit:cover;display:block}
-  .thumbs{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-  .thumb{min-width:88px;height:64px;border:1px solid var(--border);border-radius:10px;background:#fff;display:grid;place-items:center;color:#6b7280;font-size:12px;cursor:pointer;padding:0 6px}
-  .thumb.active{outline:2px solid var(--accent);outline-offset:2px}
-  .uploader{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
-  .btn{padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .note{font-size:12px;color:#6b7280}
+  /* Gallery */
+  .hero{aspect-ratio:4/3;border:1px solid var(--border);border-radius:12px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#9ca3af;overflow:hidden}
+  .hero img,.hero video{width:100%;height:100%;object-fit:cover}
+  .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+  .thumb{height:64px;border:1px solid var(--border);border-radius:10px;background:#fff;display:grid;place-items:center;color:#6b7280;cursor:pointer;overflow:hidden}
+  .thumb img,.thumb video{width:100%;height:100%;object-fit:cover}
+  .thumb[aria-current="true"]{outline:2px solid var(--accent);outline-offset:2px}
 
-  /* Listing meta */
-  .price{font-weight:800;font-size:18px}
-  .subprice{color:#6b7280;font-size:13px;margin-left:6px}
-  .row{display:flex;gap:8px;align-items:center;margin:8px 0}
-  .qty{width:80px;padding:8px;border:1px solid var(--border);border-radius:8px}
+  /* Listing content */
+  .title{font-size:22px;font-weight:800;margin:0 0 6px}
+  .price{font-weight:800}
+  .muted{color:#6b7280}
+  .row{display:flex;align-items:center;gap:8px;margin:8px 0}
+  .btn{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+
+  .kv{display:grid;grid-template-columns:80px 1fr;gap:6px}
+  .kv div{padding:2px 0}
 
   /* Q&A */
   .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media (max-width:980px){ .qa-grid{grid-template-columns:1fr} }
-  textarea{width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:10px;resize:vertical}
-
-  /* Footer */
-  .hm-footer{background:#fff;border-top:1px solid var(--border);margin-top:18px}
+  @media (max-width:960px){ .qa-grid{grid-template-columns:1fr} }
+  textarea{width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;resize:vertical}
+  .note{font-size:12px;color:#6b7280}
+  
+  /* Footer (canonical) */
+  .hm-footer{background:#fff;border-top:1px solid var(--border)}
   .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .footer-links{display:flex;gap:14px;flex-wrap:wrap}
   .copy{color:#6b7280;font-size:14px}
@@ -88,16 +95,16 @@
     </div>
     <div class="right">
       <a class="hm-icon" href="browse.html" aria-label="Browse & search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg>
       </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg>
       </a>
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
       </a>
       <a class="hm-icon" href="cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
       </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
@@ -105,7 +112,7 @@
   </div>
 </header>
 
-<!-- Hamburger menu -->
+<!-- MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -118,96 +125,76 @@
   </header>
   <nav>
     <a href="browse.html">Browse</a>
-    <a href="sell.html">Sell Fabric</a>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="how.html">How It Works</a>
-    <a href="about.html">About</a>
-    <a href="contact.html">Contact</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="orders.html">Orders</a>
+    <a href="favorites.html">Favorites</a>
+    <a href="account.html">Account</a>
+    <a href="help.html">Help</a>
   </nav>
 </aside>
 
-<!-- PAGE -->
-<div class="container">
-
-  <!-- LEFT: Media -->
-  <section class="card">
-    <div class="hd">Photos</div>
-    <div class="bd">
-      <div id="mainMedia" class="main-media" aria-live="polite">Fabric photo</div>
-
-      <div class="thumbs" id="thumbs">
-        <button class="thumb active" data-type="image">photo</button>
-        <button class="thumb" data-type="image">thumb</button>
-        <button class="thumb" data-type="image">thumb</button>
-        <!-- Video thumb appears dynamically when a video URL exists -->
+<main class="wrap" id="maincontent">
+  <div class="grid">
+    <!-- PHOTOS / VIDEO -->
+    <section class="card">
+      <div class="hd">Photos</div>
+      <div class="bd">
+        <div id="hero" class="hero" aria-live="polite">Fabric photo</div>
+        <div class="thumbs" id="thumbs"></div>
       </div>
+    </section>
 
-      <!-- Seller-only: Upload video (shown when signed in) -->
-      <div class="uploader" id="videoUploader" style="display:none">
-        <input type="file" id="videoFile" accept="video/*" hidden>
-        <button class="btn" id="pickVideo" type="button">Upload video</button>
-        <span class="note" id="videoStatus">MP4/MOV/WebM · up to ~100MB recommended</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- RIGHT: Listing -->
-  <section class="card">
-    <div class="hd">Listing</div>
-    <div class="bd">
-      <h2 style="margin:0 0 4px">Italian Silk Twill — Navy</h2>
-      <div class="row" style="margin-top:0">
-        <span class="price">$42.00</span><span class="subprice">$28.00/yd</span>
-      </div>
-
-      <div class="row">
-        <label for="qty">Yards</label>
-        <input id="qty" class="qty" type="number" min="0.5" step="0.5" value="1.5">
-        <button class="btn primary" id="addToCart">Add to cart</button>
-        <button class="btn" id="saveBtn">❤ Save</button>
-      </div>
-
-      <div class="row" style="align-items:start;gap:24px">
-        <div>
-          <div style="font-weight:800;margin-bottom:6px">Details</div>
-          <div>Content&nbsp; <strong>Silk</strong></div>
-          <div>Fabric&nbsp; <strong>Twill</strong></div>
-          <div>Color&nbsp; <strong>Navy</strong></div>
-          <div>Pattern <strong>Solid</strong></div>
-          <div>Width&nbsp; <strong>54″</strong></div>
-          <div>Weight <strong>180 GSM</strong></div>
+    <!-- LISTING INFO -->
+    <section class="card">
+      <div class="hd">Listing</div>
+      <div class="bd">
+        <h1 id="title" class="title">Listing</h1>
+        <div class="row">
+          <span id="price" class="price">$0.00</span>
+          <span class="muted" id="per"> $0.00/yd</span>
         </div>
-        <div style="flex:1">
-          <div style="font-weight:800;margin-bottom:6px">Description</div>
-          <p style="margin:0">Smooth twill with soft drape and gentle sheen. Ideal for blouses, dresses, and scarves.</p>
+
+        <div class="row">
+          <label class="muted">Yards</label>
+          <input id="qty" type="number" min="0.5" step="0.5" value="1.0" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:#fff"/>
+          <button id="addCart" class="btn primary">Add to cart</button>
+          <button id="saveBtn" class="btn" title="Save listing">♡ Save</button>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+          <div>
+            <div class="muted" style="font-weight:800;margin-bottom:6px">Details</div>
+            <div class="kv" id="kv"></div>
+          </div>
+          <div>
+            <div class="muted" style="font-weight:800;margin-bottom:6px">Description</div>
+            <div id="desc" class="muted" style="color:#1f2937">—</div>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
   <!-- Q&A -->
-  <section class="card" style="grid-column:1 / -1">
-    <div class="bd">
-      <div class="qa-grid">
-        <div>
-          <div style="font-weight:800;margin-bottom:8px">Q&amp;A</div>
-          <div id="qaList" style="min-height:96px;border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff">
-            No questions yet—be the first to ask!
-          </div>
-        </div>
-        <div>
-          <div style="font-weight:800;margin-bottom:8px">Ask a question</div>
-          <textarea id="qaInput" placeholder="Have a question about this fabric? Ask here."></textarea>
-          <div class="row" style="justify-content:flex-start">
-            <button class="btn" id="postQuestion">Post question</button>
-            <span class="note" id="qaNote">You must be signed in.</span>
-          </div>
+  <section class="qa-grid" style="margin-top:14px">
+    <div class="card">
+      <div class="hd">Q&amp;A</div>
+      <div class="bd" id="qaList">
+        No questions yet—be the first to ask!
+      </div>
+    </div>
+    <div class="card">
+      <div class="hd">Ask a question</div>
+      <div class="bd">
+        <textarea id="qInput" placeholder="Have a question about this fabric? Ask here."></textarea>
+        <div class="row" style="justify-content:space-between">
+          <button id="postQ" class="btn">Post question</button>
+          <span class="note" id="authNote">You must be signed in.</span>
         </div>
       </div>
     </div>
   </section>
-
-</div>
+</main>
 
 <!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
@@ -223,162 +210,137 @@
   </div>
 </footer>
 
-<!-- Supabase -->
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
 (function(){
-  /* ====== SHELL ====== */
+  /* Header sheet + avatar */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
-  function openSheet(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
-  function closeSheet(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
-  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
-  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+  function open(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
+  function close(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
+  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
+  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape") close();});
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }}catch(e){}
 
-  const headerAvatar=document.getElementById("avatar");
-  try{ const url=localStorage.getItem("avatarUrl"); if(url){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+  /* --- Demo listing data (replace with your data wire) --- */
+  const LISTING = {
+    id: new URLSearchParams(location.search).get('id') || '1',
+    title: 'Italian Silk Twill — Navy',
+    price: 42.00,
+    per: 28.00,
+    desc: 'Smooth twill with soft drape and gentle sheen. Ideal for blouses, dresses, and scarves.',
+    details: { Content:'Silk', Fabric:'Twill', Color:'Navy', Pattern:'Solid', Width:'54″', Weight:'180 GSM' },
+    photos: ['images/sample1.jpg','images/sample2.jpg','images/sample3.jpg'],  // placeholders
+    video: '' // set to e.g. 'media/sample.mp4' to show video thumb/player
+  };
 
-  /* ====== MEDIA VIEWER ====== */
-  const main=document.getElementById('mainMedia');
-  const thumbs=document.getElementById('thumbs');
+  /* Render hero + thumbs (supports optional video) */
+  const hero = document.getElementById('hero');
+  const thumbs = document.getElementById('thumbs');
 
-  function showImage(src){
-    main.innerHTML = '<img alt="Fabric photo" src="'+(src||'')+'" />';
+  function setHeroMedia(kind, src){
+    hero.innerHTML='';
+    if(kind==='video'){
+      const v=document.createElement('video');
+      v.src=src; v.controls=true; v.playsInline=true; v.muted=false;
+      hero.appendChild(v);
+    }else{
+      const img=document.createElement('img'); img.src=src; img.alt='Fabric photo';
+      hero.appendChild(img);
+    }
   }
-  function showVideo(src){
-    main.innerHTML = '<video controls preload="metadata" playsinline src="'+src+'"></video>';
-  }
-  // Default placeholder
-  main.textContent = 'Fabric photo';
 
-  thumbs.addEventListener('click',(e)=>{
-    const t=e.target.closest('.thumb'); if(!t) return;
-    [...thumbs.children].forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    if(t.dataset.type==='video'){ showVideo(t.dataset.src); }
-    else { showImage(t.dataset.src || ''); main.textContent = t.dataset.src ? '' : 'Fabric photo'; }
+  function addThumb(kind, src, current=false){
+    const t=document.createElement('button');
+    t.type='button'; t.className='thumb'; if(current) t.setAttribute('aria-current','true');
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('.thumb[aria-current="true"]').forEach(el=>el.removeAttribute('aria-current'));
+      t.setAttribute('aria-current','true');
+      setHeroMedia(kind, src);
+    });
+    if(kind==='video'){
+      // tiny video poster
+      const wrap=document.createElement('div'); wrap.style.position='relative';
+      const ic=document.createElement('div'); ic.textContent='▶'; ic.style.position='absolute'; ic.style.inset='0'; ic.style.display='grid'; ic.style.placeItems='center'; ic.style.fontWeight='800';
+      const ph=document.createElement('div'); ph.style.width='100%'; ph.style.height='100%'; ph.style.background='#f1f5f9';
+      wrap.appendChild(ph); wrap.appendChild(ic); t.appendChild(wrap);
+    }else{
+      const img=document.createElement('img'); img.src=src; img.alt='thumb';
+      t.appendChild(img);
+    }
+    thumbs.appendChild(t);
+  }
+
+  // Populate listing
+  document.getElementById('title').textContent = LISTING.title;
+  document.getElementById('price').textContent = '$'+LISTING.price.toFixed(2);
+  document.getElementById('per').textContent = ' $'+LISTING.per.toFixed(2)+'/yd';
+  document.getElementById('desc').textContent = LISTING.desc;
+
+  const kv=document.getElementById('kv');
+  Object.entries(LISTING.details).forEach(([k,v])=>{
+    const a=document.createElement('div'); a.textContent=k;
+    const b=document.createElement('div'); b.textContent=v;
+    kv.appendChild(a); kv.appendChild(b);
   });
 
-  /* ====== SUPABASE (Video upload) ====== */
-  const supabase = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-  );
-  const BUCKET = "listing-videos";
-  const listingId = new URLSearchParams(location.search).get('id') || '1';
+  thumbs.innerHTML='';
+  const media = [...LISTING.photos.map(p=>({kind:'photo',src:p}))];
+  if(LISTING.video) media.unshift({kind:'video',src:LISTING.video}); // video as first thumb if present
 
-  // UI elements
-  const uploader = document.getElementById('videoUploader');
-  const pickBtn = document.getElementById('pickVideo');
-  const fileInput = document.getElementById('videoFile');
-  const statusEl = document.getElementById('videoStatus');
+  if(media.length){
+    setHeroMedia(media[0].kind==='video'?'video':'photo', media[0].src);
+    media.forEach((m,i)=> addThumb(m.kind, m.src, i===0));
+  }else{
+    hero.textContent='Fabric photo';
+  }
 
-  // Show uploader if signed in
-  supabase.auth.getUser().then(({ data })=>{
-    if(data?.user){ uploader.style.display='flex'; document.getElementById('qaNote').textContent=''; }
+  /* Auth + actions */
+  const signedIn = (localStorage.getItem('hm_auth')==='1');
+  const authNote = document.getElementById('authNote');
+  authNote.style.display = signedIn ? 'none' : 'inline';
+
+  // Minimal cart backed by localStorage
+  function readCart(){ try{return JSON.parse(localStorage.getItem('hm_cart')||'[]');}catch(_){return[];} }
+  function writeCart(items){ localStorage.setItem('hm_cart', JSON.stringify(items)); if(window.HM_CART_BADGE_UPDATE) HM_CART_BADGE_UPDATE(items); }
+
+  document.getElementById('addCart').addEventListener('click', ()=>{
+    const qty = Math.max(0.5, parseFloat(document.getElementById('qty').value||'1'));
+    const cart = readCart();
+    const id = 'listing:'+LISTING.id;
+    const amountCents = Math.round(LISTING.price*100);
+    const i = cart.findIndex(x=>x.id===id);
+    if(i>=0) cart[i].qty = (cart[i].qty||1) + qty;
+    else cart.push({ id, name: LISTING.title, amount: amountCents, qty });
+    writeCart(cart);
+    alert('Added to cart.');
   });
 
-  pickBtn?.addEventListener('click', ()=> fileInput.click());
-
-  fileInput?.addEventListener('change', async (e)=>{
-    const file = e.target.files?.[0];
-    if(!file) return;
-
-    // Basic client guard
-    const MB = file.size / (1024*1024);
-    if(MB > 200){ statusEl.textContent='File too large (max ~200MB).'; return; }
-
-    statusEl.textContent = 'Uploading…';
-    pickBtn.disabled = true;
-
+  document.getElementById('saveBtn').addEventListener('click', ()=>{
+    if(!signedIn){ alert('Please sign in to save.'); return; }
     try{
-      const ext = (file.name.split('.').pop()||'mp4').toLowerCase();
-      const path = `listings/${listingId}/${Date.now()}.${ext}`;
-
-      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: file.type || 'video/mp4'
-      });
-      if(upErr) throw upErr;
-
-      const { data:pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      const videoUrl = pub.publicUrl;
-
-      // Persist (front-end only for now) so the page remembers
-      try{ localStorage.setItem(`hm.video.${listingId}`, videoUrl); }catch(_){}
-
-      // Inject a video thumb (or update if exists)
-      let vThumb = thumbs.querySelector('.thumb[data-type="video"]');
-      if(!vThumb){
-        vThumb = document.createElement('button');
-        vThumb.className = 'thumb';
-        vThumb.dataset.type = 'video';
-        vThumb.textContent = 'video';
-        thumbs.appendChild(vThumb);
-      }
-      vThumb.dataset.src = videoUrl;
-
-      // Switch main viewer to the uploaded video
-      [...thumbs.children].forEach(x=>x.classList.remove('active'));
-      vThumb.classList.add('active');
-      showVideo(videoUrl);
-
-      statusEl.textContent = 'Uploaded ✓';
-    }catch(err){
-      console.error(err);
-      statusEl.textContent = 'Upload failed. Try again.';
-    }finally{
-      pickBtn.disabled = false;
-      fileInput.value = '';
-    }
+      const key='hm_saves';
+      const saves=new Set(JSON.parse(localStorage.getItem(key)||'[]'));
+      saves.add(LISTING.id);
+      localStorage.setItem(key, JSON.stringify([...saves]));
+      alert('Saved.');
+    }catch(_){ alert('Could not save.'); }
   });
 
-  // If we previously saved a video URL, surface it
-  try{
-    const saved = localStorage.getItem(`hm.video.${listingId}`);
-    if(saved){
-      const vbtn = document.createElement('button');
-      vbtn.className = 'thumb';
-      vbtn.dataset.type = 'video';
-      vbtn.dataset.src = saved;
-      vbtn.textContent = 'video';
-      thumbs.appendChild(vbtn);
-    }
-  }catch(_){}
-
-  /* ====== CART BUTTON (local-only cart) ====== */
-  const addBtn=document.getElementById('addToCart');
-  addBtn.addEventListener('click', ()=>{
-    const qty = Math.max(0.5, parseFloat(document.getElementById('qty').value)||1);
-    const cart = JSON.parse(localStorage.getItem('hm_cart')||'[]');
-    const id = `listing-${listingId}`;
-    const idx = cart.findIndex(i=>i.id===id);
-    if(idx>=0) cart[idx].qty = (cart[idx].qty||1) + qty;
-    else cart.push({ id, name:'Italian Silk Twill — Navy', amount:4200, qty });
-    localStorage.setItem('hm_cart', JSON.stringify(cart));
-    const original = addBtn.textContent;
-    addBtn.textContent = 'Added ✓';
-    setTimeout(()=> addBtn.textContent = original, 1000);
+  document.getElementById('postQ').addEventListener('click', ()=>{
+    if(!signedIn){ alert('Please sign in to post.'); return; }
+    const txt = (document.getElementById('qInput').value||'').trim();
+    if(!txt){ alert('Type a question first.'); return; }
+    const box = document.getElementById('qaList');
+    if(box.textContent.includes('No questions yet')) box.textContent='';
+    const q = document.createElement('div');
+    q.style.borderTop='1px solid var(--border)'; q.style.padding='10px 0';
+    q.innerHTML = '<strong>You</strong>: '+ txt;
+    box.appendChild(q);
+    document.getElementById('qInput').value='';
   });
-
-  /* ====== Q&A POST (auth-gated no-op UI) ====== */
-  document.getElementById('postQuestion').addEventListener('click', async ()=>{
-    const { data } = await supabase.auth.getUser();
-    if(!data?.user){ alert('Please sign in to post a question.'); return; }
-    const box=document.getElementById('qaInput');
-    if(!box.value.trim()) return;
-    const list=document.getElementById('qaList');
-    const q=document.createElement('div');
-    q.textContent = box.value.trim();
-    q.style.padding='8px 0'; q.style.borderTop='1px dashed #e5e7eb';
-    list.appendChild(q);
-    if(list.firstChild?.nodeType===3 || list.textContent.includes('No questions yet')) list.firstChild.remove?.();
-    box.value='';
-  });
-
 })();
 </script>
 </body>
