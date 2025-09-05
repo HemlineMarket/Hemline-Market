@@ -14,7 +14,7 @@
   :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header/Footers match Terms page */
+  /* Header (same as Terms) */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .left{display:flex;align-items:center;gap:10px}
@@ -27,6 +27,7 @@
   .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
   .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
+  /* Slide-out menu */
   .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
   .sheet.open{transform:translateX(0)}
   .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)}
@@ -35,7 +36,7 @@
   .sheet nav a + a{margin-top:8px}
   .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
 
-  /* Page */
+  /* Page shell */
   .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
   h1{margin:0 0 12px;font-size:28px;font-weight:800}
   .subtle{color:var(--muted);margin:0 0 14px}
@@ -75,6 +76,12 @@
 
   /* Review table */
   .kv{display:grid;grid-template-columns:120px 1fr;gap:6px}
+
+  /* 👉 Footer (identical to Terms) */
+  .hm-footer{background:#fff;border-top:1px solid var(--border)}
+  .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
+  .copy{color:#6b7280;font-size:14px}
 </style>
 </head>
 <body>
@@ -230,9 +237,7 @@
   </div>
 </footer>
 
-<!-- Supabase -->
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
 <script>
 (function(){
   /* Header sheet + avatar */
@@ -253,127 +258,103 @@
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
   );
 
-  const BUCKET_PHOTOS = "listing-photos";
-  const BUCKET_VIDEOS = "listing-videos";
-  const TABLE_LISTINGS = "listings";
+  const BUCKET_PHOTOS="listing-photos";
+  const BUCKET_VIDEOS="listing-videos";
+  const TABLE_LISTINGS="listings";
 
-  /* Wizard state */
-  let step = 1;
-  const MAX_STEP = 3;
-  const stepper = document.getElementById('stepper');
-  const stageTitle = document.getElementById('stageTitle');
-  const backBtn = document.getElementById('backBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  const pubNote = document.getElementById('pubNote');
+  let step=1; const MAX_STEP=3;
+  const stepper=document.getElementById('stepper');
+  const stageTitle=document.getElementById('stageTitle');
+  const backBtn=document.getElementById('backBtn');
+  const nextBtn=document.getElementById('nextBtn');
+  const pubNote=document.getElementById('pubNote');
 
   function setStep(n){
-    step = Math.max(1, Math.min(MAX_STEP, n));
-    document.querySelectorAll('.step').forEach((el,i)=>{
-      el.hidden = (i+1)!==step;
-    });
-    document.querySelectorAll('.bubble').forEach(b=>{
-      b.dataset.active = (Number(b.dataset.step)===step) ? 'true' : '';
-    });
-    const titles = ['Step 1 — Photos & Video','Step 2 — Details','Step 3 — Review & Publish'];
-    stageTitle.textContent = titles[step-1];
-    backBtn.disabled = (step===1);
-    nextBtn.textContent = (step===MAX_STEP ? 'Publish' : 'Next');
-    if(step===3) { pubNote.textContent = ''; buildReview(); }
+    step=Math.max(1,Math.min(MAX_STEP,n));
+    document.querySelectorAll('.step').forEach((el,i)=>{el.hidden=(i+1)!==step;});
+    document.querySelectorAll('.bubble').forEach(b=>{b.dataset.active=(Number(b.dataset.step)===step)?'true':'';});
+    const titles=['Step 1 — Photos & Video','Step 2 — Details','Step 3 — Review & Publish'];
+    stageTitle.textContent=titles[step-1];
+    backBtn.disabled=(step===1);
+    nextBtn.textContent=(step===MAX_STEP?'Publish':'Next');
+    if(step===3){ pubNote.textContent=''; buildReview(); }
   }
-  backBtn.addEventListener('click', ()=> setStep(step-1));
-  nextBtn.addEventListener('click', async ()=>{
+  backBtn.addEventListener('click',()=>setStep(step-1));
+  nextBtn.addEventListener('click',async()=>{
     if(step<MAX_STEP){
-      // basic required checks before leaving Step 2
       if(step===2){
-        const missing = [];
+        const missing=[];
         if(!read('title')) missing.push('Title');
         if(!read('price')) missing.push('Price');
         if(!read('yards')) missing.push('Yards');
-        if(missing.length){ alert('Please fill: ' + missing.join(', ')); return; }
+        if(missing.length){ alert('Please fill: '+missing.join(', ')); return; }
       }
       setStep(step+1);
     }else{
       await publishListing();
     }
   });
-  stepper.addEventListener('click', (e)=>{
+  stepper.addEventListener('click',(e)=>{
     const b=e.target.closest('.bubble'); if(!b) return;
     setStep(Number(b.dataset.step||1));
   });
 
-  /* Simple local preview store */
-  const state = { photos: [], video: null, fields:{} };
+  const state={photos:[],video:null,fields:{}};
 
-  // Photos
-  const photoDrop = document.getElementById('photoDrop');
-  const photoInput = document.getElementById('photoInput');
-  const photoThumbs = document.getElementById('photoThumbs');
-
+  const photoDrop=document.getElementById('photoDrop');
+  const photoInput=document.getElementById('photoInput');
+  const photoThumbs=document.getElementById('photoThumbs');
   function handlePhotoFiles(files){
     const arr=[...files].slice(0,8);
-    state.photos = arr;
-    photoThumbs.innerHTML='';
+    state.photos=arr; photoThumbs.innerHTML='';
     arr.forEach(f=>{
-      const url = URL.createObjectURL(f);
-      const ph = document.createElement('div'); ph.className='ph';
-      const img = document.createElement('img'); img.src=url; img.alt='photo';
+      const url=URL.createObjectURL(f);
+      const ph=document.createElement('div'); ph.className='ph';
+      const img=document.createElement('img'); img.src=url; img.alt='photo';
       ph.appendChild(img); photoThumbs.appendChild(ph);
     });
   }
-  photoInput.addEventListener('change', e=> handlePhotoFiles(e.target.files));
-  ;['dragenter','dragover'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.add('drag');}));
-  ;['dragleave','drop'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.remove('drag');}));
-  photoDrop.addEventListener('drop', e=> handlePhotoFiles(e.dataTransfer.files));
+  photoInput.addEventListener('change',e=>handlePhotoFiles(e.target.files));
+  ;['dragenter','dragover'].forEach(ev=>photoDrop.addEventListener(ev,e=>{e.preventDefault();photoDrop.classList.add('drag');}));
+  ;['dragleave','drop'].forEach(ev=>photoDrop.addEventListener(ev,e=>{e.preventDefault();photoDrop.classList.remove('drag');}));
+  photoDrop.addEventListener('drop',e=>handlePhotoFiles(e.dataTransfer.files));
 
-  // Video
-  const videoDrop = document.getElementById('videoDrop');
-  const videoInput = document.getElementById('videoInput');
-  const videoThumb = document.getElementById('videoThumb');
-
+  const videoDrop=document.getElementById('videoDrop');
+  const videoInput=document.getElementById('videoInput');
+  const videoThumb=document.getElementById('videoThumb');
   function handleVideoFile(file){
-    state.video = file || null;
-    videoThumb.innerHTML='';
+    state.video=file||null; videoThumb.innerHTML='';
     if(!file) return;
-    const url = URL.createObjectURL(file);
-    const ph = document.createElement('div'); ph.className='ph';
-    const vid = document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
+    const url=URL.createObjectURL(file);
+    const ph=document.createElement('div'); ph.className='ph';
+    const vid=document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
     ph.appendChild(vid); videoThumb.appendChild(ph);
   }
-  videoInput.addEventListener('change', e=> handleVideoFile(e.target.files[0]));
-  ;['dragenter','dragover'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.add('drag');}));
-  ;['dragleave','drop'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.remove('drag');}));
-  videoDrop.addEventListener('drop', e=> handleVideoFile(e.dataTransfer.files[0]));
+  videoInput.addEventListener('change',e=>handleVideoFile(e.target.files[0]));
+  ;['dragenter','dragover'].forEach(ev=>videoDrop.addEventListener(ev,e=>{e.preventDefault();videoDrop.classList.add('drag');}));
+  ;['dragleave','drop'].forEach(ev=>videoDrop.addEventListener(ev,e=>{e.preventDefault();videoDrop.classList.remove('drag');}));
+  videoDrop.addEventListener('drop',e=>handleVideoFile(e.dataTransfer.files[0]));
 
-  // Collect fields before review
   function read(id){ return document.getElementById(id)?.value?.trim()||''; }
   function buildReview(){
-    state.fields = {
-      title: read('title'),
-      price: read('price'),
-      yards: read('yards'),
-      desc: read('desc'),
-      content: read('content'),
-      fabric: read('fabric'),
-      color: read('color'),
-      pattern: read('pattern'),
-      width: read('width'),
-      gsm: read('gsm')
+    state.fields={
+      title: read('title'), price: read('price'), yards: read('yards'), desc: read('desc'),
+      content: read('content'), fabric: read('fabric'), color: read('color'),
+      pattern: read('pattern'), width: read('width'), gsm: read('gsm')
     };
-    const media = document.getElementById('reviewMedia');
-    media.innerHTML='';
+    const media=document.getElementById('reviewMedia'); media.innerHTML='';
     state.photos.forEach(f=>{
-      const url = URL.createObjectURL(f);
-      const ph = document.createElement('div'); ph.className='ph';
-      const img = document.createElement('img'); img.src=url; ph.appendChild(img); media.appendChild(ph);
+      const url=URL.createObjectURL(f);
+      const ph=document.createElement('div'); ph.className='ph';
+      const img=document.createElement('img'); img.src=url; ph.appendChild(img); media.appendChild(ph);
     });
     if(state.video){
-      const url = URL.createObjectURL(state.video);
-      const ph = document.createElement('div'); ph.className='ph';
-      const vid = document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
+      const url=URL.createObjectURL(state.video);
+      const ph=document.createElement('div'); ph.className='ph';
+      const vid=document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
       ph.appendChild(vid); media.appendChild(ph);
     }
-    const kv=document.getElementById('reviewKv');
-    kv.innerHTML='';
+    const kv=document.getElementById('reviewKv'); kv.innerHTML='';
     Object.entries(state.fields).forEach(([k,v])=>{
       const K=k.charAt(0).toUpperCase()+k.slice(1);
       const row=document.createElement('div'); row.style.display='contents';
@@ -383,98 +364,71 @@
     });
   }
 
-  // Save draft (local demo)
-  document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
+  document.getElementById('saveDraftBtn').addEventListener('click',()=>{
     try{
-      const data={ fields:state.fields, ts:Date.now() };
-      localStorage.setItem('hm.draft.listing', JSON.stringify(data));
+      const data={fields:state.fields,ts:Date.now()};
+      localStorage.setItem('hm.draft.listing',JSON.stringify(data));
       alert('Draft saved locally.');
     }catch(e){ alert('Unable to save draft.'); }
   });
 
-  /* ---- PUBLISH → Supabase ---- */
   async function ensureAuthed(){
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if(error) return null;
-    return user || null;
+    const { data:{ user }, error } = await supabase.auth.getUser();
+    if(error) return null; return user||null;
   }
-
   function safeName(name){ return (name||'').replace(/[^\w.\-]+/g,'_'); }
 
   async function uploadPhotos(userId, ts){
-    const urls = [];
+    const urls=[];
     for(let i=0;i<state.photos.length;i++){
-      const f = state.photos[i];
-      const path = `${userId}/${ts}/${String(i+1).padStart(2,'0')}-${safeName(f.name)}`;
-      const { error } = await supabase.storage.from(BUCKET_PHOTOS).upload(path, f, { upsert:false });
-      if(error){ throw new Error('Photo upload failed: '+error.message); }
+      const f=state.photos[i];
+      const path=`${userId}/${ts}/${String(i+1).padStart(2,'0')}-${safeName(f.name)}`;
+      const { error } = await supabase.storage.from(BUCKET_PHOTOS).upload(path,f,{upsert:false});
+      if(error) throw new Error('Photo upload failed: '+error.message);
       const { data } = supabase.storage.from(BUCKET_PHOTOS).getPublicUrl(path);
       urls.push(data.publicUrl);
     }
     return urls;
   }
-
   async function uploadVideo(userId, ts){
     if(!state.video) return null;
-    const f = state.video;
-    const path = `${userId}/${ts}/video-${safeName(f.name)}`;
-    const { error } = await supabase.storage.from(BUCKET_VIDEOS).upload(path, f, { upsert:false, contentType: f.type||'video/mp4' });
-    if(error){ throw new Error('Video upload failed: '+error.message); }
+    const f=state.video;
+    const path=`${userId}/${ts}/video-${safeName(f.name)}`;
+    const { error } = await supabase.storage.from(BUCKET_VIDEOS).upload(path,f,{upsert:false,contentType:f.type||'video/mp4'});
+    if(error) throw new Error('Video upload failed: '+error.message);
     const { data } = supabase.storage.from(BUCKET_VIDEOS).getPublicUrl(path);
     return data.publicUrl;
   }
 
   async function publishListing(){
     try{
-      nextBtn.disabled = true; backBtn.disabled = true;
-      pubNote.textContent = 'Publishing… please wait.';
+      nextBtn.disabled=true; backBtn.disabled=true; pubNote.textContent='Publishing… please wait.';
+      const missing=[]; if(!read('title')) missing.push('Title'); if(!read('price')) missing.push('Price'); if(!read('yards')) missing.push('Yards');
+      if(missing.length) throw new Error('Please fill: '+missing.join(', '));
 
-      // Require basic fields
-      const missing = [];
-      if(!read('title')) missing.push('Title');
-      if(!read('price')) missing.push('Price');
-      if(!read('yards')) missing.push('Yards');
-      if(missing.length){ throw new Error('Please fill: ' + missing.join(', ')); }
+      const user=await ensureAuthed(); if(!user) throw new Error('Please sign in first.');
 
-      // Require auth
-      const user = await ensureAuthed();
-      if(!user){ throw new Error('Please sign in first.'); }
+      const ts=Date.now();
+      const photoUrls=await uploadPhotos(user.id,ts);
+      const videoUrl=await uploadVideo(user.id,ts);
 
-      // Upload media
-      const ts = Date.now();
-      const photoUrls = await uploadPhotos(user.id, ts);
-      const videoUrl = await uploadVideo(user.id, ts);
-
-      // Build row
-      const row = {
-        title: read('title'),
-        price: Number(read('price')),
-        yards: Number(read('yards')),
-        description: read('desc'),
-        content: read('content') || null,
-        fabric: read('fabric') || null,
-        color: read('color') || null,
-        pattern: read('pattern') || null,
-        width: read('width') ? Number(read('width')) : null,
-        gsm: read('gsm') ? Number(read('gsm')) : null,
-        cover_url: photoUrls[0] || null,
-        photo_urls: photoUrls,     // JSON[] column recommended
-        video_url: videoUrl,       // text column
-        seller_id: user.id         // uuid
+      const row={
+        title:read('title'), price:Number(read('price')), yards:Number(read('yards')),
+        description:read('desc'),
+        content:read('content')||null, fabric:read('fabric')||null, color:read('color')||null,
+        pattern:read('pattern')||null, width:read('width')?Number(read('width')):null,
+        gsm:read('gsm')?Number(read('gsm')):null,
+        cover_url:photoUrls[0]||null, photo_urls:photoUrls, video_url:videoUrl, seller_id:user.id
       };
-
       const { data, error } = await supabase.from(TABLE_LISTINGS).insert(row).select('id').single();
       if(error) throw new Error(error.message);
 
-      pubNote.textContent = 'Done! Redirecting…';
-      // Go to details page
-      location.href = 'item.html?id=' + encodeURIComponent(data.id);
+      pubNote.textContent='Done! Redirecting…';
+      location.href='item.html?id='+encodeURIComponent(data.id);
     }catch(err){
-      console.error(err);
-      alert(err.message || 'Failed to publish.');
-      pubNote.textContent = 'Publish failed. Please try again.';
+      console.error(err); alert(err.message||'Failed to publish.'); pubNote.textContent='Publish failed. Please try again.';
     }finally{
-      nextBtn.disabled = false; backBtn.disabled = (step===1);
+      nextBtn.disabled=false; backBtn.disabled=(step===1);
     }
   }
 
