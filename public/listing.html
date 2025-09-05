@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Listing — Hemline Market</title>
 
-<!-- Header/Footer shell identical to Terms -->
+<!-- Shell identical to your Terms page -->
 <style>
   :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (same as Terms) */
+  /* Header */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .left{display:flex;align-items:center;gap:10px}
@@ -24,7 +24,7 @@
   .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
   .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
-  /* Slide-out menu (same as Terms) */
+  /* Slide-out menu */
   .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
   .sheet.open{transform:translateX(0)}
   .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)}
@@ -33,14 +33,14 @@
   .sheet nav a + a{margin-top:8px}
   .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
 
-  /* Footer (same as Terms) */
+  /* Footer */
   .hm-footer{background:#fff;border-top:1px solid var(--border)}
   .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .footer-links{display:flex;gap:14px;flex-wrap:wrap}
   .footer a{text-decoration:none;color:#1f2937}
   .copy{color:#6b7280;font-size:14px}
 
-  /* Listing page layout */
+  /* Page layout */
   .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
   .listing-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}
   @media (max-width:980px){.listing-grid{grid-template-columns:1fr}}
@@ -188,7 +188,7 @@
     <article class="card">
       <div class="hd">Q&amp;A</div>
       <div class="bd" id="qaBody">
-        <p class="empty-qa" id="qaEmpty">No questions yet. Be the first to ask!</p>
+        <p class="empty-qa" id="qaEmpty">No questions yet—be the first to ask!</p>
       </div>
     </article>
     <article class="card">
@@ -222,7 +222,7 @@
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
 (function(){
-  /* ===== Shell controls (hamburger, avatar) ===== */
+  /* ===== Shell (hamburger, avatar) ===== */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
@@ -234,31 +234,32 @@
   const headerAvatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+url+"')"; }}catch(e){}
 
-  /* ===== Price calculator (no auth) ===== */
+  /* ===== Listing identity (from URL or fallback) ===== */
+  const params=new URLSearchParams(location.search);
+  const LISTING_ID = params.get('id') || 'italian-silk-twill-navy';
+
+  /* ===== Price & Cart (no auth) ===== */
+  const PRICE_PER_YARD = 28;
   const yardInput=document.getElementById('yards');
   const displayPrice=document.getElementById('displayPrice');
-  const PRICE_PER_YARD = 28;
-  function updatePrice(){
-    const y=parseFloat(yardInput.value)||0;
-    displayPrice.textContent = `$${(y*PRICE_PER_YARD).toFixed(2)}`;
-  }
+  function updatePrice(){ const y=parseFloat(yardInput.value)||0; displayPrice.textContent = `$${(y*PRICE_PER_YARD).toFixed(2)}`; }
   yardInput.addEventListener('input', updatePrice); updatePrice();
 
-  /* ===== Minimal cart (no auth required) ===== */
-  const addBtn = document.getElementById('addToCart');
+  const addBtn=document.getElementById('addToCart');
   addBtn.addEventListener('click', ()=>{
     const qty = Math.max(0.5, parseFloat(yardInput.value)||0.5);
     const cart = JSON.parse(localStorage.getItem('hm_cart')||'[]');
-    const id = 'italian-silk-twill-navy'; // demo id
+    const id = LISTING_ID;
+    const name = document.getElementById('listingTitle').textContent.trim() || 'Fabric';
     const existing = cart.find(i=>i.id===id);
     if(existing){ existing.qty = (existing.qty||0) + qty; }
-    else cart.push({ id, name:'Italian Silk Twill — Navy', amount: PRICE_PER_YARD*100, qty });
+    else cart.push({ id, name, amount: PRICE_PER_YARD*100, qty });
     localStorage.setItem('hm_cart', JSON.stringify(cart));
     addBtn.textContent='Added ✓'; setTimeout(()=>addBtn.textContent='Add to cart', 1200);
     if(typeof window.HM_CART_BADGE_UPDATE==='function'){ window.HM_CART_BADGE_UPDATE(); }
   });
 
-  /* ===== Supabase Auth: robust session detection ===== */
+  /* ===== Supabase Auth & Client ===== */
   const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -270,62 +271,128 @@
   const authHint = document.getElementById('authHint');
 
   async function refreshAuthUI(){
-    const { data, error } = await supabase.auth.getUser();
+    const { data } = await supabase.auth.getUser();
     const user = data?.user || null;
-
-    // Enable/disable gated actions
     const authed = !!user;
     postBtn.disabled = !authed;
     saveBtn.disabled = !authed;
-
-    // Friendly hint
     authHint.textContent = authed ? 'Signed in' : 'You must be signed in.';
     authHint.style.color = authed ? '#6b7280' : '#991b1b';
-
-    // Optional: show initials in avatar when authed
     if(authed && user.email){
       headerAvatar.textContent = (user.email[0]||'U').toUpperCase();
       headerAvatar.style.backgroundImage='';
     }
   }
-
-  // Handle session changes (login/logout in another tab or redirected flow)
-  supabase.auth.onAuthStateChange((_event, _session)=>{ refreshAuthUI(); });
-
-  // Initial check (fixes “must sign in” after signing in)
+  supabase.auth.onAuthStateChange(()=>refreshAuthUI());
   refreshAuthUI();
 
-  /* ===== Favorites (requires auth) ===== */
+  /* ===== Favorites (auth required) ===== */
   saveBtn.addEventListener('click', async ()=>{
     const { data } = await supabase.auth.getUser();
     if(!data?.user){ authHint.textContent='You must be signed in.'; authHint.style.color='#991b1b'; return; }
-    const favsKey = 'hm_favorites';
-    const favs = new Set(JSON.parse(localStorage.getItem(favsKey)||'[]'));
-    favs.add('italian-silk-twill-navy');
-    localStorage.setItem(favsKey, JSON.stringify([...favs]));
+    const key='hm_favorites';
+    const favs=new Set(JSON.parse(localStorage.getItem(key)||'[]'));
+    favs.add(LISTING_ID);
+    localStorage.setItem(key, JSON.stringify([...favs]));
     saveBtn.textContent='Saved ✓'; setTimeout(()=>saveBtn.textContent='❤ Save', 1200);
   });
 
-  /* ===== Q&A (local-only demo, requires auth; DB wiring in a later step) ===== */
+  /* ===== Q&A wired to Supabase =====
+     Table: listing_questions
+       - id: uuid (primary key, default gen_random_uuid())
+       - listing_id: text
+       - user_id: uuid
+       - body: text
+       - created_at: timestamp with time zone (default now())
+     RLS (recommended):
+       - SELECT: true
+       - INSERT: auth.role() = 'authenticated' and user_id = auth.uid()
+  =================================== */
   const qaBody = document.getElementById('qaBody');
   const qaEmpty = document.getElementById('qaEmpty');
   const askBox = document.getElementById('askBox');
 
+  function esc(s){ return s.replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])); }
+
+  function renderQuestions(rows){
+    qaBody.innerHTML = '';
+    if(!rows || rows.length===0){
+      const p=document.createElement('p'); p.className='empty-qa'; p.textContent='No questions yet—be the first to ask!';
+      qaBody.appendChild(p);
+      return;
+    }
+    rows.forEach(r=>{
+      const div=document.createElement('div');
+      div.className='qa-item';
+      const who = r.user_email ? `<span class="empty-qa">${esc(r.user_email.split('@')[0])}</span>` : '';
+      div.innerHTML = `<strong>Q:</strong> ${esc(r.body)} ${who ? '· '+who : ''}`;
+      qaBody.appendChild(div);
+    });
+  }
+
+  async function loadQuestions(){
+    try{
+      const { data, error } = await supabase
+        .from('listing_questions')
+        .select('id, body, created_at, user_id, user_email')
+        .eq('listing_id', LISTING_ID)
+        .order('created_at', { ascending:false })
+        .limit(50);
+
+      if(error){
+        console.warn('Q&A load fallback (table/rls?):', error.message);
+        // Fallback to local cache so UX isn’t empty
+        const local = JSON.parse(localStorage.getItem('hm_qa_'+LISTING_ID)||'[]');
+        renderQuestions(local);
+        return;
+      }
+      renderQuestions(data||[]);
+    }catch(err){
+      console.warn('Q&A unexpected:', err);
+      const local = JSON.parse(localStorage.getItem('hm_qa_'+LISTING_ID)||'[]');
+      renderQuestions(local);
+    }
+  }
+
   postBtn.addEventListener('click', async ()=>{
     const { data } = await supabase.auth.getUser();
-    if(!data?.user){ authHint.textContent='You must be signed in.'; authHint.style.color='#991b1b'; return; }
-    const text = (askBox.value||'').trim();
-    if(!text){ askBox.focus(); return; }
-    // Append to UI
-    if(qaEmpty) qaEmpty.remove();
-    const item = document.createElement('div');
-    item.className='qa-item';
-    item.innerHTML = '<strong>Q:</strong> ' + text.replace(/[<>&]/g, s=>({ '<':'&lt;','>':'&gt;','&':'&amp;' }[s])) +
-                     '<div class="empty-qa" style="margin-top:6px">Thanks for asking — the seller will reply here.</div>';
-    qaBody.prepend(item);
-    askBox.value='';
-    postBtn.textContent='Posted ✓'; setTimeout(()=>postBtn.textContent='Post question', 1200);
+    const user = data?.user;
+    if(!user){ authHint.textContent='You must be signed in.'; authHint.style.color='#991b1b'; return; }
+    const body = (askBox.value||'').trim();
+    if(!body){ askBox.focus(); return; }
+
+    postBtn.disabled = true;
+    postBtn.textContent = 'Posting…';
+    try{
+      // include user.email for friendly display (optional)
+      const payload = {
+        listing_id: LISTING_ID,
+        user_id: user.id,
+        user_email: user.email || null,
+        body
+      };
+      const { error } = await supabase.from('listing_questions').insert(payload);
+      if(error){
+        console.warn('Insert failed, saving locally:', error.message);
+        // Local fallback (if table/RLS not ready)
+        const key='hm_qa_'+LISTING_ID;
+        const local=JSON.parse(localStorage.getItem(key)||'[]');
+        local.unshift(payload);
+        localStorage.setItem(key, JSON.stringify(local));
+      }
+      askBox.value='';
+      await loadQuestions();
+      postBtn.textContent='Posted ✓';
+      setTimeout(()=>{ postBtn.textContent='Post question'; postBtn.disabled=false; }, 900);
+    }catch(e){
+      console.warn('Insert error:', e);
+      postBtn.textContent='Try again';
+      setTimeout(()=>{ postBtn.textContent='Post question'; postBtn.disabled=false; }, 900);
+    }
   });
+
+  // Initial fetch
+  loadQuestions();
 })();
 </script>
 </body>
