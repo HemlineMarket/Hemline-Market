@@ -69,7 +69,6 @@
     .card .title{font-weight:700;margin-top:8px}
     .card .sub{color:#6b7280;font-size:13px;margin-top:4px}
 
-    /* Small screens */
     @media (max-width: 960px){
       .listing-wrap{grid-template-columns:1fr}
       .qa{grid-template-columns:1fr}
@@ -93,29 +92,24 @@
     </div>
 
     <div class="right">
-      <!-- Favorites -->
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
         </svg>
       </a>
-
-      <!-- Notifications -->
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
       </a>
-
-      <!-- Avatar & Sell -->
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="seller/index.html?list=new">Sell</a>
     </div>
   </div>
 </header>
 
-<!-- LEFT MENU (canonical order) -->
+<!-- LEFT MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -236,11 +230,18 @@
   </div>
 </footer>
 
-<!-- Supabase -->
+<!-- Supabase ENV (hard-coded from your project) -->
+<script>
+  window.SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+</script>
+
+<!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 (function(){
-  // ===== Canonical header sheet controls =====
+  // ===== Header sheet =====
   const sheet=document.getElementById('menuSheet');
   const openBtn=document.getElementById('openMenu');
   const closeBtn=document.getElementById('closeMenu');
@@ -257,15 +258,15 @@
     if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }
   }catch(_){}
 
-  // ===== Supabase init (expects globals set elsewhere) =====
-  const SB_URL = window.SUPABASE_URL || window.env?.SUPABASE_URL || 'YOUR_SUPABASE_URL';
-  const SB_ANON = window.SUPABASE_ANON_KEY || window.env?.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+  // ===== Supabase init =====
+  const SB_URL = window.SUPABASE_URL;
+  const SB_ANON = window.SUPABASE_ANON_KEY;
   const supabase = window.supabase.createClient(SB_URL, SB_ANON);
 
   // ===== Helpers =====
   const $ = (id)=>document.getElementById(id);
   const params = new URLSearchParams(location.search);
-  const listingId = params.get('id'); // listing.html?id=UUID
+  const listingId = params.get('id'); // listing.html?id=<uuid>
   let listing = null;
   let session = null;
 
@@ -276,36 +277,29 @@
     return '★★★★★'.slice(0,full) + '☆☆☆☆☆'.slice(full);
   }
 
-  // ===== Auth session (so we know asker_id / seller_id) =====
   async function getSession(){
     const { data:{ session:s } } = await supabase.auth.getSession();
     session = s;
     $('qaHelp').textContent = s ? 'Posting as: ' + (s.user.email||'user') : 'You must be signed in.';
   }
 
-  // ===== Load listing =====
   async function loadListing(){
-    if(!listingId){
-      $('title').textContent = 'Listing not found';
-      return;
-    }
-    // Pull listing core (adjust columns to match your schema)
+    if(!listingId){ $('title').textContent='Listing not found'; return; }
     const { data, error } = await supabase
       .from('listings')
       .select('id,title,price_per_yard,unit_label,width_gsm,width_in,weight_gsm,content,fabric,color,pattern,description,seller_id,images')
       .eq('id', listingId)
-      .single();
-    if(error){ console.error(error); $('title').textContent='Listing'; return; }
+      .maybeSingle();
+
+    if(error || !data){ console.error(error||'not found'); $('title').textContent='Listing'; return; }
     listing = data;
 
-    // Title + sub meta
     $('title').textContent = listing.title || 'Listing';
     document.title = (listing.title || 'Listing') + ' — Hemline Market';
     const width = listing.width_in ? `${listing.width_in}″` : '—';
     const weight = listing.weight_gsm ? `${listing.weight_gsm} GSM` : '—';
     $('subMeta').textContent = `${width} · ${weight}`;
 
-    // Price bloc
     const pricePerYard = Number(listing.price_per_yard || 0);
     $('unitPrice').textContent = fmtMoney(pricePerYard) + (listing.unit_label ? '/' + listing.unit_label : '/yd');
     function updatePrice(){
@@ -314,7 +308,6 @@
     }
     $('yards').addEventListener('input',updatePrice); updatePrice();
 
-    // Meta
     $('metaContent').textContent = listing.content || '—';
     $('metaFabric').textContent  = listing.fabric || '—';
     $('metaColor').textContent   = listing.color || '—';
@@ -329,7 +322,7 @@
     if(imgs.length){
       $('photoMain').textContent='';
       $('photoMain').style.background=`center/cover no-repeat url('${imgs[0]}')`;
-      imgs.forEach((src,i)=>{
+      imgs.forEach((src)=>{
         const d=document.createElement('div');
         d.textContent=''; d.style.background=`center/cover no-repeat url('${src}')`;
         d.addEventListener('click',()=>{ $('photoMain').style.background=`center/cover no-repeat url('${src}')`; });
@@ -337,33 +330,21 @@
       });
     }
 
-    // Seller metrics
     loadSellerMetrics(listing.seller_id);
-    // Q&A
     await loadQA();
   }
 
-  // ===== Seller metrics (views created in migration) =====
   async function loadSellerMetrics(sellerId){
     try{
-      // listing count
-      const { data:countRows } = await supabase
-        .from('seller_listing_count')
-        .select('listing_count')
-        .eq('seller_id', sellerId)
-        .maybeSingle();
-
-      // metrics
       const { data:metrics } = await supabase
         .from('seller_metrics')
-        .select('ratings_count, avg_rating, on_time_pct, listing_count')
+        .select('listing_count, ratings_count, avg_rating, on_time_pct')
         .eq('seller_id', sellerId)
         .maybeSingle();
 
-      const listingCount = metrics?.listing_count ?? countRows?.listing_count ?? 0;
+      const listingCount = metrics?.listing_count ?? 0;
       $('metricListings').textContent = `Listings: ${listingCount}`;
 
-      // Only show avg rating after 5+ listings (UI gate)
       if (listingCount >= 5 && (metrics?.ratings_count||0) > 0){
         $('stars').textContent = fmtStars(metrics.avg_rating);
         $('avgLabel').textContent = `(${Number(metrics.avg_rating).toFixed(1)})`;
@@ -374,12 +355,10 @@
 
       const pct = metrics?.on_time_pct ?? 0;
       $('metricOnTime').textContent = `On-time ship: ${Number(pct).toFixed(1)}%`;
-
       $('sellerStrip').hidden = false;
     }catch(e){ console.error(e); }
   }
 
-  // ===== Q&A =====
   async function loadQA(){
     const list = $('qaList');
     list.innerHTML = '<p class="muted">Loading…</p>';
@@ -388,6 +367,7 @@
       .select('id,body,created_at,asker_id, listing_answers(id,body,created_at,seller_id)')
       .eq('listing_id', listingId)
       .order('created_at', { ascending:false });
+
     if(error){ console.error(error); list.innerHTML='<p class="muted">Failed to load questions.</p>'; return; }
     if(!data || !data.length){ list.innerHTML='<p class="muted">No questions yet. Be the first to ask.</p>'; return; }
 
@@ -442,28 +422,27 @@
   }
 
   // Post a question
-  $('qaForm').addEventListener('submit', async (e)=>{
+  document.getElementById('qaForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
     if(!session){ alert('Please sign in to ask a question.'); return; }
-    const body = $('qaBody').value.trim();
+    const body = document.getElementById('qaBody').value.trim();
     if(!body) return;
     const { error } = await supabase
       .from('listing_questions')
       .insert({ listing_id: listingId, asker_id: session.user.id, body });
     if(error){ alert('Failed to post question.'); console.error(error); return; }
-    $('qaBody').value='';
+    document.getElementById('qaBody').value='';
     loadQA();
   });
 
-  // Dummy add-to-cart / save handlers (wire to your cart/favs later)
-  $('addToCartBtn').addEventListener('click',()=>{ alert('Added to cart (stub).'); });
-  $('saveBtn').addEventListener('click',()=>{ alert('Saved (stub).'); });
+  // Stubs
+  document.getElementById('addToCartBtn').addEventListener('click',()=>{ alert('Added to cart (stub).'); });
+  document.getElementById('saveBtn').addEventListener('click',()=>{ alert('Saved (stub).'); });
 
   // Boot
   (async function(){
     await getSession();
     await loadListing();
-    // refresh session on change (if user logs in elsewhere)
     supabase.auth.onAuthStateChange(async (_evt, _sess)=>{ session=_sess; await loadQA(); });
   })();
 })();
