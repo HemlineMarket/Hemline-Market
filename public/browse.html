@@ -385,6 +385,96 @@
   });
 })();
 </script>
+<!-- PATCH: header sheet + badges + meta tidy -->
+<style>
+  /* Keep the slide-out menu hidden by default; only show when .open */
+  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid #e5e7eb;transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+  .sheet:not(.open){pointer-events:none}      /* don't trap clicks when closed */
+  .sheet.open{transform:translateX(0);pointer-events:auto}
 
+  /* Card meta stays inside: price on its own line, specs can wrap */
+  .card{overflow:hidden}
+  .card .meta .price-line{display:flex;align-items:center;gap:8px}
+  .card .meta .price{font-weight:800}
+  .card .meta .specs{display:flex;flex-wrap:wrap;gap:8px;color:#6b7280;margin-top:6px}
+  .card .meta .specs span{white-space:nowrap}
+</style>
+
+<script>
+(function(){
+  // 1) Make sure the hamburger actually toggles the sheet
+  const sheet = document.getElementById('menuSheet');
+  const openBtn = document.getElementById('openMenu');
+  const closeBtn = document.getElementById('closeMenu');
+
+  function openSheet(){ if(!sheet) return; sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
+  function closeSheet(){ if(!sheet) return; sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+
+  if (openBtn) openBtn.addEventListener('click', (e)=>{ e.preventDefault(); openSheet(); });
+  if (closeBtn) closeBtn.addEventListener('click', (e)=>{ e.preventDefault(); closeSheet(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeSheet(); });
+
+  // 2) Keep the cart badge ONLY on the cart icon (purge any strays)
+  const allBadges = document.querySelectorAll('[data-cart-badge]');
+  const cartIcon = document.querySelector('a[aria-label="Cart"]');
+  allBadges.forEach(b=>{
+    if (!cartIcon || !cartIcon.contains(b)) b.remove();
+  });
+
+  // 3) If your cards were rendered earlier without the two-line meta,
+  //    normalize them once so the CSS above can control wrapping.
+  document.querySelectorAll('.card .meta').forEach(meta=>{
+    if (meta.dataset.fixed) return;
+    const title = meta.querySelector('.title');
+    let priceLine = meta.querySelector('.price-line');
+    let specs = meta.querySelector('.specs');
+
+    // Find price text like "$28/yd" anywhere inside .meta
+    let priceText = '';
+    const priceNode = [...meta.childNodes].find(n => n.nodeType===3 && /\$.*\/yd/.test(n.textContent.trim()));
+    if (priceNode) { priceText = priceNode.textContent.trim(); priceNode.remove(); }
+
+    // Build price line if missing
+    if (!priceLine) {
+      priceLine = document.createElement('div');
+      priceLine.className = 'price-line';
+      const price = document.createElement('span');
+      price.className = 'price';
+      price.textContent = priceText || '';
+      priceLine.appendChild(price);
+      title && title.after(priceLine);
+    }
+
+    // Build specs container if missing; tokenize on "•"
+    if (!specs) {
+      specs = document.createElement('div');
+      specs.className = 'specs';
+      // collect any leftover text like: 54" • 180 GSM
+      const leftovers = [...meta.childNodes].filter(n=>n.nodeType===3 && n.textContent.trim());
+      leftovers.forEach(n=>{
+        n.textContent.split('•').map(s=>s.trim()).filter(Boolean).forEach(tok=>{
+          const span=document.createElement('span'); span.textContent=tok; specs.appendChild(span);
+        });
+        n.remove();
+      });
+      priceLine.after(specs);
+    }
+    meta.dataset.fixed = '1';
+  });
+
+  // 4) Cart badge updater (reads hm_cart from localStorage)
+  function readCart(){ try{return JSON.parse(localStorage.getItem('hm_cart')||'[]')}catch(_){return[]} }
+  function total(items){ return items.reduce((n,i)=>n+(i.qty||1),0) }
+  function updateBadge(){
+    const cartBadge = cartIcon && cartIcon.querySelector('[data-cart-badge]');
+    if (!cartBadge) return;
+    const n = total(readCart());
+    cartBadge.style.display = n>0 ? 'inline-flex' : 'none';
+    cartBadge.textContent = n>0 ? String(n) : '';
+  }
+  updateBadge();
+  window.addEventListener('storage', (e)=>{ if(e.key==='hm_cart') updateBadge(); });
+})();
+</script>
 </body>
 </html>
