@@ -718,5 +718,74 @@
     }
   });
 </script>
+  <!-- Browse: cart badge + stat wrapping fixes -->
+<style>
+  /* Make the meta row wrap instead of pushing outside the card */
+  .card .meta .sub{
+    display:flex;
+    flex-wrap:wrap;          /* allow line break */
+    gap:8px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  /* Keep each little stat intact once we split them (54″ / 180 GSM) */
+  .card .meta .sub .hm-stat{ white-space:nowrap; }
+
+  /* Ensure card hides anything rogue */
+  .card{ overflow:hidden; }
+</style>
+
+<script>
+(function(){
+  /* 1) Badge should only appear on the Cart icon */
+  document.querySelectorAll(
+    'a[aria-label="Favorites"] [data-cart-badge], a[aria-label="Notifications"] [data-cart-badge]'
+  ).forEach(el => el.remove());
+
+  /* 2) Wrap the right-hand spec string into non-wrapping tokens, and
+        let the whole group wrap to the next line. Works for dynamically
+        inserted cards via MutationObserver. */
+  const grid = document.getElementById('grid');
+
+  function enhanceCard(card){
+    const sub = card.querySelector('.meta .sub');
+    if(!sub || sub.dataset.hmenhanced) return;
+
+    // Split the right span "54″ • 180 GSM" into <span class="hm-stat">…</span>
+    const spans = sub.querySelectorAll('span');
+    if(spans.length >= 2){
+      const right = spans[1];
+
+      // Only convert once
+      if(!right.querySelector('.hm-stat')){
+        const parts = right.textContent.split('•').map(s=>s.trim()).filter(Boolean);
+        right.textContent = '';
+        parts.forEach(txt=>{
+          const s = document.createElement('span');
+          s.className = 'hm-stat';
+          s.textContent = txt;
+          right.appendChild(s);
+        });
+      }
+    }
+    sub.dataset.hmenhanced = '1';
+  }
+
+  // Enhance anything already on the page
+  grid.querySelectorAll('.card').forEach(enhanceCard);
+
+  // Enhance anything that appears later (after fetch/render)
+  const mo = new MutationObserver(muts=>{
+    muts.forEach(m=>{
+      m.addedNodes.forEach(n=>{
+        if(!(n instanceof HTMLElement)) return;
+        if(n.classList.contains('card')) enhanceCard(n);
+        n.querySelectorAll?.('.card').forEach(enhanceCard);
+      });
+    });
+  });
+  mo.observe(grid, {childList:true, subtree:true});
+})();
+</script>
 </body>
 </html>
