@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Browse — Hemline Market</title>
 
-<!-- Canonical shared styles (same stack you use elsewhere) -->
+<!-- Canonical shared styles -->
 <link rel="stylesheet" href="styles/hm-modern.css"/>
 <link rel="stylesheet" href="styles/hem-header.css"/>
 <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -13,17 +13,31 @@
 
 <style>
   :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Page wrap */
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+
+  /* ========= Guard rails (fix the issues you saw) ========= */
+  /* Header icons sometimes inherit a global svg rule—cap them here */
+  .hm-header .hamburger svg,
+  .hm-header .hm-icon svg{
+    width:22px;height:22px;stroke-width:2;max-width:none;max-height:none;
+  }
+  /* Footer layout to match Terms/canonical */
+  .hm-footer{background:#fff;border-top:1px solid var(--border)}
+  .hm-footer .footer-wrap{
+    max-width:1200px;margin:0 auto;padding:10px 12px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  }
+  .hm-footer .footer-links a{color:#1f2937;text-decoration:none}
+
+  /* ========= Page-specific layout ========= */
   .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
 
-  /* Search bar */
   .topbar{display:flex;gap:10px;align-items:center;margin-bottom:12px}
   .topbar input[type="search"]{flex:1;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff}
   .topbar button{padding:9px 12px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:700}
 
-  /* Layout */
   .layout{display:grid;grid-template-columns:280px 1fr;gap:14px}
   @media (max-width:900px){ .layout{grid-template-columns:1fr} }
 
@@ -56,16 +70,14 @@
   .meta{padding:8px 10px}
   .meta .title{font-weight:800;margin-bottom:4px;line-height:1.2}
   .meta .sub{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;font-size:13px;color:#6b7280}
+  .meta .sub span{white-space:nowrap} /* keep $/yd, width, GSM compact */
   .add-btn{width:100%;margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
   .add-btn[disabled]{opacity:.6;cursor:not-allowed}
-
-  /* Small helper so $/yd, width, gsm never spill */
-  .meta .sub span{white-space:nowrap}
 </style>
 </head>
 <body>
 
-<!-- HEADER (canonical, unchanged) -->
+<!-- HEADER -->
 <header class="hm-header" role="banner">
   <div class="hm-wrap">
     <div class="left">
@@ -127,7 +139,7 @@
   </div>
 
   <div class="layout">
-    <!-- Filters (tidy, not rewritten) -->
+    <!-- Filters -->
     <aside class="filters">
       <h3>Filters</h3>
 
@@ -174,7 +186,7 @@
   </div>
 </div>
 
-<!-- FOOTER (canonical, unchanged) -->
+<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -259,6 +271,11 @@ document.getElementById('doSearch').addEventListener('click',()=>{
   const q=(document.getElementById('q').value||'').toLowerCase();
   const filtered=DATA.filter(d=>d.title.toLowerCase().includes(q));
   render(filtered);
+});
+
+/* Prevent navigating when the add-to-cart button is clicked inside a card */
+document.getElementById('grid').addEventListener('click',(e)=>{
+  if(e.target.closest('.add-to-cart')) e.preventDefault();
 });
 </script>
 </body>
