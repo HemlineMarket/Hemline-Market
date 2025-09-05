@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Seller Profile — Hemline Market</title>
 
-  <!-- Shared site styles -->
+  <!-- Shared site styles (FAQ/About canonical set) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -76,11 +76,17 @@
     .avatar-card .bd{display:grid;gap:10px;place-items:start}
     .big-avatar{width:120px;height:120px;border-radius:60px;border:1px solid var(--hm-border);background:#fff center/cover no-repeat;display:grid;place-items:center;color:#334155;font-weight:800}
     .file{display:inline-block}
+
+    /* Metrics strip */
+    .metrics{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0 0}
+    .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;background:#fff}
+    .muted{color:var(--hm-muted)}
+    .stars{letter-spacing:1px}
   </style>
 </head>
 <body>
 
-<!-- ===== HEADER (HM Shell) ===== -->
+<!-- ===== HEADER (canonical: no search icon) ===== -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -94,20 +100,19 @@
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
     <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
       </a>
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      </a>
-      <a class="hm-icon" href="cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 12.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
       </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
-      <a class="hm-btn-primary" href="sell.html">Sell</a>
+      <a class="hm-btn-primary" href="seller/index.html?list=new">Sell</a>
     </div>
   </div>
 </header>
@@ -124,10 +129,11 @@
     </button>
   </header>
   <nav>
+    <a href="browse.html">Browse</a>
+    <a href="seller/index.html?list=new">Sell Fabric</a>
     <a href="dashboard.html">Dashboard</a>
-    <a href="atelier.html">My Atelier</a>
     <a href="how.html">How It Works</a>
-    <a href="sell.html">Sell Fabric</a>
+    <a href="about.html">About</a>
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
@@ -135,8 +141,18 @@
 <!-- ===== CONTENT ===== -->
 <main class="wrap" role="main">
   <div class="head">
-    <h1>Seller Profile</h1>
-    <p>This is what buyers see on your shop and listings.</p>
+    <h1 id="shopHeading">Seller Profile</h1>
+    <p class="muted" id="shopSub">This is what buyers see on your shop and listings.</p>
+
+    <!-- Seller metrics strip (populated from Supabase views) -->
+    <div class="metrics" id="metrics" hidden>
+      <span class="badge" id="mListings">Listings: 0</span>
+      <span class="badge" id="mRating">
+        <span class="stars" id="mStars">☆☆☆☆☆</span>
+        <span id="mAvg" class="muted">(new)</span>
+      </span>
+      <span class="badge" id="mOnTime">On-time ship: 0%</span>
+    </div>
   </div>
 
   <div class="grid">
@@ -174,7 +190,7 @@
       </div>
     </aside>
 
-    <!-- LEFT: Socials -->
+    <!-- LEFT: Links -->
     <section class="card">
       <div class="hd">Links</div>
       <div class="bd">
@@ -193,7 +209,7 @@
         <div class="actions">
           <button id="saveBtn" class="btn primary" type="button">Save Profile</button>
           <button id="resetBtn" class="btn" type="button">Reset</button>
-          <a class="btn" href="atelier.html">View My Atelier</a>
+          <a class="btn" id="viewAtelierBtn" href="atelier.html">View My Atelier</a>
         </div>
         <div id="toast" class="toast" role="status" aria-live="polite">Saved.</div>
       </div>
@@ -217,7 +233,7 @@
   </div>
 </main>
 
-<!-- ===== FOOTER (HM Shell) ===== -->
+<!-- ===== FOOTER ===== -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -231,104 +247,215 @@
   </div>
 </footer>
 
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  (function(){
-    /* HM Shell: hamburger + avatar image in header */
-    const sheet=document.getElementById('menuSheet');
-    const openBtn=document.getElementById('openMenu');
-    const closeBtn=document.getElementById('closeMenu');
-    function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
-    function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
-    if(openBtn) openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
-    if(closeBtn) closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
-    document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
+(function(){
+  // ===== HM Shell: hamburger + avatar =====
+  const sheet=document.getElementById('menuSheet');
+  const openBtn=document.getElementById('openMenu');
+  const closeBtn=document.getElementById('closeMenu');
+  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
+  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+  if(openBtn) openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
+  if(closeBtn) closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
 
-    const headerAvatar=document.getElementById('avatar');
-    try{ const url=localStorage.getItem('avatarUrl'); if(url){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+  const headerAvatar=document.getElementById('avatar');
+  try{
+    const url=localStorage.getItem('avatarUrl');
+    if(url){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+url+"')"; }
+  }catch(_){}
 
-    /* Profile form state (localStorage demo) */
-    const KEY='hm.seller.profile.v1';
-    const els={
-      shopName:document.getElementById('shopName'),
-      tagline:document.getElementById('tagline'),
-      bio:document.getElementById('bio'),
-      site:document.getElementById('site'),
-      instagram:document.getElementById('instagram'),
-      tiktok:document.getElementById('tiktok'),
-      toast:document.getElementById('toast'),
-      saveBtn:document.getElementById('saveBtn'),
-      resetBtn:document.getElementById('resetBtn'),
-      avatarFile:document.getElementById('avatarFile'),
-      bigAvatar:document.getElementById('bigAvatar'),
-      removeAvatar:document.getElementById('removeAvatar'),
-    };
+  // ===== Supabase init =====
+  const SB_URL = window.SUPABASE_URL || window.env?.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+  const SB_ANON = window.SUPABASE_ANON_KEY || window.env?.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+  const supabase = window.supabase.createClient(SB_URL, SB_ANON);
 
-    function load(){
-      const raw=localStorage.getItem(KEY);
+  // ===== Elements =====
+  const els = {
+    shopHeading: document.getElementById('shopHeading'),
+    shopSub: document.getElementById('shopSub'),
+    metrics: document.getElementById('metrics'),
+    mListings: document.getElementById('mListings'),
+    mRating: document.getElementById('mRating'),
+    mStars: document.getElementById('mStars'),
+    mAvg: document.getElementById('mAvg'),
+    mOnTime: document.getElementById('mOnTime'),
+
+    shopName: document.getElementById('shopName'),
+    tagline: document.getElementById('tagline'),
+    bio: document.getElementById('bio'),
+    site: document.getElementById('site'),
+    instagram: document.getElementById('instagram'),
+    tiktok: document.getElementById('tiktok'),
+
+    bigAvatar: document.getElementById('bigAvatar'),
+    avatarFile: document.getElementById('avatarFile'),
+    removeAvatar: document.getElementById('removeAvatar'),
+
+    saveBtn: document.getElementById('saveBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    toast: document.getElementById('toast'),
+    viewAtelierBtn: document.getElementById('viewAtelierBtn'),
+  };
+
+  // ===== Helpers =====
+  function fmtStars(avg){
+    if(avg==null) return '☆☆☆☆☆';
+    const full = Math.round(Number(avg));
+    return '★★★★★'.slice(0,full) + '☆☆☆☆☆'.slice(full);
+  }
+  function showToast(msg='Saved.'){
+    els.toast.textContent=msg; els.toast.classList.add('show');
+    setTimeout(()=>els.toast.classList.remove('show'), 1600);
+  }
+
+  // Determine which seller profile to show:
+  // - If ?id=<uuid> is present, show that seller (public view)
+  // - Else, if logged in, show current user's seller profile (owner view)
+  const params = new URLSearchParams(location.search);
+  let sellerIdParam = params.get('id'); // seller-profile.html?id=UUID
+  let isOwnerView = false;
+  let session = null;
+
+  async function getSession(){
+    const { data:{ session:s } } = await supabase.auth.getSession();
+    session = s;
+  }
+
+  // Load profile core fields (you can replace with your own 'sellers' table)
+  // This demo uses localStorage for the text fields, and Supabase views for metrics.
+  const LS_KEY_PREFIX = 'hm.seller.profile.';
+  function storageKey(id){ return LS_KEY_PREFIX + (id || 'self'); }
+
+  function loadLocalProfile(key){
+    try{
+      const raw = localStorage.getItem(key);
       if(!raw) return;
-      const d=JSON.parse(raw);
-      for(const k of ['shopName','tagline','bio','site','instagram','tiktok']){
-        if(d[k]) els[k].value = d[k];
-      }
+      const d = JSON.parse(raw);
+      ['shopName','tagline','bio','site','instagram','tiktok'].forEach(k=>{
+        if (d[k] && els[k]) els[k].value = d[k];
+      });
       if(d.avatarUrl){
         els.bigAvatar.style.backgroundImage="url('"+d.avatarUrl+"')";
         els.bigAvatar.textContent='';
-        localStorage.setItem('avatarUrl', d.avatarUrl); // keep header in sync
-        headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+d.avatarUrl+"')";
+        localStorage.setItem('avatarUrl', d.avatarUrl);
+        if(headerAvatar){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+d.avatarUrl+"')"; }
       }
-    }
-    function save(){
-      const data={
-        shopName:els.shopName.value.trim(),
-        tagline:els.tagline.value.trim(),
-        bio:els.bio.value.trim(),
-        site:els.site.value.trim(),
-        instagram:els.instagram.value.trim(),
-        tiktok:els.tiktok.value.trim(),
-        avatarUrl:localStorage.getItem('avatarUrl') || ''
-      };
-      localStorage.setItem(KEY, JSON.stringify(data));
-      els.toast.textContent='Saved.'; els.toast.classList.add('show');
-      setTimeout(()=>els.toast.classList.remove('show'), 1800);
-    }
-    function reset(){
-      localStorage.removeItem(KEY);
-      for(const k of ['shopName','tagline','bio','site','instagram','tiktok']) els[k].value='';
-      localStorage.removeItem('avatarUrl');
-      els.bigAvatar.style.backgroundImage=''; els.bigAvatar.textContent='AA';
-      headerAvatar.style.backgroundImage=''; headerAvatar.textContent='AA';
-      els.toast.textContent='Reset.'; els.toast.classList.add('show');
-      setTimeout(()=>els.toast.classList.remove('show'), 1200);
-    }
-    els.saveBtn.addEventListener('click', save);
-    els.resetBtn.addEventListener('click', reset);
+    }catch(_){}
+  }
 
-    // Avatar upload -> preview + persist in localStorage
-    els.avatarFile.addEventListener('change', async (e)=>{
-      const file=e.target.files?.[0]; if(!file) return;
-      const url=URL.createObjectURL(file);
-      els.bigAvatar.style.backgroundImage="url('"+url+"')";
-      els.bigAvatar.textContent='';
-      // Save as dataURL for persistence
-      const img=new Image(); img.src=url; await img.decode().catch(()=>{});
-      const c=document.createElement('canvas'); c.width=img.width; c.height=img.height;
-      c.getContext('2d').drawImage(img,0,0);
-      const data=c.toDataURL('image/jpeg',0.9);
-      URL.revokeObjectURL(url);
-      localStorage.setItem('avatarUrl', data);
-      headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+data+"')";
-      save();
-    });
+  function saveLocalProfile(key){
+    const data = {
+      shopName: els.shopName.value.trim(),
+      tagline: els.tagline.value.trim(),
+      bio: els.bio.value.trim(),
+      site: els.site.value.trim(),
+      instagram: els.instagram.value.trim(),
+      tiktok: els.tiktok.value.trim(),
+      avatarUrl: localStorage.getItem('avatarUrl') || ''
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+    showToast('Saved.');
+    // Update heading immediately
+    els.shopHeading.textContent = data.shopName || 'Seller Profile';
+    els.shopSub.textContent = data.tagline || 'This is what buyers see on your shop and listings.';
+  }
 
-    els.removeAvatar.addEventListener('click', ()=>{
-      localStorage.removeItem('avatarUrl');
-      els.bigAvatar.style.backgroundImage=''; els.bigAvatar.textContent='AA';
-      headerAvatar.style.backgroundImage=''; headerAvatar.textContent='AA';
-      save();
-    });
+  function resetLocalProfile(key){
+    localStorage.removeItem(key);
+    ['shopName','tagline','bio','site','instagram','tiktok'].forEach(k=>{ if(els[k]) els[k].value=''; });
+    localStorage.removeItem('avatarUrl');
+    els.bigAvatar.style.backgroundImage=''; els.bigAvatar.textContent='AA';
+    if(headerAvatar){ headerAvatar.style.backgroundImage=''; headerAvatar.textContent='AA'; }
+    showToast('Reset.');
+  }
 
-    load();
+  // Avatar upload (local preview + persistence via dataURL in this demo)
+  els.avatarFile.addEventListener('change', async (e)=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    const url = URL.createObjectURL(file);
+    els.bigAvatar.style.backgroundImage="url('"+url+"')";
+    els.bigAvatar.textContent='';
+    const img=new Image(); img.src=url; await img.decode().catch(()=>{});
+    const c=document.createElement('canvas'); c.width=img.width; c.height=img.height;
+    c.getContext('2d').drawImage(img,0,0);
+    const data=c.toDataURL('image/jpeg',0.9);
+    URL.revokeObjectURL(url);
+    localStorage.setItem('avatarUrl', data);
+    if(headerAvatar){ headerAvatar.textContent=''; headerAvatar.style.backgroundImage="url('"+data+"')"; }
+  });
+
+  els.removeAvatar.addEventListener('click', ()=>{
+    localStorage.removeItem('avatarUrl');
+    els.bigAvatar.style.backgroundImage=''; els.bigAvatar.textContent='AA';
+    if(headerAvatar){ headerAvatar.style.backgroundImage=''; headerAvatar.textContent='AA'; }
+  });
+
+  // ===== Metrics loader (from Supabase views created in Step 1) =====
+  async function loadMetrics(sellerId){
+    try{
+      // seller_metrics includes listing_count, ratings_count, avg_rating, on_time_pct
+      const { data:metrics, error } = await supabase
+        .from('seller_metrics')
+        .select('listing_count, ratings_count, avg_rating, on_time_pct')
+        .eq('seller_id', sellerId)
+        .maybeSingle();
+
+      if(error){ console.error(error); return; }
+
+      const listingCount = metrics?.listing_count ?? 0;
+      const ratingsCount = metrics?.ratings_count ?? 0;
+      const avg = metrics?.avg_rating ?? null;
+      const pct = metrics?.on_time_pct ?? 0;
+
+      els.mListings.textContent = `Listings: ${listingCount}`;
+      if (listingCount >= 5 && ratingsCount > 0){
+        els.mStars.textContent = fmtStars(avg);
+        els.mAvg.textContent = `(${Number(avg).toFixed(1)})`;
+      } else {
+        els.mStars.textContent = '☆☆☆☆☆';
+        els.mAvg.textContent = '(new)';
+      }
+      els.mOnTime.textContent = `On-time ship: ${Number(pct).toFixed(1)}%`;
+      els.metrics.hidden = false;
+    }catch(e){ console.error(e); }
+  }
+
+  // ===== Boot =====
+  (async function(){
+    await getSession();
+
+    // Decide whose profile
+    let sellerId = sellerIdParam;
+    if(!sellerId && session){ sellerId = session.user.id; isOwnerView = true; }
+    if(session && sellerId === session?.user?.id){ isOwnerView = true; }
+
+    // Headings / owner vs public
+    if(isOwnerView){
+      els.shopHeading.textContent = 'Your Seller Profile';
+      els.shopSub.textContent = 'Buyers see this on your shop and listings.';
+      els.viewAtelierBtn.textContent = 'View My Atelier';
+    }else{
+      els.shopHeading.textContent = 'Seller Profile';
+      els.shopSub.textContent = 'Public shop view.';
+      els.viewAtelierBtn.textContent = 'View Shop';
+      // In a real app you’d set this to the seller’s public shop route
+      els.viewAtelierBtn.href = 'atelier.html?seller='+encodeURIComponent(sellerId||'');
+    }
+
+    // Load editable text from localStorage (demo only)
+    loadLocalProfile(storageKey(isOwnerView ? 'self' : sellerId || 'public'));
+
+    // Load metrics from Supabase
+    if(sellerId){ await loadMetrics(sellerId); }
+
+    // Wire buttons
+    els.saveBtn.addEventListener('click', ()=> saveLocalProfile(storageKey(isOwnerView ? 'self' : sellerId || 'public')));
+    els.resetBtn.addEventListener('click', ()=> resetLocalProfile(storageKey(isOwnerView ? 'self' : sellerId || 'public')));
   })();
+})();
 </script>
 </body>
 </html>
