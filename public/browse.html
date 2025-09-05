@@ -90,10 +90,14 @@
     .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;overflow:hidden;cursor:pointer;text-decoration:none;color:inherit}
     .ph{aspect-ratio:4/3;display:grid;place-items:center;color:#6b7280;background:linear-gradient(180deg,#f8fafc,#eef2f7)}
     .meta{padding:8px 10px}
-    .meta .title{font-weight:700}
-    .meta .sub{display:flex;justify-content:space-between;color:#6b7280;margin-top:6px}
-    .add-btn{ width:100%; margin-top:10px; padding:10px 12px; border-radius:10px; border:1px solid var(--hm-accent); background:var(--hm-accent); color:#fff; font-weight:700; cursor:pointer; }
+    .meta .title{font-weight:700;line-height:1.25;margin-bottom:4px;white-space:normal;overflow:hidden;text-overflow:ellipsis}
+    .meta .sub{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    .meta .sub .price{font-weight:800}
+    .meta .sub .stats{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;min-width:0;text-align:right}
+    .meta .sub .stats span{white-space:nowrap}
+    .add-btn{ width:100%; margin-top:8px; padding:10px 12px; border-radius:10px; border:1px solid var(--hm-accent); background:var(--hm-accent); color:#fff; font-weight:700; cursor:pointer; }
     .add-btn[disabled]{opacity:.6; cursor:not-allowed;}
+    .add-btn, .add-btn *{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
     /* Mobile filter sheet */
     .hm-filter-sheet{position:fixed; inset:0 0 0 auto; width:min(86vw,360px); height:100%; background:#fff; border-left:1px solid var(--hm-border); box-shadow:-20px 0 40px rgba(0,0,0,.12); transform:translateX(100%); transition:transform .25s ease; z-index:1000; display:flex; flex-direction:column;}
@@ -142,7 +146,6 @@
       </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-        <span class="cart-badge" data-cart-badge></span>
       </a>
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -534,11 +537,18 @@
     else { ph.textContent=it.title; }
 
     const meta=document.createElement('div'); meta.className='meta';
+
     const t=document.createElement('div'); t.className='title'; t.textContent=it.title;
+
     const sub=document.createElement('div'); sub.className='sub';
-    const left=document.createElement('span'); left.textContent='$'+it.price+'/yd';
-    const right=document.createElement('span'); right.textContent=(it.width||'—')+'″ • '+(it.gsm||'—')+' GSM';
-    sub.append(left,right);
+    const price=document.createElement('span'); price.className='price'; price.textContent='$'+it.price+'/yd';
+
+    const stats=document.createElement('div'); stats.className='stats';
+    const w=document.createElement('span');  w.textContent=(it.width||'—')+'″';
+    const g=document.createElement('span');  g.textContent=(it.gsm||'—')+' GSM';
+    stats.append(w,g);
+
+    sub.append(price,stats);
 
     const btn=document.createElement('button');
     btn.className='add-btn add-to-cart';
@@ -660,178 +670,6 @@
   });
   window.HM_CART_BADGE_UPDATE = update;
 })();
-</script>
-  <script>
-/* Remove badges from non-cart icons and prevent stat overflow on cards */
-(function(){
-  // 1) Only show cart badge on the cart icon
-  document.querySelectorAll('a[aria-label="Favorites"] [data-cart-badge], a[aria-label="Notifications"] [data-cart-badge]')
-    .forEach(el => el.remove());
-
-  // 2) Keep price/width/GSM from wrapping awkwardly
-  const css = `
-    .meta .sub{ gap:8px; flex-wrap:wrap; font-size:12px }
-    .meta .sub span{ white-space:nowrap }
-  `;
-  const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
-})();
-</script>
-  <script>
-(function(){
-  /* Keep only the cart badge (remove stray badges on heart/bell) */
-  document.querySelectorAll('a[aria-label="Favorites"] [data-cart-badge], a[aria-label="Notifications"] [data-cart-badge]')
-    .forEach(el => el.remove());
-
-  /* Tidy the meta row so $ / width / GSM never spill past the card */
-  const css = `
-    /* Ensure cards clip anything rogue */
-    .card{ overflow:hidden; }
-
-    /* Meta row: price at left, specs at right that can wrap neatly */
-    .meta{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-    }
-    .meta .price{
-      flex:0 0 auto;
-      font-weight:800;
-    }
-    .meta .sub{
-      display:flex;
-      flex-wrap:wrap;         /* allow wrap onto next line */
-      gap:8px;
-      justify-content:flex-end;
-      flex:1 1 auto;          /* take remaining space */
-      min-width:0;            /* enable wrapping instead of overflow */
-      text-align:right;
-    }
-    .meta .sub span{
-      white-space:nowrap;     /* keep each token intact: 54" / 180 GSM */
-    }
-
-    /* Button text never bleeds */
-    .add-to-cart, .add-to-cart *{
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-  `;
-  const style = document.createElement('style');
-  style.textContent = css;
-  document.head.appendChild(style);
-})();
-</script>
-  <!-- Fix cart badge + keep meta within cards -->
-<style>
-  /* 1) Card meta never overflows */
-  .card{ overflow:hidden; }
-  .card .info{ padding:8px 10px; }
-
-  /* Title wraps naturally; prevent crowding */
-  .card .title{
-    white-space:normal;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    display:block;
-    margin-bottom:4px;
-    line-height:1.2;
-  }
-
-  /* Meta row: price on left, specs on right that can wrap */
-  .card .meta{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:8px;
-  }
-  .card .meta .price{
-    flex:0 0 auto;
-    font-weight:800;
-  }
-  .card .meta .sub{
-    display:flex;
-    flex-wrap:wrap;          /* allow wrap to next line */
-    gap:8px;
-    justify-content:flex-end;
-    flex:1 1 auto;           /* take remaining space */
-    min-width:0;             /* enable wrapping instead of overflow */
-    text-align:right;
-  }
-  .card .meta .sub span{
-    white-space:nowrap;      /* keep each token intact: 54" / 180 GSM */
-  }
-
-  /* Seller/handle strip stays inside */
-  .card .seller{
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-
-  /* Buttons never bleed text */
-  .card .add-to-cart, .card .add-to-cart *{
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-
-  /* Slightly narrower layout on medium screens */
-  @media (max-width: 1200px){
-    .card .meta{ gap:6px; }
-    .card .meta .sub{ gap:6px; }
-  }
-  /* Stack meta on tight screens (price above specs) */
-  @media (max-width: 900px){
-    .card .meta{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:4px;
-    }
-    .card .meta .sub{
-      justify-content:flex-start;
-      text-align:left;
-    }
-  }
-</style>
-
-<script>
-  (function(){
-    /* 2) Keep badge only on Cart: remove any accidental badges on Heart/Bell */
-    const stray = document.querySelectorAll(
-      'a[aria-label="Favorites"] [data-cart-badge], a[aria-label="Notifications"] [data-cart-badge]'
-    );
-    stray.forEach(el => el.remove());
-
-    /* If your meta HTML is plain text, normalize it once so CSS can target it.
-       This wraps specs into <span>s inside .meta .sub without altering the text. */
-    document.querySelectorAll('.card .info .meta').forEach(meta=>{
-      if(meta.dataset.enhanced) return; // run once
-      const priceEl = meta.querySelector('.price');
-      let subEl = meta.querySelector('.sub');
-      if(!subEl){
-        subEl = document.createElement('div');
-        subEl.className = 'sub';
-        // Move all non-price nodes into .sub
-        [...meta.childNodes].forEach(n=>{
-          if(n!==priceEl) subEl.appendChild(n);
-        });
-        meta.appendChild(subEl);
-      }
-      // If sub is plain text like: `$28/yd • 54" • 180 GSM`
-      if(subEl.childElementCount===0 && subEl.textContent.trim()){
-        const tokens = subEl.textContent.split('•').map(t=>t.trim()).filter(Boolean);
-        subEl.textContent = '';
-        tokens.forEach(t=>{
-          const s=document.createElement('span');
-          s.textContent=t;
-          subEl.appendChild(s);
-        });
-      }
-      meta.dataset.enhanced = '1';
-    });
-  })();
 </script>
 </body>
 </html>
