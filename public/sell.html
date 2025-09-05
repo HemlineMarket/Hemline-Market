@@ -11,10 +11,10 @@
 <link rel="stylesheet" href="styles/hm-footer.css"/>
 
 <style>
-  :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
+  :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa;--danger:#b91c1c}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header (same as Terms) */
+  /* Header (matches Terms) */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .left{display:flex;align-items:center;gap:10px}
@@ -55,33 +55,29 @@
   .card .hd{padding:12px;border-bottom:1px solid var(--border);font-weight:800}
   .card .bd{padding:12px}
 
-  /* Upload areas */
+  /* Uploads */
   .drop{border:2px dashed #d1d5db;border-radius:12px;padding:18px;text-align:center;background:#fafafa}
   .drop.drag{border-color:var(--accent);background:#fff}
   .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
   .ph{aspect-ratio:4/3;border:1px solid var(--border);border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#9ca3af;font-size:12px;overflow:hidden}
   .ph img, .ph video{width:100%;height:100%;object-fit:cover;border-radius:10px}
 
-  /* Form */
+  /* Form + validation */
   .field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+  .label-row{display:flex;align-items:center;gap:8px}
   .field label{font-size:13px;color:#374151;font-weight:700}
+  .req{font-size:11px;background:#fde8e8;border:1px solid #f8b4b4;color:#7f1d1d;border-radius:6px;padding:2px 6px}
   .field input[type="text"], .field input[type="number"], .field textarea, .field select{padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:14px}
   .field textarea{min-height:120px;resize:vertical}
+  .invalid{border-color:var(--danger)!important; box-shadow:0 0 0 3px rgba(185,28,28,.08)}
+  .help-error{color:var(--danger);font-size:12px}
 
   .actions{display:flex;gap:8px;flex-wrap:wrap}
   .btn{padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
-  .btn.ghost{background:#fff}
-  .note{font-size:12px;color:#6b7280}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
 
-  /* Review table */
   .kv{display:grid;grid-template-columns:120px 1fr;gap:6px}
-
-  /* 👉 Footer (identical to Terms) */
-  .hm-footer{background:#fff;border-top:1px solid var(--border)}
-  .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
-  .copy{color:#6b7280;font-size:14px}
 </style>
 </head>
 <body>
@@ -118,7 +114,7 @@
   </div>
 </header>
 
-<!-- Hamburger menu -->
+<!-- MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -164,7 +160,8 @@
               <input id="photoInput" type="file" accept="image/*" multiple hidden>
               choose files
             </label>
-            <div class="note" style="margin-top:6px">Up to 8 photos. First photo becomes the cover.</div>
+            <div class="subtle" style="margin-top:6px">Up to 8 photos. First photo becomes the cover.</div>
+            <div id="photoError" class="help-error" style="margin-top:6px; display:none">At least one photo is required.</div>
           </div>
           <div class="thumbs" id="photoThumbs" aria-live="polite" style="margin-top:10px"></div>
 
@@ -174,16 +171,31 @@
               <input id="videoInput" type="file" accept="video/mp4,video/webm" hidden>
               choose a video
             </label>
-            <div class="note" style="margin-top:6px">MP4 or WebM, up to ~60s recommended.</div>
+            <div class="subtle" style="margin-top:6px">MP4 or WebM, up to ~60s recommended.</div>
           </div>
           <div class="thumbs" id="videoThumb" style="grid-template-columns:1fr;margin-top:10px"></div>
         </div>
 
         <!-- STEP 2 -->
         <div class="step step-2" hidden>
-          <div class="field"><label for="title">Title</label><input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy" required></div>
-          <div class="field"><label for="price">Price ($/yd)</label><input id="price" type="number" min="0" step="0.01" placeholder="28.00" required></div>
-          <div class="field"><label for="yards">Yards</label><input id="yards" type="number" min="0" step="0.5" placeholder="1.5" required></div>
+          <div class="field">
+            <div class="label-row"><label for="title">Title</label><span class="req">Required</span></div>
+            <input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy">
+            <div id="err_title" class="help-error" style="display:none">Please add a title.</div>
+          </div>
+
+          <div class="field">
+            <div class="label-row"><label for="price">Price ($/yd)</label><span class="req">Required</span></div>
+            <input id="price" type="number" min="0" step="0.01" placeholder="28.00">
+            <div id="err_price" class="help-error" style="display:none">Enter a price greater than 0.</div>
+          </div>
+
+          <div class="field">
+            <div class="label-row"><label for="yards">Yards</label><span class="req">Required</span></div>
+            <input id="yards" type="number" min="0" step="0.5" placeholder="1.5">
+            <div id="err_yards" class="help-error" style="display:none">Enter yards greater than 0.</div>
+          </div>
+
           <div class="field"><label for="desc">Description</label><textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea></div>
 
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
@@ -202,8 +214,7 @@
             <div class="thumbs" id="reviewMedia"></div>
           </div>
           <div class="kv" id="reviewKv" style="margin-top:10px"></div>
-          <p class="note" style="margin-top:8px">Review your details. You can go back to make changes.</p>
-          <div id="pubNote" class="note" style="margin-top:8px"></div>
+          <p class="subtle" style="margin-top:8px">Review your details. You can go back to make changes.</p>
         </div>
 
       </div>
@@ -215,10 +226,10 @@
       <div class="bd">
         <div class="actions">
           <button class="btn" id="backBtn" type="button" disabled>Back</button>
-          <button class="btn primary" id="nextBtn" type="button">Next</button>
+          <button class="btn primary" id="nextBtn" type="button" disabled>Next</button>
           <button class="btn" id="saveDraftBtn" type="button">Save Draft</button>
         </div>
-        <p class="note" style="margin-top:8px">We’ll guide you through each step.</p>
+        <p class="subtle" style="margin-top:8px">We’ll guide you through each step.</p>
       </div>
     </aside>
   </div>
@@ -237,7 +248,6 @@
   </div>
 </footer>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   /* Header sheet + avatar */
@@ -252,109 +262,169 @@
   const avatar=document.getElementById("avatar");
   try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }}catch(e){}
 
-  /* Supabase client */
-  const supabase = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-  );
+  /* Wizard state */
+  let step = 1;
+  const MAX_STEP = 3;
+  const stepper = document.getElementById('stepper');
+  const stageTitle = document.getElementById('stageTitle');
+  const backBtn = document.getElementById('backBtn');
+  const nextBtn = document.getElementById('nextBtn');
 
-  const BUCKET_PHOTOS="listing-photos";
-  const BUCKET_VIDEOS="listing-videos";
-  const TABLE_LISTINGS="listings";
-
-  let step=1; const MAX_STEP=3;
-  const stepper=document.getElementById('stepper');
-  const stageTitle=document.getElementById('stageTitle');
-  const backBtn=document.getElementById('backBtn');
-  const nextBtn=document.getElementById('nextBtn');
-  const pubNote=document.getElementById('pubNote');
+  const state = { photos: [], video: null, fields:{} };
 
   function setStep(n){
-    step=Math.max(1,Math.min(MAX_STEP,n));
-    document.querySelectorAll('.step').forEach((el,i)=>{el.hidden=(i+1)!==step;});
-    document.querySelectorAll('.bubble').forEach(b=>{b.dataset.active=(Number(b.dataset.step)===step)?'true':'';});
+    step = Math.max(1, Math.min(MAX_STEP, n));
+    document.querySelectorAll('.step').forEach((el,i)=>{ el.hidden=(i+1)!==step; });
+    document.querySelectorAll('.bubble').forEach(b=>{
+      b.dataset.active = (Number(b.dataset.step)===step) ? 'true' : '';
+    });
     const titles=['Step 1 — Photos & Video','Step 2 — Details','Step 3 — Review & Publish'];
-    stageTitle.textContent=titles[step-1];
-    backBtn.disabled=(step===1);
-    nextBtn.textContent=(step===MAX_STEP?'Publish':'Next');
-    if(step===3){ pubNote.textContent=''; buildReview(); }
+    stageTitle.textContent = titles[step-1];
+    backBtn.disabled = (step===1);
+    nextBtn.textContent = (step===MAX_STEP ? 'Publish' : 'Next');
+    validateCurrentStep();                 // keep Next enabled/disabled in sync
+    if(step===3) buildReview();
   }
-  backBtn.addEventListener('click',()=>setStep(step-1));
-  nextBtn.addEventListener('click',async()=>{
-    if(step<MAX_STEP){
-      if(step===2){
-        const missing=[];
-        if(!read('title')) missing.push('Title');
-        if(!read('price')) missing.push('Price');
-        if(!read('yards')) missing.push('Yards');
-        if(missing.length){ alert('Please fill: '+missing.join(', ')); return; }
-      }
-      setStep(step+1);
-    }else{
-      await publishListing();
-    }
+
+  function enableNext(ok){ nextBtn.disabled = !ok; }
+
+  function validateStep1(){
+    const ok = state.photos.length >= 1;
+    document.getElementById('photoError').style.display = ok ? 'none' : 'block';
+    return ok;
+  }
+
+  function validateStep2(){
+    const title = document.getElementById('title');
+    const price = document.getElementById('price');
+    const yards = document.getElementById('yards');
+
+    let ok = true;
+
+    // Title
+    const tGood = !!title.value.trim();
+    title.classList.toggle('invalid', !tGood);
+    document.getElementById('err_title').style.display = tGood ? 'none':'block';
+    ok = ok && tGood;
+
+    // Price > 0
+    const pVal = parseFloat(price.value);
+    const pGood = !isNaN(pVal) && pVal > 0;
+    price.classList.toggle('invalid', !pGood);
+    document.getElementById('err_price').style.display = pGood ? 'none':'block';
+    ok = ok && pGood;
+
+    // Yards > 0
+    const yVal = parseFloat(yards.value);
+    const yGood = !isNaN(yVal) && yVal > 0;
+    yards.classList.toggle('invalid', !yGood);
+    document.getElementById('err_yards').style.display = yGood ? 'none':'block';
+    ok = ok && yGood;
+
+    return ok;
+  }
+
+  function validateCurrentStep(){
+    if(step===1) return enableNext(validateStep1());
+    if(step===2) return enableNext(validateStep2());
+    enableNext(true);
+  }
+
+  backBtn.addEventListener('click', ()=> setStep(step-1));
+  nextBtn.addEventListener('click', ()=>{
+    if(step===1 && !validateStep1()) return;
+    if(step===2 && !validateStep2()) return;
+    if(step<MAX_STEP){ setStep(step+1); }
+    else{ alert('Publish would submit the listing here.'); }
   });
-  stepper.addEventListener('click',(e)=>{
+  stepper.addEventListener('click', (e)=>{
     const b=e.target.closest('.bubble'); if(!b) return;
-    setStep(Number(b.dataset.step||1));
+    const targetStep = Number(b.dataset.step||1);
+    // guard: can’t skip validation
+    if(targetStep>step){
+      if(step===1 && !validateStep1()) return;
+      if(step===2 && !validateStep2()) return;
+    }
+    setStep(targetStep);
   });
 
-  const state={photos:[],video:null,fields:{}};
+  /* Photos */
+  const photoDrop = document.getElementById('photoDrop');
+  const photoInput = document.getElementById('photoInput');
+  const photoThumbs = document.getElementById('photoThumbs');
 
-  const photoDrop=document.getElementById('photoDrop');
-  const photoInput=document.getElementById('photoInput');
-  const photoThumbs=document.getElementById('photoThumbs');
   function handlePhotoFiles(files){
     const arr=[...files].slice(0,8);
-    state.photos=arr; photoThumbs.innerHTML='';
+    state.photos = arr;
+    photoThumbs.innerHTML='';
     arr.forEach(f=>{
-      const url=URL.createObjectURL(f);
-      const ph=document.createElement('div'); ph.className='ph';
-      const img=document.createElement('img'); img.src=url; img.alt='photo';
+      const url = URL.createObjectURL(f);
+      const ph = document.createElement('div'); ph.className='ph';
+      const img = document.createElement('img'); img.src=url; img.alt='photo';
       ph.appendChild(img); photoThumbs.appendChild(ph);
     });
+    validateCurrentStep();
   }
-  photoInput.addEventListener('change',e=>handlePhotoFiles(e.target.files));
-  ;['dragenter','dragover'].forEach(ev=>photoDrop.addEventListener(ev,e=>{e.preventDefault();photoDrop.classList.add('drag');}));
-  ;['dragleave','drop'].forEach(ev=>photoDrop.addEventListener(ev,e=>{e.preventDefault();photoDrop.classList.remove('drag');}));
-  photoDrop.addEventListener('drop',e=>handlePhotoFiles(e.dataTransfer.files));
+  photoInput.addEventListener('change', e=> handlePhotoFiles(e.target.files));
+  ;['dragenter','dragover'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.add('drag');}));
+  ;['dragleave','drop'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.remove('drag');}));
+  photoDrop.addEventListener('drop', e=> handlePhotoFiles(e.dataTransfer.files));
 
-  const videoDrop=document.getElementById('videoDrop');
-  const videoInput=document.getElementById('videoInput');
-  const videoThumb=document.getElementById('videoThumb');
+  /* Video */
+  const videoDrop = document.getElementById('videoDrop');
+  const videoInput = document.getElementById('videoInput');
+  const videoThumb = document.getElementById('videoThumb');
+
   function handleVideoFile(file){
-    state.video=file||null; videoThumb.innerHTML='';
+    state.video = file || null;
+    videoThumb.innerHTML='';
     if(!file) return;
-    const url=URL.createObjectURL(file);
-    const ph=document.createElement('div'); ph.className='ph';
-    const vid=document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
+    const url = URL.createObjectURL(file);
+    const ph = document.createElement('div'); ph.className='ph';
+    const vid = document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
     ph.appendChild(vid); videoThumb.appendChild(ph);
   }
-  videoInput.addEventListener('change',e=>handleVideoFile(e.target.files[0]));
-  ;['dragenter','dragover'].forEach(ev=>videoDrop.addEventListener(ev,e=>{e.preventDefault();videoDrop.classList.add('drag');}));
-  ;['dragleave','drop'].forEach(ev=>videoDrop.addEventListener(ev,e=>{e.preventDefault();videoDrop.classList.remove('drag');}));
-  videoDrop.addEventListener('drop',e=>handleVideoFile(e.dataTransfer.files[0]));
+  videoInput.addEventListener('change', e=> handleVideoFile(e.target.files[0]));
+  ;['dragenter','dragover'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.add('drag');}));
+  ;['dragleave','drop'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.remove('drag');}));
+  videoDrop.addEventListener('drop', e=> handleVideoFile(e.dataTransfer.files[0]));
 
+  // Live validation on required fields
+  ['title','price','yards'].forEach(id=>{
+    const el=document.getElementById(id);
+    el && el.addEventListener('input', validateCurrentStep);
+  });
+
+  /* Review data */
   function read(id){ return document.getElementById(id)?.value?.trim()||''; }
   function buildReview(){
-    state.fields={
-      title: read('title'), price: read('price'), yards: read('yards'), desc: read('desc'),
-      content: read('content'), fabric: read('fabric'), color: read('color'),
-      pattern: read('pattern'), width: read('width'), gsm: read('gsm')
+    state.fields = {
+      title: read('title'),
+      price: read('price'),
+      yards: read('yards'),
+      desc: read('desc'),
+      content: read('content'),
+      fabric: read('fabric'),
+      color: read('color'),
+      pattern: read('pattern'),
+      width: read('width'),
+      gsm: read('gsm')
     };
-    const media=document.getElementById('reviewMedia'); media.innerHTML='';
+    const media = document.getElementById('reviewMedia');
+    media.innerHTML='';
     state.photos.forEach(f=>{
-      const url=URL.createObjectURL(f);
-      const ph=document.createElement('div'); ph.className='ph';
-      const img=document.createElement('img'); img.src=url; ph.appendChild(img); media.appendChild(ph);
+      const url = URL.createObjectURL(f);
+      const ph = document.createElement('div'); ph.className='ph';
+      const img = document.createElement('img'); img.src=url; ph.appendChild(img); media.appendChild(ph);
     });
     if(state.video){
-      const url=URL.createObjectURL(state.video);
-      const ph=document.createElement('div'); ph.className='ph';
-      const vid=document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
+      const url = URL.createObjectURL(state.video);
+      const ph = document.createElement('div'); ph.className='ph';
+      const vid = document.createElement('video'); vid.src=url; vid.controls=true; vid.muted=true;
       ph.appendChild(vid); media.appendChild(ph);
     }
-    const kv=document.getElementById('reviewKv'); kv.innerHTML='';
+    const kv=document.getElementById('reviewKv');
+    kv.innerHTML='';
     Object.entries(state.fields).forEach(([k,v])=>{
       const K=k.charAt(0).toUpperCase()+k.slice(1);
       const row=document.createElement('div'); row.style.display='contents';
@@ -364,75 +434,16 @@
     });
   }
 
-  document.getElementById('saveDraftBtn').addEventListener('click',()=>{
+  // Save draft (local demo)
+  document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
     try{
-      const data={fields:state.fields,ts:Date.now()};
-      localStorage.setItem('hm.draft.listing',JSON.stringify(data));
+      const data={ fields:state.fields, ts:Date.now() };
+      localStorage.setItem('hm.draft.listing', JSON.stringify(data));
       alert('Draft saved locally.');
     }catch(e){ alert('Unable to save draft.'); }
   });
 
-  async function ensureAuthed(){
-    const { data:{ user }, error } = await supabase.auth.getUser();
-    if(error) return null; return user||null;
-  }
-  function safeName(name){ return (name||'').replace(/[^\w.\-]+/g,'_'); }
-
-  async function uploadPhotos(userId, ts){
-    const urls=[];
-    for(let i=0;i<state.photos.length;i++){
-      const f=state.photos[i];
-      const path=`${userId}/${ts}/${String(i+1).padStart(2,'0')}-${safeName(f.name)}`;
-      const { error } = await supabase.storage.from(BUCKET_PHOTOS).upload(path,f,{upsert:false});
-      if(error) throw new Error('Photo upload failed: '+error.message);
-      const { data } = supabase.storage.from(BUCKET_PHOTOS).getPublicUrl(path);
-      urls.push(data.publicUrl);
-    }
-    return urls;
-  }
-  async function uploadVideo(userId, ts){
-    if(!state.video) return null;
-    const f=state.video;
-    const path=`${userId}/${ts}/video-${safeName(f.name)}`;
-    const { error } = await supabase.storage.from(BUCKET_VIDEOS).upload(path,f,{upsert:false,contentType:f.type||'video/mp4'});
-    if(error) throw new Error('Video upload failed: '+error.message);
-    const { data } = supabase.storage.from(BUCKET_VIDEOS).getPublicUrl(path);
-    return data.publicUrl;
-  }
-
-  async function publishListing(){
-    try{
-      nextBtn.disabled=true; backBtn.disabled=true; pubNote.textContent='Publishing… please wait.';
-      const missing=[]; if(!read('title')) missing.push('Title'); if(!read('price')) missing.push('Price'); if(!read('yards')) missing.push('Yards');
-      if(missing.length) throw new Error('Please fill: '+missing.join(', '));
-
-      const user=await ensureAuthed(); if(!user) throw new Error('Please sign in first.');
-
-      const ts=Date.now();
-      const photoUrls=await uploadPhotos(user.id,ts);
-      const videoUrl=await uploadVideo(user.id,ts);
-
-      const row={
-        title:read('title'), price:Number(read('price')), yards:Number(read('yards')),
-        description:read('desc'),
-        content:read('content')||null, fabric:read('fabric')||null, color:read('color')||null,
-        pattern:read('pattern')||null, width:read('width')?Number(read('width')):null,
-        gsm:read('gsm')?Number(read('gsm')):null,
-        cover_url:photoUrls[0]||null, photo_urls:photoUrls, video_url:videoUrl, seller_id:user.id
-      };
-      const { data, error } = await supabase.from(TABLE_LISTINGS).insert(row).select('id').single();
-      if(error) throw new Error(error.message);
-
-      pubNote.textContent='Done! Redirecting…';
-      location.href='item.html?id='+encodeURIComponent(data.id);
-    }catch(err){
-      console.error(err); alert(err.message||'Failed to publish.'); pubNote.textContent='Publish failed. Please try again.';
-    }finally{
-      nextBtn.disabled=false; backBtn.disabled=(step===1);
-    }
-  }
-
-  setStep(1);
+  setStep(1); // initialize and enforce Step 1 photo requirement
 })();
 </script>
 </body>
