@@ -1,74 +1,90 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- MOBILE HOTFIX -->
-  <style id="hm-mobile-hotfix">
-    html, body { max-width:100%; overflow-x:hidden; }
-    .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
-    .grid, .section, .toolbar, .header, .tabbar { max-width:100%; }
-    img, video, canvas, svg { max-width:100%; height:auto; }
-    [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Listing — Hemline Market</title>
 
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Listing — Hemline Market</title>
+<!-- ==== Shell variables & header/footer styles (IDENTICAL TO TERMS) ==== -->
+<style>
+  :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  <!-- Shared site styles -->
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hem-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
+  /* Header (same structure & classes as Terms) */
+  .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
+  .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+  .left{display:flex;align-items:center;gap:10px}
+  .hm-brand{font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
+  .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#374151}
+  .hamburger svg{width:22px;height:22px;stroke-width:2}
+  .right{display:flex;align-items:center;gap:14px}
+  .hm-icon{color:#444;display:inline-grid;place-items:center}
+  .hm-icon svg{width:26px;height:26px;stroke-width:2}
+  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
+  .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
-  <style>
-    body{margin:0;background:#fafafa;color:#111827;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
+  /* Slide-out menu (same as Terms) */
+  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+  .sheet.open{transform:translateX(0)}
+  .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)}
+  .sheet nav{display:grid;padding:10px}
+  .sheet nav a{padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:#1f2937}
+  .sheet nav a + a{margin-top:8px}
+  .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
 
-    .listing-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}
-    @media(max-width:980px){.listing-grid{grid-template-columns:1fr}}
+  /* Footer (same as Terms) */
+  .hm-footer{background:#fff;border-top:1px solid var(--border)}
+  .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
+  .footer a{text-decoration:none;color:#1f2937}
+  .copy{color:#6b7280;font-size:14px}
 
-    .panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px}
-    .panel .bd{padding:12px}
+  /* ==== Listing page only (scoped) ==== */
+  .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
+  .listing-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}
+  @media (max-width:980px){.listing-grid{grid-template-columns:1fr}}
 
-    .gallery .main{min-height:360px;display:grid;place-items:center;color:#9ca3af;background:linear-gradient(180deg,#f8fafc,#eef2f7);border-radius:8px;margin:12px}
-    .thumbs{display:flex;gap:10px;padding:0 12px 12px}
-    .thumbs div{width:90px;height:90px;border:1px solid #e5e7eb;border-radius:8px;display:grid;place-items:center;color:#9ca3af;background:#f9fafb}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+  .card .hd{padding:12px;border-bottom:1px solid var(--border);font-weight:800}
+  .card .bd{padding:12px}
 
-    .buy{display:flex;gap:10px;align-items:center;margin:12px 0}
-    .buy input{width:90px;padding:8px;border:1px solid #e5e7eb;border-radius:10px}
-    .btn{padding:9px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer}
-    .btn.primary{background:#991b1b;color:#fff;border-color:#991b1b}
+  /* Gallery */
+  .gallery .main{min-height:360px;display:grid;place-items:center;color:#9ca3af;background:linear-gradient(180deg,#f8fafc,#eef2f7);border-radius:10px;margin:12px}
+  .thumbs{display:flex;gap:10px;padding:0 12px 12px}
+  .thumbs div{width:90px;height:90px;border:1px solid var(--border);border-radius:10px;display:grid;place-items:center;color:#9ca3af;background:#f9fafb}
 
-    .meta-grid{display:grid;grid-template-columns:280px 1fr;gap:12px}
-    @media(max-width:720px){.meta-grid{grid-template-columns:1fr}}
-    .kv{display:grid;grid-template-columns:100px 1fr;gap:4px;font-size:14px}
+  /* Purchase */
+  .price-row{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .price-row .price{font-weight:800;font-size:20px}
+  .price-row .per{color:var(--muted)}
+  .buy{display:flex;gap:10px;align-items:center;margin:12px 0;flex-wrap:wrap}
+  .buy input{width:90px;padding:8px;border:1px solid var(--border);border-radius:10px}
+  .btn{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 
-    .qa{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-    @media(max-width:900px){.qa{grid-template-columns:1fr}}
-    .qa header{padding:10px;border-bottom:1px solid #e5e7eb;font-weight:800}
-    .qa .body{padding:10px}
-    .qa textarea{width:100%;min-height:100px;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+  /* Specs + description */
+  .meta-grid{display:grid;grid-template-columns:280px 1fr;gap:12px}
+  @media (max-width:720px){.meta-grid{grid-template-columns:1fr}}
+  .kv{display:grid;grid-template-columns:100px 1fr;gap:4px;font-size:14px}
+  .kv div{padding:2px 0}
 
-    .related{margin-top:20px}
-    .related h2{font-size:18px;margin:0 0 8px}
-    .related-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-    @media(max-width:900px){.related-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    .rcard{display:block;text-decoration:none;color:#1f2937;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
-    .rcard .ph{aspect-ratio:4/3;display:grid;place-items:center;background:linear-gradient(180deg,#f8fafc,#eef2f7);color:#9ca3af}
-    .rcard .meta{padding:8px 10px}
-    .rcard .title{font-weight:800}
-    .rcard .sub{color:#6b7280;font-size:13px;margin-top:4px}
-  </style>
+  /* Q&A */
+  .qa{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  @media (max-width:980px){.qa{grid-template-columns:1fr}}
+  .qa textarea{width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:10px}
+  .empty-qa{color:var(--muted)}
+</style>
 </head>
 <body>
 
-<!-- HEADER (FAQ shell) -->
+<!-- ===== HEADER (identical structure to Terms) ===== -->
 <header class="hm-header" role="banner">
-  <div class="wrap">
+  <div class="hm-wrap">
     <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
+      <button id="openMenu" class="hamburger" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
           <line x1="4" y1="18" x2="20" y2="18"></line>
         </svg>
@@ -77,16 +93,16 @@
     </div>
     <div class="right">
       <a class="hm-icon" href="browse.html" aria-label="Browse & search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg>
       </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg>
       </a>
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
       </a>
       <a class="hm-icon" href="cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9"  cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
       </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
@@ -94,7 +110,7 @@
   </div>
 </header>
 
-<!-- MENU (FAQ shell) -->
+<!-- ===== Slide-out menu (identical to Terms) ===== -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <strong>Menu</strong>
@@ -106,45 +122,59 @@
     </button>
   </header>
   <nav>
+    <a href="browse.html">Browse</a>
+    <a href="sell.html">Sell Fabric</a>
     <a href="dashboard.html">Dashboard</a>
-    <a href="atelier.html">My Atelier</a>
     <a href="how.html">How It Works</a>
-    <a href="seller/index.html?list=new">Sell Fabric</a>
+    <a href="about.html">About</a>
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
 
-<!-- CONTENT -->
+<!-- ===== CONTENT ===== -->
 <main class="wrap" role="main">
   <div class="listing-grid">
-    <section class="panel gallery">
-      <div class="main" id="zoomPhoto">Fabric photo</div>
-      <div class="thumbs"><div>thumb</div><div>thumb</div><div>thumb</div></div>
+    <!-- Gallery -->
+    <section class="card gallery" aria-label="Photos">
+      <div class="hd">Photos</div>
+      <div class="bd">
+        <div class="main" id="zoomPhoto" tabindex="0" aria-label="Open image zoom">Fabric photo</div>
+        <div class="thumbs" aria-label="Thumbnails">
+          <div>thumb</div><div>thumb</div><div>thumb</div>
+        </div>
+      </div>
     </section>
 
-    <section class="panel">
+    <!-- Info / Buy -->
+    <section class="card">
+      <div class="hd">Listing</div>
       <div class="bd">
-        <h1 id="listingTitle">Listing Title</h1>
-        <div><strong id="displayPrice">$0.00</strong> <span class="sub" id="perYard">$0.00/yd</span></div>
+        <h1 id="listingTitle" style="margin:0 0 6px">Italian Silk Twill — Navy</h1>
+        <div class="price-row">
+          <div class="price" id="displayPrice">$42.00</div>
+          <div class="per" id="perYard">$28.00/yd</div>
+        </div>
+
         <div class="buy">
           <label for="yards">Yards</label>
-          <input id="yards" type="number" min="0.5" step="0.5" value="1.0">
+          <input id="yards" type="number" min="0.5" step="0.5" value="1.5" aria-label="Yards">
           <button class="btn primary">Add to cart</button>
           <button class="btn">❤ Save</button>
         </div>
-        <div class="meta-grid">
+
+        <div class="meta-grid" aria-label="Details">
           <div>
-            <h3>Details</h3>
-            <div class="kv"><div>Content</div><div id="mContent">—</div></div>
-            <div class="kv"><div>Fabric</div><div id="mFabric">—</div></div>
-            <div class="kv"><div>Color</div><div id="mColor">—</div></div>
-            <div class="kv"><div>Pattern</div><div id="mPattern">—</div></div>
-            <div class="kv"><div>Width</div><div id="mWidth">—</div></div>
-            <div class="kv"><div>Weight</div><div id="mGsm">—</div></div>
+            <h3 style="margin:8px 0 6px">Details</h3>
+            <div class="kv"><div>Content</div><div id="mContent">Silk</div></div>
+            <div class="kv"><div>Fabric</div><div id="mFabric">Twill</div></div>
+            <div class="kv"><div>Color</div><div id="mColor">Navy</div></div>
+            <div class="kv"><div>Pattern</div><div id="mPattern">Solid</div></div>
+            <div class="kv"><div>Width</div><div id="mWidth">54″</div></div>
+            <div class="kv"><div>Weight</div><div id="mGsm">180 GSM</div></div>
           </div>
           <div>
-            <h3>Description</h3>
-            <p id="mDesc">—</p>
+            <h3 style="margin:8px 0 6px">Description</h3>
+            <p id="mDesc">Smooth twill with soft drape and gentle sheen. Ideal for blouses, dresses, and scarves.</p>
           </div>
         </div>
       </div>
@@ -152,36 +182,27 @@
   </div>
 
   <!-- Q&A -->
-  <section class="qa">
-    <article class="panel">
-      <header>Q&amp;A</header>
-      <div class="body" id="qaBody">No questions yet. Be the first to ask!</div>
+  <section class="qa" aria-label="Questions and answers">
+    <article class="card">
+      <div class="hd">Q&amp;A</div>
+      <div class="bd" id="qaBody">
+        <p class="empty-qa">No questions yet. Be the first to ask!</p>
+      </div>
     </article>
-    <article class="panel">
-      <header>Ask a question</header>
-      <div class="body">
+    <article class="card">
+      <div class="hd">Ask a question</div>
+      <div class="bd">
         <textarea id="askBox" placeholder="Ask about drape, handfeel, care, opacity..."></textarea>
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
           <button class="btn primary" id="postQuestion">Post question</button>
-          <span class="sub">You must be signed in.</span>
+          <span class="empty-qa">You must be signed in.</span>
         </div>
       </div>
     </article>
   </section>
-
-  <!-- Related -->
-  <section class="related">
-    <h2>You might also like</h2>
-    <div class="related-grid">
-      <a class="rcard" href="listing.html?id=2"><div class="ph">photo</div><div class="meta"><div class="title">Wool Crepe — Saffron</div><div class="sub">$42/yd · 58″ · 180 GSM</div></div></a>
-      <a class="rcard" href="listing.html?id=3"><div class="ph">photo</div><div class="meta"><div class="title">Cotton Poplin — White</div><div class="sub">$14/yd · 44″ · 120 GSM</div></div></a>
-      <a class="rcard" href="listing.html?id=4"><div class="ph">photo</div><div class="meta"><div class="title">Silk Charmeuse — Black</div><div class="sub">$38/yd · 54″ · 90 GSM</div></div></a>
-      <a class="rcard" href="listing.html?id=5"><div class="ph">Linen — Natural</div><div class="meta"><div class="title">Linen — Natural</div><div class="sub">$22/yd · 55″ · 150 GSM</div></div></a>
-    </div>
-  </section>
 </main>
 
-<!-- FOOTER (FAQ shell) -->
+<!-- ===== FOOTER (identical to Terms) ===== -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -197,13 +218,29 @@
 
 <script>
 (function(){
-  // Menu + avatar (same as FAQ)
+  /* Slide-out menu (same behavior as Terms) */
   const sheet=document.getElementById("menuSheet");
-  document.getElementById("openMenu").addEventListener("click",()=>{sheet.classList.add("open");sheet.setAttribute("aria-hidden","false")});
-  document.getElementById("closeMenu").addEventListener("click",()=>{sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true")});
-  document.addEventListener("keydown",e=>{if(e.key==="Escape") sheet.classList.remove("open")});
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function open(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
+  function close(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
+  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
+  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape") close();});
+
+  /* Optional avatar image (keeps shell consistent with Terms) */
   const avatar=document.getElementById("avatar");
-  try{const url=localStorage.getItem("avatarUrl");if(url){avatar.textContent='';avatar.style.backgroundImage="url('"+url+"')"}}catch(e){}
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }}catch(e){}
+
+  /* Simple price updater for yards input */
+  const yardInput=document.getElementById('yards');
+  const displayPrice=document.getElementById('displayPrice');
+  const perYard=28;
+  function update(){
+    const y=parseFloat(yardInput.value)||0;
+    displayPrice.textContent = `$${(y*perYard).toFixed(2)}`;
+  }
+  yardInput.addEventListener('input',update); update();
 })();
 </script>
 </body>
