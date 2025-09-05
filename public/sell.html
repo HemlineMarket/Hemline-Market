@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Create a Listing — Hemline Market</title>
 
-<!-- MOBILE HOTFIX: prevents any horizontal overflow that can "shift" the footer -->
-<style id="hm-mobile-hotfix">
-  html, body { max-width:100%; overflow-x:hidden; }
-  img, video, canvas, svg { max-width:100%; height:auto; }
-  [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
-</style>
-
 <link rel="stylesheet" href="styles/hm-modern.css"/>
 <link rel="stylesheet" href="styles/hem-header.css"/>
 <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -21,7 +14,7 @@
   :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Header/Footers (match Terms page) */
+  /* Header/Footers match Terms page */
   .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
   .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
   .left{display:flex;align-items:center;gap:10px}
@@ -49,7 +42,7 @@
 
   /* Stepper */
   .stepper{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-  .bubble{display:flex;align-items:center;gap:8px;justify-content:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fff;font-weight:700;cursor:pointer;user-select:none}
+  .bubble{display:flex;align-items:center;gap:8px;justify-content:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fff;font-weight:700}
   .bubble[data-active="true"]{border-color:var(--accent);box-shadow:0 0 0 2px rgba(153,27,27,.10)}
   .bubble .num{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;border:1px solid var(--border);background:#f9fafb;font-weight:800}
   .bubble[data-active="true"] .num{border-color:var(--accent);color:#fff;background:var(--accent)}
@@ -66,7 +59,7 @@
   .drop.drag{border-color:var(--accent);background:#fff}
   .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
   .ph{aspect-ratio:4/3;border:1px solid var(--border);border-radius:10px;background:linear-gradient(180deg,#f8fafc,#eef2f7);display:grid;place-items:center;color:#9ca3af;font-size:12px;overflow:hidden}
-  .ph img,.ph video{width:100%;height:100%;object-fit:cover;border-radius:10px}
+  .ph img, .ph video{width:100%;height:100%;object-fit:cover;border-radius:10px}
 
   /* Form */
   .field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
@@ -82,10 +75,6 @@
 
   /* Review table */
   .kv{display:grid;grid-template-columns:120px 1fr;gap:6px}
-
-  /* Ensure footer stays aligned even if something overflows inside content */
-  .hm-footer{background:#fff;border-top:1px solid var(--border)}
-  .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -185,9 +174,9 @@
 
         <!-- STEP 2 -->
         <div class="step step-2" hidden>
-          <div class="field"><label for="title">Title</label><input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy"></div>
-          <div class="field"><label for="price">Price ($/yd)</label><input id="price" type="number" min="0" step="0.01" placeholder="28.00"></div>
-          <div class="field"><label for="yards">Yards</label><input id="yards" type="number" min="0" step="0.5" placeholder="1.5"></div>
+          <div class="field"><label for="title">Title</label><input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy" required></div>
+          <div class="field"><label for="price">Price ($/yd)</label><input id="price" type="number" min="0" step="0.01" placeholder="28.00" required></div>
+          <div class="field"><label for="yards">Yards</label><input id="yards" type="number" min="0" step="0.5" placeholder="1.5" required></div>
           <div class="field"><label for="desc">Description</label><textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea></div>
 
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
@@ -207,6 +196,7 @@
           </div>
           <div class="kv" id="reviewKv" style="margin-top:10px"></div>
           <p class="note" style="margin-top:8px">Review your details. You can go back to make changes.</p>
+          <div id="pubNote" class="note" style="margin-top:8px"></div>
         </div>
 
       </div>
@@ -240,119 +230,78 @@
   </div>
 </footer>
 
+<!-- Supabase -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
 <script>
 (function(){
   /* Header sheet + avatar */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
-  function open(){sheet?.classList.add("open"); sheet?.setAttribute("aria-hidden","false");}
-  function close(){sheet?.classList.remove("open"); sheet?.setAttribute("aria-hidden","true");}
-  openBtn?.addEventListener("click",e=>{e.preventDefault();open();});
-  closeBtn?.addEventListener("click",e=>{e.preventDefault();close();});
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
-  try{
-    const av=document.getElementById("avatar");
-    const url=localStorage.getItem("avatarUrl");
-    if(av && url){ av.textContent=''; av.style.backgroundImage=`url('${url}')`; }
-  }catch(_){}
+  function open(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
+  function close(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
+  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
+  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape") close();});
+  const avatar=document.getElementById("avatar");
+  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }}catch(e){}
 
-  /* ----- Wizard state ----- */
-  let step=1;
-  const MAX=3;
-  const titles=['Step 1 — Photos & Video','Step 2 — Details','Step 3 — Review & Publish'];
-  const stageTitle=document.getElementById('stageTitle');
-  const backBtn=document.getElementById('backBtn');
-  const nextBtn=document.getElementById('nextBtn');
-  const stepper=document.getElementById('stepper');
+  /* Supabase client */
+  const supabase = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+  );
 
-  function showStep(n){
-    step=Math.max(1,Math.min(MAX,n));
-    document.querySelectorAll('.step').forEach((el,i)=>{ el.hidden = (i!==step-1); });
+  const BUCKET_PHOTOS = "listing-photos";
+  const BUCKET_VIDEOS = "listing-videos";
+  const TABLE_LISTINGS = "listings";
+
+  /* Wizard state */
+  let step = 1;
+  const MAX_STEP = 3;
+  const stepper = document.getElementById('stepper');
+  const stageTitle = document.getElementById('stageTitle');
+  const backBtn = document.getElementById('backBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const pubNote = document.getElementById('pubNote');
+
+  function setStep(n){
+    step = Math.max(1, Math.min(MAX_STEP, n));
+    document.querySelectorAll('.step').forEach((el,i)=>{
+      el.hidden = (i+1)!==step;
+    });
     document.querySelectorAll('.bubble').forEach(b=>{
       b.dataset.active = (Number(b.dataset.step)===step) ? 'true' : '';
     });
-    stageTitle.textContent=titles[step-1];
+    const titles = ['Step 1 — Photos & Video','Step 2 — Details','Step 3 — Review & Publish'];
+    stageTitle.textContent = titles[step-1];
     backBtn.disabled = (step===1);
-    nextBtn.textContent = step===MAX ? 'Publish' : 'Next';
-    if(step===3) buildReview();
+    nextBtn.textContent = (step===MAX_STEP ? 'Publish' : 'Next');
+    if(step===3) { pubNote.textContent = ''; buildReview(); }
   }
-
-  backBtn.addEventListener('click', ()=> showStep(step-1));
-  nextBtn.addEventListener('click', ()=>{
-    if(step===1){ showStep(2); return; }
-    if(step===2){
-      if(!validateStep2()) return;
-      showStep(3); return;
+  backBtn.addEventListener('click', ()=> setStep(step-1));
+  nextBtn.addEventListener('click', async ()=>{
+    if(step<MAX_STEP){
+      // basic required checks before leaving Step 2
+      if(step===2){
+        const missing = [];
+        if(!read('title')) missing.push('Title');
+        if(!read('price')) missing.push('Price');
+        if(!read('yards')) missing.push('Yards');
+        if(missing.length){ alert('Please fill: ' + missing.join(', ')); return; }
+      }
+      setStep(step+1);
+    }else{
+      await publishListing();
     }
-    alert('Publish would submit the listing here.');
   });
   stepper.addEventListener('click', (e)=>{
     const b=e.target.closest('.bubble'); if(!b) return;
-    const target=Number(b.dataset.step||1);
-    if(target>step && step===2 && !validateStep2()) return;
-    showStep(target);
+    setStep(Number(b.dataset.step||1));
   });
 
-  /* ----- Required field helpers (Step 2) ----- */
-  const requiredIds=['title','price','yards','content','fabric','width','gsm'];
-  const labelsDone=new Set();
-  function markRequiredLabelsOnce(){
-    requiredIds.forEach(id=>{
-      const input=document.getElementById(id);
-      if(!input) return;
-      input.setAttribute('required','true');
-      if(labelsDone.has(id)) return;
-      const label=document.querySelector(`label[for="${id}"]`);
-      if(label){
-        const s=document.createElement('span');
-        s.textContent=' (required)';
-        s.style.color='#991b1b';
-        s.style.fontWeight='600';
-        label.appendChild(s);
-      }
-      labelsDone.add(id);
-    });
-  }
-  function setFieldError(input, msg){
-    removeFieldError(input);
-    input.style.borderColor='#dc2626';
-    const err=document.createElement('div');
-    err.className='hm-error';
-    err.textContent=msg||'Required';
-    err.style.color='#dc2626';
-    err.style.fontSize='12px';
-    err.style.marginTop='4px';
-    input.parentElement?.appendChild(err);
-  }
-  function removeFieldError(input){
-    input.style.borderColor='';
-    input.parentElement?.querySelectorAll('.hm-error').forEach(n=>n.remove());
-  }
-  function validateStep2(){
-    markRequiredLabelsOnce();
-    let ok=true, firstBad=null;
-
-    requiredIds.forEach(id=>{
-      const el=document.getElementById(id);
-      if(!el) return;
-      const val=(el.value||'').toString().trim();
-      const bad = (val==='' || (el.type==='number' && isNaN(Number(val))));
-      if(bad){ ok=false; setFieldError(el,'Required'); if(!firstBad) firstBad=el; }
-      else { removeFieldError(el); }
-    });
-
-    // Friendly extra checks
-    const price=document.getElementById('price');
-    if(price && Number(price.value) <= 0){ ok=false; setFieldError(price,'Must be greater than 0'); if(!firstBad) firstBad=price; }
-    const yards=document.getElementById('yards');
-    if(yards && Number(yards.value) <= 0){ ok=false; setFieldError(yards,'Must be greater than 0'); if(!firstBad) firstBad=yards; }
-
-    if(!ok && firstBad){ firstBad.focus(); }
-    return ok;
-  }
-
-  /* ----- Media preview (Step 1 + 3) ----- */
+  /* Simple local preview store */
   const state = { photos: [], video: null, fields:{} };
 
   // Photos
@@ -372,8 +321,8 @@
     });
   }
   photoInput.addEventListener('change', e=> handlePhotoFiles(e.target.files));
-  ['dragenter','dragover'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.add('drag');}));
-  ['dragleave','drop'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.remove('drag');}));
+  ;['dragenter','dragover'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.add('drag');}));
+  ;['dragleave','drop'].forEach(ev=>photoDrop.addEventListener(ev, e=>{e.preventDefault();photoDrop.classList.remove('drag');}));
   photoDrop.addEventListener('drop', e=> handlePhotoFiles(e.dataTransfer.files));
 
   // Video
@@ -391,11 +340,11 @@
     ph.appendChild(vid); videoThumb.appendChild(ph);
   }
   videoInput.addEventListener('change', e=> handleVideoFile(e.target.files[0]));
-  ['dragenter','dragover'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.add('drag');}));
-  ['dragleave','drop'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.remove('drag');}));
+  ;['dragenter','dragover'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.add('drag');}));
+  ;['dragleave','drop'].forEach(ev=>videoDrop.addEventListener(ev, e=>{e.preventDefault();videoDrop.classList.remove('drag');}));
   videoDrop.addEventListener('drop', e=> handleVideoFile(e.dataTransfer.files[0]));
 
-  /* ----- Build review (Step 3) ----- */
+  // Collect fields before review
   function read(id){ return document.getElementById(id)?.value?.trim()||''; }
   function buildReview(){
     state.fields = {
@@ -434,20 +383,102 @@
     });
   }
 
-  /* ----- Save draft (local demo) ----- */
+  // Save draft (local demo)
   document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
     try{
-      const data={ fields:{
-        title:read('title'),price:read('price'),yards:read('yards'),desc:read('desc'),
-        content:read('content'),fabric:read('fabric'),color:read('color'),
-        pattern:read('pattern'),width:read('width'),gsm:read('gsm')
-      }, ts:Date.now() };
+      const data={ fields:state.fields, ts:Date.now() };
       localStorage.setItem('hm.draft.listing', JSON.stringify(data));
       alert('Draft saved locally.');
     }catch(e){ alert('Unable to save draft.'); }
   });
 
-  showStep(1);
+  /* ---- PUBLISH → Supabase ---- */
+  async function ensureAuthed(){
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if(error) return null;
+    return user || null;
+  }
+
+  function safeName(name){ return (name||'').replace(/[^\w.\-]+/g,'_'); }
+
+  async function uploadPhotos(userId, ts){
+    const urls = [];
+    for(let i=0;i<state.photos.length;i++){
+      const f = state.photos[i];
+      const path = `${userId}/${ts}/${String(i+1).padStart(2,'0')}-${safeName(f.name)}`;
+      const { error } = await supabase.storage.from(BUCKET_PHOTOS).upload(path, f, { upsert:false });
+      if(error){ throw new Error('Photo upload failed: '+error.message); }
+      const { data } = supabase.storage.from(BUCKET_PHOTOS).getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }
+    return urls;
+  }
+
+  async function uploadVideo(userId, ts){
+    if(!state.video) return null;
+    const f = state.video;
+    const path = `${userId}/${ts}/video-${safeName(f.name)}`;
+    const { error } = await supabase.storage.from(BUCKET_VIDEOS).upload(path, f, { upsert:false, contentType: f.type||'video/mp4' });
+    if(error){ throw new Error('Video upload failed: '+error.message); }
+    const { data } = supabase.storage.from(BUCKET_VIDEOS).getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function publishListing(){
+    try{
+      nextBtn.disabled = true; backBtn.disabled = true;
+      pubNote.textContent = 'Publishing… please wait.';
+
+      // Require basic fields
+      const missing = [];
+      if(!read('title')) missing.push('Title');
+      if(!read('price')) missing.push('Price');
+      if(!read('yards')) missing.push('Yards');
+      if(missing.length){ throw new Error('Please fill: ' + missing.join(', ')); }
+
+      // Require auth
+      const user = await ensureAuthed();
+      if(!user){ throw new Error('Please sign in first.'); }
+
+      // Upload media
+      const ts = Date.now();
+      const photoUrls = await uploadPhotos(user.id, ts);
+      const videoUrl = await uploadVideo(user.id, ts);
+
+      // Build row
+      const row = {
+        title: read('title'),
+        price: Number(read('price')),
+        yards: Number(read('yards')),
+        description: read('desc'),
+        content: read('content') || null,
+        fabric: read('fabric') || null,
+        color: read('color') || null,
+        pattern: read('pattern') || null,
+        width: read('width') ? Number(read('width')) : null,
+        gsm: read('gsm') ? Number(read('gsm')) : null,
+        cover_url: photoUrls[0] || null,
+        photo_urls: photoUrls,     // JSON[] column recommended
+        video_url: videoUrl,       // text column
+        seller_id: user.id         // uuid
+      };
+
+      const { data, error } = await supabase.from(TABLE_LISTINGS).insert(row).select('id').single();
+      if(error) throw new Error(error.message);
+
+      pubNote.textContent = 'Done! Redirecting…';
+      // Go to details page
+      location.href = 'item.html?id=' + encodeURIComponent(data.id);
+    }catch(err){
+      console.error(err);
+      alert(err.message || 'Failed to publish.');
+      pubNote.textContent = 'Publish failed. Please try again.';
+    }finally{
+      nextBtn.disabled = false; backBtn.disabled = (step===1);
+    }
+  }
+
+  setStep(1);
 })();
 </script>
 </body>
