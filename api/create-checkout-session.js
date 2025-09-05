@@ -1,64 +1,46 @@
-// /api/create-checkout-session.js
-// Creates a Stripe Checkout Session and ALWAYS includes metadata.order_id.
-// Expects JSON POST with: { line_items: [...], success_url: "...", cancel_url: "...", order_id?: "abc123", metadata?: {...} }
-// Env required: STRIPE_SECRET_KEY
+import Stripe from "stripe";
 
-const Stripe = require('stripe');
-const crypto = require('crypto');
-
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
-
-async function readJson(req) {
-  let raw = '';
-  for await (const chunk of req) raw += chunk;
-  try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
-}
-
-module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-  if (!STRIPE_SECRET_KEY) {
-    return res.status(500).json({ error: 'Missing STRIPE_SECRET_KEY' });
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const stripe = new Stripe(STRIPE_SECRET_KEY);
-  const body = await readJson(req);
-
-  // Validate minimal inputs
-  if (!Array.isArray(body.line_items) || body.line_items.length === 0) {
-    return res.status(400).json({ error: 'line_items is required (array with at least one item)' });
-  }
-  if (!body.success_url || !body.cancel_url) {
-    return res.status(400).json({ error: 'success_url and cancel_url are required' });
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret) return res.status(500).json({ error: "Missing STRIPE_SECRET_KEY" });
+  // Hard block live keys (safety rail)
+  if (!secret.startsWith("sk_test_")) {
+    return res.status(503).json({ error: "Live payments are disabled. Use test keys." });
   }
 
-  // Ensure every session has a durable order_id
-  const orderId = body.order_id || crypto.randomUUID();
-
-  const metadata = Object.assign({}, body.metadata || {}, { order_id: orderId });
+  const stripe = new Stripe(secret, { apiVersion: "2024-06-20" });
 
   try {
+    const { line_items, success_url, cancel_url } = req.body || {};
+
+    const items = Array.isArray(line_items) && line_items.length
+      ? line_items
+      : [{
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Hemline Test Order" },
+            unit_amount: 500, // $5.00 test charge
+          },
+          quantity: 1,
+        }];
+
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      line_items: body.line_items,
-      success_url: body.success_url,
-      cancel_url: body.cancel_url,
-      metadata,
-
-      // Nice-to-have defaults (safe in test & live)
-      allow_promotion_codes: true,
-      submit_type: 'pay'
+      mode: "payment",
+      line_items: items,
+      success_url: success_url || `${req.headers.origin}/success.html?sid={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancel_url || `${req.headers.origin}/cart.html`,
+      allow_promotion_codes: false,
+      payment_intent_data: { metadata: { env: "test", hemline: "true" } },
     });
 
-    return res.status(200).json({
-      id: session.id,
-      url: session.url,
-      order_id: orderId
-    });
+    return res.status(200).json({ url: session.url, id: session.id });
   } catch (err) {
-    console.error('create-checkout-session error:', err);
-    return res.status(400).json({ error: err.message });
+    console.error(err);
+    return res.status(500).json({ error: err.message || "Stripe error" });
   }
-};
+}
