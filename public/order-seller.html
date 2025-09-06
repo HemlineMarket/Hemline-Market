@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Order — Seller View · Hemline Market</title>
+<style>
+  :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+
+  /* Header (matches your locked pages) */
+  .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
+  .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+  .left{display:flex;align-items:center;gap:10px}
+  .hm-brand{font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
+  .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#374151}
+  .hamburger svg{width:22px;height:22px;stroke-width:2}
+  .right{display:flex;align-items:center;gap:14px}
+  .hm-icon{color:#444;display:inline-grid;place-items:center}
+  .hm-icon svg{width:26px;height:26px;stroke-width:2}
+  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none}
+  .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+
+  /* Slide-out menu */
+  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+  .sheet.open{transform:translateX(0)}
+  .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)}
+  .sheet nav{display:grid;padding:10px}
+  .sheet nav a{padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:#1f2937}
+  .sheet nav a + a{margin-top:8px}
+  .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
+
+  /* Page */
+  .wrap{max-width:1200px;margin:16px auto 28px;padding:0 12px}
+  h1{margin:0 0 6px;font-size:24px;font-weight:800}
+  .subtle{color:var(--muted);font-size:14px}
+  .grid{display:grid;grid-template-columns:1.1fr 420px;gap:14px}
+  @media (max-width:1020px){ .grid{grid-template-columns:1fr} }
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+  .card .hd{padding:12px;border-bottom:1px solid var(--border);font-weight:800}
+  .card .bd{padding:12px}
+
+  .item{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:10px;padding:10px}
+  .thumb{width:60px;height:44px;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .grow{flex:1}
+  .price{font-weight:800}
+
+  .timeline{display:grid;gap:8px;margin-top:10px}
+  .step{display:flex;align-items:center;gap:10px}
+  .dot{width:10px;height:10px;border-radius:999px;border:1px solid var(--border);background:#fff}
+  .step.done .dot{background:#16a34a;border-color:#16a34a}
+  .step.active .dot{background:#f59e0b;border-color:#f59e0b}
+  .step small{color:var(--muted)}
+
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .btn{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.danger{border-color:#fca5a5;background:#fee2e2;color:#7f1d1d}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+
+  .field{display:flex;flex-direction:column;gap:6px}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  input,select,textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;font:inherit}
+  textarea{min-height:90px;resize:vertical}
+
+  .sum-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6}
+  .sum-row:last-child{border-bottom:0}
+  .muted{color:var(--muted)}
+
+  /* Footer */
+  .hm-footer{background:#fff;border-top:1px solid var(--border)}
+  .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
+  .copy{color:#6b7280;font-size:14px}
+  .pill{font-size:11px;border:1px solid var(--border);border-radius:999px;padding:4px 8px;background:#fff;color:#374151}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hm-header" role="banner">
+  <div class="hm-wrap">
+    <div class="left">
+      <button id="openMenu" class="hamburger" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
+    </div>
+    <div class="right">
+      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn-primary" href="sell.html">Sell</a>
+    </div>
+  </div>
+</header>
+
+<!-- MENU -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </header>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="orders.html">Orders</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="seller/index.html?list=new">Sell Fabric</a>
+    <a href="help.html">Help</a>
+  </nav>
+</aside>
+
+<main class="wrap" id="maincontent">
+  <h1 id="orderTitle">Order</h1>
+  <p class="subtle" id="orderMeta">Placed on — Status</p>
+
+  <div class="grid">
+    <!-- LEFT: Items + status + messages -->
+    <section class="card">
+      <div class="hd">Items</div>
+      <div class="bd">
+        <article class="item">
+          <div class="thumb"><img id="itmImg" alt=""></div>
+          <div class="grow">
+            <div id="itmTitle" style="font-weight:700">—</div>
+            <div class="muted" id="itmMeta">—</div>
+          </div>
+          <div class="price" id="itmPrice">$0.00</div>
+        </article>
+
+        <div class="timeline" id="timeline">
+          <div class="step active" data-step="paid"><span class="dot"></span><div>Paid <small id="tPaid" class="muted"></small></div></div>
+          <div class="step" data-step="preparing"><span class="dot"></span><div>Preparing shipment <small id="tPrep" class="muted"></small></div></div>
+          <div class="step" data-step="shipped"><span class="dot"></span><div>Shipped <small id="tShip" class="muted"></small></div></div>
+          <div class="step" data-step="delivered"><span class="dot"></span><div>Delivered <small id="tDel" class="muted"></small></div></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnPreparing">Mark as Preparing</button>
+          <button class="btn" id="btnShipped">Mark as Shipped</button>
+          <button class="btn" id="btnDelivered">Mark as Delivered</button>
+          <button class="btn danger" id="btnRefund" disabled>Issue refund</button>
+        </div>
+
+        <div id="shipForm" style="margin-top:10px; display:none">
+          <div class="row">
+            <div class="field">
+              <label for="carrier">Carrier</label>
+              <select id="carrier">
+                <option>USPS</option>
+                <option>UPS</option>
+                <option>FedEx</option>
+                <option>DHL</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="tracking">Tracking number</label>
+              <input id="tracking" type="text" placeholder="e.g., 9400 1000 0000 0000 0000 00">
+            </div>
+          </div>
+          <div class="actions" style="margin-top:8px">
+            <button class="btn primary" id="saveTracking">Save tracking</button>
+            <button class="btn" id="cancelTracking">Cancel</button>
+          </div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--border);margin:14px 0">
+
+        <h3 style="margin:0 0 8px;font-size:14px">Messages</h3>
+        <div id="messages" style="display:grid;gap:8px;margin-bottom:8px">
+          <div class="pill" style="display:inline-block">You marked the order as Paid</div>
+        </div>
+        <div class="field">
+          <textarea id="msgBox" placeholder="Send a note to the buyer…"></textarea>
+        </div>
+        <div class="actions" style="justify-content:flex-end">
+          <button class="btn primary" id="sendMsg">Send</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Summary / Buyer / Payouts -->
+    <aside class="card">
+      <div class="hd">Summary</div>
+      <div class="bd">
+        <div class="sum-row"><span>Order ID</span><span id="sumId" class="muted">—</span></div>
+        <div class="sum-row"><span>Date</span><span id="sumDate" class="muted">—</span></div>
+        <div class="sum-row"><span>Status</span><span id="sumStatus">Paid</span></div>
+        <hr style="border:0;border-top:1px solid #f3f4f6;margin:10px 0">
+        <div class="sum-row"><span>Items</span><span id="sumItems">$0.00</span></div>
+        <div class="sum-row"><span>Shipping</span><span id="sumShip">$0.00</span></div>
+        <div class="sum-row"><span>Tax</span><span id="sumTax">$0.00</span></div>
+        <div class="sum-row" style="font-weight:800"><span>Total</span><span id="sumTotal">$0.00</span></div>
+
+        <hr style="border:0;border-top:1px solid #f3f4f6;margin:10px 0">
+        <h3 style="margin:0 0 6px;font-size:14px">Ship to</h3>
+        <div id="buyerBlock" class="muted" style="line-height:1.5"></div>
+
+        <div class="actions" style="margin-top:10px">
+          <button class="btn" id="btnPrint">Print shipping label</button>
+          <button class="btn" id="btnReceipt">Print receipt</button>
+        </div>
+
+        <hr style="border:0;border-top:1px solid #f3f4f6;margin:10px 0">
+        <div class="muted" style="font-size:13px">
+          <strong>Payouts via Stripe</strong><br>
+          Funds for this order will be released to your Stripe balance after shipment. Hemline Market never sees your bank details.
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* Header menu + avatar (same as other pages) */
+  const sheet=document.getElementById("menuSheet");
+  document.getElementById("openMenu").addEventListener("click",e=>{e.preventDefault();sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");});
+  document.getElementById("closeMenu").addEventListener("click",e=>{e.preventDefault();sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape") sheet.classList.remove("open");});
+  try{const a=document.getElementById("avatar");const url=localStorage.getItem("avatarUrl");if(url){a.textContent='';a.style.backgroundImage="url('"+url+"')";}}catch(_){}
+
+  /* Demo order data (replace with real) */
+  const params=new URLSearchParams(location.search);
+  const ORDER = {
+    id: "HM-" + (params.get("id") || "548728"),
+    date: "9/6/2025",
+    status: "Paid",
+    totals: { items: 4200, ship: 0, tax: 0 }, // cents
+    item: {
+      title: "Italian Silk Twill — Navy",
+      meta: "2.5 yd · 54″ · 180 GSM",
+      price: 4200,
+      photo: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop"
+    },
+    buyer: {
+      name: "Ava Brooks",
+      address1: "125 Pine St",
+      address2: "Apt 3B",
+      city: "Salem",
+      state: "NH",
+      zip: "03079",
+      country: "USA"
+    },
+    tracking: null,
+    step: "paid", // paid -> preparing -> shipped -> delivered
+    ts: { paid: "Today 10:42 AM", preparing:"", shipped:"", delivered:"" }
+  };
+
+  /* Formatters */
+  const fmt = c => (c/100).toLocaleString(undefined,{style:"currency",currency:"USD"});
+
+  /* Bind data */
+  document.getElementById("orderTitle").textContent = "Order " + ORDER.id;
+  document.getElementById("orderMeta").textContent = "Placed on " + ORDER.date + " · Status " + ORDER.status;
+  document.getElementById("itmImg").src = ORDER.item.photo;
+  document.getElementById("itmTitle").textContent = ORDER.item.title;
+  document.getElementById("itmMeta").textContent = ORDER.item.meta;
+  document.getElementById("itmPrice").textContent = fmt(ORDER.item.price);
+
+  document.getElementById("sumId").textContent = ORDER.id;
+  document.getElementById("sumDate").textContent = ORDER.date;
+  document.getElementById("sumStatus").textContent = ORDER.status;
+  document.getElementById("sumItems").textContent = fmt(ORDER.totals.items);
+  document.getElementById("sumShip").textContent = fmt(ORDER.totals.ship);
+  document.getElementById("sumTax").textContent = fmt(ORDER.totals.tax);
+  document.getElementById("sumTotal").textContent = fmt(ORDER.totals.items + ORDER.totals.ship + ORDER.totals.tax);
+
+  document.getElementById("buyerBlock").innerHTML =
+    `<strong>${ORDER.buyer.name}</strong><br>${ORDER.buyer.address1}${ORDER.buyer.address2 ? ", "+ORDER.buyer.address2:""}<br>${ORDER.buyer.city}, ${ORDER.buyer.state} ${ORDER.buyer.zip}<br>${ORDER.buyer.country}`;
+
+  document.getElementById("tPaid").textContent = ORDER.ts.paid;
+
+  /* Timeline state helper */
+  function setStep(step){
+    ORDER.step = step;
+    ORDER.status = step==='paid' ? 'Paid'
+                 : step==='preparing' ? 'Preparing'
+                 : step==='shipped' ? 'Shipped'
+                 : 'Delivered';
+    document.getElementById("sumStatus").textContent = ORDER.status;
+    document.getElementById("orderMeta").textContent = "Placed on " + ORDER.date + " · Status " + ORDER.status;
+
+    const steps = ["paid","preparing","shipped","delivered"];
+    document.querySelectorAll(".timeline .step").forEach(el=>{
+      const s = el.dataset.step;
+      el.classList.remove("done","active");
+      const idx = steps.indexOf(s), cur = steps.indexOf(step);
+      if(idx<cur) el.classList.add("done");
+      if(idx===cur) el.classList.add("active");
+    });
+  }
+  setStep(ORDER.step);
+
+  /* Actions */
+  const btnPrep = document.getElementById("btnPreparing");
+  const btnShip = document.getElementById("btnShipped");
+  const btnDelv = document.getElementById("btnDelivered");
+  const shipForm = document.getElementById("shipForm");
+
+  btnPrep.addEventListener("click", ()=>{
+    ORDER.ts.preparing = new Date().toLocaleString();
+    document.getElementById("tPrep").textContent = ORDER.ts.preparing;
+    setStep("preparing");
+    addMsg("You marked the order as Preparing shipment.");
+  });
+
+  btnShip.addEventListener("click", ()=>{
+    shipForm.style.display = 'block';
+  });
+  document.getElementById("cancelTracking").addEventListener("click", ()=>{
+    shipForm.style.display = 'none';
+  });
+  document.getElementById("saveTracking").addEventListener("click", ()=>{
+    const carrier = document.getElementById("carrier").value.trim();
+    const track = document.getElementById("tracking").value.trim();
+    if(!track){ alert("Enter a tracking number."); return; }
+    ORDER.tracking = { carrier, number: track };
+    ORDER.ts.shipped = new Date().toLocaleString();
+    document.getElementById("tShip").textContent = `${ORDER.ts.shipped} · ${carrier} ${track}`;
+    shipForm.style.display = 'none';
+    setStep("shipped");
+    addMsg(`Tracking added: ${carrier} ${track}`);
+  });
+
+  btnDelv.addEventListener("click", ()=>{
+    ORDER.ts.delivered = new Date().toLocaleString();
+    document.getElementById("tDel").textContent = ORDER.ts.delivered;
+    setStep("delivered");
+    addMsg("Order marked as Delivered.");
+  });
+
+  /* Messages */
+  const feed = document.getElementById("messages");
+  function addMsg(text, who="You"){
+    const row = document.createElement("div");
+    row.style.padding="8px 10px"; row.style.border="1px solid var(--border)"; row.style.borderRadius="10px";
+    row.innerHTML = `<strong>${who}</strong> <span class="muted" style="font-size:12px">· ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span><br>${text}`;
+    feed.appendChild(row);
+  }
+  document.getElementById("sendMsg").addEventListener("click", ()=>{
+    const v = document.getElementById("msgBox").value.trim();
+    if(!v) return;
+    addMsg(v);
+    document.getElementById("msgBox").value = "";
+  });
+
+  /* Print buttons (demo) */
+  document.getElementById("btnPrint").addEventListener("click", ()=> alert("Shipping label printing will connect to Shippo / carrier API."));
+  document.getElementById("btnReceipt").addEventListener("click", ()=> window.print());
+})();
+</script>
+</body>
+</html>
