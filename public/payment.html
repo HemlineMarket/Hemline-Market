@@ -14,7 +14,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Payment — Hemline Market</title>
 
-  <!-- Shared site styles (locked) -->
+  <!-- Shared (locked) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -34,7 +34,7 @@
     .right{display:flex;align-items:center;gap:14px}
     .hm-icon{color:#444;display:inline-grid;place-items:center}
     .hm-icon svg{width:26px;height:26px;stroke-width:2}
-    .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+    .hm-avatar{width:28px;height:28px;border:1px solid var(--hm-border);background:#fff;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;font-size:12px;background-size:cover;background-position:center}
     .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
     /* Menu (locked) */
@@ -63,6 +63,8 @@
     /* Form */
     label{display:block;margin:6px 0 6px;color:#374151;font-weight:600;font-size:13px}
     input{height:40px;border:1px solid var(--hm-border);border-radius:10px;padding:0 12px;width:100%;background:#fff}
+    .row{display:flex;gap:10px}
+    .row>*{flex:1}
     .help{color:var(--hm-muted);font-size:12px;margin-top:6px}
     .btn{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 16px;border-radius:999px;border:1px solid transparent;background:var(--hm-accent);color:#fff;text-decoration:none;font-weight:700}
     .btn-outline{background:#fff;color:var(--hm-accent);border:1px solid var(--hm-border)}
@@ -72,7 +74,7 @@
     .thumb{width:56px;height:56px;border-radius:10px;background:#f3f4f6;border:1px solid var(--hm-border)}
     .item{display:flex;gap:12px;align-items:center}
     .grow{flex:1}
-    .muted{color:var(--hm-muted)}
+    .muted{color:#6b7280}
     .line{height:1px;background:var(--hm-border);margin:12px 0}
     .total{display:flex;justify-content:space-between;margin-top:6px}
     .grand{font-weight:800;font-size:18px}
@@ -167,6 +169,35 @@
         <label for="email">Email (for receipt)</label>
         <input id="email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email">
 
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label for="name">Name on card</label>
+            <input id="name" placeholder="Full name" autocomplete="cc-name">
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label for="card">Card number</label>
+            <input id="card" placeholder="1234 1234 1234 1234" inputmode="numeric" autocomplete="cc-number">
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label for="exp">Expiry (MM/YY)</label>
+            <input id="exp" placeholder="MM/YY" inputmode="numeric" autocomplete="cc-exp">
+          </div>
+          <div>
+            <label for="cvc">CVC</label>
+            <input id="cvc" placeholder="CVC" inputmode="numeric" autocomplete="cc-csc">
+          </div>
+          <div>
+            <label for="zip">ZIP</label>
+            <input id="zip" placeholder="ZIP" inputmode="numeric" autocomplete="postal-code">
+          </div>
+        </div>
+
         <div class="actions">
           <a class="btn-outline" href="checkout.html" aria-label="Back to checkout">Back</a>
           <button id="payBtn" class="btn" type="button">Pay</button>
@@ -228,7 +259,7 @@
   }catch(_){}
 })();
 
-/* Payment summary logic (mirrors cart/checkout) */
+/* Payment summary logic (same tiers + yards fallback) */
 (function(){
   const LS_CART='hm_cart';
   const LS_SHIP='hm_cart_shipping';
@@ -245,13 +276,11 @@
   const readShip=()=>{ try{return JSON.parse(localStorage.getItem(LS_SHIP)||'null')}catch(_){return null} };
   const lineAmount=it=>(it.amount||0)*(it.qty||1);
 
-  // tiers + yards fallback: qty == yards when 'yards' is missing
   const tierCents = yards => (yards < 3 ? 500 : (yards <= 10 ? 800 : 1500));
   function itemYardsTotal(it){
     const qty=Number(it.qty)||1;
     if(it.yards!==undefined && it.yards!==null && it.yards!==''){
-      const y=Number(it.yards)||0;
-      return y*qty;
+      const y=Number(it.yards)||0; return y*qty;
     }
     return qty;
   }
@@ -273,25 +302,19 @@
     const cart=readCart();
     if(!cart.length){
       itemsEl.innerHTML='<div class="muted">Your cart is empty.</div>';
-      subEl.textContent=fmt(0);
-      shipEl.textContent=fmt(0);
-      shipLinesEl.textContent='';
-      totalEl.textContent=fmt(0);
-      payBtn.disabled=true;
-      return;
+      subEl.textContent=fmt(0); shipEl.textContent=fmt(0); shipLinesEl.textContent=''; totalEl.textContent=fmt(0);
+      payBtn.disabled=true; return;
     }
     payBtn.disabled=false;
 
-    // items
-    itemsEl.innerHTML='';
-    let subtotal=0;
+    itemsEl.innerHTML=''; let subtotal=0;
     cart.forEach(it=>{
       subtotal+=lineAmount(it);
-      const row=document.createElement('div');
-      row.className='item';
       const per = it.perYd ? '$'+Number(it.perYd).toFixed(2)+'/yd' : null;
       const yardsLabel = (it.yards!==undefined && it.yards!==null && it.yards!=='') ? (Number(it.yards)+' yd') : (Number(it.qty||1)+' yd');
-      row.innerHTML = `
+      const row=document.createElement('div');
+      row.className='item';
+      row.innerHTML=`
         <div class="thumb" aria-hidden="true">${it.photo?`<img alt="" src="${it.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`:''}</div>
         <div class="grow">
           <div>${it.name||'Fabric'}</div>
@@ -301,25 +324,23 @@
       itemsEl.appendChild(row);
     });
 
-    // shipping (prefer stored, fallback to compute)
-    let ship=readShip();
-    if(!ship || !ship.lines || typeof ship.total_cents!=='number'){
-      ship=calcShipping(cart);
-    }
-
+    let ship=readShip(); if(!ship || !ship.lines || typeof ship.total_cents!=='number'){ ship=calcShipping(cart); }
     subEl.textContent=fmt(subtotal);
     shipEl.textContent=fmt(ship.total_cents);
-    shipLinesEl.innerHTML = ship.lines.map(l=>`${l.sellerName}: ${l.yards.toFixed(2)} yd → ${fmt(l.fee_cents)}`).join('<br>');
+    shipLinesEl.innerHTML=ship.lines.map(l=>`${l.sellerName}: ${l.yards.toFixed(2)} yd → ${fmt(l.fee_cents)}`).join('<br>');
     totalEl.textContent=fmt(subtotal + ship.total_cents);
   }
 
-  // Stubbed pay action (safe for staging)
   payBtn.addEventListener('click', ()=>{
     const email=(document.getElementById('email').value||'').trim();
-    if(!email){ alert('Please enter an email for your receipt.'); return; }
-    alert('Demo payment complete. (Stripe wiring comes next.)');
-    // Optionally: clear cart after demo
-    // localStorage.removeItem('hm_cart'); localStorage.removeItem('hm_cart_shipping'); location.href='index.html';
+    const name=(document.getElementById('name').value||'').trim();
+    const card=(document.getElementById('card').value||'').trim();
+    const exp=(document.getElementById('exp').value||'').trim();
+    const cvc=(document.getElementById('cvc').value||'').trim();
+    if(!email || !name || !card || !exp || !cvc){
+      alert('Please complete all card fields and your email.'); return;
+    }
+    alert('Demo only: card form captured. Next step is Stripe Elements + PaymentIntent wiring.');
   });
 
   render();
