@@ -46,12 +46,12 @@
   .buy{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;position:sticky;top:74px;height:max-content}
   .title{font-weight:800;font-size:18px;margin:0 0 2px}
   .price-line{font-size:20px;font-weight:800}
-  .peryd{color:var(--muted);font-size:12px;margin-left:6px}
+  .peryd{color:#6b7280;font-size:12px;margin-left:6px}
   .strike{color:#9ca3af;text-decoration:line-through;margin-left:6px}
   .cta{display:flex;gap:8px;margin-top:10px}
   .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
   .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .mini-note{color:var(--muted);font-size:12px;margin-top:8px}
+  .mini-note{color:#6b7280;font-size:12px;margin-top:8px}
 
   .specs{margin-top:10px;border-top:1px dashed #f0f2f4;padding-top:10px}
   .specs h3{margin:0 0 8px;font-size:13px;color:#374151}
@@ -153,7 +153,22 @@
         <span class="strike" id="tMsrp"></span>
       </div>
       <div class="cta">
-        <button id="addToCart" class="btn btn-primary add-to-cart" data-name="" data-amount="0">Add to Cart</button>
+        <!-- NOTE: add-to-cart.js will handle this button by reading data-* set below -->
+        <button
+          id="addToCart"
+          class="btn btn-primary add-to-cart"
+          type="button"
+          data-action="add-to-cart"
+          data-id=""
+          data-name=""
+          data-amount="0"          <!-- total price in cents for the lot -->
+          data-price="0"           <!-- price per yard in dollars -->
+          data-yards="0"           <!-- total yards in this lot -->
+          data-seller-id=""
+          data-seller-name=""
+          data-photo=""
+        >Add to Cart</button>
+
         <button class="btn" type="button">Save</button>
       </div>
       <div class="mini-note">• Seller ships within <strong>5 business days</strong> • Buyer Protection • Price is for the entire lot.</div>
@@ -228,7 +243,7 @@
   }catch(_){}
 })();
 
-/* Page data + safe render (no external deps, defensive steps) */
+/* Page data + render */
 (function(){
   try{
     var params=new URLSearchParams(location.search);
@@ -238,8 +253,8 @@
       id:id,
       title:"Italian Silk Twill — Navy",
       yards:2.5,
-      price:42.00,
-      msrpPerYd:28.00,               // crossed-out reference
+      price:42.00,                 // total lot price (USD)
+      msrpPerYd:28.00,             // crossed-out reference
       content:["Silk"],
       fabric:"Twill",
       color:"Navy",
@@ -257,7 +272,7 @@
         "https://images.unsplash.com/photo-1481349518771-20055b2a7b24?q=80&w=1200&auto=format&fit=crop",
         "https://images.unsplash.com/photo-1503602642458-232111445657?q=80&w=1200&auto=format&fit=crop"
       ],
-      seller:{name:"brianap712",initials:"BP"}
+      seller:{ id:"seller_brianap712", name:"brianap712", initials:"BP" }
     };
 
     function $(id){ return document.getElementById(id); }
@@ -266,9 +281,25 @@
     var tTitle=$('tTitle'), tPrice=$('tPrice'), tPerYd=$('tPerYd'), tMsrp=$('tMsrp'), addBtn=$('addToCart');
     if(tTitle) tTitle.textContent=DATA.title;
     if(tPrice) tPrice.firstChild.nodeValue = "$"+DATA.price.toFixed(2)+" for "+DATA.yards+" yards";
-    if(tPerYd){ var per=DATA.yards?DATA.price/DATA.yards:DATA.price; tPerYd.textContent="$"+per.toFixed(2)+"/yd"; }
+    if(tPerYd){
+      var per=DATA.yards?DATA.price/DATA.yards:DATA.price;
+      tPerYd.textContent="$"+per.toFixed(2)+"/yd";
+    }
     if(tMsrp){ if(DATA.msrpPerYd){ tMsrp.textContent="$"+DATA.msrpPerYd.toFixed(2)+"/yd"; } else { tMsrp.style.display='none'; } }
-    if(addBtn){ addBtn.dataset.name=DATA.title; addBtn.dataset.amount=Math.round(DATA.price*100); addBtn.textContent="Add to Cart — $"+DATA.price.toFixed(2); }
+
+    // Wire up Add to Cart button with the data the shared script expects
+    if(addBtn){
+      var perYd = DATA.yards ? (DATA.price / DATA.yards) : DATA.price;
+      addBtn.dataset.id = DATA.id;
+      addBtn.dataset.name = DATA.title;
+      addBtn.dataset.amount = String(Math.round(DATA.price * 100)); // total lot price in cents
+      addBtn.dataset.price = String(perYd.toFixed(2));              // per-yard price in dollars
+      addBtn.dataset.yards = String(DATA.yards);                    // yards in this lot
+      addBtn.dataset.sellerId = DATA.seller.id || "seller_default";
+      addBtn.dataset.sellerName = DATA.seller.name || "Seller";
+      addBtn.dataset.photo = DATA.photos && DATA.photos[0] ? DATA.photos[0] : "";
+      addBtn.textContent = "Add to Cart — $"+DATA.price.toFixed(2);
+    }
 
     // Specs table
     var rows=[
@@ -299,7 +330,11 @@
     // Description
     var dt=$('descText'); if(dt) dt.textContent=DATA.desc;
     var tagsEl=$('descTags');
-    if(tagsEl && DATA.tags){ for(var j=0;j<DATA.tags.length;j++){ var s=document.createElement('span'); s.className='tag'; s.textContent=DATA.tags[j]; tagsEl.appendChild(s);} }
+    if(tagsEl && DATA.tags){
+      for(var j=0;j<DATA.tags.length;j++){
+        var s=document.createElement('span'); s.className='tag'; s.textContent=DATA.tags[j]; tagsEl.appendChild(s);
+      }
+    }
 
     // Photos
     var hero=$('hero'), thumbs=$('thumbs');
@@ -321,26 +356,13 @@
         })(DATA.photos[k], k);
       }
     }
-
-    // Minimal local cart (no external files, safe fallback)
-    if(addBtn){
-      addBtn.addEventListener('click', function(e){
-        e.preventDefault();
-        try{
-          var LS='hm_cart';
-          var cart=[]; try{ cart=JSON.parse(localStorage.getItem(LS)||'[]'); }catch(_){}
-          cart.push({id:DATA.id,name:DATA.title,amount:Math.round(DATA.price*100),qty:1});
-          localStorage.setItem(LS, JSON.stringify(cart));
-          var t=addBtn.textContent; addBtn.disabled=true; addBtn.textContent='Added ✓';
-          setTimeout(function(){ addBtn.disabled=false; addBtn.textContent=t; }, 1000);
-        }catch(_){}
-      });
-    }
   }catch(err){
     console.error('Listing render error:', err);
   }
 })();
 </script>
+
+<!-- Use the shared add-to-cart logic (no inline handlers) -->
 <script src="assets/add-to-cart.js" defer></script>
 </body>
 </html>
