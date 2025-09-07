@@ -15,6 +15,9 @@
     h1{margin:0 0 16px}
     label{display:block;font-size:14px;font-weight:600;margin:6px 0}
     input{width:100%;height:40px;border:1px solid #e5e7eb;border-radius:8px;padding:0 10px;margin-bottom:10px}
+    .stripe-box{height:40px;border:1px solid #e5e7eb;border-radius:8px;display:flex;align-items:center;padding:0 10px;margin-bottom:10px}
+    .row{display:flex;gap:10px}
+    .row>*{flex:1}
     .btn{background:#991b1b;color:#fff;border:0;border-radius:999px;padding:10px 18px;font-weight:700;cursor:pointer}
     .btn[disabled]{opacity:.6;cursor:not-allowed}
     .btn-outline{background:#fff;color:#991b1b;border:1px solid #e5e7eb;padding:10px 18px;border-radius:999px;font-weight:700;cursor:pointer}
@@ -45,9 +48,26 @@
       <label for="cardholder-name">Name on card</label>
       <input id="cardholder-name" type="text" placeholder="Full name" required>
 
-      <label>Card details</label>
-      <!-- Stripe will render its secure iframe here (Card Number, Exp, CVC) -->
-      <div id="card-element" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:10px"></div>
+      <label>Card number</label>
+      <div id="card-number" class="stripe-box"></div>
+
+      <div class="row">
+        <div>
+          <label>Expiry</label>
+          <div id="card-expiry" class="stripe-box"></div>
+        </div>
+        <div>
+          <label>CVC</label>
+          <div id="card-cvc" class="stripe-box"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="zip">ZIP (optional)</label>
+          <input id="zip" placeholder="ZIP" inputmode="numeric" maxlength="10">
+        </div>
+      </div>
 
       <div style="display:flex;gap:10px;margin-top:12px">
         <a href="checkout.html" class="btn-outline">Back</a>
@@ -89,9 +109,15 @@
   // Stripe publishable key
   const stripe = Stripe("pk_test_51Rx9wcFi9JRhHIdimg0GjJUrSKPGXUuk0Zlq6eN4qKWoRaqZWLeVhfde7yXN31tpg9cbBpX1AiuXeM7uxnUapXrR00CptT5icK");
   const elements = stripe.elements();
-  // Create the full card element (shows card number, expiry, CVC in one)
-  const cardElement = elements.create("card", { hidePostalCode: false });
-  cardElement.mount("#card-element");
+
+  // Separate Elements so all fields are always visible
+  const style = { base:{ fontSize:"16px", color:"#111827", "::placeholder":{color:"#9ca3af"} }, invalid:{color:"#dc2626"} };
+  const cardNumber = elements.create("cardNumber", { style });
+  const cardExpiry = elements.create("cardExpiry", { style });
+  const cardCvc    = elements.create("cardCvc", { style });
+  cardNumber.mount("#card-number");
+  cardExpiry.mount("#card-expiry");
+  cardCvc.mount("#card-cvc");
 
   const fmt = c => "$" + (Math.max(0,c)/100).toFixed(2);
 
@@ -115,12 +141,11 @@
       if(!groups[sellerId]) groups[sellerId] = { name, yards:0 };
       groups[sellerId].yards += yards;
     }
-    const shipLines = Object.values(groups).map(g => tierCents(g.yards));
-    const shipping = shipLines.reduce((s,x)=>s+x,0);
+    const shipping = Object.values(groups).reduce((s,g)=>s+tierCents(g.yards),0);
     return { subtotal, shipping, total: subtotal + shipping };
   }
 
-  // Load cart and render preview immediately
+  // Load cart and render preview
   const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
   const itemsEl = document.getElementById("order-items");
   itemsEl.innerHTML = "";
@@ -151,9 +176,10 @@
 
     const email = document.getElementById("email").value.trim();
     const name  = document.getElementById("cardholder-name").value.trim();
+    const postal = document.getElementById("zip").value.trim();
 
     try{
-      // 1) Create PaymentIntent with server recomputing totals
+      // 1) Ask server to create PaymentIntent from the cart
       const resp = await fetch("/api/create-payment-intent", {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
@@ -164,18 +190,22 @@
       const clientSecret = data.clientSecret || data.client_secret;
       if(!clientSecret) throw new Error("Missing client secret from server.");
 
-      // Update the summary to the server-computed numbers (the ones we’ll actually charge)
+      // Update summary to *server* totals (real charge)
       const totals = data.totals || { subtotal:0, shipping:0, total:0 };
       document.getElementById("subTotal").textContent = fmt(totals.subtotal);
       document.getElementById("shipTotal").textContent = fmt(totals.shipping);
       document.getElementById("grandTotal").textContent = fmt(totals.total);
 
-      // 2) Confirm payment with Stripe
+      // 2) Confirm payment (use cardNumber with separate Elements)
       msg.textContent = "Confirming card…";
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
-          card: cardElement,
-          billing_details: { email: email || undefined, name: name || undefined }
+          card: cardNumber,
+          billing_details: {
+            email: email || undefined,
+            name:  name  || undefined,
+            address: postal ? { postal_code: postal } : undefined
+          }
         }
       });
       if(error) throw error;
