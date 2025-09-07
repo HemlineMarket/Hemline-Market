@@ -1,10 +1,13 @@
 // /api/shipping/label.js
-// Returns a shipping label PDF for a given order.
-// Requires: SHIPPO_LIVE_KEY in Vercel env.
+// Fetches a shipping label PDF URL from Shippo using saved transaction id.
+// ENV needed: SHIPPO_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
-import fetch from 'node-fetch';
+import { createClient } from '@supabase/supabase-js';
 
-export const config = { api: { bodyParser: false } };
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,45 +15,43 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  const { orderId } = req.query;
+  if (!orderId) return res.status(400).json({ error: 'Missing orderId' });
+
   try {
-    const orderId = req.query.order;
-    if (!orderId) {
-      return res.status(400).json({ error: 'Missing order id' });
+    // Look up transaction id from Supabase
+    const { data, error } = await supabase
+      .from('orders')
+      .select('shippo_tx')
+      .eq('id', orderId)
+      .single();
+
+    if (error || !data?.shippo_tx) {
+      return res.status(404).json({ error: 'No label for this order' });
     }
 
-    // TODO: Replace this lookup with your DB query
-    // Example: find the Shippo transaction id stored for this order
-    // For now, hard-coded for demo
-    const shippoTransactionId = "e3a0f21f0b0e4d01b4d41c12a3d12345";
+    const txId = data.shippo_tx;
 
-    const resp = await fetch(`https://api.goshippo.com/transactions/${shippoTransactionId}/`, {
-      headers: {
-        "Authorization": `ShippoToken ${process.env.SHIPPO_LIVE_KEY}`
-      }
+    // Fetch label from Shippo
+    const resp = await fetch(`https://api.goshippo.com/transactions/${txId}`, {
+      headers: { Authorization: `ShippoToken ${process.env.SHIPPO_TOKEN}` }
     });
 
     if (!resp.ok) {
-      const text = await resp.text();
-      console.error("Shippo transaction fetch error", text);
-      return res.status(502).json({ error: 'Shippo lookup failed' });
+      const txt = await resp.text();
+      throw new Error(`Shippo error: ${txt}`);
     }
 
     const tx = await resp.json();
-    if (!tx.label_url) {
-      return res.status(404).json({ error: 'Label not ready' });
+    if (!tx?.label_url) {
+      return res.status(404).json({ error: 'Label not ready yet' });
     }
 
-    // Fetch the PDF itself
-    const pdfResp = await fetch(tx.label_url);
-    if (!pdfResp.ok) throw new Error('Unable to fetch PDF');
-    const buf = Buffer.from(await pdfResp.arrayBuffer());
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${orderId}-label.pdf"`);
-    return res.send(buf);
-
+    // Redirect browser straight to the PDF
+    res.writeHead(302, { Location: tx.label_url });
+    res.end();
   } catch (err) {
-    console.error("Label download error:", err);
-    return res.status(500).json({ error: 'Unable to download label' });
+    console.error('label.js error', err);
+    res.status(500).json({ error: 'Unable to fetch label' });
   }
 }
