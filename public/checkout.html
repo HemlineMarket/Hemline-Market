@@ -12,9 +12,6 @@
   <style>
     :root{ --ink:#111827; --muted:#6b7280; --border:#e5e7eb; --accent:#991b1b; }
     body{ margin:0; background:#fafafa; color:var(--ink); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif }
-    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
-    .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
-    .hm-brand{font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
 
     .container{max-width:1100px;margin:20px auto;padding:0 12px;display:grid;grid-template-columns:1fr 360px;gap:18px}
     @media(max-width:900px){.container{grid-template-columns:1fr}}
@@ -41,17 +38,42 @@
 </head>
 <body>
 
+<!-- FULL LOCKED HEADER -->
 <header class="hm-header" role="banner">
   <div class="wrap">
-    <a class="hm-brand" href="index.html">Hemline Market</a>
+    <div class="left">
+      <button class="hamburger" id="openMenu" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
+    </div>
+    <div class="right">
+      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn" href="sell.html">Sell</a>
+    </div>
   </div>
 </header>
 
 <main class="container">
-  <!-- LEFT: Contact & Shipping form (non-blocking; saved locally for convenience) -->
+  <!-- LEFT: Contact & Shipping -->
   <section class="card">
     <h1>Checkout</h1>
-
     <div id="banner" class="banner" role="status" aria-live="polite" style="display:none"></div>
 
     <h2>Contact & Shipping</h2>
@@ -103,7 +125,7 @@
     </div>
   </section>
 
-  <!-- RIGHT: Order summary (live from cart) -->
+  <!-- RIGHT: Order summary -->
   <aside class="card">
     <h2>Order summary</h2>
     <div id="order-items"></div>
@@ -133,89 +155,32 @@
 (function(){
   const fmt = c => "$" + (Math.max(0,c)/100).toFixed(2);
 
-  // Same shipping tiers used everywhere
   function tierCents(yards){ if(yards < 3) return 500; if(yards <= 10) return 800; return 1500; }
-  function yardsForItem(it){
-    const qty = Number(it.qty || 1);
-    if (it.yards !== undefined && it.yards !== null && it.yards !== "") {
-      return (Number(it.yards)||0) * qty;
-    }
-    return qty; // fallback: qty == yards
-  }
+  function yardsForItem(it){ const q=Number(it.qty||1); return (Number(it.yards)||0)*q; }
   function calcTotals(cart){
-    let subtotal = 0;
-    const groups = {};
+    let subtotal=0; const groups={};
     for(const it of cart){
-      subtotal += (Number(it.amount||0) * Number(it.qty||1));
-      const sellerId = it.sellerId || "default_seller";
-      const name = it.sellerName || "Seller";
-      const yards = yardsForItem(it);
-      if(!groups[sellerId]) groups[sellerId] = { name, yards:0 };
-      groups[sellerId].yards += yards;
+      subtotal += (Number(it.amount||0)*Number(it.qty||1));
+      const k=it.sellerId||"default"; const y=yardsForItem(it);
+      if(!groups[k]) groups[k]={yards:0}; groups[k].yards+=y;
     }
-    const shipping = Object.values(groups).reduce((s,g)=>s + tierCents(g.yards), 0);
-    return { subtotal, shipping, total: subtotal + shipping, groups };
+    const shipping=Object.values(groups).reduce((s,g)=>s+tierCents(g.yards),0);
+    return {subtotal,shipping,total:subtotal+shipping};
   }
 
-  const itemsEl = document.getElementById("order-items");
-  const subEl = document.getElementById("sub");
-  const shipEl = document.getElementById("ship");
-  const totEl = document.getElementById("tot");
-  const nextBtn = document.getElementById("next");
-  const banner = document.getElementById("banner");
+  const itemsEl=document.getElementById("order-items"),subEl=document.getElementById("sub"),shipEl=document.getElementById("ship"),totEl=document.getElementById("tot"),btn=document.getElementById("next"),banner=document.getElementById("banner");
 
-  // Load cart + render
   function render(){
-    const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
-    itemsEl.innerHTML = "";
-    if(cart.length === 0){
-      subEl.textContent = fmt(0);
-      shipEl.textContent = fmt(0);
-      totEl.textContent = fmt(0);
-      nextBtn.disabled = true;
-      banner.textContent = "Your cart is empty — add fabric to continue.";
-      banner.className = "banner empty";
-      banner.style.display = "block";
-      return;
-    }
-
-    // has items
-    nextBtn.disabled = false;
-    banner.textContent = "Cart has items — ready to check out.";
-    banner.className = "banner";
-    banner.style.display = "block";
-
-    for(const it of cart){
-      const line = (Number(it.amount||0) * Number(it.qty||1));
-      const yardsPart = (it.yards!==undefined && it.yards!==null && it.yards!=='') ? ` · ${it.yards} yd` : "";
-      const row = document.createElement("div");
-      row.className = "item";
-      row.innerHTML = `<span>${(it.name||"Item")}${yardsPart}</span><span>${fmt(line)}</span>`;
-      itemsEl.appendChild(row);
-    }
-
-    const t = calcTotals(cart);
-    subEl.textContent = fmt(t.subtotal);
-    shipEl.textContent = fmt(t.shipping);
-    totEl.textContent = fmt(t.total);
-
-    // Save a light summary for payment page convenience (optional)
-    localStorage.setItem("hm_checkout_preview", JSON.stringify({ subtotal:t.subtotal, shipping:t.shipping, total:t.total }));
+    const cart=JSON.parse(localStorage.getItem("hm_cart")||"[]");
+    itemsEl.innerHTML="";
+    if(cart.length===0){subEl.textContent=fmt(0);shipEl.textContent=fmt(0);totEl.textContent=fmt(0);btn.disabled=true;banner.textContent="Your cart is empty — add fabric to continue.";banner.className="banner empty";banner.style.display="block";return;}
+    btn.disabled=false;banner.textContent="Cart has items — ready to check out.";banner.className="banner";banner.style.display="block";
+    for(const it of cart){const line=(Number(it.amount||0)*Number(it.qty||1));const row=document.createElement("div");row.className="item";row.innerHTML=`<span>${it.name||"Item"}</span><span>${fmt(line)}</span>`;itemsEl.appendChild(row);}
+    const t=calcTotals(cart);subEl.textContent=fmt(t.subtotal);shipEl.textContent=fmt(t.shipping);totEl.textContent=fmt(t.total);
+    localStorage.setItem("hm_checkout_preview",JSON.stringify(t));
   }
 
-  // Persist form values locally (optional UX nicety)
-  function bindPersist(id, key){
-    const el = document.getElementById(id);
-    try{ const v = localStorage.getItem(key); if(v) el.value = v; }catch(_){}
-    el.addEventListener("input", ()=>{ try{ localStorage.setItem(key, el.value); }catch(_){ } });
-  }
-  ["email","phone","addr1","addr2","city","state","zip"].forEach(id=>bindPersist(id, "hm_chk_"+id));
-
-  nextBtn.addEventListener("click", ()=>{
-    // just go to payment; email is passed to PI there
-    window.location.href = "payment.html";
-  });
-
+  btn.addEventListener("click",()=>{window.location.href="payment.html"});
   render();
 })();
 </script>
