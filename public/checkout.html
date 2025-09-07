@@ -82,6 +82,9 @@
     .hm-footer .footer-links{display:flex;gap:14px;flex-wrap:wrap}
     .hm-footer .footer-links a{color:#1f2937;text-decoration:none}
     .hm-footer .copy{color:#6b7280;font-size:14px}
+
+    /* Shipping lines */
+    #shipLines{color:#6b7280;font-size:12px;line-height:1.35;text-align:right;margin-top:2px}
   </style>
 </head>
 <body>
@@ -202,7 +205,7 @@
           </div>
         </div>
 
-        <p class="help">Shipping is calculated on the next step with the prepaid label.</p>
+        <p class="help">Shipping is calculated with Hemline’s prepaid label (shown at right).</p>
 
         <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
           <a class="btn-outline" href="cart.html">Back to cart</a>
@@ -214,31 +217,19 @@
       <aside class="card" aria-labelledby="secSum">
         <h2 id="secSum">Order summary</h2>
 
-        <!-- Example items (static placeholders) -->
-        <div class="item">
-          <div class="thumb" aria-hidden="true"></div>
-          <div class="grow">
-            <div>Italian Wool Crepe — Saffron</div>
-            <div class="muted">1.5 yd × $28</div>
-          </div>
-          <div>$42.00</div>
-        </div>
-
-        <div class="item" style="margin-top:10px">
-          <div class="thumb" aria-hidden="true"></div>
-          <div class="grow">
-            <div>Bamboo French Terry — Natural</div>
-            <div class="muted">2.0 yd × $22</div>
-          </div>
-          <div>$44.00</div>
-        </div>
-
+        <div id="sumItems"></div>
         <div class="line"></div>
-        <div class="total"><span>Subtotal</span><span>$86.00</span></div>
-        <div class="total"><span>Shipping</span><span>Calculated next</span></div>
-        <div class="total"><span>Tax</span><span>Calculated next</span></div>
+        <div class="total"><span>Subtotal</span><span id="sumSub">$0.00</span></div>
+        <div class="total" style="align-items:flex-start">
+          <span>Shipping</span>
+          <div style="text-align:right">
+            <div id="sumShip">$0.00</div>
+            <div id="shipLines"></div>
+          </div>
+        </div>
+        <div class="total"><span>Tax</span><span class="muted">Calculated next</span></div>
         <div class="line"></div>
-        <div class="total grand"><span>Estimated total</span><span>$86.00</span></div>
+        <div class="total grand"><span>Estimated total</span><span id="sumTotal">$0.00</span></div>
 
         <div style="margin-top:12px">
           <a class="btn" href="payment.html">Continue to payment</a>
@@ -264,8 +255,8 @@
 </footer>
 
 <script>
+/* Menu sheet + avatar (locked behavior) */
 (function(){
-  /* Menu sheet + avatar (locked behavior) */
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
@@ -275,12 +266,115 @@
   closeBtn?.addEventListener("click",e=>{e.preventDefault();closeSheet();});
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
-  /* Avatar image (optional) */
   try{
     const avatar=document.getElementById("avatar");
     const url=localStorage.getItem("avatarUrl");
     if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }
   }catch(e){}
+})();
+
+/* === Checkout summary logic (mirrors cart) === */
+(function(){
+  const LS_CART = 'hm_cart';
+  const LS_SHIP = 'hm_cart_shipping';
+
+  const itemsEl = document.getElementById('sumItems');
+  const subEl   = document.getElementById('sumSub');
+  const shipEl  = document.getElementById('sumShip');
+  const shipLinesEl = document.getElementById('shipLines');
+  const totalEl = document.getElementById('sumTotal');
+
+  const fmt=c=>'$'+(Math.max(0,c)/100).toFixed(2);
+  const readCart=()=>{ try{return JSON.parse(localStorage.getItem(LS_CART)||'[]')}catch(_){return[]} };
+  const readShip=()=>{ try{return JSON.parse(localStorage.getItem(LS_SHIP)||'null')}catch(_){return null} };
+
+  const lineAmount=it=>(it.amount||0)*(it.qty||1);
+
+  // tiers
+  const tierCents = yards => (yards < 3 ? 500 : (yards <= 10 ? 800 : 1500));
+
+  // qty==yards fallback (same as cart)
+  function itemYardsTotal(it){
+    const qty = Number(it.qty)||1;
+    if (it.yards !== undefined && it.yards !== null && it.yards !== '') {
+      const y = Number(it.yards) || 0;
+      return y * qty;
+    }
+    return qty;
+  }
+
+  function calcShipping(cart){
+    const groups={}; // sellerId -> {name,yards}
+    cart.forEach(it=>{
+      const yards = itemYardsTotal(it);
+      const sellerId=it.sellerId||'default_seller';
+      const sellerName=it.sellerName||'Seller';
+      if(!groups[sellerId]) groups[sellerId]={ name:sellerName, yards:0 };
+      groups[sellerId].yards+=yards;
+    });
+    const lines=Object.values(groups).map(g=>({
+      sellerName:g.name,
+      yards:g.yards,
+      fee_cents:tierCents(g.yards)
+    }));
+    const total_cents=lines.reduce((s,l)=>s+l.fee_cents,0);
+    return {lines,total_cents};
+  }
+
+  function render(){
+    const cart = readCart();
+
+    // Empty state
+    if(!cart.length){
+      itemsEl.innerHTML = '<div class="muted">Your cart is empty.</div>';
+      subEl.textContent = fmt(0);
+      shipEl.textContent = fmt(0);
+      shipLinesEl.textContent = '';
+      totalEl.textContent = fmt(0);
+      return;
+    }
+
+    // Items
+    itemsEl.innerHTML = '';
+    let subtotal = 0;
+    cart.forEach(it=>{
+      subtotal += lineAmount(it);
+
+      const row = document.createElement('div');
+      row.className = 'item';
+      const per = it.perYd ? '$'+Number(it.perYd).toFixed(2)+'/yd' : null;
+      const yardsLabel = (it.yards!==undefined && it.yards!==null && it.yards!=='') ? (Number(it.yards)+' yd') : null;
+
+      row.innerHTML = `
+        <div class="thumb" aria-hidden="true">${it.photo?`<img alt="" src="${it.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`:''}</div>
+        <div class="grow">
+          <div>${it.name || 'Fabric'}</div>
+          <div class="muted">
+            ${yardsLabel ? yardsLabel : (Number(it.qty||1)+' yd')}
+            ${per ? ` × ${per.replace('/yd','')}` : ''}
+          </div>
+        </div>
+        <div>${fmt(lineAmount(it))}</div>
+      `;
+      itemsEl.appendChild(row);
+    });
+
+    // Shipping: prefer what cart stored; recompute if missing/stale
+    let ship = readShip();
+    if(!ship || !ship.lines || typeof ship.total_cents!=='number'){
+      ship = calcShipping(cart);
+    }
+
+    // Render totals
+    subEl.textContent = fmt(subtotal);
+    shipEl.textContent = fmt(ship.total_cents);
+    shipLinesEl.innerHTML = ship.lines
+      .map(l => `${l.sellerName}: ${l.yards.toFixed(2)} yd → ${fmt(l.fee_cents)}`)
+      .join('<br>');
+    totalEl.textContent = fmt(subtotal + ship.total_cents);
+  }
+
+  render();
 })();
 </script>
 </body>
