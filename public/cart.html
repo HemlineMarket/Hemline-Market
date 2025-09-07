@@ -43,10 +43,13 @@ h1{margin:0 0 14px}
 .price{font-weight:700;min-width:88px;text-align:right}
 .row-end{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
 .link{color:#991b1b;text-decoration:none}
-.sum .row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6}
+.sum .row{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f3f4f6}
 .sum .row:last-child{border-bottom:0}
 .muted{color:#6b7280}
 .empty{padding:24px;text-align:center;color:#6b7280}
+
+/* Shipping breakdown text */
+.ship-lines{color:#6b7280;font-size:12px;line-height:1.35;text-align:right;margin-top:2px}
 
 /* LOCKED FOOTER */
 .hm-footer{background:#fff;border-top:1px solid var(--border)}
@@ -124,7 +127,16 @@ h1{margin:0 0 14px}
       <div class="hd">Summary</div>
       <div class="bd">
         <div class="row"><span>Subtotal</span><strong id="sub">$0.00</strong></div>
-        <div class="row"><span>Shipping</span><span class="muted">Calculated at checkout</span></div>
+
+        <!-- Shipping total + muted per-seller lines -->
+        <div class="row">
+          <span>Shipping</span>
+          <div style="text-align:right">
+            <div id="ship">$0.00</div>
+            <div id="shipLines" class="ship-lines"></div>
+          </div>
+        </div>
+
         <div class="row"><span>Tax</span><span class="muted">Calculated at checkout</span></div>
         <div class="row" style="font-weight:800"><span>Total</span><span id="tot">$0.00</span></div>
         <button id="checkout" class="hm-btn" style="width:100%;margin-top:12px">Checkout</button>
@@ -154,21 +166,82 @@ h1{margin:0 0 14px}
   if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open()});
   if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close()});
   document.addEventListener("keydown",e=>{if(e.key==="Escape") close()});
-  try{ const avatar=document.getElementById("avatar"); const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')" } }catch(_){}
+  try{
+    const avatar=document.getElementById("avatar");
+    const url=localStorage.getItem("avatarUrl");
+    if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')" }
+  }catch(_){}
 })();
 
-/* Cart logic (reads/writes localStorage 'hm_cart') */
+/* Cart logic (reads/writes localStorage 'hm_cart') + shipping tiers */
 (function(){
-  const LS='hm_cart', itemsEl=document.getElementById('items'), subEl=document.getElementById('sub'), totEl=document.getElementById('tot'), checkout=document.getElementById('checkout');
+  const LS='hm_cart';
+  const SHIP_LS='hm_cart_shipping';
+  const itemsEl=document.getElementById('items'),
+        subEl=document.getElementById('sub'),
+        shipEl=document.getElementById('ship'),
+        shipLinesEl=document.getElementById('shipLines'),
+        totEl=document.getElementById('tot'),
+        checkout=document.getElementById('checkout');
+
   const fmt=c=>'$'+(Math.max(0,c)/100).toFixed(2);
+
   const read=()=>{ try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch(_){return[]} };
   const write=a=>{ localStorage.setItem(LS, JSON.stringify(a)); if(window.HM_CART_BADGE_UPDATE) window.HM_CART_BADGE_UPDATE(a); };
+
   const line=it=>(it.amount||0)*(it.qty||1);
+
+  // --- shipping helpers ---
+  const tierCents = yards => {
+    if(yards < 3) return 500;          // < 3 yards = $5
+    if(yards <= 10) return 800;        // 3–10 yards = $8
+    return 1500;                        // > 10 yards = $15
+  };
+
+  // derive a seller key and label from item
+  const sellerKey = it => (it.sellerId || it.seller || it.seller_id || 'default_seller');
+  const sellerName = it => (it.sellerName || it.seller || it.seller_name || 'Seller');
+
+  function calcShipping(cart){
+    // group yards per seller (qty-adjusted)
+    const groups = {};
+    cart.forEach(it=>{
+      const key = sellerKey(it);
+      const name = sellerName(it);
+      const yards = (Number(it.yards)||0) * (it.qty||1);
+      if(!groups[key]) groups[key] = { name, yards:0 };
+      groups[key].yards += yards;
+    });
+
+    // compute fee per seller
+    const lines = Object.entries(groups).map(([key,g])=>{
+      const fee = tierCents(g.yards);
+      return { sellerId:key, sellerName:g.name, yards: g.yards, fee_cents: fee };
+    });
+
+    const total_cents = lines.reduce((s,l)=>s+l.fee_cents,0);
+
+    // persist for checkout
+    localStorage.setItem(SHIP_LS, JSON.stringify({
+      lines,
+      total_cents
+    }));
+
+    return {lines, total_cents};
+  }
 
   function render(){
     const cart=read(); itemsEl.innerHTML='';
-    if(cart.length===0){ itemsEl.innerHTML='<div class="empty">Your cart is empty.</div>'; subEl.textContent=fmt(0); totEl.textContent=fmt(0); checkout.disabled=true; return; }
+    if(cart.length===0){
+      itemsEl.innerHTML='<div class="empty">Your cart is empty.</div>';
+      subEl.textContent=fmt(0);
+      shipEl.textContent=fmt(0);
+      shipLinesEl.textContent='';
+      totEl.textContent=fmt(0);
+      checkout.disabled=true; return;
+    }
     checkout.disabled=false;
+
     let subtotal=0;
     cart.forEach((it,i)=>{
       subtotal+=line(it);
@@ -186,7 +259,17 @@ h1{margin:0 0 14px}
         '<div class="price">'+fmt(line(it))+'</div>';
       itemsEl.appendChild(row);
     });
-    subEl.textContent=fmt(subtotal); totEl.textContent=fmt(subtotal);
+
+    // shipping calc + render
+    const ship = calcShipping(cart);
+    subEl.textContent=fmt(subtotal);
+    shipEl.textContent=fmt(ship.total_cents);
+    shipLinesEl.innerHTML = ship.lines
+      .map(l => `${l.sellerName}: ${l.yards.toFixed(2)} yd → ${fmt(l.fee_cents)}`)
+      .join('<br>');
+
+    const total = subtotal + ship.total_cents;
+    totEl.textContent=fmt(total);
   }
 
   itemsEl.addEventListener('click', e=>{
@@ -197,10 +280,13 @@ h1{margin:0 0 14px}
     if(act==='rm') cart.splice(idx,1);
     write(cart); render();
   });
+
   itemsEl.addEventListener('input', e=>{
     if(e.target.tagName!=='INPUT') return;
-    const row=e.target.closest('.item'); const idx=+row.dataset.index; const cart=read(); const it=cart[idx]; let v=parseInt(e.target.value||'1',10); if(isNaN(v)||v<1) v=1; it.qty=v; write(cart); render();
+    const row=e.target.closest('.item'); const idx=+row.dataset.index; const cart=read(); const it=cart[idx];
+    let v=parseInt(e.target.value||'1',10); if(isNaN(v)||v<1) v=1; it.qty=v; write(cart); render();
   });
+
   document.getElementById('clearCart').addEventListener('click', e=>{ e.preventDefault(); write([]); render(); });
   document.getElementById('checkout').addEventListener('click', ()=> location.href='checkout.html');
 
