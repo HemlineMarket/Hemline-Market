@@ -194,6 +194,7 @@
 </footer>
 
 <script>
+/* Header/menu + avatar */
 (function(){
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
@@ -206,10 +207,11 @@
   try{ const avatar=document.getElementById("avatar"); const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')" } }catch(_){}
 })();
 
-/* Shipping + totals */
+/* Shipping + totals + redirect to Stripe Checkout */
 (function(){
   const fmt = c => "$" + (Math.max(0,c)/100).toFixed(2);
 
+  // Tier rule: <3yd = $5, 3–10yd = $8, >10yd = $15 (per seller)
   function tierCents(y){ if(y < 3) return 500; if(y <= 10) return 800; return 1500; }
 
   function parsePerYd(it){
@@ -289,27 +291,79 @@
     shipEl.textContent = fmt(t.ship);
     totEl.textContent  = fmt(t.tot);
 
+    // Stash preview for later pages if needed
     localStorage.setItem("hm_checkout_preview", JSON.stringify(t));
   }
 
-  // Save address to localStorage, then go to payment
-  next.addEventListener("click", ()=>{
+  // Create Stripe Checkout Session and redirect
+  async function goToStripe(){
+    const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
+    if (!cart.length) return;
+
+    // Save address (optional, useful for prefill/labels later)
     const addr = {
-      email: document.getElementById('email').value.trim(),
-      phone: document.getElementById('phone').value.trim(),
-      line1: document.getElementById('addr1').value.trim(),
-      line2: document.getElementById('addr2').value.trim(),
-      city:  document.getElementById('city').value.trim(),
-      state: document.getElementById('state').value.trim(),
-      zip:   document.getElementById('zip').value.trim(),
+      email: document.getElementById('email')?.value?.trim() || '',
+      phone: document.getElementById('phone')?.value?.trim() || '',
+      line1: document.getElementById('addr1')?.value?.trim() || '',
+      line2: document.getElementById('addr2')?.value?.trim() || '',
+      city:  document.getElementById('city')?.value?.trim() || '',
+      state: document.getElementById('state')?.value?.trim() || '',
+      zip:   document.getElementById('zip')?.value?.trim() || '',
       country: "US"
     };
-    try { localStorage.setItem("hm_checkout_address", JSON.stringify(addr)); } catch(_) {}
+    try { localStorage.setItem("hm_checkout_address", JSON.stringify(addr)); } catch(_){}
 
-    // (No validation gate here to keep it stress-free; you can add checks later if you want)
-    window.location.href = "payment.html";
-  });
+    // Recompute shipping to pass exact cents
+    const { ship } = (function(){
+      let sub=0; const yardsBySeller = {};
+      for (const it of cart){
+        const qty  = Number(it.qty || 1);
+        const line = Number(it.amount || 0) * qty;
+        sub += line;
+        const key = sellerKey(it);
+        const yds = yardsForItem(it);
+        yardsBySeller[key] = (yardsBySeller[key] || 0) + yds;
+      }
+      const shipCents = Object.values(yardsBySeller).reduce((s,y)=> s + tierCents(y), 0);
+      return { ship: shipCents };
+    })();
 
+    next.disabled = true;
+    const old = next.textContent;
+    next.textContent = "Redirecting…";
+
+    try {
+      const resp = await fetch('/api/stripe/create_session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cart,
+          buyer: { email: addr.email },
+          shipping_cents: ship
+        })
+      });
+
+      if (!resp.ok) throw new Error('Failed to create session');
+      const data = await resp.json();
+      if (data.url) {
+        window.location.href = data.url; // Go to Stripe Checkout
+        return;
+      }
+      throw new Error('Missing session URL');
+    } catch (err) {
+      console.error(err);
+      const b = document.getElementById('banner');
+      if (b){
+        b.className = 'banner empty';
+        b.style.display = 'block';
+        b.textContent = 'Could not start payment. Please try again.';
+      }
+      next.disabled = false;
+      next.textContent = old;
+    }
+  }
+
+  next.addEventListener("click", goToStripe);
   render();
 })();
 </script>
