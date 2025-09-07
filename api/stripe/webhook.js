@@ -1,19 +1,21 @@
-// /api/stripe/webhook.js
-// Receives Stripe events (Connect + payments). Acknowledge fast.
-// If STRIPE_WEBHOOK_SECRET is set, we verify signatures; otherwise we accept JSON (dev).
+// File: /api/stripe/webhook.js
+// Verifies Stripe signatures and handles Connect/Checkout events.
+// Requires env: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 
 import Stripe from 'stripe';
 
-export const config = {
-  api: { bodyParser: false } // we need the raw body for signature verification
-};
+// Important: let Stripe read the raw body for signature verification
+export const config = { api: { bodyParser: false } };
 
-// helper to read raw body
-function readRawBody(req) {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2025-07-30.basil', // or your account default
+});
+
+function buffer(req) {
   return new Promise((resolve, reject) => {
-    let data = [];
-    req.on('data', chunk => data.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(data)));
+    const chunks = [];
+    req.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
@@ -24,67 +26,115 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
-  const sigHeader = req.headers['stripe-signature'];
-  const whSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
-
   let event;
-
   try {
-    if (whSecret) {
-      const rawBody = await readRawBody(req);
-      event = stripe.webhooks.constructEvent(rawBody, sigHeader, whSecret);
-    } else {
-      // dev fallback (no verification)
-      const rawBody = await readRawBody(req);
-      event = JSON.parse(rawBody.toString('utf8'));
+    const buf = await buffer(req);
+    const signature = req.headers['stripe-signature'];
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) {
+      // If you ever run without a secret, refuse; avoids noisy retries.
+      return res.status(500).json({ error: 'Missing STRIPE_WEBHOOK_SECRET' });
     }
+    event = stripe.webhooks.constructEvent(buf, signature, secret);
   } catch (err) {
-    console.error('Stripe webhook verify/parse error:', err.message);
-    return res.status(400).json({ error: `Invalid payload: ${err.message}` });
+    console.error('⚠️  Stripe signature verification failed:', err?.message || err);
+    return res.status(400).send(`Webhook Error: ${err?.message || 'invalid signature'}`);
   }
 
-  // Acknowledge first so Stripe stops retrying quickly
+  // Acknowledge ASAP so Stripe doesn’t retry
   res.status(200).json({ received: true });
 
+  // ---- Non-blocking processing (logs + TODOs) ----
   try {
-    switch (event.type) {
-      // Seller onboarding / payouts readiness
-      case 'account.updated':
-      case 'capabilities.updated': {
-        const acct = event.data.object;
-        const payoutsEnabled = !!acct.payouts_enabled;
-        const detailsSubmitted = !!acct.details_submitted;
-        console.log('[Stripe Connect]', event.type, {
-          account: acct.id,
-          payoutsEnabled,
-          detailsSubmitted
+    const type = event.type;
+
+    switch (type) {
+      // Checkout
+      case 'checkout.session.completed': {
+        const s = event.data.object; // Checkout Session
+        console.log('[stripe] checkout.session.completed', {
+          id: s.id,
+          payment_intent: s.payment_intent,
+          customer: s.customer,
+          amount_total: s.amount_total,
+          mode: s.mode,
+          metadata: s.metadata || {},
         });
-        // TODO: persist this to your DB (e.g., Supabase) keyed by seller
+        // TODO: mark order as PAID in DB by your session/order id
+        // TODO: create per-seller ledger rows; queue label creation
+        break;
+      }
+      case 'checkout.session.expired': {
+        const s = event.data.object;
+        console.log('[stripe] checkout.session.expired', { id: s.id });
+        // TODO: release any reservations/locks you may have created
         break;
       }
 
-      // Checkout / payments lifecycle (optional now; useful later)
-      case 'checkout.session.completed': {
-        const s = event.data.object;
-        console.log('[Stripe]', event.type, { session: s.id, mode: s.mode, amount_total: s.amount_total });
-        // TODO: mark order paid & store session id
+      // PaymentIntent (extra safety)
+      case 'payment_intent.succeeded':
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object;
+        console.log(`[stripe] ${type}`, {
+          id: pi.id,
+          status: pi.status,
+          amount: pi.amount,
+          metadata: pi.metadata || {},
+        });
+        // TODO: reconcile if needed
         break;
       }
-      case 'charge.succeeded':
-      case 'transfer.created':
+
+      // Payouts (seller payouts lifecycle)
+      case 'payout.created':
       case 'payout.paid':
       case 'payout.failed': {
-        console.log('[Stripe]', event.type, { id: event.data.object.id });
-        // TODO: update order/payout records accordingly
+        const p = event.data.object;
+        console.log(`[stripe] ${type}`, {
+          id: p.id,
+          status: p.status,
+          amount: p.amount,
+          arrival_date: p.arrival_date,
+        });
+        // TODO: update seller payout history/status
         break;
       }
 
-      default:
-        console.log('[Stripe] unhandled event:', event.type);
+      // Transfers (platform → connected account)
+      case 'transfer.created': {
+        const t = event.data.object;
+        console.log('[stripe] transfer.created', {
+          id: t.id,
+          amount: t.amount,
+          destination: t.destination,
+        });
+        // TODO: record transfer id on your per-seller ledger entry
+        break;
+      }
+
+      // Connect account + app auth changes
+      case 'account.updated':
+      case 'account.application.authorized':
+      case 'account.application.deauthorized': {
+        const acct = event.data.object;
+        console.log(`[stripe] ${type}`, {
+          account: acct?.id || event.account,
+          details_submitted: acct?.details_submitted,
+          charges_enabled: acct?.charges_enabled,
+          payouts_enabled: acct?.payouts_enabled,
+          requirements: acct?.requirements?.currently_due || [],
+        });
+        // TODO: persist account capability flags for the seller
+        break;
+      }
+
+      default: {
+        // Keep logging so we see unexpected events in prod
+        console.log('[stripe] unhandled event', type);
+      }
     }
   } catch (err) {
-    // we already returned 200 — just log
-    console.error('Post-ack webhook handler error:', err);
+    // We already returned 200; just log for diagnostics
+    console.error('Stripe webhook handler error:', err);
   }
 }
