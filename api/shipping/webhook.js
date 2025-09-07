@@ -1,10 +1,17 @@
 // /api/shipping/webhook.js
-// Receives Shippo webhooks (e.g., "track_updated").
-// Respond 200 ASAP so Shippo doesn't retry. Validate optional secret.
+// Receives Shippo webhooks and saves label transaction IDs into Supabase.
+// ENV needed: SHIPPO_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+
+import { createClient } from '@supabase/supabase-js';
 
 export const config = {
   api: { bodyParser: { sizeLimit: '1mb' } }
 };
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -12,9 +19,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Optional simple verification using a shared secret in the URL:
-  // Set SHIPPO_WEBHOOK_SECRET in Vercel, then configure your webhook URL as:
-  // https://<your-domain>/api/shipping/webhook?secret=YOUR_SECRET
+  // Optional simple verification using a shared secret in the URL
   const REQUIRED_SECRET = process.env.SHIPPO_WEBHOOK_SECRET || '';
   if (REQUIRED_SECRET) {
     const supplied = (req.query.secret || '').toString();
@@ -25,44 +30,31 @@ export default async function handler(req, res) {
 
   try {
     const event = req.body || {};
-    // Typical Shippo payload fields
-    // - event: "track_updated" | "transaction_created" | ...
-    // - data:  { tracking_number, tracking_status, tracking_history, ... }
-    // See: https://goshippo.com/docs/webhooks/
-
-    // Always acknowledge first
-    res.status(200).json({ ok: true });
-
-    // ---- Do your background processing below (non-blocking) ----
-    // (Vercel still runs this code, but Shippo already got 200.)
-
     const type = event.event || event.type || 'unknown';
     const data = event.data || {};
     const tracking = data.tracking_number || data.tracking?.tracking_number;
-    const status =
-      data.tracking_status?.status ||
-      data.tracking_status ||
-      data.status ||
-      null;
+    const txId = data.object_id || null;
 
-    // TODO: link this update to your order by tracking number or transaction id
-    // and persist it (e.g., Supabase). For now we just log safely.
-    console.log('[Shippo webhook]', {
-      type,
-      tracking,
-      status,
-      dataBrief: {
-        carrier: data.carrier || data.tracking_provider || null,
-        eta: data.eta || null,
-        object_id: data.object_id || null,
-      },
-    });
+    // Always respond first so Shippo doesn’t retry
+    res.status(200).json({ ok: true });
 
-    // Example placeholder: send a notification email on delivered, etc.
-    // if (status === 'DELIVERED') { await notifyBuyer(...); }
+    // ---- Background work ----
+    console.log('[Shippo webhook]', { type, txId, tracking });
 
+    // Save label transaction ID when created
+    if (type === 'transaction_created' && txId) {
+      const orderId = data.metadata?.order_id; // attach order_id in create step
+      if (orderId) {
+        const { error } = await supabase
+          .from('orders')
+          .update({ shippo_tx: txId })
+          .eq('id', orderId);
+        if (error) console.error('Failed to save Shippo tx → Supabase', error);
+        else console.log('✅ Shippo tx saved to order', orderId);
+      }
+    }
   } catch (err) {
-    // We already returned 200 above. Log for diagnostics.
     console.error('Shippo webhook error:', err);
+    // We already returned 200, so just log
   }
 }
