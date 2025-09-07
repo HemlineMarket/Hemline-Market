@@ -1,141 +1,127 @@
-// Stripe webhook for Hemline Market (CommonJS, Vercel-compatible)
-// Allows a secure test bypass via header or query for GET requests.
+// /api/stripe-webhook.js
+import Stripe from "stripe";
 
-const Stripe = require('stripe');
+// Vercel/Next needs raw body for Stripe signature verification
+export const config = { api: { bodyParser: false } };
 
-// IMPORTANT: Stripe signature verification needs the raw request body
-module.exports.config = { api: { bodyParser: false } };
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-06-20",
+});
 
-// Read raw bytes from the request stream
-async function getRawBody(req) {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
 }
 
-module.exports = async (req, res) => {
-  try {
-    // Build URL safely for query parsing
-    const host = req.headers.host || 'localhost';
-    const url = new URL(req.url || '/', `https://${host}`);
-
-    // Bypass secret may come from header OR query string (?x-test-bypass=...)
-    const bypassFromHeader = req.headers['x-test-bypass'];
-    const bypassFromQuery  = url.searchParams.get('x-test-bypass');
-    const bypassSecret     = process.env.TEST_WEBHOOK_BYPASS_KEY || '';
-    const isBypass         = !!bypassSecret && (bypassFromHeader === bypassSecret || bypassFromQuery === bypassSecret);
-
-    // Allow GET only when using the bypass secret; otherwise require POST
-    if (req.method !== 'POST' && !(req.method === 'GET' && isBypass)) {
-      res.setHeader('Allow', 'POST, GET');
-      return res.status(405).send('Method Not Allowed');
-    }
-
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
-    const sig = req.headers['stripe-signature'];
-
-    let event = null;
-
-    if (isBypass) {
-      // Simulate a checkout.session.completed payload for testing
-      event = {
-        id: 'evt_test_bypass',
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: 'cs_test_bypass',
-            payment_intent: 'pi_test_bypass',
-            customer_details: { email: 'test-buyer@example.com' },
-            metadata: {
-              seller_id: '00000000-0000-0000-0000-000000000000',
-              listing_id: '00000000-0000-0000-0000-000000000000',
-              listing_snapshot: JSON.stringify({
-                title: 'Test Fabric',
-                price_cents: 1234
-              }),
-              application_fee_amount: '0'
-            },
-            amount_total: 1234,
-            currency: 'usd'
-          }
-        }
-      };
-    } else {
-      // Normal Stripe path (POST) — verify signature if we have a signing secret
-      const rawBody = await getRawBody(req);
-
-      if (endpointSecret && sig) {
-        try {
-          event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
-        } catch (err) {
-          console.error('❌ Signature verification failed:', err.message);
-          return res.status(400).send(`Webhook Error: ${err.message}`);
-        }
-      } else {
-        // No signing secret yet: accept JSON for initial setup only
-        try {
-          event = JSON.parse(rawBody.toString('utf8'));
-        } catch (err) {
-          console.error('❌ JSON parse failed:', err.message);
-          return res.status(400).send(`Parse Error: ${err.message}`);
-        }
-      }
-    }
-
-    // Handle successful checkout
-    if (event && event.type === 'checkout.session.completed') {
-      const session = event.data.object || {};
-
-      const order = {
-        stripe_event_id: event.id,
-        stripe_payment_intent: session.payment_intent || null,
-        stripe_checkout_session: session.id || null,
-        buyer_email: (session.customer_details && session.customer_details.email) || null,
-        buyer_id: null, // can be filled later via metadata (auth uid)
-        seller_id: (session.metadata && session.metadata.seller_id) || null,
-        listing_id: (session.metadata && session.metadata.listing_id) || null,
-        listing_snapshot: (() => {
-          try {
-            if (session.metadata && session.metadata.listing_snapshot) {
-              return JSON.parse(session.metadata.listing_snapshot);
-            }
-          } catch (_) {}
-          return {}; // not null per schema
-        })(),
-        amount_total: typeof session.amount_total === 'number' ? session.amount_total : 0,
-        application_fee_amount: Number(
-          (session.metadata && session.metadata.application_fee_amount) || 0
-        ),
-        currency: (session.currency || 'usd').toLowerCase(),
-        status: 'PAID'
-      };
-
-      // Write to Supabase using Service Role
-      const { createClient } = require('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      );
-
-      const { error } = await supabase
-        .from('orders')
-        .upsert(order, { onConflict: 'stripe_event_id', ignoreDuplicates: true });
-
-      if (error) {
-        console.error('❌ Supabase upsert error:', error);
-        return res.status(500).send('Database error');
-      }
-
-      console.log('✅ Order recorded:', order.stripe_checkout_session);
-    }
-
-    return res.status(200).send('[ok]');
-  } catch (e) {
-    console.error('❌ Uncaught webhook error:', e);
-    return res.status(500).send('Internal error');
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
-};
+
+  const sig = req.headers["stripe-signature"];
+  let event;
+
+  let rawBody;
+  try {
+    rawBody = await readRawBody(req);
+  } catch (e) {
+    return res.status(400).send(`Raw body error: ${e.message}`);
+  }
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    return res.status(400).send(`Webhook signature error: ${err.message}`);
+  }
+
+  // Handle successful Checkout
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+
+    try {
+      // Get line items to show in the email
+      const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+        limit: 50,
+      });
+
+      const toEmail = session.customer_details?.email || session.customer_email;
+
+      // Compose a simple HTML email
+      const itemsHtml = lineItems.data
+        .map(
+          (li) =>
+            `<tr>
+              <td style="padding:6px 10px;border-bottom:1px solid #eee;">${li.description}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;">${li.quantity}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;">$${(
+                li.amount_total / 100
+              ).toFixed(2)}</td>
+            </tr>`
+        )
+        .join("");
+
+      const total = (session.amount_total / 100).toFixed(2);
+      const currency = (session.currency || "usd").toUpperCase();
+
+      const html = `
+        <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;color:#111827">
+          <h2 style="margin:0 0 8px;">Thanks for your order!</h2>
+          <p style="margin:0 0 12px;">Order <strong>${session.id}</strong> has been confirmed.</p>
+          <table style="border-collapse:collapse;width:100%;max-width:560px">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:6px 10px;border-bottom:2px solid #111827;">Item</th>
+                <th style="text-align:center;padding:6px 10px;border-bottom:2px solid #111827;">Qty</th>
+                <th style="text-align:right;padding:6px 10px;border-bottom:2px solid #111827;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${itemsHtml}</tbody>
+            <tfoot>
+              <tr>
+                <td></td>
+                <td style="padding:8px 10px;text-align:right;font-weight:700;">Total</td>
+                <td style="padding:8px 10px;text-align:right;font-weight:700;">$${total} ${currency}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <p style="margin-top:12px;">You can reply to this email if you have any questions.</p>
+        </div>
+      `;
+
+      // Send via Postmark
+      const pmRes = await fetch("https://api.postmarkapp.com/email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Postmark-Server-Token": process.env.POSTMARK_SERVER_TOKEN,
+        },
+        body: JSON.stringify({
+          From: process.env.FROM_EMAIL,
+          To: toEmail,
+          Subject: "Your Hemline Market order confirmation",
+          HtmlBody: html,
+          MessageStream: "outbound",
+        }),
+      });
+
+      if (!pmRes.ok) {
+        const t = await pmRes.text();
+        console.error("Postmark error:", t);
+      }
+    } catch (e) {
+      console.error("Webhook handling error:", e);
+      // Don’t return 4xx here if email fails; acknowledge to Stripe so it doesn’t retry forever
+    }
+  }
+
+  return res.json({ received: true });
+}
