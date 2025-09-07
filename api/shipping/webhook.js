@@ -1,56 +1,68 @@
-// api/shipping/webhook.js
-// Hemline Market — Shippo webhook receiver.
-// Accepts POSTs from Shippo for transaction and tracking updates.
-// For now we just acknowledge and surface a minimal, structured response.
-// Later we can persist to DB and fan out notifications.
+// /api/shipping/webhook.js
+// Receives Shippo webhooks (e.g., "track_updated").
+// Respond 200 ASAP so Shippo doesn't retry. Validate optional secret.
 
-function send(res, status, data) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.end(JSON.stringify(data));
-}
-
-module.exports = async (req, res) => {
-  // Allow Shippo to preflight if it ever does OPTIONS
-  if (req.method === "OPTIONS") {
-    res.setHeader("Allow", "POST,OPTIONS");
-    res.statusCode = 200;
-    return res.end();
-  }
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST,OPTIONS");
-    return send(res, 405, { error: "POST only" });
-  }
-
-  // Shippo sends JSON; handle both string and object bodies
-  let body = {};
-  try {
-    body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
-  } catch {
-    return send(res, 400, { error: "Invalid JSON" });
-  }
-
-  // Common payload shapes:
-  // - transaction webhook: { event: "transaction.created|transaction.updated", data: {...tx...} }
-  // - tracking webhook: { event: "track.updated", data: {...tracking...} }
-  const event = body.event || body.type || "unknown";
-  const data = body.data || {};
-
-  // Extract a few helpful fields (if present)
-  const txId = data.object_id || data.transaction || null;
-  const status = data.status || (data.tracking_status && data.tracking_status.status) || null;
-  const trackingNumber = data.tracking_number || (data.tracking_status && data.tracking_status.tracking_number) || null;
-  const carrier = (data.carrier || data.provider || (data.rate && (data.rate.carrier || data.rate.provider))) || null;
-
-  // NOTE: We are not persisting yet. Vercel logs will show the event.
-  // Later: write to DB and notify buyer/seller.
-
-  return send(res, 200, {
-    ok: true,
-    event,
-    txId,
-    status,
-    trackingNumber,
-    carrier
-  });
+export const config = {
+  api: { bodyParser: { sizeLimit: '1mb' } }
 };
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  // Optional simple verification using a shared secret in the URL:
+  // Set SHIPPO_WEBHOOK_SECRET in Vercel, then configure your webhook URL as:
+  // https://<your-domain>/api/shipping/webhook?secret=YOUR_SECRET
+  const REQUIRED_SECRET = process.env.SHIPPO_WEBHOOK_SECRET || '';
+  if (REQUIRED_SECRET) {
+    const supplied = (req.query.secret || '').toString();
+    if (supplied !== REQUIRED_SECRET) {
+      return res.status(401).json({ error: 'Invalid webhook secret' });
+    }
+  }
+
+  try {
+    const event = req.body || {};
+    // Typical Shippo payload fields
+    // - event: "track_updated" | "transaction_created" | ...
+    // - data:  { tracking_number, tracking_status, tracking_history, ... }
+    // See: https://goshippo.com/docs/webhooks/
+
+    // Always acknowledge first
+    res.status(200).json({ ok: true });
+
+    // ---- Do your background processing below (non-blocking) ----
+    // (Vercel still runs this code, but Shippo already got 200.)
+
+    const type = event.event || event.type || 'unknown';
+    const data = event.data || {};
+    const tracking = data.tracking_number || data.tracking?.tracking_number;
+    const status =
+      data.tracking_status?.status ||
+      data.tracking_status ||
+      data.status ||
+      null;
+
+    // TODO: link this update to your order by tracking number or transaction id
+    // and persist it (e.g., Supabase). For now we just log safely.
+    console.log('[Shippo webhook]', {
+      type,
+      tracking,
+      status,
+      dataBrief: {
+        carrier: data.carrier || data.tracking_provider || null,
+        eta: data.eta || null,
+        object_id: data.object_id || null,
+      },
+    });
+
+    // Example placeholder: send a notification email on delivered, etc.
+    // if (status === 'DELIVERED') { await notifyBuyer(...); }
+
+  } catch (err) {
+    // We already returned 200 above. Log for diagnostics.
+    console.error('Shippo webhook error:', err);
+  }
+}
