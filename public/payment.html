@@ -46,6 +46,7 @@
       <input id="cardholder-name" type="text" placeholder="Full name" required>
 
       <label>Card details</label>
+      <!-- Stripe will render its secure iframe here (Card Number, Exp, CVC) -->
       <div id="card-element" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:10px"></div>
 
       <div style="display:flex;gap:10px;margin-top:12px">
@@ -85,35 +86,58 @@
 
 <script>
 (async function(){
-  // Your publishable key (already provided earlier)
+  // Stripe publishable key
   const stripe = Stripe("pk_test_51Rx9wcFi9JRhHIdimg0GjJUrSKPGXUuk0Zlq6eN4qKWoRaqZWLeVhfde7yXN31tpg9cbBpX1AiuXeM7uxnUapXrR00CptT5icK");
   const elements = stripe.elements();
-  const cardElement = elements.create("card");
+  // Create the full card element (shows card number, expiry, CVC in one)
+  const cardElement = elements.create("card", { hidePostalCode: false });
   cardElement.mount("#card-element");
 
   const fmt = c => "$" + (Math.max(0,c)/100).toFixed(2);
 
-  // Load cart from localStorage for the summary (display only)
+  // ---- Client shipping preview (display only) ----
+  function tierCents(yards){ if(yards < 3) return 500; if(yards <= 10) return 800; return 1500; }
+  function yardsForItem(it){
+    const qty = Number(it.qty || 1);
+    if (it.yards !== undefined && it.yards !== null && it.yards !== "") {
+      return (Number(it.yards) || 0) * qty;
+    }
+    return qty;
+  }
+  function previewTotals(cart){
+    let subtotal = 0;
+    const groups = {};
+    for(const it of cart){
+      subtotal += (Number(it.amount||0) * Number(it.qty||1));
+      const sellerId = it.sellerId || "default_seller";
+      const name = it.sellerName || "Seller";
+      const yards = yardsForItem(it);
+      if(!groups[sellerId]) groups[sellerId] = { name, yards:0 };
+      groups[sellerId].yards += yards;
+    }
+    const shipLines = Object.values(groups).map(g => tierCents(g.yards));
+    const shipping = shipLines.reduce((s,x)=>s+x,0);
+    return { subtotal, shipping, total: subtotal + shipping };
+  }
+
+  // Load cart and render preview immediately
   const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
   const itemsEl = document.getElementById("order-items");
   itemsEl.innerHTML = "";
-  let clientSubtotal = 0;
   cart.forEach(it=>{
     const line = (it.amount||0) * (it.qty||1);
-    clientSubtotal += line;
     const row = document.createElement("div");
     row.className = "order-item";
     const yards = (it.yards!==undefined && it.yards!==null && it.yards!=='') ? ` (${it.yards} yd)` : "";
     row.innerHTML = `<span>${(it.name||"Item") + yards}</span><span>${fmt(line)}</span>`;
     itemsEl.appendChild(row);
   });
+  const prev = previewTotals(cart);
+  document.getElementById("subTotal").textContent = fmt(prev.subtotal);
+  document.getElementById("shipTotal").textContent = fmt(prev.shipping);
+  document.getElementById("grandTotal").textContent = fmt(prev.total);
 
-  // We don't trust client totals for charging, but we show them here.
-  // Actual charge amounts come back from the server below.
-  document.getElementById("subTotal").textContent = fmt(clientSubtotal);
-  document.getElementById("shipTotal").textContent = "—";
-  document.getElementById("grandTotal").textContent = "—";
-
+  // ---- Submit & charge using server-computed totals ----
   const form = document.getElementById("payment-form");
   const submitBtn = document.getElementById("submit");
   const msg = document.getElementById("msg");
@@ -129,7 +153,7 @@
     const name  = document.getElementById("cardholder-name").value.trim();
 
     try{
-      // 1) Ask server to compute totals and create PaymentIntent (NO client amount)
+      // 1) Create PaymentIntent with server recomputing totals
       const resp = await fetch("/api/create-payment-intent", {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
@@ -137,17 +161,16 @@
       });
       const data = await resp.json();
       if(!resp.ok) throw new Error(data.error || "Failed to create payment.");
-
       const clientSecret = data.clientSecret || data.client_secret;
       if(!clientSecret) throw new Error("Missing client secret from server.");
 
-      // Use server-computed totals for display + thank-you snapshot
+      // Update the summary to the server-computed numbers (the ones we’ll actually charge)
       const totals = data.totals || { subtotal:0, shipping:0, total:0 };
       document.getElementById("subTotal").textContent = fmt(totals.subtotal);
       document.getElementById("shipTotal").textContent = fmt(totals.shipping);
       document.getElementById("grandTotal").textContent = fmt(totals.total);
 
-      // 2) Confirm the payment with Stripe
+      // 2) Confirm payment with Stripe
       msg.textContent = "Confirming card…";
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
@@ -155,13 +178,12 @@
           billing_details: { email: email || undefined, name: name || undefined }
         }
       });
-
       if(error) throw error;
       if(!paymentIntent || paymentIntent.status !== "succeeded"){
         throw new Error("Payment not completed.");
       }
 
-      // 3) Order number + snapshots for thanks page (server totals)
+      // 3) Snapshot for thanks page + redirect
       const orderId = "HM-" + Math.floor(100000 + Math.random()*900000);
       localStorage.setItem("hm_last_checkout_totals", JSON.stringify({
         orderId,
@@ -170,7 +192,6 @@
       }));
       localStorage.setItem("hm_last_checkout_items", JSON.stringify(cart));
 
-      // 4) Clear cart and redirect
       localStorage.removeItem("hm_cart");
       localStorage.removeItem("hm_cart_shipping");
       window.location.href = "thanks.html?o=" + encodeURIComponent(orderId);
