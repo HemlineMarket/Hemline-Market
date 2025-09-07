@@ -219,10 +219,20 @@ h1{margin:0 0 8px}
   // shipping tiers
   const tierCents = yards => (yards < 3 ? 500 : (yards <= 10 ? 800 : 1500));
 
+  // IMPORTANT: yards fallback = qty (on Hemline, qty == yards for fabric)
+  function itemYardsTotal(it){
+    const qty = Number(it.qty)||1;
+    if (it.yards !== undefined && it.yards !== null && it.yards !== '') {
+      const y = Number(it.yards) || 0;
+      return y * qty;
+    }
+    return qty;
+  }
+
   function calcShipping(cart){
-    const groups={};
+    const groups={}; // sellerId -> {name,yards}
     cart.forEach(it=>{
-      const yards=(Number(it.yards)||0)*(it.qty||1); // yards required by Sell flow
+      const yards = itemYardsTotal(it);
       const sellerId=it.sellerId||'default_seller';
       const sellerName=it.sellerName||'Seller';
       if(!groups[sellerId]) groups[sellerId]={ name:sellerName, yards:0 };
@@ -247,23 +257,23 @@ h1{margin:0 0 8px}
       shipLinesEl.textContent='';
       totEl.textContent=fmt(0);
       checkout.disabled=true;
-      banner.style.display='block';
-      bannerText.textContent='Your cart is empty.';
+      if (banner) { banner.style.display='block'; bannerText.textContent='Your cart is empty.'; }
       return;
     }
     checkout.disabled=false;
-    banner.style.display='block';
-    bannerText.textContent='Cart has items — ready to check out.';
+    if (banner) { banner.style.display='block'; bannerText.textContent='Cart has items — ready to check out.'; }
 
     let subtotal=0;
     cart.forEach((it,i)=>{
       subtotal+=line(it);
       const per = it.perYd ? '$'+Number(it.perYd).toFixed(2)+'/yd' : '';
-      const yards = (it.yards!==undefined && it.yards!==null) ? (per? ' · ':'')+Number(it.yards)+' yd' : '';
+      const yardsLabel = (it.yards!==undefined && it.yards!==null && it.yards!=='')
+        ? (per? ' · ':'')+Number(it.yards)+' yd'
+        : '';
       const row=document.createElement('div'); row.className='item'; row.dataset.index=i;
       row.innerHTML =
         '<div class="thumb">'+(it.photo?'<img alt="" src="'+it.photo+'">':'<span>—</span>')+'</div>'+
-        '<div><div class="t1">'+(it.name||'Fabric')+'</div><div class="t2">'+(per+yards)+'</div>'+
+        '<div><div class="t1">'+(it.name||'Fabric')+'</div><div class="t2">'+(per+yardsLabel)+'</div>'+
         '<div style="margin-top:8px;display:flex;gap:10px;align-items:center">'+
           '<div class="qty"><button data-act="dec">−</button>'+
           '<input type="text" value="'+(it.qty||1)+'" inputmode="numeric" aria-label="Quantity">'+
