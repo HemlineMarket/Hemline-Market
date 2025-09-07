@@ -117,11 +117,11 @@ function open(){s.classList.add("open");s.setAttribute("aria-hidden","false")}fu
 o&&o.addEventListener("click",e=>{e.preventDefault();open()});c&&c.addEventListener("click",e=>{e.preventDefault();close()});document.addEventListener("keydown",e=>{if(e.key==="Escape")close()});
 try{const a=document.getElementById("avatar"),u=localStorage.getItem("avatarUrl");if(u){a.textContent='';a.style.backgroundImage="url('"+u+"')"}}catch(_){}})();
 
-/* Demo data (add fields so new filters work) */
+/* Demo data (now includes seller info; price is per yard; yards is total lot size) */
 const DATA=[
-  {id:1,title:"Italian Silk Twill — Midnight",price:68,width:54,gsm:75,photo:"",content:["Silk"],color:"Blue",yards:8,dept:"Fashion",fabricType:"Twill",fiberType:"Natural",designer:"Ratti",origin:"Italy",pattern:"Solid"},
-  {id:2,title:"Wool Crepe — Saffron",price:28,width:58,gsm:180,photo:"",content:["Wool"],color:"Yellow",yards:4,dept:"Fashion",fabricType:"Crepe",fiberType:"Natural",designer:"—",origin:"Italy",pattern:"Solid"},
-  {id:3,title:"Cotton Poplin — Moss",price:14,width:44,gsm:120,photo:"",content:["Cotton"],color:"Green",yards:6,dept:"Fashion",fabricType:"Poplin",fiberType:"Natural",designer:"—",origin:"USA",pattern:"Solid"}
+  {id:1,title:"Italian Silk Twill — Midnight",price:68,width:54,gsm:75,photo:"",content:["Silk"],color:"Blue",yards:8,dept:"Fashion",fabricType:"Twill",fiberType:"Natural",designer:"Ratti",origin:"Italy",pattern:"Solid",sellerId:"s_ratti",sellerName:"Ratti Fabrics"},
+  {id:2,title:"Wool Crepe — Saffron",price:28,width:58,gsm:180,photo:"",content:["Wool"],color:"Yellow",yards:4,dept:"Fashion",fabricType:"Crepe",fiberType:"Natural",designer:"—",origin:"Italy",pattern:"Solid",sellerId:"s_folio",sellerName:"FabricFolio"},
+  {id:3,title:"Cotton Poplin — Moss",price:14,width:44,gsm:120,photo:"",content:["Cotton"],color:"Green",yards:6,dept:"Fashion",fabricType:"Poplin",fiberType:"Natural",designer:"—",origin:"USA",pattern:"Solid",sellerId:"s_sew",sellerName:"SewSimple"}
 ];
 const CONTENTS=["Any","Acetate","Acrylic","Alpaca","Angora","Bamboo","Cashmere","Cotton","Cupro","Hemp","Leather","Linen","Lurex","Modal","Mohair","Nylon","Polyester","Rayon / Viscose","Silk","Spandex / Elastane","Tencel / Lyocell","Wool","Other Fibers"];
 const COLORS=[{name:"Black",hex:"#000"},{name:"Grey",hex:"#9aa0a6"},{name:"White",hex:"#fff",border:"#d1d5db"},{name:"Cream",hex:"#f5efe4"},{name:"Brown",hex:"#7a4a2a"},{name:"Pink",hex:"#f4a4b6"},{name:"Red",hex:"#d21d2b"},{name:"Orange",hex:"#f27a22"},{name:"Yellow",hex:"#f3c321"},{name:"Green",hex:"#2f7d32"},{name:"Blue",hex:"#2166d1"},{name:"Purple",hex:"#6b2da8"},{name:"Gold"},{name:"Silver"}];
@@ -169,17 +169,47 @@ function pass(it){
   if(state.fiberType && it.fiberType!==state.fiberType) return false;
   if(state.designer && !(it.designer||'').toLowerCase().includes(state.designer.toLowerCase())) return false;
   if(state.origin && it.origin!==state.origin) return false;
-  if(state.pattern && it.pattern!==state.pattern) return false;
+  ifstate: if(state.pattern && it.pattern!==state.pattern) return false;
   return true;
 }
+function cents(x){return Math.round(Number(x||0)*100)}
 function makeCard(it){
   const a=el('a','card'); a.href='listing.html?id='+encodeURIComponent(it.id); a.dataset.id=it.id;
-  const ph=el('div','ph',it.photo?'':it.title); if(it.photo){const img=new Image(); img.src=it.photo; img.alt=it.title; ph.append(img);}
-  const meta=el('div','meta'),t=el('div','title',it.title),sub=el('div','sub'); sub.append(el('span','','$'+it.price+'/yd'),el('span','',it.width+'″ • '+it.gsm+' GSM'));
-  const btn=el('button','add-btn add-to-cart','Add to Cart – $'+it.price); meta.append(t,sub,btn); a.append(ph,meta); return a;
+
+  const ph=el('div','ph',it.photo?'':it.title);
+  if(it.photo){const img=new Image(); img.src=it.photo; img.alt=it.title; ph.append(img);}
+
+  const meta=el('div','meta');
+  const t=el('div','title',it.title);
+  const sub=el('div','sub');
+  sub.append(el('span','',`$${it.price}/yd`), el('span','',`${it.width}″ • ${it.gsm} GSM • ${it.yards} yd lot`));
+
+  // total lot price = price per yard * yards
+  const total = (Number(it.price)||0) * (Number(it.yards)||0);
+  const amountCents = cents(total);
+
+  const btn=el('button','add-btn add-to-cart',`Add to Cart — $${total.toFixed(2)}`);
+  btn.type='button';
+  // Critical: pass everything shipping/checkout needs
+  btn.dataset.name = it.title;
+  btn.dataset.amount = String(amountCents);     // total in cents
+  btn.dataset.yards  = String(it.yards);        // yards for shipping tier
+  btn.dataset.price  = String(it.price);        // per-yard price (for UI/reference)
+  btn.dataset.sellerId   = it.sellerId || ('seller_'+it.id);
+  btn.dataset.sellerName = it.sellerName || 'Seller';
+
+  meta.append(t,sub,btn);
+  a.append(ph,meta);
+  return a;
 }
-function render(){const grid=document.getElementById('grid'),empty=document.getElementById('empty'); const list=DATA.filter(pass);
-  document.getElementById('resultCount').textContent=list.length+(list.length===1?' result':' results'); grid.innerHTML=''; if(!list.length){empty.style.display='block';return;} empty.style.display='none'; list.forEach(it=>grid.append(makeCard(it)));
+function render(){
+  const grid=document.getElementById('grid'),empty=document.getElementById('empty');
+  const list=DATA.filter(pass);
+  document.getElementById('resultCount').textContent=list.length+(list.length===1?' result':' results');
+  grid.innerHTML='';
+  if(!list.length){ empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.forEach(it=>grid.append(makeCard(it)));
 }
 render();
 </script>
