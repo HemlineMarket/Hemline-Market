@@ -82,59 +82,70 @@
 
 <script>
 (async function(){
+  // Your publishable key
   const stripe = Stripe("pk_test_51Rx9wcFi9JRhHIdimg0GjJUrSKPGXUuk0Zlq6eN4qKWoRaqZWLeVhfde7yXN31tpg9cbBpX1AiuXeM7uxnUapXrR00CptT5icK");
   const elements = stripe.elements();
   const cardElement = elements.create("card");
   cardElement.mount("#card-element");
 
-  // Load cart from localStorage
+  // Load cart + shipping
   const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
   const ship = JSON.parse(localStorage.getItem("hm_cart_shipping") || "{}");
-  let subtotal = 0;
   const orderItems = document.getElementById("order-items");
+  const fmt = c => "$" + (c/100).toFixed(2);
+
+  let subtotal = 0;
   orderItems.innerHTML = "";
   cart.forEach(it=>{
     const line = (it.amount||0)*(it.qty||1);
     subtotal += line;
-    const div=document.createElement("div");
-    div.className="order-item";
-    div.innerHTML=`<span>${it.name||"Item"} (${it.yards||0} yd)</span><span>$${(line/100).toFixed(2)}</span>`;
+    const div = document.createElement("div");
+    div.className = "order-item";
+    div.innerHTML = `<span>${it.name||"Item"} ${it.yards?`(${it.yards} yd)`:''}</span><span>${fmt(line)}</span>`;
     orderItems.appendChild(div);
   });
 
   const shipping = ship.total_cents || 0;
   const total = subtotal + shipping;
-  document.getElementById("subTotal").textContent = "$"+(subtotal/100).toFixed(2);
-  document.getElementById("shipTotal").textContent = "$"+(shipping/100).toFixed(2);
-  document.getElementById("grandTotal").textContent = "$"+(total/100).toFixed(2);
+  document.getElementById("subTotal").textContent = fmt(subtotal);
+  document.getElementById("shipTotal").textContent = fmt(shipping);
+  document.getElementById("grandTotal").textContent = fmt(total);
 
-  // Handle form submit
-  const form = document.getElementById("payment-form");
-  form.addEventListener("submit", async (e)=>{
+  // Submit
+  document.getElementById("payment-form").addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const email = document.getElementById("email").value;
+    const email = document.getElementById("email").value.trim();
 
-    // Call backend to create PaymentIntent
+    // 1) Create intent on server
     const res = await fetch("/api/create-payment-intent",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({amount: total, currency:"usd", receipt_email: email})
+      body:JSON.stringify({ amount: total, currency:"usd", receipt_email: email || undefined })
     });
     const data = await res.json();
+    if(!res.ok || !data.clientSecret){ alert(data.error || "Failed to create payment"); return; }
 
-    const result = await stripe.confirmCardPayment(data.clientSecret, {
-      payment_method: {
+    // 2) Confirm card payment
+    const {error, paymentIntent} = await stripe.confirmCardPayment(data.clientSecret,{
+      payment_method:{
         card: cardElement,
-        billing_details: {email}
+        billing_details: { email: email || undefined, name: (document.getElementById("cardholder-name").value||"").trim() || undefined }
       }
     });
 
-    if(result.error){
-      alert(result.error.message);
-    }else if(result.paymentIntent && result.paymentIntent.status==="succeeded"){
-      // Redirect to thanks page
-      window.location.href = "thanks.html";
-    }
+    if(error){ alert(error.message); return; }
+    if(!paymentIntent || paymentIntent.status!=="succeeded"){ alert("Payment not completed."); return; }
+
+    // 3) Generate order number and cache totals for thanks page
+    const orderId = "HM-" + Math.floor(100000 + Math.random()*900000); // e.g., HM-273326
+    localStorage.setItem("hm_last_checkout_totals", JSON.stringify({
+      orderId, subtotal, shipping
+    }));
+
+    // 4) Clear cart + redirect with order in query
+    localStorage.removeItem("hm_cart");
+    localStorage.removeItem("hm_cart_shipping");
+    window.location.href = "thanks.html?o=" + encodeURIComponent(orderId);
   });
 })();
 </script>
