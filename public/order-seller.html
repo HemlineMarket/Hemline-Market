@@ -65,4 +65,55 @@
     try {
       const res = await fetch("/api/shippo/create_label", {
         method: "POST",
-       
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: "HM-548729",
+          address_from: {
+            name: "Hemline Seller",
+            street1: "123 Main St",
+            city: "Boston",
+            state: "MA",
+            zip: "02108",
+            country: "US",
+            phone: "5551234567",
+            email: "seller@example.com"
+          },
+          address_to: {
+            name: "Jamie L.",
+            street1: "500 Market St",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94103",
+            country: "US",
+            phone: "5559876543",
+            email: "buyer@example.com"
+          },
+          parcel: {
+            length: "12",
+            width: "9",
+            height: "2",
+            distance_unit: "in",
+            weight: "2",
+            mass_unit: "lb"
+          }
+        })
+      });
+      const data = await res.json();
+
+      if (data.label_url) {
+        document.getElementById("labelLink").href = data.label_url;
+        document.getElementById("labelLink").style.display = "inline-block";
+        document.getElementById("labelLink").textContent = "Download Label (PDF)";
+        btn.style.display = "none";
+      } else {
+        btn.disabled = false; btn.textContent = "Try Again";
+        alert("Error creating label: " + (data.error || "Unknown"));
+      }
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "Try Again";
+      alert("Failed: " + err.message);
+    }
+  });
+  </script>
+</body>
+</html>
