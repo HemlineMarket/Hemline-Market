@@ -1,172 +1,76 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <!-- MOBILE HOTFIX (same as notifications/orders-buyer) -->
-  <style id="hm-mobile-hotfix">
-    html, body { max-width:100%; overflow-x:hidden; }
-    .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
-    .grid, .section, .toolbar, .header, .tabbar { max-width:100%; }
-    img, video, canvas, svg { max-width:100%; height:auto; }
-    [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
-  </style>
+// /api/shippo/purchase_label.js
+// Returns a shipping label PDF for a given orderId
+// ENV: SHIPPO_API_KEY
 
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Seller Orders — Hemline Market</title>
+export const config = {
+  api: {
+    bodyParser: false, // binary response
+  },
+};
 
-  <!-- Shared site styles -->
-  <link rel="stylesheet" href="styles/hm-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
+export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
 
-  <style>
-    :root{
-      --hm-accent:#991b1b; --hm-text:#111827; --hm-muted:#6b7280;
-      --hm-border:#e5e7eb; --hm-bg:#fafafa;
+  try {
+    const token = process.env.SHIPPO_API_KEY;
+    if (!token) {
+      return res.status(500).json({ error: "Missing SHIPPO_API_KEY" });
     }
-    body{margin:0;background:var(--hm-bg);color:var(--hm-text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
-    .pagehead{margin:8px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-    .pagehead h1{margin:0;font-size:22px}
+    const { orderId } = req.query;
+    if (!orderId) {
+      return res.status(400).json({ error: "Missing orderId" });
+    }
 
-    .orders{display:grid;gap:18px}
-    .section{background:#fff;border:1px solid var(--hm-border);border-radius:12px;overflow:hidden}
-    .section h2{margin:0;padding:12px;border-bottom:1px solid var(--hm-border);font-size:18px}
-    .list{display:grid}
-    .row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px;border-top:1px solid var(--hm-border)}
-    .row:first-child{border-top:0}
+    // 🔹 In production: look up the transaction ID from your DB by orderId.
+    // For now, assume transaction id was stored in metadata = orderId
+    const txResp = await fetch(
+      `https://api.goshippo.com/transactions/?metadata=${encodeURIComponent(orderId)}`,
+      {
+        headers: {
+          Authorization: `ShippoToken ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
-    .meta{color:var(--hm-muted);font-size:13px;margin-top:2px}
-    .pill{display:inline-grid;place-items:center;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--hm-border);color:#374151;background:#fff}
-    .pill.orange{color:#7c2d12;border-color:#fed7aa;background:#fff7ed}
-    .pill.green{color:#065f46;border-color:#a7f3d0;background:#ecfdf5}
-    .btn{background:var(--hm-accent);color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:700;text-decoration:none;cursor:pointer}
+    if (!txResp.ok) {
+      const txt = await txResp.text();
+      throw new Error(`Shippo transaction lookup failed: ${txt}`);
+    }
 
-    .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
-    .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-    .hm-footer .footer-links a{color:#4b5563}
-  </style>
-</head>
-<body>
+    const txData = await txResp.json();
+    if (!txData.results || txData.results.length === 0) {
+      return res.status(404).json({ error: "No label found for this order" });
+    }
 
-<header class="hm-header" role="banner">
-  <div class="wrap">
-    <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6"  x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
-      </button>
-      <a class="hm-brand" href="index.html">Hemline Market</a>
-    </div>
-    <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Browse & search">🔍</a>
-      <a class="hm-icon" href="favorites.html" aria-label="Favorites">❤️</a>
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications">🔔</a>
-      <a class="hm-icon" href="cart.html" aria-label="Cart">🛒</a>
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
-      <a class="hm-btn-primary" href="sell.html">Sell</a>
-    </div>
-  </div>
-</header>
+    // Take the first matching label
+    const labelUrl = txData.results[0].label_url;
+    if (!labelUrl) {
+      return res.status(404).json({ error: "Label not ready" });
+    }
 
-<aside class="sheet" id="menuSheet" aria-hidden="true">
-  <header>
-    <strong>Menu</strong>
-    <button class="close" id="closeMenu" aria-label="Close menu">✕</button>
-  </header>
-  <nav>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="atelier.html">My Atelier</a>
-    <a href="orders-buyer.html">Buyer Orders</a>
-    <a href="how.html">How It Works</a>
-    <a href="seller/index.html?list=new">Sell Fabric</a>
-    <a href="contact.html">Contact</a>
-  </nav>
-</aside>
+    // Fetch the actual PDF
+    const pdfResp = await fetch(labelUrl);
+    if (!pdfResp.ok) {
+      throw new Error("Failed to fetch label PDF");
+    }
 
-<main class="wrap">
-  <div class="pagehead"><h1>Seller Orders</h1></div>
+    const buf = Buffer.from(await pdfResp.arrayBuffer());
 
-  <div class="orders">
-    <!-- Open -->
-    <section class="section">
-      <h2>Open Orders</h2>
-      <div class="list">
-        <div class="row">
-          <div>
-            <div><strong>HM-548728</strong> · <span class="meta">Placed Sep 6 · Buyer: Alex M. · 1 item</span></div>
-            <div class="meta">Fabric: Italian Silk Twill — Navy · <span class="pill orange">Awaiting shipment</span></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <a class="btn" href="order-seller.html">View</a>
-          </div>
-        </div>
-
-        <div class="row">
-          <div>
-            <div><strong>HM-548729</strong> · <span class="meta">Placed Sep 6 · Buyer: Jamie L. · 2 items</span></div>
-            <div class="meta">Fabric: Wool Crepe — Saffron · <span class="pill orange">Label purchased</span></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <a class="btn" href="order-seller.html">View</a>
-            <button class="btn" onclick="downloadLabel('HM-548729')">Download Label</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Past -->
-    <section class="section">
-      <h2>Past Orders</h2>
-      <div class="list">
-        <div class="row">
-          <div>
-            <div><strong>HM-540213</strong> · <span class="meta">Delivered Aug 14 · Buyer: Rowan · 1 item</span></div>
-            <div class="meta">Fabric: Bamboo French Terry — Natural · <span class="pill green">Paid out</span></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <a class="btn" href="order-seller.html">View</a>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
-</main>
-
-<footer class="hm-footer" role="contentinfo">
-  <div class="footer-wrap">
-    <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links" aria-label="Footer">
-      <a href="about.html">About</a>
-      <a href="faq.html">FAQ</a>
-      <a href="contact.html">Contact</a>
-      <a href="terms.html">Terms</a>
-      <a href="privacy.html">Privacy</a>
-    </nav>
-  </div>
-</footer>
-
-<script>
-(function(){
-  const sheet=document.getElementById("menuSheet");
-  document.getElementById("openMenu")?.addEventListener("click",()=>sheet.classList.add("open"));
-  document.getElementById("closeMenu")?.addEventListener("click",()=>sheet.classList.remove("open"));
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") sheet.classList.remove("open"); });
-  try{ const avatar=document.getElementById("avatar"); const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
-})();
-
-function downloadLabel(orderId){
-  // Placeholder for API integration
-  alert("Download shipping label for order " + orderId);
-  // Later: fetch(`/api/shippo/purchase_label?orderId=${orderId}`)
-  //  .then(r => r.blob())
-  //  .then(file => saveAs(file, orderId + "-label.pdf"));
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${orderId}-label.pdf"`
+    );
+    res.status(200).send(buf);
+  } catch (err) {
+    console.error("purchase_label error:", err);
+    res
+      .status(500)
+      .json({ error: "Could not retrieve label", details: err.message });
+  }
 }
-</script>
-</body>
-</html>
