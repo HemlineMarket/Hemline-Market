@@ -3,98 +3,195 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Payment — Hemline Market</title>
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hem-header.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <title>Checkout — Hemline Market</title>
+
   <style>
-    body{margin:0;background:#fafafa;color:#111827;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-    .container{max-width:1100px;margin:20px auto;padding:0 12px;display:grid;grid-template-columns:1fr 360px;gap:20px}
-    @media(max-width:900px){.container{grid-template-columns:1fr}}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px}
-    h1{margin:0 0 16px}
-    label{display:block;font-size:14px;font-weight:600;margin:6px 0}
-    input{width:100%;height:40px;border:1px solid #e5e7eb;border-radius:8px;padding:0 10px;margin-bottom:10px}
-    .stripe-box{height:40px;border:1px solid #e5e7eb;border-radius:8px;display:flex;align-items:center;padding:0 10px;margin-bottom:10px}
+    :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+
+    /* Header (locked pattern — same as Terms) */
+    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
+    .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+    .left{display:flex;align-items:center;gap:10px}
+    .hm-brand{font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
+    .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#374151}
+    .hamburger svg{width:22px;height:22px;stroke-width:2}
+    .right{display:flex;align-items:center;gap:14px}
+    .hm-icon{color:#444;display:inline-grid;place-items:center}
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+    .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+    .hm-btn{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:8px 14px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+
+    /* Slide-out menu */
+    .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
+    .sheet.open{transform:translateX(0)}
+    .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)}
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:#1f2937}
+    .sheet nav a+a{margin-top:8px}
+    .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
+
+    /* Page layout */
+    .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px}
+    h1{margin:0 0 12px}
+    h2{margin:0 0 10px;font-size:18px}
+    label{display:block;margin:6px 0 6px;color:#374151;font-weight:600;font-size:13px}
+    input{height:40px;border:1px solid var(--border);border-radius:10px;padding:0 12px;width:100%;background:#fff}
     .row{display:flex;gap:10px}
     .row>*{flex:1}
-    .btn{background:#991b1b;color:#fff;border:0;border-radius:999px;padding:10px 18px;font-weight:700;cursor:pointer}
-    .btn[disabled]{opacity:.6;cursor:not-allowed}
-    .btn-outline{background:#fff;color:#991b1b;border:1px solid #e5e7eb;padding:10px 18px;border-radius:999px;font-weight:700;cursor:pointer}
-    .order-item{display:flex;align-items:center;justify-content:space-between;margin:8px 0}
-    .muted{color:#6b7280;font-size:14px}
-    .line{height:1px;background:#e5e7eb;margin:12px 0}
+    .help{color:var(--muted);font-size:12px;margin-top:6px}
+
+    .item{display:flex;gap:12px;align-items:center;justify-content:space-between;margin:8px 0}
+    .muted{color:var(--muted)}
+    .line{height:1px;background:var(--border);margin:12px 0}
+    .total{display:flex;justify-content:space-between;margin-top:4px}
     .grand{font-weight:800;font-size:18px}
-    #msg{margin-top:10px;font-size:14px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 16px;border-radius:999px;border:1px solid transparent;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;cursor:pointer}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    .btn-outline{background:#fff;color:var(--accent);border:1px solid var(--border)}
+    .banner{background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;border-radius:10px;padding:10px;margin:0 0 12px}
+    .banner.empty{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+
+    /* Footer */
+    .hm-footer{background:#fff;border-top:1px solid var(--border)}
+    .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .footer-links{display:flex;gap:14px;flex-wrap:wrap}
+    .copy{color:#6b7280;font-size:14px}
   </style>
-  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 
-<header class="hm-header">
-  <div class="wrap">
-    <a class="hm-brand" href="index.html">Hemline Market</a>
+<!-- HEADER -->
+<header class="hm-header" role="banner">
+  <div class="hm-wrap">
+    <div class="left">
+      <button id="openMenu" class="hamburger" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="20" y2="6"/>
+          <line x1="4" y1="12" x2="20" y2="12"/>
+          <line x1="4" y1="18" x2="20" y2="18"/>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
+    </div>
+    <div class="right">
+      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-btn" href="sell.html">Sell</a>
+    </div>
   </div>
 </header>
 
-<div class="container">
-  <!-- LEFT -->
-  <section class="card">
-    <h1>Payment</h1>
-    <form id="payment-form">
-      <label for="email">Email (for receipt)</label>
-      <input id="email" type="email" placeholder="you@example.com" required>
+<!-- MENU -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </header>
+  <nav>
+    <a href="browse.html">Browse</a>
+    <a href="sell.html">Sell Fabric</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="how.html">How It Works</a>
+    <a href="about.html">About</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
 
-      <label for="cardholder-name">Name on card</label>
-      <input id="cardholder-name" type="text" placeholder="Full name" required>
+<main class="wrap">
+  <div class="grid">
+    <!-- LEFT -->
+    <section class="card">
+      <h1>Checkout</h1>
+      <div id="banner" class="banner" role="status" aria-live="polite" style="display:none"></div>
 
-      <label>Card number</label>
-      <div id="card-number" class="stripe-box"></div>
-
+      <h2>Contact & Shipping</h2>
       <div class="row">
         <div>
-          <label>Expiry</label>
-          <div id="card-expiry" class="stripe-box"></div>
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email">
         </div>
         <div>
-          <label>CVC</label>
-          <div id="card-cvc" class="stripe-box"></div>
+          <label for="phone">Phone (optional)</label>
+          <input id="phone" type="tel" placeholder="(555) 555-5555" autocomplete="tel">
         </div>
       </div>
 
-      <div class="row">
+      <div class="row" style="margin-top:10px">
         <div>
-          <label for="zip">ZIP (optional)</label>
-          <input id="zip" placeholder="ZIP" inputmode="numeric" maxlength="10">
+          <label for="addr1">Address line 1</label>
+          <input id="addr1" placeholder="Street address" autocomplete="address-line1">
         </div>
       </div>
 
-      <div style="display:flex;gap:10px;margin-top:12px">
-        <a href="checkout.html" class="btn-outline">Back</a>
-        <button id="submit" class="btn">Pay</button>
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label for="addr2">Address line 2 (optional)</label>
+          <input id="addr2" placeholder="Apt, suite, etc." autocomplete="address-line2">
+        </div>
       </div>
-      <div id="msg" class="muted"></div>
-    </form>
-    <p class="muted" style="margin-top:10px">Secure • Card encrypted • Buyer Protection</p>
-  </section>
 
-  <!-- RIGHT -->
-  <aside class="card">
-    <h2>Order summary</h2>
-    <div id="order-items"></div>
-    <div class="line"></div>
-    <div class="order-item"><span>Subtotal</span><span id="subTotal">$0.00</span></div>
-    <div class="order-item"><span>Shipping</span><span id="shipTotal">$0.00</span></div>
-    <div class="order-item"><span>Tax</span><span class="muted">Calculated at payment</span></div>
-    <div class="line"></div>
-    <div class="order-item grand"><span>Total</span><span id="grandTotal">$0.00</span></div>
-  </aside>
-</div>
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label for="city">City</label>
+          <input id="city" placeholder="City" autocomplete="address-level2">
+        </div>
+        <div>
+          <label for="state">State</label>
+          <input id="state" placeholder="State" autocomplete="address-level1">
+        </div>
+        <div>
+          <label for="zip">ZIP</label>
+          <input id="zip" placeholder="ZIP" autocomplete="postal-code" inputmode="numeric">
+        </div>
+      </div>
 
-<footer class="hm-footer">
+      <p class="help">Shipping label is generated after payment. You’ll confirm card details on the next step.</p>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <a class="btn-outline" href="cart.html">Back to cart</a>
+        <button id="next" class="btn">Continue to payment</button>
+      </div>
+    </section>
+
+    <!-- RIGHT -->
+    <aside class="card">
+      <h2>Order summary</h2>
+      <div id="order-items"></div>
+      <div class="line"></div>
+      <div class="total"><span>Subtotal</span><span id="sub">$0.00</span></div>
+      <div class="total"><span>Shipping</span><span id="ship">$0.00</span></div>
+      <div class="total"><span>Tax</span><span class="muted">Calculated at payment</span></div>
+      <div class="line"></div>
+      <div class="total grand"><span>Total</span><span id="tot">$0.00</span></div>
+    </aside>
+  </div>
+</main>
+
+<footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links">
+    <nav class="footer-links" aria-label="Footer">
       <a href="about.html">About</a>
       <a href="faq.html">FAQ</a>
       <a href="contact.html">Contact</a>
@@ -105,135 +202,110 @@
 </footer>
 
 <script>
-(async function(){
-  // Stripe publishable key
-  const stripe = Stripe("pk_test_51Rx9wcFi9JRhHIdimg0GjJUrSKPGXUuk0Zlq6eN4qKWoRaqZWLeVhfde7yXN31tpg9cbBpX1AiuXeM7uxnUapXrR00CptT5icK");
-  const elements = stripe.elements();
+/* Header sheet + avatar */
+(function(){
+  const sheet=document.getElementById("menuSheet");
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function open(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false")}
+  function close(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true")}
+  openBtn?.addEventListener("click",e=>{e.preventDefault();open()});
+  closeBtn?.addEventListener("click",e=>{e.preventDefault();close()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape") close()});
+  try{
+    const avatar=document.getElementById("avatar");
+    const url=localStorage.getItem("avatarUrl");
+    if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')" }
+  }catch(_){}
+})();
 
-  // Separate Elements so all fields are always visible
-  const style = { base:{ fontSize:"16px", color:"#111827", "::placeholder":{color:"#9ca3af"} }, invalid:{color:"#dc2626"} };
-  const cardNumber = elements.create("cardNumber", { style });
-  const cardExpiry = elements.create("cardExpiry", { style });
-  const cardCvc    = elements.create("cardCvc", { style });
-  cardNumber.mount("#card-number");
-  cardExpiry.mount("#card-expiry");
-  cardCvc.mount("#card-cvc");
-
+/* Checkout summary logic — robust yards + per-seller grouping */
+(function(){
   const fmt = c => "$" + (Math.max(0,c)/100).toFixed(2);
 
-  // ---- Client shipping preview (display only) ----
-  function tierCents(yards){ if(yards < 3) return 500; if(yards <= 10) return 800; return 1500; }
+  // Shipping tiers
+  function tierCents(y){ if(y < 3) return 500; if(y <= 10) return 800; return 1500; }
+
+  // Parse/derive yards
   function yardsForItem(it){
+    // numeric yards
+    let y = Number(parseFloat(it.yards));
+    if (Number.isFinite(y) && y > 0) return y * Number(it.qty || 1);
+
+    // strip text like "5 yd"
+    if (typeof it.yards === "string") {
+      const stripped = parseFloat(it.yards.replace(/[^\d.]/g,''));
+      if (Number.isFinite(stripped) && stripped > 0) return stripped * Number(it.qty || 1);
+    }
+
+    // derive from price and $/yd
+    const per = Number(parseFloat(it.perYd)); // dollars per yard
     const qty = Number(it.qty || 1);
-    if (it.yards !== undefined && it.yards !== null && it.yards !== "") {
-      return (Number(it.yards) || 0) * qty;
+    const lineCents = Number(it.amount || 0) * qty;
+    if (per > 0) {
+      const yDerived = lineCents / Math.round(per * 100);
+      if (Number.isFinite(yDerived) && yDerived > 0) return yDerived;
     }
-    return qty;
+    return 0;
   }
-  function previewTotals(cart){
-    let subtotal = 0;
-    const groups = {};
+
+  const sellerKey = it => (it.sellerId || it.seller || it.seller_id || it.seller_name || "default");
+
+  function totals(cart){
+    let sub=0;
+    const groupYards = {};
+    for (const it of cart){
+      const qty  = Number(it.qty || 1);
+      const line = Number(it.amount || 0) * qty;  // cents
+      sub += line;
+
+      const key = sellerKey(it);
+      const yds = yardsForItem(it);
+      groupYards[key] = (groupYards[key] || 0) + yds;
+    }
+    const ship = Object.values(groupYards).reduce((sum,y)=> sum + tierCents(y), 0);
+    return { sub, ship, tot: sub + ship };
+  }
+
+  const itemsEl=document.getElementById("order-items");
+  const subEl=document.getElementById("sub");
+  const shipEl=document.getElementById("ship");
+  const totEl=document.getElementById("tot");
+  const next=document.getElementById("next");
+  const banner=document.getElementById("banner");
+
+  function render(){
+    const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
+    itemsEl.innerHTML = "";
+    if(cart.length===0){
+      subEl.textContent=fmt(0); shipEl.textContent=fmt(0); totEl.textContent=fmt(0);
+      next.disabled=true;
+      if (banner){ banner.textContent="Your cart is empty — add fabric to continue."; banner.className="banner empty"; banner.style.display="block"; }
+      return;
+    }
+    next.disabled=false;
+    if (banner){ banner.textContent="Cart has items — ready to check out."; banner.className="banner"; banner.style.display="block"; }
+
     for(const it of cart){
-      subtotal += (Number(it.amount||0) * Number(it.qty||1));
-      const sellerId = it.sellerId || "default_seller";
-      const name = it.sellerName || "Seller";
-      const yards = yardsForItem(it);
-      if(!groups[sellerId]) groups[sellerId] = { name, yards:0 };
-      groups[sellerId].yards += yards;
+      const line = Number(it.amount||0) * Number(it.qty||1);
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `<span>${it.name||"Item"}</span><span>${fmt(line)}</span>`;
+      itemsEl.appendChild(row);
     }
-    const shipping = Object.values(groups).reduce((s,g)=>s+tierCents(g.yards),0);
-    return { subtotal, shipping, total: subtotal + shipping };
+
+    const t = totals(cart);
+    subEl.textContent = fmt(t.sub);
+    shipEl.textContent = fmt(t.ship);
+    totEl.textContent  = fmt(t.tot);
+
+    // handoff to payment page
+    localStorage.setItem("hm_checkout_preview", JSON.stringify(t));
   }
 
-  // Load cart and render preview
-  const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
-  const itemsEl = document.getElementById("order-items");
-  itemsEl.innerHTML = "";
-  cart.forEach(it=>{
-    const line = (it.amount||0) * (it.qty||1);
-    const row = document.createElement("div");
-    row.className = "order-item";
-    const yards = (it.yards!==undefined && it.yards!==null && it.yards!=='') ? ` (${it.yards} yd)` : "";
-    row.innerHTML = `<span>${(it.name||"Item") + yards}</span><span>${fmt(line)}</span>`;
-    itemsEl.appendChild(row);
-  });
-  const prev = previewTotals(cart);
-  document.getElementById("subTotal").textContent = fmt(prev.subtotal);
-  document.getElementById("shipTotal").textContent = fmt(prev.shipping);
-  document.getElementById("grandTotal").textContent = fmt(prev.total);
-
-  // ---- Submit & charge using server-computed totals ----
-  const form = document.getElementById("payment-form");
-  const submitBtn = document.getElementById("submit");
-  const msg = document.getElementById("msg");
-
-  form.addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    if(!cart.length){ alert("Your cart is empty."); return; }
-
-    submitBtn.disabled = true;
-    msg.textContent = "Creating payment…";
-
-    const email = document.getElementById("email").value.trim();
-    const name  = document.getElementById("cardholder-name").value.trim();
-    const postal = document.getElementById("zip").value.trim();
-
-    try{
-      // 1) Ask server to create PaymentIntent from the cart
-      const resp = await fetch("/api/create-payment-intent", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ cart, email })
-      });
-      const data = await resp.json();
-      if(!resp.ok) throw new Error(data.error || "Failed to create payment.");
-      const clientSecret = data.clientSecret || data.client_secret;
-      if(!clientSecret) throw new Error("Missing client secret from server.");
-
-      // Update summary to *server* totals (real charge)
-      const totals = data.totals || { subtotal:0, shipping:0, total:0 };
-      document.getElementById("subTotal").textContent = fmt(totals.subtotal);
-      document.getElementById("shipTotal").textContent = fmt(totals.shipping);
-      document.getElementById("grandTotal").textContent = fmt(totals.total);
-
-      // 2) Confirm payment (use cardNumber with separate Elements)
-      msg.textContent = "Confirming card…";
-      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardNumber,
-          billing_details: {
-            email: email || undefined,
-            name:  name  || undefined,
-            address: postal ? { postal_code: postal } : undefined
-          }
-        }
-      });
-      if(error) throw error;
-      if(!paymentIntent || paymentIntent.status !== "succeeded"){
-        throw new Error("Payment not completed.");
-      }
-
-      // 3) Snapshot for thanks page + redirect
-      const orderId = "HM-" + Math.floor(100000 + Math.random()*900000);
-      localStorage.setItem("hm_last_checkout_totals", JSON.stringify({
-        orderId,
-        subtotal: totals.subtotal,
-        shipping: totals.shipping
-      }));
-      localStorage.setItem("hm_last_checkout_items", JSON.stringify(cart));
-
-      localStorage.removeItem("hm_cart");
-      localStorage.removeItem("hm_cart_shipping");
-      window.location.href = "thanks.html?o=" + encodeURIComponent(orderId);
-    }catch(err){
-      console.error(err);
-      alert(err.message || "Payment error.");
-      submitBtn.disabled = false;
-      msg.textContent = "";
-    }
-  });
+  next?.addEventListener("click", ()=>{ window.location.href = "payment.html"; });
+  render();
 })();
 </script>
-
 </body>
 </html>
