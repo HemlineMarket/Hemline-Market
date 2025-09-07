@@ -1,3 +1,4 @@
+<!-- File: public/dashboard.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -27,7 +28,6 @@
     .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
     .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
     .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
-
     .right{display:flex;align-items:center;gap:14px}
 
     .hamburger{
@@ -45,14 +45,13 @@
       font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center
     }
 
-    /* Primary CTA (Sell) */
     .hm-btn-primary{
       background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);
       border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;
       box-shadow:0 2px 8px rgba(153,27,27,.25)
     }
 
-    /* Left sheet menu */
+    /* Left sheet + backdrop */
     .sheet{
       position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;
       border-right:1px solid var(--hm-border);transform:translateX(-100%);
@@ -68,6 +67,11 @@
     .sheet .actions{margin:10px;padding:10px;border-top:1px solid var(--hm-border);display:flex;justify-content:space-between;gap:8px}
     .btn{border:1px solid var(--hm-border);background:#fff;border-radius:10px;padding:8px 10px;cursor:pointer}
     .btn.primary{background:var(--hm-accent);color:#fff;border-color:var(--hm-accent)}
+    .backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.15);
+      opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:90;
+    }
+    .backdrop.show{opacity:1; pointer-events:auto;}
 
     /* Footer */
     .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
@@ -92,12 +96,10 @@
     .card p{margin:0;color:var(--muted)}
   </style>
 
-  <!-- Supabase -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<!-- HEADER -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -129,7 +131,7 @@
   </div>
 </header>
 
-<!-- LEFT MENU -->
+<div class="backdrop" id="menuBackdrop"></div>
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
     <div>
@@ -156,7 +158,6 @@
   </div>
 </aside>
 
-<!-- MAIN -->
 <main class="wrap">
   <div class="panel">
     <div class="row">
@@ -178,7 +179,6 @@
   </section>
 </main>
 
-<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -193,26 +193,28 @@
 </footer>
 
 <script>
-  /* Menu open/close */
+  // Hamburger / sheet with backdrop
   (function(){
-    const sheet=document.getElementById("menuSheet");
-    const openBtn=document.getElementById("openMenu");
-    const closeBtn=document.getElementById("closeMenu");
-    function open(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-    function close(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+    const sheet = document.getElementById("menuSheet");
+    const backdrop = document.getElementById("menuBackdrop");
+    const openBtn = document.getElementById("openMenu");
+    const closeBtn = document.getElementById("closeMenu");
+    function open(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); backdrop.classList.add("show"); }
+    function close(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); backdrop.classList.remove("show"); }
     openBtn && openBtn.addEventListener("click",e=>{ e.preventDefault(); open(); });
     closeBtn && closeBtn.addEventListener("click",e=>{ e.preventDefault(); close(); });
+    backdrop && backdrop.addEventListener("click", close);
     document.addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
   })();
 </script>
 
 <script>
-  /* Supabase auth + initials + sign out */
-const supabase = window.supabase.createClient(
-  "https://clkizksbvxjkoatdajgd.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
-  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-);
+  // Supabase auth: wait for session to restore before redirecting
+  const supabase = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+    { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+  );
 
   function initialsFrom(email){
     if(!email) return "AA";
@@ -222,18 +224,38 @@ const supabase = window.supabase.createClient(
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  async function fillUser(){
-    const { data:{ session } } = await supabase.auth.getSession();
-    if(!session?.user){ window.location.href="auth.html"; return; }
-    const email = session.user.email || "";
-    const who = document.getElementById('who');
-    const who2 = document.getElementById('menuEmail');
+  async function ensureSession({maxWaitMs = 3000} = {}) {
+    let { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) return session;
+    const start = Date.now();
+    while (!session?.user && Date.now() - start < maxWaitMs) {
+      await new Promise(r => setTimeout(r, 120));
+      ({ data: { session } } = await supabase.auth.getSession());
+    }
+    return session;
+  }
+
+  function renderUser(user){
+    const email = user.email || "";
+    const who  = document.getElementById('who');
+    const menu = document.getElementById('menuEmail');
     if(who)  who.textContent  = email;
-    if(who2) who2.textContent = email;
+    if(menu) menu.textContent = email;
     const avatar = document.getElementById('avatar');
     if(avatar){ avatar.textContent = initialsFrom(email); avatar.style.backgroundImage=''; }
   }
-  fillUser();
+
+  (async function fillUser(){
+    const session = await ensureSession();
+    if(session?.user){ renderUser(session.user); return; }
+    // final fallback: listen one time for auth state restore, else redirect
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => {
+      if(sess?.user){ renderUser(sess.user); sub.subscription.unsubscribe(); }
+      else { window.location.href = "auth.html"; }
+    });
+    // small timeout to avoid hanging if nothing will arrive
+    setTimeout(()=>{ try{ sub.subscription.unsubscribe(); }catch{} window.location.href="auth.html"; }, 800);
+  })();
 
   async function doLogout(){
     await supabase.auth.signOut();
