@@ -79,13 +79,6 @@
     .total{display:flex;justify-content:space-between;margin-top:6px}
     .grand{font-weight:800;font-size:18px}
     #shipLines{color:#6b7280;font-size:12px;line-height:1.35;text-align:right;margin-top:2px}
-
-    /* Footer (locked) */
-    .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
-    .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-    .hm-footer .footer-links{display:flex;gap:14px;flex-wrap:wrap}
-    .hm-footer .footer-links a{color:#1f2937;text-decoration:none}
-    .hm-footer .copy{color:#6b7280;font-size:14px}
   </style>
 </head>
 <body>
@@ -162,41 +155,15 @@
   <div class="container">
     <h1 style="margin:0 0 10px">Payment</h1>
     <div class="grid">
-      <!-- LEFT: Card -->
+      <!-- LEFT: Payment Element -->
       <section class="card" aria-labelledby="secPay">
         <h2 id="secPay">Card details</h2>
 
         <label for="email">Email (for receipt)</label>
         <input id="email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email">
 
-        <div class="row" style="margin-top:10px">
-          <div>
-            <label for="name">Name on card</label>
-            <input id="name" placeholder="Full name" autocomplete="cc-name">
-          </div>
-        </div>
-
-        <div class="row" style="margin-top:10px">
-          <div>
-            <label for="card">Card number</label>
-            <input id="card" placeholder="1234 1234 1234 1234" inputmode="numeric" autocomplete="cc-number">
-          </div>
-        </div>
-
-        <div class="row" style="margin-top:10px">
-          <div>
-            <label for="exp">Expiry (MM/YY)</label>
-            <input id="exp" placeholder="MM/YY" inputmode="numeric" autocomplete="cc-exp">
-          </div>
-          <div>
-            <label for="cvc">CVC</label>
-            <input id="cvc" placeholder="CVC" inputmode="numeric" autocomplete="cc-csc">
-          </div>
-          <div>
-            <label for="zip">ZIP</label>
-            <input id="zip" placeholder="ZIP" inputmode="numeric" autocomplete="postal-code">
-          </div>
-        </div>
+        <!-- Stripe Payment Element mounts here -->
+        <div id="payment-element" style="margin-top:12px"></div>
 
         <div class="actions">
           <a class="btn-outline" href="checkout.html" aria-label="Back to checkout">Back</a>
@@ -204,6 +171,7 @@
         </div>
 
         <p class="help">Secure • Card encrypted • Buyer Protection</p>
+        <div id="payMsg" class="help" style="color:#991b1b;display:none"></div>
       </section>
 
       <!-- RIGHT: Summary -->
@@ -241,6 +209,7 @@
   </div>
 </footer>
 
+<script src="https://js.stripe.com/v3/"></script>
 <script>
 /* Header sheet + avatar */
 (function(){
@@ -252,15 +221,14 @@
   openBtn?.addEventListener("click",e=>{e.preventDefault();open()});
   closeBtn?.addEventListener("click",e=>{e.preventDefault();close()});
   document.addEventListener("keydown",e=>{if(e.key==="Escape") close()});
-  try{
-    const avatar=document.getElementById("avatar");
-    const url=localStorage.getItem("avatarUrl");
-    if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')" }
-  }catch(_){}
+  try{ const avatar=document.getElementById("avatar"); const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')" } }catch(_){}
 })();
 
-/* Payment summary logic (same tiers + yards fallback) */
-(function(){
+/* Stripe + totals */
+(async function(){
+  // 🔑 PUBLISHABLE KEY — replace with your pk_test_... key
+  const STRIPE_PK = 'pk_test_your_publishable_key_here';
+
   const LS_CART='hm_cart';
   const LS_SHIP='hm_cart_shipping';
   const fmt=c=>'$'+(Math.max(0,c)/100).toFixed(2);
@@ -271,11 +239,13 @@
   const shipLinesEl=document.getElementById('shipLines');
   const totalEl=document.getElementById('sumTotal');
   const payBtn=document.getElementById('payBtn');
+  const payMsg=document.getElementById('payMsg');
 
   const readCart=()=>{ try{return JSON.parse(localStorage.getItem(LS_CART)||'[]')}catch(_){return[]} };
   const readShip=()=>{ try{return JSON.parse(localStorage.getItem(LS_SHIP)||'null')}catch(_){return null} };
   const lineAmount=it=>(it.amount||0)*(it.qty||1);
 
+  // Fallback shipping calc (same tiers)
   const tierCents = yards => (yards < 3 ? 500 : (yards <= 10 ? 800 : 1500));
   function itemYardsTotal(it){
     const qty=Number(it.qty)||1;
@@ -298,52 +268,104 @@
     return {lines,total_cents};
   }
 
-  function render(){
-    const cart=readCart();
-    if(!cart.length){
-      itemsEl.innerHTML='<div class="muted">Your cart is empty.</div>';
-      subEl.textContent=fmt(0); shipEl.textContent=fmt(0); shipLinesEl.textContent=''; totalEl.textContent=fmt(0);
-      payBtn.disabled=true; return;
-    }
-    payBtn.disabled=false;
-
-    itemsEl.innerHTML=''; let subtotal=0;
-    cart.forEach(it=>{
-      subtotal+=lineAmount(it);
-      const per = it.perYd ? '$'+Number(it.perYd).toFixed(2)+'/yd' : null;
-      const yardsLabel = (it.yards!==undefined && it.yards!==null && it.yards!=='') ? (Number(it.yards)+' yd') : (Number(it.qty||1)+' yd');
-      const row=document.createElement('div');
-      row.className='item';
-      row.innerHTML=`
-        <div class="thumb" aria-hidden="true">${it.photo?`<img alt="" src="${it.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`:''}</div>
-        <div class="grow">
-          <div>${it.name||'Fabric'}</div>
-          <div class="muted">${yardsLabel}${per?` × ${per.replace('/yd','')}`:''}</div>
-        </div>
-        <div>${fmt(lineAmount(it))}</div>`;
-      itemsEl.appendChild(row);
-    });
-
-    let ship=readShip(); if(!ship || !ship.lines || typeof ship.total_cents!=='number'){ ship=calcShipping(cart); }
-    subEl.textContent=fmt(subtotal);
-    shipEl.textContent=fmt(ship.total_cents);
-    shipLinesEl.innerHTML=ship.lines.map(l=>`${l.sellerName}: ${l.yards.toFixed(2)} yd → ${fmt(l.fee_cents)}`).join('<br>');
-    totalEl.textContent=fmt(subtotal + ship.total_cents);
+  const cart=readCart();
+  if(!cart.length){
+    itemsEl.innerHTML='<div class="muted">Your cart is empty.</div>';
+    subEl.textContent=fmt(0); shipEl.textContent=fmt(0); shipLinesEl.textContent=''; totalEl.textContent=fmt(0);
+    payBtn.disabled=true; return;
   }
 
-  payBtn.addEventListener('click', ()=>{
-    const email=(document.getElementById('email').value||'').trim();
-    const name=(document.getElementById('name').value||'').trim();
-    const card=(document.getElementById('card').value||'').trim();
-    const exp=(document.getElementById('exp').value||'').trim();
-    const cvc=(document.getElementById('cvc').value||'').trim();
-    if(!email || !name || !card || !exp || !cvc){
-      alert('Please complete all card fields and your email.'); return;
-    }
-    alert('Demo only: card form captured. Next step is Stripe Elements + PaymentIntent wiring.');
+  // Render items + totals
+  let subtotal=0;
+  itemsEl.innerHTML='';
+  cart.forEach(it=>{
+    subtotal+=lineAmount(it);
+    const per = it.perYd ? '$'+Number(it.perYd).toFixed(2)+'/yd' : null;
+    const yardsLabel = (it.yards!==undefined && it.yards!==null && it.yards!=='') ? (Number(it.yards)+' yd') : (Number(it.qty||1)+' yd');
+    const row=document.createElement('div');
+    row.className='item';
+    row.innerHTML=`
+      <div class="thumb" aria-hidden="true">${it.photo?`<img alt="" src="${it.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`:''}</div>
+      <div class="grow">
+        <div>${it.name||'Fabric'}</div>
+        <div class="muted">${yardsLabel}${per?` × ${per.replace('/yd','')}`:''}</div>
+      </div>
+      <div>${fmt(lineAmount(it))}</div>`;
+    itemsEl.appendChild(row);
   });
 
-  render();
+  let ship=readShip(); if(!ship || !ship.lines || typeof ship.total_cents!=='number'){ ship=calcShipping(cart); }
+  subEl.textContent=fmt(subtotal);
+  shipEl.textContent=fmt(ship.total_cents);
+  shipLinesEl.innerHTML=ship.lines.map(l=>`${l.sellerName}: ${l.yards.toFixed(2)} yd → ${fmt(l.fee_cents)}`).join('<br>');
+  const grandTotal=subtotal + ship.total_cents;
+  totalEl.textContent=fmt(grandTotal);
+
+  // Create PaymentIntent on server
+  const emailInput=document.getElementById('email');
+  const emailStored = localStorage.getItem('hmEmail') || '';
+  if(emailStored) emailInput.value = emailStored;
+
+  let clientSecret = null;
+  try{
+    const resp = await fetch('/api/create-payment-intent', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ amount: grandTotal, currency:'usd', email: emailInput.value || undefined })
+    });
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error || 'Failed to create payment intent');
+    clientSecret = data.clientSecret || data.client_secret || null;
+  }catch(err){
+    payMsg.style.display='block';
+    payMsg.textContent = 'Error creating payment: ' + (err.message || err);
+    payBtn.disabled = true;
+    return;
+  }
+
+  // Initialize Stripe + Payment Element
+  const stripe = Stripe(STRIPE_PK);
+  const elements = stripe.elements({ clientSecret });
+  const paymentElement = elements.create('payment');
+  paymentElement.mount('#payment-element');
+
+  // Handle Pay
+  payBtn.addEventListener('click', async ()=>{
+    payBtn.disabled = true;
+    payMsg.style.display='none';
+    try{
+      // save email for convenience
+      const email=(emailInput.value||'').trim(); if(email) localStorage.setItem('hmEmail', email);
+
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { receipt_email: email || undefined },
+        redirect: 'if_required'
+      });
+
+      if(error){
+        payMsg.style.display='block';
+        payMsg.textContent = error.message || 'Payment failed';
+        payBtn.disabled = false;
+        return;
+      }
+
+      if(paymentIntent && paymentIntent.status === 'succeeded'){
+        // Clear cart on success
+        localStorage.removeItem(LS_CART);
+        localStorage.removeItem(LS_SHIP);
+        window.location.href = 'thankyou.html';
+      }else{
+        payMsg.style.display='block';
+        payMsg.textContent = 'Payment not completed. Status: ' + (paymentIntent?.status || 'unknown');
+        payBtn.disabled = false;
+      }
+    }catch(err){
+      payMsg.style.display='block';
+      payMsg.textContent = 'Payment error: ' + (err.message || err);
+      payBtn.disabled = false;
+    }
+  });
 })();
 </script>
 </body>
