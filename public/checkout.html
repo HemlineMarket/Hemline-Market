@@ -221,11 +221,31 @@
   }catch(_){}
 })();
 
-/* Checkout summary + shipping logic (unchanged, but kept here) */
+/* Checkout summary + shipping logic with yards fallback */
 (function(){
   const fmt = c => "$" + (Math.max(0,c)/100).toFixed(2);
+
+  // Shipping tiers per seller
   function tierCents(y){ if(y < 3) return 500; if(y <= 10) return 800; return 1500; }
-  function yardsForItem(it){ return (Number(it.yards)||0) * Number(it.qty||1); }
+
+  // Derive yards robustly:
+  // 1) use it.yards if present
+  // 2) else compute from amount/perYd (e.g., $210 / $42 = 5 yd)
+  //    amount is cents for one "item" (before qty), perYd is dollars
+  function yardsForItem(it){
+    let yards = Number(it.yards) || 0;
+    if(!yards){
+      const per = Number(it.perYd) || 0;           // dollars per yard
+      const amtDollars = (Number(it.amount) || 0) / 100; // dollars for the item
+      if(per > 0 && amtDollars > 0){
+        yards = amtDollars / per;
+      }
+    }
+    // multiply by qty
+    const qty = Number(it.qty || 1);
+    return yards * qty;
+  }
+
   function totals(cart){
     let sub=0; const groups={};
     for(const it of cart){
