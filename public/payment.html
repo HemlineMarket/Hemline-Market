@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- MOBILE/HERO HOTFIX + LOCKED HEADER/FOOTER CSS (same as Terms) -->
+  <!-- Mobile hotfix -->
   <style id="hm-mobile-hotfix">
     html, body { max-width:100%; overflow-x:hidden; }
     img, video, canvas, svg { max-width:100%; height:auto; }
@@ -10,6 +10,11 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Payment — Hemline Market</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
   <style>
     :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
@@ -44,10 +49,6 @@
     .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px}
     h1{margin:0 0 12px}
     h2{margin:0 0 10px;font-size:18px}
-    label{display:block;margin:6px 0 6px;color:#374151;font-weight:600;font-size:13px}
-    input{height:40px;border:1px solid var(--border);border-radius:10px;padding:0 12px;width:100%;background:#fff}
-    .row{display:flex;gap:10px}
-    .row>*{flex:1}
     .muted{color:var(--muted)}
     .line{height:1px;background:var(--border);margin:12px 0}
     .total{display:flex;justify-content:space-between;margin-top:4px}
@@ -55,18 +56,9 @@
     .btn{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 16px;border-radius:999px;border:1px solid transparent;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;cursor:pointer}
     .btn[disabled]{opacity:.6;cursor:not-allowed}
     .btn-outline{background:#fff;color:var(--accent);border:1px solid var(--border)}
-    .error{color:#b91c1c;font-size:13px;margin-top:8px}
-    .StripeElement{height:40px;border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff}
-    .field{margin-top:10px}
-
-    /* LOCKED FOOTER */
-    .hm-footer{background:#fff;border-top:1px solid var(--border)}
-    .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-    .footer-links{display:flex;gap:14px;flex-wrap:wrap}
-    .copy{color:#6b7280;font-size:14px}
+    .msg{margin-top:10px;font-size:13px}
+    .msg.error{color:#b91c1c}
   </style>
-
-  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 
@@ -124,45 +116,17 @@
 </aside>
 
 <main class="container">
-  <!-- LEFT: Card details -->
+  <!-- LEFT: Stripe Checkout redirect -->
   <section class="card">
     <h1>Payment</h1>
-
-    <label for="email">Email (for receipt)</label>
-    <input id="email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email"/>
-
-    <div class="field">
-      <label for="name">Name on card</label>
-      <input id="name" type="text" placeholder="Full name" autocomplete="cc-name"/>
-    </div>
-
-    <div class="field">
-      <label>Card number</label>
-      <div id="card-number" class="StripeElement"></div>
-    </div>
-
-    <div class="row">
-      <div class="field">
-        <label>Expiry</label>
-        <div id="card-expiry" class="StripeElement"></div>
-      </div>
-      <div class="field">
-        <label>CVC</label>
-        <div id="card-cvc" class="StripeElement"></div>
-      </div>
-    </div>
-
-    <div class="field">
-      <label for="zip">ZIP (optional)</label>
-      <input id="zip" inputmode="numeric" placeholder="ZIP" autocomplete="postal-code"/>
-    </div>
+    <p class="muted">You’ll enter card details on Stripe’s secure checkout.</p>
 
     <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
       <a class="btn-outline" href="checkout.html">Back</a>
-      <button id="pay" class="btn">Pay</button>
+      <button id="pay" class="btn">Pay on Stripe</button>
     </div>
 
-    <div id="msg" class="muted" aria-live="polite" style="margin-top:10px"></div>
+    <div id="msg" class="msg muted" aria-live="polite"></div>
   </section>
 
   <!-- RIGHT: Order summary -->
@@ -192,7 +156,6 @@
   </div>
 </footer>
 
-<script src="https://js.stripe.com/v3/"></script>
 <script>
 /* Menu + avatar (locked behavior) */
 (function(){
@@ -211,18 +174,22 @@
   }catch(_){}
 })();
 
-/* Payment logic */
-(async function(){
-  const fmt=c=>'$'+(Math.max(0,c)/100).toFixed(2);
+/* Payment (Stripe Checkout redirect) */
+(function(){
+  const fmt = c => "$" + (Math.max(0,c)/100).toFixed(2);
   const itemsEl=document.getElementById('order-items');
   const subEl=document.getElementById('sub');
   const shipEl=document.getElementById('ship');
   const totEl=document.getElementById('tot');
   const msg=document.getElementById('msg');
+  const payBtn=document.getElementById('pay');
 
-  const cart=JSON.parse(localStorage.getItem('hm_cart')||'[]');
-  const shipState=JSON.parse(localStorage.getItem('hm_cart_shipping')||'{}');
+  // Load cart + shipping from localStorage (set in cart/checkout)
+  const cart = JSON.parse(localStorage.getItem('hm_cart')||'[]');
+  const shipState = JSON.parse(localStorage.getItem('hm_cart_shipping')||'{}');
+  const addr = JSON.parse(localStorage.getItem('hm_checkout_address')||'{}');
 
+  // Render summary
   let subtotal=0;
   itemsEl.innerHTML='';
   for(const it of cart){
@@ -240,64 +207,36 @@
   totEl.textContent=fmt(total);
 
   if(total<=0){
-    msg.className='error';
-    msg.textContent='Could not start payment. Please add items to cart.';
-    document.getElementById('pay').disabled=true;
+    msg.classList.add('error');
+    msg.textContent='Cart is empty. Please add items first.';
+    payBtn.disabled=true;
     return;
   }
 
-  const STRIPE_PK='pk_test_51Rx9wcFi9JRhHIdimg0GjJUrSKPGXUuk0Zlq6eN4qKWoRaqZWLeVhfde7yXN31tpg9cbBpX1AiuXeM7uxnUapXrR00CptT5icK';
-  const stripe=Stripe(STRIPE_PK);
-  const elements=stripe.elements();
-  const numberEl=elements.create('cardNumber',{showIcon:true});
-  const expiryEl=elements.create('cardExpiry');
-  const cvcEl=elements.create('cardCvc');
-  numberEl.mount('#card-number'); expiryEl.mount('#card-expiry'); cvcEl.mount('#card-cvc');
+  payBtn.addEventListener('click', async ()=>{
+    payBtn.disabled=true;
+    msg.classList.remove('error');
+    msg.textContent='Starting secure checkout…';
 
-  async function createPI(){
-    const res=await fetch('/api/create-payment-intent',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({amount:total,currency:'usd',metadata:{source:'hemline',items:String(cart.length)}})
-    });
-    if(!res.ok) throw new Error('PI create failed');
-    return res.json();
-  }
-
-  let clientSecret=null;
-  try{
-    const pi=await createPI();
-    clientSecret=pi.clientSecret;
-  }catch(e){
-    msg.className='error';
-    msg.textContent='Could not start payment. Please try again.';
-    document.getElementById('pay').disabled=true;
-    return;
-  }
-
-  document.getElementById('pay').addEventListener('click', async ()=>{
-    msg.className='muted'; msg.textContent='Processing…';
-    const email=document.getElementById('email').value.trim();
-    const name=document.getElementById('name').value.trim();
-    const zip=document.getElementById('zip').value.trim();
-
-    const {error,paymentIntent}=await stripe.confirmCardPayment(clientSecret,{
-      payment_method:{
-        card:numberEl,
-        billing_details:{email:email||undefined,name:name||undefined,address:zip?{postal_code:zip}:undefined}
-      }
-    });
-
-    if(error){ msg.className='error'; msg.textContent=error.message||'Payment failed.'; return; }
-    if(paymentIntent?.status==='succeeded'){
-      localStorage.setItem('hm_last_order', JSON.stringify({
-        items:cart.map(i=>({name:i.name,yards:i.yards,amount:i.amount,qty:i.qty})),
-        subtotal_cents:subtotal, shipping_cents:shipping, total_cents:total
-      }));
-      localStorage.removeItem('hm_cart'); localStorage.removeItem('hm_cart_shipping');
-      location.href='thanks.html';
-    }else{
-      msg.className='error'; msg.textContent='Payment did not complete.';
+    try{
+      const res = await fetch('/api/stripe/create_session', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          cart,
+          buyer: { email: addr.email || '' },
+          shipping_cents: shipping
+        })
+      });
+      if(!res.ok){ throw new Error('Failed to create checkout session'); }
+      const data = await res.json();
+      if(!data.url){ throw new Error('No session URL returned'); }
+      window.location.href = data.url; // redirect to Stripe Checkout
+    }catch(err){
+      console.error(err);
+      msg.classList.add('error');
+      msg.textContent='Could not start checkout. Please try again.';
+      payBtn.disabled=false;
     }
   });
 })();
