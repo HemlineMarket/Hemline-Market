@@ -1,7 +1,5 @@
 // /api/shippo/create_label.js
-// Creates a shipping label with Shippo and returns label + tracking info.
-// Expects POST JSON with: { to, from, parcel }
-// Docs: https://goshippo.com/docs/reference#shipments
+// Creates a shipping label via Shippo API
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,89 +7,74 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const SHIPPO_API_TOKEN = process.env.SHIPPO_API_TOKEN;
-  if (!SHIPPO_API_TOKEN) {
-    return res.status(500).json({ error: 'Missing SHIPPO_API_TOKEN env var' });
-  }
+  try {
+    const token = process.env.SHIPPO_API_TOKEN;
+    if (!token) {
+      return res.status(500).json({ error: 'Shippo API token missing' });
+    }
 
-  // Basic input validation — we keep this strict so we catch bad data early.
-  const { to, from, parcel } = req.body || {};
-  if (!to || !from || !parcel) {
-    return res.status(400).json({
-      error: 'Missing required body. Provide { to, from, parcel }.'
-    });
-  }
+    // Example payload sent in from checkout or dashboard
+    const {
+      addressFrom,
+      addressTo,
+      parcel,
+      metadata
+    } = req.body;
 
-  // Helper for Shippo fetch calls
-  const shippoFetch = async (path, body) => {
-    const r = await fetch(`https://api.goshippo.com${path}`, {
+    // Build request to Shippo
+    const resp = await fetch('https://api.goshippo.com/shipments/', {
       method: 'POST',
       headers: {
-        'Authorization': `ShippoToken ${SHIPPO_API_TOKEN}`,
+        'Authorization': `ShippoToken ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
-    });
-    if (!r.ok) {
-      const text = await r.text().catch(() => '');
-      throw new Error(`Shippo ${path} ${r.status}: ${text}`);
-    }
-    return r.json();
-  };
-
-  try {
-    // 1) Create a Shipment and get live rates (sync)
-    const shipment = await shippoFetch('/shipments/', {
-      address_from: from,     // { name, street1, city, state, zip, country, phone?, email? }
-      address_to: to,         // same shape as above
-      parcels: [parcel],      // { length, width, height, distance_unit:'in', weight, mass_unit:'lb'|'oz' }
-      async: false            // return rates immediately
+      body: JSON.stringify({
+        address_from: addressFrom,
+        address_to: addressTo,
+        parcels: [parcel],
+        async: false,
+        metadata: metadata || ''
+      })
     });
 
-    if (!shipment?.rates?.length) {
-      return res.status(422).json({
-        error: 'No shipping rates returned for this address/parcel.',
-        details: shipment
-      });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      return res.status(resp.status).json({ error: txt });
     }
 
-    // 2) Pick the cheapest rate (feel free to refine later by carrier/service)
-    const cheapest = shipment.rates
-      .map(r => ({ ...r, amountNum: Number(r.amount) || Infinity }))
-      .sort((a, b) => a.amountNum - b.amountNum)[0];
+    const shipment = await resp.json();
 
-    if (!cheapest || !cheapest.object_id) {
-      return res.status(422).json({ error: 'Could not choose a rate.', rates: shipment.rates });
+    // Pick the first available rate
+    const rateId = shipment.rates?.[0]?.object_id;
+    if (!rateId) {
+      return res.status(400).json({ error: 'No rates available' });
     }
 
-    // 3) Buy the label (sync) -> returns label_url + tracking info
-    const tx = await shippoFetch('/transactions/', {
-      rate: cheapest.object_id,
-      label_file_type: 'PDF',
-      async: false
+    // Buy the label
+    const labelResp = await fetch('https://api.goshippo.com/transactions/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `ShippoToken ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        rate: rateId,
+        label_file_type: 'PDF'
+      })
     });
 
-    if (tx.status !== 'SUCCESS') {
-      return res.status(502).json({ error: 'Label purchase failed', transaction: tx });
-    }
+    const label = await labelResp.json();
 
-    // 4) Respond with what the UI needs
     return res.status(200).json({
       shipment_id: shipment.object_id,
-      transaction_id: tx.object_id,
-      rate: {
-        amount: cheapest.amount,
-        currency: cheapest.currency,
-        provider: cheapest.provider,
-        servicelevel: cheapest.servicelevel?.name || cheapest.servicelevel?.token,
-        est_days: cheapest.estimated_days ?? null
-      },
-      label_url: tx.label_url,
-      tracking_number: tx.tracking_number,
-      tracking_url: tx.tracking_url_provider
+      label_url: label.label_url,
+      tracking_number: label.tracking_number,
+      tracking_url: label.tracking_url_provider,
+      metadata: label.metadata
     });
+
   } catch (err) {
-    console.error('Shippo error:', err);
-    return res.status(500).json({ error: 'Shippo error', message: err.message });
+    console.error('Shippo create_label error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 }
