@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Checkout — Hemline Market</title>
 
+  <!-- Locked site styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
@@ -38,9 +39,9 @@
 </head>
 <body>
 
-<!-- FULL LOCKED HEADER -->
+<!-- FULL LOCKED HEADER (uses .hm-wrap, not .wrap) -->
 <header class="hm-header" role="banner">
-  <div class="wrap">
+  <div class="hm-wrap">
     <div class="left">
       <button class="hamburger" id="openMenu" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -69,6 +70,24 @@
     </div>
   </div>
 </header>
+
+<!-- MENU (kept minimal – same pattern you use elsewhere) -->
+<aside class="sheet" id="menuSheet" aria-hidden="true">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </header>
+  <nav>
+    <a href="browse.html">Browse</a>
+    <a href="sell.html">Sell Fabric</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="how.html">How It Works</a>
+    <a href="about.html">About</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
 
 <main class="container">
   <!-- LEFT: Contact & Shipping -->
@@ -152,35 +171,72 @@
 </footer>
 
 <script>
+/* Minimal header sheet + avatar (same as other pages) */
+(function(){
+  const sheet=document.getElementById("menuSheet");
+  const openBtn=document.getElementById("openMenu");
+  const closeBtn=document.getElementById("closeMenu");
+  function open(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false")}
+  function close(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true")}
+  openBtn?.addEventListener("click",e=>{e.preventDefault();open()});
+  closeBtn?.addEventListener("click",e=>{e.preventDefault();close()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape") close()});
+  try{ const avatar=document.getElementById("avatar"); const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')" } }catch(_){}
+})();
+
+/* Checkout summary logic */
 (function(){
   const fmt = c => "$" + (Math.max(0,c)/100).toFixed(2);
-
-  function tierCents(yards){ if(yards < 3) return 500; if(yards <= 10) return 800; return 1500; }
-  function yardsForItem(it){ const q=Number(it.qty||1); return (Number(it.yards)||0)*q; }
-  function calcTotals(cart){
-    let subtotal=0; const groups={};
+  function tierCents(y){ if(y < 3) return 500; if(y <= 10) return 800; return 1500; }
+  function yardsForItem(it){ return (Number(it.yards)||0) * Number(it.qty||1); }
+  function totals(cart){
+    let sub=0; const groups={};
     for(const it of cart){
-      subtotal += (Number(it.amount||0)*Number(it.qty||1));
-      const k=it.sellerId||"default"; const y=yardsForItem(it);
-      if(!groups[k]) groups[k]={yards:0}; groups[k].yards+=y;
+      sub += Number(it.amount||0) * Number(it.qty||1);
+      const id = it.sellerId || "default";
+      const y = yardsForItem(it);
+      groups[id] = (groups[id]||0) + y;
     }
-    const shipping=Object.values(groups).reduce((s,g)=>s+tierCents(g.yards),0);
-    return {subtotal,shipping,total:subtotal+shipping};
+    const ship = Object.values(groups).reduce((s,y)=>s + tierCents(y), 0);
+    return { sub, ship, tot: sub + ship };
   }
 
-  const itemsEl=document.getElementById("order-items"),subEl=document.getElementById("sub"),shipEl=document.getElementById("ship"),totEl=document.getElementById("tot"),btn=document.getElementById("next"),banner=document.getElementById("banner");
+  const itemsEl=document.getElementById("order-items");
+  const subEl=document.getElementById("sub");
+  const shipEl=document.getElementById("ship");
+  const totEl=document.getElementById("tot");
+  const next=document.getElementById("next");
+  const banner=document.getElementById("banner");
 
   function render(){
-    const cart=JSON.parse(localStorage.getItem("hm_cart")||"[]");
-    itemsEl.innerHTML="";
-    if(cart.length===0){subEl.textContent=fmt(0);shipEl.textContent=fmt(0);totEl.textContent=fmt(0);btn.disabled=true;banner.textContent="Your cart is empty — add fabric to continue.";banner.className="banner empty";banner.style.display="block";return;}
-    btn.disabled=false;banner.textContent="Cart has items — ready to check out.";banner.className="banner";banner.style.display="block";
-    for(const it of cart){const line=(Number(it.amount||0)*Number(it.qty||1));const row=document.createElement("div");row.className="item";row.innerHTML=`<span>${it.name||"Item"}</span><span>${fmt(line)}</span>`;itemsEl.appendChild(row);}
-    const t=calcTotals(cart);subEl.textContent=fmt(t.subtotal);shipEl.textContent=fmt(t.shipping);totEl.textContent=fmt(t.total);
-    localStorage.setItem("hm_checkout_preview",JSON.stringify(t));
+    const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
+    itemsEl.innerHTML = "";
+    if(cart.length===0){
+      subEl.textContent=fmt(0); shipEl.textContent=fmt(0); totEl.textContent=fmt(0);
+      next.disabled=true;
+      banner.textContent="Your cart is empty — add fabric to continue.";
+      banner.className="banner empty"; banner.style.display="block";
+      return;
+    }
+    next.disabled=false;
+    banner.textContent="Cart has items — ready to check out.";
+    banner.className="banner"; banner.style.display="block";
+
+    for(const it of cart){
+      const line = Number(it.amount||0) * Number(it.qty||1);
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `<span>${it.name||"Item"}</span><span>${fmt(line)}</span>`;
+      itemsEl.appendChild(row);
+    }
+    const t = totals(cart);
+    subEl.textContent = fmt(t.sub);
+    shipEl.textContent = fmt(t.ship);
+    totEl.textContent = fmt(t.tot);
+    localStorage.setItem("hm_checkout_preview", JSON.stringify(t));
   }
 
-  btn.addEventListener("click",()=>{window.location.href="payment.html"});
+  next.addEventListener("click", ()=>{ window.location.href = "payment.html"; });
   render();
 })();
 </script>
