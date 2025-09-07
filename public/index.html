@@ -41,6 +41,10 @@
     .sheet nav a + a{margin-top:8px}
     .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
 
+    /* Overlay for sheet */
+    #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.25);backdrop-filter:blur(1px);display:none;z-index:90}
+    #sheetOverlay.show{display:block}
+
     /* Hero + UI */
     .hero-wrap{max-width:1200px;margin:14px auto 0;padding:0 12px}
     .hero-card{background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 14px rgba(0,0,0,.10);padding:12px}
@@ -109,16 +113,7 @@
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
-      <!-- INLINE HANDLER + type="button" makes it click-proof -->
-      <button class="hamburger" id="openMenu" type="button"
-        aria-label="Open menu"
-        onclick="(function(){const s=document.getElementById('menuSheet'); if(s){s.classList.add('open'); s.setAttribute('aria-hidden','false');}})()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6"  x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
-      </button>
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu"></button>
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
 
@@ -152,6 +147,9 @@
     </div>
   </div>
 </header>
+
+<!-- OVERLAY -->
+<div id="sheetOverlay" aria-hidden="true"></div>
 
 <!-- LEFT MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
@@ -320,31 +318,62 @@
   </div>
 </footer>
 
-<!-- JS (kept minimal; inline click handlers above already make hamburger work) -->
+<!-- JS -->
 <script>
   (function(){
-    // Safety net: attach listeners too
-    const sheet=document.getElementById("menuSheet");
-    const openBtn=document.getElementById("openMenu");
-    const closeBtn=document.getElementById("closeMenu");
-    function openSheet(){ sheet?.classList.add("open"); sheet?.setAttribute("aria-hidden","false"); }
-    function closeSheet(){ sheet?.classList.remove("open"); sheet?.setAttribute("aria-hidden","true"); }
-    openBtn?.addEventListener("click", (e)=>{ e.preventDefault(); openSheet(); });
-    closeBtn?.addEventListener("click",(e)=>{ e.preventDefault(); closeSheet(); });
-    document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+    // Elements
+    const sheet = document.getElementById('menuSheet');
+    const openBtn = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const overlay = document.getElementById('sheetOverlay');
+
+    // Icons
+    const ICON_BURGER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>';
+    const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+    function setButton(open){
+      if (!openBtn) return;
+      openBtn.setAttribute('aria-expanded', String(open));
+      openBtn.innerHTML = open ? ICON_X : ICON_BURGER;
+    }
+    function openSheet(){
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden','false');
+      overlay.classList.add('show');
+      setButton(true);
+      lockScroll(true);
+    }
+    function closeSheet(){
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden','true');
+      overlay.classList.remove('show');
+      setButton(false);
+      lockScroll(false);
+    }
+
+    // Init icon and closed state
+    if (openBtn && !openBtn.innerHTML.trim()) openBtn.innerHTML = ICON_BURGER;
+    closeSheet();
+
+    // Events
+    openBtn?.addEventListener('click', (e)=>{ e.preventDefault(); sheet.classList.contains('open') ? closeSheet() : openSheet(); });
+    closeBtn?.addEventListener('click', (e)=>{ e.preventDefault(); closeSheet(); });
+    overlay.addEventListener('click', closeSheet);
+    document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeSheet(); });
 
     // Avatar image (optional)
-    try {
+    try{
       const url=localStorage.getItem("avatarUrl");
       const a=document.getElementById("avatar");
       if(a && url){ a.textContent=''; a.style.backgroundImage="url('"+url+"')"; }
-    } catch {}
+    }catch{}
   })();
 </script>
 
 <!-- Cart hooks -->
 <script src="scripts/cart.js"></script>
 <script src="scripts/cart-hooks.js"></script>
-  <script src="assets/add-to-cart.js" defer></script>
+<script src="assets/add-to-cart.js" defer></script>
 </body>
 </html>
