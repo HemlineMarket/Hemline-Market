@@ -25,7 +25,7 @@
     .right{display:flex;align-items:center;gap:14px}
     .hm-icon{color:#444;display:inline-grid;place-items:center}
     .hm-icon svg{width:26px;height:26px;stroke-width:2}
-    .hm-avatar{width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
+    .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
     .hm-btn{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:8px 14px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
     /* Menu */
@@ -165,6 +165,17 @@
 
       <p class="help">Shipping label is generated after payment. You’ll confirm card details on the next step.</p>
 
+      <!-- Legal acknowledgment -->
+      <div style="margin:16px 0">
+        <label style="font-size:14px;display:flex;gap:8px;align-items:flex-start">
+          <input id="agreeCheckout" type="checkbox" style="margin-top:3px">
+          <span>I agree to Hemline Market’s
+            <a href="terms.html" target="_blank">Terms of Service</a> and
+            <a href="privacy.html" target="_blank">Privacy Policy</a>.
+          </span>
+        </label>
+      </div>
+
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
         <a class="btn-outline" href="cart.html">Back to cart</a>
         <button id="next" class="btn">Continue to payment</button>
@@ -264,19 +275,23 @@
   const next=document.getElementById("next");
   const banner=document.getElementById("banner");
 
+  function showBanner(text, tone='ok'){
+    banner.textContent = text;
+    banner.className = tone === 'err' ? 'banner empty' : 'banner';
+    banner.style.display = 'block';
+  }
+
   function render(){
     const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
     itemsEl.innerHTML = "";
     if(cart.length===0){
       subEl.textContent=fmt(0); shipEl.textContent=fmt(0); totEl.textContent=fmt(0);
       next.disabled=true;
-      banner.textContent="Your cart is empty — add fabric to continue.";
-      banner.className="banner empty"; banner.style.display="block";
+      showBanner("Your cart is empty — add fabric to continue.", 'err');
       return;
     }
     next.disabled=false;
-    banner.textContent="Cart has items — ready to check out.";
-    banner.className="banner"; banner.style.display="block";
+    showBanner("Cart has items — ready to check out.", 'ok');
 
     for(const it of cart){
       const line = Number(it.amount||0) * Number(it.qty||1);
@@ -297,6 +312,13 @@
 
   // Create Stripe Checkout Session and redirect
   async function goToStripe(){
+    const agree = document.getElementById('agreeCheckout');
+    if (!agree || !agree.checked){
+      showBanner("Please agree to the Terms of Service and Privacy Policy to continue.", 'err');
+      agree?.focus();
+      return;
+    }
+
     const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
     if (!cart.length) return;
 
@@ -352,12 +374,7 @@
       throw new Error('Missing session URL');
     } catch (err) {
       console.error(err);
-      const b = document.getElementById('banner');
-      if (b){
-        b.className = 'banner empty';
-        b.style.display = 'block';
-        b.textContent = 'Could not start payment. Please try again.';
-      }
+      showBanner('Could not start payment. Please try again.', 'err');
       next.disabled = false;
       next.textContent = old;
     }
