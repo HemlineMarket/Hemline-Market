@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Create a Listing — Hemline Market</title>
 
+<!-- Favicon -->
+<link rel="icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+
 <link rel="stylesheet" href="styles/hm-modern.css"/>
 <link rel="stylesheet" href="styles/hem-header.css"/>
 <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -180,7 +185,7 @@
             <div id="err_price" class="help-error" style="display:none">Enter a price greater than 0.</div>
           </div>
 
-          <!-- NEW: Original price (MSRP) per yard, optional -->
+          <!-- Original price (MSRP) per yard, optional -->
           <div class="field">
             <div class="label-row"><label for="origPrice">Original price ($/yd)</label><span class="subtle" style="font-size:12px">(optional)</span></div>
             <input id="origPrice" type="number" min="0" step="0.01" placeholder="e.g., 70.00">
@@ -210,6 +215,15 @@
           <div class="field"><label>Preview</label><div class="thumbs" id="reviewMedia"></div></div>
           <div class="kv" id="reviewKv" style="margin-top:10px"></div>
           <p class="subtle" style="margin-top:8px">Review your details. You can go back to make changes.</p>
+
+          <!-- Legal acknowledgment (required) -->
+          <div class="field" style="margin-top:10px">
+            <label style="font-weight:600;display:flex;gap:8px;align-items:flex-start">
+              <input id="agreeSell" type="checkbox" style="margin-top:3px">
+              <span>I confirm this listing follows the <a href="terms.html" target="_blank">Terms of Service</a> and I’ve read the <a href="privacy.html" target="_blank">Privacy Policy</a>.</span>
+            </label>
+            <div id="err_agree" class="help-error" style="display:none">Please agree to continue.</div>
+          </div>
         </div>
 
       </div>
@@ -305,12 +319,23 @@
 
     return ok;
   }
-  function validateCurrentStep(){ if(step===1)return enableNext(validateStep1()); if(step===2)return enableNext(validateStep2()); enableNext(true); }
+  function validateStep3(){
+    const agree=document.getElementById('agreeSell');
+    const ok=!!(agree && agree.checked);
+    document.getElementById('err_agree').style.display=ok?'none':'block';
+    return ok;
+  }
+  function validateCurrentStep(){
+    if(step===1) return enableNext(validateStep1());
+    if(step===2) return enableNext(validateStep2());
+    return enableNext(validateStep3());
+  }
 
   backBtn.addEventListener('click',()=>setStep(step-1));
   nextBtn.addEventListener('click',()=>{
     if(step===1 && !validateStep1()) return;
     if(step===2 && !validateStep2()) return;
+    if(step===3 && !validateStep3()) return;
     if(step<MAX_STEP){ setStep(step+1); } else { alert('Publish would submit the listing here.'); }
   });
   stepper.addEventListener('click',(e)=>{
@@ -351,13 +376,14 @@
   videoDrop.addEventListener('drop',e=>handleVideoFile(e.dataTransfer.files[0]));
 
   ['title','price','yards'].forEach(id=>{const el=document.getElementById(id); el&&el.addEventListener('input',validateCurrentStep);});
+  document.addEventListener('change',(e)=>{ if(e.target && e.target.id==='agreeSell') validateCurrentStep(); });
 
   function read(id){ const el=document.getElementById(id); return el? (el.value||'').trim() : ''; }
   function buildReview(){
     state.fields={
       title:read('title'),
       price:read('price'),
-      msrpPerYd:read('origPrice'),      // <— NEW field, used by listing page
+      msrpPerYd:read('origPrice'),
       yards:read('yards'),
       desc:read('desc'),
       content:read('content'),
