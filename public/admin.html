@@ -1,0 +1,252 @@
+<!-- File: public/admin.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Admin — Hemline Market</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+
+  <style>
+    :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+
+    /* Header (simple, not in public nav) */
+    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
+    .hm-wrap{max-width:1100px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
+    .hm-brand{font-size:22px;font-weight:800;color:var(--accent);text-decoration:none}
+
+    /* Page */
+    .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
+    h1{margin:0 0 12px}
+    .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    label{font-size:13px;color:#374151;font-weight:700}
+    input,select{height:40px;border:1px solid var(--border);border-radius:10px;padding:0 12px;background:#fff}
+    input[type="text"], input[type="search"], input[type="password"], select{min-width:240px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+    .btn.danger{background:#7f1d1d;border-color:#7f1d1d;color:#fff}
+    .muted{color:var(--muted)}
+    .kv{display:grid;grid-template-columns:180px 1fr;gap:8px;align-items:center}
+    .kv div{padding:6px 0;border-bottom:1px dashed #f3f4f6}
+    .pill{display:inline-grid;place-items:center;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--border);background:#fff;color:#374151}
+    .pill.green{color:#065f46;border-color:#a7f3d0;background:#ecfdf5}
+    .pill.orange{color:#7c2d12;border-color:#fed7aa;background:#fff7ed}
+    .pill.red{color:#7f1d1d;border-color:#fecaca;background:#fef2f2}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    pre{background:#0b1020;color:#e5e7eb;padding:10px;border-radius:10px;overflow:auto}
+  </style>
+</head>
+<body>
+<header class="hm-header">
+  <div class="hm-wrap">
+    <a class="hm-brand" href="index.html">Hemline Market — Admin</a>
+    <div class="muted" style="font-size:13px">Internal tools</div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Access key -->
+  <section class="card">
+    <h1 style="margin:0 0 8px">Access</h1>
+    <p class="muted" style="margin:0 0 10px">
+      Enter your admin key to authorize API calls (stored locally only).
+    </p>
+    <div class="row">
+      <label for="adminkey" style="align-self:center">Admin key</label>
+      <input id="adminkey" type="password" placeholder="Paste ADMIN_ACCESS_KEY"/>
+      <button id="saveKey" class="btn">Save</button>
+      <span id="keyMsg" class="muted"></span>
+    </div>
+  </section>
+
+  <!-- Lookup -->
+  <section class="card">
+    <h2 style="margin:0 0 10px">Order lookup</h2>
+    <div class="row" style="margin-bottom:10px">
+      <input id="orderId" type="search" placeholder="Order ID (e.g., HM-548728)" />
+      <button id="btnLookup" class="btn primary">Lookup</button>
+      <span id="lookupMsg" class="muted"></span>
+    </div>
+
+    <div id="orderBox" style="display:none">
+      <div class="kv">
+        <div class="muted">Order ID</div><div id="v_id" class="mono">—</div>
+        <div class="muted">Status</div><div id="v_status"><span class="pill">—</span></div>
+        <div class="muted">Buyer</div><div id="v_buyer">—</div>
+        <div class="muted">Email</div><div id="v_email">—</div>
+        <div class="muted">Subtotal</div><div id="v_sub">—</div>
+        <div class="muted">Shipping</div><div id="v_ship">—</div>
+        <div class="muted">Total</div><div id="v_tot" class="mono">—</div>
+        <div class="muted">Stripe PI</div><div id="v_pi" class="mono">—</div>
+        <div class="muted">Created</div><div id="v_created">—</div>
+      </div>
+
+      <div style="height:10px"></div>
+      <div>
+        <strong>Items</strong>
+        <pre id="v_items" style="margin-top:6px">[]</pre>
+      </div>
+
+      <div style="height:12px"></div>
+      <div class="row" style="gap:8px">
+        <select id="statusPick">
+          <option value="">Set status…</option>
+          <option>PAID</option>
+          <option>LABEL_PURCHASED</option>
+          <option>SHIPPED</option>
+          <option>DELIVERED</option>
+          <option>CANCELED</option>
+          <option>REFUNDED</option>
+        </select>
+        <button id="btnSetStatus" class="btn">Update status</button>
+
+        <input id="refundAmt" type="text" placeholder="Refund cents (optional)"/>
+        <button id="btnRefund" class="btn danger">Refund</button>
+
+        <select id="emailPick">
+          <option value="">Send email…</option>
+          <option value="order_confirmation">Order confirmation</option>
+          <option value="shipping_update">Shipping update</option>
+          <option value="delivered">Delivered</option>
+          <option value="refund_notice">Refund notice</option>
+        </select>
+        <button id="btnEmail" class="btn">Send</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Raw debug -->
+  <section class="card">
+    <h2 style="margin:0 0 10px">Debug</h2>
+    <pre id="debug">{}</pre>
+  </section>
+</main>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const keyInput = $('adminkey');
+  const saveKey  = $('saveKey');
+  const keyMsg   = $('keyMsg');
+
+  function getKey(){
+    try { return localStorage.getItem('HM_ADMIN_KEY') || ''; } catch { return ''; }
+  }
+  function setKey(v){
+    try { localStorage.setItem('HM_ADMIN_KEY', v || ''); } catch {}
+  }
+
+  keyInput.value = getKey();
+  saveKey.onclick = () => {
+    setKey(keyInput.value.trim());
+    keyMsg.textContent = 'Saved.';
+    setTimeout(()=> keyMsg.textContent = '', 1200);
+  };
+
+  const lookupBtn = $('btnLookup');
+  const orderIdIn = $('orderId');
+  const lookupMsg = $('lookupMsg');
+  const box = $('orderBox');
+  const debug = $('debug');
+
+  const fields = {
+    id: $('v_id'), status: $('v_status'), buyer: $('v_buyer'), email: $('v_email'),
+    sub: $('v_sub'), ship: $('v_ship'), tot: $('v_tot'),
+    pi: $('v_pi'), created: $('v_created'), items: $('v_items')
+  };
+
+  function pill(text, tone){
+    const span = document.createElement('span');
+    span.className = 'pill' + (tone ? ' ' + tone : '');
+    span.textContent = text;
+    return span;
+  }
+
+  function fmtUSD(cents){
+    const v = Math.max(0, Number(cents || 0)) / 100;
+    return v.toLocaleString('en-US',{style:'currency',currency:'USD'});
+  }
+
+  async function api(path, body){
+    const key = getKey();
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: {
+        'Content-Type':'application/json',
+        'x-admin-key': key
+      },
+      body: JSON.stringify(body || {})
+    });
+    const txt = await res.text();
+    try { return { ok: res.ok, json: JSON.parse(txt), raw: txt }; }
+    catch { return { ok: res.ok, json: null, raw: txt }; }
+  }
+
+  function renderOrder(o){
+    fields.id.textContent = o.order_id || '—';
+    fields.status.innerHTML = '';
+    const tone = o.status === 'PAID' ? 'orange'
+               : o.status === 'SHIPPED' || o.status === 'DELIVERED' ? 'green'
+               : (o.status === 'CANCELED' || o.status === 'REFUNDED') ? 'red' : '';
+    fields.status.appendChild(pill(o.status || '—', tone));
+    fields.buyer.textContent = o.buyer_name || '—';
+    fields.email.textContent = o.buyer_email || '—';
+    fields.sub.textContent = fmtUSD(o.subtotal_cents || 0);
+    fields.ship.textContent = fmtUSD(o.shipping_cents || 0);
+    fields.tot.textContent = fmtUSD(o.total_cents || 0);
+    fields.pi.textContent = o.payment_intent || '—';
+    fields.created.textContent = o.created_at || '—';
+    fields.items.textContent = JSON.stringify(o.items || [], null, 2);
+    box.style.display = 'block';
+    debug.textContent = JSON.stringify(o, null, 2);
+  }
+
+  lookupBtn.onclick = async () => {
+    lookupMsg.textContent = 'Looking up…';
+    box.style.display = 'none';
+    const id = orderIdIn.value.trim();
+    if (!id){ lookupMsg.textContent = 'Enter an Order ID.'; return; }
+    const r = await api('/api/admin/order_status', { order_id: id });
+    if (!r.ok){ lookupMsg.textContent = 'Not found or unauthorized.'; debug.textContent = r.raw; return; }
+    lookupMsg.textContent = '';
+    renderOrder(r.json);
+  };
+
+  $('btnSetStatus').onclick = async () => {
+    const id = orderIdIn.value.trim();
+    const status = $('statusPick').value;
+    if (!id || !status) return;
+    const r = await api('/api/admin/order_update', { order_id: id, status });
+    debug.textContent = r.raw || '';
+    if (r.ok) { renderOrder(r.json); }
+    else alert('Update failed');
+  };
+
+  $('btnRefund').onclick = async () => {
+    const id = orderIdIn.value.trim();
+    const amount_cents = Number(($('refundAmt').value || '').replace(/[^\d]/g,'')) || undefined;
+    if (!id) return;
+    const r = await api('/api/admin/refund', { order_id: id, amount_cents });
+    debug.textContent = r.raw || '';
+    if (!r.ok) alert('Refund failed'); else alert('Refund requested');
+  };
+
+  $('btnEmail').onclick = async () => {
+    const id = orderIdIn.value.trim();
+    const type = $('emailPick').value;
+    if (!id || !type) return;
+    const r = await api('/api/admin/resend_email', { order_id: id, type });
+    debug.textContent = r.raw || '';
+    if (!r.ok) alert('Email send failed'); else alert('Email sent');
+  };
+})();
+</script>
+</body>
+</html>
