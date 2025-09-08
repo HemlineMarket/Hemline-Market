@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <!-- MOBILE HOTFIX -->
+  <style>
+    html, body { max-width:100%; overflow-x:hidden; }
+    img, video, canvas, svg { max-width:100%; height:auto; }
+  </style>
+
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Payouts — Hemline Market</title>
@@ -10,49 +16,44 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
+  <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
   <style>
     :root{
       --ink:#111827; --muted:#6b7280; --border:#e5e7eb; --bg:#fafafa; --accent:#991b1b;
-      --ok:#065f46; --warn:#7c2d12; --chip:#111827;
+      --ok:#065f46; --warn:#7c2d12;
     }
-    *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-    .wrap{max-width:1200px;margin:14px auto;padding:0 12px}
-    h1{margin:6px 0 12px;font-size:22px}
+    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
 
+    h1{margin:8px 0 12px;font-size:22px}
     .panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:12px 0}
     .panel header{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border)}
     .panel .body{padding:12px}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input{height:40px;border:1px solid var(--border);border-radius:10px;padding:0 10px}
+    .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer}
+    .btn.secondary{background:#fff;color:var(--accent);border:1px solid var(--border)}
     .muted{color:var(--muted)}
-    .row{display:grid;grid-template-columns:1fr 120px 120px 160px 120px;gap:10px;padding:10px 12px;border-top:1px solid var(--border);align-items:center}
-    .row.head{font-weight:700;background:#fafafa;border-top:0}
-    .pill{display:inline-grid;place-items:center;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--border);background:#fff}
-    .pill.ok{color:var(--ok);border-color:#a7f3d0;background:#ecfdf5}
-    .pill.warn{color:var(--warn);border-color:#fed7aa;background:#fff7ed}
-    .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    input[type="text"]{height:38px;border:1px solid var(--border);border-radius:10px;padding:0 10px}
-    button,.btn{height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border-radius:10px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:700}
-    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-    .note{font-size:12px;color:var(--muted);margin-top:6px}
-    .footer-space{height:8px}
-    @media (max-width:900px){ .row{grid-template-columns:1fr 100px 100px 130px 100px} }
-    @media (max-width:700px){ .row{grid-template-columns:1fr 90px 90px 110px 90px} }
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-top:1px solid var(--border);text-align:left;font-size:14px}
+    th{background:#fafafa}
+    .status{display:inline-block;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-size:12px}
+    .status.paid{color:var(--ok); background:#ecfdf5; border-color:#a7f3d0}
+    .status.pending{color:#92400e;background:#fffbeb;border-color:#fde68a}
+    .status.failed{color:#991b1b;background:#fef2f2;border-color:#fecaca}
   </style>
 </head>
 <body>
-
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
       <button class="hamburger" id="openMenu" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6"  x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
+          <line x1="4" y1="6"  x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line>
         </svg>
       </button>
       <a class="hm-brand" href="index.html">Hemline Market</a>
@@ -61,68 +62,53 @@
       <a class="hm-icon" href="browse.html" aria-label="Browse & search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg>
       </a>
-      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-      </a>
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-      </a>
-      <a class="hm-icon" href="cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-      </a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
 
-<aside class="sheet" id="menuSheet" aria-hidden="true">
-  <header>
-    <strong>Menu</strong>
-    <button class="close" id="closeMenu" aria-label="Close menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
-    </button>
-  </header>
-  <nav>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="orders-seller.html">Seller Orders</a>
-    <a href="payouts.html">Payouts</a>
-    <a href="how.html">How It Works</a>
-    <a href="contact.html">Contact</a>
-  </nav>
-</aside>
-
 <main class="wrap">
   <h1>Payouts</h1>
 
+  <!-- Save/manage seller account id -->
   <div class="panel">
-    <header>
-      <div>
-        <div class="muted">Connected account</div>
-        <div id="acctLabel" style="font-weight:700">—</div>
-        <div class="note">If you haven’t onboarded, click <a href="/api/stripe/connect_onboard" class="muted">Connect payouts</a> and complete the Stripe form, then paste your account id here (starts with <code>acct_</code>).</div>
-      </div>
-      <div class="tools">
-        <input id="acctInput" type="text" placeholder="acct_..." style="min-width:260px"/>
+    <header><div style="font-weight:700">Stripe account</div></header>
+    <div class="body">
+      <div class="row" style="margin-bottom:8px">
+        <input id="acct" placeholder="acct_…" style="min-width:280px">
         <button id="saveAcct" class="btn">Save</button>
-        <a class="btn primary" href="/api/stripe/connect_onboard">Connect payouts</a>
+        <button id="clearAcct" class="btn secondary">Clear</button>
       </div>
-    </header>
-    <div class="body" id="statusBox" class="muted">Enter your account id to load payouts.</div>
-  </div>
-
-  <div class="panel" id="payoutsPanel" style="display:none">
-    <header><div style="font-weight:700">Recent payouts</div><div class="muted" id="countBox">—</div></header>
-    <div class="row head">
-      <div>ID</div><div>Amount</div><div>Status</div><div>Arrival</div><div>Method</div>
+      <div class="muted" id="acctMsg">Paste your Stripe Connect account ID (starts with <code>acct_</code>). We’ll use this to show transfers and to send payouts.</div>
     </div>
-    <div id="payoutRows"></div>
   </div>
 
-  <div class="footer-space"></div>
+  <!-- Transfer history -->
+  <div class="panel">
+    <header><div style="font-weight:700">Recent transfers from Hemline</div></header>
+    <div class="body">
+      <div class="row" style="margin-bottom:10px">
+        <button id="refresh" class="btn">Refresh</button>
+        <span id="hint" class="muted">Showing the 20 most recent transfers.</span>
+      </div>
+      <div style="overflow:auto">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Transfer ID</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr><td colspan="4" class="muted">No data yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </main>
 
 <footer class="hm-footer" role="contentinfo">
@@ -140,81 +126,56 @@
 
 <script>
 (function(){
-  // Menu + avatar
-  const sheet=document.getElementById("menuSheet");
-  const openBtn=document.getElementById("openMenu");
-  const closeBtn=document.getElementById("closeMenu");
-  function open(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
-  function close(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
-  openBtn?.addEventListener("click",e=>{e.preventDefault();open();});
-  closeBtn?.addEventListener("click",e=>{e.preventDefault();close();});
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
-  try{ const a=document.getElementById("avatar"); const url=localStorage.getItem("avatarUrl"); if(url){ a.textContent=''; a.style.backgroundImage="url('"+url+"')"; } }catch(_){}
-})();
+  // Avatar
+  try{const a=document.getElementById('avatar');const url=localStorage.getItem('avatarUrl');if(url){a.textContent='';a.style.backgroundImage="url('"+url+"')";}}catch(_){}
 
-(function(){
-  const acctInput=document.getElementById('acctInput');
-  const saveBtn=document.getElementById('saveAcct');
-  const acctLabel=document.getElementById('acctLabel');
-  const statusBox=document.getElementById('statusBox');
-  const panel=document.getElementById('payoutsPanel');
-  const rows=document.getElementById('payoutRows');
-  const countBox=document.getElementById('countBox');
+  const acct = document.getElementById('acct');
+  const save = document.getElementById('saveAcct');
+  const clear = document.getElementById('clearAcct');
+  const msg = document.getElementById('acctMsg');
+  const refresh = document.getElementById('refresh');
+  const rows = document.getElementById('rows');
 
-  const fmt = (c,cur) => (c<0?'-':'') + new Intl.NumberFormat('en-US',{style:'currency',currency:cur||'usd'}).format(Math.abs(c)/100);
-  const when = (t) => new Date((t||0)*1000).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});
+  // Load saved account
+  try{ const id = localStorage.getItem('hm_stripe_acct'); if(id){ acct.value = id; }}catch(_){}
 
-  function setAcct(acct){
-    localStorage.setItem('hm_stripe_acct', acct);
-    acctInput.value = acct;
-    acctLabel.textContent = acct || '—';
-  }
+  save.onclick = () => {
+    const id = acct.value.trim();
+    if (!id.startsWith('acct_')) { msg.textContent = 'Please enter a valid account id (acct_…)'; return; }
+    try{ localStorage.setItem('hm_stripe_acct', id); msg.textContent = 'Saved ✔'; }catch(_){ msg.textContent = 'Could not save locally.'; }
+  };
+  clear.onclick = () => { try{ localStorage.removeItem('hm_stripe_acct'); acct.value=''; msg.textContent='Cleared'; }catch(_){} };
 
-  async function load(acct){
-    if(!acct || !acct.startsWith('acct_')){
-      statusBox.textContent = 'Enter your account id to load payouts.';
-      panel.style.display='none';
-      return;
-    }
-    statusBox.textContent = 'Loading…';
+  function fmtUSD(c){ return '$' + (Number(c)/100).toFixed(2); }
+  function fmtDate(s){ const d=new Date(s*1000); return d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+
+  async function load(){
+    const id = acct.value.trim();
+    if (!id.startsWith('acct_')) { rows.innerHTML = '<tr><td colspan="4" class="muted">Enter your account id to view transfers.</td></tr>'; return; }
+    rows.innerHTML = '<tr><td colspan="4" class="muted">Loading…</td></tr>';
     try{
-      const r = await fetch(`/api/stripe/payouts?account=${encodeURIComponent(acct)}&limit=30`);
-      if(!r.ok) throw new Error('Request failed');
-      const json = await r.json();
-      rows.innerHTML = '';
-      json.data.forEach(p=>{
-        const div=document.createElement('div');
-        div.className='row';
-        const pillClass = (p.status==='paid') ? 'pill ok' : (p.status==='failed' || p.status==='canceled') ? 'pill warn' : 'pill';
-        div.innerHTML = `
-          <div class="muted">${p.id}</div>
-          <div><strong>${fmt(p.amount, p.currency)}</strong></div>
-          <div><span class="${pillClass}">${p.status}</span></div>
-          <div class="muted">${when(p.arrival_date || p.created)}</div>
-          <div class="muted">${p.method || 'standard'}</div>
-        `;
-        rows.appendChild(div);
-      });
-      countBox.textContent = `${json.data.length} shown`;
-      statusBox.textContent = '';
-      panel.style.display = 'block';
+      const r = await fetch(`/api/stripe/list_transfers?account=${encodeURIComponent(id)}&limit=20`);
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.error || 'Request failed');
+      if(!j.transfers.length){
+        rows.innerHTML = '<tr><td colspan="4" class="muted">No transfers yet.</td></tr>';
+        return;
+      }
+      rows.innerHTML = j.transfers.map(t => `
+        <tr>
+          <td>${fmtDate(t.created)}</td>
+          <td>${t.id}</td>
+          <td>${fmtUSD(t.amount)}</td>
+          <td><span class="status ${t.status}">${t.status}</span></td>
+        </tr>
+      `).join('');
     }catch(err){
-      statusBox.textContent = 'Could not load payouts. Try again later.';
-      panel.style.display='none';
-      console.error(err);
+      rows.innerHTML = `<tr><td colspan="4" class="muted">Error: ${err.message || 'Unable to load transfers'}</td></tr>`;
     }
   }
 
-  saveBtn.addEventListener('click', ()=>{
-    const v = acctInput.value.trim();
-    setAcct(v);
-    load(v);
-  });
-
-  // init
-  const stored = localStorage.getItem('hm_stripe_acct') || '';
-  setAcct(stored);
-  load(stored);
+  refresh.onclick = load;
+  load();
 })();
 </script>
 </body>
