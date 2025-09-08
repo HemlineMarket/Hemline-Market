@@ -393,6 +393,55 @@
       if(url) location.href=url;
     }catch(e){ alert('Could not open Stripe dashboard.'); console.error(e); }
   });
+
+  /* ===== NEW: hydrate Stripe status pills from /api/stripe/account_status ===== */
+  async function loadStripeStatus(){
+    try{
+      const res = await fetch('/api/stripe/account_status');
+      const data = await res.json();
+
+      const setPill = (el, ok, onTxt, offTxt) => {
+        el.textContent = (ok ? onTxt : offTxt);
+        el.classList.toggle('green', !!ok);
+        el.classList.toggle('red', !ok);
+      };
+
+      setPill(document.getElementById('pillCharges'),
+              !!data.charges_enabled,
+              'Charges: Enabled',
+              'Charges: Disabled');
+
+      setPill(document.getElementById('pillPayouts'),
+              !!data.payouts_enabled,
+              'Payouts: Enabled',
+              'Payouts: Disabled');
+
+      const reqs = Array.isArray(data.requirements) ? data.requirements : [];
+      const reqPill = document.getElementById('pillReqs');
+      if (reqs.length === 0) {
+        reqPill.textContent = 'Requirements: none';
+        reqPill.classList.add('green');
+        reqPill.classList.remove('red');
+      } else {
+        reqPill.textContent = `Requirements: ${reqs.length} due`;
+        reqPill.classList.add('red');
+        reqPill.classList.remove('green');
+      }
+
+      // Show connected account id if present
+      if (data.account) {
+        document.getElementById('acctId').textContent = data.account;
+      }
+
+      // Nudge primary button if onboarding already submitted
+      if (data.details_submitted) {
+        document.getElementById('btnFinish').textContent = 'Review setup';
+      }
+    } catch (e) {
+      console.warn('Unable to load Stripe account status.', e);
+    }
+  }
+  loadStripeStatus();
 })();
 </script>
 </body>
