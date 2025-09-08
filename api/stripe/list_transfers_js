@@ -1,0 +1,49 @@
+// api/stripe/list_transfers.js
+// Returns recent Stripe Transfers sent from the platform to a given connected account.
+// GET /api/stripe/list_transfers?account=acct_123&limit=20
+// Env: STRIPE_SECRET_KEY
+
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2025-07-30.basil',
+});
+
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  try {
+    const account = (req.query.account || '').toString();
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 50);
+
+    if (!account || !account.startsWith('acct_')) {
+      return res.status(400).json({ error: 'Missing/invalid ?account=acct_…' });
+    }
+
+    // Transfers created from your platform to this destination account
+    const transfers = await stripe.transfers.list({
+      destination: account,
+      limit,
+    });
+
+    return res.status(200).json({
+      account,
+      transfers: transfers.data.map(t => ({
+        id: t.id,
+        amount: t.amount,
+        currency: t.currency,
+        created: t.created,
+        description: t.description || '',
+        destination: t.destination,
+        status: t.status, // paid | pending | failed
+      })),
+      has_more: transfers.has_more,
+    });
+  } catch (err) {
+    console.error('list_transfers error:', err);
+    return res.status(500).json({ error: 'Unable to list transfers' });
+  }
+}
