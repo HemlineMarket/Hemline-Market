@@ -2,7 +2,9 @@
 // ENV required: POSTMARK_SERVER_TOKEN
 //
 // POST /api/email/send
-// { "to": "name@email.com", "type": "order_confirmation" | "label_ready", "data": { ... } }
+// { "to": "buyer@email.com",
+//   "type": "order_confirmation|shipping_update|delivered|refund_notice",
+//   "data": { ... } }
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -44,65 +46,92 @@ function itemsTable(items = []) {
         <td style="padding:8px 0 8px 16px; text-align:right; font-size:14px; color:#111827;">
           ${fmtUSD(cents)}
         </td>
-      </tr>`;
+      </tr>
+    `;
   }).join('');
 }
 
 async function build(type, data = {}) {
-  switch (type) {
-    case 'order_confirmation': {
-      const tpl = await loadTemplate('order-confirmation');
+  const site = data.site_origin || '';
+  const support = data.support_url || `${site}/contact.html`;
 
-      const subtotal = Number(data.subtotal_cents || 0);
-      const shipping = Number(data.shipping_cents || 0);
-      const total    = subtotal + shipping;
+  if (type === 'order_confirmation') {
+    const tpl = await loadTemplate('order-confirmation');
+    const subtotal = Number(data.subtotal_cents || 0);
+    const shipping = Number(data.shipping_cents || 0);
+    const total    = subtotal + shipping;
 
-      const html = render(tpl, {
-        order_id: data.order_id || 'HM-000000',
-        order_date: data.order_date || new Date().toLocaleDateString(),
-        items_rows: itemsTable(data.items || []),
-        subtotal: fmtUSD(subtotal),
-        shipping: fmtUSD(shipping),
-        total: fmtUSD(total),
-        support_url: data.support_url || `${data.site_origin || ''}/contact.html`,
-        site_origin: data.site_origin || '',
-        preview: `We’ve got your order on the cutting table ✂️`,
-      });
+    const html = render(tpl, {
+      order_id: data.order_id || 'HM-000000',
+      order_date: data.order_date || new Date().toLocaleDateString(),
+      items_rows: itemsTable(data.items || []),
+      subtotal: fmtUSD(subtotal),
+      shipping: fmtUSD(shipping),
+      total: fmtUSD(total),
+      support_url: support,
+      site_origin: site,
+    });
 
-      const subject = `Order received — ${data.order_id || 'Hemline Market'}`;
-      const text =
-`Thanks! We received your order ${data.order_id || ''}.
+    const subject = `Order received — ${data.order_id || 'Hemline Market'}`;
+    const text = `Thanks! We received your order ${data.order_id || ''}.
 Subtotal: ${fmtUSD(subtotal)}
 Shipping: ${fmtUSD(shipping)}
 Total: ${fmtUSD(total)}
-View your orders: ${(data.site_origin || '')}/orders-buyer.html
-Need help? ${data.support_url || `${data.site_origin || ''}/contact.html`}`;
-
-      return { subject, html, text };
-    }
-
-    case 'label_ready': {
-      // Sent to the **seller** when the label has been purchased/created.
-      const tpl = await loadTemplate('label-ready');
-
-      const html = render(tpl, {
-        order_id: data.order_id || 'HM-000000',
-        label_url: data.label_url || `${data.site_origin || ''}/dashboard.html`,
-        site_origin: data.site_origin || '',
-        preview: `Your Hemline shipping label is ready to print ✂️📦`,
-      });
-
-      const subject = `Your shipping label is ready — ${data.order_id || 'Hemline'}`;
-      const text =
-`Your Hemline shipping label is ready for order ${data.order_id || ''}.
-Print your label: ${data.label_url || (data.site_origin ? data.site_origin + '/dashboard.html' : '')}`;
-
-      return { subject, html, text };
-    }
-
-    default:
-      throw new Error(`Unsupported email type: ${type}`);
+Track & support: ${support}`;
+    return { subject, html, text };
   }
+
+  if (type === 'shipping_update') {
+    const tpl = await loadTemplate('shipping-update');
+    const html = render(tpl, {
+      order_id: data.order_id || 'HM-000000',
+      carrier: data.carrier || 'USPS',
+      tracking: data.tracking || '—',
+      track_url: data.track_url || '#',
+      support_url: support,
+      site_origin: site,
+    });
+    const subject = `Your order ${data.order_id || ''} is on the way ✂️📦`;
+    const text = `Good news—your order ${data.order_id || ''} shipped!
+Carrier: ${data.carrier || 'USPS'}
+Tracking: ${data.tracking || ''}
+Track it: ${data.track_url || ''}
+
+Need help? ${support}`;
+    return { subject, html, text };
+  }
+
+  if (type === 'delivered') {
+    const tpl = await loadTemplate('delivered');
+    const html = render(tpl, {
+      order_id: data.order_id || 'HM-000000',
+      support_url: support,
+      site_origin: site,
+    });
+    const subject = `Delivered: Order ${data.order_id || ''} 🧵`;
+    const text = `Your order ${data.order_id || ''} was delivered. 
+Happy sewing! Need anything? ${support}`;
+    return { subject, html, text };
+  }
+
+  if (type === 'refund_notice') {
+    const tpl = await loadTemplate('refund-notice');
+    const amt = fmtUSD(Number(data.amount_cents || 0));
+    const html = render(tpl, {
+      order_id: data.order_id || 'HM-000000',
+      amount: amt,
+      reason: data.reason || 'Refund issued',
+      support_url: support,
+      site_origin: site,
+    });
+    const subject = `Refund processed — ${amt} for ${data.order_id || 'your order'}`;
+    const text = `We processed your refund of ${amt} for order ${data.order_id || ''}.
+Reason: ${data.reason || 'Refund issued'}.
+Questions? ${support}`;
+    return { subject, html, text };
+  }
+
+  throw new Error(`Unsupported email type: ${type}`);
 }
 
 export default async function handler(req, res) {
@@ -122,11 +151,19 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing "to" or "type"' });
     }
 
-    const siteOrigin = data?.site_origin || `${(req.headers['x-forwarded-proto'] || 'https')}://${(req.headers['x-forwarded-host'] || req.headers.host)}`;
-    const { subject, html, text } = await build(type, { ...(data || {}), site_origin: siteOrigin });
+    const proto = (req.headers['x-forwarded-proto'] || 'https').toString();
+    const host  = (req.headers['x-forwarded-host']  || req.headers.host || '').toString();
+    const origin = `${proto}://${host}`;
 
-    // Send via Postmark
-    const fromDomain = (new URL(siteOrigin)).hostname;
+    const { subject, html, text } = await build(type, {
+      ...(data || {}),
+      site_origin: data?.site_origin || origin,
+    });
+
+    // From address: no-reply@<your-domain>
+    const fromDomain = host.split(':')[0];
+    const from = data?.from || `no-reply@${fromDomain}`;
+
     const resp = await fetch('https://api.postmarkapp.com/email', {
       method: 'POST',
       headers: {
@@ -135,7 +172,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        From: data?.from || `no-reply@${fromDomain}`,
+        From: from,
         To: to,
         Subject: subject,
         HtmlBody: html,
