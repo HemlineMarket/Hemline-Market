@@ -2,7 +2,7 @@
 // ENV required: POSTMARK_SERVER_TOKEN
 //
 // POST /api/email/send
-// { "to": "buyer@email.com", "type": "order_confirmation", "data": { ... } }
+// { "to": "name@email.com", "type": "order_confirmation" | "label_ready", "data": { ... } }
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -38,14 +38,13 @@ function itemsTable(items = []) {
     const cents = Number(it.amount || 0) * qty;
     return `
       <tr>
-        <td style="padding:8px 0 8px 0; font-size:14px; color:#111827;">
+        <td style="padding:8px 0; font-size:14px; color:#111827;">
           ${name} <span style="color:#6b7280;">× ${qty}</span>
         </td>
         <td style="padding:8px 0 8px 16px; text-align:right; font-size:14px; color:#111827;">
           ${fmtUSD(cents)}
         </td>
-      </tr>
-    `;
+      </tr>`;
   }).join('');
 }
 
@@ -67,14 +66,36 @@ async function build(type, data = {}) {
         total: fmtUSD(total),
         support_url: data.support_url || `${data.site_origin || ''}/contact.html`,
         site_origin: data.site_origin || '',
+        preview: `We’ve got your order on the cutting table ✂️`,
       });
 
       const subject = `Order received — ${data.order_id || 'Hemline Market'}`;
-      const text = `Thanks! We received your order ${data.order_id || ''}.
+      const text =
+`Thanks! We received your order ${data.order_id || ''}.
 Subtotal: ${fmtUSD(subtotal)}
 Shipping: ${fmtUSD(shipping)}
 Total: ${fmtUSD(total)}
-You can contact support at: ${data.support_url || `${data.site_origin || ''}/contact.html`}`;
+View your orders: ${(data.site_origin || '')}/orders-buyer.html
+Need help? ${data.support_url || `${data.site_origin || ''}/contact.html`}`;
+
+      return { subject, html, text };
+    }
+
+    case 'label_ready': {
+      // Sent to the **seller** when the label has been purchased/created.
+      const tpl = await loadTemplate('label-ready');
+
+      const html = render(tpl, {
+        order_id: data.order_id || 'HM-000000',
+        label_url: data.label_url || `${data.site_origin || ''}/dashboard.html`,
+        site_origin: data.site_origin || '',
+        preview: `Your Hemline shipping label is ready to print ✂️📦`,
+      });
+
+      const subject = `Your shipping label is ready — ${data.order_id || 'Hemline'}`;
+      const text =
+`Your Hemline shipping label is ready for order ${data.order_id || ''}.
+Print your label: ${data.label_url || (data.site_origin ? data.site_origin + '/dashboard.html' : '')}`;
 
       return { subject, html, text };
     }
@@ -101,12 +122,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing "to" or "type"' });
     }
 
-    const { subject, html, text } = await build(type, {
-      ...(data || {}),
-      site_origin: data?.site_origin || `${(req.headers['x-forwarded-proto'] || 'https')}://${(req.headers['x-forwarded-host'] || req.headers.host)}`,
-    });
+    const siteOrigin = data?.site_origin || `${(req.headers['x-forwarded-proto'] || 'https')}://${(req.headers['x-forwarded-host'] || req.headers.host)}`;
+    const { subject, html, text } = await build(type, { ...(data || {}), site_origin: siteOrigin });
 
     // Send via Postmark
+    const fromDomain = (new URL(siteOrigin)).hostname;
     const resp = await fetch('https://api.postmarkapp.com/email', {
       method: 'POST',
       headers: {
@@ -115,7 +135,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        From: data?.from || `no-reply@${(new URL(`http://${req.headers.host}`)).hostname}`,
+        From: data?.from || `no-reply@${fromDomain}`,
         To: to,
         Subject: subject,
         HtmlBody: html,
