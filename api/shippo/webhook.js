@@ -1,14 +1,18 @@
 // File: /api/shippo/webhook.js
-// Listens for Shippo webhooks and updates db_shipments accordingly.
-// Configure Shippo to POST to:
-//   https://hemlinemarket.com/api/shippo/webhook?secret=YOUR_SECRET
-// Env required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SHIPPO_WEBHOOK_SECRET
+// Secure Shippo webhook → updates public.db_shipments by tracking_number only.
+// Expects Shippo to POST to:
+//   https://hemlinemarket.vercel.app/api/shippo/webhook?secret=Icreatedthismyself
+//
+// Env required:
+// - SHIPPO_WEBHOOK_SECRET  (use: Icreatedthismyself)
+// - SUPABASE_URL
+// - SUPABASE_SERVICE_ROLE_KEY
 
 export const config = { api: { bodyParser: false } };
 
 import supabaseAdmin from "../_supabaseAdmin";
 
-// read raw body for safety
+// Read raw body safely and parse JSON
 async function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -16,7 +20,7 @@ async function readBody(req) {
     req.on("end", () => {
       try {
         const raw = Buffer.concat(chunks).toString("utf8");
-        resolve({ raw, json: raw ? JSON.parse(raw) : {} });
+        resolve(raw ? JSON.parse(raw) : {});
       } catch (e) {
         reject(e);
       }
@@ -25,105 +29,119 @@ async function readBody(req) {
   });
 }
 
+// Normalize Shippo "track_updated" status to our canonical values
+function normalizeTrackingStatus(s = "") {
+  const up = String(s).toUpperCase();
+  if (up.includes("DELIVER")) return "DELIVERED";
+  if (up.includes("FAIL") || up.includes("EXCEPT")) return "ERROR";
+  if (up.includes("TRANSIT")) return "IN_TRANSIT";
+  return up || "IN_TRANSIT";
+}
+
+// Normalize Shippo transaction status to our canonical values
+function normalizeTransactionStatus(s = "") {
+  const up = String(s).toUpperCase();
+  if (up === "SUCCESS") return "LABEL_PURCHASED";
+  if (up === "ERROR")   return "FAILED";
+  return up || "CREATED";
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  // simple shared-secret check on query string
-  const secret = (req.query.secret || "").trim();
-  if (!secret || secret !== process.env.SHIPPO_WEBHOOK_SECRET) {
+  // Shared-secret check (?secret=...)
+  const given = String(req.query.secret || "");
+  if (!given || given !== process.env.SHIPPO_WEBHOOK_SECRET) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
   let payload;
   try {
-    const { json } = await readBody(req);
-    payload = json || {};
+    payload = await readBody(req);
   } catch (err) {
-    console.error("shippo webhook parse error:", err);
+    console.error("[shippo webhook] JSON parse error:", err);
     return res.status(400).json({ error: "Bad JSON" });
   }
 
-  // acknowledge ASAP
+  // ACK immediately so Shippo doesn't retry
   res.status(200).json({ ok: true });
 
   try {
-    const type = payload?.event || payload?.event_type || "";
-    // Shippo normally nests data under 'data' (and often 'object')
-    const data = payload?.data || payload?.object || payload;
+    // Shippo commonly sends:
+    // { event: "track_updated", data: {...} }  OR
+    // { event: "transaction.created", data: {...} }
+    const eventType = payload?.event || payload?.event_type || "";
+    const data = payload?.data || payload?.object || payload || {};
 
-    // Helpers to update db row
-    async function updateByTransactionId(txId, fields) {
-      if (!txId) return;
+    // Helper: update by tracking number (we only touch columns that exist in db_shipments)
+    async function updateByTracking(trackingNumber, fields) {
+      if (!trackingNumber) return;
       const { error } = await supabaseAdmin
         .from("db_shipments")
         .update({ ...fields, updated_at: new Date().toISOString() })
-        .eq("shippo_transaction_id", txId);
-      if (error) console.error("db_shipments update (tx) error:", error);
+        .eq("tracking_number", trackingNumber);
+      if (error) console.error("[db_shipments] update error:", error);
     }
 
-    async function updateByTracking(trk, fields) {
-      if (!trk) return;
-      const { error } = await supabaseAdmin
-        .from("db_shipments")
-        .update({ ...fields, updated_at: new Date().toISOString() })
-        .eq("tracking_number", trk);
-      if (error) console.error("db_shipments update (trk) error:", error);
-    }
+    // Transaction events (label purchase flows)
+    if (/^transaction\./i.test(eventType)) {
+      // Shippo transaction payload shape varies; be tolerant
+      const tx = data?.object || data;
 
-    // transaction.created / transaction.updated
-    if (/^transaction\./i.test(type)) {
-      // Shippo sends the full transaction object as data
-      const tx = data?.object || data; // be tolerant
-      const txId = tx?.object_id || tx?.id;
-      const trackingNumber = tx?.tracking_number || null;
-      const trackingUrl = tx?.tracking_url_provider || tx?.tracking_url || null;
+      const trackingNumber =
+        tx?.tracking_number ||
+        tx?.label?.tracking_number ||
+        null;
+
+      const trackingUrl =
+        tx?.tracking_url_provider ||
+        tx?.tracking_url ||
+        null;
+
       const carrier = tx?.rate?.provider || null;
       const service = tx?.rate?.servicelevel?.name || null;
 
-      const status =
-        (tx?.status === "SUCCESS" && "LABEL_PURCHASED") ||
-        (tx?.status === "ERROR" && "FAILED") ||
-        (tx?.status?.toUpperCase?.() || "UNKNOWN");
+      const status = normalizeTransactionStatus(tx?.status);
 
-      const fields = {
+      // Update only known columns in db_shipments
+      await updateByTracking(trackingNumber, {
         status,
-        tracking_number: trackingNumber || null,
-        tracking_url: trackingUrl || null,
+        tracking_url: trackingUrl,
         carrier,
         service,
-        raw: tx,
-      };
-
-      if (txId) await updateByTransactionId(txId, fields);
-      else if (trackingNumber) await updateByTracking(trackingNumber, fields);
-
-      return;
-    }
-
-    // track_updated
-    if (/track_updated/i.test(type)) {
-      // Typical structure contains tracking_number and tracking_status
-      const trk = data?.tracking_number || data?.tracking?.tracking_number || null;
-      const statusObj = data?.tracking_status || data?.tracking?.tracking_status || {};
-      const status =
-        statusObj?.status?.toUpperCase?.() ||
-        statusObj?.object_state?.toUpperCase?.() ||
-        "IN_TRANSIT";
-
-      await updateByTracking(trk, {
-        status,
-        last_tracking: data, // keep entire payload
+        // label_url is often present on SUCCESS transactions:
+        ...(tx?.label_url ? { label_url: tx.label_url } : {})
       });
+
       return;
     }
 
-    // Fallback: log unhandled events
-    console.log("Unhandled Shippo event:", type);
-  } catch (e) {
-    // We've already 200'd; just log.
-    console.error("shippo webhook handler error:", e);
+    // Tracking updates (movement, delivered, exception)
+    if (/track_updated/i.test(eventType) || data?.tracking_status) {
+      const trackingNumber =
+        data?.tracking_number ||
+        data?.tracking?.tracking_number ||
+        null;
+
+      // tracking_status shape: { status, status_date, substatus, ... }
+      const ts = data?.tracking_status || data?.tracking?.tracking_status || {};
+      const status = normalizeTrackingStatus(ts?.status || ts?.object_state || "");
+
+      await updateByTracking(trackingNumber, {
+        status
+        // (intentionally not storing raw payload to avoid schema mismatches)
+      });
+
+      return;
+    }
+
+    // Unknown event — just log
+    console.log("[shippo webhook] Unhandled event:", eventType);
+  } catch (err) {
+    // We already ACKed; log for diagnostics
+    console.error("[shippo webhook] handler error:", err);
   }
 }
