@@ -1,169 +1,80 @@
-// api/shipping/rates.js
-// Hemline Market — Get curated USPS shipping rates via Shippo (serverless)
-// Multi-seller aware: accepts { seller_id } and pulls that seller's ship-from
-// address from Supabase (service role). New: require seller origin unless
-// ALLOW_ENV_ORIGIN_FALLBACK === "true".
-//
-// POST JSON:
-// {
-//   "seller_id": "uuid-of-seller",   // REQUIRED for marketplace correctness
-//   "to": { "name":"", "street1":"", "city":"", "state":"", "zip":"", "country":"US" },
-//   "parcel": { "weight_oz": 16, "length_in": 10, "width_in": 8, "height_in": 2 }
-// }
-// Response 200: { address_from, address_to, rates: [ ... ] }
-// Response 400: when seller has no origin and fallback not allowed.
+// File: /api/shipping/rates.js
+// Returns available shipping rates from Shippo for a given shipment (no purchase)
+// Uses SHIPPO_API_KEY from Vercel env
 
-const SHIPPO_API = "https://api.goshippo.com";
-const ALLOWED_SERVICE_KEYS = ["usps_priority_mail", "usps_ground_advantage"];
+export const config = {
+  api: { bodyParser: { sizeLimit: "1mb" } },
+};
 
-// ---------- tiny utils ----------
-function send(res, status, data) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.end(JSON.stringify(data));
-}
-function bad(res, msg) { return send(res, 400, { error: msg }); }
-function required(obj, keys, prefix, res) {
-  for (const k of keys) if (!obj[k]) return bad(res, `Missing "${prefix}.${k}"`);
-}
-
-// ---------- Supabase service fetch (RPC) ----------
-async function fetchSellerOrigin(sellerId, supabaseUrl, serviceKey) {
-  if (!sellerId) return null;
-  if (!supabaseUrl || !serviceKey) throw new Error("Server missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  const url = `${supabaseUrl.replace(/\/+$/,'')}/rest/v1/rpc/get_seller_origin`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ p_user_id: sellerId })
-  });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Supabase RPC get_seller_origin failed: ${resp.status} ${txt.slice(0,300)}`);
-  }
-  const data = await resp.json(); // seller_profiles row or null
-  if (!data) return null;
-  return {
-    name: data.origin_name || data.display_name || "Seller",
-    street1: data.origin_street1,
-    city: data.origin_city,
-    state: data.origin_state,
-    zip: data.origin_zip,
-    country: data.origin_country || "US"
-  };
-}
-
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return bad(res, "Use POST with JSON body.");
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const {
-    SHIPPO_API_KEY,
-    SHIP_FROM_NAME,
-    SHIP_FROM_STREET1,
-    SHIP_FROM_CITY,
-    SHIP_FROM_STATE,
-    SHIP_FROM_ZIP,
-    SHIP_FROM_COUNTRY,
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY,
-    ALLOW_ENV_ORIGIN_FALLBACK
-  } = process.env;
-
-  if (!SHIPPO_API_KEY) return send(res, 500, { error: "Missing SHIPPO_API_KEY env var." });
-
-  let body = {};
-  try { body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {}); }
-  catch { return bad(res, "Invalid JSON body."); }
-
-  const sellerId = body.seller_id || null;
-  const to = body.to || {};
-  const parcel = body.parcel || {};
-
-  // Validate destination + parcel
-  if (required(to, ["name","street1","city","state","zip","country"], "to", res)) return;
-  if (required(parcel, ["weight_oz","length_in","width_in","height_in"], "parcel", res)) return;
-
-  // Resolve origin: seller-specific via Supabase
-  let address_from = null;
   try {
-    if (sellerId) {
-      const s = await fetchSellerOrigin(sellerId, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      if (s && s.street1 && s.city && s.state && s.zip) address_from = s;
+    const { orderId, address_from, address_to, parcel } = req.body || {};
+
+    if (!address_from || !address_to || !parcel) {
+      return res.status(400).json({ error: "address_from, address_to, and parcel are required" });
     }
-  } catch (e) {
-    // Log but don't crash the request
-    console.error("seller origin lookup failed:", e.message || e);
-  }
 
-  // New: enforce seller origin unless fallback allowed
-  const allowFallback = String(ALLOW_ENV_ORIGIN_FALLBACK || "").toLowerCase() === "true";
-  if (!address_from && !allowFallback) {
-    return bad(res, "Seller must set ship-from address before requesting rates.");
-  }
+    const apiKey = process.env.SHIPPO_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Missing SHIPPO_API_KEY" });
+    }
 
-  if (!address_from && allowFallback) {
-    // Fallback (only when explicitly allowed for local testing)
-    address_from = {
-      name: SHIP_FROM_NAME || "Hemline Seller",
-      street1: SHIP_FROM_STREET1 || "123 Main St",
-      city: SHIP_FROM_CITY || "Salem",
-      state: SHIP_FROM_STATE || "NH",
-      zip: SHIP_FROM_ZIP || "03079",
-      country: SHIP_FROM_COUNTRY || "US"
-    };
-  }
-
-  const address_to = {
-    name: to.name, street1: to.street1, city: to.city,
-    state: to.state, zip: to.zip, country: to.country
-  };
-  const parcels = [{
-    weight: String(parcel.weight_oz), mass_unit: "oz",
-    length: String(parcel.length_in), width: String(parcel.width_in),
-    height: String(parcel.height_in), distance_unit: "in"
-  }];
-
-  try {
-    // Create shipment & get rates (sync)
-    const resp = await fetch(`${SHIPPO_API}/shipments/`, {
+    // Create a shipment to get rates
+    const shipmentRes = await fetch("https://api.goshippo.com/shipments/", {
       method: "POST",
       headers: {
-        "Authorization": `ShippoToken ${SHIPPO_API_KEY}`,
-        "Content-Type": "application/json"
+        Authorization: `ShippoToken ${apiKey}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ address_from, address_to, parcels, async: false })
+      body: JSON.stringify({
+        address_from,
+        address_to,
+        parcels: [parcel],
+        async: false,
+        metadata: orderId ? `order:${orderId}` : undefined,
+      }),
     });
 
-    if (!resp.ok) {
-      const text = await resp.text();
-      return send(res, 502, { error: "Shippo error creating shipment", details: text.slice(0, 600) });
+    if (!shipmentRes.ok) {
+      const txt = await shipmentRes.text();
+      return res
+        .status(shipmentRes.status)
+        .json({ error: "Shippo /shipments failed", details: txt });
     }
 
-    const shipment = await resp.json();
-    const rawRates = Array.isArray(shipment.rates) ? shipment.rates : [];
+    const shipment = await shipmentRes.json();
+    const rates = Array.isArray(shipment.rates) ? shipment.rates : [];
 
-    const normalized = rawRates
+    if (!rates.length) {
+      return res.status(200).json({ shipment_id: shipment.object_id, rates: [] });
+    }
+
+    // Normalize + sort by price ascending
+    const normalized = rates
       .map(r => ({
-        rate_object_id: r.object_id,
-        amount: Number(r.amount),
-        currency: r.currency || "USD",
-        provider: r.provider || r.carrier,
-        service_token: r.servicelevel && r.servicelevel.token,
-        service_name: r.servicelevel && r.servicelevel.name,
-        estimated_days: r.estimated_days ?? null
+        id: r.object_id,
+        amount: parseFloat(r.amount),
+        amount_str: r.amount,
+        currency: r.currency,
+        provider: r.provider,
+        service: r.servicelevel?.name || r.servicelevel?.token,
+        est_days: r.estimated_days,
+        carrier_account: r.carrier_account,
       }))
-      .filter(r => ALLOWED_SERVICE_KEYS.includes((r.service_token || "").toLowerCase()))
-      .sort((a,b) => a.amount - b.amount);
+      .sort((a, b) => a.amount - b.amount);
 
-    return send(res, 200, { address_from, address_to, rates: normalized });
+    return res.status(200).json({
+      shipment_id: shipment.object_id,
+      rates: normalized,
+      cheapest_rate_id: normalized[0]?.id || null,
+    });
   } catch (err) {
-    return send(res, 500, { error: "Unexpected server error", details: String(err).slice(0, 300) });
+    console.error("shipping/rates error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
-};
+}
