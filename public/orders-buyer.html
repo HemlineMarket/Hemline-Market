@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Buyer Orders — Hemline Market</title>
 
-  <!-- Favicon -->
   <link rel="icon" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
-  <!-- MOBILE HOTFIX -->
   <style id="hm-mobile-hotfix">
     html, body { max-width:100%; overflow-x:hidden; }
     .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
@@ -19,7 +17,6 @@
     [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
   </style>
 
-  <!-- Shared site styles -->
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
@@ -47,7 +44,7 @@
     .pill{display:inline-grid;place-items:center;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--hm-border);color:#374151;background:#fff}
     .pill.orange{color:#7c2d12;border-color:#fed7aa;background:#fff7ed}
     .pill.green{color:#065f46;border-color:#a7f3d0;background:#ecfdf5}
-    .btn{background:var(--hm-accent);color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:700;text-decoration:none;cursor:pointer}
+    .btn{background:#374151;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:700;text-decoration:none;cursor:pointer}
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
     .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
@@ -112,11 +109,10 @@
         <div class="row" data-order-row data-order="HM-548728">
           <div>
             <div><strong>HM-548728</strong> · <span class="meta">Placed Sep 6 · Seller: Silk Studio · 1 item</span></div>
-            <div class="meta">Italian Silk Twill — Navy · <span class="pill orange">Shipped</span></div>
+            <div class="meta">Italian Silk Twill — Navy · <span class="pill orange" data-status>Processing</span></div>
           </div>
           <div style="display:flex;gap:8px">
-            <a class="btn" href="order-buyer.html">View</a>
-            <button class="btn label-btn">Shipping Info</button>
+            <button class="btn" data-action="track" disabled>Track Shipment</button>
           </div>
         </div>
       </div>
@@ -130,7 +126,7 @@
             <div><strong>HM-540213</strong> · <span class="meta">Delivered Aug 14 · Seller: Rowan Fabrics · 1 item</span></div>
             <div class="meta">Bamboo French Terry — Natural · <span class="pill green">Delivered</span></div>
           </div>
-          <div><a class="btn" href="order-buyer.html">View</a></div>
+          <div><button class="btn" data-action="track" disabled>Track Shipment</button></div>
         </div>
       </div>
     </section>
@@ -151,9 +147,6 @@
 </footer>
 
 <script>
-/**
- * Buyer Orders — Read-only shipping info
- */
 (function(){
   // Menu
   const sheet=document.getElementById("menuSheet");
@@ -169,83 +162,36 @@
   const avatar=document.getElementById("avatar");
   try{const url=localStorage.getItem("avatarUrl");if(url){avatar.textContent='';avatar.style.backgroundImage="url('"+url+"')";}}catch(_){}
 
-  // Disable buyer label creation
-  document.querySelectorAll(".label-btn").forEach(btn=>{
-    btn.disabled=true;
-    btn.style.opacity=".7";
-    btn.style.cursor="default";
-  });
+  // Helpers
+  function $(sel, ctx=document){ return ctx.querySelector(sel); }
 
-  function renderInfo(row, data) {
-    let info = row.querySelector(".shipping-info");
-    if (!info) {
-      info = document.createElement("div");
-      info.className = "shipping-info";
-      info.style.cssText = "margin-top:8px;padding:10px;border:1px solid #e5e7eb;border-radius:10px";
-      row.appendChild(info);
-    }
-    const label = data.label_url
-      ? `<a class="underline" href="${data.label_url}" target="_blank" rel="noreferrer">Download Label (PDF)</a>`
-      : `<em>No label available</em>`;
-    const tracking = data.tracking_url
-      ? `<a class="underline" href="${data.tracking_url}" target="_blank" rel="noreferrer">${data.tracking_number || "Tracking link"}</a>`
-      : (data.tracking_number ? `<span>${data.tracking_number}</span>` : `<em>No tracking yet</em>`);
-    const carrier = [data.carrier, data.service].filter(Boolean).join(" — ");
-    const status = (data.status || "CREATED").toUpperCase();
+  async function loadShipment(row){
+    const orderId=row.getAttribute("data-order");
+    const btnTrack=$("[data-action='track']", row);
+    const pill=$("[data-status]", row);
 
-    info.innerHTML = `
-      <div style="display:grid;gap:6px;">
-        <div><strong>Status:</strong> ${status}</div>
-        <div><strong>Label:</strong> ${label}</div>
-        <div><strong>Tracking:</strong> ${tracking}</div>
-        <div><strong>Carrier/Service:</strong> ${carrier || "<em>—</em>"}</div>
-        <div style="font-size:12px;color:#6b7280"><strong>Updated:</strong> ${new Date(data.updated_at).toLocaleString()}</div>
-      </div>
-    `;
-  }
+    try{
+      const res=await fetch(`/api/shippo/get_shipment?orderId=${encodeURIComponent(orderId)}`);
+      if(res.status===404){ return; }
+      const data=await res.json();
+      if(!res.ok){ return; }
 
-  async function loadShipmentForRow(row) {
-    const orderId = row.getAttribute("data-order");
-    if (!orderId) return;
-
-    let info = row.querySelector(".shipping-info");
-    if (!info) {
-      info = document.createElement("div");
-      info.className = "shipping-info";
-      info.style.cssText = "margin-top:8px;padding:10px;border:1px solid #e5e7eb;border-radius:10px;color:#6b7280";
-      info.textContent = "Loading shipping…";
-      row.appendChild(info);
-    }
-
-    try {
-      const res = await fetch(`/api/shippo/get_shipment?orderId=${encodeURIComponent(orderId)}`);
-      if (res.status === 404) {
-        info.textContent = "No shipment yet";
-        return;
+      if(data.tracking_url){
+        btnTrack.disabled=false;
+        btnTrack.addEventListener("click",()=>window.open(data.tracking_url,"_blank","noopener"),{once:true});
       }
-      const data = await res.json();
-      if (!res.ok) {
-        info.textContent = "Shipping unavailable";
-        console.error("get_shipment error:", data);
-        return;
-      }
-      renderInfo(row, data);
-    } catch (err) {
-      if (info) info.textContent = "Shipping unavailable";
-      console.error("get_shipment exception:", err);
-    }
+
+      const s=(data.status||"").toUpperCase();
+      if(s.includes("DELIVERED")){ pill.textContent="Delivered"; pill.className="pill green"; }
+      else if(s.includes("TRANSIT")||s.includes("TRACK")){ pill.textContent="Shipped"; pill.className="pill orange"; }
+      else if(data.label_url){ pill.textContent="Label Created"; pill.className="pill orange"; }
+    }catch(_){}
   }
 
-  function init() {
-    const rows = document.querySelectorAll("[data-order-row][data-order]");
-    rows.forEach(loadShipmentForRow);
+  function init(){
+    document.querySelectorAll("[data-order-row]").forEach(loadShipment);
   }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}
 })();
 </script>
 </body>
