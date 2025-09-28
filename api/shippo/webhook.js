@@ -1,10 +1,11 @@
 // File: /api/shippo/webhook.js
-// Unified Shippo webhook receiver for tracking & transaction events
-// Configure Shippo to POST to: https://YOUR_DOMAIN/api/shippo/webhook
-// Env vars: SHIPPO_WEBHOOK_SECRET (optional, for HMAC), SHIPPO_API_KEY (only if you call Shippo from here)
+// Shippo webhook → updates Supabase order_shipments
+// Env: SHIPPO_WEBHOOK_SECRET (optional), SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+
+import { updateOrderShipment, saveOrderShipment } from "../../lib/db-shipments.js";
 
 export const config = {
-  api: { bodyParser: false }, // raw body needed for signature verification
+  api: { bodyParser: false }, // raw body for signature verification
 };
 
 // ---- helpers ----
@@ -15,7 +16,7 @@ async function getRawBody(req) {
 }
 
 function verifySignature(rawBody, signature, secret) {
-  if (!secret) return true; // no secret configured → accept (you can tighten later)
+  if (!secret) return true; // no secret configured → accept (tighten later)
   try {
     const crypto = require("crypto");
     const hmac = crypto.createHmac("sha256", secret);
@@ -26,6 +27,13 @@ function verifySignature(rawBody, signature, secret) {
   } catch {
     return false;
   }
+}
+
+// Extract "HM-12345" from metadata like "order:HM-12345"
+function parseOrderIdFromMetadata(meta) {
+  if (!meta || typeof meta !== "string") return null;
+  const m = meta.match(/order:([A-Za-z0-9\-_]+)/);
+  return m ? m[1] : null;
 }
 
 // ---- handler ----
@@ -52,40 +60,83 @@ export default async function handler(req, res) {
 
   const type = event?.event || "unknown";
   const data = event?.data || {};
+  const orderId = parseOrderIdFromMetadata(data?.metadata || "");
 
   // Minimal log (Vercel): avoid printing secrets
-  console.log("[shippo:webhook]", type, {
-    object_id: data?.object_id,
-    tracking_number: data?.tracking_number,
-    status: data?.tracking_status?.status || data?.status,
-  });
+  console.log("[shippo:webhook]", { type, orderId, object_id: data?.object_id, tracking: data?.tracking_number, status: data?.tracking_status?.status || data?.status });
 
-  // TODO: persist to Supabase (not running tests now):
-  // - On "transaction_updated" with SUCCESS: save label_url, tracking_number, tracking_url to your Order.
-  // - On "track_updated": upsert checkpoints & current status on the Order.
-  // We stored orderId via metadata: `order:HM-12345` in create/purchase; parse it if present.
+  try {
+    // Handle the two primary event families:
+    // 1) transaction_updated → label purchase lifecycle
+    if (type === "transaction_updated") {
+      const status = (data?.status || "").toUpperCase();
+      // SUCCESS → ensure we have a row saved (idempotent insert) and mark as PURCHASED
+      if (status === "SUCCESS") {
+        const payload = {
+          orderId: orderId || undefined,
+          transaction_id: data?.object_id || null,
+          label_url: data?.label_url || null,
+          tracking_number: data?.tracking_number || null,
+          tracking_url: data?.tracking_url_provider || data?.tracking_url || null,
+          carrier: data?.rate?.provider || null,
+          service: data?.rate?.servicelevel?.name || data?.rate?.servicelevel?.token || null,
+          rate_amount: data?.rate?.amount ?? null,
+          rate_currency: data?.rate?.currency ?? null,
+          status: "PURCHASED",
+          raw: data,
+        };
 
-  const response = {
-    ok: true,
-    received: {
-      type,
-      object_id: data?.object_id || null,
-      order_tag: data?.metadata || null, // e.g., "order:HM-12345"
-      tracking_number: data?.tracking_number || null,
-      status:
-        data?.tracking_status?.status ||
-        data?.status ||
-        null,
-      label_url: data?.label_url || null,
-      tracking_url: data?.tracking_url_provider || data?.tracking_url || null,
-      carrier: data?.carrier || data?.rate?.provider || null,
-      service:
-        data?.servicelevel?.name ||
-        data?.rate?.servicelevel?.name ||
-        data?.rate?.servicelevel?.token ||
-        null,
-    },
-  };
+        // Try to upsert: first attempt update by transaction_id; if nothing updated, insert.
+        const upd = await updateOrderShipment({ transaction_id: payload.transaction_id }, {
+          order_id: orderId ?? null,
+          label_url: payload.label_url,
+          tracking_number: payload.tracking_number,
+          tracking_url: payload.tracking_url,
+          carrier: payload.carrier,
+          service: payload.service,
+          rate_amount: typeof payload.rate_amount === "string" ? parseFloat(payload.rate_amount) : payload.rate_amount,
+          rate_currency: payload.rate_currency,
+          status: "PURCHASED",
+          raw: payload.raw,
+        });
 
-  return res.status(200).json(response);
+        if (!upd.ok || (upd.count ?? 0) === 0) {
+          await saveOrderShipment(payload);
+        }
+      } else if (status === "ERROR") {
+        await updateOrderShipment(
+          { transaction_id: data?.object_id },
+          { status: "ERROR", raw: data }
+        );
+      }
+    }
+
+    // 2) track_updated → tracking events as the package moves
+    if (type === "track_updated") {
+      const tracking_number = data?.tracking_number || null;
+      const tracking_status = data?.tracking_status?.status || null;
+
+      let normalized = "TRACKING";
+      if (tracking_status) {
+        const s = tracking_status.toUpperCase();
+        if (s.includes("DELIVERED")) normalized = "DELIVERED";
+        else if (s.includes("TRANSIT") || s.includes("IN_TRANSIT")) normalized = "TRACKING";
+        else if (s.includes("FAIL") || s.includes("EXCEPTION")) normalized = "ERROR";
+      }
+
+      await updateOrderShipment(
+        tracking_number ? { tracking_number } : {},
+        {
+          status: normalized,
+          tracking_url: data?.tracking_url_provider || data?.tracking_url || null,
+          raw: data,
+        }
+      );
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("[shippo:webhook] error", err);
+    return res.status(500).json({ error: "Webhook handling failed" });
+  }
 }
