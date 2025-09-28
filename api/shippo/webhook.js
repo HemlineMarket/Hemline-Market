@@ -12,6 +12,7 @@ export const config = { api: { bodyParser: false } };
 
 import supabaseAdmin from "../_supabaseAdmin";
 import { logError, logInfo } from "../_logger";
+import { applySecurityHeaders } from "../_security";
 
 // Read raw body safely and parse JSON
 async function readBody(req) {
@@ -46,6 +47,9 @@ function normalizeTransactionStatus(s = "") {
 }
 
 export default async function handler(req, res) {
+  // Apply security headers on every response
+  applySecurityHeaders(res);
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method Not Allowed" });
