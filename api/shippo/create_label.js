@@ -1,9 +1,10 @@
 // File: /api/shippo/create_label.js
-// Creates a shipment, picks the cheapest rate, purchases a label (TEST/LIVE depends on your key)
-// Saves label + tracking to Supabase via lib/db-shipments.js
-// Requires env: SHIPPO_API_KEY, SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY
+// Creates a shipping label via Shippo for a given order
+// Persists the label + tracking to Supabase (db_shipments)
+// Requires env: SHIPPO_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
-import { saveOrderShipment } from "../../lib/db-shipments.js";
+import fetch from "node-fetch";
+import supabaseAdmin from "../_supabaseAdmin";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "1mb" } },
@@ -17,7 +18,6 @@ export default async function handler(req, res) {
 
   try {
     const { orderId, address_from, address_to, parcel } = req.body || {};
-
     if (!orderId || !address_from || !address_to || !parcel) {
       return res.status(400).json({ error: "Missing required fields" });
     }
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Missing SHIPPO_API_KEY" });
     }
 
-    // 1) Create shipment → get rates
+    // 1) Create shipment
     const shipmentRes = await fetch("https://api.goshippo.com/shipments/", {
       method: "POST",
       headers: {
@@ -43,98 +43,71 @@ export default async function handler(req, res) {
       }),
     });
 
-    if (!shipmentRes.ok) {
-      const txt = await shipmentRes.text();
-      return res
-        .status(shipmentRes.status)
-        .json({ error: "Shippo /shipments failed", details: txt });
-    }
-
     const shipment = await shipmentRes.json();
-
-    const rates = Array.isArray(shipment.rates) ? shipment.rates : [];
-    if (!rates.length) {
-      return res.status(400).json({ error: "No shipping rates found" });
+    if (!shipment?.rates || !Array.isArray(shipment.rates) || shipment.rates.length === 0) {
+      return res.status(400).json({ error: "No shipping rates found", details: shipment });
     }
 
-    // Pick cheapest rate
-    const cheapest = rates
-      .map(r => ({ ...r, _amt: parseFloat(r.amount) }))
-      .sort((a, b) => a._amt - b._amt)[0];
+    // 2) Pick the cheapest rate
+    const rate = shipment.rates
+      .slice()
+      .sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0];
 
-    // 2) Buy label for selected rate
-    const txRes = await fetch("https://api.goshippo.com/transactions/", {
+    // 3) Buy the label (transaction)
+    const transactionRes = await fetch("https://api.goshippo.com/transactions/", {
       method: "POST",
       headers: {
         Authorization: `ShippoToken ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        rate: cheapest.object_id,
+        rate: rate.object_id,
         label_file_type: "PDF",
         async: false,
         metadata: `order:${orderId}`,
       }),
     });
 
-    if (!txRes.ok) {
-      const txt = await txRes.text();
-      return res
-        .status(txRes.status)
-        .json({ error: "Shippo /transactions failed", details: txt });
-    }
-
-    const tx = await txRes.json();
-
+    const tx = await transactionRes.json();
     if (tx.status !== "SUCCESS") {
-      return res
-        .status(500)
-        .json({ error: "Label purchase failed", details: tx });
+      return res.status(502).json({ error: "Label purchase not successful", details: tx });
     }
 
-    // 3) Persist to Supabase (server-side via service role)
-    await saveOrderShipment({
-      orderId,
-      shipment_id: shipment.object_id,
-      transaction_id: tx.object_id,
-      label_url: tx.label_url,
-      tracking_number: tx.tracking_number,
-      tracking_url: tx.tracking_url_provider || tx.tracking_url,
-      carrier: tx.rate?.provider ?? cheapest.provider,
-      service:
-        tx.rate?.servicelevel?.name ||
-        tx.rate?.servicelevel?.token ||
-        cheapest.servicelevel?.name ||
-        cheapest.servicelevel?.token ||
-        null,
-      rate_amount:
-        typeof cheapest.amount === "string"
-          ? parseFloat(cheapest.amount)
-          : cheapest.amount,
-      rate_currency: cheapest.currency || tx.rate?.currency || "USD",
-      status: "PURCHASED",
-      raw: tx, // keep full transaction payload for audit/debug
-    });
+    // 4) Persist to Supabase (server-side; bypasses RLS)
+    try {
+      const payload = {
+        order_id: orderId,
+        shippo_transaction_id: tx.object_id || null,
+        label_url: tx.label_url || null,
+        tracking_number: tx.tracking_number || null,
+        tracking_url: tx.tracking_url_provider || tx.tracking_url || null,
+        carrier: tx.rate?.provider || null,
+        service: tx.rate?.servicelevel?.name || null,
+        amount_cents: tx.rate?.amount ? Math.round(parseFloat(tx.rate.amount) * 100) : null,
+        status: "LABEL_PURCHASED",
+        raw: tx, // keep the whole transaction for auditing
+      };
 
-    // 4) Response back to client
+      // Delete any previous row for the same order, then insert fresh
+      await supabaseAdmin.from("db_shipments").delete().eq("order_id", orderId);
+      await supabaseAdmin.from("db_shipments").insert(payload);
+    } catch (dbErr) {
+      // Do not fail the label response if DB write fails; just log it
+      console.error("db_shipments insert error:", dbErr);
+    }
+
+    // 5) Return to client
     return res.status(200).json({
       orderId,
-      shipment_id: shipment.object_id,
-      rate: {
-        id: cheapest.object_id,
-        amount: cheapest.amount,
-        currency: cheapest.currency,
-        provider: cheapest.provider,
-        service:
-          cheapest.servicelevel?.name || cheapest.servicelevel?.token || null,
-      },
-      transaction_id: tx.object_id,
-      label_url: tx.label_url,
       tracking_number: tx.tracking_number,
-      tracking_url: tx.tracking_url_provider || tx.tracking_url,
+      tracking_url: tx.tracking_url_provider || tx.tracking_url || null,
+      label_url: tx.label_url,
+      carrier: tx.rate?.provider || null,
+      service: tx.rate?.servicelevel?.name || null,
+      rate: tx.rate || null,
     });
   } catch (err) {
-    console.error("Shippo create_label error:", err);
+    console.error("Shippo label error:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
