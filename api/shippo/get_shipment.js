@@ -1,17 +1,12 @@
 // File: /api/shippo/get_shipment.js
-// Read-only endpoint used by orders pages to show label/track info.
-// GET /api/shippo/get_shipment?orderId=HM-12345
-//
-// Now reads from the canonical table: public.db_shipments
-//
-// Env required: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY
+// Returns the latest shipment row for a given orderId from db_shipments
+// Requires env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
-import { createClient } from "@supabase/supabase-js";
+import supabaseAdmin from "../_supabaseAdmin";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+export const config = {
+  api: { bodyParser: false },
+};
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -20,26 +15,27 @@ export default async function handler(req, res) {
   }
 
   try {
-    const orderId = String(req.query.orderId || "").trim();
+    const orderId = (req.query.orderId || "").trim();
     if (!orderId) return res.status(400).json({ error: "Missing orderId" });
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("db_shipments")
-      .select("order_id, status, label_url, tracking_number, tracking_url, carrier, service, updated_at")
+      .select("*")
       .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (error) {
-      console.error("[get_shipment] supabase error:", error);
+      console.error("get_shipment db error:", error);
       return res.status(500).json({ error: "Database error" });
     }
-    if (!data) {
-      return res.status(404).json({ error: "Not found" });
-    }
+
+    if (!data) return res.status(404).json({ error: "Not found" });
 
     return res.status(200).json(data);
   } catch (err) {
-    console.error("[get_shipment] error:", err?.message || err);
+    console.error("get_shipment error:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
