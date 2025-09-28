@@ -1,6 +1,6 @@
 // File: /api/shippo/webhook.js
 // Secure Shippo webhook → updates public.db_shipments by tracking_number only and logs errors.
-// Expects Shippo to POST to:
+// Shippo should POST to:
 //   https://hemlinemarket.vercel.app/api/shippo/webhook?secret=Icreatedthismyself
 //
 // Env required:
@@ -13,6 +13,7 @@ export const config = { api: { bodyParser: false } };
 import supabaseAdmin from "../_supabaseAdmin";
 import { logError, logInfo } from "../_logger";
 import { applySecurityHeaders } from "../_security";
+import { rateLimit } from "../_rateLimit";
 
 // Read raw body safely and parse JSON
 async function readBody(req) {
@@ -47,8 +48,11 @@ function normalizeTransactionStatus(s = "") {
 }
 
 export default async function handler(req, res) {
-  // Apply security headers on every response
+  // Security headers first
   applySecurityHeaders(res);
+
+  // Rate limit early to avoid load
+  if (!rateLimit(req, res)) return;
 
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
