@@ -1,12 +1,10 @@
-// /api/postmark/webhook.js
-// Handles Postmark webhooks for delivery, bounce, spam complaints, opens, and clicks.
-// Secured with POSTMARK_WEBHOOK_KEY (your custom secret token in query string).
-
-export const config = {
-  api: {
-    bodyParser: true, // Postmark sends JSON payloads
-  },
-};
+// /pages/api/postmark/webhook.js
+//
+// Secures Postmark inbound webhook with POSTMARK_WEBHOOK_SECRET.
+// ENV required: POSTMARK_WEBHOOK_SECRET
+//
+// Postmark calls this for events like "bounce", "delivery", "open".
+// For now we just log them safely.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,61 +12,24 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Verify secret token
-  const token = req.query.token;
-  if (!token || token !== process.env.POSTMARK_WEBHOOK_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  const { secret } = req.query;
+  const expected = process.env.POSTMARK_WEBHOOK_SECRET;
+  if (!expected) {
+    return res.status(500).json({ error: 'Missing POSTMARK_WEBHOOK_SECRET' });
+  }
+  if (secret !== expected) {
+    return res.status(403).json({ error: 'Forbidden: invalid secret' });
   }
 
   try {
     const event = req.body;
-    const { RecordType } = event;
+    console.log('[postmark] event received:', event);
 
-    switch (RecordType) {
-      case 'Delivery':
-        console.log('[postmark] Delivery event:', {
-          messageId: event.MessageID,
-          recipient: event.Recipient,
-          deliveredAt: event.DeliveredAt,
-        });
-        break;
+    // TODO: persist or act on events (bounce, delivery, spam complaint, etc.)
 
-      case 'Bounce':
-        console.log('[postmark] Bounce event:', {
-          type: event.Type,
-          recipient: event.Email,
-          details: event.Details,
-        });
-        break;
-
-      case 'SpamComplaint':
-        console.log('[postmark] Spam complaint:', {
-          recipient: event.Email,
-          details: event.Details,
-        });
-        break;
-
-      case 'Open':
-        console.log('[postmark] Open event:', {
-          recipient: event.Recipient,
-          receivedAt: event.ReceivedAt,
-        });
-        break;
-
-      case 'Click':
-        console.log('[postmark] Link click:', {
-          recipient: event.Recipient,
-          url: event.OriginalLink,
-        });
-        break;
-
-      default:
-        console.log('[postmark] Unhandled event type:', RecordType, event);
-    }
-
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error('[postmark] webhook error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error('Postmark webhook handler error:', err);
+    return res.status(500).json({ error: 'Internal error' });
   }
 }
