@@ -1,27 +1,26 @@
 // File: /api/notify/shipment.js
-// Sends shipping notification emails (seller + buyer) via Postmark.
-// Env required (Vercel -> Settings -> Environment Variables):
-// - POSTMARK_SERVER_TOKEN  (your Postmark Server Token)
-// - POSTMARK_FROM          (e.g., "no-reply@hemline.market")
+// Sends shipping notification emails (seller + buyer) via Postmark
+// and logs each send to Supabase `email_log`.
 //
-// Usage (POST JSON):
-// {
-//   "orderId": "HM-771234",
-//   "status": "PURCHASED",       // or TRACKING, DELIVERED, ERROR, etc.
-//   "label_url": "https://...pdf",
-//   "tracking_number": "9400...",
-//   "tracking_url": "https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=...",
-//   "carrier": "USPS",
-//   "service": "Priority Mail",
-//   "to_seller": "seller@example.com",  // optional
-//   "to_buyer": "buyer@example.com"     // optional
-// }
+// Env required (Vercel → Settings → Environment Variables):
+// - POSTMARK_SERVER_TOKEN
+// - POSTMARK_FROM  (or FROM_EMAIL)
+// - SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)
+// - SUPABASE_SERVICE_ROLE_KEY
+
+import { createClient } from "@supabase/supabase-js";
+import fetch from "node-fetch";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "1mb" } },
 };
 
 const POSTMARK_API = "https://api.postmarkapp.com/email";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 function subjectFor(status, orderId) {
   const s = (status || "").toUpperCase();
@@ -84,11 +83,11 @@ function textEmail({ orderId, status, label_url, tracking_number, tracking_url, 
   return lines.join("\n");
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendViaPostmark({ to, subject, html, text }) {
   const token = process.env.POSTMARK_SERVER_TOKEN;
-  const from = process.env.POSTMARK_FROM;
+  const from = process.env.POSTMARK_FROM || process.env.FROM_EMAIL;
   if (!token || !from) {
-    throw new Error("Missing POSTMARK_SERVER_TOKEN or POSTMARK_FROM");
+    throw new Error("Missing POSTMARK_SERVER_TOKEN or POSTMARK_FROM/FROM_EMAIL");
   }
 
   const res = await fetch(POSTMARK_API, {
@@ -103,15 +102,32 @@ async function sendEmail({ to, subject, html, text }) {
       Subject: subject,
       HtmlBody: html,
       TextBody: text,
-      MessageStream: "outbound", // change if you use a different stream
+      MessageStream: "outbound",
     }),
   });
 
-  const json = await res.json();
+  const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(`Postmark error: ${res.status} ${JSON.stringify(json)}`);
+    const msg = `Postmark error: ${res.status} ${JSON.stringify(json)}`;
+    throw new Error(msg);
   }
-  return json;
+  return json; // contains MessageID, SubmittedAt, etc.
+}
+
+async function logEmail({ to_email, subject, status, provider_id, template, payload, error }) {
+  try {
+    await supabase.from("email_log").insert({
+      to_email,
+      subject: subject || null,
+      status: status || null,
+      provider_id: provider_id || null,
+      template: template || "shipment_update",
+      payload: payload ? JSON.stringify(payload) : null,
+      error: error ? JSON.stringify(error) : null,
+    });
+  } catch (e) {
+    console.error("[email_log] insert error:", e?.message || e);
+  }
 }
 
 export default async function handler(req, res) {
@@ -136,40 +152,76 @@ export default async function handler(req, res) {
     if (!orderId) return res.status(400).json({ error: "Missing orderId" });
     if (!to_seller && !to_buyer) return res.status(400).json({ error: "No recipients provided" });
 
-    const payload = { orderId, status, label_url, tracking_number, tracking_url, carrier, service };
-    const subj = subjectFor(status, orderId);
+    const basePayload = { orderId, status, label_url, tracking_number, tracking_url, carrier, service };
+    const subject = subjectFor(status, orderId);
 
     const sends = [];
+    const results = [];
 
+    // Send to Seller
     if (to_seller) {
-      sends.push(
-        sendEmail({
-          to: to_seller,
-          subject: subj,
-          html: htmlEmail(payload, { audience: "Seller" }),
-          text: textEmail(payload, { audience: "Seller" }),
-        })
-      );
+      const html = htmlEmail(basePayload, { audience: "Seller" });
+      const text = textEmail(basePayload, { audience: "Seller" });
+      try {
+        const pm = await sendViaPostmark({ to: to_seller, subject, html, text });
+        results.push({ audience: "seller", ok: true, provider: pm });
+        await logEmail({
+          to_email: to_seller,
+          subject,
+          status: "sent",
+          provider_id: pm?.MessageID || null,
+          template: "shipment_update",
+          payload: { audience: "seller", ...basePayload },
+        });
+      } catch (err) {
+        results.push({ audience: "seller", ok: false, error: err?.message || String(err) });
+        await logEmail({
+          to_email: to_seller,
+          subject,
+          status: "failed",
+          provider_id: null,
+          template: "shipment_update",
+          payload: { audience: "seller", ...basePayload },
+          error: { message: err?.message || String(err) },
+        });
+      }
     }
 
+    // Send to Buyer
     if (to_buyer) {
-      sends.push(
-        sendEmail({
-          to: to_buyer,
-          subject: subj,
-          html: htmlEmail(payload, { audience: "Buyer" }),
-          text: textEmail(payload, { audience: "Buyer" }),
-        })
-      );
+      const html = htmlEmail(basePayload, { audience: "Buyer" });
+      const text = textEmail(basePayload, { audience: "Buyer" });
+      try {
+        const pm = await sendViaPostmark({ to: to_buyer, subject, html, text });
+        results.push({ audience: "buyer", ok: true, provider: pm });
+        await logEmail({
+          to_email: to_buyer,
+          subject,
+          status: "sent",
+          provider_id: pm?.MessageID || null,
+          template: "shipment_update",
+          payload: { audience: "buyer", ...basePayload },
+        });
+      } catch (err) {
+        results.push({ audience: "buyer", ok: false, error: err?.message || String(err) });
+        await logEmail({
+          to_email: to_buyer,
+          subject,
+          status: "failed",
+          provider_id: null,
+          template: "shipment_update",
+          payload: { audience: "buyer", ...basePayload },
+          error: { message: err?.message || String(err) },
+        });
+      }
     }
 
-    const results = await Promise.allSettled(sends);
-    const failed = results.filter(r => r.status === "rejected");
-    if (failed.length) {
-      return res.status(207).json({ ok: false, message: "Some emails failed", results });
-    }
-
-    return res.status(200).json({ ok: true, message: "Emails sent", results });
+    const anyFailed = results.some(r => !r.ok);
+    return res.status(anyFailed ? 207 : 200).json({
+      ok: !anyFailed,
+      message: anyFailed ? "Some emails failed" : "Emails sent",
+      results,
+    });
   } catch (err) {
     console.error("[notify/shipment] error", err);
     return res.status(500).json({ error: "Internal Server Error" });
