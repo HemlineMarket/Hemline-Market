@@ -14,7 +14,6 @@ export default async function handler(req, res) {
 
   try {
     const { orderId, rate_id, label_file_type = "PDF" } = req.body || {};
-
     if (!rate_id) {
       return res.status(400).json({ error: "Missing rate_id" });
     }
@@ -40,7 +39,9 @@ export default async function handler(req, res) {
 
     if (!resp.ok) {
       const txt = await resp.text();
-      return res.status(resp.status).json({ error: "Shippo /transactions failed", details: txt });
+      return res
+        .status(resp.status)
+        .json({ error: "Shippo /transactions failed", details: txt });
     }
 
     const tx = await resp.json();
@@ -52,7 +53,7 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(200).json({
+    const result = {
       orderId,
       transaction_id: tx.object_id,
       label_url: tx.label_url,
@@ -60,7 +61,11 @@ export default async function handler(req, res) {
       tracking_url: tx.tracking_url_provider || tx.tracking_url,
       carrier: tx.rate?.provider,
       service: tx.rate?.servicelevel?.name || tx.rate?.servicelevel?.token,
-    });
+    };
+
+    // TODO: Save `result` on your Order record in DB
+
+    return res.status(200).json(result);
   } catch (err) {
     console.error("purchase_label error:", err);
     return res.status(500).json({ error: "Failed to purchase label" });
