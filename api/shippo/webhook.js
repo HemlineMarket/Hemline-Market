@@ -1,5 +1,5 @@
 // File: /api/shippo/webhook.js
-// Secure Shippo webhook → updates public.db_shipments by tracking_number only.
+// Secure Shippo webhook → updates public.db_shipments by tracking_number only and logs errors.
 // Expects Shippo to POST to:
 //   https://hemlinemarket.vercel.app/api/shippo/webhook?secret=Icreatedthismyself
 //
@@ -11,6 +11,7 @@
 export const config = { api: { bodyParser: false } };
 
 import supabaseAdmin from "../_supabaseAdmin";
+import { logError, logInfo } from "../_logger";
 
 // Read raw body safely and parse JSON
 async function readBody(req) {
@@ -29,7 +30,6 @@ async function readBody(req) {
   });
 }
 
-// Normalize Shippo "track_updated" status to our canonical values
 function normalizeTrackingStatus(s = "") {
   const up = String(s).toUpperCase();
   if (up.includes("DELIVER")) return "DELIVERED";
@@ -38,7 +38,6 @@ function normalizeTrackingStatus(s = "") {
   return up || "IN_TRANSIT";
 }
 
-// Normalize Shippo transaction status to our canonical values
 function normalizeTransactionStatus(s = "") {
   const up = String(s).toUpperCase();
   if (up === "SUCCESS") return "LABEL_PURCHASED";
@@ -55,6 +54,7 @@ export default async function handler(req, res) {
   // Shared-secret check (?secret=...)
   const given = String(req.query.secret || "");
   if (!given || given !== process.env.SHIPPO_WEBHOOK_SECRET) {
+    await logWarnSafe(req, "Unauthorized webhook call", { given });
     return res.status(401).json({ error: "Unauthorized" });
   }
 
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   try {
     payload = await readBody(req);
   } catch (err) {
-    console.error("[shippo webhook] JSON parse error:", err);
+    await logError("/api/shippo/webhook", "JSON parse error", { message: err?.message || err }, req);
     return res.status(400).json({ error: "Bad JSON" });
   }
 
@@ -70,25 +70,28 @@ export default async function handler(req, res) {
   res.status(200).json({ ok: true });
 
   try {
-    // Shippo commonly sends:
-    // { event: "track_updated", data: {...} }  OR
-    // { event: "transaction.created", data: {...} }
     const eventType = payload?.event || payload?.event_type || "";
     const data = payload?.data || payload?.object || payload || {};
 
-    // Helper: update by tracking number (we only touch columns that exist in db_shipments)
+    // Helper: update by tracking number
     async function updateByTracking(trackingNumber, fields) {
-      if (!trackingNumber) return;
+      if (!trackingNumber) {
+        await logWarnSafe(req, "Missing tracking number on update", { fields });
+        return;
+      }
       const { error } = await supabaseAdmin
         .from("db_shipments")
         .update({ ...fields, updated_at: new Date().toISOString() })
         .eq("tracking_number", trackingNumber);
-      if (error) console.error("[db_shipments] update error:", error);
+      if (error) {
+        await logError("/api/shippo/webhook", "db_shipments update error", { error, fields, trackingNumber }, req);
+      } else {
+        await logInfo("/api/shippo/webhook", "db_shipments updated", { fields, trackingNumber }, req);
+      }
     }
 
     // Transaction events (label purchase flows)
     if (/^transaction\./i.test(eventType)) {
-      // Shippo transaction payload shape varies; be tolerant
       const tx = data?.object || data;
 
       const trackingNumber =
@@ -106,13 +109,11 @@ export default async function handler(req, res) {
 
       const status = normalizeTransactionStatus(tx?.status);
 
-      // Update only known columns in db_shipments
       await updateByTracking(trackingNumber, {
         status,
         tracking_url: trackingUrl,
         carrier,
         service,
-        // label_url is often present on SUCCESS transactions:
         ...(tx?.label_url ? { label_url: tx.label_url } : {})
       });
 
@@ -126,22 +127,27 @@ export default async function handler(req, res) {
         data?.tracking?.tracking_number ||
         null;
 
-      // tracking_status shape: { status, status_date, substatus, ... }
       const ts = data?.tracking_status || data?.tracking?.tracking_status || {};
       const status = normalizeTrackingStatus(ts?.status || ts?.object_state || "");
 
-      await updateByTracking(trackingNumber, {
-        status
-        // (intentionally not storing raw payload to avoid schema mismatches)
-      });
-
+      await updateByTracking(trackingNumber, { status });
       return;
     }
 
-    // Unknown event — just log
-    console.log("[shippo webhook] Unhandled event:", eventType);
+    // Unknown event — log
+    await logInfo("/api/shippo/webhook", "Unhandled Shippo event", { eventType }, req);
   } catch (err) {
     // We already ACKed; log for diagnostics
-    console.error("[shippo webhook] handler error:", err);
+    await logError("/api/shippo/webhook", "Unhandled handler error", { message: err?.message || err }, req);
+  }
+}
+
+// Safe warn helper that doesn't throw if logger can't write
+async function logWarnSafe(req, message, details) {
+  try {
+    const { logWarn } = await import("../_logger.js");
+    await logWarn("/api/shippo/webhook", message, details, req);
+  } catch {
+    // swallow
   }
 }
