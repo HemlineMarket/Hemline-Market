@@ -2,6 +2,7 @@
 // Returns the latest shipment row for a given orderId from db_shipments
 // Requires env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
+import { rateLimit } from "./_rateLimit";
 import supabaseAdmin from "../_supabaseAdmin";
 
 export const config = {
@@ -9,6 +10,9 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  // Enforce per-IP rate limit
+  if (!rateLimit(req, res)) return;
+
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method Not Allowed" });
