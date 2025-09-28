@@ -1,33 +1,23 @@
 // File: /api/shippo/purchase_label.js
-// Purchases a label for a selected rate from Shippo
-// Requires SHIPPO_API_KEY in Vercel env
+// Purchases a label for a selected Shippo rate
+// Saves the result to Supabase (order_shipments)
 
-export const config = {
-  api: { bodyParser: { sizeLimit: "1mb" } },
-};
+import { saveOrderShipment } from "../../lib/db-shipments.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method Not Allowed" });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     const { orderId, rate_id, label_file_type = "PDF" } = req.body || {};
-    if (!rate_id) {
-      return res.status(400).json({ error: "Missing rate_id" });
-    }
-
-    const apiKey = process.env.SHIPPO_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "Missing SHIPPO_API_KEY" });
-    }
+    if (!rate_id) return res.status(400).json({ error: "Missing rate_id" });
 
     const resp = await fetch("https://api.goshippo.com/transactions/", {
       method: "POST",
       headers: {
-        Authorization: `ShippoToken ${apiKey}`,
         "Content-Type": "application/json",
+        Authorization: `ShippoToken ${process.env.SHIPPO_API_KEY}`,
       },
       body: JSON.stringify({
         rate: rate_id,
@@ -36,13 +26,6 @@ export default async function handler(req, res) {
         metadata: orderId ? `order:${orderId}` : undefined,
       }),
     });
-
-    if (!resp.ok) {
-      const txt = await resp.text();
-      return res
-        .status(resp.status)
-        .json({ error: "Shippo /transactions failed", details: txt });
-    }
 
     const tx = await resp.json();
 
@@ -60,10 +43,15 @@ export default async function handler(req, res) {
       tracking_number: tx.tracking_number,
       tracking_url: tx.tracking_url_provider || tx.tracking_url,
       carrier: tx.rate?.provider,
-      service: tx.rate?.servicelevel?.name || tx.rate?.servicelevel?.token,
+      service: tx.rate?.servicelevel?.name,
+      rate_amount: tx.rate?.amount,
+      rate_currency: tx.rate?.currency,
+      status: "PURCHASED",
+      raw: tx,
     };
 
-    // TODO: Save `result` on your Order record in DB
+    // Save to Supabase
+    await saveOrderShipment(result);
 
     return res.status(200).json(result);
   } catch (err) {
