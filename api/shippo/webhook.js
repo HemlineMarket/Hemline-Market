@@ -1,18 +1,12 @@
 // File: /api/shippo/webhook.js
-// Handles incoming Shippo webhooks, updates Supabase, and emails buyer/seller.
-// Env required:
-// - SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)
-// - SUPABASE_SERVICE_ROLE_KEY
-// - (for notify call) NEXT_PUBLIC_SITE_URL or SITE_URL pointing to your deployed domain
+// Handles Shippo webhooks, updates order_shipments, and emails buyer/seller.
+// Uses order_details view to resolve emails when orderId is a UUID.
+// If orderId is NOT a UUID (e.g., "HM-12345"), we skip email lookup gracefully.
 
 import { createClient } from "@supabase/supabase-js";
 import fetch from "node-fetch";
 
-export const config = {
-  api: {
-    bodyParser: false, // Shippo sends raw JSON
-  },
-};
+export const config = { api: { bodyParser: false } };
 
 function buffer(req) {
   return new Promise((resolve, reject) => {
@@ -28,30 +22,37 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Resolve the base site URL for calling our notify endpoint
 function getSiteBase() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    "" // if empty, the notify call will be skipped
-  ).replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "").replace(/\/$/, "");
 }
 
-// Best-effort: look up buyer/seller emails from orders table
+function looksLikeUUID(v) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || ""));
+}
+
+// Try to resolve buyer/seller emails using the view we created.
+// Only attempt if orderId is a UUID. Return nulls otherwise.
 async function getOrderEmails(orderId) {
+  if (!looksLikeUUID(orderId)) {
+    console.warn("[shippo] orderId is not a UUID; skipping DB email lookup:", orderId);
+    return { buyer_email: null, seller_email: null };
+  }
   try {
     const { data, error } = await supabase
-      .from("orders")
+      .from("order_details")
       .select("buyer_email, seller_email")
       .eq("order_id", orderId)
-      .limit(1)
       .maybeSingle();
-    if (error || !data) return { buyer_email: null, seller_email: null };
+    if (error) {
+      console.error("[shippo] order_details lookup error:", error);
+      return { buyer_email: null, seller_email: null };
+    }
     return {
-      buyer_email: data.buyer_email || null,
-      seller_email: data.seller_email || null,
+      buyer_email: data?.buyer_email || null,
+      seller_email: data?.seller_email || null,
     };
-  } catch {
+  } catch (err) {
+    console.error("[shippo] order_details lookup exception:", err?.message || err);
     return { buyer_email: null, seller_email: null };
   }
 }
@@ -89,13 +90,13 @@ export default async function handler(req, res) {
     const rawBody = await buffer(req);
     const payload = JSON.parse(rawBody.toString("utf-8"));
 
-    // Shippo format: payload.object === "event", payload.data = transaction/shipment object
+    // Shippo event envelope
     const eventType = payload.event || payload.type || "unknown";
     const data = payload.data || {};
 
-    // We expect metadata like "order:HM-12345"
+    // Metadata carries "order:XYZ"
     const meta = data.metadata || "";
-    const m = String(meta).match(/order:(HM-\d+)/i);
+    const m = String(meta).match(/order:([A-Za-z0-9\-]+)/);
     const orderId = m ? m[1] : null;
 
     if (!orderId) {
@@ -104,7 +105,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Normalize fields we care about
+    // Normalize fields
     const update = {
       status: data.status || null,
       tracking_number: data.tracking_number || null,
@@ -115,41 +116,46 @@ export default async function handler(req, res) {
       updated_at: new Date().toISOString(),
     };
 
-    // Update shipment record
-    const { error } = await supabase
+    // Persist to order_shipments (this table stores your external orderId/text)
+    const { error: upErr } = await supabase
       .from("order_shipments")
       .update(update)
       .eq("order_id", orderId);
 
-    if (error) {
-      console.error("[shippo] Supabase update error:", error);
+    if (upErr) {
+      console.error("[shippo] Supabase update error:", upErr);
       res.status(500).json({ error: "Failed to update shipment" });
       return;
     }
 
-    // Fire email notifications (best-effort)
+    // Resolve emails (best-effort)
     const { buyer_email, seller_email } = await getOrderEmails(orderId);
 
-    // Choose a simple email status keyword
+    // Choose email status keyword
     const upper = String(update.status || "").toUpperCase();
     const statusForEmail =
       update.label_url && !upper ? "LABEL_CREATED" :
       upper.includes("SUCCESS") ? "LABEL_CREATED" :
-      upper.includes("TRANSIT") || upper.includes("TRACK") ? "IN_TRANSIT" :
       upper.includes("DELIVERED") ? "DELIVERED" :
+      upper.includes("TRANSIT") || upper.includes("TRACK") ? "IN_TRANSIT" :
       upper || "UPDATED";
 
-    await notifyShipment({
-      orderId,
-      status: statusForEmail,
-      label_url: update.label_url,
-      tracking_number: update.tracking_number,
-      tracking_url: update.tracking_url,
-      carrier: update.carrier,
-      service: update.service,
-      to_buyer: buyer_email || undefined,
-      to_seller: seller_email || undefined,
-    });
+    // Only send if we have at least one recipient
+    if (buyer_email || seller_email) {
+      await notifyShipment({
+        orderId,
+        status: statusForEmail,
+        label_url: update.label_url,
+        tracking_number: update.tracking_number,
+        tracking_url: update.tracking_url,
+        carrier: update.carrier,
+        service: update.service,
+        to_buyer: buyer_email || undefined,
+        to_seller: seller_email || undefined,
+      });
+    } else {
+      console.warn("[notify] No recipients found for order:", orderId);
+    }
 
     res.status(200).json({ ok: true });
   } catch (err) {
