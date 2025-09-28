@@ -1,6 +1,6 @@
-// File: /api/shippo/create_label.js
-// Creates a shipping label via Shippo for a given order
-// Requires SHIPPO_API_KEY in Vercel env (already set)
+// File: /api/shipping/label.js
+// Creates a shipment (gets rates), picks cheapest, and purchases a label via Shippo
+// Uses SHIPPO_API_KEY from Vercel env (do NOT log the secret)
 
 export const config = {
   api: { bodyParser: { sizeLimit: "1mb" } },
@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Missing SHIPPO_API_KEY" });
     }
 
-    // 1) Create shipment → get rates
+    // 1) Create shipment → fetch rates
     const shipmentRes = await fetch("https://api.goshippo.com/shipments/", {
       method: "POST",
       headers: {
@@ -42,21 +42,23 @@ export default async function handler(req, res) {
 
     if (!shipmentRes.ok) {
       const txt = await shipmentRes.text();
-      return res.status(shipmentRes.status).json({ error: "Shippo shipments failed", details: txt });
+      return res
+        .status(shipmentRes.status)
+        .json({ error: "Shippo /shipments failed", details: txt });
     }
 
     const shipment = await shipmentRes.json();
-
-    if (!Array.isArray(shipment.rates) || shipment.rates.length === 0) {
+    const rates = Array.isArray(shipment.rates) ? shipment.rates : [];
+    if (!rates.length) {
       return res.status(400).json({ error: "No shipping rates found" });
     }
 
-    // Pick cheapest by amount
-    const rate = shipment.rates
+    // pick cheapest rate
+    const rate = rates
       .map(r => ({ ...r, _amt: parseFloat(r.amount) }))
       .sort((a, b) => a._amt - b._amt)[0];
 
-    // 2) Buy label
+    // 2) Buy label for selected rate
     const txRes = await fetch("https://api.goshippo.com/transactions/", {
       method: "POST",
       headers: {
@@ -73,24 +75,36 @@ export default async function handler(req, res) {
 
     if (!txRes.ok) {
       const txt = await txRes.text();
-      return res.status(txRes.status).json({ error: "Shippo transactions failed", details: txt });
+      return res
+        .status(txRes.status)
+        .json({ error: "Shippo /transactions failed", details: txt });
     }
 
-    const transaction = await txRes.json();
-
-    if (transaction.status !== "SUCCESS") {
-      return res.status(500).json({ error: "Label purchase failed", details: transaction });
+    const tx = await txRes.json();
+    if (tx.status !== "SUCCESS") {
+      return res
+        .status(502)
+        .json({ error: "Label purchase not successful", details: tx });
     }
 
+    // response payload
     return res.status(200).json({
       orderId,
-      tracking_number: transaction.tracking_number,
-      tracking_url: transaction.tracking_url_provider,
-      label_url: transaction.label_url,
-      rate: transaction.rate,
+      shipment_id: shipment.object_id,
+      rate: {
+        id: rate.object_id,
+        amount: rate.amount,
+        currency: rate.currency,
+        provider: rate.provider,
+        service: rate.servicelevel?.name || rate.servicelevel?.token,
+      },
+      transaction_id: tx.object_id,
+      label_url: tx.label_url,
+      tracking_number: tx.tracking_number,
+      tracking_url: tx.tracking_url_provider || tx.tracking_url,
     });
   } catch (err) {
-    console.error("Shippo label error:", err);
+    console.error("shipping/label error:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
