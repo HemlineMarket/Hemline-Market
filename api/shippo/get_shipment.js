@@ -1,6 +1,8 @@
 // File: /api/shippo/get_shipment.js
-// Read-only: returns latest label/tracking info for an order from Supabase
-// Env: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY
+// Read-only endpoint used by orders pages to show label/track info.
+// Query:  /api/shippo/get_shipment?orderId=HM-12345
+//
+// Env required: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -15,29 +17,33 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const { orderId } = req.query || {};
-  if (!orderId) return res.status(400).json({ error: "Missing orderId" });
-
   try {
+    const orderId = String(req.query.orderId || "").trim();
+    if (!orderId) return res.status(400).json({ error: "Missing orderId" });
+
+    // Fetch latest shipment row for this order
     const { data, error } = await supabase
       .from("order_shipments")
       .select(
-        "order_id, label_url, tracking_number, tracking_url, carrier, service, status, created_at, updated_at"
+        "order_id, status, label_url, tracking_number, tracking_url, carrier, service, updated_at"
       )
       .eq("order_id", orderId)
-      .order("created_at", { ascending: false })
+      .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (error) {
-      console.error("get_shipment db error:", error);
+      console.error("[get_shipment] supabase error:", error);
       return res.status(500).json({ error: "Database error" });
     }
-    if (!data) return res.status(404).json({ error: "No shipment found for order" });
+
+    if (!data) {
+      return res.status(404).json({ error: "Not found" });
+    }
 
     return res.status(200).json(data);
   } catch (err) {
-    console.error("get_shipment exception:", err);
+    console.error("[get_shipment] error:", err?.message || err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
