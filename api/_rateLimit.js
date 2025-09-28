@@ -1,29 +1,29 @@
 // File: /api/_rateLimit.js
-// Simple in-memory rate limiter for API routes
-// Protects against abuse (per IP, per route)
+// Simple in-memory rate limiter for Vercel serverless functions.
+// NOTE: This is per-region & per-instance (not shared globally).
 
 const WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS = 30;     // per IP per minute
+const MAX_REQUESTS = 20;     // per IP per window
 
-const hits = new Map();
+const buckets = new Map();
 
-export default function rateLimit(handler) {
-  return async function wrapped(req, res) {
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress || "unknown";
-    const now = Date.now();
-    const windowStart = now - WINDOW_MS;
+export function rateLimit(req, res) {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const bucket = buckets.get(ip) || { count: 0, expires: now + WINDOW_MS };
 
-    if (!hits.has(ip)) hits.set(ip, []);
-    const timestamps = hits.get(ip).filter(ts => ts > windowStart);
+  if (now > bucket.expires) {
+    // reset window
+    bucket.count = 0;
+    bucket.expires = now + WINDOW_MS;
+  }
 
-    timestamps.push(now);
-    hits.set(ip, timestamps);
+  bucket.count++;
+  buckets.set(ip, bucket);
 
-    if (timestamps.length > MAX_REQUESTS) {
-      res.setHeader("Retry-After", Math.ceil(WINDOW_MS / 1000));
-      return res.status(429).json({ error: "Too many requests, slow down." });
-    }
-
-    return handler(req, res);
-  };
+  if (bucket.count > MAX_REQUESTS) {
+    res.status(429).json({ error: "Too Many Requests" });
+    return false;
+  }
+  return true;
 }
