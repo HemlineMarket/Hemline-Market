@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Seller Orders — Hemline Market</title>
 
-  <!-- Favicon -->
   <link rel="icon" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
-  <!-- MOBILE HOTFIX -->
   <style id="hm-mobile-hotfix">
     html, body { max-width:100%; overflow-x:hidden; }
     .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
@@ -19,7 +17,6 @@
     [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
   </style>
 
-  <!-- Shared site styles -->
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
@@ -49,7 +46,6 @@
     .pill.green{color:#065f46;border-color:#a7f3d0;background:#ecfdf5}
     .btn{background:var(--hm-accent);color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:700;text-decoration:none;cursor:pointer}
     .btn.secondary{background:#374151}
-    .btn.ghost{background:#111827}
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
     .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
@@ -111,43 +107,14 @@
     <section class="section">
       <h2>Open Orders</h2>
       <div class="list">
-        <!-- Example seller row with minimal address + parcel data attributes -->
-        <div class="row"
-             data-order-row
-             data-order="HM-771234"
-             data-buyer-name="Buyer Name"
-             data-addr1="525 Market St"
-             data-city="San Francisco"
-             data-state="CA"
-             data-zip="94105"
-             data-country="US"
-             data-email="buyer@example.com"
-             data-phone="4155550199"
-             data-weight-lb="1.0">
+        <div class="row" data-order-row data-order="HM-771234">
           <div>
             <div><strong>HM-771234</strong> · <span class="meta">Placed Sep 12 · 1 item</span></div>
-            <div class="meta">Chocolate Wool Twill — 2 yd · <span class="pill orange">Awaiting Label</span></div>
+            <div class="meta">Chocolate Wool Twill — 2 yd · <span class="pill orange">Processing</span></div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="btn" data-action="create-label">Create Label</button>
             <button class="btn secondary" data-action="download-label" disabled>Download Label</button>
-            <button class="btn ghost" data-action="track-shipment" disabled>Track Shipment</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <h2>Recently Shipped</h2>
-      <div class="list">
-        <div class="row" data-order-row data-order="HM-760001">
-          <div>
-            <div><strong>HM-760001</strong> · <span class="meta">Shipped Sep 14 · 1 item</span></div>
-            <div class="meta">Silk Faille — 1.5 yd · <span class="pill green">Label Purchased</span></div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn secondary" data-action="download-label">Download Label</button>
-            <button class="btn ghost" data-action="track-shipment">Track Shipment</button>
+            <button class="btn secondary" data-action="track-shipment" disabled>Track Shipment</button>
           </div>
         </div>
       </div>
@@ -169,14 +136,7 @@
 </footer>
 
 <script>
-/**
- * Seller Orders — Create label (server API), download label, track shipment.
- * Uses:
- *  - POST /api/shippo/create_label
- *  - GET  /api/shippo/get_shipment?orderId=...
- */
 (function(){
-  // Menu
   const sheet=document.getElementById("menuSheet");
   const openBtn=document.getElementById("openMenu");
   const closeBtn=document.getElementById("closeMenu");
@@ -186,209 +146,34 @@
   closeBtn?.addEventListener("click",e=>{e.preventDefault();closeSheet();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape") closeSheet();});
 
-  // Avatar
   const avatar=document.getElementById("avatar");
   try{const url=localStorage.getItem("avatarUrl");if(url){avatar.textContent='';avatar.style.backgroundImage="url('"+url+"')";}}catch(_){}
 
-  // Helpers
-  function $(sel, ctx=document){ return ctx.querySelector(sel); }
-  function createAddressFromRow(row){
-    return {
-      name: "Hemline Seller",
-      street1: "215 Clayton St",
-      city: "San Francisco",
-      state: "CA",
-      zip: "94117",
-      country: "US",
-      email: "support@hemline.market",
-      phone: "4155550101"
-    };
-  }
-  function createAddressToFromRow(row){
-    return {
-      name: row.dataset.buyerName || "Buyer",
-      street1: row.dataset.addr1 || "525 Market St",
-      city: row.dataset.city || "San Francisco",
-      state: row.dataset.state || "CA",
-      zip: row.dataset.zip || "94105",
-      country: row.dataset.country || "US",
-      email: row.dataset.email || "buyer@example.com",
-      phone: row.dataset.phone || "4155550199"
-    };
-  }
-  function createParcelFromRow(row){
-    const weightLb = parseFloat(row.dataset.weightLb || "1.0") || 1.0;
-    return {
-      length:"10", width:"8", height:"2", distance_unit:"in",
-      weight:String(weightLb), mass_unit:"lb"
-    };
-  }
-
-  // Render shipping info panel
-  function renderShippingInfo(row, data){
-    let info = row.querySelector(".shipping-info");
-    if (!info) {
-      info = document.createElement("div");
-      info.className = "shipping-info";
-      info.style.cssText = "margin-top:8px;padding:10px;border:1px solid #e5e7eb;border-radius:10px";
-      row.appendChild(info);
-    }
-    const label = data.label_url
-      ? `<a class="underline" href="${data.label_url}" target="_blank" rel="noreferrer">Download Label (PDF)</a>`
-      : `<em>No label available</em>`;
-    const tracking = data.tracking_url
-      ? `<a class="underline" href="${data.tracking_url}" target="_blank" rel="noreferrer">${data.tracking_number || "Tracking link"}</a>`
-      : (data.tracking_number ? `<span>${data.tracking_number}</span>` : `<em>No tracking yet</em>`);
-    const carrier = [data.carrier, data.service].filter(Boolean).join(" — ");
-    const status = (data.status || "CREATED").toUpperCase();
-
-    info.innerHTML = `
-      <div style="display:grid;gap:6px;">
-        <div><strong>Status:</strong> ${status}</div>
-        <div><strong>Label:</strong> ${label}</div>
-        <div><strong>Tracking:</strong> ${tracking}</div>
-        <div><strong>Carrier/Service:</strong> ${carrier || "<em>—</em>"}</div>
-        <div style="font-size:12px;color:#6b7280"><strong>Updated:</strong> ${new Date(data.updated_at).toLocaleString()}</div>
-      </div>
-    `;
-  }
-
-  // Load current shipment (if any) and adjust buttons
   async function loadShipment(row){
-    const orderId = row.getAttribute("data-order");
-    const btnCreate = $("[data-action='create-label']", row);
-    const btnDownload = $("[data-action='download-label']", row);
-    const btnTrack = $("[data-action='track-shipment']", row);
-
+    const orderId=row.getAttribute("data-order");
+    const btnDownload=row.querySelector("[data-action='download-label']");
+    const btnTrack=row.querySelector("[data-action='track-shipment']");
     try{
-      const res = await fetch(`/api/shippo/get_shipment?orderId=${encodeURIComponent(orderId)}`);
-      if (res.status === 404){
-        // no shipment yet → enable create, disable download/track
-        btnCreate?.removeAttribute("disabled");
-        if (btnDownload) btnDownload.disabled = true;
-        if (btnTrack) btnTrack.disabled = true;
-        return;
-      }
-      const data = await res.json();
-      if (!res.ok){
-        if (btnDownload) btnDownload.disabled = true;
-        if (btnTrack) btnTrack.disabled = true;
-        return;
-      }
-      renderShippingInfo(row, data);
+      const res=await fetch(`/api/shippo/get_shipment?orderId=${encodeURIComponent(orderId)}`);
+      if(res.status===404){ return; }
+      const data=await res.json();
+      if(!res.ok) return;
 
-      // shipment exists
-      if (btnCreate) btnCreate.disabled = true;
-
-      // Download button
-      if (btnDownload){
-        btnDownload.disabled = !data.label_url;
-        if (data.label_url){
-          btnDownload.onclick = (e) => {
-            e.preventDefault();
-            window.open(data.label_url, "_blank", "noopener");
-          };
-        }
+      if(data.label_url){
+        btnDownload.disabled=false;
+        btnDownload.addEventListener("click",()=>window.open(data.label_url,"_blank","noopener"),{once:true});
       }
-
-      // Track button
-      if (btnTrack){
-        const trackingUrl = data.tracking_url || null;
-        btnTrack.disabled = !trackingUrl;
-        if (trackingUrl){
-          btnTrack.onclick = (e) => {
-            e.preventDefault();
-            window.open(trackingUrl, "_blank", "noopener");
-          };
-        } else {
-          btnTrack.onclick = null;
-        }
+      if(data.tracking_url){
+        btnTrack.disabled=false;
+        btnTrack.addEventListener("click",()=>window.open(data.tracking_url,"_blank","noopener"),{once:true});
       }
-    }catch(_){
-      if (btnDownload) btnDownload.disabled = true;
-      if (btnTrack) btnTrack.disabled = true;
-    }
+    }catch(_){}
   }
 
-  // Create label (seller action)
-  async function createLabel(row, btn){
-    const orderId = row.getAttribute("data-order");
-    const btnDownload = $("[data-action='download-label']", row);
-    const btnTrack = $("[data-action='track-shipment']", row);
-
-    btn.disabled = true;
-    const original = btn.textContent;
-    btn.textContent = "Processing…";
-
-    try{
-      const payload = {
-        orderId,
-        address_from: createAddressFromRow(row),
-        address_to: createAddressToFromRow(row),
-        parcel: createParcelFromRow(row)
-      };
-
-      const res = await fetch("/api/shippo/create_label", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (!res.ok){
-        btn.textContent = "Try Again";
-        btn.disabled = false;
-        alert("Failed to create label");
-        return;
-      }
-
-      // render + enable download/track
-      renderShippingInfo(row, data);
-
-      if (btnDownload){
-        btnDownload.disabled = !data.label_url;
-        btnDownload.onclick = data.label_url
-          ? (e)=>{ e.preventDefault(); window.open(data.label_url, "_blank", "noopener"); }
-          : null;
-      }
-      if (btnTrack){
-        const trackingUrl = data.tracking_url || null;
-        btnTrack.disabled = !trackingUrl;
-        btnTrack.onclick = trackingUrl
-          ? (e)=>{ e.preventDefault(); window.open(trackingUrl, "_blank", "noopener"); }
-          : null;
-      }
-
-      btn.textContent = "Label Created";
-      btn.disabled = true;
-    }catch(err){
-      btn.textContent = "Try Again";
-      btn.disabled = false;
-      alert("Error: " + (err?.message || "Unknown"));
-    }finally{
-      if (!btn.disabled) btn.textContent = original;
-    }
-  }
-
-  // Wire buttons
-  document.addEventListener("click", (e)=>{
-    const createBtn = e.target.closest("[data-action='create-label']");
-    if (createBtn){
-      const row = createBtn.closest("[data-order-row]");
-      if (row) createLabel(row, createBtn);
-    }
-    // download + track handlers are set dynamically in load/create paths
-  });
-
-  // Init: for each order row, load current shipment state
   function init(){
-    document.querySelectorAll("[data-order-row][data-order]").forEach(loadShipment);
+    document.querySelectorAll("[data-order-row]").forEach(loadShipment);
   }
-  if (document.readyState==="loading"){
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}
 })();
 </script>
 </body>
