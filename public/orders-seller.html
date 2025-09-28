@@ -49,6 +49,7 @@
     .pill.green{color:#065f46;border-color:#a7f3d0;background:#ecfdf5}
     .btn{background:var(--hm-accent);color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:700;text-decoration:none;cursor:pointer}
     .btn.secondary{background:#374151}
+    .btn.ghost{background:#111827}
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
     .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
@@ -73,7 +74,7 @@
     <div class="right">
       <a class="hm-icon" href="browse.html" aria-label="Browse & search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg></a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg></a>
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications"><svg viewBox="0 0 24 24  fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></a>
       <a class="hm-icon" href="cart.html" aria-label="Cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9"  cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></a>
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
@@ -130,6 +131,7 @@
           <div style="display:flex;gap:8px">
             <button class="btn" data-action="create-label">Create Label</button>
             <button class="btn secondary" data-action="download-label" disabled>Download Label</button>
+            <button class="btn ghost" data-action="track-shipment" disabled>Track Shipment</button>
           </div>
         </div>
       </div>
@@ -145,6 +147,7 @@
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn secondary" data-action="download-label">Download Label</button>
+            <button class="btn ghost" data-action="track-shipment">Track Shipment</button>
           </div>
         </div>
       </div>
@@ -167,13 +170,10 @@
 
 <script>
 /**
- * Seller Orders — Create label (server API) or download existing label.
+ * Seller Orders — Create label (server API), download label, track shipment.
  * Uses:
- *  - POST /api/shippo/create_label  (server creates shipment + label, saves to Supabase)
- *  - GET  /api/shippo/get_shipment?orderId=...  (read-only: latest label/tracking)
- * Notes:
- *  - This page can create labels (seller action).
- *  - Buyers cannot (their page is read-only).
+ *  - POST /api/shippo/create_label
+ *  - GET  /api/shippo/get_shipment?orderId=...
  */
 (function(){
   // Menu
@@ -224,7 +224,7 @@
     };
   }
 
-  // Render read-only shipping panel
+  // Render shipping info panel
   function renderShippingInfo(row, data){
     let info = row.querySelector(".shipping-info");
     if (!info) {
@@ -258,32 +258,55 @@
     const orderId = row.getAttribute("data-order");
     const btnCreate = $("[data-action='create-label']", row);
     const btnDownload = $("[data-action='download-label']", row);
+    const btnTrack = $("[data-action='track-shipment']", row);
 
     try{
       const res = await fetch(`/api/shippo/get_shipment?orderId=${encodeURIComponent(orderId)}`);
       if (res.status === 404){
-        // no shipment yet → show create button, disable download
+        // no shipment yet → enable create, disable download/track
         btnCreate?.removeAttribute("disabled");
-        if (btnDownload){ btnDownload.disabled = true; }
+        if (btnDownload) btnDownload.disabled = true;
+        if (btnTrack) btnTrack.disabled = true;
         return;
       }
       const data = await res.json();
       if (!res.ok){
         if (btnDownload) btnDownload.disabled = true;
+        if (btnTrack) btnTrack.disabled = true;
         return;
       }
       renderShippingInfo(row, data);
-      // shipment exists → allow download, disable create
-      if (btnDownload) btnDownload.disabled = !data.label_url;
+
+      // shipment exists
       if (btnCreate) btnCreate.disabled = true;
-      if (btnDownload && data.label_url){
-        btnDownload.addEventListener("click", (e)=>{
-          e.preventDefault();
-          window.open(data.label_url, "_blank", "noopener");
-        }, { once:true });
+
+      // Download button
+      if (btnDownload){
+        btnDownload.disabled = !data.label_url;
+        if (data.label_url){
+          btnDownload.onclick = (e) => {
+            e.preventDefault();
+            window.open(data.label_url, "_blank", "noopener");
+          };
+        }
+      }
+
+      // Track button
+      if (btnTrack){
+        const trackingUrl = data.tracking_url || null;
+        btnTrack.disabled = !trackingUrl;
+        if (trackingUrl){
+          btnTrack.onclick = (e) => {
+            e.preventDefault();
+            window.open(trackingUrl, "_blank", "noopener");
+          };
+        } else {
+          btnTrack.onclick = null;
+        }
       }
     }catch(_){
       if (btnDownload) btnDownload.disabled = true;
+      if (btnTrack) btnTrack.disabled = true;
     }
   }
 
@@ -291,6 +314,7 @@
   async function createLabel(row, btn){
     const orderId = row.getAttribute("data-order");
     const btnDownload = $("[data-action='download-label']", row);
+    const btnTrack = $("[data-action='track-shipment']", row);
 
     btn.disabled = true;
     const original = btn.textContent;
@@ -318,17 +342,23 @@
         return;
       }
 
-      // render + enable download
+      // render + enable download/track
       renderShippingInfo(row, data);
+
       if (btnDownload){
         btnDownload.disabled = !data.label_url;
-        if (data.label_url){
-          btnDownload.addEventListener("click", (e)=>{
-            e.preventDefault();
-            window.open(data.label_url, "_blank", "noopener");
-          }, { once:true });
-        }
+        btnDownload.onclick = data.label_url
+          ? (e)=>{ e.preventDefault(); window.open(data.label_url, "_blank", "noopener"); }
+          : null;
       }
+      if (btnTrack){
+        const trackingUrl = data.tracking_url || null;
+        btnTrack.disabled = !trackingUrl;
+        btnTrack.onclick = trackingUrl
+          ? (e)=>{ e.preventDefault(); window.open(trackingUrl, "_blank", "noopener"); }
+          : null;
+      }
+
       btn.textContent = "Label Created";
       btn.disabled = true;
     }catch(err){
@@ -347,10 +377,7 @@
       const row = createBtn.closest("[data-order-row]");
       if (row) createLabel(row, createBtn);
     }
-    const dlBtn = e.target.closest("[data-action='download-label']");
-    if (dlBtn){
-      // loadShipment() attaches listener when label exists; default is handled there
-    }
+    // download + track handlers are set dynamically in load/create paths
   });
 
   // Init: for each order row, load current shipment state
