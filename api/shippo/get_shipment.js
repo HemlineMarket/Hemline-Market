@@ -1,6 +1,8 @@
 // File: /api/shippo/get_shipment.js
 // Read-only endpoint used by orders pages to show label/track info.
-// Query:  /api/shippo/get_shipment?orderId=HM-12345
+// GET /api/shippo/get_shipment?orderId=HM-12345
+//
+// Now reads from the canonical table: public.db_shipments
 //
 // Env required: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY
 
@@ -21,22 +23,16 @@ export default async function handler(req, res) {
     const orderId = String(req.query.orderId || "").trim();
     if (!orderId) return res.status(400).json({ error: "Missing orderId" });
 
-    // Fetch latest shipment row for this order
     const { data, error } = await supabase
-      .from("order_shipments")
-      .select(
-        "order_id, status, label_url, tracking_number, tracking_url, carrier, service, updated_at"
-      )
+      .from("db_shipments")
+      .select("order_id, status, label_url, tracking_number, tracking_url, carrier, service, updated_at")
       .eq("order_id", orderId)
-      .order("updated_at", { ascending: false })
-      .limit(1)
       .maybeSingle();
 
     if (error) {
       console.error("[get_shipment] supabase error:", error);
       return res.status(500).json({ error: "Database error" });
     }
-
     if (!data) {
       return res.status(404).json({ error: "Not found" });
     }
