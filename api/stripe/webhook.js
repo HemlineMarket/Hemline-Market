@@ -1,19 +1,18 @@
-// File: /stripe-webhook.js
-// Purpose: Handle Stripe webhooks and, on successful checkout, send the buyer
-// an order confirmation email via our /api/send-order-confirmation endpoint.
+// File: /api/stripe/webhook.js
+// Verifies Stripe signatures, pays out sellers, auto-creates Shippo labels,
+// and updates profiles.payouts_enabled on account.updated.
 //
-// Env required in Vercel:
+// ENV required:
 // - STRIPE_SECRET_KEY
 // - STRIPE_WEBHOOK_SECRET
-// - SITE_URL (or NEXT_PUBLIC_SITE_URL)  -> e.g. https://hemline-market.vercel.app
-//
-// Notes:
-// - This file is a top-level webhook handler used by your Vercel project routing.
-//   If your project uses /api/stripe/webhook.js as the canonical handler, keep that too.
-// - This implementation focuses on sending the confirmation email. Your payouts
-//   to connected accounts are handled in your other webhook (api/stripe/webhook.js).
+// - SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)
+// - SUPABASE_SERVICE_ROLE_KEY
+// - SHIPPO_API_KEY
+// - SITE_URL or NEXT_PUBLIC_SITE_URL (for internal fetches)
 
 import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
+import fetch from "node-fetch";
 
 export const config = { api: { bodyParser: false } };
 
@@ -29,6 +28,11 @@ function buffer(req) {
     req.on("error", reject);
   });
 }
+
+const supabase = createClient(
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 function getBaseUrl() {
   const base =
@@ -56,7 +60,7 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err?.message || "invalid signature"}`);
   }
 
-  // Acknowledge first so Stripe doesn't retry.
+  // Acknowledge first so Stripe doesn't retry
   res.status(200).json({ received: true });
 
   try {
@@ -64,58 +68,178 @@ export default async function handler(req, res) {
       case "checkout.session.completed": {
         const session = event.data.object;
 
-        // Pull buyer email + order metadata
-        const to =
-          session.customer_details?.email ||
-          session.customer_email ||
-          null;
-        const orderId = session.metadata?.orderId || session.client_reference_id || null;
+        // ----- TRANSFERS TO CONNECTED ACCOUNTS -----
+        let bySeller = {};
+        try { bySeller = JSON.parse(session.metadata?.sellers_json || "{}"); } catch { bySeller = {}; }
+        const sellerIds = Object.keys(bySeller || {});
+        if (sellerIds.length) {
+          const piId = typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id;
+          if (piId) {
+            const pi = await stripe.paymentIntents.retrieve(piId, { expand: ["latest_charge"] });
+            const chargeId = typeof pi.latest_charge === "string" ? pi.latest_charge : pi.latest_charge?.id;
+            if (chargeId) {
+              for (const acctId of sellerIds) {
+                const amount = Math.max(0, Number(bySeller[acctId] || 0));
+                if (!amount) continue;
+                try {
+                  const tr = await stripe.transfers.create({
+                    amount,
+                    currency: "usd",
+                    destination: acctId,
+                    source_transaction: chargeId,
+                    metadata: {
+                      checkout_session: session.id,
+                      subtotal_cents: String(session.amount_subtotal ?? ""),
+                      shipping_cents: session.metadata?.shipping_cents ?? "",
+                    },
+                  });
+                  console.log("[stripe] transfer.created", { id: tr.id, amount, destination: acctId });
+                } catch (err) {
+                  console.error(`[stripe] transfer error for ${acctId}:`, err?.message || err);
+                }
+              }
+            }
+          }
+        }
 
-        // Items, if you passed them in metadata at checkout (optional)
-        let items = [];
+        // ----- AUTO-CREATE SHIPPO LABEL -----
         try {
-          items = JSON.parse(session.metadata?.items_json || "[]");
-          if (!Array.isArray(items)) items = [];
-        } catch (_) {
-          items = [];
-        }
+          const orderId = session.metadata?.orderId;
+          const addr = session.shipping?.address;
+          if (!orderId || !addr) break;
 
-        if (!to || !orderId) {
-          console.warn("[stripe-webhook] missing to/orderId; skipping confirmation email", {
-            to,
-            orderId,
+          const address_to = {
+            name: session.shipping?.name || "Buyer",
+            street1: addr.line1,
+            street2: addr.line2 || undefined,
+            city: addr.city,
+            state: addr.state,
+            zip: addr.postal_code,
+            country: addr.country,
+            phone: session.customer_details?.phone || undefined,
+            email: session.customer_details?.email || undefined,
+          };
+
+          const address_from = {
+            name: "Hemline Seller",
+            street1: "215 Clayton St",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94117",
+            country: "US",
+            email: "support@hemline.market",
+            phone: "4155550101",
+          };
+
+          const parcel = {
+            length: "10", width: "8", height: "2", distance_unit: "in",
+            weight: "1", mass_unit: "lb",
+          };
+
+          const base = getBaseUrl();
+          if (!base) { console.warn("[shippo] Missing SITE_URL; skip label"); break; }
+
+          const resLabel = await fetch(`${base}/api/shippo/create_label`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, address_from, address_to, parcel }),
           });
-          break;
+
+          const data = await resLabel.json().catch(() => ({}));
+          if (!resLabel.ok) {
+            console.error("[shippo] label creation failed", data);
+          } else {
+            console.log("[shippo] label created", data.tracking_number);
+            // Optional: persist here; primary path is shippo webhook upsert.
+            await supabase.from("order_shipments").upsert({
+              order_id: orderId,
+              tracking_number: data.tracking_number || null,
+              tracking_url: data.tracking_url || null,
+              label_url: data.label_url || null,
+              carrier: data.rate?.provider || null,
+              service: data.rate?.servicelevel?.name || null,
+              status: "LABEL_CREATED",
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "order_id" });
+          }
+        } catch (err) {
+          console.error("[shippo] auto-label error:", err);
         }
 
-        // Call our API to send the email
-        const base = getBaseUrl();
-        if (!base) {
-          console.warn("[stripe-webhook] SITE_URL not set; cannot send confirmation email");
-          break;
+        // ----- SEND BUYER CONFIRMATION EMAIL -----
+        try {
+          const to =
+            session.customer_details?.email ||
+            session.customer_email ||
+            null;
+          const orderId = session.metadata?.orderId || session.client_reference_id || null;
+
+          let items = [];
+          try {
+            items = JSON.parse(session.metadata?.items_json || "[]");
+            if (!Array.isArray(items)) items = [];
+          } catch { items = []; }
+
+          const base = getBaseUrl();
+          if (to && orderId && base) {
+            const resp = await fetch(`${base}/api/send-order-confirmation`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ to, orderId, items }),
+            });
+            if (!resp.ok) {
+              const j = await resp.json().catch(() => ({}));
+              console.error("[stripe-webhook] confirmation email failed", resp.status, j);
+            }
+          }
+        } catch (err) {
+          console.error("[stripe-webhook] confirmation email error:", err?.message || err);
         }
 
-        const resp = await fetch(`${base}/api/send-order-confirmation`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to, orderId, items }),
-        });
+        break;
+      }
 
-        const json = await resp.json().catch(() => ({}));
-        if (!resp.ok) {
-          console.error("[stripe-webhook] send-order-confirmation failed", resp.status, json);
+      // ===== NEW: reflect Connect onboarding status in profiles =====
+      case "account.updated": {
+        const acct = event.data.object; // Stripe Account object
+        const acctId = acct?.id;
+        if (!acctId) break;
+
+        // Mark payouts_enabled if both flags are true
+        const enabled = !!(acct.charges_enabled && acct.payouts_enabled);
+
+        // Update profile where stripe_account_id matches this account
+        const { error } = await supabase
+          .from("profiles")
+          .update({ payouts_enabled: enabled })
+          .eq("stripe_account_id", acctId);
+
+        if (error) {
+          console.error("[profiles] update payouts_enabled error:", error);
         } else {
-          console.log("[stripe-webhook] confirmation email sent", { to, orderId });
+          console.log("[profiles] payouts_enabled =", enabled, "for", acctId);
         }
         break;
       }
 
+      // (Optional) Log payout lifecycle events
+      case "payout.paid":
+      case "payout.failed":
+      case "payout.created": {
+        const p = event.data.object;
+        console.log(`[stripe] ${event.type}`, {
+          id: p.id, status: p.status, amount: p.amount, arrival_date: p.arrival_date,
+        });
+        break;
+      }
+
       default:
-        // Log other events for observability during launch
-        console.log("[stripe-webhook] unhandled event:", event.type);
+        console.log("[stripe] unhandled event:", event.type);
     }
   } catch (err) {
-    // We already responded 200 above; just log failures.
-    console.error("[stripe-webhook] post-ack error:", err?.message || err);
+    // We already responded 200 above; just log for diagnostics
+    console.error("Stripe webhook handler error:", err);
   }
 }
