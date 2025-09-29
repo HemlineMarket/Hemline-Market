@@ -5,35 +5,25 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Hemline Market — Find your next fabric creation</title>
 
-  <!-- Favicon -->
-  <link rel="icon" href="/favicon.ico">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
-
   <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
   <style>
-    :root{
-      --hm-accent:#991b1b; --hm-text:#111827; --hm-muted:#6b7280; --hm-border:#e5e7eb;
-    }
+    :root{ --hm-accent:#991b1b; --hm-text:#111827; --hm-muted:#6b7280; --hm-border:#e5e7eb; }
     body{
       margin:0;
-      background:
-        linear-gradient(to bottom, rgba(255,255,255,.85) 0%, rgba(255,255,255,.82) 20%, rgba(255,255,255,.78) 55%, rgba(255,255,255,.75) 100%),
-        url("images/homepage.jpeg") center/cover fixed no-repeat;
+      background:url("images/homepage.jpeg") center/cover fixed no-repeat;
       color:var(--hm-text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
-
-    /* Header (same pattern as About page) */
-    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
+    /* Header */
+    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border);position:relative;z-index:101}
     .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
-    .hm-header .left{display:flex;align-items:center;gap:10px}
     .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
     .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;color:#374151}
     .hamburger svg{width:22px;height:22px;stroke-width:2}
@@ -43,7 +33,7 @@
     .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--hm-border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
     .hm-btn-primary{background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
 
-    /* Left sheet nav (same as About) */
+    /* Left drawer */
     .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--hm-border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
     .sheet.open{transform:translateX(0)}
     .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--hm-border)}
@@ -52,14 +42,15 @@
     .sheet nav a + a{margin-top:8px}
     .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
 
-    /* Hero */
+    /* Overlay for sheet (kept for styling consistency, not required by JS) */
+    #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.25);backdrop-filter:blur(1px);display:none;z-index:90}
+    #sheetOverlay.show{display:block}
+
+    /* Hero + UI */
     .hero-wrap{max-width:1200px;margin:14px auto 0;padding:0 12px}
     .hero-card{background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 14px rgba(0,0,0,.10);padding:12px}
-    .home-hero h1{font-size:24px;margin:0 0 8px;font-weight:800}
-    .home-hero .intro{color:#374151;font-size:15px;margin:4px 0 12px}
-    .cta-row{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 12px}
-    .cta-row .btn{padding:8px 14px;border:1px solid var(--hm-border);border-radius:999px;background:#fff;font-weight:700;cursor:pointer;text-decoration:none;color:#374151}
-    .cta-row .btn.primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff}
+    .home-hero h1{font-size:22px;margin:0 0 4px;font-weight:800}
+    .home-hero p{margin:0 0 8px;color:var(--hm-muted);font-size:13px}
 
     .search-card{display:grid;grid-template-columns:120px 1fr auto;gap:8px;margin-bottom:10px}
     .search-card select,.search-card input{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
@@ -67,8 +58,11 @@
     @media (max-width:760px){ .search-card{grid-template-columns:1fr;gap:6px} }
 
     .tab-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:8px}
-    .chip{display:flex;align-items:center;justify-content:center;height:36px;border:1.5px solid var(--hm-border);border-radius:999px;background:#fff;font-weight:700;font-size:13px;color:#374151;cursor:pointer;user-select:none}
-    .chip[aria-expanded="true"]{border-color:var(--hm-accent);box-shadow:0 0 0 2px rgba(153,27,27,.10)}
+    .tab{display:flex;align-items:center;justify-content:center;height:36px;border:1.5px solid var(--hm-border);border-radius:999px;background:#fff;font-weight:700;font-size:13px;color:#374151;cursor:pointer;user-select:none}
+    .tab:after{content:"+";margin-left:6px;font-weight:900;color:#6b7280}
+    .tab[aria-expanded="true"]{border-color:var(--hm-accent);box-shadow:0 0 0 2px rgba(153,27,27,.10)}
+    .tab[aria-expanded="true"]:after{content:"–"}
+
     .panel-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
     .panel{display:none;background:rgba(255,255,255,.98);border:1px solid var(--hm-border);border-radius:12px;padding:8px;min-height:54px}
     .panel.open{display:block}
@@ -120,7 +114,7 @@
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
           <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
@@ -161,6 +155,9 @@
   </div>
 </header>
 
+<!-- OVERLAY -->
+<div id="sheetOverlay" aria-hidden="true"></div>
+
 <!-- LEFT MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true">
   <header>
@@ -176,7 +173,7 @@
     <a href="dashboard.html">Dashboard</a>
     <a href="atelier.html">My Atelier</a>
     <a href="how.html">How It Works</a>
-    <a href="seller/index.html?list=new">Sell Fabric</a>
+    <a href="sell.html">Sell Fabric</a>
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
@@ -185,19 +182,10 @@
 <section class="hero-wrap">
   <div class="hero-card home-hero">
     <h1>Find your next fabric creation</h1>
+    <p>Search fabrics by content, weight, width, and more.</p>
 
-    <!-- Clear, simple description and CTAs (separate from search) -->
-    <div class="intro">Buy and sell designer-quality fabrics with prepaid, trackable shipping.</div>
-    <div class="cta-row" role="group" aria-label="Account actions">
-      <a class="btn primary" href="account.html">Sign up</a>
-      <a class="btn" href="account.html">Log in</a>
-      <a class="btn" href="how.html">How it works</a>
-      <a class="btn" href="sell.html">Start selling</a>
-    </div>
-
-    <!-- Search -->
-    <form id="homeSearch" class="search-card" role="search" aria-label="Search Hemline">
-      <select name="type" id="searchType" aria-label="Search scope">
+    <form id="homeSearch" class="search-card" role="search" aria-label="Search">
+      <select name="type" id="searchType" aria-label="Search type">
         <option value="listings" selected>Listings</option>
         <option value="users">Users</option>
       </select>
@@ -205,13 +193,12 @@
       <button type="submit" aria-label="Search">Search</button>
     </form>
 
-    <!-- Filter chips -->
     <div class="tab-row" id="tabRow">
-      <button type="button" class="chip" data-panel="pContent" aria-expanded="false">Content</button>
-      <button type="button" class="chip" data-panel="pColor"   aria-expanded="false">Color</button>
-      <button type="button" class="chip" data-panel="pPrice"   aria-expanded="false">$/yard</button>
-      <button type="button" class="chip" data-panel="pYards"   aria-expanded="false">Yards</button>
-      <button type="button" class="chip" data-panel="pMore"    aria-expanded="false">More</button>
+      <button type="button" class="tab" data-panel="pContent" aria-expanded="false">Content</button>
+      <button type="button" class="tab" data-panel="pColor"   aria-expanded="false">Color</button>
+      <button type="button" class="tab" data-panel="pPrice"   aria-expanded="false">$/yard</button>
+      <button type="button" class="tab" data-panel="pYards"   aria-expanded="false">Yards</button>
+      <button type="button" class="tab" data-panel="pMore"    aria-expanded="false">More</button>
     </div>
 
     <div class="panel-grid">
@@ -338,112 +325,27 @@
   </div>
 </footer>
 
-<!-- JS (reused behavior from About; plus minimal search/filter wiring) -->
+<!-- JS: Hamburger behavior copied from About page -->
 <script>
-  // Header sheet controls (same as About)
   (function(){
-    const sheet=document.getElementById('menuSheet');
-    const openBtn=document.getElementById('openMenu');
-    const closeBtn=document.getElementById('closeMenu');
-    function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
-    function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
-    openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
-    closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
-    document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
+    const sheet   = document.getElementById('menuSheet');
+    const openBtn = document.getElementById('openMenu');
+    const closeBtn= document.getElementById('closeMenu');
 
-    // Optional avatar image from localStorage
+    function openSheet(){ sheet.classList.add('open');  sheet.setAttribute('aria-hidden','false'); }
+    function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+
+    openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+    closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+
+    // Optional avatar image
     const avatar=document.getElementById('avatar');
     try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
   })();
-
-  // Filter chip toggles
-  (function(){
-    const chips = document.querySelectorAll('.chip[data-panel]');
-    chips.forEach(chip=>{
-      chip.addEventListener('click', ()=>{
-        const pid = chip.getAttribute('data-panel');
-        const panel = document.getElementById(pid);
-        const open = chip.getAttribute('aria-expanded') === 'true';
-        chip.setAttribute('aria-expanded', String(!open));
-        panel.classList.toggle('open', !open);
-      });
-    });
-  })();
-
-  // Build query and navigate to browse.html on search/apply
-  (function(){
-    const form = document.getElementById('homeSearch');
-    const applyBtn = document.getElementById('applyAll');
-    const clearBtn = document.getElementById('clearAll');
-
-    function collectFilters(){
-      const params = new URLSearchParams();
-
-      // scope + q
-      const scope = document.getElementById('searchType')?.value || 'listings';
-      const q = document.getElementById('searchQ')?.value || '';
-      if (scope) params.set('type', scope);
-      if (q) params.set('q', q);
-
-      // content checkboxes
-      const contents = [];
-      ['cotton','linen','wool','silk','rayon'].forEach(id=>{
-        const el = document.getElementById(id);
-        if (el && el.checked) contents.push(id);
-      });
-      if (contents.length) params.set('content', contents.join(','));
-
-      // color
-      const color = document.getElementById('color')?.value || '';
-      if (color) params.set('color', color);
-
-      // numeric ranges
-      const pmin = document.getElementById('pmin')?.value;
-      const pmax = document.getElementById('pmax')?.value;
-      const ymin = document.getElementById('ymin')?.value;
-      const ymax = document.getElementById('ymax')?.value;
-      const width = document.getElementById('width')?.value;
-      const gsm = document.getElementById('gsm')?.value;
-
-      if (pmin) params.set('price_min', pmin);
-      if (pmax) params.set('price_max', pmax);
-      if (ymin) params.set('yards_min', ymin);
-      if (ymax) params.set('yards_max', ymax);
-      if (width) params.set('width', width);
-      if (gsm) params.set('gsm', gsm);
-
-      return params;
-    }
-
-    function go(){
-      const params = collectFilters();
-      const url = 'browse.html' + (params.toString() ? ('?' + params.toString()) : '');
-      window.location.href = url;
-    }
-
-    form.addEventListener('submit', (e)=>{ e.preventDefault(); go(); });
-    applyBtn.addEventListener('click', go);
-
-    clearBtn.addEventListener('click', ()=>{
-      // clear inputs
-      form.reset();
-      ['cotton','linen','wool','silk','rayon'].forEach(id=>{
-        const el = document.getElementById(id);
-        if (el) el.checked = false;
-      });
-      ['pmin','pmax','ymin','ymax','width','gsm'].forEach(id=>{
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-      });
-      const color = document.getElementById('color'); if (color) color.value = '';
-      // collapse panels
-      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('open'));
-      document.querySelectorAll('.chip[aria-expanded]').forEach(c=>c.setAttribute('aria-expanded','false'));
-    });
-  })();
 </script>
 
-<!-- Cart hooks (kept as-is) -->
+<!-- Cart hooks -->
 <script src="scripts/cart.js"></script>
 <script src="scripts/cart-hooks.js"></script>
 <script src="assets/add-to-cart.js" defer></script>
