@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Hemline Market — Find your next fabric creation</title>
 
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
   <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
@@ -113,7 +119,20 @@
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
-      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu"></button>
+      <!-- Self-contained hamburger (icon inline; no dynamic injection required) -->
+      <button
+        class="hamburger"
+        id="openMenu"
+        type="button"
+        aria-label="Open menu"
+        aria-controls="menuSheet"
+        aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
 
@@ -327,16 +346,16 @@
     const closeBtn = document.getElementById('closeMenu');
     const overlay = document.getElementById('sheetOverlay');
 
-    // Icons
+    // Swap icon helper (hamburger ↔ close)
     const ICON_BURGER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>';
     const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
-    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
     function setButton(open){
       if (!openBtn) return;
       openBtn.setAttribute('aria-expanded', String(open));
       openBtn.innerHTML = open ? ICON_X : ICON_BURGER;
     }
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
     function openSheet(){
       sheet.classList.add('open');
       sheet.setAttribute('aria-hidden','false');
@@ -352,14 +371,13 @@
       lockScroll(false);
     }
 
-    // Init icon and closed state
-    if (openBtn && !openBtn.innerHTML.trim()) openBtn.innerHTML = ICON_BURGER;
-    closeSheet();
+    // Ensure a starting icon/state
+    setButton(false);
 
     // Events
     openBtn?.addEventListener('click', (e)=>{ e.preventDefault(); sheet.classList.contains('open') ? closeSheet() : openSheet(); });
     closeBtn?.addEventListener('click', (e)=>{ e.preventDefault(); closeSheet(); });
-    overlay.addEventListener('click', closeSheet);
+    overlay?.addEventListener('click', closeSheet);
     document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeSheet(); });
 
     // Avatar image (optional)
