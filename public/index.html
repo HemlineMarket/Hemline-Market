@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Hemline Market — Find your next fabric creation</title>
 
-  <!-- Favicon -->
+  <!-- Favicons -->
   <link rel="icon" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 
   <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
@@ -56,6 +55,10 @@
     .hero-card{background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 14px rgba(0,0,0,.10);padding:12px}
     .home-hero h1{font-size:22px;margin:0 0 4px;font-weight:800}
     .home-hero p{margin:0 0 8px;color:var(--hm-muted);font-size:13px}
+
+    .cta-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+    .cta{border-radius:999px;border:1px solid var(--hm-border);background:#fff;color:#374151;padding:8px 14px;font-weight:700;text-decoration:none}
+    .cta.primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
 
     .search-card{display:grid;grid-template-columns:120px 1fr auto;gap:8px;margin-bottom:10px}
     .search-card select,.search-card input{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
@@ -119,20 +122,7 @@
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
-      <!-- Self-contained hamburger (icon inline; no dynamic injection required) -->
-      <button
-        class="hamburger"
-        id="openMenu"
-        type="button"
-        aria-label="Open menu"
-        aria-controls="menuSheet"
-        aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="4" y1="6" x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
-      </button>
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu"></button>
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
 
@@ -194,7 +184,12 @@
 <section class="hero-wrap">
   <div class="hero-card home-hero">
     <h1>Find your next fabric creation</h1>
-    <p>Search fabrics by content, weight, width, and more.</p>
+    <p>Search fabrics by content, weight, width, and more. Join Hemline to buy and sell designer-quality fabrics with prepaid, trackable shipping.</p>
+
+    <div class="cta-row" aria-label="Sign up or log in">
+      <a class="cta primary" href="signup.html">Sign up</a>
+      <a class="cta" href="login.html">Log in</a>
+    </div>
 
     <form id="homeSearch" class="search-card" role="search" aria-label="Search">
       <select name="type" id="searchType" aria-label="Search type">
@@ -346,16 +341,16 @@
     const closeBtn = document.getElementById('closeMenu');
     const overlay = document.getElementById('sheetOverlay');
 
-    // Swap icon helper (hamburger ↔ close)
+    // Icons
     const ICON_BURGER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>';
     const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
+    function lockScroll(lock){ document.documentElement.style.overflow = lock ? 'hidden' : ''; }
     function setButton(open){
       if (!openBtn) return;
       openBtn.setAttribute('aria-expanded', String(open));
       openBtn.innerHTML = open ? ICON_X : ICON_BURGER;
     }
-    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
     function openSheet(){
       sheet.classList.add('open');
       sheet.setAttribute('aria-hidden','false');
@@ -371,13 +366,14 @@
       lockScroll(false);
     }
 
-    // Ensure a starting icon/state
-    setButton(false);
+    // Init icon and closed state
+    if (openBtn && !openBtn.innerHTML.trim()) openBtn.innerHTML = ICON_BURGER;
+    closeSheet();
 
     // Events
     openBtn?.addEventListener('click', (e)=>{ e.preventDefault(); sheet.classList.contains('open') ? closeSheet() : openSheet(); });
     closeBtn?.addEventListener('click', (e)=>{ e.preventDefault(); closeSheet(); });
-    overlay?.addEventListener('click', closeSheet);
+    overlay.addEventListener('click', closeSheet);
     document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeSheet(); });
 
     // Avatar image (optional)
@@ -386,6 +382,68 @@
       const a=document.getElementById("avatar");
       if(a && url){ a.textContent=''; a.style.backgroundImage="url('"+url+"')"; }
     }catch{}
+
+    // ---------- Filters & Search ----------
+    const tabs = document.querySelectorAll('.tab');
+    const panels = document.querySelectorAll('.panel');
+    tabs.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-panel');
+        const panel = document.getElementById(id);
+        const open = btn.getAttribute('aria-expanded') === 'true';
+        // collapse all others
+        tabs.forEach(b=>b.setAttribute('aria-expanded','false'));
+        panels.forEach(p=>p.classList.remove('open'));
+        // toggle current
+        if (!open){ btn.setAttribute('aria-expanded','true'); panel.classList.add('open'); }
+      });
+    });
+
+    // Clear
+    document.getElementById('clearAll').addEventListener('click', ()=>{
+      document.querySelectorAll('#pContent input[type="checkbox"]').forEach(c=>c.checked=false);
+      document.getElementById('color').value='';
+      ['pmin','pmax','ymin','ymax','width','gsm'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    });
+
+    // Build query params from filters
+    function buildQuery(){
+      const params = new URLSearchParams();
+      const q = (document.getElementById('searchQ').value || '').trim();
+      const type = document.getElementById('searchType').value || 'listings';
+      if (q) params.set('q', q);
+      params.set('type', type);
+
+      // content chips
+      const content = [];
+      [['cotton','cotton'],['linen','linen'],['wool','wool'],['silk','silk'],['rayon','rayon']].forEach(([id,val])=>{
+        const el = document.getElementById(id);
+        if (el && el.checked) content.push(val);
+      });
+      if (content.length) params.set('content', content.join(','));
+
+      // simple fields
+      const color = document.getElementById('color').value;
+      if (color) params.set('color', color);
+      [['pmin','pmin'],['pmax','pmax'],['ymin','ymin'],['ymax','ymax'],['width','width'],['gsm','gsm']].forEach(([id,key])=>{
+        const v = (document.getElementById(id)?.value || '').trim();
+        if (v) params.set(key, v);
+      });
+      return params.toString();
+    }
+
+    // Apply -> go to browse with params
+    document.getElementById('applyAll').addEventListener('click', ()=>{
+      const qs = buildQuery();
+      window.location.href = 'browse.html' + (qs ? ('?' + qs) : '');
+    });
+
+    // Search submit
+    document.getElementById('homeSearch').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const qs = buildQuery();
+      window.location.href = 'browse.html' + (qs ? ('?' + qs) : '');
+    });
   })();
 </script>
 
