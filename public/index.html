@@ -21,6 +21,9 @@
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
+    /* Utility */
+    .is-hidden{display:none !important;}
+
     /* Header */
     .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border);position:relative;z-index:101}
     .hm-header .wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
@@ -42,7 +45,7 @@
     .sheet nav a + a{margin-top:8px}
     .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--hm-border);border-radius:8px;background:#fff;color:#444}
 
-    /* Overlay for sheet (kept for styling consistency, not required by JS) */
+    /* Overlay for sheet */
     #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.25);backdrop-filter:blur(1px);display:none;z-index:90}
     #sheetOverlay.show{display:block}
 
@@ -51,6 +54,10 @@
     .hero-card{background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 14px rgba(0,0,0,.10);padding:12px}
     .home-hero h1{font-size:22px;margin:0 0 4px;font-weight:800}
     .home-hero p{margin:0 0 8px;color:var(--hm-muted);font-size:13px}
+
+    .cta-row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 10px}
+    .cta{border:1px solid var(--hm-border);border-radius:10px;padding:8px 12px;background:#fff;font-weight:700;text-decoration:none;color:#1f2937}
+    .cta--primary{border-color:var(--hm-accent);background:var(--hm-accent);color:#fff}
 
     .search-card{display:grid;grid-template-columns:120px 1fr auto;gap:8px;margin-bottom:10px}
     .search-card select,.search-card input{padding:8px 10px;border:1px solid var(--hm-border);border-radius:10px;background:#fff}
@@ -114,7 +121,7 @@
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
-      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu">
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
           <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
@@ -159,7 +166,7 @@
 <div id="sheetOverlay" aria-hidden="true"></div>
 
 <!-- LEFT MENU -->
-<aside class="sheet" id="menuSheet" aria-hidden="true">
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
   <header>
     <strong>Menu</strong>
     <button class="close" id="closeMenu" aria-label="Close menu">
@@ -182,18 +189,28 @@
 <section class="hero-wrap">
   <div class="hero-card home-hero">
     <h1>Find your next fabric creation</h1>
-    <p>Search fabrics by content, weight, width, and more.</p>
+    <p>Buy & sell designer-quality fabrics with prepaid, trackable shipping.</p>
+
+    <!-- Optional primary CTAs (kept simple; remove if you don't want them here) -->
+    <div class="cta-row">
+      <a class="cta" href="auth.html?view=login">Log in</a>
+      <a class="cta" href="auth.html?view=signup">Sign up</a>
+      <a class="cta cta--primary" href="sell.html">Start selling</a>
+    </div>
 
     <form id="homeSearch" class="search-card" role="search" aria-label="Search">
+      <label class="is-hidden" for="searchType">Search type</label>
       <select name="type" id="searchType" aria-label="Search type">
         <option value="listings" selected>Listings</option>
         <option value="users">Users</option>
       </select>
+      <label class="is-hidden" for="searchQ">Search query</label>
       <input type="search" name="q" id="searchQ" placeholder="Search fabrics, shops, or styles…" aria-label="Search query"/>
       <button type="submit" aria-label="Search">Search</button>
     </form>
 
-    <div class="tab-row" id="tabRow">
+    <!-- Hide filter chips & panels until they’re functional to avoid inert UI -->
+    <div class="tab-row is-hidden" id="tabRow" aria-hidden="true">
       <button type="button" class="tab" data-panel="pContent" aria-expanded="false">Content</button>
       <button type="button" class="tab" data-panel="pColor"   aria-expanded="false">Color</button>
       <button type="button" class="tab" data-panel="pPrice"   aria-expanded="false">$/yard</button>
@@ -201,7 +218,7 @@
       <button type="button" class="tab" data-panel="pMore"    aria-expanded="false">More</button>
     </div>
 
-    <div class="panel-grid">
+    <div class="panel-grid is-hidden" aria-hidden="true">
       <div id="pContent" class="panel content-panel">
         <div class="list">
           <div class="check"><input id="cotton" type="checkbox"><label for="cotton">Cotton</label></div>
@@ -244,7 +261,7 @@
       </div>
     </div>
 
-    <div class="global-actions">
+    <div class="global-actions is-hidden" aria-hidden="true">
       <button class="btn" id="clearAll" type="button">Clear</button>
       <button class="btn btn-primary" id="applyAll" type="button">Apply</button>
     </div>
@@ -325,23 +342,60 @@
   </div>
 </footer>
 
-<!-- JS: Hamburger behavior copied from About page -->
+<!-- JS: Hamburger + Search routing (non-inert, accessible) -->
 <script>
   (function(){
-    const sheet   = document.getElementById('menuSheet');
-    const openBtn = document.getElementById('openMenu');
-    const closeBtn= document.getElementById('closeMenu');
+    const sheet    = document.getElementById('menuSheet');
+    const openBtn  = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const overlay  = document.getElementById('sheetOverlay');
 
-    function openSheet(){ sheet.classList.add('open');  sheet.setAttribute('aria-hidden','false'); }
-    function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
+    function lockScroll(lock) {
+      document.body.style.overflow = lock ? 'hidden' : '';
+    }
+    function openSheet(){
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden','false');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      openBtn.setAttribute('aria-expanded','true');
+      lockScroll(true);
+    }
+    function closeSheet(){
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden','true');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden','true');
+      openBtn.setAttribute('aria-expanded','false');
+      lockScroll(false);
+      openBtn.focus();
+    }
 
-    openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
-    closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+    if (openBtn && sheet && closeBtn && overlay){
+      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+      overlay.addEventListener('click', closeSheet);
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+    }
+
+    // Home search → browse.html?q=...&type=...
+    const form = document.getElementById('homeSearch');
+    if (form){
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const type = (document.getElementById('searchType') || {}).value || 'listings';
+        const q    = (document.getElementById('searchQ') || {}).value || '';
+        const url  = 'browse.html?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q);
+        window.location.href = url;
+      });
+    }
 
     // Optional avatar image
     const avatar=document.getElementById('avatar');
-    try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
+    try{
+      const url=localStorage.getItem('avatarUrl');
+      if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }
+    }catch(e){}
   })();
 </script>
 
