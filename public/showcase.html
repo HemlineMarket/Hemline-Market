@@ -46,4 +46,237 @@
     }
     .icon-btn{
       display:inline-grid;place-items:center;width:44px;height:44px;border:1px solid var(--border);
-      border-radius:12px;background:#
+      border-radius:12px;background:#fff;cursor:pointer
+    }
+    .post-btn{background:#2d2d2d;color:#fff;border:1px solid #2d2d2d;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
+    .post-btn:disabled{opacity:.5;cursor:not-allowed}
+    .preview{display:flex;gap:8px;justify-content:center;margin-top:8px}
+    .preview img,.preview video{max-width:140px;max-height:110px;border-radius:10px;border:1px solid var(--border)}
+
+    /* feed */
+    .feed{max-width:900px;margin:20px auto 32px}
+    .feed h2{font-size:18px;margin:4px 0 10px 4px;color:#5a463d}
+    .cards{display:flex;flex-direction:column;gap:16px}
+    .card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px 20px;box-shadow:0 12px 18px rgba(50,38,31,.07)}
+    .meta{display:flex;align-items:center;gap:8px;color:#7a6e68;font-size:13px;margin-bottom:6px}
+    .avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);display:inline-grid;place-items:center;font-weight:700;font-size:12px}
+    .preview-text{color:#5e544d;font-size:15px;white-space:pre-wrap;margin:6px 0}
+    .post-img,.post-video{width:100%;height:auto;border-radius:12px;margin:8px 0;border:1px solid var(--border);display:block;max-height:560px}
+
+    /* sheet/overlay for hamburger (reuses your ThreadTalk behavior) */
+    #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.28);opacity:0;visibility:hidden;transition:opacity .2s ease;z-index:325}
+    #sheetOverlay.show{opacity:1;visibility:visible}
+    .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);
+      transform:translateX(-100%);transition:transform .25s ease;z-index:350;display:flex;flex-direction:column}
+    .sheet.open{transform:translateX(0)}
+    a:focus-visible,button:focus-visible{outline:3px solid rgba(153,27,27,.35);outline-offset:2px;border-radius:10px}
+  </style>
+</head>
+<body>
+
+<!-- HEADER (same structure as ThreadTalk) -->
+<header class="hm-header" role="banner">
+  <div class="wrap-1200" style="display:flex;align-items:center;justify-content:space-between;padding:0 12px">
+    <div class="left" style="display:flex;align-items:center;gap:10px">
+      <button id="openMenu" aria-label="Open menu"
+        style="display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#4b3d35">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;stroke-width:2">
+          <line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html" style="font-size:24px;font-weight:800;text-decoration:none">Hemline Market</a>
+    </div>
+    <div class="right" style="display:flex;align-items:center;gap:14px">
+      <a class="hm-icon" href="browse.html" aria-label="Browse & search" style="color:#4b3d35;display:inline-grid;place-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
+          <circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk" style="color:#4b3d35;display:inline-grid;place-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
+          <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"/>
+        </svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites" style="color:#4b3d35;display:inline-grid;place-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications" style="color:#4b3d35;display:inline-grid;place-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart" style="color:#4b3d35;display:inline-grid;place-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
+          <circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile"
+         style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#4b3d35;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center">AA</a>
+      <a class="hm-btn-primary" href="sell.html" style="text-decoration:none;background:#2d2d2d;color:#fff;padding:8px 12px;border-radius:10px;border:1px solid #2d2d2d">Sell</a>
+    </div>
+  </div>
+</header>
+
+<div id="sheetOverlay" aria-hidden="true"></div>
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true">
+  <header style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)">
+    <strong>Menu</strong>
+    <button id="closeMenu" aria-label="Close menu" style="display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#4b3d35">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </header>
+  <nav style="display:grid;padding:10px">
+    <a href="ThreadTalk.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">ThreadTalk</a>
+    <a href="browse.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Browse & Search</a>
+    <a href="atelier.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">My Atelier</a>
+    <a href="how.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">How It Works</a>
+    <a href="seller/index.html?list=new" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Sell Fabric</a>
+    <a href="contact.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Contact</a>
+  </nav>
+</aside>
+
+<main class="wrap-1200" role="main">
+  <section class="hero" aria-labelledby="title">
+    <h1 id="title">Showcase</h1>
+    <p class="sub">Show what you made—photos and quick notes welcome.</p>
+
+    <div class="composer" aria-label="Create a showcase post">
+      <span class="chip">Showcase</span>
+      <input id="ttInput" class="input" type="text" maxlength="500"
+             placeholder="Share a finished make, photo, or quick note…"/>
+      <label class="icon-btn" title="Add photo/video">
+        <input type="file" id="media" accept="image/*,video/*" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:22px;height:22px;stroke-width:2">
+          <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11.5" r="2.5"/><path d="M21 15l-4-4-3 3"/>
+        </svg>
+      </label>
+      <button id="postBtn" class="post-btn">Post</button>
+      <div class="preview" id="preview" hidden></div>
+    </div>
+
+    <div style="margin-top:10px">
+      <a href="ThreadTalk.html" class="post-btn" style="text-decoration:none;background:#1f2937;border-color:#1f2937">Back to ThreadTalk</a>
+    </div>
+  </section>
+
+  <section class="feed" aria-labelledby="feed-title">
+    <h2 id="feed-title">Latest Showcase Posts</h2>
+    <div id="cards" class="cards" aria-live="polite"></div>
+    <div id="empty" style="color:#7a6e68;font-size:14px;margin:12px 4px">No posts yet. Be the first to share!</div>
+  </section>
+</main>
+
+<footer class="hm-footer" role="contentinfo">
+  <div class="wrap-1200" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* Hamburger sheet */
+  var sheet=document.getElementById('menuSheet');
+  var overlay=document.getElementById('sheetOverlay');
+  var openBtn=document.getElementById('openMenu');
+  var closeBtn=document.getElementById('closeMenu');
+  function openSheet(){sheet.classList.add('open');sheet.setAttribute('aria-hidden','false');overlay.classList.add('show');document.body.style.overflow='hidden'}
+  function closeSheet(){sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');overlay.classList.remove('show');document.body.style.overflow=''}
+  if(openBtn) openBtn.addEventListener('click',e=>{e.preventDefault();openSheet()});
+  if(closeBtn) closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet()});
+  if(overlay) overlay.addEventListener('click', closeSheet);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape') closeSheet()});
+
+  /* Optional avatar image */
+  try{
+    var avatar=document.getElementById('avatar');
+    var url=localStorage.getItem('avatarUrl');
+    if(avatar && url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }
+  }catch(e){}
+
+  /* Posting */
+  const input=document.getElementById('ttInput');
+  const media=document.getElementById('media');
+  const postBtn=document.getElementById('postBtn');
+  const preview=document.getElementById('preview');
+  const cards=document.getElementById('cards');
+  const empty=document.getElementById('empty');
+
+  function initials(name){return (name||'AA').slice(0,2).toUpperCase();}
+  function now(){return 'just now';}
+
+  function render(post,top){
+    const el=document.createElement('article');
+    el.className='card';
+    let mediaHTML='';
+    if(post.media){
+      if(post.media.type==='image'){ mediaHTML='<img class="post-img" src="'+post.media.url+'" alt="post image">'; }
+      else { mediaHTML='<video class="post-video" controls src="'+post.media.url+'"></video>'; }
+    }
+    el.innerHTML =
+      '<div class="meta"><div class="avatar">'+initials(post.user)+'</div><span>'+(post.user||'You')+'</span> • <span>'+now()+
+      '</span></div>'+ mediaHTML +'<div class="preview-text">'+post.text+'</div>';
+    if(top && cards.firstChild) cards.insertBefore(el,cards.firstChild); else cards.appendChild(el);
+  }
+
+  function save(post){
+    try{
+      const arr=JSON.parse(localStorage.getItem('showcase_posts')||'[]');
+      arr.unshift(post);
+      localStorage.setItem('showcase_posts',JSON.stringify(arr));
+    }catch(e){}
+  }
+
+  function load(){
+    try{
+      const arr=JSON.parse(localStorage.getItem('showcase_posts')||'[]');
+      if(arr.length){empty.style.display='none';arr.forEach(p=>render(p,false));}
+    }catch(e){}
+  }
+
+  function clearComposer(){
+    input.value=''; media.value=''; preview.innerHTML=''; preview.hidden=true;
+  }
+
+  media.addEventListener('change', function(){
+    if(this.files && this.files[0]){
+      const f=this.files[0];
+      const url=URL.createObjectURL(f);
+      preview.hidden=false;
+      preview.innerHTML = f.type.startsWith('video') ? '<video controls src="'+url+'"></video>'
+                                                    : '<img src="'+url+'" alt="preview">';
+    }else{ preview.hidden=true; preview.innerHTML=''; }
+  });
+
+  postBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    const text=(input.value||'').trim();
+    if(!text){ input.focus(); return; }
+    let m=null;
+    if(media.files && media.files[0]){
+      const f=media.files[0];
+      m={type: f.type.startsWith('video') ? 'video' : 'image', url: URL.createObjectURL(f)};
+    }
+    const post={text:text,media:m,user:localStorage.getItem('tt_user')||'You',ts:Date.now()};
+    empty.style.display='none';
+    render(post,true);
+    save(post);
+    clearComposer();
+    window.scrollTo({top:document.querySelector('.feed').offsetTop-8,behavior:'smooth'});
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
