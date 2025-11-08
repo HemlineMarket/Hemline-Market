@@ -42,6 +42,7 @@
 
     .tt-wrap{max-width:1200px;margin:22px auto 44px;padding:0 16px}
 
+    /* Hero */
     .tt-hero{
       border:1px solid var(--tt-border);border-radius:20px;padding:32px 20px;text-align:center;
       box-shadow: 0 10px 20px rgba(16,24,40,.04);
@@ -55,6 +56,7 @@
     .tt-btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(16,24,40,.06)}
     .rules-link{display:inline-block;margin-top:8px;color:var(--tt-accent);text-decoration:underline;font-size:14px}
 
+    /* Topics */
     .topics{margin-top:22px}
     .topics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
     .topic{
@@ -78,12 +80,16 @@
     .hacks{background:linear-gradient(180deg,var(--hacks-from),var(--hacks-to))}
     .before{background:linear-gradient(180deg,var(--before-from),var(--before-to))}
 
+    /* FEED: single-column timeline */
     .feed{margin-top:28px}
     .feed h2{font-size:18px;margin:4px 0 12px 4px;color:#374151}
-    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-    .card{background:#fff;border:1px solid var(--tt-border);border-radius:16px;padding:14px;box-shadow:0 8px 16px rgba(16,24,40,.04)}
+    .cards{
+      display:flex; flex-direction:column; gap:14px;
+      max-width:740px; margin:0 auto; /* center column */
+    }
+    .card{background:#fff;border:1px solid var(--tt-border);border-radius:16px;padding:16px 18px;box-shadow:0 8px 16px rgba(16,24,40,.04)}
     .meta{display:flex;align-items:center;gap:8px;color:#6b7280;font-size:13px;margin-bottom:6px}
-    .avatar{width:26px;height:26px;border-radius:50%;border:1px solid var(--tt-border);background:#fff;display:inline-grid;place-items:center;font-weight:700;font-size:12px}
+    .avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--tt-border);background:#fff;display:inline-grid;place-items:center;font-weight:700;font-size:12px}
     .card .title{font-weight:800;margin:4px 0 6px}
     .preview{color:#4b5563;font-size:14px;margin-bottom:8px}
     .tags{display:flex;gap:6px;flex-wrap:wrap}
@@ -96,18 +102,18 @@
     .chip[data-topic="coffee"]{border-color:var(--coffee-to);color:var(--coffee-chip)}
     .chip[data-topic="hacks"]{border-color:var(--hacks-to);color:var(--hacks-chip)}
     .chip[data-topic="before"]{border-color:var(--before-to);color:var(--before-chip)}
-
     .actions{display:flex;gap:12px;align-items:center;color:#6b7280;font-size:13px;margin-top:8px}
     .actions svg{width:16px;height:16px}
 
+    /* Skeletons for endless load */
     .skeleton{
       background:linear-gradient(90deg,#f5f5f5 25%,#eee 37%,#f5f5f5 63%);
       background-size:400% 100%; animation:shimmer 1.2s infinite;
-      height:120px;border-radius:16px;border:1px solid var(--tt-border)
+      height:132px;border-radius:16px;border:1px solid var(--tt-border)
     }
     @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
 
-    /* Sheet + overlay (reliable hamburger) */
+    /* Sheet + overlay */
     .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--tt-border);transform:translateX(-100%);transition:transform .25s ease;z-index:300;display:flex;flex-direction:column}
     .sheet.open{transform:translateX(0)}
     #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.25);opacity:0;visibility:hidden;transition:opacity .2s ease;z-index:250}
@@ -163,7 +169,6 @@
   </div>
 </header>
 
-<!-- OVERLAY for sheet -->
 <div id="sheetOverlay" aria-hidden="true"></div>
 
 <!-- LEFT MENU -->
@@ -195,7 +200,7 @@
     <a class="rules-link" href="rules.html" aria-label="Community Rules">Before posting, read the rules →</a>
   </section>
 
-  <!-- TOPICS -->
+  <!-- Topics -->
   <section class="topics" id="topics" aria-label="Popular topics">
     <div class="topics-grid">
       <a class="topic sos" href="#feed" aria-label="Fabric SOS" data-badge="🛟"><div class="title">Fabric SOS</div><div class="tagline">Name it, tame it, care for it.</div></a>
@@ -209,11 +214,10 @@
     </div>
   </section>
 
-  <!-- FEED -->
+  <!-- Single-column FEED -->
   <section class="feed" id="feed" aria-labelledby="feed-title">
     <h2 id="feed-title">Latest Threads</h2>
     <div class="cards" id="cards" aria-live="polite">
-      <!-- initial examples (keep) -->
       <article class="card" data-topic="sos">
         <div class="meta"><div class="avatar">AK</div><span>AriaK</span> • <span>2h</span></div>
         <div class="title">Help ID this twill: poly blend or viscose?</div>
@@ -223,7 +227,7 @@
           <a class="chip" href="#topics">#twill</a>
           <a class="chip" href="#topics">#burntest</a>
         </div>
-        <div class="actions"><span title="Likes">❤ 18</span><span title="Replies">💬 7</span></div>
+        <div class="actions"><span>❤ 18</span><span>💬 7</span></div>
       </article>
 
       <article class="card" data-topic="school">
@@ -250,7 +254,6 @@
       </article>
     </div>
 
-    <!-- infinite scroll sentry -->
     <div id="feed-sentinel" aria-hidden="true" style="height:32px"></div>
   </section>
 </main>
@@ -272,44 +275,34 @@
 
 <script>
 (function(){
-  /* ===== HAMBURGER (robust) ===== */
+  /* ===== Hamburger ===== */
   const sheet = document.getElementById('menuSheet');
   const overlay = document.getElementById('sheetOverlay');
   const openBtn = document.getElementById('openMenu');
   const closeBtn = document.getElementById('closeMenu');
 
-  function openSheet(){
-    sheet.classList.add('open');
-    sheet.setAttribute('aria-hidden','false');
-    overlay.classList.add('show');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeSheet(){
-    sheet.classList.remove('open');
-    sheet.setAttribute('aria-hidden','true');
-    overlay.classList.remove('show');
-    document.body.style.overflow = '';
-  }
+  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); overlay.classList.add('show'); document.body.style.overflow='hidden'; }
+  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); overlay.classList.remove('show'); document.body.style.overflow=''; }
 
-  if(openBtn) openBtn.addEventListener('click', e => { e.preventDefault(); openSheet(); });
-  if(closeBtn) closeBtn.addEventListener('click', e => { e.preventDefault(); closeSheet(); });
+  openBtn?.addEventListener('click', e=>{e.preventDefault(); openSheet();});
+  closeBtn?.addEventListener('click', e=>{e.preventDefault(); closeSheet();});
   overlay.addEventListener('click', closeSheet);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
 
-  /* Avatar image from localStorage (optional) */
-  const avatar = document.getElementById('avatar');
-  try { const url = localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage = "url('"+url+"')"; } } catch(e){}
+  /* Avatar (optional) */
+  const avatar=document.getElementById('avatar');
+  try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
 
-  /* Smooth jump to feed on topic/tag click */
+  /* Smooth jump */
   document.querySelectorAll('.topic,.chip').forEach(el=>{
     el.addEventListener('click',()=>{ document.getElementById('feed').scrollIntoView({behavior:'smooth'}); });
   });
 
-  /* ===== Endless feed (demo generator) ===== */
-  const cardsEl = document.getElementById('cards');
-  const sentinel = document.getElementById('feed-sentinel');
+  /* ===== Endless single-column feed (demo) ===== */
+  const cardsEl=document.getElementById('cards');
+  const sentinel=document.getElementById('feed-sentinel');
 
-  const sample = [
+  const sample=[
     {u:'ND',n:'Nadia',t:'Best interfacing for waistbands on wool crepe?',p:'Stable without bulk—sew-in vs fusible vs hybrid…',topic:'fit',tags:['#FitLab','#waistband','#woolcrepe']},
     {u:'LS',n:'LeoS',t:'Rolled-hem foot skipping stitches on silk',p:'Adjusted tension and needle, still missing in curves…',topic:'school',tags:['#StitchSchool','#silk','#rolledhem']},
     {u:'RM',n:'Rima',t:'Stash Confession: 6 yards of linen (no regrets)',p:'On sale, perfect drape… okay maybe some regrets…',topic:'stash',tags:['#StashConfessions','#linen']},
@@ -320,10 +313,10 @@
   ];
 
   function makeCard(c){
-    const el = document.createElement('article');
-    el.className = 'card';
-    el.setAttribute('data-topic', c.topic);
-    el.innerHTML = `
+    const el=document.createElement('article');
+    el.className='card';
+    el.setAttribute('data-topic',c.topic);
+    el.innerHTML=`
       <div class="meta"><div class="avatar">${c.u}</div><span>${c.n}</span> • <span>just now</span></div>
       <div class="title">${c.t}</div>
       <div class="preview">${c.p}</div>
@@ -333,26 +326,25 @@
     return el;
   }
 
-  let loading = false;
+  let loading=false;
   function loadMore(){
-    if (loading) return;
-    loading = true;
-    // skeletons
-    const skels = Array.from({length:3},()=>{ const d=document.createElement('div'); d.className='skeleton'; return d; });
-    skels.forEach(s=>cardsEl.appendChild(s));
+    if(loading) return;
+    loading=true;
+    const skel=document.createElement('div'); skel.className='skeleton';
+    cardsEl.appendChild(skel);
     setTimeout(()=>{
-      skels.forEach(s=>s.remove());
-      for(let i=0;i<6;i++){
-        const c = sample[(Math.random()*sample.length)|0];
+      skel.remove();
+      for(let i=0;i<4;i++){
+        const c=sample[(Math.random()*sample.length)|0];
         cardsEl.appendChild(makeCard(c));
       }
-      loading = false;
-    }, 500);
+      loading=false;
+    },500);
   }
 
-  const io = new IntersectionObserver((entries)=>{
+  const io=new IntersectionObserver(entries=>{
     entries.forEach(e=>{ if(e.isIntersecting) loadMore(); });
-  }, { root:null, rootMargin:'300px', threshold:0 });
+  },{root:null, rootMargin:'300px', threshold:0});
   io.observe(sentinel);
 })();
 </script>
