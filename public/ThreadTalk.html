@@ -16,9 +16,8 @@
   <style>
     :root{
       --tt-ink:#1f2937; --tt-muted:#6b7280; --tt-border:#e5e7eb; --tt-card:#fff;
-      --tt-accent:#9a2c2c;           /* general accent (thread red) */
+      --tt-accent:#9a2c2c;
 
-      /* Topic palettes (soft, distinct) */
       --sos-from:#fff;   --sos-to:#fff8d6;    --sos-chip:#b45309;
       --school-from:#fff;--school-to:#fff1d6; --school-chip:#a16207;
       --fit-from:#fff;   --fit-to:#ffe1e6;    --fit-chip:#9f1239;
@@ -29,40 +28,33 @@
       --before-from:#fff;--before-to:#ecebff; --before-chip:#4338ca;
     }
 
-    /* Playful fabric-paper background (no images) */
     body{
       background:
-        radial-gradient(1200px 400px at 50% -200px, #fff7f3 0%, #ffffff 70%) ,
+        radial-gradient(1200px 400px at 50% -200px, #fff7f3 0%, #ffffff 70%),
         linear-gradient(180deg,#ffffff 0%,#fffaf7 65%,#fff 100%),
         repeating-linear-gradient(90deg, rgba(0,0,0,.02) 0 1px, transparent 1px 8px);
       background-attachment: fixed;
       color:var(--tt-ink);
     }
 
-    /* Header & footer shell */
-    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--tt-border)}
+    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--tt-border);position:relative;z-index:200}
     .hm-footer{background:#fff;border-top:1px solid var(--tt-border);margin-top:24px}
 
-    /* Page container */
     .tt-wrap{max-width:1200px;margin:22px auto 44px;padding:0 16px}
 
-    /* Hero */
     .tt-hero{
       border:1px solid var(--tt-border);border-radius:20px;padding:32px 20px;text-align:center;
       box-shadow: 0 10px 20px rgba(16,24,40,.04);
-      background:
-        radial-gradient(100% 120% at 50% 0%, #fff 0%, #fff7f3 60%, #fff 100%);
+      background: radial-gradient(100% 120% at 50% 0%, #fff 0%, #fff7f3 60%, #fff 100%);
     }
     .tt-hero h1{font-family:ui-serif,"Cormorant Garamond",Georgia,serif;font-size:clamp(30px,4.5vw,48px);margin:0 0 6px}
     .tt-hero .sub{color:var(--tt-muted);font-size:16px;margin-bottom:18px}
     .tt-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
-    .tt-btn{appearance:none;border:1px solid var(--tt-border);background:#fff;padding:10px 14px;border-radius:12px;
-      font-weight:600;text-decoration:none;color:var(--tt-ink)}
+    .tt-btn{appearance:none;border:1px solid var(--tt-border);background:#fff;padding:10px 14px;border-radius:12px;font-weight:600;text-decoration:none;color:var(--tt-ink)}
     .tt-btn.primary{background:var(--tt-ink);color:#fff;border-color:var(--tt-ink)}
     .tt-btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(16,24,40,.06)}
     .rules-link{display:inline-block;margin-top:8px;color:var(--tt-accent);text-decoration:underline;font-size:14px}
 
-    /* Topic grid (formerly “Rooms”) */
     .topics{margin-top:22px}
     .topics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
     .topic{
@@ -77,7 +69,6 @@
     .topic .tagline{color:var(--tt-muted);font-size:14px}
     .topic::after{content:attr(data-badge); position:absolute; right:12px; top:10px; font-size:18px; opacity:.5}
 
-    /* Topic colorways */
     .sos{background:linear-gradient(180deg,var(--sos-from),var(--sos-to))}
     .school{background:linear-gradient(180deg,var(--school-from),var(--school-to))}
     .fit{background:linear-gradient(180deg,var(--fit-from),var(--fit-to))}
@@ -87,7 +78,6 @@
     .hacks{background:linear-gradient(180deg,var(--hacks-from),var(--hacks-to))}
     .before{background:linear-gradient(180deg,var(--before-from),var(--before-to))}
 
-    /* Feed */
     .feed{margin-top:28px}
     .feed h2{font-size:18px;margin:4px 0 12px 4px;color:#374151}
     .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
@@ -110,7 +100,6 @@
     .actions{display:flex;gap:12px;align-items:center;color:#6b7280;font-size:13px;margin-top:8px}
     .actions svg{width:16px;height:16px}
 
-    /* Infinite-feed helpers */
     .skeleton{
       background:linear-gradient(90deg,#f5f5f5 25%,#eee 37%,#f5f5f5 63%);
       background-size:400% 100%; animation:shimmer 1.2s infinite;
@@ -118,17 +107,22 @@
     }
     @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
 
-    /* Focus */
+    /* Sheet + overlay (reliable hamburger) */
+    .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--tt-border);transform:translateX(-100%);transition:transform .25s ease;z-index:300;display:flex;flex-direction:column}
+    .sheet.open{transform:translateX(0)}
+    #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.25);opacity:0;visibility:hidden;transition:opacity .2s ease;z-index:250}
+    #sheetOverlay.show{opacity:1;visibility:visible}
+
     a:focus-visible, button:focus-visible{outline:3px solid rgba(154,44,44,.35);outline-offset:2px;border-radius:10px}
   </style>
 </head>
 <body>
 
-<!-- HEADER (shared) -->
+<!-- HEADER -->
 <header class="hm-header" role="banner">
   <div class="wrap" style="max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between">
     <div class="left" style="display:flex;align-items:center;gap:10px">
-      <button class="hamburger" id="openMenu" aria-label="Open menu" style="display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;color:#374151">
+      <button class="hamburger" id="openMenu" aria-label="Open menu" aria-controls="menuSheet" style="display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;color:#374151">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;stroke-width:2">
           <line x1="4" y1="6"  x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line>
         </svg>
@@ -137,45 +131,42 @@
     </div>
 
     <div class="right" style="display:flex;align-items:center;gap:14px">
-      <!-- Search → browse -->
       <a class="hm-icon" href="browse.html" aria-label="Browse & search" style="color:#444;display:inline-grid;place-items:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
           <circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path>
         </svg>
       </a>
-      <!-- ThreadTalk icon (speech bubble) -->
       <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk" style="color:#444;display:inline-grid;place-items:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
           <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"/>
         </svg>
       </a>
-      <!-- Favorites -->
       <a class="hm-icon" href="favorites.html" aria-label="Favorites" style="color:#444;display:inline-grid;place-items:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
         </svg>
       </a>
-      <!-- Notifications -->
       <a class="hm-icon" href="notifications.html" aria-label="Notifications" style="color:#444;display:inline-grid;place-items:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
       </a>
-      <!-- Cart -->
       <a class="hm-icon" href="cart.html" aria-label="Cart" style="color:#444;display:inline-grid;place-items:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
           <circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle>
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-      <!-- Avatar & Sell -->
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile" style="width:28px;height:28px;border-radius:50%;border:1px solid #e5e7eb;background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center">AA</a>
       <a class="hm-btn-primary" href="sell.html" style="text-decoration:none;background:#1f2937;color:#fff;padding:8px 12px;border-radius:10px;border:1px solid #1f2937">Sell</a>
     </div>
   </div>
 </header>
 
-<!-- LEFT MENU (shared) -->
+<!-- OVERLAY for sheet -->
+<div id="sheetOverlay" aria-hidden="true"></div>
+
+<!-- LEFT MENU -->
 <aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true">
   <header style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid #e5e7eb">
     <strong>Menu</strong>
@@ -195,202 +186,19 @@
 
 <!-- CONTENT -->
 <main class="tt-wrap" role="main">
-  <!-- HERO -->
   <section class="tt-hero" aria-labelledby="tt-title">
     <h1 id="tt-title">ThreadTalk</h1>
     <p class="sub">Where makers gather to talk fabric, fit, and everything in between.</p>
-    <div class="tt-actions" role="group" aria-label="Thread actions">
-      <a class="tt-btn primary" href="#new">Start a Thread</a>
-      <a class="tt-btn" href="#topics">Browse Topics</a>
+    <div class="tt-actions" role="group" aria-label="Post actions">
+      <a class="tt-btn primary" href="#new">Start a Post</a>
     </div>
     <a class="rules-link" href="rules.html" aria-label="Community Rules">Before posting, read the rules →</a>
   </section>
 
-  <!-- TOPIC CARDS -->
+  <!-- TOPICS -->
   <section class="topics" id="topics" aria-label="Popular topics">
     <div class="topics-grid">
-      <a class="topic sos" href="#feed" aria-label="Fabric SOS" data-badge="🛟">
-        <div class="title">Fabric SOS</div><div class="tagline">Name it, tame it, care for it.</div>
-      </a>
-      <a class="topic school" href="#feed" aria-label="Stitch School" data-badge="📘">
-        <div class="title">Stitch School</div><div class="tagline">Teach, learn, and share tutorials.</div>
-      </a>
-      <a class="topic fit" href="#feed" aria-label="Fit Lab" data-badge="📏">
-        <div class="title">Fit Lab</div><div class="tagline">Proportion fixes and pattern tweaks.</div>
-      </a>
-      <a class="topic atelier" href="#feed" aria-label="Atelier Showcase" data-badge="✂️">
-        <div class="title">Atelier Showcase</div><div class="tagline">WIPs and finished glory.</div>
-      </a>
-      <a class="topic stash" href="#feed" aria-label="Stash Confessions" data-badge="💬">
-        <div class="title">Stash Confessions</div><div class="tagline">Guilty pleasures, tools, obsessions.</div>
-      </a>
-      <a class="topic coffee" href="#feed" aria-label="Coffee & Thread" data-badge="☕">
-        <div class="title">Coffee &amp; Thread</div><div class="tagline">Open chat and tangents.</div>
-      </a>
-      <a class="topic hacks" href="#feed" aria-label="Pattern Hacks" data-badge="✨">
-        <div class="title">Pattern Hacks</div><div class="tagline">Smart mods that change everything.</div>
-      </a>
-      <a class="topic before" href="#feed" aria-label="Before & After" data-badge="🌟">
-        <div class="title">Before &amp; After</div><div class="tagline">Transformations worth cheering.</div>
-      </a>
-    </div>
-  </section>
-
-  <!-- LATEST THREADS FEED -->
-  <section class="feed" id="feed" aria-labelledby="feed-title">
-    <h2 id="feed-title">Latest Threads</h2>
-    <div class="cards" id="cards" aria-live="polite">
-      <!-- initial static examples -->
-      <article class="card" data-topic="sos">
-        <div class="meta"><div class="avatar">AK</div><span>AriaK</span> • <span>2h</span></div>
-        <div class="title">Help ID this twill: poly blend or viscose?</div>
-        <div class="preview">Feels cool, drapes nicely, but presses oddly. Burn test gave a hard bead…</div>
-        <div class="tags">
-          <a class="chip" data-topic="sos" href="#topics">#FabricSOS</a>
-          <a class="chip" href="#topics">#twill</a>
-          <a class="chip" href="#topics">#burntest</a>
-        </div>
-        <div class="actions">
-          <span title="Likes">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>18
-          </span>
-          <span title="Replies">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>7
-          </span>
-        </div>
-      </article>
-
-      <article class="card" data-topic="school">
-        <div class="meta"><div class="avatar">JM</div><span>J.M.</span> • <span>5h</span></div>
-        <div class="title">Invisible zipper keeps wavering—pressing order tips?</div>
-        <div class="preview">Fuse first, stitch, then press—or the reverse? Skirt is wool crepe…</div>
-        <div class="tags">
-          <a class="chip" data-topic="school" href="#topics">#StitchSchool</a>
-          <a class="chip" href="#topics">#zipper</a>
-          <a class="chip" href="#topics">#woolcrepe</a>
-        </div>
-        <div class="actions">
-          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>12</span>
-          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>9</span>
-        </div>
-      </article>
-
-      <article class="card" data-topic="before">
-        <div class="meta"><div class="avatar">EV</div><span>EvaV</span> • <span>1d</span></div>
-        <div class="title">Before & After: trench to cropped jacket</div>
-        <div class="preview">Took 6&quot; off, re-set sleeves, and moved the belt loops. Lining hack included…</div>
-        <div class="tags">
-          <a class="chip" data-topic="before" href="#topics">#BeforeAfter</a>
-          <a class="chip" data-topic="hacks" href="#topics">#PatternHacks</a>
-        </div>
-        <div class="actions">
-          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>44</span>
-          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>16</span>
-        </div>
-      </article>
-    </div>
-
-    <!-- infinite scroll sentry -->
-    <div id="feed-sentinel" aria-hidden="true" style="height:24px"></div>
-  </section>
-</main>
-
-<!-- FOOTER (shared) -->
-<footer class="hm-footer" role="contentinfo">
-  <div class="footer-wrap" style="max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
-    <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links" aria-label="Footer">
-      <a href="about.html">About</a>
-      <a href="faq.html">FAQ</a>
-      <a href="rules.html">Rules</a>
-      <a href="contact.html">Contact</a>
-      <a href="terms.html">Terms</a>
-      <a href="privacy.html">Privacy</a>
-    </nav>
-  </div>
-</footer>
-
-<!-- Behavior scripts -->
-<script>
-(function(){
-  /* Header sheet controls */
-  const sheet=document.getElementById('menuSheet');
-  const openBtn=document.getElementById('openMenu');
-  const closeBtn=document.getElementById('closeMenu');
-  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
-  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
-  openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
-  closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
-
-  /* Optional avatar image */
-  const avatar=document.getElementById('avatar');
-  try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
-
-  /* Topic filters → scroll to feed (placeholder behavior) */
-  document.querySelectorAll('.topic,.chip').forEach(el=>{
-    el.addEventListener('click',()=>{ document.getElementById('feed').scrollIntoView({behavior:'smooth'}); });
-  });
-
-  /* Infinite feed (MVP demo: repeats sample content) */
-  const cardsEl=document.getElementById('cards');
-  const sentinel=document.getElementById('feed-sentinel');
-
-  const sampleCards=[
-    {user:'ND',name:'Nadia',age:'3h',title:'Best interfacing for waistbands on wool crepe?',preview:'Trying to keep it stable without bulk. Sew-in vs fusible…',topic:'fit',tags:['#FitLab','#waistband','#woolcrepe']},
-    {user:'LS',name:'LeoS',age:'6h',title:'Rolled-hem foot skipping stitches on silk',preview:'Adjusted tension and needle, still missing in curves…',topic:'school',tags:['#StitchSchool','#silk','#rolledhem']},
-    {user:'RM',name:'Rima',age:'1d',title:'Stash Confession: I caved on 6 yards of linen',preview:'It was on sale, the drape is perfect, no regrets (maybe)…',topic:'stash',tags:['#StashConfessions','#linen']},
-    {user:'TK',name:'T.K.',age:'2d',title:'Pattern hack: side zipper → front fly',preview:'Merged two patterns; here’s the order of operations…',topic:'hacks',tags:['#PatternHacks','#zipper']},
-    {user:'JG',name:'J.G.',age:'2d',title:'Coffee & Thread: what are you making this weekend?',preview:'I’m torn between trousers and a bias skirt…',topic:'coffee',tags:['#CoffeeAndThread','#weekend']},
-    {user:'AA',name:'Anya',age:'3d',title:'Before & After: dart to small pleat conversion',preview:'Smoother hip line, better drape on my skirt block…',topic:'before',tags:['#BeforeAfter','#pleats']},
-    {user:'OK',name:'Omar',age:'3d',title:'Fabric SOS: mystery knit pills after one wear',preview:'Likely rayon blend? How to test and prevent…',topic:'sos',tags:['#FabricSOS','#knit']}
-  ];
-
-  function makeCard(c){
-    const art=document.createElement('article');
-    art.className='card';
-    art.setAttribute('data-topic',c.topic);
-    art.innerHTML=`
-      <div class="meta"><div class="avatar">${c.user}</div><span>${c.name}</span> • <span>${c.age}</span></div>
-      <div class="title">${c.title}</div>
-      <div class="preview">${c.preview}</div>
-      <div class="tags">${c.tags.map(t=>`<a class="chip" data-topic="${c.topic}" href="#topics">${t}</a>`).join(' ')}</div>
-      <div class="actions">
-        <span title="Likes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>${Math.floor(Math.random()*40)+5}</span>
-        <span title="Replies"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>${Math.floor(Math.random()*12)+1}</span>
-      </div>`;
-    return art;
-  }
-
-  let loading=false;
-  function loadMore(){
-    if(loading) return;
-    loading=true;
-    // skeletons
-    const skels=[...Array(3)].map(()=>{const s=document.createElement('div');s.className='skeleton';return s});
-    skels.forEach(s=>cardsEl.appendChild(s));
-    setTimeout(()=>{
-      skels.forEach(s=>s.remove());
-      // Append a batch
-      for(let i=0;i<6;i++){
-        const c=sampleCards[i % sampleCards.length];
-        cardsEl.appendChild(makeCard(c));
-      }
-      loading=false;
-    },500);
-  }
-
-  const io=new IntersectionObserver(entries=>{
-    entries.forEach(e=>{ if(e.isIntersecting) loadMore(); });
-  },{rootMargin:'200px'});
-  io.observe(sentinel);
-})();
-</script>
-
-<!-- Minimal sheet styles (if not already global) -->
-<style>
-  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid #e5e7eb;transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
-  .sheet.open{transform:translateX(0)}
-</style>
-</body>
-</html>
+      <a class="topic sos" href="#feed" aria-label="Fabric SOS" data-badge="🛟"><div class="title">Fabric SOS</div><div class="tagline">Name it, tame it, care for it.</div></a>
+      <a class="topic school" href="#feed" aria-label="Stitch School" data-badge="📘"><div class="title">Stitch School</div><div class="tagline">Teach, learn, and share tutorials.</div></a>
+      <a class="topic fit" href="#feed" aria-label="Fit Lab" data-badge="📏"><div class="title">Fit Lab</div><div class="tagline">Proportion fixes and pattern tweaks.</div></a>
+      <a class="topic atelier" href="#feed" aria-label="Atelier Showcase" data-badge="✂️"><div class="title">Atelier Showcase</div><div class="tagline">WIPs and finished glory.</div></a
