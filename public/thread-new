@@ -119,4 +119,172 @@
   <nav style="display:grid;padding:10px">
     <a href="ThreadTalk.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">ThreadTalk</a>
     <a href="browse.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Browse & Search</a>
-    <a href="atelier.html" style="padding:10px;border:
+    <a href="atelier.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">My Atelier</a>
+    <a href="how.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">How It Works</a>
+    <a href="seller/index.html?list=new" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Sell Fabric</a>
+    <a href="contact.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Contact</a>
+  </nav>
+</aside>
+
+<main class="page wrap-1200" role="main">
+  <div class="card composer">
+    <h1>Share something new</h1>
+    <div class="kicker">Got a sewing win, WIP, or fabric mystery? Post it to ThreadTalk.</div>
+
+    <form id="postForm" novalidate>
+      <div class="row">
+        <label for="topic">Topic</label>
+        <select id="topic" required>
+          <option value="" selected disabled>Select a topic</option>
+          <option>Showcase</option>
+          <option>Tailoring</option>
+          <option>Stitch School</option>
+          <option>Fabric SOS</option>
+          <option>Before & After</option>
+          <option>Pattern Hacks</option>
+          <option>Stash Confessions</option>
+          <option>Loose Threads</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="title">Title</label>
+        <input id="title" type="text" placeholder="Keep it clear and helpful" required />
+      </div>
+
+      <div class="row">
+        <label for="body">Post</label>
+        <textarea id="body" placeholder="Write your question, tip, or story..." required></textarea>
+        <div class="hint">Be kind. No selling here—use Sell for listings.</div>
+      </div>
+
+      <div class="row">
+        <label for="tags">Tags</label>
+        <input id="tags" type="text" placeholder="#wool #zipper (space-separated)"/>
+      </div>
+
+      <div class="row photos">
+        <label>Photos</label>
+        <div class="drop">
+          <input id="files" type="file" accept="image/*" multiple style="display:none"/>
+          <button id="pick" type="button" class="btn secondary">Choose Photos</button>
+          <div class="hint">Up to 4 images</div>
+        </div>
+        <div class="preview" id="preview"><span style="color:#b7ada7">No image yet</span></div>
+      </div>
+
+      <div class="actions">
+        <a class="btn secondary" href="ThreadTalk.html">Cancel</a>
+        <button type="submit" class="btn" id="submitBtn">Post to ThreadTalk</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Live preview -->
+  <div class="card live" id="liveCard" style="display:none">
+    <div class="meta"><div class="avatar">AA</div><span>You</span> • <span>just now</span></div>
+    <div class="title-line"><a class="cat" id="liveCat" href="#">[Topic]</a> <span id="liveTitle">Title</span></div>
+    <img id="liveImg" alt="" style="display:none; width:100%; height:auto; border-radius:12px; border:1px solid var(--border); margin:8px 0;">
+    <div id="liveBody" style="color:#5e544d;font-size:14px"></div>
+    <div id="liveTags" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+</main>
+
+<footer class="hm-footer" role="contentinfo">
+  <div class="wrap-1200" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="rules.html">Rules</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* Hamburger */
+  var sheet=document.getElementById('menuSheet');
+  var overlay=document.getElementById('sheetOverlay');
+  var openBtn=document.getElementById('openMenu');
+  var closeBtn=document.getElementById('closeMenu');
+  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); overlay.classList.add('show'); document.body.style.overflow='hidden'; setTimeout(function(){ if(closeBtn) closeBtn.focus(); }, 50); }
+  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); overlay.classList.remove('show'); document.body.style.overflow=''; if(openBtn) openBtn.focus(); }
+  if(openBtn){ openBtn.addEventListener('click', function(e){ e.preventDefault(); openSheet(); }); }
+  if(closeBtn){ closeBtn.addEventListener('click', function(e){ e.preventDefault(); closeSheet(); }); }
+  overlay.addEventListener('click', closeSheet);
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSheet(); });
+
+  /* Composer interactions */
+  var topic=document.getElementById('topic');
+  var title=document.getElementById('title');
+  var body=document.getElementById('body');
+  var tags=document.getElementById('tags');
+  var files=document.getElementById('files');
+  var pick=document.getElementById('pick');
+  var preview=document.getElementById('preview');
+
+  var live=document.getElementById('liveCard');
+  var liveCat=document.getElementById('liveCat');
+  var liveTitle=document.getElementById('liveTitle');
+  var liveBody=document.getElementById('liveBody');
+  var liveTags=document.getElementById('liveTags');
+  var liveImg=document.getElementById('liveImg');
+
+  function refreshLive(){
+    var t=topic.value || '';
+    var ti=title.value.trim();
+    var bo=body.value.trim();
+    var tg=tags.value.trim();
+
+    if(ti || bo || tg || t){
+      live.style.display='block';
+      liveCat.textContent = t ? '['+t+']' : '[Topic]';
+      liveTitle.textContent = ti || 'Title';
+      liveBody.textContent = bo || '';
+      liveTags.innerHTML='';
+      if(tg){
+        tg.split(/\s+/).slice(0,8).forEach(function(x){
+          if(!x) return;
+          var chip=document.createElement('span');
+          chip.className='tag-chip';
+          chip.textContent = x.startsWith('#') ? x : '#'+x;
+          liveTags.appendChild(chip);
+        });
+      }
+    }else{
+      live.style.display='none';
+    }
+  }
+  topic.addEventListener('change', refreshLive);
+  title.addEventListener('input', refreshLive);
+  body.addEventListener('input', refreshLive);
+  tags.addEventListener('input', refreshLive);
+
+  pick.addEventListener('click', function(){ files.click(); });
+  files.addEventListener('change', function(){
+    preview.innerHTML=''; liveImg.style.display='none';
+    if(!files.files || !files.files.length){ preview.innerHTML='<span style="color:#b7ada7">No image yet</span>'; return; }
+    var f=files.files[0];
+    var img=document.createElement('img');
+    img.alt='preview 1';
+    img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover';
+    preview.appendChild(img);
+    var reader=new FileReader();
+    reader.onload=function(e){ img.src=e.target.result; liveImg.src=e.target.result; liveImg.style.display='block'; };
+    reader.readAsDataURL(f);
+  });
+
+  /* Submit (demo) */
+  document.getElementById('postForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    alert('Posted! (demo) Redirecting to ThreadTalk feed…');
+    window.location.href='ThreadTalk.html#feed';
+  });
+})();
+</script>
+</body>
+</html>
