@@ -6,7 +6,6 @@
 <title>ThreadTalk — Hemline Market</title>
 <link rel="icon" href="/favicon.ico"/>
 
-<!-- Shared site styles -->
 <link rel="stylesheet" href="styles/hm-modern.css"/>
 <link rel="stylesheet" href="styles/hem-header.css"/>
 <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -14,10 +13,10 @@
 
 <style>
   :root{
-    --hm-brand:#991b1b;
-    --ink:#3f2f2a;
-    --muted:#7a6e68;
-    --border:#e8e0d9;
+    --hm-brand:#991b1b;       /* maroon */
+    --ink:#3f2f2a;            /* espresso */
+    --muted:#7a6e68;          /* warm gray */
+    --border:#e8e0d9;         /* parchment */
     --card:#ffffff;
     --bg:#fdfbf9;
   }
@@ -32,7 +31,7 @@
   .hm-header .hm-brand{color:var(--hm-brand)!important}
   .hm-footer{background:#fff;border-top:1px solid var(--border);margin-top:28px}
 
-  /* Page wrapper */
+  /* Page */
   .tt-wrap{max-width:1200px;margin:22px auto 44px;padding:0 16px}
 
   /* Hero */
@@ -46,17 +45,24 @@
   .tt-btn{appearance:none;border:1px solid #2d2d2d;background:#2d2d2d;color:#fff;padding:10px 14px;border-radius:12px;font-weight:700;text-decoration:none}
   .rules-link{display:inline-block;margin-top:10px;color:var(--hm-brand);text-decoration:underline;font-size:14px}
 
-  /* Topics grid */
+  /* Topics grid with image fallback */
   .topics{margin-top:22px}
   .topics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
   .topic{
-    position:relative;overflow:hidden;background:#fff;text-decoration:none;color:var(--ink);
-    border:1px solid var(--border);border-radius:16px;
-    padding:0;margin:0;box-shadow:0 10px 16px rgba(50,38,31,.06);
+    display:block;text-decoration:none;color:var(--ink);
+    border:1px solid var(--border);border-radius:16px;overflow:hidden;
+    background:#fff;box-shadow:0 10px 16px rgba(50,38,31,.06);
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   .topic:hover{transform:translateY(-2px);box-shadow:0 16px 28px rgba(50,38,31,.1);border-color:#e2d7cf}
-  .topic img{width:100%;height:160px;object-fit:cover;border-bottom:1px solid var(--border)}
+  .topic .thumb{
+    height:160px;
+    background:
+      linear-gradient(180deg, rgba(153,27,27,.07), rgba(153,27,27,.03)),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' fill='%23f6efe8'/%3E%3Cpath d='M20 110 Q80 70 140 110' stroke='%23c9b8ac' stroke-width='3' fill='none'/%3E%3C/svg%3E");
+    background-size:cover; background-position:center;
+  }
+  .topic[data-img] .thumb{ background-image: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.02)), var(--bg-img); }
   .topic .title{display:block;font-weight:800;letter-spacing:.2px;padding:14px 16px;text-align:center}
 
   /* Feed */
@@ -70,31 +76,65 @@
   .cat{font-weight:800;margin-right:.35rem;text-decoration:none;color:var(--hm-brand)}
   .preview{color:#5e544d;font-size:14px;margin-bottom:8px}
   .post-img{width:100%;height:auto;border-radius:12px;margin:8px 0;border:1px solid var(--border);display:block}
-  .tags{display:flex;gap:6px;flex-wrap:wrap}
-  .chip{font-size:12px;padding:6px 8px;border-radius:999px;border:1px solid var(--border);background:#fff;color:#4b3d35;text-decoration:none}
   .actions{display:flex;gap:14px;align-items:center;color:#7e6f66;font-size:13px;margin-top:8px}
+
+  /* Sheet */
+  #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.28);opacity:0;visibility:hidden;transition:opacity .2s ease;z-index:325}
+  #sheetOverlay.show{opacity:1;visibility:visible}
+  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);
+    transform:translateX(-100%);transition:transform .25s ease;z-index:350;display:flex;flex-direction:column}
+  .sheet.open{transform:translateX(0)}
+  a:focus-visible,button:focus-visible{outline:3px solid rgba(153,27,27,.35);outline-offset:2px;border-radius:10px}
 </style>
 </head>
 <body>
 
-<header class="hm-header">
+<!-- HEADER -->
+<header class="hm-header" role="banner">
   <div class="wrap-1200" style="display:flex;align-items:center;justify-content:space-between;padding:0 12px">
     <div class="left" style="display:flex;align-items:center;gap:10px">
-      <button id="openMenu" style="display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#4b3d35">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6"  x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+      <button id="openMenu" aria-label="Open menu"
+              style="display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#4b3d35">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="4" y1="6"  x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+        </svg>
       </button>
       <a class="hm-brand" href="index.html" style="font-size:24px;font-weight:800;text-decoration:none">Hemline Market</a>
     </div>
     <div class="right" style="display:flex;align-items:center;gap:14px">
-      <a class="hm-icon" href="browse.html" aria-label="Browse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg></a>
-      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"/></svg></a>
-      <a class="hm-icon" href="favorites.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg></a>
-      <a class="hm-avatar" id="avatar" href="account.html">AA</a>
+      <a class="hm-icon" href="browse.html" aria-label="Browse" title="Browse">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites" title="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </a>
+      <a class="hm-avatar" id="avatar" href="account.html"
+         style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#4b3d35;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center">AA</a>
+      <a class="hm-btn-primary" href="sell.html" style="text-decoration:none;background:#2d2d2d;color:#fff;padding:8px 12px;border-radius:10px;border:1px solid #2d2d2d">Sell</a>
     </div>
   </div>
 </header>
 
-<main class="tt-wrap">
+<div id="sheetOverlay" aria-hidden="true"></div>
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true">
+  <header style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)">
+    <strong>Menu</strong>
+    <button id="closeMenu" aria-label="Close menu" style="display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#4b3d35">✕</button>
+  </header>
+  <nav style="display:grid;padding:10px">
+    <a href="ThreadTalk.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">ThreadTalk</a>
+    <a href="browse.html"     style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Browse & Search</a>
+    <a href="atelier.html"    style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">My Atelier</a>
+    <a href="how.html"        style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">How It Works</a>
+    <a href="contact.html"    style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Contact</a>
+  </nav>
+</aside>
+
+<!-- CONTENT -->
+<main class="tt-wrap" role="main">
   <section class="tt-hero">
     <h1>ThreadTalk</h1>
     <p class="sub">Where makers gather to talk fabric, fit, and everything in between.</p>
@@ -102,26 +142,28 @@
     <br/><a class="rules-link" href="rules.html">Before posting, read the rules →</a>
   </section>
 
-  <section class="topics">
+  <!-- TOPICS -->
+  <section class="topics" aria-label="Topics">
     <div class="topics-grid">
-      <a class="topic" href="#feed"><img src="images/topic-showcase.jpg" alt="Showcase"><span class="title">Showcase</span></a>
-      <a class="topic" href="#feed"><img src="images/topic-tailoring.jpg" alt="Tailoring"><span class="title">Tailoring</span></a>
-      <a class="topic" href="#feed"><img src="images/topic-stitchschool.jpg" alt="Stitch School"><span class="title">Stitch School</span></a>
-      <a class="topic" href="#feed"><img src="images/topic-fabric.jpg" alt="Fabric SOS"><span class="title">Fabric SOS</span></a>
-      <a class="topic" href="#feed"><img src="images/topic-beforeafter.jpg" alt="Before & After"><span class="title">Before & After</span></a>
-      <a class="topic" href="#feed"><img src="images/topic-pattern.jpg" alt="Pattern Hacks"><span class="title">Pattern Hacks</span></a>
-      <a class="topic" href="#feed"><img src="images/topic-stash.jpg" alt="Stash Confessions"><span class="title">Stash Confessions</span></a>
-      <a class="topic" href="#feed"><img src="images/topic-loose.jpg" alt="Loose Threads"><span class="title">Loose Threads</span></a>
+      <a class="topic" href="#feed" data-img style="--bg-img:url('images/topic-showcase.jpg')"><div class="thumb"></div><span class="title">Showcase</span></a>
+      <a class="topic" href="#feed" data-img style="--bg-img:url('images/topic-tailoring.jpg')"><div class="thumb"></div><span class="title">Tailoring</span></a>
+      <a class="topic" href="#feed" data-img style="--bg-img:url('images/topic-stitchschool.jpg')"><div class="thumb"></div><span class="title">Stitch School</span></a>
+      <a class="topic" href="#feed" data-img style="--bg-img:url('images/topic-fabric.jpg')"><div class="thumb"></div><span class="title">Fabric SOS</span></a>
+      <a class="topic" href="#feed" data-img style="--bg-img:url('images/topic-beforeafter.jpg')"><div class="thumb"></div><span class="title">Before & After</span></a>
+      <a class="topic" href="#feed" data-img style="--bg-img:url('images/topic-pattern.jpg')"><div class="thumb"></div><span class="title">Pattern Hacks</span></a>
+      <a class="topic" href="#feed" data-img style="--bg-img:url('images/topic-stash.jpg')"><div class="thumb"></div><span class="title">Stash Confessions</span></a>
+      <a class="topic" href="#feed" data-img style="--bg-img:url('images/topic-loose.jpg')"><div class="thumb"></div><span class="title">Loose Threads</span></a>
     </div>
   </section>
 
+  <!-- FEED -->
   <section class="feed" id="feed">
     <h2>Latest Threads</h2>
-    <div class="cards">
+    <div class="cards" id="cards">
       <article class="card">
         <div class="meta"><div class="avatar">AK</div><span>AriaK</span> • 2h</div>
         <div class="title"><a class="cat" href="#topics">[Fabric SOS]</a> Help ID this twill: poly blend or viscose?</div>
-        <img class="post-img" src="images/example-fabric.jpg" alt="fabric sample"/>
+        <img class="post-img" src="images/example-fabric.jpg" alt="Close-up fabric sample"/>
         <div class="preview">Feels cool, drapes nicely, but presses oddly. Burn test gave a hard bead…</div>
         <div class="actions"><span>❤ 18</span><span>💬 7</span></div>
       </article>
@@ -141,28 +183,42 @@
   </section>
 </main>
 
-<footer class="hm-footer">
-  <div class="wrap-1200" style="display:flex;justify-content:space-between;flex-wrap:wrap;align-items:center;padding:12px 16px">
+<!-- FOOTER -->
+<footer class="hm-footer" role="contentinfo">
+  <div class="wrap-1200" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px">
     <div class="copy">© 2025 Hemline Market</div>
-    <nav><a href="about.html">About</a> • <a href="faq.html">FAQ</a> • <a href="rules.html">Rules</a></nav>
+    <nav aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="rules.html">Rules</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
   </div>
 </footer>
 
 <script>
 (function(){
-  const open=document.getElementById('openMenu');
-  const sheet=document.createElement('div');
-  sheet.id='menuSheet';
-  sheet.className='sheet';
-  sheet.innerHTML='<header style="padding:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between"><strong>Menu</strong><button id="closeMenu" style="border:1px solid var(--border);border-radius:8px;background:#fff">✕</button></header><nav style="display:grid;padding:10px"><a href="index.html">Home</a><a href="browse.html">Browse</a><a href="atelier.html">Atelier</a><a href="contact.html">Contact</a></nav>';
-  document.body.appendChild(sheet);
-  const overlay=document.createElement('div');
-  overlay.id='sheetOverlay';
-  document.body.appendChild(overlay);
-  function openSheet(){sheet.classList.add('open');overlay.classList.add('show');}
-  function closeSheet(){sheet.classList.remove('open');overlay.classList.remove('show');}
-  open.addEventListener('click',openSheet);
-  document.body.addEventListener('click',e=>{if(e.target.id==='closeMenu'||e.target.id==='sheetOverlay')closeSheet();});
+  // Hamburger
+  var sheet=document.getElementById('menuSheet');
+  var overlay=document.getElementById('sheetOverlay');
+  var openBtn=document.getElementById('openMenu');
+  var closeBtn=document.getElementById('closeMenu');
+  function openSheet(){sheet.classList.add('open');overlay.classList.add('show');document.body.style.overflow='hidden';}
+  function closeSheet(){sheet.classList.remove('open');overlay.classList.remove('show');document.body.style.overflow='';}
+  openBtn.addEventListener('click',openSheet);
+  overlay.addEventListener('click',closeSheet);
+  closeBtn.addEventListener('click',closeSheet);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet();});
+
+  // Optional avatar image
+  try{var url=localStorage.getItem('avatarUrl');if(url){var a=document.getElementById('avatar');a.textContent='';a.style.backgroundImage="url('"+url+"')";}}catch(_){}
+
+  // Smooth scroll from topics to feed
+  Array.prototype.forEach.call(document.querySelectorAll('.topic,.cat'),function(el){
+    el.addEventListener('click',function(){document.getElementById('feed').scrollIntoView({behavior:'smooth'});});
+  });
 })();
 </script>
 </body>
