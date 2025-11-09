@@ -108,6 +108,10 @@
     transform:translateX(-100%);transition:transform .25s ease;z-index:350;display:flex;flex-direction:column}
   .sheet.open{transform:translateX(0)}
 
+  /* Toast */
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1f2937;color:#fff;
+    padding:10px 14px;border-radius:10px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.18);opacity:0;pointer-events:none;transition:opacity .2s}
+  .toast.show{opacity:1}
   a:focus-visible, button:focus-visible{outline:3px solid rgba(153,27,27,.35);outline-offset:2px;border-radius:10px}
 </style>
 </head>
@@ -190,7 +194,7 @@
     <form class="composer" id="composer" aria-label="Create a thread">
       <div class="row">
         <select id="composeCategory" aria-label="Category">
-          <option value="">Click a category (or leave blank)</option>
+          <option value="">Choose a category (optional)</option>
           <option>Showcase</option>
           <option>Tailoring</option>
           <option>Stitch School</option>
@@ -322,6 +326,8 @@
   </div>
 </footer>
 
+<div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">Posted</div>
+
 <script>
 (function(){
   /* Hamburger */
@@ -336,7 +342,7 @@
   if(overlay) overlay.addEventListener('click', closeSheet);
   document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSheet(); });
 
-  /* Optional avatar image + default display name */
+  /* Optional avatar + default name */
   try{
     var avatar=document.getElementById('avatar');
     var url=localStorage.getItem('avatarUrl');
@@ -353,9 +359,24 @@
   var photoInput = document.getElementById('photoInput');
   var videoInput = document.getElementById('videoInput');
   var previewWrap = document.getElementById('mediaPreview');
+  var postBtn = document.getElementById('postBtn');
+  var toast = document.getElementById('toast');
 
   function nowLabel(){ return 'just now'; }
   function initials(name){ return (name||'AA').slice(0,2).toUpperCase(); }
+  function showToast(msg){ if(!toast) return; toast.textContent=msg; toast.classList.add('show'); setTimeout(function(){ toast.classList.remove('show'); }, 1400); }
+
+  function categoryFile(cat){
+    var k=(cat||'').toLowerCase();
+    if(k==='showcase') return 'showcase.html';
+    if(k==='tailoring') return 'tailoring.html';
+    if(k==='stitch school') return 'stitch-school.html';
+    if(k==='fabric sos') return 'fabric-sos.html';
+    if(k==='before & after' || k==='before and after' || k==='before-after') return 'before-after.html';
+    if(k==='pattern hacks') return 'pattern-hacks.html';
+    if(k==='stash confessions') return 'stash-confessions.html';
+    return 'loose-threads.html';
+  }
 
   function renderCard(post, toTop){
     var el = document.createElement('article');
@@ -374,18 +395,6 @@
       '<div class="actions"><span>❤ '+(Math.floor(Math.random()*8)+3)+'</span><span>💬 '+(Math.floor(Math.random()*4)+1)+'</span></div>';
     if(toTop && cardsEl.firstChild){ cardsEl.insertBefore(el, cardsEl.firstChild); }
     else cardsEl.appendChild(el);
-  }
-
-  function categoryFile(cat){
-    var k=(cat||'').toLowerCase();
-    if(k==='showcase') return 'showcase.html';
-    if(k==='tailoring') return 'tailoring.html';
-    if(k==='stitch school') return 'stitch-school.html';
-    if(k==='fabric sos') return 'fabric-sos.html';
-    if(k==='before & after' || k==='before and after' || k==='before-after') return 'before-after.html';
-    if(k==='pattern hacks') return 'pattern-hacks.html';
-    if(k==='stash confessions') return 'stash-confessions.html';
-    return 'loose-threads.html';
   }
 
   function savePost(post){
@@ -413,6 +422,7 @@
     videoInput.value='';
     previewWrap.innerHTML='';
     previewWrap.hidden=true;
+    txt.focus();
   }
 
   function showPreview(file, kind){
@@ -431,8 +441,8 @@
     if(this.files && this.files[0]){ photoInput.value=''; showPreview(this.files[0],'video'); }
   });
 
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
+  function submitPost(e){
+    if(e) e.preventDefault();
     var category = sel.value && sel.value.trim() ? sel.value.trim() : 'Loose Threads';
     var text = (txt.value||'').trim();
     if(!text){ txt.focus(); return; }
@@ -451,8 +461,13 @@
     renderCard(post,true);
     savePost(post);
     clearComposer();
+    showToast('Posted to Latest Threads');
     document.getElementById('feed').scrollIntoView({behavior:'smooth'});
-  });
+  }
+
+  /* Bind BOTH submit and click for robustness */
+  form.addEventListener('submit', submitPost);
+  postBtn.addEventListener('click', submitPost);
 
   /* Load existing */
   loadPosts();
