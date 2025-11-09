@@ -1,43 +1,45 @@
-/* ThreadTalk front-end logic (localStorage prototype)
-   - Works with public/ThreadTalk.html as-is
-   - No layout/style changes — DOM IDs/classes match your page
-*/
+// ThreadTalk: safe, single-init post/comment logic for your existing DOM.
+// Works with your "perfect" ThreadTalk.html without changing markup or styles.
 (function(){
-  // --- DOM lookups (null-safe) ---
-  var form         = document.getElementById('composer');
-  var sel          = document.getElementById('composeCategory');
-  var txt          = document.getElementById('composeText');
-  var photoInput   = document.getElementById('photoInput');
-  var videoInput   = document.getElementById('videoInput');
-  var previewWrap  = document.getElementById('mediaPreview');
-  var postBtn      = document.getElementById('postBtn');
-  var cardsEl      = document.getElementById('cards');
-  var emptyState   = document.getElementById('emptyState');
-  var toast        = document.getElementById('toast');
+  // ---- Prevent double-initialization if this file is included twice ----
+  if (window.__TT_INITED__) { console.warn('[ThreadTalk] already initialized'); return; }
+  window.__TT_INITED__ = true;
 
-  // If the page didn’t render these yet, bail gracefully
-  if(!form || !txt || !cardsEl){ 
-    console.warn('[ThreadTalk] Required elements not found — script loaded before DOM?');
+  // ---- DOM lookups (strict ids that exist in your page) ----
+  var form        = document.getElementById('composer');
+  var sel         = document.getElementById('composeCategory');
+  var txt         = document.getElementById('composeText');
+  var photoInput  = document.getElementById('photoInput');
+  var videoInput  = document.getElementById('videoInput');
+  var previewWrap = document.getElementById('mediaPreview');
+  var postBtn     = document.getElementById('postBtn');
+  var cardsEl     = document.getElementById('cards');
+  var emptyState  = document.getElementById('emptyState');
+  var toast       = document.getElementById('toast');
+
+  // If key elements are missing, bail (prevents runtime crash)
+  if (!form || !txt || !cardsEl) {
+    console.error('[ThreadTalk] Required elements missing. Check IDs and that this script is loaded AFTER the HTML (use defer).');
     return;
   }
 
-  // --- Small utilities ---
+  // ---- Utilities ----
   function nowLabel(){ return 'just now'; }
   function initials(name){ return (name||'AA').slice(0,2).toUpperCase(); }
-  function showToast(msg){
-    if(!toast) return;
-    toast.textContent = msg || 'Posted';
-    toast.classList.add('show');
-    setTimeout(function(){ toast.classList.remove('show'); }, 1400);
-  }
   function getAccountName(){
-    try{
+    try {
       return localStorage.getItem('hm_name')
           || localStorage.getItem('accountName')
           || localStorage.getItem('displayName')
           || localStorage.getItem('tt_user')
           || 'Afroza';
-    }catch(e){ return 'Afroza'; }
+    } catch(e){ return 'Afroza'; }
+  }
+  function showToast(msg){
+    if(!toast) return;
+    toast.textContent = msg || 'Posted';
+    toast.classList.add('show');
+    setTimeout(function(){ toast.classList.remove('show'); }, 1400);
   }
   function categoryFile(cat){
     var k=(cat||'').toLowerCase();
@@ -51,13 +53,13 @@
     return 'loose-threads.html';
   }
 
-  // --- Storage helpers ---
+  // ---- Local storage helpers ----
   function loadPosts(){ try{ return JSON.parse(localStorage.getItem('tt_posts')||'[]'); }catch(e){ return []; } }
   function savePosts(arr){ try{ localStorage.setItem('tt_posts', JSON.stringify(arr)); }catch(e){} }
   function loadComments(){ try{ return JSON.parse(localStorage.getItem('tt_comments')||'{}'); }catch(e){ return {}; } }
   function saveComments(map){ try{ localStorage.setItem('tt_comments', JSON.stringify(map)); }catch(e){} }
 
-  // --- Comments UI ---
+  // ---- Comments ----
   function renderComments(container, postId){
     var cm = loadComments();
     var list = cm[postId] || [];
@@ -77,7 +79,6 @@
       container.appendChild(wrap);
     });
 
-    // Bind edit/delete
     container.querySelectorAll('.c-edit').forEach(function(btn){
       btn.addEventListener('click', function(){
         var i = Number(this.getAttribute('data-idx'));
@@ -104,7 +105,7 @@
     });
   }
 
-  // --- Post card UI ---
+  // ---- Post card ----
   function renderCard(post, toTop){
     var el = document.createElement('article');
     el.className='card';
@@ -133,7 +134,6 @@
     if(toTop && cardsEl.firstChild){ cardsEl.insertBefore(el, cardsEl.firstChild); }
     else cardsEl.appendChild(el);
 
-    // Hook up comments for this card
     var cList = document.getElementById('clist-'+post.ts);
     renderComments(cList, String(post.ts));
     var cForm = document.getElementById('cform-'+post.ts);
@@ -152,11 +152,11 @@
   function renderAll(){
     cardsEl.innerHTML = '';
     var arr = loadPosts();
-    if(arr.length){ emptyState && (emptyState.style.display='none'); }
+    if(arr.length && emptyState){ emptyState.style.display='none'; }
     arr.forEach(function(p){ renderCard(p,false); });
   }
 
-  // --- Media preview controls ---
+  // ---- Media preview ----
   function showPreview(file, kind){
     if(!file || !previewWrap) return;
     var url = URL.createObjectURL(file);
@@ -176,17 +176,12 @@
     });
   }
 
-  // --- Submit handler (POST) ---
+  // ---- Post submit (bind both submit + button click) ----
   function submitPost(e){
     if(e) e.preventDefault();
-
     var category = (sel && sel.value && sel.value.trim()) ? sel.value.trim() : 'Loose Threads';
     var text = (txt.value||'').trim();
-
-    if(!text){
-      txt.focus();
-      return;
-    }
+    if(!text){ txt.focus(); return; }
 
     var media = null;
     if(photoInput && photoInput.files && photoInput.files[0]){
@@ -218,12 +213,10 @@
     if(feed){ feed.scrollIntoView({behavior:'smooth'}); }
   }
 
-  // Bind both submit and explicit click (some browsers intercept)
   form.addEventListener('submit', submitPost);
   if(postBtn){ postBtn.addEventListener('click', submitPost); }
 
-  // Initial render
+  // ---- Initial render ----
   renderAll();
-
-  console.log('[ThreadTalk] script ready');
+  console.log('[ThreadTalk] ready');
 })();
