@@ -473,5 +473,298 @@
   loadPosts();
 })();
 </script>
+
+  <script>
+(function () {
+  // --------- Helpers ----------
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const toSlug = s => (s||'').trim().toLowerCase();
+  const NOW = () => 'just now';
+
+  // Try to find the composer parts without requiring IDs
+  const hero = document.querySelector('.tt-hero') || document.querySelector('[class*="hero"]') || document;
+  const catSel = $('select', hero) || null;
+  const txtBox = $('textarea', hero) || null;
+  const postBtn = ($$('button', hero).find(b => (b.textContent||'').trim().toLowerCase()==='post')) || null;
+
+  // Find or create the Latest Threads area
+  function ensureFeed() {
+    let cards = document.getElementById('cards');
+    if (!cards) {
+      // Find the section that contains "Latest Threads" heading
+      const h2 = $$('h2').find(h => /latest\s+threads/i.test(h.textContent||''));
+      let container = h2 ? h2.parentElement : null;
+      if (!container) {
+        // Fallback: make a basic section at the end of main
+        const main = document.querySelector('main') || document.body;
+        container = document.createElement('section');
+        container.innerHTML = '<h2>Latest Threads</h2>';
+        main.appendChild(container);
+      }
+      cards = document.createElement('div');
+      cards.id = 'cards';
+      cards.style.display = 'flex';
+      cards.style.flexDirection = 'column';
+      cards.style.gap = '16px';
+      cards.style.maxWidth = '1000px';
+      container.appendChild(cards);
+
+      const empty = document.createElement('div');
+      empty.id = 'emptyState';
+      empty.style.color = '#7a6e68';
+      empty.style.fontSize = '14px';
+      empty.style.margin = '8px 2px';
+      empty.textContent = 'No threads yet. Be the first to post!';
+      container.appendChild(empty);
+    }
+    return cards;
+  }
+  const cardsEl = ensureFeed();
+  const emptyState = document.getElementById('emptyState');
+
+  // Name: use saved name or default to Afroza
+  function resolveUser() {
+    try {
+      const stored = localStorage.getItem('tt_user');
+      if (stored) return stored;
+      // Try to infer from avatar, else default to Afroza
+      const av = document.querySelector('.hm-avatar');
+      const guess = (av && (av.title || av.textContent || '').trim()) || 'Afroza';
+      localStorage.setItem('tt_user', guess);
+      return guess;
+    } catch { return 'Afroza'; }
+  }
+  const CURRENT_USER = resolveUser();
+
+  // Storage
+  function loadPosts() {
+    try { return JSON.parse(localStorage.getItem('tt_posts')||'[]'); }
+    catch { return []; }
+  }
+  function savePosts(arr) {
+    try { localStorage.setItem('tt_posts', JSON.stringify(arr)); } catch {}
+  }
+
+  // Render
+  function renderAll(filterCat=null) {
+    const posts = loadPosts();
+    cardsEl.innerHTML = '';
+    let shown = 0;
+    posts.forEach((p, idx) => {
+      if (filterCat && toSlug(p.category)!==toSlug(filterCat)) return;
+      cardsEl.appendChild(renderCard(p, idx));
+      shown++;
+    });
+    emptyState && (emptyState.style.display = shown ? 'none' : '');
+  }
+
+  function renderCard(post, index) {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.style.background = '#fff';
+    card.style.border = '1px solid #e8e0d9';
+    card.style.borderRadius = '16px';
+    card.style.padding = '16px 18px';
+    card.style.boxShadow = '0 10px 16px rgba(50,38,31,.06)';
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.style.display = 'flex';
+    meta.style.alignItems = 'center';
+    meta.style.gap = '8px';
+    meta.style.color = '#7a6e68';
+    meta.style.fontSize = '13px';
+    meta.style.marginBottom = '6px';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = (post.user||'AA').slice(0,2).toUpperCase();
+    Object.assign(avatar.style, {
+      width:'28px',height:'28px',borderRadius:'50%',border:'1px solid #e8e0d9',
+      background:'#fff',display:'inline-grid',placeItems:'center',fontWeight:'700',fontSize:'12px'
+    });
+
+    meta.appendChild(avatar);
+    meta.insertAdjacentHTML('beforeend', `<span>${post.user||'You'}</span> • <span>${NOW()}</span>`);
+
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.style.margin = '4px 0 8px';
+    title.style.lineHeight = '1.35';
+    title.innerHTML = `<a class="cat" href="#"
+       style="font-weight:800;margin-right:.35rem;text-decoration:none;color:#991b1b"
+       data-filter="${post.category}">[${post.category}]</a> ${post.title||''}`;
+
+    const body = document.createElement('div');
+    body.className = 'preview';
+    body.style.color = '#5e544d';
+    body.style.fontSize = '14px';
+    body.style.whiteSpace = 'pre-wrap';
+    body.textContent = post.text||'';
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.style.display = 'flex';
+    actions.style.gap = '12px';
+    actions.style.alignItems = 'center';
+    actions.style.marginTop = '10px';
+    actions.style.fontSize = '13px';
+    actions.style.color = '#7e6f66';
+
+    const edit = document.createElement('button');
+    edit.textContent = 'Edit';
+    const del = document.createElement('button');
+    del.textContent = 'Delete';
+    [edit, del].forEach(b=>{
+      Object.assign(b.style,{
+        border:'1px solid #e8e0d9',background:'#fff',borderRadius:'10px',padding:'6px 10px',cursor:'pointer'
+      });
+    });
+
+    edit.addEventListener('click', ()=>{
+      const posts = loadPosts();
+      const p = posts[index]; if(!p) return;
+      const next = prompt('Edit your post text:', p.text || '');
+      if (next===null) return;
+      p.text = next.trim();
+      savePosts(posts);
+      renderAll(currentFilter);
+    });
+
+    del.addEventListener('click', ()=>{
+      const posts = loadPosts();
+      posts.splice(index,1);
+      savePosts(posts);
+      renderAll(currentFilter);
+    });
+
+    // media (optional — only previews if created in this session)
+    let mediaHTML = '';
+    if (post.media && post.media.type==='image') {
+      mediaHTML = `<img style="width:100%;height:auto;border-radius:12px;margin:8px 0;border:1px solid #e8e0d9" src="${post.media.url}" alt="post image">`;
+    } else if (post.media && post.media.type==='video') {
+      mediaHTML = `<video controls style="width:100%;height:auto;border-radius:12px;margin:8px 0;border:1px solid #e8e0d9" src="${post.media.url}"></video>`;
+    }
+
+    actions.append(edit, del);
+    card.append(meta, title);
+    if (mediaHTML) card.insertAdjacentHTML('beforeend', mediaHTML);
+    card.appendChild(body);
+    card.appendChild(actions);
+
+    // click category tag to filter feed
+    $('a.cat', card).addEventListener('click', (e)=>{
+      e.preventDefault();
+      currentFilter = post.category;
+      renderAll(currentFilter);
+      // also reflect in select if present
+      if (catSel) {
+        const opt = Array.from(catSel.options).find(o=>toSlug(o.value)===toSlug(post.category));
+        if (opt) catSel.value = opt.value;
+      }
+    });
+
+    return card;
+  }
+
+  // ----- Post handler -----
+  let currentFilter = null;
+
+  function createPostObject() {
+    const category = (catSel && catSel.value && catSel.value.trim()) ? catSel.value.trim() : 'Loose Threads';
+    const text = (txtBox && txtBox.value || '').trim();
+    if (!text) {
+      if (txtBox) txtBox.focus();
+      return null;
+    }
+
+    // Try to grab selected media (if any) — works only for previews, not permanent files
+    const photoInput = $('#photoInput') || $('input[type="file"][accept*="image"]', hero);
+    const videoInput = $('#videoInput') || $('input[type="file"][accept*="video"]', hero);
+    let media = null;
+    if (photoInput && photoInput.files && photoInput.files[0]) {
+      media = { type:'image', url: URL.createObjectURL(photoInput.files[0]) };
+    } else if (videoInput && videoInput.files && videoInput.files[0]) {
+      media = { type:'video', url: URL.createObjectURL(videoInput.files[0]) };
+    }
+
+    return {
+      category,
+      title: '',
+      text,
+      media,
+      user: CURRENT_USER,
+      ts: Date.now()
+    };
+  }
+
+  function handlePost(e) {
+    e && e.preventDefault();
+    const post = createPostObject();
+    if (!post) return;
+
+    const posts = loadPosts();
+    posts.unshift(post);
+    savePosts(posts);
+
+    // Clear composer
+    if (txtBox) txtBox.value = '';
+    if (catSel) catSel.value = '';
+    const imgIn = $('#photoInput') || $('input[type="file"][accept*="image"]', hero);
+    const vidIn = $('#videoInput') || $('input[type="file"][accept*="video"]', hero);
+    if (imgIn) imgIn.value = '';
+    if (vidIn) vidIn.value = '';
+
+    // Reset filter to show newest
+    currentFilter = null;
+    renderAll();
+    // jump to feed
+    const feed = document.getElementById('cards');
+    feed && feed.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  if (postBtn) {
+    postBtn.addEventListener('click', handlePost);
+    // also support Enter+Cmd/Ctrl on textarea
+    if (txtBox) {
+      txtBox.addEventListener('keydown', (e)=>{
+        if ((e.metaKey||e.ctrlKey) && e.key==='Enter') handlePost(e);
+      });
+    }
+  }
+
+  // ----- Category tiles: auto-fill + filter -----
+  const tileSelectors = [
+    '.topics a', '.topics-grid a', 'section .topic',
+    // fallback: any tile-looking link rows under topics area
+    '.tt-hero ~ section a', '.tt-wrap .topics a'
+  ];
+  const tiles = tileSelectors.flatMap(sel => $$(sel));
+  tiles.forEach(a=>{
+    const label = (a.getAttribute('aria-label') || a.textContent || '').trim();
+    if (!label) return;
+    a.setAttribute('data-cat', label);
+    a.addEventListener('click', (e)=>{
+      // if it was meant only to scroll, still let it work — but we also set/focus the composer
+      e.preventDefault();
+      if (catSel) {
+        // try to set exact option
+        const opt = Array.from(catSel.options||[]).find(o=>toSlug(o.value)===toSlug(label) || toSlug(o.textContent)===toSlug(label));
+        catSel.value = opt ? opt.value : '';
+      }
+      if (txtBox) txtBox.focus({preventScroll:false});
+      currentFilter = label;           // filter feed to that category
+      renderAll(currentFilter);
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+  });
+
+  // Initial render
+  renderAll();
+
+})();
+</script>
+  
 </body>
 </html>
