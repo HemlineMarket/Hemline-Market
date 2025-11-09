@@ -13,10 +13,7 @@
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
   <style>
-    :root{
-      --hm-brand:#991b1b; --ink:#3f2f2a; --muted:#7a6e68;
-      --border:#e8e0d9; --card:#ffffff; --bg:#fdfbf9; --accent:#2d2d2d;
-    }
+    :root{--hm-brand:#991b1b;--ink:#3f2f2a;--muted:#7a6e68;--border:#e8e0d9;--card:#fff;--bg:#fdfbf9;--accent:#2d2d2d}
     body{
       background:
         radial-gradient(1200px 420px at 50% -240px, rgba(153,27,27,.06) 0%, rgba(253,251,249,0) 60%),
@@ -39,9 +36,13 @@
       background:radial-gradient(120% 150% at 50% 0%, #fff 0%, rgba(153,27,27,.05) 55%, #fff 100%);
     }
     .tt-hero h1{font-family:ui-serif,"Cormorant Garamond",Georgia,serif;font-size:clamp(28px,4.2vw,44px);margin:0 0 4px}
-    .tt-hero .sub{color:var(--muted);font-size:15px;margin:4px 0 10px}
+    .tt-hero .sub{color:var(--muted);font-size:15px;margin:4px 0 12px}
     .crumbs{font-size:13px;color:#7a6e68;margin-bottom:6px}
     .crumbs a{color:inherit;text-decoration:underline}
+    .back-btn{
+      display:inline-block;background:#1f2937;color:#fff;border:1px solid #1f2937;border-radius:10px;
+      padding:8px 12px;font-weight:700;text-decoration:none;margin:0 auto 8px
+    }
 
     /* Compact composer (like Tailoring) */
     .composer{
@@ -56,17 +57,13 @@
     }
     .composer textarea{min-height:100px; resize:vertical}
     .composer .actions{display:flex;align-items:center;gap:8px;justify-content:space-between;margin:6px 8px 2px}
-    .icon-btn{
-      display:inline-grid; place-items:center; width:34px; height:34px; border-radius:10px;
-      border:1px solid var(--border); background:#fff; cursor:pointer;
-    }
+    .icon-btn{display:inline-grid; place-items:center; width:34px; height:34px; border-radius:10px; border:1px solid var(--border); background:#fff; cursor:pointer}
     .icon-btn svg{width:20px;height:20px}
     .icon-photo{color:#6b7280}
     .icon-video{color:#6b7280}
     .icon-btn.active .icon-photo{color:#dc2626}
     .icon-btn.active .icon-video{color:#2563eb}
     .tt-post{appearance:none;border:1px solid var(--accent);background:var(--accent);color:#fff;padding:8px 14px;border-radius:10px;font-weight:700}
-    .tt-post:disabled{opacity:.5;cursor:not-allowed}
     .preview-wrap{display:flex;gap:10px;padding:0 8px 8px}
     .preview-wrap img,.preview-wrap video{max-width:140px;max-height:120px;border-radius:10px;border:1px solid var(--border)}
 
@@ -89,12 +86,11 @@
     .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);
       transform:translateX(-100%);transition:transform .25s ease;z-index:350;display:flex;flex-direction:column}
     .sheet.open{transform:translateX(0)}
-
     a:focus-visible, button:focus-visible{outline:3px solid rgba(153,27,27,.35);outline-offset:2px;border-radius:10px}
   </style>
 </head>
 <body>
-  <!-- HEADER -->
+  <!-- HEADER (same as Tailoring) -->
   <header class="hm-header" role="banner">
     <div class="wrap-1200" style="display:flex;align-items:center;justify-content:space-between;padding:0 12px">
       <div class="left" style="display:flex;align-items:center;gap:10px">
@@ -135,7 +131,7 @@
           </svg>
         </a>
         <a class="hm-avatar" id="avatar" href="account.html" title="Your profile"
-          style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#4b3d35;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center">AA</a>
+           style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#4b3d35;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center">AA</a>
         <a class="hm-btn-primary" href="sell.html" style="text-decoration:none;background:#2d2d2d;color:#fff;padding:8px 12px;border-radius:10px;border:1px solid #2d2d2d">Sell</a>
       </div>
     </div>
@@ -166,6 +162,9 @@
       <h1 id="tt-title">Pattern Hacks</h1>
       <p class="sub">Share your clever edits, merges, and redrafts—what did you change and why?</p>
 
+      <!-- NEW consistent back button -->
+      <a class="back-btn" href="ThreadTalk.html">Back to ThreadTalk</a>
+
       <form class="composer" id="composer" aria-label="Create a thread">
         <div class="row">
           <label for="composeCategory" class="sr-only">Category</label>
@@ -182,7 +181,8 @@
         </div>
         <div class="row">
           <label for="composeText" class="sr-only">Post</label>
-          <textarea id="composeText" placeholder="Explain your hack in plain English—what you changed, and the payoff. Add #hashtags if you want."></textarea>
+          <!-- UPDATED inclusive placeholder -->
+          <textarea id="composeText" placeholder="Tell us your hack—what you changed and the payoff. Add #hashtags if you like."></textarea>
         </div>
         <div class="preview-wrap" id="mediaPreview" hidden></div>
         <div class="actions">
@@ -248,11 +248,10 @@
       if(avatar && url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }
     }catch(e){}
 
-    /* Post system (localStorage) */
+    /* Local post list */
     var cardsEl = document.getElementById('cards');
     var emptyState = document.getElementById('emptyState');
     var form = document.getElementById('composer');
-    var sel = document.getElementById('composeCategory');
     var txt = document.getElementById('composeText');
     var photoInput = document.getElementById('photoInput');
     var videoInput = document.getElementById('videoInput');
@@ -275,7 +274,7 @@
       }
       el.innerHTML =
         '<div class="meta"><div class="avatar">'+initials(post.user)+'</div><span>'+ (post.user||'You') +'</span> • <span>'+nowLabel()+'</span></div>'+
-        '<div class="title"><a class="cat" href="ThreadTalk.html">['+post.category+']</a> '+ (post.title||'') +'</div>'+
+        '<div class="title"><a class="cat" href="ThreadTalk.html">[Pattern Hacks]</a></div>'+
         mediaHTML+
         '<div class="preview">'+post.text+'</div>'+
         '<div class="actions"><span>❤ '+(Math.floor(Math.random()*8)+3)+'</span><span>💬 '+(Math.floor(Math.random()*4)+1)+'</span></div>';
@@ -302,7 +301,6 @@
     }
 
     function clearComposer(){
-      sel.value='Pattern Hacks';
       txt.value='';
       photoInput.value='';
       videoInput.value='';
@@ -335,7 +333,6 @@
 
     form.addEventListener('submit', function(e){
       e.preventDefault();
-      var category = 'Pattern Hacks'; // fixed for this page
       var text = (txt.value||'').trim();
       if(!text){ txt.focus(); return; }
 
@@ -346,14 +343,7 @@
         media = {type:'video', url: URL.createObjectURL(videoInput.files[0])};
       }
 
-      var post = {
-        category: category,
-        title: '',
-        text: text,
-        media: media,
-        user: localStorage.getItem('tt_user') || 'You',
-        ts: Date.now()
-      };
+      var post = { text, media, user: localStorage.getItem('tt_user') || 'You', ts: Date.now() };
 
       emptyState.style.display='none';
       renderCard(post,true);
