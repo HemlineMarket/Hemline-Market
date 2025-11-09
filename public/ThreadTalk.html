@@ -30,7 +30,7 @@
 
   .tt-wrap{max-width:1200px;margin:22px auto 44px;padding:0 16px}
 
-  /* Hero + compact composer */
+  /* Hero + compact composer (keep look) */
   .tt-hero{
     border:1px solid var(--border);border-radius:20px;padding:18px 16px;text-align:center;
     box-shadow:0 10px 20px rgba(50,38,31,.07);
@@ -60,8 +60,8 @@
     border:1px solid var(--border); background:#fff; cursor:pointer;
   }
   .icon-btn svg{width:20px;height:20px}
-  .icon-photo{color:#dc2626} /* red */
-  .icon-video{color:#2563eb} /* blue */
+  .icon-photo{color:#dc2626}
+  .icon-video{color:#2563eb}
 
   .tt-post{appearance:none;border:1px solid var(--accent);background:var(--accent);color:#fff;padding:8px 14px;border-radius:10px;font-weight:700}
   .tt-post:disabled{opacity:.5;cursor:not-allowed}
@@ -93,7 +93,7 @@
   .feed h2{font-size:18px;margin:4px 0 12px 4px;color:#5a463d}
   .cards{display:flex;flex-direction:column;gap:16px;max-width:1200px;margin:0 auto}
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px 20px;box-shadow:0 12px 18px rgba(50,38,31,.07)}
-  .meta{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin-bottom:6px}
+  .meta{display:flex;align-items:center;gap:8px;color:#7a6e68;font-size:13px;margin-bottom:6px}
   .avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;display:inline-grid;place-items:center;font-weight:700;font-size:12px}
   .title{margin:4px 0 8px;line-height:1.35}
   .cat{font-weight:800;margin-right:.35rem;text-decoration:none;color:#991b1b}
@@ -101,7 +101,7 @@
   .post-img,.post-video{width:100%;height:auto;border-radius:12px;margin:8px 0;border:1px solid var(--border);display:block;max-height:560px}
   .actions{display:flex;gap:14px;align-items:center;color:#7e6f66;font-size:13px;margin-top:8px}
 
-  /* Comments */
+  /* Comments (unchanged from your good version) */
   .comments{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
   .comment{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin:8px 0;background:#fff}
   .comment .c-meta{font-size:12px;color:#7a6e68;display:flex;gap:6px;align-items:center;margin-bottom:4px}
@@ -124,10 +124,6 @@
     padding:10px 14px;border-radius:10px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.18);opacity:0;pointer-events:none;transition:opacity .2s}
   .toast.show{opacity:1}
 
-  /* Auth chip in header */
-  .auth-chip{display:inline-flex;gap:8px;align-items:center}
-  .auth-chip .name{font-size:13px;color:#4b3d35}
-  .auth-chip .chip-btn{appearance:none;border:1px solid var(--border);background:#fff;color:#2d2d2d;padding:4px 8px;border-radius:10px}
   a:focus-visible, button:focus-visible{outline:3px solid rgba(153,27,27,.35);outline-offset:2px;border-radius:10px}
 </style>
 </head>
@@ -159,7 +155,7 @@
       </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites" style="color:#4b3d35;display:inline-grid;place-items:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
         </svg>
       </a>
       <a class="hm-icon" href="notifications.html" aria-label="Notifications" style="color:#4b3d35;display:inline-grid;place-items:center">
@@ -174,13 +170,6 @@
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-
-      <!-- Simple auth chip -->
-      <span class="auth-chip" id="authChip">
-        <span class="name" id="authName"></span>
-        <button class="chip-btn" id="authBtn" type="button">Sign in</button>
-      </span>
-
       <a class="hm-avatar" id="avatar" href="account.html" title="Your profile"
          style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#4b3d35;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center">AA</a>
       <a class="hm-btn-primary" href="sell.html" style="text-decoration:none;background:#2d2d2d;color:#fff;padding:8px 12px;border-radius:10px;border:1px solid #2d2d2d">Sell</a>
@@ -365,55 +354,25 @@
   if(overlay) overlay.addEventListener('click', closeSheet);
   document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSheet(); });
 
-  /* ===== Auth (localStorage-based) ===== */
-  var authBtn = document.getElementById('authBtn');
-  var authName = document.getElementById('authName');
-
-  function currentUser(){
-    try{ return localStorage.getItem('tt_user') || ''; }catch(e){ return ''; }
-  }
-  function setUser(name){
-    try{
-      if(name){ localStorage.setItem('tt_user', name); }
-      else { localStorage.removeItem('tt_user'); }
-    }catch(e){}
-    refreshAuthChip();
-    refreshComposerLock();
-  }
-  function refreshAuthChip(){
-    var u = currentUser();
-    if(u){
-      authName.textContent = u;
-      authBtn.textContent = 'Sign out';
-      authBtn.setAttribute('aria-label','Sign out');
-    }else{
-      authName.textContent = '';
-      authBtn.textContent = 'Sign in';
-      authBtn.setAttribute('aria-label','Sign in');
-    }
-  }
-  authBtn.addEventListener('click', function(){
-    var u = currentUser();
-    if(u){
-      setUser('');
-      showToast('Signed out');
-    }else{
-      var name = prompt('Choose a display name:');
-      if(name && name.trim()){
-        setUser(name.trim());
-        showToast('Signed in as '+name.trim());
-      }
-    }
-  });
-
-  /* Optional avatar */
+  /* Avatar (optional) */
   try{
     var avatar=document.getElementById('avatar');
     var url=localStorage.getItem('avatarUrl');
     if(avatar && url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; }
   }catch(e){}
 
-  /* ===== Elements ===== */
+  /* ===== Name sourcing: HM account name -> tt_user -> 'Afroza' ===== */
+  function getAccountName(){
+    try{
+      return localStorage.getItem('hm_name')
+          || localStorage.getItem('accountName')
+          || localStorage.getItem('displayName')
+          || localStorage.getItem('tt_user')
+          || 'Afroza';
+    }catch(e){ return 'Afroza'; }
+  }
+
+  /* Elements */
   var cardsEl = document.getElementById('cards');
   var emptyState = document.getElementById('emptyState');
   var form = document.getElementById('composer');
@@ -441,21 +400,13 @@
     return 'loose-threads.html';
   }
 
-  /* ===== Storage helpers ===== */
-  function loadPosts(){
-    try{ return JSON.parse(localStorage.getItem('tt_posts')||'[]'); }catch(e){ return []; }
-  }
-  function savePosts(arr){
-    try{ localStorage.setItem('tt_posts', JSON.stringify(arr)); }catch(e){}
-  }
-  function loadComments(){
-    try{ return JSON.parse(localStorage.getItem('tt_comments')||'{}'); }catch(e){ return {}; }
-  }
-  function saveComments(map){
-    try{ localStorage.setItem('tt_comments', JSON.stringify(map)); }catch(e){}
-  }
+  /* Storage helpers */
+  function loadPosts(){ try{ return JSON.parse(localStorage.getItem('tt_posts')||'[]'); }catch(e){ return []; } }
+  function savePosts(arr){ try{ localStorage.setItem('tt_posts', JSON.stringify(arr)); }catch(e){} }
+  function loadComments(){ try{ return JSON.parse(localStorage.getItem('tt_comments')||'{}'); }catch(e){ return {}; } }
+  function saveComments(map){ try{ localStorage.setItem('tt_comments', JSON.stringify(map)); }catch(e){} }
 
-  /* ===== Render ===== */
+  /* Comments rendering */
   function renderComments(container, postId){
     var cm = loadComments();
     var list = cm[postId] || [];
@@ -463,7 +414,8 @@
     list.forEach(function(c, idx){
       var cEl = document.createElement('div');
       cEl.className = 'comment';
-      var canEdit = currentUser() && currentUser() === c.user;
+      var me = getAccountName();
+      var canEdit = me && me === c.user;
       cEl.innerHTML =
         '<div class="c-meta"><strong>'+c.user+'</strong> • <span>'+nowLabel()+'</span></div>'+
         '<div class="c-text" data-idx="'+idx+'">'+c.text+'</div>'+
@@ -474,7 +426,6 @@
       container.appendChild(cEl);
     });
 
-    // Bind edit/delete
     container.querySelectorAll('.c-edit').forEach(function(btn){
       btn.addEventListener('click', function(){
         var i = Number(this.getAttribute('data-idx'));
@@ -503,21 +454,12 @@
       mediaHTML = '<video class="post-video" controls src="'+post.media.url+'"></video>';
     }
 
-    // reactions
-    var likeId = 'like-'+post.ts;
-    var loveId = 'love-'+post.ts;
-    var wowId  = 'wow-'+post.ts;
-
     el.innerHTML =
       '<div class="meta"><div class="avatar">'+initials(post.user)+'</div><span>'+ (post.user||'You') +'</span> • <span>'+nowLabel()+'</span></div>'+
       '<div class="title"><a class="cat" href="'+categoryFile(post.category)+'">['+post.category+']</a></div>'+
       mediaHTML+
       '<div class="preview">'+post.text+'</div>'+
-      '<div class="actions">'+
-        '<button type="button" class="btn secondary react" id="'+likeId+'">👍</button>'+
-        '<button type="button" class="btn secondary react" id="'+loveId+'">❤️</button>'+
-        '<button type="button" class="btn secondary react" id="'+wowId+'">😮</button>'+
-      '</div>'+
+      '<div class="actions"><span>👍</span><span>❤️</span><span>😮</span></div>'+
       '<div class="comments" id="cwrap-'+post.ts+'">'+
         '<div class="c-list" id="clist-'+post.ts+'"></div>'+
         '<form class="comment-form" id="cform-'+post.ts+'">'+
@@ -526,22 +468,19 @@
         '</form>'+
       '</div>';
 
-    // Insert in feed
     if(toTop && cardsEl.firstChild){ cardsEl.insertBefore(el, cardsEl.firstChild); }
     else cardsEl.appendChild(el);
 
-    // Wire comments for this post
     var cList = document.getElementById('clist-'+post.ts);
     renderComments(cList, String(post.ts));
     var cForm = document.getElementById('cform-'+post.ts);
     cForm.addEventListener('submit', function(ev){
       ev.preventDefault();
-      var u = currentUser();
-      if(!u){ showToast('Please sign in to comment'); return; }
+      var me = getAccountName();
       var ta = cForm.querySelector('textarea');
       var val = (ta.value||'').trim(); if(!val) return;
       var map = loadComments(); var arr = map[String(post.ts)] || [];
-      arr.push({user:u, text:val, ts:Date.now()});
+      arr.push({user:me, text:val, ts:Date.now()});
       map[String(post.ts)] = arr; saveComments(map);
       ta.value=''; renderComments(cList, String(post.ts));
     });
@@ -552,19 +491,6 @@
     var arr = loadPosts();
     if(arr.length){ emptyState.style.display='none'; }
     arr.forEach(function(p){ renderCard(p,false); });
-  }
-
-  /* ===== Composer & posting ===== */
-  function refreshComposerLock(){
-    var u = currentUser();
-    var disabled = !u;
-    txt.disabled = disabled;
-    sel.disabled = disabled;
-    photoInput.disabled = disabled;
-    videoInput.disabled = disabled;
-    postBtn.disabled = disabled;
-    if(disabled){ txt.placeholder = 'Sign in to post'; }
-    else { txt.placeholder = 'Share what you’re working on, stuck on, or proud of. Add #hashtags if you want.'; }
   }
 
   function showPreview(file, kind){
@@ -584,8 +510,6 @@
 
   function submitPost(e){
     if(e) e.preventDefault();
-    var u = currentUser();
-    if(!u){ showToast('Please sign in to post'); return; }
 
     var category = sel.value && sel.value.trim() ? sel.value.trim() : 'Loose Threads';
     var text = (txt.value||'').trim();
@@ -598,7 +522,8 @@
       media = {type:'video', url: URL.createObjectURL(videoInput.files[0])};
     }
 
-    var post = { category, text, media, user: u, ts: Date.now() };
+    var user = getAccountName();
+    var post = { category, text, media, user, ts: Date.now() };
 
     var arr = loadPosts();
     arr.unshift(post);
@@ -607,11 +532,8 @@
     emptyState.style.display='none';
     renderCard(post,true);
 
-    // reset
-    sel.value='';
-    txt.value='';
-    photoInput.value='';
-    videoInput.value='';
+    sel.value=''; txt.value='';
+    photoInput.value=''; videoInput.value='';
     previewWrap.innerHTML=''; previewWrap.hidden=true;
     txt.focus();
 
@@ -620,13 +542,10 @@
   }
 
   form.addEventListener('submit', submitPost);
-  document.getElementById('postBtn').addEventListener('click', submitPost);
+  postBtn.addEventListener('click', submitPost);
 
-  /* ===== Init ===== */
-  refreshAuthChip();
-  refreshComposerLock();
+  /* Init */
   renderAll();
-
 })();
 </script>
 </body>
