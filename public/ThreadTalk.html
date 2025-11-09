@@ -4,267 +4,232 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>ThreadTalk — Hemline Market</title>
+
   <link rel="icon" href="/favicon.ico"/>
 
-  <!-- shared site styles -->
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hem-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <!-- If you have shared CSS, keep these. Otherwise this page is self-contained. -->
+  <!-- <link rel="stylesheet" href="styles/hm-modern.css"> -->
 
   <style>
     :root{
-      --hm-brand:#991b1b;        /* maroon */
-      --ink:#3f2f2a;             /* espresso */
-      --muted:#7a6e68;           /* warm gray */
-      --border:#e8e0d9;          /* parchment */
-      --card:#ffffff;
+      --hm-brand:#8d1a1a;
+      --ink:#3e312c;
+      --muted:#7a6e68;
+      --border:#eadfda;
+      --card:#fff;
       --bg:#fdfbf9;
-      --accent:#2d2d2d;
+      --accent:#222222;
     }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:1200px;margin:0 auto;padding:0 16px}
 
-    body{
-      background:
-        radial-gradient(1200px 420px at 50% -240px, rgba(153,27,27,.06) 0%, rgba(253,251,249,0) 60%),
-        linear-gradient(180deg, var(--bg) 0%, #fff 100%);
-      color:var(--ink);
-    }
+    /* Header */
+    .hm-header{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid var(--border)}
+    .hm-header-row{display:flex;align-items:center;justify-content:space-between;height:56px}
+    .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    .hamburger svg{width:22px;height:22px}
+    .brand{font-weight:800;font-size:18px;color:var(--hm-brand)}
 
-    .wrap-1200{max-width:1200px;margin:0 auto;padding:0 16px}
-    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border);position:relative;z-index:300}
-    .hm-header .hm-brand{color:var(--hm-brand)!important}
-    .hm-footer{background:#fff;border-top:1px solid var(--border);margin-top:28px}
+    /* Sheet menu */
+    #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:998}
+    #sheetOverlay.show{opacity:1;pointer-events:auto}
+    .sheet{position:fixed;inset:0 0 0 auto;width:min(420px,90vw);background:#fff;border-left:1px solid var(--border);
+           box-shadow:-24px 0 48px rgba(0,0,0,.08);transform:translateX(100%);transition:transform .22s ease;z-index:999}
+    .sheet.open{transform:translateX(0)}
+    .sheet h3{margin:12px 16px 8px 16px;font-size:14px;color:#6b5d56}
+    .sheet a{display:block;padding:14px 16px;border-top:1px solid var(--border)}
+    .sheet .close-row{display:flex;justify-content:flex-end;padding:8px 8px 0}
+    .close-btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 10px}
 
-    .tt-wrap{max-width:1200px;margin:22px auto 44px;padding:0 16px}
+    /* Hero */
+    .tt-wrap{padding:22px 0 18px}
+    .tt-hero{border:1px solid var(--border);border-radius:20px;padding:18px;background:
+             radial-gradient(120% 150% at 50% 0%, #fff 0%, rgba(141,26,26,.06) 55%, #fff 100%);
+             box-shadow:0 10px 20px rgba(50,38,31,.07)}
+    .tt-hero h1{font-family:ui-serif,Georgia,serif;font-weight:800;font-size:clamp(26px,4vw,40px);margin:0 0 4px}
+    .tt-sub{color:var(--muted);margin:0 0 12px}
 
-    .tt-hero{
-      border:1px solid var(--border);border-radius:20px;padding:18px;text-align:left;
-      box-shadow:0 10px 20px rgba(50,38,31,.07);
-      background:radial-gradient(120% 150% at 50% 0%, #fff 0%, rgba(153,27,27,.05) 55%, #fff 100%);
-    }
-    .tt-headline{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-    .tt-hero h1{font-family:ui-serif,"Cormorant Garamond",Georgia,serif;font-size:clamp(26px,4vw,40px);margin:0}
-    .sub{color:var(--muted);font-size:14px;margin:6px 2px 6px}
-
-    .composer{
-      max-width:980px;margin:10px 0 0;background:#fff;border:1px solid var(--border);
-      border-radius:14px;padding:10px;box-shadow:0 6px 14px rgba(50,38,31,.06)
-    }
+    /* Composer */
+    .composer{max-width:980px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px;box-shadow:0 6px 14px rgba(50,38,31,.06)}
     .row{display:flex;align-items:center;gap:10px}
-    .avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);display:inline-grid;place-items:center;font-weight:700;font-size:12px;background:#fff}
-    .select{min-width:170px;appearance:none;border:1px solid var(--border);border-radius:999px;padding:8px 12px;background:#fff;font-weight:700;color:#4b3d35}
+    .avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);display:inline-grid;place-items:center;font-weight:700}
+    .select{min-width:180px;border:1px solid var(--border);border-radius:999px;padding:8px 12px;background:#fff;font-weight:700;color:#4b3d35}
     .textarea-wrap{flex:1}
-    textarea{
-      width:100%;min-height:42px;max-height:160px;resize:vertical;
-      border:1px solid var(--border);border-radius:10px;padding:10px 12px;font:inherit;color:var(--ink);
-      background:#fff
-    }
+    textarea{width:100%;min-height:42px;max-height:160px;resize:vertical;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font:inherit}
     .composer-bar{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
-    .icon-btn{
-      display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;
-      border:1px solid var(--border);background:#fff;cursor:pointer
-    }
+    .icon-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:#fff;opacity:.65}
     .icon-btn svg{width:20px;height:20px}
-    .icon-photo{color:#dc2626}
-    .icon-video{color:#2563eb}
-    .post-btn{appearance:none;border:1px solid var(--accent);background:var(--accent);color:#fff;padding:8px 14px;border-radius:10px;font-weight:700}
-    .post-btn:disabled{opacity:.5;cursor:not-allowed}
+    .icon-photo{color:#dc2626}.icon-video{color:#2563eb}
+    .post-btn{border:1px solid var(--accent);background:var(--accent);color:#fff;padding:8px 14px;border-radius:10px;font-weight:700}
 
-    .grid{display:grid;gap:14px;margin-top:18px}
-    @media (min-width:680px){ .grid{grid-template-columns:repeat(2,1fr)} }
-    @media (min-width:980px){ .grid{grid-template-columns:repeat(3,1fr)} }
-
-    .tile{
-      background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;
-      text-decoration:none;color:var(--ink);
-      box-shadow:0 10px 18px rgba(50,38,31,.07);
-      display:flex;flex-direction:column;gap:6px
-    }
-    .tile h3{margin:0;font-size:18px}
-    .tile p{margin:0;color:#7a6e68;font-size:14px}
-    .tile:hover{transform:translateY(-1px);transition:.15s ease}
-
+    /* Grid of category tiles */
     .feed{margin-top:18px}
     .feed h2{font-size:18px;margin:4px 0 10px 4px;color:#5a463d}
+    .grid{display:grid;gap:14px}
+    @media (min-width:680px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (min-width:980px){.grid{grid-template-columns:repeat(3,1fr)}}
+    .tile{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;text-decoration:none;color:inherit;
+          box-shadow:0 10px 18px rgba(50,38,31,.07);display:flex;flex-direction:column;gap:6px}
+    .tile:hover{transform:translateY(-1px)}
+    .tile h3{margin:0;font-size:18px}.tile p{margin:0;color:#7a6e68;font-size:14px}
 
-    .sr-only{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-    a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible{
-      outline:3px solid rgba(153,27,27,.35);outline-offset:2px;border-radius:10px
-    }
+    /* Footer */
+    footer{margin-top:28px;background:#fff;border-top:1px solid var(--border)}
+    .foot-row{display:flex;align-items:center;justify-content:space-between;height:52px}
+    .foot-links{display:flex;gap:18px;color:#6b5d56}
+    .copy{color:#6b5d56}
+
+    /* Focus */
+    a:focus-visible,button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(141,26,26,.3);outline-offset:2px;border-radius:10px}
   </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<header class="hm-header" role="banner">
-  <div class="wrap-1200" style="display:flex;align-items:center;justify-content:space-between;padding:0 12px">
-    <div class="left" style="display:flex;align-items:center;gap:10px">
-      <button class="hamburger" id="openMenu" aria-label="Open menu" aria-controls="menuSheet"
-              style="display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#4b3d35">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;stroke-width:2">
-          <line x1="4" y1="6"  x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
+  <!-- HEADER -->
+  <header class="hm-header">
+    <div class="wrap hm-header-row">
+      <button id="openMenu" class="hamburger" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
-      <a class="hm-brand" href="index.html" style="font-size:24px;font-weight:800;text-decoration:none">Hemline Market</a>
+      <div class="brand">Hemline Market</div>
+      <div style="width:36px"></div>
     </div>
-    <div class="right" style="display:flex;align-items:center;gap:14px">
-      <a class="hm-icon" href="browse.html" aria-label="Browse & search" style="color:#4b3d35;display:inline-grid;place-items:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
-          <circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path>
-        </svg>
-      </a>
-      <a class="hm-icon" href="favorites.html" aria-label="Favorites" style="color:#4b3d35;display:inline-grid;place-items:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
-        </svg>
-      </a>
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications" style="color:#4b3d35;display:inline-grid;place-items:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
-          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-      </a>
-      <a class="hm-icon" href="cart.html" aria-label="Cart" style="color:#4b3d35;display:inline-grid;place-items:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:26px;height:26px;stroke-width:2">
-          <circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle>
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-        </svg>
-      </a>
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile"
-         style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#4b3d35;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center">AA</a>
-      <a class="hm-btn-primary" href="sell.html" style="text-decoration:none;background:#2d2d2d;color:#fff;padding:8px 12px;border-radius:10px;border:1px solid #2d2d2d">Sell</a>
-    </div>
-  </div>
-</header>
-
-<div id="sheetOverlay" aria-hidden="true"></div>
-<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true">
-  <header style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)">
-    <strong>Menu</strong>
-    <button class="close" id="closeMenu" aria-label="Close menu" style="display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#4b3d35">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-    </button>
   </header>
-  <nav style="display:grid;padding:10px">
-    <a href="ThreadTalk.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">ThreadTalk</a>
-    <a href="browse.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Browse & Search</a>
-    <a href="atelier.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">My Atelier</a>
-    <a href="how.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">How It Works</a>
-    <a href="seller/index.html?list=new" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Sell Fabric</a>
-    <a href="contact.html" style="padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--ink)">Contact</a>
-  </nav>
-</aside>
 
-<main class="tt-wrap" role="main">
-  <section class="tt-hero">
-    <div class="tt-headline">
+  <!-- MENU SHEET -->
+  <div id="sheetOverlay"></div>
+  <aside id="menuSheet" class="sheet" aria-hidden="true">
+    <div class="close-row"><button id="closeMenu" class="close-btn" aria-label="Close menu">Close</button></div>
+    <h3>Menu</h3>
+    <a href="/ThreadTalk.html">ThreadTalk</a>
+    <a href="/browse.html">Browse &amp; Search</a>
+    <a href="/atelier.html">My Atelier</a>
+    <a href="/how-it-works.html">How It Works</a>
+    <a href="/sell.html">Sell Fabric</a>
+    <a href="/contact.html">Contact</a>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="wrap tt-wrap" id="main">
+    <section class="tt-hero">
       <h1>ThreadTalk</h1>
-    </div>
-    <p class="sub">Where makers gather to talk fabric, fit, and everything in between.</p>
+      <p class="tt-sub">Where makers gather to talk fabric, fit, and everything in between.</p>
 
-    <!-- main composer -->
-    <form class="composer" id="ttComposer" aria-label="Start a thread">
-      <div class="row">
-        <div class="avatar" id="avatarInitials">AA</div>
-        <select class="select" id="catSelect" aria-label="Choose a category">
-          <option value="tailoring">Tailoring</option>
-          <option value="showcase">Showcase</option>
-          <option value="stitch-school">Stitch School</option>
-          <option value="fabric-sos">Fabric SOS</option>
-          <option value="before-after">Before &amp; After</option>
-          <option value="pattern-hacks">Pattern Hacks</option>
-          <option value="stash-confessions">Stash Confessions</option>
-          <option value="loose-threads">Loose Threads</option>
-        </select>
-        <div class="textarea-wrap">
-          <label for="ttText" class="sr-only">Post</label>
-          <textarea id="ttText" placeholder="What’s on your table today? Share a quick note…"></textarea>
-          <div class="composer-bar">
-            <div style="display:flex;gap:8px">
-              <button class="icon-btn" type="button" title="Add photo" disabled aria-disabled="true">
-                <svg class="icon-photo" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5h3l2-2h6l2 2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm8 3a4 4 0 1 0 .001 8.001A4 4 0 0 0 12 8z"/></svg>
-              </button>
-              <button class="icon-btn" type="button" title="Add video" disabled aria-disabled="true">
-                <svg class="icon-video" viewBox="0 0 24 24" fill="currentColor"><path d="M15 10.5v-2a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-2l5 3v-9l-5 3z"/></svg>
-              </button>
-            </div>
-            <button class="post-btn" id="postRedirect" type="submit">Post</button>
+      <!-- Composer -->
+      <form id="composer" class="composer" action="/threadtalk/post" method="post" novalidate>
+        <div class="row">
+          <div class="avatar" aria-hidden="true">AA</div>
+
+          <!-- Category select -->
+          <select id="category" name="category" class="select" aria-label="Choose a category">
+            <option value="" selected disabled>— Select a category… —</option>
+            <option value="tailoring">Tailoring</option>
+            <option value="showcase">Showcase</option>
+            <option value="stitch-school">Stitch School</option>
+            <option value="fabric-sos">Fabric SOS</option>
+            <option value="before-after">Before &amp; After</option>
+            <option value="pattern-hacks">Pattern Hacks</option>
+            <option value="stash-confessions">Stash Confessions</option>
+            <option value="loose-threads">Loose Threads</option>
+          </select>
+
+          <!-- Text -->
+          <div class="textarea-wrap">
+            <textarea id="content" name="content" placeholder="What’s on your table today? Share a quick note…" required></textarea>
           </div>
         </div>
+
+        <div class="composer-bar">
+          <div style="display:flex;gap:8px">
+            <button class="icon-btn" type="button" title="Add photo (coming soon)" aria-label="Add photo" disabled>
+              <svg class="icon-photo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h6l2 3h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            </button>
+            <button class="icon-btn" type="button" title="Add video (coming soon)" aria-label="Add video" disabled>
+              <svg class="icon-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10v4l5 3V7l-5 3Z"/><rect x="2" y="6" width="12" height="12" rx="2"/></svg>
+            </button>
+          </div>
+
+          <button id="postBtn" class="post-btn" type="submit">Post</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Category tiles -->
+    <section class="feed">
+      <h2>Categories</h2>
+      <div class="grid">
+        <a class="tile" href="/threadtalk-category.html?c=tailoring"><h3>Tailoring</h3><p>Dial in your perfect fit.</p></a>
+        <a class="tile" href="/threadtalk-category.html?c=showcase"><h3>Showcase</h3><p>Share what you made.</p></a>
+        <a class="tile" href="/threadtalk-category.html?c=stitch-school"><h3>Stitch School</h3><p>Techniques and tips.</p></a>
+        <a class="tile" href="/threadtalk-category.html?c=fabric-sos"><h3>Fabric SOS</h3><p>Fiber care and drape.</p></a>
+        <a class="tile" href="/threadtalk-category.html?c=before-after"><h3>Before &amp; After</h3><p>Transformations.</p></a>
+        <a class="tile" href="/threadtalk-category.html?c=pattern-hacks"><h3>Pattern Hacks</h3><p>Mods and mashups.</p></a>
+        <a class="tile" href="/threadtalk-category.html?c=stash-confessions"><h3>Stash Confessions</h3><p>Temptations &amp; triumphs.</p></a>
+        <a class="tile" href="/threadtalk-category.html?c=loose-threads"><h3>Loose Threads</h3><p>General chat.</p></a>
       </div>
-    </form>
-  </section>
+    </section>
+  </main>
 
-  <!-- category tiles -->
-  <section class="feed" aria-labelledby="cats-title">
-    <h2 id="cats-title">Categories</h2>
-    <div class="grid">
-      <a class="tile" href="threadtalk-category.html?c=tailoring"><h3>Tailoring</h3><p>Dial in your perfect fit.</p></a>
-      <a class="tile" href="threadtalk-category.html?c=showcase"><h3>Showcase</h3><p>Share what you made.</p></a>
-      <a class="tile" href="threadtalk-category.html?c=stitch-school"><h3>Stitch School</h3><p>Techniques and tips.</p></a>
-      <a class="tile" href="threadtalk-category.html?c=fabric-sos"><h3>Fabric SOS</h3><p>Fiber, care, drape.</p></a>
-      <a class="tile" href="threadtalk-category.html?c=before-after"><h3>Before &amp; After</h3><p>Transformations.</p></a>
-      <a class="tile" href="threadtalk-category.html?c=pattern-hacks"><h3>Pattern Hacks</h3><p>Mods & mashups.</p></a>
-      <a class="tile" href="threadtalk-category.html?c=stash-confessions"><h3>Stash Confessions</h3><p>Temptations & triumphs.</p></a>
-      <a class="tile" href="threadtalk-category.html?c=loose-threads"><h3>Loose Threads</h3><p>General chat.</p></a>
+  <!-- FOOTER -->
+  <footer>
+    <div class="wrap foot-row">
+      <div class="copy">© 2025 Hemline Market</div>
+      <nav class="foot-links" aria-label="Footer">
+        <a href="/about.html">About</a>
+        <a href="/faq.html">FAQ</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+      </nav>
     </div>
-  </section>
+  </footer>
 
-  <!-- (Optional) latest across categories could go here later -->
-</main>
+  <script>
+    // Menu open/close
+    const openBtn = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const sheet = document.getElementById('menuSheet');
+    const overlay = document.getElementById('sheetOverlay');
 
-<footer class="hm-footer" role="contentinfo">
-  <div class="wrap-1200" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 16px">
-    <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links" aria-label="Footer">
-      <a href="about.html">About</a>
-      <a href="faq.html">FAQ</a>
-      <a href="contact.html">Contact</a>
-      <a href="terms.html">Terms</a>
-      <a href="privacy.html">Privacy</a>
-    </nav>
-  </div>
-</footer>
+    const openSheet = () => {
+      sheet.classList.add('open');
+      overlay.classList.add('show');
+      sheet.setAttribute('aria-hidden','false');
+    };
+    const closeSheet = () => {
+      sheet.classList.remove('open');
+      overlay.classList.remove('show');
+      sheet.setAttribute('aria-hidden','true');
+    };
 
-<script>
-(function(){
-  // simple avatar initials (optional)
-  try{
-    var user = localStorage.getItem('tt_user') || 'You';
-    document.getElementById('avatarInitials').textContent = (user.slice(0,2)||'AA').toUpperCase();
-  }catch(e){}
+    openBtn.addEventListener('click', openSheet);
+    closeBtn.addEventListener('click', closeSheet);
+    overlay.addEventListener('click', closeSheet);
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeSheet(); });
 
-  // hamburger
-  var sheet=document.getElementById('menuSheet');
-  var overlay=document.getElementById('sheetOverlay');
-  var openBtn=document.getElementById('openMenu');
-  var closeBtn=document.getElementById('closeMenu');
+    // Composer: if category is not chosen, default to Loose Threads before submitting
+    const form = document.getElementById('composer');
+    const category = document.getElementById('category');
+    const content = document.getElementById('content');
 
-  function openSheet(){
-    sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false');
-    overlay.classList.add('show'); document.body.style.overflow='hidden';
-    setTimeout(function(){ if(closeBtn) closeBtn.focus(); }, 50);
-  }
-  function closeSheet(){
-    sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true');
-    overlay.classList.remove('show'); document.body.style.overflow='';
-    if(openBtn) openBtn.focus();
-  }
-  if(openBtn) openBtn.addEventListener('click', function(e){ e.preventDefault(); openSheet(); });
-  if(closeBtn) closeBtn.addEventListener('click', function(e){ e.preventDefault(); closeSheet(); });
-  if(overlay) overlay.addEventListener('click', closeSheet);
-  document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSheet(); });
-
-  // main composer: redirect to selected category template
-  var form = document.getElementById('ttComposer');
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
-    var cat = document.getElementById('catSelect').value || 'loose-threads';
-    // (Optional) stash draft text to load on the category page later:
-    // localStorage.setItem('tt_draft_'+cat, (document.getElementById('ttText').value||'').trim());
-    window.location.href = 'threadtalk-category.html?c='+encodeURIComponent(cat);
-  });
-})();
-</script>
+    form.addEventListener('submit', (e)=>{
+      // Front-end guard only; your backend should also enforce this.
+      if (!content.value.trim()) {
+        e.preventDefault();
+        content.focus();
+        return;
+      }
+      if (!category.value) {
+        // Default to loose-threads, then proceed
+        category.value = 'loose-threads';
+        // Optional: small confirmation for the user
+        category.style.outline = '2px solid rgba(141,26,26,.35)';
+        setTimeout(()=>{ category.style.outline=''; }, 800);
+      }
+      // allow form to submit normally
+    });
+  </script>
 </body>
 </html>
