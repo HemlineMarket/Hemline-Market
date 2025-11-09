@@ -4,104 +4,98 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>ThreadTalk — Hemline Market</title>
-
   <link rel="icon" href="/favicon.ico"/>
-
-  <!-- If you have shared CSS, keep these. Otherwise this page is self-contained. -->
-  <!-- <link rel="stylesheet" href="styles/hm-modern.css"> -->
 
   <style>
     :root{
-      --hm-brand:#8d1a1a;
+      --brand:#8d1a1a;
       --ink:#3e312c;
-      --muted:#7a6e68;
-      --border:#eadfda;
-      --card:#fff;
+      --muted:#6f645f;
+      --line:#eadfda;
+      --paper:#fff;
       --bg:#fdfbf9;
-      --accent:#222222;
+      --accent:#222;
     }
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+      font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
     a{color:inherit;text-decoration:none}
-    .wrap{max-width:1200px;margin:0 auto;padding:0 16px}
 
     /* Header */
-    .hm-header{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid var(--border)}
-    .hm-header-row{display:flex;align-items:center;justify-content:space-between;height:56px}
-    .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    .hdr{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid var(--line)}
+    .hdr-row{max-width:1200px;margin:0 auto;padding:0 16px;height:56px;display:grid;grid-template-columns:36px 1fr 36px;align-items:center}
+    .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:10px;background:#fff}
     .hamburger svg{width:22px;height:22px}
-    .brand{font-weight:800;font-size:18px;color:var(--hm-brand)}
+    .brand{justify-self:center;font-weight:800;font-size:18px;color:var(--brand)}
 
-    /* Sheet menu */
-    #sheetOverlay{position:fixed;inset:0;background:rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:998}
-    #sheetOverlay.show{opacity:1;pointer-events:auto}
-    .sheet{position:fixed;inset:0 0 0 auto;width:min(420px,90vw);background:#fff;border-left:1px solid var(--border);
-           box-shadow:-24px 0 48px rgba(0,0,0,.08);transform:translateX(100%);transition:transform .22s ease;z-index:999}
+    /* Off-canvas menu */
+    #overlay{position:fixed;inset:0;background:rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:opacity .2s;z-index:998}
+    #overlay.show{opacity:1;pointer-events:auto}
+    .sheet{position:fixed;inset:0 0 0 auto;width:min(420px,90vw);background:#fff;border-left:1px solid var(--line);
+           box-shadow:-24px 0 48px rgba(0,0,0,.08);transform:translateX(100%);transition:transform .22s;z-index:999}
     .sheet.open{transform:translateX(0)}
-    .sheet h3{margin:12px 16px 8px 16px;font-size:14px;color:#6b5d56}
-    .sheet a{display:block;padding:14px 16px;border-top:1px solid var(--border)}
-    .sheet .close-row{display:flex;justify-content:flex-end;padding:8px 8px 0}
-    .close-btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 10px}
+    .sheet h3{margin:14px 16px 8px;font-size:14px;color:#6b5d56}
+    .sheet a{display:block;padding:14px 16px;border-top:1px solid var(--line)}
+    .sheet .close{display:flex;justify-content:flex-end;padding:8px}
+    .close button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px}
 
-    /* Hero */
-    .tt-wrap{padding:22px 0 18px}
-    .tt-hero{border:1px solid var(--border);border-radius:20px;padding:18px;background:
-             radial-gradient(120% 150% at 50% 0%, #fff 0%, rgba(141,26,26,.06) 55%, #fff 100%);
-             box-shadow:0 10px 20px rgba(50,38,31,.07)}
-    .tt-hero h1{font-family:ui-serif,Georgia,serif;font-weight:800;font-size:clamp(26px,4vw,40px);margin:0 0 4px}
-    .tt-sub{color:var(--muted);margin:0 0 12px}
+    /* Layout */
+    .wrap{max-width:1200px;margin:0 auto;padding:0 16px}
+    .hero{margin:22px 0 18px;border:1px solid var(--line);border-radius:20px;padding:18px;background:
+      radial-gradient(150% 170% at 50% -30%, rgba(141,26,26,.035) 0%, #fff 55%, #fff 100%);
+      box-shadow:0 10px 20px rgba(50,38,31,.07)}
+    h1{font-family:ui-serif,Georgia,serif;font-weight:800;font-size:clamp(26px,4vw,40px);margin:0 0 4px}
+    .sub{color:var(--muted);margin:0 0 12px}
 
     /* Composer */
-    .composer{max-width:980px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px;box-shadow:0 6px 14px rgba(50,38,31,.06)}
-    .row{display:flex;align-items:center;gap:10px}
-    .avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);display:inline-grid;place-items:center;font-weight:700}
-    .select{min-width:180px;border:1px solid var(--border);border-radius:999px;padding:8px 12px;background:#fff;font-weight:700;color:#4b3d35}
-    .textarea-wrap{flex:1}
-    textarea{width:100%;min-height:42px;max-height:160px;resize:vertical;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font:inherit}
-    .composer-bar{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
-    .icon-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:#fff;opacity:.65}
+    .composer{max-width:980px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 10px;
+      box-shadow:0 6px 14px rgba(50,38,31,.06)}
+    .composer-row{display:grid;grid-template-columns:auto 200px 1fr auto auto;gap:10px;align-items:center}
+    .avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);display:inline-grid;place-items:center;font-weight:700}
+    select{min-width:180px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff;font-weight:700;color:#4b3d35}
+    textarea{width:100%;min-height:42px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit}
+    .icon-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff}
     .icon-btn svg{width:20px;height:20px}
     .icon-photo{color:#dc2626}.icon-video{color:#2563eb}
-    .post-btn{border:1px solid var(--accent);background:var(--accent);color:#fff;padding:8px 14px;border-radius:10px;font-weight:700}
+    .post{border:1px solid var(--accent);background:var(--accent);color:#fff;padding:8px 14px;border-radius:10px;font-weight:700}
 
-    /* Grid of category tiles */
+    /* Grid */
     .feed{margin-top:18px}
-    .feed h2{font-size:18px;margin:4px 0 10px 4px;color:#5a463d}
+    .feed h2{font-size:18px;margin:6px 0 10px 4px;color:#5a463d}
     .grid{display:grid;gap:14px}
-    @media (min-width:680px){.grid{grid-template-columns:repeat(2,1fr)}}
-    @media (min-width:980px){.grid{grid-template-columns:repeat(3,1fr)}}
-    .tile{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;text-decoration:none;color:inherit;
-          box-shadow:0 10px 18px rgba(50,38,31,.07);display:flex;flex-direction:column;gap:6px}
-    .tile:hover{transform:translateY(-1px)}
-    .tile h3{margin:0;font-size:18px}.tile p{margin:0;color:#7a6e68;font-size:14px}
+    @media(min-width:560px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(min-width:980px){.grid{grid-template-columns:repeat(3,1fr)}}
+    .tile{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;text-decoration:none;color:inherit;
+      box-shadow:0 10px 18px rgba(50,38,31,.07);display:flex;flex-direction:column;gap:6px;min-height:92px}
+    .tile h3{margin:0;font-size:18px}
+    .tile p{margin:0;color:#7a6e68;font-size:14px}
 
     /* Footer */
-    footer{margin-top:28px;background:#fff;border-top:1px solid var(--border)}
-    .foot-row{display:flex;align-items:center;justify-content:space-between;height:52px}
-    .foot-links{display:flex;gap:18px;color:#6b5d56}
+    footer{margin-top:28px;background:#fff;border-top:1px solid var(--line)}
+    .foot{max-width:1200px;margin:0 auto;padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between}
+    .links{display:flex;gap:18px;color:#6b5d56}
     .copy{color:#6b5d56}
 
-    /* Focus */
-    a:focus-visible,button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(141,26,26,.3);outline-offset:2px;border-radius:10px}
+    a:focus-visible,button:focus-visible,select:focus-visible,textarea:focus-visible{
+      outline:3px solid rgba(141,26,26,.3);outline-offset:2px;border-radius:10px}
   </style>
 </head>
 <body>
-
-  <!-- HEADER -->
-  <header class="hm-header">
-    <div class="wrap hm-header-row">
-      <button id="openMenu" class="hamburger" aria-label="Open menu">
+  <!-- Header -->
+  <header class="hdr">
+    <div class="hdr-row">
+      <button id="open" class="hamburger" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
       <div class="brand">Hemline Market</div>
-      <div style="width:36px"></div>
+      <div></div>
     </div>
   </header>
 
-  <!-- MENU SHEET -->
-  <div id="sheetOverlay"></div>
-  <aside id="menuSheet" class="sheet" aria-hidden="true">
-    <div class="close-row"><button id="closeMenu" class="close-btn" aria-label="Close menu">Close</button></div>
+  <!-- Sheet menu -->
+  <div id="overlay"></div>
+  <aside id="sheet" class="sheet" aria-hidden="true">
+    <div class="close"><button id="close">Close</button></div>
     <h3>Menu</h3>
     <a href="/ThreadTalk.html">ThreadTalk</a>
     <a href="/browse.html">Browse &amp; Search</a>
@@ -111,19 +105,16 @@
     <a href="/contact.html">Contact</a>
   </aside>
 
-  <!-- MAIN -->
-  <main class="wrap tt-wrap" id="main">
-    <section class="tt-hero">
+  <main class="wrap">
+    <section class="hero">
       <h1>ThreadTalk</h1>
-      <p class="tt-sub">Where makers gather to talk fabric, fit, and everything in between.</p>
+      <p class="sub">Where makers <strong>talk</strong> fabric, fit, and everything in between.</p>
 
-      <!-- Composer -->
       <form id="composer" class="composer" action="/threadtalk/post" method="post" novalidate>
-        <div class="row">
+        <div class="composer-row">
           <div class="avatar" aria-hidden="true">AA</div>
 
-          <!-- Category select -->
-          <select id="category" name="category" class="select" aria-label="Choose a category">
+          <select id="category" name="category" aria-label="Choose a category">
             <option value="" selected disabled>— Select a category… —</option>
             <option value="tailoring">Tailoring</option>
             <option value="showcase">Showcase</option>
@@ -135,28 +126,24 @@
             <option value="loose-threads">Loose Threads</option>
           </select>
 
-          <!-- Text -->
-          <div class="textarea-wrap">
-            <textarea id="content" name="content" placeholder="What’s on your table today? Share a quick note…" required></textarea>
-          </div>
-        </div>
+          <textarea id="content" name="content" placeholder="What’s on your table today? Share a quick note…" required></textarea>
 
-        <div class="composer-bar">
-          <div style="display:flex;gap:8px">
-            <button class="icon-btn" type="button" title="Add photo (coming soon)" aria-label="Add photo" disabled>
-              <svg class="icon-photo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l2-3h6l2 3h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg>
-            </button>
-            <button class="icon-btn" type="button" title="Add video (coming soon)" aria-label="Add video" disabled>
-              <svg class="icon-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10v4l5 3V7l-5 3Z"/><rect x="2" y="6" width="12" height="12" rx="2"/></svg>
-            </button>
-          </div>
+          <button class="icon-btn" type="button" title="Add photo (soon)" aria-label="Add photo" disabled>
+            <svg class="icon-photo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7h3l2-3h6l2 3h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/>
+              <circle cx="12" cy="13" r="3.5"/></svg>
+          </button>
 
-          <button id="postBtn" class="post-btn" type="submit">Post</button>
+          <button class="icon-btn" type="button" title="Add video (soon)" aria-label="Add video" disabled>
+            <svg class="icon-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 10v4l5 3V7l-5 3Z"/><rect x="2" y="6" width="12" height="12" rx="2"/></svg>
+          </button>
+
+          <button id="postBtn" class="post" type="submit">Post</button>
         </div>
       </form>
     </section>
 
-    <!-- Category tiles -->
     <section class="feed">
       <h2>Categories</h2>
       <div class="grid">
@@ -172,11 +159,10 @@
     </section>
   </main>
 
-  <!-- FOOTER -->
   <footer>
-    <div class="wrap foot-row">
+    <div class="foot">
       <div class="copy">© 2025 Hemline Market</div>
-      <nav class="foot-links" aria-label="Footer">
+      <nav class="links" aria-label="Footer">
         <a href="/about.html">About</a>
         <a href="/faq.html">FAQ</a>
         <a href="/contact.html">Contact</a>
@@ -187,48 +173,29 @@
   </footer>
 
   <script>
-    // Menu open/close
-    const openBtn = document.getElementById('openMenu');
-    const closeBtn = document.getElementById('closeMenu');
-    const sheet = document.getElementById('menuSheet');
-    const overlay = document.getElementById('sheetOverlay');
+    // Menu
+    const sheet   = document.getElementById('sheet');
+    const overlay = document.getElementById('overlay');
+    document.getElementById('open').addEventListener('click', ()=>{sheet.classList.add('open');overlay.classList.add('show');});
+    document.getElementById('close').addEventListener('click', ()=>{sheet.classList.remove('open');overlay.classList.remove('show');});
+    overlay.addEventListener('click', ()=>{sheet.classList.remove('open');overlay.classList.remove('show');});
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ sheet.classList.remove('open');overlay.classList.remove('show'); }});
 
-    const openSheet = () => {
-      sheet.classList.add('open');
-      overlay.classList.add('show');
-      sheet.setAttribute('aria-hidden','false');
-    };
-    const closeSheet = () => {
-      sheet.classList.remove('open');
-      overlay.classList.remove('show');
-      sheet.setAttribute('aria-hidden','true');
-    };
-
-    openBtn.addEventListener('click', openSheet);
-    closeBtn.addEventListener('click', closeSheet);
-    overlay.addEventListener('click', closeSheet);
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeSheet(); });
-
-    // Composer: if category is not chosen, default to Loose Threads before submitting
+    // Composer: default to Loose Threads if none chosen
     const form = document.getElementById('composer');
     const category = document.getElementById('category');
-    const content = document.getElementById('content');
+    const content  = document.getElementById('content');
 
     form.addEventListener('submit', (e)=>{
-      // Front-end guard only; your backend should also enforce this.
-      if (!content.value.trim()) {
-        e.preventDefault();
-        content.focus();
-        return;
+      if(!content.value.trim()){
+        e.preventDefault(); content.focus(); return;
       }
-      if (!category.value) {
-        // Default to loose-threads, then proceed
+      if(!category.value){
         category.value = 'loose-threads';
-        // Optional: small confirmation for the user
-        category.style.outline = '2px solid rgba(141,26,26,.35)';
-        setTimeout(()=>{ category.style.outline=''; }, 800);
+        category.style.outline='2px solid rgba(141,26,26,.35)';
+        setTimeout(()=>category.style.outline='', 800);
       }
-      // allow form to submit normally
+      // allow submit
     });
   </script>
 </body>
