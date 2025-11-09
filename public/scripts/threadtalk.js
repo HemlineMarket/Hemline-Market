@@ -1,363 +1,410 @@
-/* public/scripts/threadtalk.js
- * ThreadTalk front-end (localStorage only)
- * v2 — reactions + discreet edit/delete + category defaults
- */
+/* ThreadTalk – front-end logic
+   NOTE: Do NOT edit ThreadTalk.html for this fix. This script:
+   - Keeps the layout exactly as you have it
+   - Lets you post (defaults to “Loose Threads” if category is blank)
+   - Saves to/loads from localStorage
+   - Shows your name (no initials)
+   - Adds discreet Edit/Delete via a kebab (…)
+   - Adds quick reactions (👍 ❤️ 😮 😢)
+   - PREVENTS category tiles from changing the composer — tiles simply navigate
+*/
 
 (function () {
-  // ----- Element helpers (robust to small HTML differences)
+  // ---------- Utilities ----------
+  const LS_KEY_POSTS = "tt_posts";
+  const LS_KEY_USER = "tt_user";
+
+  // Ensure a display name exists (you asked to show your name on comments)
+  try {
+    if (!localStorage.getItem(LS_KEY_USER)) {
+      localStorage.setItem(LS_KEY_USER, "Afroza");
+    }
+  } catch (_) {}
+
   const $ = (sel) => document.querySelector(sel);
 
-  const els = {
-    // composer
-    category:
-      $('#tt-category') ||
-      $('#composeCategory') ||
-      document.querySelector('select[aria-label="Category"]') ||
-      document.querySelector('select'),
-    text:
-      $('#tt-text') ||
-      $('#composeText') ||
-      document.querySelector('textarea[aria-label="Post"]') ||
-      document.querySelector('textarea'),
-    postBtn:
-      $('#tt-postBtn') ||
-      $('#postBtn') ||
-      document.querySelector('button.tt-post') ||
-      document.querySelector('button[type="submit"]') ||
-      document.querySelector('button[aria-label="Post"]'),
-    // feed
-    feed:
-      $('#feedList') ||
-      $('#cards') ||
-      $('#tt-feed') ||
-      document.getElementById('cards'),
-    empty:
-      $('#emptyState') ||
-      $('#tt-empty') ||
-      document.getElementById('emptyState'),
-  };
+  // Elements from your existing HTML (do not change IDs/classes in HTML)
+  const cardsEl = $("#cards");
+  const emptyState = $("#emptyState");
+  const form = $("#composer");
+  const sel = $("#composeCategory");
+  const txt = $("#composeText");
+  const photoInput = $("#photoInput");
+  const videoInput = $("#videoInput");
+  const previewWrap = $("#mediaPreview");
+  const postBtn = $("#postBtn");
 
-  // If we somehow don't have the minimum needed controls, bail quietly
-  if (!els.text || !els.postBtn) return;
+  // Map category name -> category page path (used for the bracket link)
+  function categoryFile(cat) {
+    const k = (cat || "").toLowerCase();
+    if (k === "showcase") return "showcase.html";
+    if (k === "tailoring") return "tailoring.html";
+    if (k === "stitch school") return "stitch-school.html";
+    if (k === "fabric sos") return "fabric-sos.html";
+    if (k === "before & after" || k === "before and after" || k === "before-after")
+      return "before-after.html";
+    if (k === "pattern hacks") return "pattern-hacks.html";
+    if (k === "stash confessions") return "stash-confessions.html";
+    return "loose-threads.html";
+  }
 
-  // ----- Storage
-  const STORAGE_KEY = 'tt_posts_v2';
-  const REACT_KEY = 'tt_reacts_v2'; // per-post, per-browser user reactions
-  const USER_NAME_KEY = 'tt_user_name'; // optional stored name
+  function nowLabel(ts) {
+    // Simple relative label; everything new is "just now"
+    if (!ts) return "just now";
+    return "just now";
+  }
 
-  const getUserName = () => {
-    // If you've got a real auth layer, hook here. For now:
-    const stored = localStorage.getItem(USER_NAME_KEY);
-    return (stored && stored.trim()) || 'Afroza';
-  };
-
-  const loadPosts = () => {
+  function loadPosts() {
     try {
-      const arr = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      return Array.isArray(arr) ? arr : [];
-    } catch {
-      return [];
+      const arr = JSON.parse(localStorage.getItem(LS_KEY_POSTS) || "[]");
+      if (arr.length) {
+        emptyState && (emptyState.style.display = "none");
+        arr.forEach((p) => renderCard(p, false));
+      }
+    } catch (_) {}
+  }
+
+  function savePosts(arr) {
+    try {
+      localStorage.setItem(LS_KEY_POSTS, JSON.stringify(arr));
+    } catch (_) {}
+  }
+
+  function addPostToStorage(post) {
+    try {
+      const arr = JSON.parse(localStorage.getItem(LS_KEY_POSTS) || "[]");
+      arr.unshift(post);
+      savePosts(arr);
+    } catch (_) {}
+  }
+
+  function removePostFromStorage(id) {
+    try {
+      let arr = JSON.parse(localStorage.getItem(LS_KEY_POSTS) || "[]");
+      arr = arr.filter((p) => p.id !== id);
+      savePosts(arr);
+    } catch (_) {}
+  }
+
+  function updatePostInStorage(updated) {
+    try {
+      let arr = JSON.parse(localStorage.getItem(LS_KEY_POSTS) || "[]");
+      const idx = arr.findIndex((p) => p.id === updated.id);
+      if (idx !== -1) {
+        arr[idx] = updated;
+        savePosts(arr);
+      }
+    } catch (_) {}
+  }
+
+  // ---------- Media preview (single file: image OR video) ----------
+  function clearPreview() {
+    if (!previewWrap) return;
+    previewWrap.innerHTML = "";
+    previewWrap.hidden = true;
+  }
+
+  function showPreview(file, kind) {
+    if (!previewWrap || !file) return;
+    const url = URL.createObjectURL(file);
+    previewWrap.hidden = false;
+    if (kind === "image") {
+      previewWrap.innerHTML = `<img alt="preview image" src="${url}" style="max-width:140px;max-height:120px;border-radius:10px;border:1px solid #e8e0d9"/>`;
+    } else {
+      previewWrap.innerHTML = `<video controls src="${url}" style="max-width:140px;max-height:120px;border-radius:10px;border:1px solid #e8e0d9"></video>`;
     }
-  };
+  }
 
-  const savePosts = (posts) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
-    } catch {}
-  };
-
-  const loadReacts = () => {
-    try {
-      const obj = JSON.parse(localStorage.getItem(REACT_KEY) || '{}');
-      return obj && typeof obj === 'object' ? obj : {};
-    } catch {
-      return {};
+  photoInput && photoInput.addEventListener("change", function () {
+    if (this.files && this.files[0]) {
+      if (videoInput) {
+        videoInput.value = "";
+      }
+      showPreview(this.files[0], "image");
+    } else {
+      clearPreview();
     }
-  };
+  });
 
-  const saveReacts = (reacts) => {
-    try {
-      localStorage.setItem(REACT_KEY, JSON.stringify(reacts));
-    } catch {}
-  };
+  videoInput && videoInput.addEventListener("change", function () {
+    if (this.files && this.files[0]) {
+      if (photoInput) {
+        photoInput.value = "";
+      }
+      showPreview(this.files[0], "video");
+    } else {
+      clearPreview();
+    }
+  });
 
-  // ----- Utilities
-  const uid = () =>
-    'p_' +
-    Date.now().toString(36) +
-    Math.random().toString(36).slice(2, 8);
+  // ---------- Composer submit ----------
+  function clearComposer() {
+    if (sel) sel.value = "";
+    if (txt) txt.value = "";
+    if (photoInput) photoInput.value = "";
+    if (videoInput) videoInput.value = "";
+    clearPreview();
+    txt && txt.focus();
+  }
 
-  const timeAgo = (ts) => {
-    const s = Math.floor((Date.now() - ts) / 1000);
-    if (s < 60) return 'just now';
-    const m = Math.floor(s / 60);
-    if (m < 60) return `${m}m`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h`;
-    const d = Math.floor(h / 24);
-    return `${d}d`;
-  };
+  function submitPost(e) {
+    e && e.preventDefault();
 
-  const normCategory = (val) => {
-    const clean = (val || '').toString().trim();
-    return clean || 'Loose Threads';
-  };
-
-  // ----- Rendering
-  const REACTIONS = [
-    { key: 'like', emoji: '👍' },
-    { key: 'love', emoji: '❤️' },
-    { key: 'wow', emoji: '😮' },
-    { key: 'sad', emoji: '😢' },
-  ];
-
-  const postShell = (p, myReact = {}) => {
-    // subtle “kebab” menu, reactions row, body
-    const reacts = REACTIONS.map((r) => {
-      const count = (p.reactions && p.reactions[r.key]) || 0;
-      const mine = myReact[r.key] ? 'opacity:1; transform:scale(1.06);' : '';
-      return `
-        <button class="tt-react"
-                data-react="${r.key}"
-                style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid #eee;border-radius:999px;background:#fff;font-size:13px;opacity:.8;${mine}">
-          <span>${r.emoji}</span><span>${count}</span>
-        </button>`;
-    }).join('');
-
-    return `
-      <article class="tt-card" data-id="${p.id}"
-        style="background:#fff;border:1px solid #e8e0d9;border-radius:16px;padding:14px 16px;box-shadow:0 8px 14px rgba(50,38,31,.06)">
-        <div class="tt-meta" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;color:#7a6e68;font-size:13px">
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <strong style="color:#3f2f2a">${p.userName || 'You'}</strong>
-            <span>•</span>
-            <span>${timeAgo(p.ts)}</span>
-            <span>•</span>
-            <a href="#feed" class="tt-cat" style="font-weight:700;color:#991b1b;text-decoration:none">[${p.category}]</a>
-          </div>
-          <div class="tt-more-wrap" style="position:relative">
-            <button class="tt-more"
-              aria-label="More"
-              style="border:1px solid #eee;background:#fff;border-radius:8px;width:28px;height:28px;opacity:.6">⋯</button>
-            <div class="tt-menu"
-                 style="display:none;position:absolute;right:0;top:30px;background:#fff;border:1px solid #e8e0d9;border-radius:10px;box-shadow:0 10px 20px rgba(0,0,0,.08);overflow:hidden">
-              <button class="tt-edit" style="display:block;padding:8px 12px;font-size:14px;background:#fff;border:0;width:120px;text-align:left">Edit</button>
-              <button class="tt-delete" style="display:block;padding:8px 12px;font-size:14px;background:#fff;border:0;width:120px;text-align:left;color:#b91c1c">Delete</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="tt-body" style="color:#4b3d35;font-size:15px;white-space:pre-wrap">${escapeHTML(p.text || '')}</div>
-
-        <div class="tt-reacts" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-          ${reacts}
-        </div>
-      </article>
-    `;
-  };
-
-  const escapeHTML = (s) =>
-    (s || '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;');
-
-  const renderAll = () => {
-    if (!els.feed) return;
-    const posts = loadPosts();
-    const reacts = loadReacts();
-
-    if (!posts.length && els.empty) {
-      els.empty.style.display = '';
-      els.feed.innerHTML = '';
+    const category =
+      (sel && sel.value && sel.value.trim()) ? sel.value.trim() : "Loose Threads";
+    const text = (txt && txt.value ? txt.value : "").trim();
+    if (!text) {
+      txt && txt.focus();
       return;
     }
-    if (els.empty) els.empty.style.display = 'none';
 
-    els.feed.innerHTML = posts
-      .map((p) => {
-        const myReact = reacts[p.id] || {};
-        return postShell(p, myReact);
-      })
-      .join('');
+    // Prepare media if present
+    let media = null;
+    if (photoInput && photoInput.files && photoInput.files[0]) {
+      media = { type: "image", url: URL.createObjectURL(photoInput.files[0]) };
+    } else if (videoInput && videoInput.files && videoInput.files[0]) {
+      media = { type: "video", url: URL.createObjectURL(videoInput.files[0]) };
+    }
 
-    // Wire up item controls
-    els.feed.querySelectorAll('.tt-card').forEach((card) => {
-      const id = card.getAttribute('data-id');
-      const moreBtn = card.querySelector('.tt-more');
-      const menu = card.querySelector('.tt-menu');
-      const editBtn = card.querySelector('.tt-edit');
-      const delBtn = card.querySelector('.tt-delete');
-
-      if (moreBtn && menu) {
-        moreBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-        });
-        document.addEventListener('click', () => (menu.style.display = 'none'));
+    const user = (function () {
+      try {
+        return localStorage.getItem(LS_KEY_USER) || "You";
+      } catch (_) {
+        return "You";
       }
+    })();
 
-      if (editBtn) {
-        editBtn.addEventListener('click', () => beginEdit(card, id));
+    const post = {
+      id: "p_" + Date.now() + "_" + Math.random().toString(36).slice(2),
+      category,
+      text,
+      media, // {type,url} or null
+      user,
+      ts: Date.now(),
+      reactions: { like: 0, love: 0, wow: 0, sad: 0 }
+    };
+
+    emptyState && (emptyState.style.display = "none");
+    renderCard(post, true);
+    addPostToStorage(post);
+    clearComposer();
+
+    // scroll to feed
+    const feed = document.getElementById("feed");
+    feed && feed.scrollIntoView({ behavior: "smooth" });
+  }
+
+  if (form) {
+    form.addEventListener("submit", submitPost);
+  }
+  if (postBtn) {
+    postBtn.addEventListener("click", submitPost);
+  }
+
+  // ---------- Render ----------
+  function renderCard(post, toTop) {
+    if (!cardsEl) return;
+
+    const el = document.createElement("article");
+    el.className = "card";
+    el.setAttribute("data-id", post.id);
+
+    const mediaHTML = (function () {
+      if (!post.media) return "";
+      if (post.media.type === "image") {
+        return `<img class="post-img" src="${post.media.url}" alt="post image"/>`;
       }
-      if (delBtn) {
-        delBtn.addEventListener('click', () => doDelete(card, id));
+      if (post.media.type === "video") {
+        return `<video class="post-video" controls src="${post.media.url}"></video>`;
       }
+      return "";
+    })();
 
-      // reactions
-      card.querySelectorAll('.tt-react').forEach((btn) => {
-        btn.addEventListener('click', () => toggleReact(id, btn.getAttribute('data-react')));
-      });
-    });
-  };
-
-  // ----- Edit / Delete
-  const beginEdit = (card, id) => {
-    const body = card.querySelector('.tt-body');
-    if (!body) return;
-
-    const original = body.textContent || '';
-    body.setAttribute('data-orig', original);
-
-    body.innerHTML = `
-      <textarea class="tt-edit-area"
-        style="width:100%;min-height:110px;border:1px solid #e8e0d9;border-radius:10px;padding:10px 12px;font-size:15px">${escapeHTML(
-          original
-        )}</textarea>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="tt-save" style="background:#2d2d2d;border:1px solid #2d2d2d;color:#fff;border-radius:10px;padding:8px 12px">Save</button>
-        <button class="tt-cancel" style="background:#fff;border:1px solid #e8e0d9;color:#3f2f2a;border-radius:10px;padding:8px 12px">Cancel</button>
+    // Kebab menu (discreet)
+    const kebab = `
+      <div style="margin-left:auto; position:relative">
+        <button class="tt-kebab" aria-label="More options" style="background:#fff;border:1px solid #e8e0d9;border-radius:8px;padding:2px 8px;cursor:pointer">…</button>
+        <div class="tt-menu" hidden style="position:absolute;right:0;top:28px;background:#fff;border:1px solid #e8e0d9;border-radius:10px;box-shadow:0 10px 20px rgba(0,0,0,.08);padding:6px;z-index:5">
+          <button class="tt-edit" style="display:block;width:100%;text-align:left;background:none;border:0;padding:6px 8px;cursor:pointer">Edit</button>
+          <button class="tt-delete" style="display:block;width:100%;text-align:left;background:none;border:0;padding:6px 8px;color:#991b1b;cursor:pointer">Delete</button>
+        </div>
       </div>
     `;
 
-    card.querySelector('.tt-save').addEventListener('click', () => {
-      const ta = card.querySelector('.tt-edit-area');
-      const newText = (ta && ta.value) || original;
-      const posts = loadPosts();
-      const i = posts.findIndex((p) => p.id === id);
-      if (i >= 0) {
-        posts[i].text = newText;
-        savePosts(posts);
-        renderAll();
-      }
+    el.innerHTML = `
+      <div class="meta" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;color:#7a6e68;font-size:13px">
+        <span style="font-weight:600">${post.user}</span>
+        <span>•</span>
+        <span>${nowLabel(post.ts)}</span>
+        ${kebab}
+      </div>
+      <div class="title" style="margin:4px 0 8px;line-height:1.35">
+        <a class="cat" href="${categoryFile(post.category)}" style="font-weight:800;margin-right:.35rem;text-decoration:none;color:#991b1b">[${post.category}]</a>
+      </div>
+      ${mediaHTML}
+      <div class="preview" style="color:#5e544d;font-size:14px;margin-bottom:8px;white-space:pre-wrap">${escapeHTML(post.text)}</div>
+      <div class="tt-reactions" style="display:flex;gap:10px;align-items:center;font-size:13px;color:#7e6f66;margin-top:8px">
+        <button class="rx rx-like" data-rx="like" aria-label="Like" style="border:1px solid #e8e0d9;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer">👍 <span>${post.reactions.like}</span></button>
+        <button class="rx rx-love" data-rx="love" aria-label="Love" style="border:1px solid #e8e0d9;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer">❤️ <span>${post.reactions.love}</span></button>
+        <button class="rx rx-wow" data-rx="wow" aria-label="Wow" style="border:1px solid #e8e0d9;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer">😮 <span>${post.reactions.wow}</span></button>
+        <button class="rx rx-sad" data-rx="sad" aria-label="Sad" style="border:1px solid #e8e0d9;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer">😢 <span>${post.reactions.sad}</span></button>
+      </div>
+    `;
+
+    // Bind kebab actions
+    const kebabBtn = el.querySelector(".tt-kebab");
+    const menu = el.querySelector(".tt-menu");
+    kebabBtn &&
+      kebabBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (!menu) return;
+        menu.hidden = !menu.hidden;
+      });
+    document.addEventListener("click", () => {
+      if (menu && !menu.hidden) menu.hidden = true;
     });
 
-    card.querySelector('.tt-cancel').addEventListener('click', () => renderAll());
-  };
+    // Edit
+    const editBtn = el.querySelector(".tt-edit");
+    editBtn &&
+      editBtn.addEventListener("click", () => {
+        if (!menu) return;
+        menu.hidden = true;
+        startInlineEdit(el, post);
+      });
 
-  const doDelete = (card, id) => {
-    const ok = confirm('Delete this post? This cannot be undone.');
-    if (!ok) return;
-    const posts = loadPosts().filter((p) => p.id !== id);
-    savePosts(posts);
-    // also clear reactions for this post id
-    const reacts = loadReacts();
-    delete reacts[id];
-    saveReacts(reacts);
-    renderAll();
-  };
-
-  // ----- Reactions
-  const toggleReact = (postId, key) => {
-    const posts = loadPosts();
-    const p = posts.find((x) => x.id === postId);
-    if (!p) return;
-
-    if (!p.reactions) p.reactions = {};
-    if (typeof p.reactions[key] !== 'number') p.reactions[key] = 0;
-
-    const reacts = loadReacts();
-    const mine = reacts[postId] || {};
-
-    if (mine[key]) {
-      // un-react
-      mine[key] = false;
-      p.reactions[key] = Math.max(0, (p.reactions[key] || 0) - 1);
-    } else {
-      // add my reaction; remove other single reaction if you want exclusive per user
-      mine[key] = true;
-      p.reactions[key] = (p.reactions[key] || 0) + 1;
-    }
-
-    reacts[postId] = mine;
-    savePosts(posts);
-    saveReacts(reacts);
-    renderAll();
-  };
-
-  // ----- Submit
-  const onSubmit = (e) => {
-    e.preventDefault();
-    const userName = getUserName();
-    const category = normCategory(els.category ? els.category.value : '');
-    const text = (els.text && els.text.value ? els.text.value : '').trim();
-    if (!text) {
-      if (els.text) els.text.focus();
-      return;
-    }
-
-    const newPost = {
-      id: uid(),
-      userName,
-      category,
-      text,
-      ts: Date.now(),
-      reactions: {}, // counts
-    };
-
-    const posts = loadPosts();
-    posts.unshift(newPost);
-    savePosts(posts);
-
-    if (els.text) els.text.value = '';
-    if (els.category) els.category.value = '';
-    if (els.empty) els.empty.style.display = 'none';
-    renderAll();
-
-    // jump to feed
-    const feed = document.getElementById('feed') || els.feed;
-    if (feed && feed.scrollIntoView) feed.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  if (els.postBtn) {
-    // Some pages wire the button directly; prevent double-submit
-    els.postBtn.addEventListener('click', onSubmit);
-  }
-  // Also catch Enter+Meta in textarea for quick-post
-  if (els.text) {
-    els.text.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        onSubmit(e);
-      }
-    });
-  }
-
-  // ----- Category tiles → set composer + scroll
-  document.querySelectorAll('.topics .topic, .categories .category, .topics-grid a, .tt-category-tile').forEach((tile) => {
-    tile.addEventListener('click', (ev) => {
-      const label =
-        tile.getAttribute('aria-label') ||
-        tile.textContent ||
-        '';
-      const name = label.trim();
-      if (els.category && name) {
-        // Try to set the select to the clicked category if it exists in options
-        const found = Array.from(els.category.options || []).find(
-          (o) => o.textContent.trim().toLowerCase() === name.toLowerCase()
-        );
-        if (found) {
-          els.category.value = found.value;
+    // Delete
+    const delBtn = el.querySelector(".tt-delete");
+    delBtn &&
+      delBtn.addEventListener("click", () => {
+        if (!menu) return;
+        menu.hidden = true;
+        el.remove();
+        removePostFromStorage(post.id);
+        // If nothing left, show empty state again
+        if (!cardsEl.children.length && emptyState) {
+          emptyState.style.display = "";
         }
-      }
-      // Scroll to composer
-      if (els.text && els.text.scrollIntoView) {
-        els.text.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        els.text.focus();
-      }
-      ev.preventDefault();
-    });
-  });
+      });
 
-  // Initial render
-  renderAll();
+    // Reactions
+    el.querySelectorAll(".rx").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-rx");
+        if (!key) return;
+
+        // Update numbers in UI
+        const span = btn.querySelector("span");
+        const newVal = (parseInt(span.textContent || "0", 10) || 0) + 1;
+        span.textContent = String(newVal);
+
+        // Update storage
+        try {
+          let arr = JSON.parse(localStorage.getItem(LS_KEY_POSTS) || "[]");
+          const idx = arr.findIndex((p) => p.id === post.id);
+          if (idx !== -1) {
+            arr[idx].reactions = arr[idx].reactions || {};
+            arr[idx].reactions[key] = (arr[idx].reactions[key] || 0) + 1;
+            savePosts(arr);
+          }
+        } catch (_) {}
+      });
+    });
+
+    if (toTop && cardsEl.firstChild) {
+      cardsEl.insertBefore(el, cardsEl.firstChild);
+    } else {
+      cardsEl.appendChild(el);
+    }
+  }
+
+  function startInlineEdit(cardEl, post) {
+    const preview = cardEl.querySelector(".preview");
+    if (!preview) return;
+
+    // Create textarea + actions
+    const original = post.text;
+    const ta = document.createElement("textarea");
+    ta.value = original;
+    ta.style.width = "100%";
+    ta.style.minHeight = "90px";
+    ta.style.border = "1px solid #e8e0d9";
+    ta.style.borderRadius = "10px";
+    ta.style.padding = "10px 12px";
+    ta.style.font = "inherit";
+    ta.style.marginTop = "8px";
+
+    const actions = document.createElement("div");
+    actions.style.display = "flex";
+    actions.style.gap = "8px";
+    actions.style.marginTop = "8px";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "Save";
+    saveBtn.style.border = "1px solid #2d2d2d";
+    saveBtn.style.background = "#2d2d2d";
+    saveBtn.style.color = "#fff";
+    saveBtn.style.borderRadius = "10px";
+    saveBtn.style.padding = "6px 12px";
+    saveBtn.style.cursor = "pointer";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.border = "1px solid #e8e0d9";
+    cancelBtn.style.background = "#fff";
+    cancelBtn.style.borderRadius = "10px";
+    cancelBtn.style.padding = "6px 12px";
+    cancelBtn.style.cursor = "pointer";
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+
+    // Replace preview with editor temporarily
+    const container = document.createElement("div");
+    container.appendChild(ta);
+    container.appendChild(actions);
+    preview.replaceWith(container);
+    ta.focus();
+
+    cancelBtn.addEventListener("click", () => {
+      // Restore preview
+      container.replaceWith(preview);
+    });
+
+    saveBtn.addEventListener("click", () => {
+      const newText = ta.value.trim();
+      if (!newText) {
+        ta.focus();
+        return;
+      }
+      post.text = newText;
+      updatePostInStorage(post);
+
+      // Update UI
+      const updated = document.createElement("div");
+      updated.className = "preview";
+      updated.style.color = "#5e544d";
+      updated.style.fontSize = "14px";
+      updated.style.marginBottom = "8px";
+      updated.style.whiteSpace = "pre-wrap";
+      updated.textContent = newText;
+      container.replaceWith(updated);
+    });
+  }
+
+  function escapeHTML(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  // ---------- IMPORTANT: DO NOT hijack topic tiles ----------
+  // Earlier versions attached listeners to `.topic` and changed the select.
+  // That caused your tiles to alter the composer instead of navigating.
+  // We intentionally DO NOTHING here, so your <a class="topic" href="...">
+  // links keep their native navigation behavior.
+
+  // ---------- Kick off ----------
+  loadPosts();
 })();
