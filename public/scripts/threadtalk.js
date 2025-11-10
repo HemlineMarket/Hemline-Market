@@ -1,10 +1,11 @@
 /* ThreadTalk client (localStorage) + Supabase Auth gate
    - Prevents double init
-   - Shows exactly one sign-in box if no site session
+   - Single sign-in box
+   - Supports Email+Password, Magic Link, and Google
 */
 
 (function () {
-  // ---- prevent double init (if script tag included twice) -------------------
+  // ---- prevent double init --------------------------------------------------
   if (window.__TT_THREADTALK_INITED__) return;
   window.__TT_THREADTALK_INITED__ = true;
 
@@ -12,18 +13,17 @@
   // Supabase auth state
   // ---------------------------
   const sb = (window && window.supabase) ? window.supabase : null;
-  let currentUser = null;       // Supabase user (or null)
-  let displayName = null;       // What we show in posts
+  let currentUser = null;
+  let displayName = null;
 
   // ---------------------------
   // Storage + DOM refs
   // ---------------------------
   const LS_KEY = "tt_posts";
-
   const $ = (id) => document.getElementById(id);
+
   const cardsEl = $("cards");
   const emptyState = $("emptyState");
-
   const sel = $("composeCategory");
   const txt = $("composeText");
   const photoInput = $("photoInput");
@@ -151,23 +151,18 @@
   }
 
   // ---------------------------
-  // Composer enable/disable based on auth
+  // Auth gate UI
   // ---------------------------
   function removeExistingAuthBox() {
-    const dupes = document.querySelectorAll("#tt-auth");
-    dupes.forEach(n => n.remove());
+    document.querySelectorAll("#tt-auth").forEach(n => n.remove());
   }
 
   function disableComposerWithAuthPrompt() {
     if (!form) return;
 
-    // Disable inputs
     [sel, txt, photoInput, videoInput, postBtn].forEach(n => { if (n) n.disabled = true; });
-
-    // Ensure ONLY ONE auth box
     removeExistingAuthBox();
 
-    // Add a compact sign-in box below the row
     const authBox = document.createElement("div");
     authBox.id = "tt-auth";
     authBox.style.margin = "8px";
@@ -176,51 +171,98 @@
     authBox.style.borderRadius = "10px";
     authBox.style.background = "#fff";
     authBox.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;flex-direction:column;gap:10px">
         <strong>Sign in to post</strong>
+
+        <!-- Email + password -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input id="ttAuthEmail" type="email" placeholder="you@example.com"
+          <input id="ttEmail" type="email" placeholder="you@example.com"
+                 style="flex:1 1 220px;border:1px solid var(--border);border-radius:10px;padding:8px">
+          <input id="ttPass" type="password" placeholder="Password"
+                 style="flex:1 1 180px;border:1px solid var(--border);border-radius:10px;padding:8px" autocomplete="current-password">
+          <button id="ttSignInPwd"
+                  style="border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px">Sign in</button>
+          <button id="ttSignUpPwd"
+                  style="border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px">Create account</button>
+        </div>
+
+        <!-- Magic link + Google -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="ttEmailLink" type="email" placeholder="you@example.com"
                  style="flex:1 1 240px;border:1px solid var(--border);border-radius:10px;padding:8px">
           <button id="ttEmailBtn"
-                  style="border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px">Email link</button>
+                  style="border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px">Email link</button>
           <button id="ttGoogleBtn"
                   style="border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px">Continue with Google</button>
         </div>
-        <div style="color:var(--muted);font-size:12px">We’ll send a one-time sign-in link. Check your email, then return here.</div>
+
+        <div style="color:var(--muted);font-size:12px">
+          Use password sign-in, a one-time email link, or Google. After signing in, return to this page and the composer will unlock.
+        </div>
       </div>
     `;
     form.appendChild(authBox);
 
-    // Wire buttons
-    const emailBtn = document.getElementById("ttEmailBtn");
-    const emailInput = document.getElementById("ttAuthEmail");
-    const googleBtn = document.getElementById("ttGoogleBtn");
+    // Wire: password sign-in
+    if (sb) {
+      const emailEl = document.getElementById("ttEmail");
+      const passEl  = document.getElementById("ttPass");
+      const inBtn   = document.getElementById("ttSignInPwd");
+      const upBtn   = document.getElementById("ttSignUpPwd");
+      const mlEl    = document.getElementById("ttEmailLink");
+      const mlBtn   = document.getElementById("ttEmailBtn");
+      const gBtn    = document.getElementById("ttGoogleBtn");
 
-    if (sb && emailBtn && emailInput) {
-      emailBtn.addEventListener("click", async (e) => {
+      inBtn.addEventListener("click", async (e) => {
         e.preventDefault();
-        const email = (emailInput.value || "").trim();
-        if (!email) { emailInput.focus(); return; }
+        const email = (emailEl.value || "").trim();
+        const password = passEl.value || "";
+        if (!email || !password) return emailEl.focus();
+        try {
+          const { error } = await sb.auth.signInWithPassword({ email, password });
+          if (!error) location.reload();
+          else inBtn.textContent = "Try again";
+        } catch { inBtn.textContent = "Try again"; }
+      });
+
+      upBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const email = (emailEl.value || "").trim();
+        const password = passEl.value || "";
+        if (!email || !password) return emailEl.focus();
+        try {
+          const localName = email.split("@")[0];
+          const { error } = await sb.auth.signUp({
+            email,
+            password,
+            options: { data: { full_name: localName } }
+          });
+          upBtn.textContent = error ? "Error" : "Check email";
+        } catch { upBtn.textContent = "Error"; }
+      });
+
+      mlBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const email = (mlEl.value || "").trim();
+        if (!email) return mlEl.focus();
         try {
           await sb.auth.signInWithOtp({
             email,
             options: { emailRedirectTo: window.location.href }
           });
-          emailBtn.textContent = "Link sent!";
-          setTimeout(() => { emailBtn.textContent = "Email link"; }, 1600);
-        } catch (_) {}
+          mlBtn.textContent = "Link sent!";
+          setTimeout(() => (mlBtn.textContent = "Email link"), 1600);
+        } catch { mlBtn.textContent = "Error"; }
       });
-    }
 
-    if (sb && googleBtn) {
-      googleBtn.addEventListener("click", async (e) => {
+      gBtn.addEventListener("click", async (e) => {
         e.preventDefault();
         try {
           await sb.auth.signInWithOAuth({
             provider: "google",
             options: { redirectTo: window.location.href }
           });
-        } catch (_) {}
+        } catch {}
       });
     }
   }
@@ -239,17 +281,11 @@
   }
 
   async function refreshAuthGate() {
-    if (!sb) {
-      // No Supabase on the page: leave composer enabled (legacy mode)
-      enableComposerForUser({ user_metadata: { name: localStorage.getItem("tt_user") || "Afroza" }, email: "" });
-      return;
-    }
+    if (!sb) { enableComposerForUser({ user_metadata: { name: localStorage.getItem("tt_user") || "Afroza" }, email: "" }); return; }
     try {
-      const { data } = await sb.auth.getSession();   // more reliable for page load
+      const { data } = await sb.auth.getSession();
       currentUser = data && data.session ? data.session.user : null;
-    } catch {
-      currentUser = null;
-    }
+    } catch { currentUser = null; }
     if (currentUser) enableComposerForUser(currentUser);
     else disableComposerWithAuthPrompt();
   }
@@ -263,7 +299,7 @@
   }
 
   // ---------------------------
-  // Composer (media preview + submit)
+  // Composer logic
   // ---------------------------
   function clearComposer() {
     if (sel) sel.value = "";
@@ -338,7 +374,7 @@
   if (form) form.addEventListener("submit", submitPost);
 
   // ---------------------------
-  // Interactions (delegated)
+  // Row-level interactions
   // ---------------------------
   function findPost(id) { return posts.find((x) => x.id === id); }
 
