@@ -1,9 +1,11 @@
-/* ThreadTalk client: posts, reactions, edit/delete, comments (localStorage)
+/* public/scripts/threadtalk.js
+   ThreadTalk client: posts, reactions, edit/delete, comments (localStorage)
+
    Assumptions:
-   - Page already provides the composer elements with the same ids as before:
-     composeCategory, composeText, photoInput, videoInput, postBtn, cards, emptyState
-   - Category tiles are anchor links to category pages (so we don't touch them here).
-   - Display name is taken from localStorage 'tt_user' (fallback 'Afroza').
+   - Page already provides the composer elements with these ids:
+     composeCategory, composeText, photoInput, videoInput, postBtn, cards, emptyState, mediaPreview
+   - Category tiles are regular links to category pages (we don’t touch them here).
+   - Display name comes from localStorage 'tt_user' (fallback 'Afroza').
 */
 
 (function () {
@@ -24,11 +26,14 @@
   const postBtn = $("postBtn");
   const mediaPreview = $("mediaPreview");
 
+  // Track a single current preview URL so we can revoke it
+  let currentPreviewURL = null;
+
   function uuid() {
     return "p_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
-  function nowLabel(ts) {
-    return ts ? "just now" : "just now";
+  function nowLabel(/*ts*/) {
+    return "just now";
   }
 
   function readStore() {
@@ -44,7 +49,16 @@
     } catch {}
   }
 
+  // Local in-memory copy
   let posts = readStore();
+
+  // Cross-tab sync: if another tab updates localStorage, re-render
+  window.addEventListener("storage", (e) => {
+    if (e.key === LS_KEY) {
+      posts = readStore();
+      renderAll();
+    }
+  });
 
   // ---------------------------
   // Rendering
@@ -103,7 +117,7 @@
       .map(
         (cm) => `
       <div class="tt-comment" data-cid="${cm.id}">
-        <div class="tt-comment-head"><strong>${cm.user}</strong> · <span>just now</span></div>
+        <div class="tt-comment-head"><strong>${escapeHTML(cm.user)}</strong> · <span>just now</span></div>
         <div class="tt-comment-body">${escapeHTML(cm.text)}</div>
       </div>`
       )
@@ -124,11 +138,11 @@
       <article class="card" data-id="${p.id}">
         <div class="meta" style="justify-content:space-between;">
           <div style="display:flex;gap:8px;align-items:center;">
-            <span><strong>${p.user}</strong></span>
+            <span><strong>${escapeHTML(p.user)}</strong></span>
             <span>•</span>
             <span>${nowLabel(p.ts)}</span>
             <span>•</span>
-            <a class="cat" href="${categoryHref(p.category)}">[${p.category}]</a>
+            <a class="cat" href="${categoryHref(p.category)}">[${escapeHTML(p.category)}]</a>
           </div>
           ${menuHTML(p)}
         </div>
@@ -157,20 +171,32 @@
   }
 
   // ---------------------------
-  // Composer (unchanged UI)
+  // Composer
   // ---------------------------
   function clearComposer() {
     sel.value = "";
     txt.value = "";
-    photoInput.value = "";
-    videoInput.value = "";
-    mediaPreview && (mediaPreview.hidden = true, (mediaPreview.innerHTML = ""));
-    txt.focus();
+    if (photoInput) photoInput.value = "";
+    if (videoInput) videoInput.value = "";
+    if (currentPreviewURL) {
+      URL.revokeObjectURL(currentPreviewURL);
+      currentPreviewURL = null;
+    }
+    if (mediaPreview) {
+      mediaPreview.hidden = true;
+      mediaPreview.innerHTML = "";
+    }
+    if (txt) txt.focus();
   }
 
   function showPreview(file, kind) {
-    if (!mediaPreview) return;
+    if (!mediaPreview || !file) return;
+    if (currentPreviewURL) {
+      URL.revokeObjectURL(currentPreviewURL);
+      currentPreviewURL = null;
+    }
     const url = URL.createObjectURL(file);
+    currentPreviewURL = url;
     mediaPreview.hidden = false;
     mediaPreview.innerHTML =
       kind === "image"
@@ -181,7 +207,7 @@
   if (photoInput) {
     photoInput.addEventListener("change", function () {
       if (this.files && this.files[0]) {
-        videoInput.value = "";
+        if (videoInput) videoInput.value = "";
         showPreview(this.files[0], "image");
       }
     });
@@ -189,7 +215,7 @@
   if (videoInput) {
     videoInput.addEventListener("change", function () {
       if (this.files && this.files[0]) {
-        photoInput.value = "";
+        if (photoInput) photoInput.value = "";
         showPreview(this.files[0], "video");
       }
     });
@@ -203,8 +229,10 @@
       if (txt) txt.focus();
       return;
     }
+
     let media = null;
     if (photoInput && photoInput.files && photoInput.files[0]) {
+      // Note: We intentionally keep the blob URL in the post so it continues to display.
       media = { type: "image", url: URL.createObjectURL(photoInput.files[0]) };
     } else if (videoInput && videoInput.files && videoInput.files[0]) {
       media = { type: "video", url: URL.createObjectURL(videoInput.files[0]) };
@@ -220,10 +248,12 @@
       comments: [],
       ts: Date.now()
     };
+
     posts.unshift(p);
     writeStore(posts);
     prependPost(p);
     clearComposer();
+
     // Jump to feed
     const feed = document.getElementById("feed");
     if (feed) feed.scrollIntoView({ behavior: "smooth" });
@@ -240,7 +270,6 @@
     return posts.find((x) => x.id === id);
   }
   function updateAndRerenderRow(id) {
-    // Re-render only that card for simplicity
     const idx = posts.findIndex((x) => x.id === id);
     if (idx === -1) return;
     const old = document.querySelector(`.card[data-id="${id}"]`);
@@ -250,6 +279,13 @@
     old.replaceWith(wrapper.firstElementChild);
     writeStore(posts);
   }
+
+  document.addEventListener("keydown", function (e) {
+    // Close any open menu with Escape
+    if (e.key === "Escape") {
+      document.querySelectorAll(".tt-menu-pop").forEach((p) => (p.hidden = true));
+    }
+  });
 
   document.addEventListener("click", function (e) {
     const t = e.target;
@@ -307,7 +343,7 @@
       const val = area.value.trim();
       const p = findPost(id);
       if (!p) return;
-      p.text = val || p.text;
+      p.text = val || p.text; // keep original if blank save
       updateAndRerenderRow(id);
       return;
     }
@@ -331,22 +367,36 @@
       return;
     }
 
-    // Comment send
+    // Comment send (button)
     if (t.matches('[data-act="comment"]')) {
       const id = t.getAttribute("data-id");
-      const card = document.querySelector(`.card[data-id="${id}"]`);
-      const input = card && card.querySelector(".tt-comment-input");
-      if (!input) return;
-      const text = input.value.trim();
-      if (!text) return;
-      const p = findPost(id);
-      if (!p) return;
-      p.comments = p.comments || [];
-      p.comments.push({ id: uuid(), user: userName, text, ts: Date.now() });
-      updateAndRerenderRow(id);
+      submitCommentFor(id);
       return;
     }
   });
+
+  // Comment submit on Enter
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    const input = e.target.closest(".tt-comment-input");
+    if (!input) return;
+    e.preventDefault();
+    const id = input.getAttribute("data-id");
+    submitCommentFor(id);
+  });
+
+  function submitCommentFor(id) {
+    const card = document.querySelector(`.card[data-id="${id}"]`);
+    const input = card && card.querySelector(".tt-comment-input");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    const p = findPost(id);
+    if (!p) return;
+    p.comments = p.comments || [];
+    p.comments.push({ id: uuid(), user: userName, text, ts: Date.now() });
+    updateAndRerenderRow(id);
+  }
 
   // ---------------------------
   // Util
