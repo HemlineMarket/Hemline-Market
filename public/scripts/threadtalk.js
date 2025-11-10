@@ -1,5 +1,5 @@
 // public/scripts/threadtalk.js
-// ThreadTalk client: localStorage + Supabase Auth gate
+// ThreadTalk client: localStorage feed + Supabase Auth gate
 
 (function () {
   if (window.__TT_THREADTALK_INITED__) return;
@@ -55,10 +55,10 @@
 
   const menuHTML = (p) => `
     <div class="tt-menu">
-      <button class="tt-menu-btn" data-id="${p.id}" data-act="menu">⋯</button>
+      <button class="tt-menu-btn" data-id="${p.id}" data-act="menu" type="button">⋯</button>
       <div class="tt-menu-pop" data-pop="${p.id}" hidden>
-        <button class="tt-menu-item" data-act="edit" data-id="${p.id}">Edit</button>
-        <button class="tt-menu-item danger" data-act="delete" data-id="${p.id}">Delete</button>
+        <button class="tt-menu-item" data-act="edit" data-id="${p.id}" type="button">Edit</button>
+        <button class="tt-menu-item danger" data-act="delete" data-id="${p.id}" type="button">Delete</button>
       </div>
     </div>`;
 
@@ -74,7 +74,7 @@
         ${items}
         <div class="tt-comment-new">
           <input type="text" class="tt-comment-input" placeholder="Write a comment…" data-id="${p.id}">
-          <button class="tt-comment-send" data-act="comment" data-id="${p.id}">Send</button>
+          <button class="tt-comment-send" data-act="comment" data-id="${p.id}" type="button">Send</button>
         </div>
       </div>`;
   };
@@ -95,48 +95,69 @@
     </article>`;
 
   const renderAll = () => {
+    if (!cardsEl || !emptyState) return;
     cardsEl.innerHTML = posts.map(cardHTML).join("");
     emptyState.style.display = posts.length ? "none" : "";
   };
 
-  // ---------------- Auth Gate ----------------
+  // ---------- Auth Gate ----------
   const removeAuthBox = () => document.querySelectorAll("#tt-auth").forEach(n => n.remove());
-  const disableComposer = () => {
-    [sel, txt, photoInput, videoInput, postBtn].forEach(n => n.disabled = true);
+
+  const disableComposer = (reason) => {
+    [sel, txt, photoInput, videoInput, postBtn].forEach(n => { if (n) n.disabled = true; });
     removeAuthBox();
+
     const box = document.createElement("div");
     box.id = "tt-auth";
     box.innerHTML = `
       <div style="border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px;background:#fff">
         <strong>Sign in to post</strong>
+        ${!sb ? `<div style="margin-top:6px;color:#b91c1c;font-size:13px">
+          Auth library didn’t load. Make sure <code>scripts/supabase-client.js</code> is included before <code>threadtalk.js</code>.
+        </div>` : ""}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-          <input id="ttEmail" type="email" placeholder="you@example.com" style="padding:8px;border:1px solid var(--border);border-radius:10px">
-          <input id="ttPass" type="password" placeholder="Password" style="padding:8px;border:1px solid var(--border);border-radius:10px">
-          <button id="ttSignInPwd" style="border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px">Sign in</button>
-          <button id="ttSignUpPwd" style="border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px">Create account</button>
+          <input id="ttEmail" type="email" placeholder="you@example.com"
+                 style="padding:8px;border:1px solid var(--border);border-radius:10px">
+          <input id="ttPass" type="password" placeholder="Password"
+                 style="padding:8px;border:1px solid var(--border);border-radius:10px" autocomplete="current-password">
+          <button id="ttSignInPwd" type="button"
+                  style="border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px">Sign in</button>
+          <button id="ttSignUpPwd" type="button"
+                  style="border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px">Create account</button>
         </div>
       </div>`;
-    form.appendChild(box);
+    form && form.appendChild(box);
 
     if (!sb) return;
+
     const emailEl = $("ttEmail"), passEl = $("ttPass");
     const inBtn = $("ttSignInPwd"), upBtn = $("ttSignUpPwd");
-    inBtn.onclick = async () => {
-      const email = emailEl.value.trim(), pw = passEl.value.trim();
-      if (!email || !pw) return;
+
+    inBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const email = (emailEl.value || "").trim();
+      const pw = passEl.value || "";
+      if (!email || !pw) return emailEl.focus();
       const { error } = await sb.auth.signInWithPassword({ email, password: pw });
-      if (!error) location.reload();
-    };
-    upBtn.onclick = async () => {
-      const email = emailEl.value.trim(), pw = passEl.value.trim();
-      if (!email || !pw) return;
-      const { error } = await sb.auth.signUp({ email, password: pw, options: { data: { full_name: email.split("@")[0] } } });
-      if (!error) upBtn.textContent = "Check email";
-    };
+      if (error) { inBtn.textContent = "Try again"; return; }
+      location.reload();
+    });
+
+    upBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const email = (emailEl.value || "").trim();
+      const pw = passEl.value || "";
+      if (!email || !pw) return emailEl.focus();
+      const localName = email.split("@")[0];
+      const { error } = await sb.auth.signUp({
+        email, password: pw, options: { data: { full_name: localName } }
+      });
+      upBtn.textContent = error ? "Error" : "Check email";
+    });
   };
 
   const enableComposer = (u) => {
-    [sel, txt, photoInput, videoInput, postBtn].forEach(n => n.disabled = false);
+    [sel, txt, photoInput, videoInput, postBtn].forEach(n => { if (n) n.disabled = false; });
     removeAuthBox();
     const meta = u?.user_metadata || {};
     const email = u?.email;
@@ -144,7 +165,7 @@
   };
 
   async function refreshAuth() {
-    if (!sb) return enableComposer({ user_metadata: { full_name: "Guest" } });
+    if (!sb) return disableComposer("no-sb");
     const { data } = await sb.auth.getSession();
     currentUser = data?.session?.user || null;
     currentUser ? enableComposer(currentUser) : disableComposer();
@@ -153,95 +174,141 @@
   if (sb?.auth?.onAuthStateChange)
     sb.auth.onAuthStateChange((_e, s) => (s?.user ? enableComposer(s.user) : disableComposer()));
 
-  // ---------------- Posts ----------------
-  const clearComposer = () => { txt.value = ""; sel.value = ""; photoInput.value = ""; videoInput.value = ""; mediaPreview.hidden = true; };
-  const showPreview = (file, kind) => {
-    const url = URL.createObjectURL(file);
-    mediaPreview.hidden = false;
-    mediaPreview.innerHTML = kind === "image" ? `<img src="${url}" alt="">` : `<video src="${url}" controls></video>`;
+  // ---------- Composer ----------
+  const clearComposer = () => {
+    if (txt) txt.value = "";
+    if (sel) sel.value = "";
+    if (photoInput) photoInput.value = "";
+    if (videoInput) videoInput.value = "";
+    if (mediaPreview) { mediaPreview.hidden = true; mediaPreview.innerHTML = ""; }
   };
 
-  photoInput.onchange = () => { if (photoInput.files[0]) { videoInput.value = ""; showPreview(photoInput.files[0], "image"); } };
-  videoInput.onchange = () => { if (videoInput.files[0]) { photoInput.value = ""; showPreview(videoInput.files[0], "video"); } };
+  const showPreview = (file, kind) => {
+    if (!mediaPreview) return;
+    const url = URL.createObjectURL(file);
+    mediaPreview.hidden = false;
+    mediaPreview.innerHTML = kind === "image"
+      ? `<img src="${url}" alt="">` : `<video src="${url}" controls></video>`;
+  };
+
+  if (photoInput) photoInput.onchange = () => {
+    if (photoInput.files && photoInput.files[0]) {
+      if (videoInput) videoInput.value = "";
+      showPreview(photoInput.files[0], "image");
+    }
+  };
+  if (videoInput) videoInput.onchange = () => {
+    if (videoInput.files && videoInput.files[0]) {
+      if (photoInput) photoInput.value = "";
+      showPreview(videoInput.files[0], "video");
+    }
+  };
 
   function submitPost(e) {
-    e?.preventDefault();
+    if (e) e.preventDefault();
     if (!currentUser) return disableComposer();
-    const text = txt.value.trim(); if (!text) return;
-    const cat = sel.value || "Loose Threads";
-    let media = null;
-    if (photoInput.files[0]) media = { type: "image", url: URL.createObjectURL(photoInput.files[0]) };
-    else if (videoInput.files[0]) media = { type: "video", url: URL.createObjectURL(videoInput.files[0]) };
 
-    const p = { id: uuid(), user: displayName, category: cat, text, media, reactions: { like: 0, love: 0, laugh: 0, wow: 0 }, comments: [], ts: Date.now() };
+    const category = (sel && sel.value.trim()) || "Loose Threads";
+    const text = (txt && txt.value.trim()) || "";
+    if (!text) { if (txt) txt.focus(); return; }
+
+    let media = null;
+    if (photoInput && photoInput.files && photoInput.files[0]) {
+      media = { type: "image", url: URL.createObjectURL(photoInput.files[0]) };
+    } else if (videoInput && videoInput.files && videoInput.files[0]) {
+      media = { type: "video", url: URL.createObjectURL(videoInput.files[0]) };
+    }
+
+    const p = {
+      id: uuid(),
+      user: displayName || "Afroza",
+      category, text, media,
+      reactions: { like: 0, love: 0, laugh: 0, wow: 0 },
+      comments: [],
+      ts: Date.now()
+    };
     posts.unshift(p); writeStore(posts);
-    cardsEl.insertAdjacentHTML("afterbegin", cardHTML(p));
-    emptyState.style.display = "none";
+    if (cardsEl) cardsEl.insertAdjacentHTML("afterbegin", cardHTML(p));
+    if (emptyState) emptyState.style.display = "none";
     clearComposer();
   }
-  postBtn.onclick = submitPost; form.onsubmit = submitPost;
 
-  // ---------------- Interactions ----------------
+  if (postBtn) postBtn.onclick = submitPost;
+  if (form) form.onsubmit = submitPost;
+
+  // ---------- Row Interactions ----------
   const findPost = id => posts.find(p => p.id === id);
   const updateRow = id => {
     const idx = posts.findIndex(p => p.id === id);
     if (idx < 0) return;
     const el = document.querySelector(`.card[data-id="${id}"]`);
+    if (!el) return;
     const wrap = document.createElement("div");
     wrap.innerHTML = cardHTML(posts[idx]);
     el.replaceWith(wrap.firstElementChild);
     writeStore(posts);
   };
 
-  document.onclick = (e) => {
+  document.addEventListener("click", (e) => {
     const t = e.target;
-    if (t.dataset.act === "menu") {
-      const pop = document.querySelector(`.tt-menu-pop[data-pop="${t.dataset.id}"]`);
-      pop.hidden = !pop.hidden; return;
+    if (t.matches(".tt-menu-btn")) {
+      const id = t.getAttribute("data-id");
+      const pop = document.querySelector(`.tt-menu-pop[data-pop="${id}"]`);
+      if (pop) pop.hidden = !pop.hidden;
+      return;
     }
-    document.querySelectorAll(".tt-menu-pop").forEach(p => p.hidden = true);
+    if (!t.closest(".tt-menu")) document.querySelectorAll(".tt-menu-pop").forEach(p => p.hidden = true);
 
     if (t.dataset.act === "delete") {
-      posts = posts.filter(p => p.id !== t.dataset.id);
+      const id = t.dataset.id;
+      posts = posts.filter(p => p.id !== id);
       writeStore(posts);
-      document.querySelector(`.card[data-id="${t.dataset.id}"]`)?.remove();
-      emptyState.style.display = posts.length ? "none" : "";
+      document.querySelector(`.card[data-id="${id}"]`)?.remove();
+      if (emptyState) emptyState.style.display = posts.length ? "none" : "";
     }
 
     if (t.dataset.act === "edit") {
-      const id = t.dataset.id, p = findPost(id), card = document.querySelector(`.card[data-id="${id}"]`);
-      const body = card.querySelector('[data-role="text"]');
-      body.innerHTML = `<textarea class="tt-edit-area">${escapeHTML(p.text)}</textarea>
+      const id = t.dataset.id, p = findPost(id);
+      const card = document.querySelector(`.card[data-id="${id}"]`);
+      const body = card?.querySelector('[data-role="text"]');
+      if (!body) return;
+      body.innerHTML = `
+        <textarea class="tt-edit-area">${escapeHTML(p.text)}</textarea>
         <div class="tt-edit-actions">
-          <button class="tt-edit-save" data-act="save" data-id="${id}">Save</button>
-          <button class="tt-edit-cancel" data-act="cancel" data-id="${id}">Cancel</button>
+          <button class="tt-edit-save" data-act="save" data-id="${id}" type="button">Save</button>
+          <button class="tt-edit-cancel" data-act="cancel" data-id="${id}" type="button">Cancel</button>
         </div>`;
     }
 
     if (t.dataset.act === "save") {
-      const id = t.dataset.id, p = findPost(id);
-      const val = document.querySelector(`.card[data-id="${id}"] .tt-edit-area`).value.trim();
-      p.text = val; updateRow(id);
+      const id = t.dataset.id;
+      const area = document.querySelector(`.card[data-id="${id}"] .tt-edit-area`);
+      const p = findPost(id); if (!p || !area) return;
+      p.text = area.value.trim() || p.text;
+      updateRow(id);
     }
+
     if (t.dataset.act === "cancel") updateRow(t.dataset.id);
 
     if (t.dataset.act === "react") {
-      const p = findPost(t.dataset.id);
-      const ekey = t.dataset.emoji;
-      p.reactions[ekey]++; updateRow(t.dataset.id);
+      const id = t.dataset.id, key = t.dataset.emoji;
+      const p = findPost(id); if (!p) return;
+      p.reactions[key] = (p.reactions[key] || 0) + 1;
+      updateRow(id);
     }
 
     if (t.dataset.act === "comment") {
-      const id = t.dataset.id, p = findPost(id);
+      const id = t.dataset.id, p = findPost(id); if (!p) return;
       const input = document.querySelector(`.card[data-id="${id}"] .tt-comment-input`);
-      const val = input.value.trim(); if (!val) return;
-      p.comments.push({ id: uuid(), user: displayName, text: val, ts: Date.now() });
+      const val = (input?.value || "").trim(); if (!val) return;
+      p.comments.push({ id: uuid(), user: displayName || "Afroza", text: val, ts: Date.now() });
       updateRow(id);
     }
-  };
+  });
 
-  const escapeHTML = (s) => (s || "").replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const escapeHTML = (s) => (s || "").replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
 
+  // ---------- Init ----------
   renderAll();
   refreshAuth();
 })();
