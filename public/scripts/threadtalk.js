@@ -1,14 +1,13 @@
-/* ThreadTalk client (localStorage) + lightweight Supabase Auth gate
-   - Keeps ALL current UI/behavior (reactions, edit/delete, comments, media preview)
-   - If not signed in, shows a small sign-in prompt and disables the composer.
-   - If signed in, composer works exactly as before and uses your Supabase user’s name/email.
-   - NO HTML changes required. This script injects the auth prompt dynamically.
-
-   Requires:
-   - window.supabase (from scripts/supabase-client.js you already added)
+/* ThreadTalk client (localStorage) + Supabase Auth gate
+   - Prevents double init
+   - Shows exactly one sign-in box if no site session
 */
 
 (function () {
+  // ---- prevent double init (if script tag included twice) -------------------
+  if (window.__TT_THREADTALK_INITED__) return;
+  window.__TT_THREADTALK_INITED__ = true;
+
   // ---------------------------
   // Supabase auth state
   // ---------------------------
@@ -32,9 +31,6 @@
   const postBtn = $("postBtn");
   const mediaPreview = $("mediaPreview");
   const form = $("composer");
-
-  // A container we create for the auth UI (no HTML edits needed)
-  let authBox = null;
 
   // ---------------------------
   // Helpers
@@ -157,78 +153,82 @@
   // ---------------------------
   // Composer enable/disable based on auth
   // ---------------------------
+  function removeExistingAuthBox() {
+    const dupes = document.querySelectorAll("#tt-auth");
+    dupes.forEach(n => n.remove());
+  }
+
   function disableComposerWithAuthPrompt() {
     if (!form) return;
 
     // Disable inputs
     [sel, txt, photoInput, videoInput, postBtn].forEach(n => { if (n) n.disabled = true; });
 
-    // Add a compact sign-in box below the row (only once)
-    if (!authBox) {
-      authBox = document.createElement("div");
-      authBox.id = "tt-auth";
-      authBox.style.margin = "8px";
-      authBox.style.padding = "10px";
-      authBox.style.border = "1px solid var(--border)";
-      authBox.style.borderRadius = "10px";
-      authBox.style.background = "#fff";
-      authBox.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <strong>Sign in to post</strong>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <input id="ttAuthEmail" type="email" placeholder="you@example.com"
-                   style="flex:1 1 240px;border:1px solid var(--border);border-radius:10px;padding:8px">
-            <button id="ttEmailBtn"
-                    style="border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px">Email link</button>
-            <button id="ttGoogleBtn"
-                    style="border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px">Continue with Google</button>
-          </div>
-          <div style="color:var(--muted);font-size:12px">We’ll send a one-time sign-in link. Check your email, then return here.</div>
+    // Ensure ONLY ONE auth box
+    removeExistingAuthBox();
+
+    // Add a compact sign-in box below the row
+    const authBox = document.createElement("div");
+    authBox.id = "tt-auth";
+    authBox.style.margin = "8px";
+    authBox.style.padding = "10px";
+    authBox.style.border = "1px solid var(--border)";
+    authBox.style.borderRadius = "10px";
+    authBox.style.background = "#fff";
+    authBox.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <strong>Sign in to post</strong>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="ttAuthEmail" type="email" placeholder="you@example.com"
+                 style="flex:1 1 240px;border:1px solid var(--border);border-radius:10px;padding:8px">
+          <button id="ttEmailBtn"
+                  style="border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px">Email link</button>
+          <button id="ttGoogleBtn"
+                  style="border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px">Continue with Google</button>
         </div>
-      `;
-      form.appendChild(authBox);
+        <div style="color:var(--muted);font-size:12px">We’ll send a one-time sign-in link. Check your email, then return here.</div>
+      </div>
+    `;
+    form.appendChild(authBox);
 
-      // Wire buttons
-      const emailBtn = document.getElementById("ttEmailBtn");
-      const emailInput = document.getElementById("ttAuthEmail");
-      const googleBtn = document.getElementById("ttGoogleBtn");
+    // Wire buttons
+    const emailBtn = document.getElementById("ttEmailBtn");
+    const emailInput = document.getElementById("ttAuthEmail");
+    const googleBtn = document.getElementById("ttGoogleBtn");
 
-      if (sb && emailBtn && emailInput) {
-        emailBtn.addEventListener("click", async (e) => {
-          e.preventDefault();
-          const email = (emailInput.value || "").trim();
-          if (!email) { emailInput.focus(); return; }
-          try {
-            await sb.auth.signInWithOtp({
-              email,
-              options: { emailRedirectTo: window.location.href }
-            });
-            emailBtn.textContent = "Link sent!";
-            setTimeout(() => { emailBtn.textContent = "Email link"; }, 1600);
-          } catch (_) {}
-        });
-      }
+    if (sb && emailBtn && emailInput) {
+      emailBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const email = (emailInput.value || "").trim();
+        if (!email) { emailInput.focus(); return; }
+        try {
+          await sb.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: window.location.href }
+          });
+          emailBtn.textContent = "Link sent!";
+          setTimeout(() => { emailBtn.textContent = "Email link"; }, 1600);
+        } catch (_) {}
+      });
+    }
 
-      if (sb && googleBtn) {
-        googleBtn.addEventListener("click", async (e) => {
-          e.preventDefault();
-          try {
-            await sb.auth.signInWithOAuth({
-              provider: "google",
-              options: { redirectTo: window.location.href }
-            });
-          } catch (_) {}
-        });
-      }
+    if (sb && googleBtn) {
+      googleBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        try {
+          await sb.auth.signInWithOAuth({
+            provider: "google",
+            options: { redirectTo: window.location.href }
+          });
+        } catch (_) {}
+      });
     }
   }
 
   function enableComposerForUser(u) {
-    // Enable inputs
     [sel, txt, photoInput, videoInput, postBtn].forEach(n => { if (n) n.disabled = false; });
-    if (authBox) { authBox.remove(); authBox = null; }
+    removeExistingAuthBox();
 
-    // Derive a display name for posts
     const meta = (u && u.user_metadata) || {};
     const email = u && u.email;
     displayName =
@@ -245,14 +245,15 @@
       return;
     }
     try {
-      const { data } = await sb.auth.getUser();
-      currentUser = data && data.user ? data.user : null;
-    } catch { currentUser = null; }
+      const { data } = await sb.auth.getSession();   // more reliable for page load
+      currentUser = data && data.session ? data.session.user : null;
+    } catch {
+      currentUser = null;
+    }
     if (currentUser) enableComposerForUser(currentUser);
     else disableComposerWithAuthPrompt();
   }
 
-  // Listen for state changes (email link returns, logout elsewhere, etc.)
   if (sb && sb.auth && sb.auth.onAuthStateChange) {
     sb.auth.onAuthStateChange((_evt, session) => {
       currentUser = session && session.user ? session.user : null;
@@ -301,11 +302,7 @@
 
   function submitPost(e) {
     if (e) e.preventDefault();
-    // Require auth to post
-    if (!currentUser) {
-      disableComposerWithAuthPrompt();
-      return;
-    }
+    if (!currentUser) { disableComposerWithAuthPrompt(); return; }
 
     const category = (sel && sel.value.trim()) || "Loose Threads";
     const text = (txt && txt.value.trim()) || "";
@@ -359,7 +356,6 @@
   document.addEventListener("click", function (e) {
     const t = e.target;
 
-    // open/close ⋯ menu
     if (t.matches(".tt-menu-btn")) {
       const id = t.getAttribute("data-id");
       const pop = document.querySelector(`.tt-menu-pop[data-pop="${id}"]`);
@@ -370,7 +366,6 @@
       document.querySelectorAll(".tt-menu-pop").forEach((p) => (p.hidden = true));
     }
 
-    // Delete
     if (t.matches('[data-act="delete"]')) {
       const id = t.getAttribute("data-id");
       posts = posts.filter((x) => x.id !== id);
@@ -381,7 +376,6 @@
       return;
     }
 
-    // Edit
     if (t.matches('[data-act="edit"]')) {
       const id = t.getAttribute("data-id");
       const p = findPost(id);
@@ -400,7 +394,6 @@
       return;
     }
 
-    // Save edit
     if (t.matches('[data-act="save"]')) {
       const id = t.getAttribute("data-id");
       const card = document.querySelector(`.card[data-id="${id}"]`);
@@ -414,14 +407,12 @@
       return;
     }
 
-    // Cancel edit
     if (t.matches('[data-act="cancel"]')) {
       const id = t.getAttribute("data-id");
       updateAndRerenderRow(id);
       return;
     }
 
-    // Reactions
     if (t.matches('[data-act="react"]')) {
       const id = t.getAttribute("data-id");
       const emoji = t.getAttribute("data-emoji");
@@ -433,7 +424,6 @@
       return;
     }
 
-    // Comment send
     if (t.matches('[data-act="comment"]')) {
       const id = t.getAttribute("data-id");
       const card = document.querySelector(`.card[data-id="${id}"]`);
