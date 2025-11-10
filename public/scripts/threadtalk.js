@@ -1,77 +1,60 @@
-/* ThreadTalk (Supabase edition)
-   - UI stays exactly the same.
-   - Reads: everyone (public SELECT policy).
-   - Writes (insert/update/delete): only the signed-in user who owns the row (user_id).
-   - Table: public.threadtalk_posts
-     Columns (suggested):
-       id uuid (PK, default gen_random_uuid())
-       user_id uuid
-       username text
-       category text
-       text text
-       media_url text       -- optional for future image/video
-       media_type text      -- optional ("image" | "video")
-       reactions jsonb      -- { like:0, love:0, laugh:0, wow:0 }
-       comments  jsonb      -- [{ id, user, text, ts }]
-       created_at timestamptz default now()
+/* ThreadTalk client (localStorage) + lightweight Supabase Auth gate
+   - Keeps ALL current UI/behavior (reactions, edit/delete, comments, media preview)
+   - If not signed in, shows a small sign-in prompt and disables the composer.
+   - If signed in, composer works exactly as before and uses your Supabase user’s name/email.
+   - NO HTML changes required. This script injects the auth prompt dynamically.
+
+   Requires:
+   - window.supabase (from scripts/supabase-client.js you already added)
 */
 
 (function () {
-  // -------- supabase client ----------
-  const supa = window.supabase; // provided by threadtalk.supabase.js
-  if (!supa) {
-    console.error("Supabase client not found. Did you include threadtalk.supabase.js before this file?");
-  }
+  // ---------------------------
+  // Supabase auth state
+  // ---------------------------
+  const sb = (window && window.supabase) ? window.supabase : null;
+  let currentUser = null;       // Supabase user (or null)
+  let displayName = null;       // What we show in posts
 
-  // -------- quick DOM helpers --------
+  // ---------------------------
+  // Storage + DOM refs
+  // ---------------------------
+  const LS_KEY = "tt_posts";
+
   const $ = (id) => document.getElementById(id);
+  const cardsEl = $("cards");
+  const emptyState = $("emptyState");
 
-  const cardsEl      = $("cards");
-  const emptyState   = $("emptyState");
-
-  const sel          = $("composeCategory");
-  const txt          = $("composeText");
-  const photoInput   = $("photoInput");
-  const videoInput   = $("videoInput");
+  const sel = $("composeCategory");
+  const txt = $("composeText");
+  const photoInput = $("photoInput");
+  const videoInput = $("videoInput");
+  const postBtn = $("postBtn");
   const mediaPreview = $("mediaPreview");
-  const postBtn      = $("postBtn");
+  const form = $("composer");
 
-  const toast = (() => {
-    const el = document.getElementById("toast");
-    return (msg) => {
-      if (!el) return;
-      el.textContent = msg;
-      el.classList.add("show");
-      setTimeout(() => el.classList.remove("show"), 1400);
-    };
-  })();
+  // A container we create for the auth UI (no HTML edits needed)
+  let authBox = null;
 
-  // -------- session / username --------
-  let session = null;
-  let currentUserId = null;
-
-  function deriveUsername() {
-    // Prefer Supabase profile; otherwise local preference; otherwise fallback
-    const local = (localStorage.getItem("tt_user") || "").trim();
-    if (session?.user?.user_metadata?.full_name) return session.user.user_metadata.full_name;
-    if (session?.user?.email) return session.user.email.split("@")[0];
-    if (local) return local;
-    return "Afroza";
-  }
-
-  // -------- utilities --------
+  // ---------------------------
+  // Helpers
+  // ---------------------------
   function uuid() {
     return "p_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
-  function nowLabel() {
-    return "just now";
+  function nowLabel() { return "just now"; }
+
+  function readStore() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); }
+    catch { return []; }
   }
-  function escapeHTML(s) {
-    return (s || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+  function writeStore(posts) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(posts)); }
+    catch {}
   }
+
+  let posts = readStore();
+
   function categoryHref(cat) {
     const k = (cat || "").toLowerCase();
     if (k === "showcase") return "showcase.html";
@@ -84,132 +67,203 @@
     return "loose-threads.html";
   }
 
-  function mediaHTML(row) {
-    if (!row?.media_url || !row?.media_type) return "";
-    if (row.media_type === "image") {
-      return `<img class="post-img" src="${row.media_url}" alt="post image">`;
-    }
-    if (row.media_type === "video") {
-      return `<video class="post-video" controls src="${row.media_url}"></video>`;
-    }
+  function mediaHTML(media) {
+    if (!media) return "";
+    if (media.type === "image") return `<img class="post-img" src="${media.url}" alt="post image">`;
+    if (media.type === "video") return `<video class="post-video" controls src="${media.url}"></video>`;
     return "";
   }
 
-  function reactionBarHTML(row) {
-    const r = row.reactions || { like: 0, love: 0, laugh: 0, wow: 0 };
+  function reactionBarHTML(p) {
+    const r = p.reactions || { like: 0, love: 0, laugh: 0, wow: 0 };
     return `
       <div class="tt-react-row" role="group" aria-label="Reactions">
-        <button class="tt-react" data-act="react" data-emoji="like"  data-id="${row.id}">👍 <span>${r.like || 0}</span></button>
-        <button class="tt-react" data-act="react" data-emoji="love"  data-id="${row.id}">❤️ <span>${r.love || 0}</span></button>
-        <button class="tt-react" data-act="react" data-emoji="laugh" data-id="${row.id}">😂 <span>${r.laugh || 0}</span></button>
-        <button class="tt-react" data-act="react" data-emoji="wow"   data-id="${row.id}">😮 <span>${r.wow || 0}</span></button>
-      </div>`;
+        <button class="tt-react" data-act="react" data-emoji="like"  data-id="${p.id}" title="Like">👍 <span>${r.like||0}</span></button>
+        <button class="tt-react" data-act="react" data-emoji="love"  data-id="${p.id}" title="Love">❤️ <span>${r.love||0}</span></button>
+        <button class="tt-react" data-act="react" data-emoji="laugh" data-id="${p.id}" title="Funny">😂 <span>${r.laugh||0}</span></button>
+        <button class="tt-react" data-act="react" data-emoji="wow"   data-id="${p.id}" title="Wow">😮 <span>${r.wow||0}</span></button>
+      </div>
+    `;
   }
 
-  function menuHTML(row) {
-    // Only show Edit/Delete if this post belongs to the current session user
-    const canEdit = !!(currentUserId && row.user_id === currentUserId);
-    if (!canEdit) return "";
+  function menuHTML(p) {
     return `
       <div class="tt-menu">
-        <button class="tt-menu-btn" aria-label="More" data-id="${row.id}" data-act="menu">⋯</button>
-        <div class="tt-menu-pop" data-pop="${row.id}" hidden>
-          <button class="tt-menu-item" data-act="edit" data-id="${row.id}">Edit</button>
-          <button class="tt-menu-item danger" data-act="delete" data-id="${row.id}">Delete</button>
+        <button class="tt-menu-btn" aria-label="More" data-id="${p.id}" data-act="menu">⋯</button>
+        <div class="tt-menu-pop" data-pop="${p.id}" hidden>
+          <button class="tt-menu-item" data-act="edit" data-id="${p.id}">Edit</button>
+          <button class="tt-menu-item danger" data-act="delete" data-id="${p.id}">Delete</button>
         </div>
-      </div>`;
+      </div>
+    `;
   }
 
-  function commentsHTML(row) {
-    const c = row.comments || [];
+  function commentsHTML(p) {
+    const c = p.comments || [];
     const items = c.map(cm => `
       <div class="tt-comment" data-cid="${cm.id}">
-        <div class="tt-comment-head"><strong>${escapeHTML(cm.user)}</strong> · <span>just now</span></div>
+        <div class="tt-comment-head"><strong>${cm.user}</strong> · <span>just now</span></div>
         <div class="tt-comment-body">${escapeHTML(cm.text)}</div>
-      </div>`).join("");
+      </div>
+    `).join("");
     return `
       <div class="tt-comments">
-        ${items}
+        ${items || ""}
         <div class="tt-comment-new">
-          <input type="text" class="tt-comment-input" placeholder="Write a comment…" data-id="${row.id}">
-          <button class="tt-comment-send" data-act="comment" data-id="${row.id}">Send</button>
+          <input type="text" class="tt-comment-input" placeholder="Write a comment…" data-id="${p.id}">
+          <button class="tt-comment-send" data-act="comment" data-id="${p.id}">Send</button>
         </div>
-      </div>`;
+      </div>
+    `;
   }
 
-  function cardHTML(row) {
+  function cardHTML(p) {
     return `
-      <article class="card" data-id="${row.id}">
+      <article class="card" data-id="${p.id}">
         <div class="meta" style="justify-content:space-between;">
           <div style="display:flex;gap:8px;align-items:center;">
-            <span><strong>${escapeHTML(row.username || "User")}</strong></span>
-            <span>•</span><span>${nowLabel()}</span>
-            <span>•</span><a class="cat" href="${categoryHref(row.category)}">[${escapeHTML(row.category)}]</a>
+            <span><strong>${p.user}</strong></span>
+            <span>•</span>
+            <span>${nowLabel(p.ts)}</span>
+            <span>•</span>
+            <a class="cat" href="${categoryHref(p.category)}">[${p.category}]</a>
           </div>
-          ${menuHTML(row)}
+          ${menuHTML(p)}
         </div>
-        ${mediaHTML(row)}
-        <div class="preview" data-role="text">${escapeHTML(row.text)}</div>
-        ${reactionBarHTML(row)}
-        ${commentsHTML(row)}
-      </article>`;
+
+        ${mediaHTML(p.media)}
+        <div class="preview" data-role="text">${escapeHTML(p.text)}</div>
+
+        ${reactionBarHTML(p)}
+        ${commentsHTML(p)}
+      </article>
+    `;
   }
 
-  function renderAll(rows) {
-    if (!rows || rows.length === 0) {
-      cardsEl.innerHTML = "";
-      emptyState.style.display = "";
-      return;
-    }
-    cardsEl.innerHTML = rows.map(cardHTML).join("");
-    emptyState.style.display = "none";
+  function renderAll() {
+    cardsEl.innerHTML = posts.map(cardHTML).join("");
+    emptyState.style.display = posts.length ? "none" : "";
   }
 
-  async function refreshFeed() {
-    const { data, error } = await supa
-      .from("threadtalk_posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (error) {
-      console.error(error);
-      toast("Could not load threads.");
-      return;
-    }
-    cache.posts = data || [];
-    renderAll(cache.posts);
-  }
-
-  // in-memory cache (keeps the page snappy when we tweak one row)
-  const cache = { posts: [] };
-  function findRow(id) { return cache.posts.find(p => p.id === id); }
-  function replaceRow(updated) {
-    const idx = cache.posts.findIndex(p => p.id === updated.id);
-    if (idx !== -1) cache.posts[idx] = updated;
-    // re-render just this card
-    const old = document.querySelector(`.card[data-id="${updated.id}"]`);
-    if (!old) return;
-    const wrap = document.createElement("div");
-    wrap.innerHTML = cardHTML(updated);
-    old.replaceWith(wrap.firstElementChild);
-  }
-  function removeRow(id) {
-    cache.posts = cache.posts.filter(p => p.id !== id);
-    const el = document.querySelector(`.card[data-id="${id}"]`);
-    if (el) el.remove();
-    if (cache.posts.length === 0) emptyState.style.display = "";
-  }
-  function prependRow(row) {
-    cache.posts.unshift(row);
+  function prependPost(p) {
     const el = document.createElement("div");
-    el.innerHTML = cardHTML(row);
+    el.innerHTML = cardHTML(p);
     const card = el.firstElementChild;
     if (cardsEl.firstChild) cardsEl.insertBefore(card, cardsEl.firstChild);
     else cardsEl.appendChild(card);
     emptyState.style.display = "none";
   }
 
-  // -------- composer (unchanged UI) --------
+  // ---------------------------
+  // Composer enable/disable based on auth
+  // ---------------------------
+  function disableComposerWithAuthPrompt() {
+    if (!form) return;
+
+    // Disable inputs
+    [sel, txt, photoInput, videoInput, postBtn].forEach(n => { if (n) n.disabled = true; });
+
+    // Add a compact sign-in box below the row (only once)
+    if (!authBox) {
+      authBox = document.createElement("div");
+      authBox.id = "tt-auth";
+      authBox.style.margin = "8px";
+      authBox.style.padding = "10px";
+      authBox.style.border = "1px solid var(--border)";
+      authBox.style.borderRadius = "10px";
+      authBox.style.background = "#fff";
+      authBox.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <strong>Sign in to post</strong>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input id="ttAuthEmail" type="email" placeholder="you@example.com"
+                   style="flex:1 1 240px;border:1px solid var(--border);border-radius:10px;padding:8px">
+            <button id="ttEmailBtn"
+                    style="border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px">Email link</button>
+            <button id="ttGoogleBtn"
+                    style="border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px">Continue with Google</button>
+          </div>
+          <div style="color:var(--muted);font-size:12px">We’ll send a one-time sign-in link. Check your email, then return here.</div>
+        </div>
+      `;
+      form.appendChild(authBox);
+
+      // Wire buttons
+      const emailBtn = document.getElementById("ttEmailBtn");
+      const emailInput = document.getElementById("ttAuthEmail");
+      const googleBtn = document.getElementById("ttGoogleBtn");
+
+      if (sb && emailBtn && emailInput) {
+        emailBtn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          const email = (emailInput.value || "").trim();
+          if (!email) { emailInput.focus(); return; }
+          try {
+            await sb.auth.signInWithOtp({
+              email,
+              options: { emailRedirectTo: window.location.href }
+            });
+            emailBtn.textContent = "Link sent!";
+            setTimeout(() => { emailBtn.textContent = "Email link"; }, 1600);
+          } catch (_) {}
+        });
+      }
+
+      if (sb && googleBtn) {
+        googleBtn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          try {
+            await sb.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo: window.location.href }
+            });
+          } catch (_) {}
+        });
+      }
+    }
+  }
+
+  function enableComposerForUser(u) {
+    // Enable inputs
+    [sel, txt, photoInput, videoInput, postBtn].forEach(n => { if (n) n.disabled = false; });
+    if (authBox) { authBox.remove(); authBox = null; }
+
+    // Derive a display name for posts
+    const meta = (u && u.user_metadata) || {};
+    const email = u && u.email;
+    displayName =
+      meta.full_name ||
+      meta.name ||
+      (email ? email.split("@")[0] : null) ||
+      (localStorage.getItem("tt_user") || "Afroza");
+  }
+
+  async function refreshAuthGate() {
+    if (!sb) {
+      // No Supabase on the page: leave composer enabled (legacy mode)
+      enableComposerForUser({ user_metadata: { name: localStorage.getItem("tt_user") || "Afroza" }, email: "" });
+      return;
+    }
+    try {
+      const { data } = await sb.auth.getUser();
+      currentUser = data && data.user ? data.user : null;
+    } catch { currentUser = null; }
+    if (currentUser) enableComposerForUser(currentUser);
+    else disableComposerWithAuthPrompt();
+  }
+
+  // Listen for state changes (email link returns, logout elsewhere, etc.)
+  if (sb && sb.auth && sb.auth.onAuthStateChange) {
+    sb.auth.onAuthStateChange((_evt, session) => {
+      currentUser = session && session.user ? session.user : null;
+      if (currentUser) enableComposerForUser(currentUser);
+      else disableComposerWithAuthPrompt();
+    });
+  }
+
+  // ---------------------------
+  // Composer (media preview + submit)
+  // ---------------------------
   function clearComposer() {
     if (sel) sel.value = "";
     if (txt) txt.value = "";
@@ -218,6 +272,7 @@
     if (mediaPreview) { mediaPreview.hidden = true; mediaPreview.innerHTML = ""; }
     if (txt) txt.focus();
   }
+
   function showPreview(file, kind) {
     if (!mediaPreview) return;
     const url = URL.createObjectURL(file);
@@ -226,67 +281,85 @@
       ? `<img alt="preview image" src="${url}">`
       : `<video controls src="${url}"></video>`;
   }
-  photoInput?.addEventListener("change", function () {
-    if (this.files?.[0]) { videoInput.value = ""; showPreview(this.files[0], "image"); }
-  });
-  videoInput?.addEventListener("change", function () {
-    if (this.files?.[0]) { photoInput.value = ""; showPreview(this.files[0], "video"); }
-  });
 
-  async function submitPost(e) {
-    e?.preventDefault();
-    const textVal = (txt?.value || "").trim();
-    if (!textVal) { txt?.focus(); return; }
-
-    const categoryVal = (sel?.value || "").trim() || "Loose Threads";
-
-    // NOTE: media upload to Supabase Storage can come later; keep null for now.
-    const media_url = null;
-    const media_type = null;
-
-    // must be signed in to insert due to RLS
-    if (!currentUserId) {
-      toast("Sign in to post.");
-      return;
-    }
-
-    const row = {
-      user_id: currentUserId,
-      username: deriveUsername(),
-      category: categoryVal,
-      text: textVal,
-      media_url,
-      media_type,
-      reactions: { like: 0, love: 0, laugh: 0, wow: 0 },
-      comments: []
-    };
-
-    const { data, error } = await supa
-      .from("threadtalk_posts")
-      .insert(row)
-      .select()
-      .single();
-
-    if (error) {
-      console.error(error);
-      toast("Could not post.");
-      return;
-    }
-
-    prependRow(data);
-    clearComposer();
-    toast("Posted");
-    document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
+  if (photoInput) {
+    photoInput.addEventListener("change", function () {
+      if (this.files && this.files[0]) {
+        if (videoInput) videoInput.value = "";
+        showPreview(this.files[0], "image");
+      }
+    });
+  }
+  if (videoInput) {
+    videoInput.addEventListener("change", function () {
+      if (this.files && this.files[0]) {
+        if (photoInput) photoInput.value = "";
+        showPreview(this.files[0], "video");
+      }
+    });
   }
 
-  postBtn?.addEventListener("click", submitPost);
-  document.getElementById("composer")?.addEventListener("submit", submitPost);
+  function submitPost(e) {
+    if (e) e.preventDefault();
+    // Require auth to post
+    if (!currentUser) {
+      disableComposerWithAuthPrompt();
+      return;
+    }
 
-  // -------- interactions (delegated) --------
-  document.addEventListener("click", async (e) => {
+    const category = (sel && sel.value.trim()) || "Loose Threads";
+    const text = (txt && txt.value.trim()) || "";
+    if (!text) { if (txt) txt.focus(); return; }
+
+    let media = null;
+    if (photoInput && photoInput.files && photoInput.files[0]) {
+      media = { type: "image", url: URL.createObjectURL(photoInput.files[0]) };
+    } else if (videoInput && videoInput.files && videoInput.files[0]) {
+      media = { type: "video", url: URL.createObjectURL(videoInput.files[0]) };
+    }
+
+    const p = {
+      id: uuid(),
+      user: displayName || (localStorage.getItem("tt_user") || "Afroza"),
+      category,
+      text,
+      media,
+      reactions: { like: 0, love: 0, laugh: 0, wow: 0 },
+      comments: [],
+      ts: Date.now()
+    };
+    posts.unshift(p);
+    writeStore(posts);
+    prependPost(p);
+    clearComposer();
+
+    const feed = document.getElementById("feed");
+    if (feed) feed.scrollIntoView({ behavior: "smooth" });
+  }
+
+  if (postBtn) postBtn.addEventListener("click", submitPost);
+  if (form) form.addEventListener("submit", submitPost);
+
+  // ---------------------------
+  // Interactions (delegated)
+  // ---------------------------
+  function findPost(id) { return posts.find((x) => x.id === id); }
+
+  function updateAndRerenderRow(id) {
+    const idx = posts.findIndex((x) => x.id === id);
+    if (idx === -1) return;
+    const old = document.querySelector(`.card[data-id="${id}"]`);
+    if (!old) return;
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = cardHTML(posts[idx]);
+    old.replaceWith(wrapper.firstElementChild);
+    writeStore(posts);
+  }
+
+  document.addEventListener("click", function (e) {
     const t = e.target;
 
-    // menus
+    // open/close ⋯ menu
     if (t.matches(".tt-menu-btn")) {
       const id = t.getAttribute("data-id");
       const pop = document.querySelector(`.tt-menu-pop[data-pop="${id}"]`);
@@ -294,140 +367,101 @@
       return;
     }
     if (!t.closest(".tt-menu")) {
-      document.querySelectorAll(".tt-menu-pop").forEach(p => p.hidden = true);
+      document.querySelectorAll(".tt-menu-pop").forEach((p) => (p.hidden = true));
     }
 
-    // delete
+    // Delete
     if (t.matches('[data-act="delete"]')) {
       const id = t.getAttribute("data-id");
-      const { error } = await supa.from("threadtalk_posts").delete().eq("id", id);
-      if (error) { console.error(error); toast("Delete failed"); return; }
-      removeRow(id);
-      toast("Deleted");
+      posts = posts.filter((x) => x.id !== id);
+      writeStore(posts);
+      const card = document.querySelector(`.card[data-id="${id}"]`);
+      if (card) card.remove();
+      emptyState.style.display = posts.length ? "none" : "";
       return;
     }
 
-    // edit -> turn into textarea
+    // Edit
     if (t.matches('[data-act="edit"]')) {
       const id = t.getAttribute("data-id");
-      const row = findRow(id);
-      if (!row) return;
+      const p = findPost(id);
+      if (!p) return;
       const card = document.querySelector(`.card[data-id="${id}"]`);
-      const textDiv = card?.querySelector('[data-role="text"]');
+      const textDiv = card && card.querySelector('[data-role="text"]');
       if (!textDiv) return;
+      const current = p.text;
       textDiv.innerHTML = `
-        <textarea class="tt-edit-area">${escapeHTML(row.text)}</textarea>
+        <textarea class="tt-edit-area">${escapeHTML(current)}</textarea>
         <div class="tt-edit-actions">
           <button class="tt-edit-save" data-act="save" data-id="${id}">Save</button>
           <button class="tt-edit-cancel" data-act="cancel" data-id="${id}">Cancel</button>
-        </div>`;
+        </div>
+      `;
       return;
     }
 
-    // save edit
+    // Save edit
     if (t.matches('[data-act="save"]')) {
       const id = t.getAttribute("data-id");
       const card = document.querySelector(`.card[data-id="${id}"]`);
-      const area = card?.querySelector(".tt-edit-area");
+      const area = card && card.querySelector(".tt-edit-area");
       if (!area) return;
       const val = area.value.trim();
-      const { data, error } = await supa
-        .from("threadtalk_posts")
-        .update({ text: val })
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) { console.error(error); toast("Update failed"); return; }
-      replaceRow(data);
-      toast("Updated");
+      const p = findPost(id);
+      if (!p) return;
+      p.text = val || p.text;
+      updateAndRerenderRow(id);
       return;
     }
 
-    // cancel edit
+    // Cancel edit
     if (t.matches('[data-act="cancel"]')) {
       const id = t.getAttribute("data-id");
-      const row = findRow(id);
-      if (!row) return;
-      replaceRow(row); // re-renders original
+      updateAndRerenderRow(id);
       return;
     }
 
-    // reactions (+1)
+    // Reactions
     if (t.matches('[data-act="react"]')) {
       const id = t.getAttribute("data-id");
       const emoji = t.getAttribute("data-emoji");
-      const row = findRow(id);
-      if (!row) return;
-      const r = Object.assign({ like:0, love:0, laugh:0, wow:0 }, row.reactions || {});
-      r[emoji] = (r[emoji] || 0) + 1;
-      const { data, error } = await supa
-        .from("threadtalk_posts")
-        .update({ reactions: r })
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) { console.error(error); toast("Reaction failed"); return; }
-      replaceRow(data);
+      const p = findPost(id);
+      if (!p) return;
+      p.reactions = p.reactions || { like: 0, love: 0, laugh: 0, wow: 0 };
+      p.reactions[emoji] = (p.reactions[emoji] || 0) + 1;
+      updateAndRerenderRow(id);
       return;
     }
 
-    // comments
+    // Comment send
     if (t.matches('[data-act="comment"]')) {
       const id = t.getAttribute("data-id");
       const card = document.querySelector(`.card[data-id="${id}"]`);
-      const input = card?.querySelector(".tt-comment-input");
+      const input = card && card.querySelector(".tt-comment-input");
       if (!input) return;
       const text = input.value.trim();
       if (!text) return;
-
-      const row = findRow(id);
-      if (!row) return;
-
-      // must be signed in to comment (keeps ownership simple)
-      if (!currentUserId) { toast("Sign in to comment."); return; }
-
-      const comments = Array.isArray(row.comments) ? row.comments.slice() : [];
-      comments.push({ id: uuid(), user: deriveUsername(), text, ts: Date.now() });
-
-      const { data, error } = await supa
-        .from("threadtalk_posts")
-        .update({ comments })
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) { console.error(error); toast("Comment failed"); return; }
-      replaceRow(data);
-      input.value = "";
+      const p = findPost(id);
+      if (!p) return;
+      const who = displayName || (localStorage.getItem("tt_user") || "Afroza");
+      p.comments = p.comments || [];
+      p.comments.push({ id: uuid(), user: who, text, ts: Date.now() });
+      updateAndRerenderRow(id);
       return;
     }
   });
 
-  // -------- preview image/video hooks already bound above --------
-
-  // -------- auth/session boot --------
-  async function initSession() {
-    const { data: { session: s } } = await supa.auth.getSession();
-    session = s || null;
-    currentUserId = session?.user?.id || null;
-
-    // keep avatar initials the same way you had it
-    try {
-      const avatar = document.getElementById("avatar");
-      const url = localStorage.getItem("avatarUrl");
-      if (avatar && url) { avatar.textContent = ""; avatar.style.backgroundImage = `url('${url}')`; }
-    } catch {}
-
-    await refreshFeed();
+  // ---------------------------
+  // Util
+  // ---------------------------
+  function escapeHTML(s) {
+    return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  // live session change
-  supa.auth.onAuthStateChange((_event, s) => {
-    session = s || null;
-    currentUserId = session?.user?.id || null;
-    refreshFeed();
-  });
+  // ---------------------------
+  // Init
+  // ---------------------------
+  renderAll();
+  refreshAuthGate();
 
-  // -------- go --------
-  initSession();
 })();
