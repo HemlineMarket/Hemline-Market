@@ -128,7 +128,62 @@
   <h1>Account</h1>
   <p class="subtle">Manage your profile, orders, addresses, vacation hold, and payouts.</p>
 
-  <div class="grid">
+  <!-- AUTH PANEL: shown when NOT logged in -->
+  <section class="card" id="authCard" aria-live="polite">
+    <div class="hd">Sign in to Hemline Market</div>
+    <div class="bd">
+      <p class="muted" id="authMessage" style="margin-top:0;margin-bottom:10px">
+        Log in or create an account to manage your orders, addresses, and payouts.
+      </p>
+
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn primary" type="button" id="showLoginBtn">Log in</button>
+        <button class="btn" type="button" id="showSignupBtn">Create account</button>
+      </div>
+
+      <form id="loginForm" style="max-width:420px">
+        <div style="display:grid;gap:8px">
+          <label style="font-size:14px">
+            Email
+            <input id="loginEmail" type="email" required
+                   style="width:100%;margin-top:2px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">
+          </label>
+          <label style="font-size:14px">
+            Password
+            <input id="loginPassword" type="password" required
+                   style="width:100%;margin-top:2px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">
+          </label>
+        </div>
+        <button id="loginSubmit" class="btn primary" type="submit" style="margin-top:10px">Log in</button>
+      </form>
+
+      <form id="signupForm" style="max-width:420px;display:none">
+        <div style="display:grid;gap:8px">
+          <label style="font-size:14px">
+            Name
+            <input id="signupName" type="text" required
+                   style="width:100%;margin-top:2px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">
+          </label>
+          <label style="font-size:14px">
+            Email
+            <input id="signupEmail" type="email" required
+                   style="width:100%;margin-top:2px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">
+          </label>
+          <label style="font-size:14px">
+            Password
+            <input id="signupPassword" type="password" required minlength="6"
+                   style="width:100%;margin-top:2px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">
+          </label>
+        </div>
+        <button id="signupSubmit" class="btn primary" type="submit" style="margin-top:10px">Create account</button>
+      </form>
+
+      <div id="authError" class="muted" style="margin-top:8px;color:#b91c1c"></div>
+    </div>
+  </section>
+
+  <!-- MAIN ACCOUNT GRID: only shown when LOGGED IN -->
+  <div class="grid" id="accountGrid">
     <!-- LEFT: Profile -->
     <section class="card">
       <div class="hd">Profile</div>
@@ -139,8 +194,9 @@
             <div id="profileName" style="font-weight:800">Your name</div>
             <div id="profileEmail" class="muted" style="font-size:13px">you@example.com</div>
           </div>
-          <div style="margin-left:auto">
+          <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
             <a class="btn" href="profile-edit.html">Edit profile</a>
+            <button id="logoutBtn" class="btn" type="button" style="display:none">Log out</button>
           </div>
         </div>
 
@@ -289,11 +345,15 @@
   const profAvatar=document.getElementById("profileAvatar");
   try{
     const url=localStorage.getItem("avatarUrl");
-    if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')";
-             profAvatar.textContent=''; profAvatar.style.backgroundImage="url('"+url+"')"; }
+    if(url){
+      avatar.textContent='';
+      avatar.style.backgroundImage="url('"+url+"')";
+      profAvatar.textContent='';
+      profAvatar.style.backgroundImage="url('"+url+"')";
+    }
   }catch(e){}
 
-  /* Profile text */
+  /* Profile text (kept as a fallback; Supabase will override when logged in) */
   try{
     const nm=localStorage.getItem("hm.name")||"Your name";
     const em=localStorage.getItem("hm.email")||"you@example.com";
@@ -319,7 +379,13 @@
   function loadAddrs(){
     let arr=[]; try{ arr=JSON.parse(localStorage.getItem("hm.addrs")||"[]"); }catch(_){}
     addrList.innerHTML='';
-    if(arr.length===0){ const empty=document.createElement('div'); empty.className='muted'; empty.textContent='No saved addresses yet.'; addrList.appendChild(empty); return; }
+    if(arr.length===0){
+      const empty=document.createElement('div');
+      empty.className='muted';
+      empty.textContent='No saved addresses yet.';
+      addrList.appendChild(empty);
+      return;
+    }
     arr.forEach((a,i)=>{
       const row=document.createElement('div'); row.className='item';
       row.innerHTML='<div><strong>'+a.name+'</strong><div class="muted" style="font-size:13px">'+a.line1+(a.line2?(', '+a.line2):'')+', '+a.city+', '+a.state+' '+a.zip+'</div></div>';
@@ -344,7 +410,13 @@
   function renderCards(){
     let cards=[]; try{ cards=JSON.parse(localStorage.getItem("hm.cards")||"[]"); }catch(_){}
     cardsEl.innerHTML='';
-    if(cards.length===0){ const m=document.createElement('div'); m.className='muted'; m.textContent='No cards saved.'; cardsEl.appendChild(m); return; }
+    if(cards.length===0){
+      const m=document.createElement('div');
+      m.className='muted';
+      m.textContent='No cards saved.';
+      cardsEl.appendChild(m);
+      return;
+    }
     cards.forEach((c,idx)=>{
       const row=document.createElement('div'); row.className='item';
       row.innerHTML='<div><strong>'+c.brand.toUpperCase()+' •••• '+c.last4+'</strong><div class="muted" style="font-size:13px">Exp '+c.exp+'</div></div>';
@@ -394,7 +466,7 @@
     }catch(e){ alert('Could not open Stripe dashboard.'); console.error(e); }
   });
 
-  /* ===== NEW: hydrate Stripe status pills from /api/stripe/account_status ===== */
+  /* Stripe status pills */
   async function loadStripeStatus(){
     try{
       const res = await fetch('/api/stripe/account_status');
@@ -428,12 +500,10 @@
         reqPill.classList.remove('green');
       }
 
-      // Show connected account id if present
       if (data.account) {
         document.getElementById('acctId').textContent = data.account;
       }
 
-      // Nudge primary button if onboarding already submitted
       if (data.details_submitted) {
         document.getElementById('btnFinish').textContent = 'Review setup';
       }
@@ -444,5 +514,174 @@
   loadStripeStatus();
 })();
 </script>
+
+<!-- REAL AUTH: Supabase login & logout -->
+<script type="module">
+  import { supabase } from './scripts/supabase-client.js';
+
+  const authCard = document.getElementById('authCard');
+  const accountGrid = document.getElementById('accountGrid');
+  const profileNameEl = document.getElementById('profileName');
+  const profileEmailEl = document.getElementById('profileEmail');
+  const avatarEl = document.getElementById('avatar');
+  const profileAvatarEl = document.getElementById('profileAvatar');
+
+  const authMessageEl = document.getElementById('authMessage');
+  const authErrorEl = document.getElementById('authError');
+  const showLoginBtn = document.getElementById('showLoginBtn');
+  const showSignupBtn = document.getElementById('showSignupBtn');
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  function setAuthView(view){
+    if (!loginForm || !signupForm || !showLoginBtn || !showSignupBtn) return;
+    if(view === 'login'){
+      loginForm.style.display = 'block';
+      signupForm.style.display = 'none';
+      showLoginBtn.classList.add('primary');
+      showSignupBtn.classList.remove('primary');
+    } else {
+      loginForm.style.display = 'none';
+      signupForm.style.display = 'block';
+      showLoginBtn.classList.remove('primary');
+      showSignupBtn.classList.add('primary');
+    }
+    if(authErrorEl) authErrorEl.textContent = '';
+  }
+
+  function initialsFromName(name){
+    if(!name) return 'AA';
+    const parts = name.trim().split(/\s+/);
+    const chars = parts.map(p => p[0] || '').join('').slice(0,2);
+    return (chars || 'AA').toUpperCase();
+  }
+
+  async function refreshSessionUI(){
+    const { data, error } = await supabase.auth.getSession();
+    if(error){
+      console.error('Error getting session', error);
+    }
+    const session = data?.session;
+
+    if(session?.user){
+      const user = session.user;
+      const email = user.email || 'you@example.com';
+      const displayName =
+        (user.user_metadata && (user.user_metadata.display_name || user.user_metadata.full_name)) ||
+        email.split('@')[0];
+
+      if(accountGrid) accountGrid.style.display = 'grid';
+      if(authCard) authCard.style.display = 'none';
+
+      if(profileNameEl) profileNameEl.textContent = displayName;
+      if(profileEmailEl) profileEmailEl.textContent = email;
+
+      const initials = initialsFromName(displayName);
+      if(avatarEl){
+        avatarEl.textContent = initials;
+        avatarEl.style.backgroundImage = '';
+      }
+      if(profileAvatarEl){
+        profileAvatarEl.textContent = initials;
+        profileAvatarEl.style.backgroundImage = '';
+      }
+      if(logoutBtn){
+        logoutBtn.style.display = 'inline-block';
+      }
+    } else {
+      if(accountGrid) accountGrid.style.display = 'none';
+      if(authCard) authCard.style.display = 'block';
+      if(logoutBtn){
+        logoutBtn.style.display = 'none';
+      }
+      if(authMessageEl){
+        authMessageEl.textContent = 'Log in to manage your orders, addresses, and payouts.';
+      }
+    }
+  }
+
+  if(showLoginBtn && showSignupBtn){
+    showLoginBtn.addEventListener('click', () => setAuthView('login'));
+    showSignupBtn.addEventListener('click', () => setAuthView('signup'));
+  }
+
+  if(loginForm){
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if(authErrorEl) authErrorEl.textContent = '';
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('loginSubmit');
+      if(btn) btn.disabled = true;
+      try{
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if(error){
+          if(authErrorEl) authErrorEl.textContent = error.message || 'Could not log in.';
+        } else {
+          await refreshSessionUI();
+          loginForm.reset();
+        }
+      } catch (err){
+        console.error(err);
+        if(authErrorEl) authErrorEl.textContent = 'Unexpected error logging in.';
+      } finally {
+        if(btn) btn.disabled = false;
+      }
+    });
+  }
+
+  if(signupForm){
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if(authErrorEl) authErrorEl.textContent = '';
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPassword').value;
+      const btn = document.getElementById('signupSubmit');
+      if(btn) btn.disabled = true;
+      try{
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { display_name: name } }
+        });
+        if(error){
+          if(authErrorEl) authErrorEl.textContent = error.message || 'Could not create account.';
+        } else {
+          if(authMessageEl){
+            authMessageEl.textContent = 'Check your email to confirm your account, then log in.';
+          }
+          signupForm.reset();
+          setAuthView('login');
+        }
+      } catch (err){
+        console.error(err);
+        if(authErrorEl) authErrorEl.textContent = 'Unexpected error creating account.';
+      } finally {
+        if(btn) btn.disabled = false;
+      }
+    });
+  }
+
+  if(logoutBtn){
+    logoutBtn.addEventListener('click', async () => {
+      try{
+        await supabase.auth.signOut();
+      } catch(err){
+        console.error('Error signing out', err);
+      }
+      await refreshSessionUI();
+    });
+  }
+
+  setAuthView('login');
+  refreshSessionUI();
+
+  supabase.auth.onAuthStateChange((_event, _session) => {
+    refreshSessionUI();
+  });
+</script>
+
 </body>
 </html>
