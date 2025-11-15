@@ -153,6 +153,10 @@
             <input id="loginPassword" type="password" required
                    style="width:100%;margin-top:2px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">
           </label>
+          <button id="forgotPasswordBtn" type="button"
+                  style="margin-top:4px;border:none;background:none;padding:0;color:#2563eb;font-size:13px;cursor:pointer;text-decoration:underline">
+            Forgot password?
+          </button>
         </div>
         <button id="loginSubmit" class="btn primary" type="submit" style="margin-top:10px">Log in</button>
       </form>
@@ -519,9 +523,9 @@
 })();
 </script>
 
-<!-- REAL AUTH: Supabase login, logout, Google, Apple -->
+<!-- REAL AUTH: Supabase login, logout, Google, Apple, forgot password -->
 <script type="module">
-  import { supabase } from '/scripts/supabase-client.js';
+  import { supabase } from './scripts/supabase-client.js';
 
   const authCard = document.getElementById('authCard');
   const accountGrid = document.getElementById('accountGrid');
@@ -539,6 +543,7 @@
   const logoutBtn = document.getElementById('logoutBtn');
   const googleBtn = document.getElementById('googleBtn');
   const appleBtn = document.getElementById('appleBtn');
+  const forgotBtn = document.getElementById('forgotPasswordBtn');
 
   function setAuthView(view){
     if (!loginForm || !signupForm || !showLoginBtn || !showSignupBtn) return;
@@ -703,6 +708,34 @@
         });
       } catch (err){
         console.error('Apple login error', err);
+      }
+    });
+  }
+
+  if(forgotBtn){
+    forgotBtn.addEventListener('click', async () => {
+      if(authErrorEl) authErrorEl.textContent = '';
+      const emailInput = document.getElementById('loginEmail');
+      const email = emailInput.value.trim();
+      if(!email){
+        if(authErrorEl) authErrorEl.textContent = 'Enter your email first, then click “Forgot password?”.';
+        emailInput.focus();
+        return;
+      }
+      try{
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/account.html'
+        });
+        if(error){
+          if(authErrorEl) authErrorEl.textContent = error.message || 'Could not send reset email.';
+        } else {
+          if(authMessageEl){
+            authMessageEl.textContent = 'If an account exists for that email, a reset link has been sent.';
+          }
+        }
+      } catch(err){
+        console.error('Reset password error', err);
+        if(authErrorEl) authErrorEl.textContent = 'Unexpected error sending reset email.';
       }
     });
   }
