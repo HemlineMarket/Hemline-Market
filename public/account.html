@@ -178,12 +178,18 @@
         <button id="signupSubmit" class="btn primary" type="submit" style="margin-top:10px">Create account</button>
       </form>
 
+      <!-- Social login -->
+      <div class="row" style="margin-top:14px">
+        <button type="button" class="btn" id="googleBtn">Continue with Google</button>
+        <button type="button" class="btn" id="appleBtn">Continue with Apple</button>
+      </div>
+
       <div id="authError" class="muted" style="margin-top:8px;color:#b91c1c"></div>
     </div>
   </section>
 
   <!-- MAIN ACCOUNT GRID: only shown when LOGGED IN -->
-  <div class="grid" id="accountGrid">
+  <div class="grid" id="accountGrid" style="display:none">
     <!-- LEFT: Profile -->
     <section class="card">
       <div class="hd">Profile</div>
@@ -244,7 +250,7 @@
       </div>
     </aside>
 
-    <!-- NEW: Status (Vacation hold + Email updates) -->
+    <!-- Status -->
     <aside class="card">
       <div class="hd">Status</div>
       <div class="bd">
@@ -353,7 +359,7 @@
     }
   }catch(e){}
 
-  /* Profile text (kept as a fallback; Supabase will override when logged in) */
+  /* Profile text fallback (Supabase will override when logged in) */
   try{
     const nm=localStorage.getItem("hm.name")||"Your name";
     const em=localStorage.getItem("hm.email")||"you@example.com";
@@ -361,7 +367,6 @@
     document.getElementById("profileEmail").textContent=em;
   }catch(e){}
 
-  /* Switch helpers */
   function bindSwitch(id, key, def=false){
     const el=document.getElementById(id); if(!el) return;
     let on = def; try{ const v=localStorage.getItem(key); if(v!==null) on=(v==="1"); }catch(_){}
@@ -466,7 +471,6 @@
     }catch(e){ alert('Could not open Stripe dashboard.'); console.error(e); }
   });
 
-  /* Stripe status pills */
   async function loadStripeStatus(){
     try{
       const res = await fetch('/api/stripe/account_status');
@@ -515,9 +519,9 @@
 })();
 </script>
 
-<!-- REAL AUTH: Supabase login & logout -->
+<!-- REAL AUTH: Supabase login, logout, Google, Apple -->
 <script type="module">
-  import { supabase } from './scripts/supabase-client.js';
+  import { supabase } from '/scripts/supabase-client.js';
 
   const authCard = document.getElementById('authCard');
   const accountGrid = document.getElementById('accountGrid');
@@ -533,6 +537,8 @@
   const loginForm = document.getElementById('loginForm');
   const signupForm = document.getElementById('signupForm');
   const logoutBtn = document.getElementById('logoutBtn');
+  const googleBtn = document.getElementById('googleBtn');
+  const appleBtn = document.getElementById('appleBtn');
 
   function setAuthView(view){
     if (!loginForm || !signupForm || !showLoginBtn || !showSignupBtn) return;
@@ -672,6 +678,32 @@
         console.error('Error signing out', err);
       }
       await refreshSessionUI();
+    });
+  }
+
+  if(googleBtn){
+    googleBtn.addEventListener('click', async () => {
+      try{
+        await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin + '/account.html' }
+        });
+      } catch (err){
+        console.error('Google login error', err);
+      }
+    });
+  }
+
+  if(appleBtn){
+    appleBtn.addEventListener('click', async () => {
+      try{
+        await supabase.auth.signInWithOAuth({
+          provider: 'apple',
+          options: { redirectTo: window.location.origin + '/account.html' }
+        });
+      } catch (err){
+        console.error('Apple login error', err);
+      }
     });
   }
 
