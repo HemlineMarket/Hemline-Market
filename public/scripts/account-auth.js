@@ -1,7 +1,10 @@
 // public/scripts/account-auth.js
+console.log("HM account-auth.js loaded");
+
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 // ---- CONFIG ----
+// ⬇️ REPLACE these two with your real values from Supabase (Project Settings → API)
 const SUPABASE_URL = "YOUR_SUPABASE_URL";
 const SUPABASE_ANON = "YOUR_ANON_KEY";
 
@@ -29,117 +32,182 @@ const profileEmail = document.getElementById("profileEmail");
 
 // ---- HELPERS ----
 function showModal() {
+  if (!modal) return;
   modal.classList.add("show");
 }
 function hideModal() {
+  if (!modal) return;
   modal.classList.remove("show");
-  errBox.textContent = "";
-  msgBox.textContent = "";
+  if (errBox) errBox.textContent = "";
+  if (msgBox) msgBox.textContent = "";
 }
 function error(msg) {
-  errBox.textContent = msg;
+  if (errBox) errBox.textContent = msg;
 }
 function message(msg) {
-  msgBox.textContent = msg;
+  if (msgBox) msgBox.textContent = msg;
 }
 
 // ---- CLICK AVATAR ----
-avatar.addEventListener("click", async (e) => {
-  e.preventDefault();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) showModal();
-});
+if (avatar) {
+  avatar.addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) showModal();
+    } catch (e) {
+      console.error("Error getting user:", e);
+      error("Problem checking login.");
+    }
+  });
+}
 
 // ---- CLOSE ----
-closeBtn.addEventListener("click", hideModal);
+if (closeBtn) {
+  closeBtn.addEventListener("click", hideModal);
+}
 
 // ---- LOGIN ----
-loginForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  errBox.textContent = "";
-  message("");
+if (loginForm) {
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (errBox) errBox.textContent = "";
+    message("");
 
-  const email = document.getElementById("loginEmail").value.trim();
-  const pw = document.getElementById("loginPassword").value.trim();
+    const email = document.getElementById("loginEmail")?.value.trim();
+    const pw = document.getElementById("loginPassword")?.value.trim();
 
-  const { error: err } = await supabase.auth.signInWithPassword({
-    email,
-    password: pw
+    if (!email || !pw) return error("Email and password are required.");
+
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email,
+        password: pw
+      });
+
+      if (err) return error(err.message);
+
+      message("Logged in");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e2) {
+      console.error("Login error:", e2);
+      error("Could not log in.");
+    }
   });
-
-  if (err) return error(err.message);
-
-  message("Logged in");
-  setTimeout(() => window.location.reload(), 600);
-});
+}
 
 // ---- SIGNUP ----
-signupForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  errBox.textContent = "";
-  message("");
+if (signupForm) {
+  signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (errBox) errBox.textContent = "";
+    message("");
 
-  const name = document.getElementById("signupName").value.trim();
-  const email = document.getElementById("signupEmail").value.trim();
-  const pw = document.getElementById("signupPassword").value.trim();
+    const name = document.getElementById("signupName")?.value.trim();
+    const email = document.getElementById("signupEmail")?.value.trim();
+    const pw = document.getElementById("signupPassword")?.value.trim();
 
-  const { error: err } = await supabase.auth.signUp({
-    email,
-    password: pw,
-    options: { data: { display_name: name } }
+    if (!name || !email || !pw) return error("All fields are required.");
+
+    try {
+      const { error: err } = await supabase.auth.signUp({
+        email,
+        password: pw,
+        options: { data: { display_name: name } }
+      });
+
+      if (err) return error(err.message);
+
+      message("Account created. Check your email.");
+    } catch (e2) {
+      console.error("Signup error:", e2);
+      error("Could not create account.");
+    }
   });
-
-  if (err) return error(err.message);
-
-  message("Account created. Check your email.");
-});
+}
 
 // ---- FORGOT PASSWORD ----
-document.getElementById("forgotPasswordBtn").addEventListener("click", async () => {
-  const email = document.getElementById("loginEmail").value.trim();
-  if (!email) return error("Enter your email");
+const forgotBtn = document.getElementById("forgotPasswordBtn");
+if (forgotBtn) {
+  forgotBtn.addEventListener("click", async () => {
+    const email = document.getElementById("loginEmail")?.value.trim();
+    if (!email) return error("Enter your email first.");
 
-  const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + "/reset.html"
+    try {
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/reset.html"
+      });
+
+      if (err) return error(err.message);
+      message("Reset email sent.");
+    } catch (e2) {
+      console.error("Reset error:", e2);
+      error("Could not send reset email.");
+    }
   });
-
-  if (err) return error(err.message);
-  message("Reset email sent.");
-});
+}
 
 // ---- GOOGLE ----
-googleBtn.addEventListener("click", async () => {
-  const { error: err } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: window.location.href }
+if (googleBtn) {
+  googleBtn.addEventListener("click", async () => {
+    try {
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.href }
+      });
+      if (err) error(err.message);
+    } catch (e2) {
+      console.error("Google OAuth error:", e2);
+      error("Could not start Google login.");
+    }
   });
-  if (err) error(err.message);
-});
+}
 
 // ---- APPLE ----
-appleBtn.addEventListener("click", async () => {
-  const { error: err } = await supabase.auth.signInWithOAuth({
-    provider: "apple",
-    options: { redirectTo: window.location.href }
+if (appleBtn) {
+  appleBtn.addEventListener("click", async () => {
+    try {
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { redirectTo: window.location.href }
+      });
+      if (err) error(err.message);
+    } catch (e2) {
+      console.error("Apple OAuth error:", e2);
+      error("Could not start Apple login.");
+    }
   });
-  if (err) error(err.message);
-});
+}
 
 // ---- LOGOUT ----
-logoutBtn.addEventListener("click", async () => {
-  await supabase.auth.signOut();
-  window.location.reload();
-});
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await supabase.auth.signOut();
+      window.location.reload();
+    } catch (e2) {
+      console.error("Logout error:", e2);
+      error("Could not log out.");
+    }
+  });
+}
 
-// ---- LOAD USER ----
+// ---- LOAD USER ON PAGE LOAD ----
 (async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-  // Logged in
-  accountGrid.style.display = "grid";
-  logoutBtn.style.display = "inline-block";
+    if (accountGrid) accountGrid.style.display = "grid";
+    if (logoutBtn) logoutBtn.style.display = "inline-block";
 
-  profileName.textContent = user.user_metadata?.display_name || "Profile";
-  profileEmail.textContent = user.email || "";
+    if (profileName) {
+      profileName.textContent = user.user_metadata?.display_name || "Profile";
+    }
+    if (profileEmail) {
+      profileEmail.textContent = user.email || "";
+    }
+  } catch (e) {
+    console.error("Init user load error:", e);
+  }
 })();
