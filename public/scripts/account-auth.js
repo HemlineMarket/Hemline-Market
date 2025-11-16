@@ -518,6 +518,7 @@ if (logoutBtn) {
   // Apply initials
   const initials = getInitialsFromFullName(fullName, user);
   applyInitials(initials);
+  if (headerInitials) show(headerInitials, "inline-grid"); // <-- NEW: actually show RK in header
 
   // Ensure email is set (in case hydrateProfile didn't yet)
   if (profileEmail) profileEmail.textContent = user.email || "";
