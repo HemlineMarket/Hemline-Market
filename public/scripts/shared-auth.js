@@ -1,9 +1,9 @@
 // public/scripts/shared-auth.js
-// Shared login/signup + OAuth logic for auth.html
+// Simple shared login / signup / OAuth logic for auth.html
 
 import { supabase } from "./supabase-client.js";
 
-// --------- DOM HELPERS ----------
+// ------- helpers -------
 function $(id) {
   return document.getElementById(id);
 }
@@ -25,98 +25,59 @@ function setMessage(msg) {
   if (messageBox) messageBox.textContent = msg || "";
 }
 
-function setBusy(isBusy) {
-  const allButtons = [
-    $("loginSubmit"),
-    $("signupSubmit"),
-    googleBtn,
-    appleBtn,
-    forgotBtn,
-    magicBtn
-  ].filter(Boolean);
-
-  allButtons.forEach(b => {
-    b.disabled = !!isBusy;
-  });
-
-  if (isBusy) {
-    setMessage("Checking session…");
-  } else if (messageBox && messageBox.textContent === "Checking session…") {
-    setMessage("");
-  }
-}
-
-// --------- SESSION CHECK ----------
-(async () => {
-  try {
-    setBusy(true);
-    const { data, error } = await supabase.auth.getSession();
-    if (error) {
-      console.warn("supabase.getSession error", error);
-    }
-
-    // If already logged in, go to homepage (your preference)
-    if (data && data.session) {
-      window.location.href = "/index.html";
-      return;
-    }
-  } catch (e) {
-    console.error(e);
-  } finally {
-    setBusy(false);
-  }
-})();
-
-// --------- EMAIL / PASSWORD LOGIN ----------
+// ------- email/password login -------
 if (loginForm) {
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     setError("");
     setMessage("");
-    setBusy(true);
 
-    const email = (document.getElementById("loginEmail") || {}).value?.trim();
-    const password = (document.getElementById("loginPassword") || {}).value || "";
+    const emailEl = $("loginEmail");
+    const pwEl    = $("loginPassword");
+    const email   = emailEl ? emailEl.value.trim() : "";
+    const pw      = pwEl ? pwEl.value : "";
 
-   try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: pw,
+      });
       if (error) {
         setError(error.message);
       } else {
         setMessage("Logged in. Redirecting…");
-        // send them to homepage
         window.location.href = "/index.html";
       }
     } catch (err) {
       console.error(err);
       setError("Something went wrong signing in.");
-    } finally {
-      setBusy(false);
     }
   });
 }
 
-// --------- EMAIL / PASSWORD SIGNUP ----------
+// ------- email/password signup -------
 if (signupForm) {
   signupForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     setError("");
     setMessage("");
-    setBusy(true);
 
-    const name  = (document.getElementById("signupName") || {}).value?.trim();
-    const email = (document.getElementById("signupEmail") || {}).value?.trim();
-    const pw    = (document.getElementById("signupPassword") || {}).value || "";
+    const nameEl  = $("signupName");
+    const emailEl = $("signupEmail");
+    const pwEl    = $("signupPassword");
+
+    const name  = nameEl ? nameEl.value.trim() : "";
+    const email = emailEl ? emailEl.value.trim() : "";
+    const pw    = pwEl ? pwEl.value : "";
 
     try {
       const { error } = await supabase.auth.signUp({
         email,
         password: pw,
         options: {
-          data: { display_name: name || null }
-        }
+          data: { display_name: name || null },
+        },
       });
-
       if (error) {
         setError(error.message);
       } else {
@@ -125,28 +86,26 @@ if (signupForm) {
     } catch (err) {
       console.error(err);
       setError("Something went wrong creating your account.");
-    } finally {
-      setBusy(false);
     }
   });
 }
 
-// --------- FORGOT PASSWORD ----------
+// ------- forgot password -------
 if (forgotBtn) {
   forgotBtn.addEventListener("click", async () => {
     setError("");
     setMessage("");
 
-    const email = (document.getElementById("loginEmail") || {}).value?.trim();
+    const emailEl = $("loginEmail");
+    const email   = emailEl ? emailEl.value.trim() : "";
     if (!email) {
       setError("Enter your email first.");
       return;
     }
 
-    setBusy(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "/reset.html"
+        redirectTo: window.location.origin + "/reset.html",
       });
       if (error) {
         setError(error.message);
@@ -156,29 +115,29 @@ if (forgotBtn) {
     } catch (err) {
       console.error(err);
       setError("Could not send reset email.");
-    } finally {
-      setBusy(false);
     }
   });
 }
 
-// --------- MAGIC LINK (OPTIONAL) ----------
+// ------- magic link (optional) -------
 if (magicBtn) {
   magicBtn.addEventListener("click", async () => {
     setError("");
     setMessage("");
 
-    const email = (document.getElementById("loginEmail") || {}).value?.trim();
+    const emailEl = $("loginEmail");
+    const email   = emailEl ? emailEl.value.trim() : "";
     if (!email) {
       setError("Enter your email first.");
       return;
     }
 
-    setBusy(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin + "/index.html" }
+        options: {
+          emailRedirectTo: window.location.origin + "/index.html",
+        },
       });
       if (error) {
         setError(error.message);
@@ -188,31 +147,26 @@ if (magicBtn) {
     } catch (err) {
       console.error(err);
       setError("Could not send sign-in code.");
-    } finally {
-      setBusy(false);
     }
   });
 }
 
-// --------- OAUTH (GOOGLE / APPLE) ----------
+// ------- OAuth (Google / Apple) -------
 async function startOAuth(provider) {
   setError("");
   setMessage("");
-  setBusy(true);
   try {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: window.location.origin + "/index.html"
-      }
+        redirectTo: window.location.origin + "/index.html",
+      },
     });
     if (error) {
-      setBusy(false); // Supabase won’t redirect if there’s an error
       setError(error.message);
     }
   } catch (err) {
     console.error(err);
-    setBusy(false);
     setError("Could not start " + provider + " sign-in.");
   }
 }
