@@ -486,6 +486,9 @@
         </svg>
       </a>
 
+      <!-- Circle with initials (visible when logged IN) -->
+      <a class="hm-avatar is-hidden" id="headerUser" href="account.html" title="Your account">AA</a>
+
       <!-- Header login button (visible when logged OUT) -->
       <a class="cta-header" id="headerLoginBtn" href="auth.html?view=login" aria-label="Log in to Hemline Market">Log in</a>
 
@@ -524,8 +527,8 @@
     <h1>Find your next fabric creation</h1>
     <p>Buy &amp; sell designer-quality fabrics with prepaid, trackable shipping.</p>
 
-    <div class="cta-row">
-      <a class="cta" id="heroLoginBtn" href="auth.html?view=login">Log in</a>
+    <div class="cta-row" id="heroAuthCtas">
+      <a class="cta" href="auth.html?view=login">Log in</a>
       <a class="cta" href="auth.html?view=signup">Sign up</a>
       <a class="cta cta--primary" href="sell.html">Start selling</a>
     </div>
@@ -657,7 +660,10 @@
   </div>
 </footer>
 
-<!-- JS: Hamburger + Search routing + dynamic new listings -->
+<!-- Supabase JS (for session-aware header) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- JS: Hamburger + Search routing + dynamic new listings + header session state -->
 <script>
   (function(){
     const sheet    = document.getElementById('menuSheet');
@@ -687,10 +693,10 @@
     }
 
     if (openBtn && sheet && closeBtn && overlay){
-      openBtn.addEventListener('click', function(e){ e.preventDefault(); openSheet(); });
-      closeBtn.addEventListener('click', function(e){ e.preventDefault(); closeSheet(); });
+      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
       overlay.addEventListener('click', closeSheet);
-      document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSheet(); });
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
     }
 
     // Home search → browse.html?q=...&type=...
@@ -698,18 +704,15 @@
     if (form){
       form.addEventListener('submit', function(e){
         e.preventDefault();
-        const typeEl = document.getElementById('searchType');
-        const qEl    = document.getElementById('searchQ');
-        const type   = typeEl ? (typeEl.value || 'listings') : 'listings';
-        const q      = qEl ? (qEl.value || '') : '';
-        const url    = 'browse.html?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q);
+        const type = (document.getElementById('searchType') || {}).value || 'listings';
+        const q    = (document.getElementById('searchQ') || {}).value || '';
+        const url  = 'browse.html?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q);
         window.location.href = url;
       });
     }
 
     // Dynamic "New Listings" — expects your backend to expose a JSON feed.
-    // Update FEED_URL to your real endpoint that returns an array of listings.
-    const FEED_URL = "api/new-listings.json"; // e.g. your marketplace "new listings" endpoint
+    const FEED_URL = "api/new-listings.json";
     const grid = document.getElementById('newListingsGrid');
     const empty = document.getElementById('newListingsEmpty');
 
@@ -723,29 +726,33 @@
 
         if (empty) empty.classList.add('is-hidden');
 
-        items.slice(0,6).forEach(function(item){
+        items.slice(0,6).forEach(item=>{
           const card = document.createElement('a');
           card.className = 'card';
 
-          // item.url should be a real permalink from your backend.
-          card.href = item.url || 'browse.html?listing=' + encodeURIComponent(item.id || "");
+          card.href = item.url || ('browse.html?listing=' + encodeURIComponent(item.id || ""));
 
           const title = item.title || "Untitled listing";
           const priceDisplay = item.price_display || "";
           const sellerHandle = item.seller_handle || "";
-          const initials = (item.seller_initials || (sellerHandle[1] || "S")).toUpperCase().slice(0,2);
+          const initials = (
+            item.seller_initials ||
+            (sellerHandle && sellerHandle.replace(/^@/, '').slice(0,2)) ||
+            "HM"
+          ).toUpperCase().slice(0,2);
 
-          card.innerHTML = '' +
-            '<div class="thumb" aria-hidden="true">photo</div>' +
-            '<div class="info">' +
-              '<div class="title">' + title + '</div>' +
-              '<div class="meta">' +
-                '<span class="price">' + priceDisplay + '</span>' +
-                '<span class="seller">' +
-                  '<span class="av" aria-hidden="true">' + initials + '</span>' + sellerHandle +
-                '</span>' +
-              '</div>' +
-            '</div>';
+          card.innerHTML = `
+            <div class="thumb" aria-hidden="true">photo</div>
+            <div class="info">
+              <div class="title">${title}</div>
+              <div class="meta">
+                <span class="price">${priceDisplay}</span>
+                <span class="seller">
+                  <span class="av" aria-hidden="true">${initials}</span>${sellerHandle}
+                </span>
+              </div>
+            </div>
+          `;
           grid.appendChild(card);
         });
       }catch(err){
@@ -754,51 +761,59 @@
     }
 
     loadNewListings();
-  })();
-</script>
 
-<!-- Supabase: check session so login stays "on" across pages -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  (function(){
-    if (!window.supabase) return;
+    // ----- Header session state (stay logged in across pages) -----
+    const headerLoginBtn = document.getElementById('headerLoginBtn');
+    const headerUser     = document.getElementById('headerUser');
+    const heroAuthCtas   = document.getElementById('heroAuthCtas');
 
-    var supabaseClient = window.supabase.createClient(
-      "https://clkizksbvxjkoatdajgd.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-    );
+    if (window.supabase && headerLoginBtn && headerUser) {
+      const supabaseClient = window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+      );
 
-    function applySessionState(){
-      supabaseClient.auth.getSession().then(function(result){
-        var session = result && result.data && result.data.session;
-        var headerLogin = document.getElementById('headerLoginBtn');
-        var heroLogin   = document.getElementById('heroLoginBtn');
+      function applyUserToHeader(user) {
+        if (user) {
+          // Derive initials from full_name or email
+          let initials = "HM";
+          const meta = user.user_metadata || {};
+          if (meta.full_name && typeof meta.full_name === "string") {
+            const parts = meta.full_name.trim().split(/\s+/);
+            initials = parts.slice(0,2).map(p=>p[0]).join("").toUpperCase();
+          } else if (user.email) {
+            const local = user.email.split("@")[0];
+            initials = local.slice(0,2).toUpperCase();
+          }
 
-        if (session && session.user){
-          // User is logged in → hide login buttons
-          if (headerLogin) headerLogin.classList.add('is-hidden');
-          if (heroLogin)   heroLogin.classList.add('is-hidden');
+          headerUser.textContent = initials;
+          headerUser.classList.remove('is-hidden');
+          headerLoginBtn.classList.add('is-hidden');
+          if (heroAuthCtas) heroAuthCtas.classList.add('is-hidden');
         } else {
-          // Logged out → show login buttons
-          if (headerLogin) headerLogin.classList.remove('is-hidden');
-          if (heroLogin)   heroLogin.classList.remove('is-hidden');
+          headerUser.classList.add('is-hidden');
+          headerLoginBtn.classList.remove('is-hidden');
+          if (heroAuthCtas) heroAuthCtas.classList.remove('is-hidden');
         }
-      }).catch(function(err){
-        console.warn('Supabase session check failed on homepage:', err);
+      }
+
+      (async () => {
+        try {
+          const { data:{ session } } = await supabaseClient.auth.getSession();
+          applyUserToHeader(session?.user || null);
+        } catch (e) {
+          console.warn("Header session check failed:", e);
+        }
+      })();
+
+      supabaseClient.auth.onAuthStateChange((_event, session) => {
+        applyUserToHeader(session?.user || null);
       });
     }
-
-    // Run once on load
-    applySessionState();
-
-    // Also respond to auth changes (e.g., OAuth redirect landing on homepage)
-    supabaseClient.auth.onAuthStateChange(function(){
-      applySessionState();
-    });
   })();
 </script>
 
-<!-- Cart hooks (leave as-is if these files exist in your project) -->
+<!-- Cart hooks -->
 <script src="scripts/cart.js"></script>
 <script src="scripts/cart-hooks.js"></script>
 <script src="assets/add-to-cart.js" defer></script>
