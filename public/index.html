@@ -223,7 +223,7 @@
       align-items:center;
       justify-content:center;
       height:36px;
-      border:1.5px solid(var(--hm-border));
+      border:1.5px solid var(--hm-border);
       border-radius:999px;
       background:#fff;
       font-weight:700;
@@ -488,8 +488,6 @@
 
       <!-- Header login button (visible when logged OUT) -->
       <a class="cta-header" id="headerLoginBtn" href="auth.html?view=login" aria-label="Log in to Hemline Market">Log in</a>
-      <!-- Header account button (visible when logged IN) -->
-      <a class="cta-header is-hidden" id="headerAccountBtn" href="account.html" aria-label="View your Hemline Market account">Account</a>
 
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
@@ -527,7 +525,7 @@
     <p>Buy &amp; sell designer-quality fabrics with prepaid, trackable shipping.</p>
 
     <div class="cta-row">
-      <a class="cta" href="auth.html?view=login">Log in</a>
+      <a class="cta" id="heroLoginBtn" href="auth.html?view=login">Log in</a>
       <a class="cta" href="auth.html?view=signup">Sign up</a>
       <a class="cta cta--primary" href="sell.html">Start selling</a>
     </div>
@@ -689,10 +687,10 @@
     }
 
     if (openBtn && sheet && closeBtn && overlay){
-      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
-      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+      openBtn.addEventListener('click', function(e){ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', function(e){ e.preventDefault(); closeSheet(); });
       overlay.addEventListener('click', closeSheet);
-      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+      document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSheet(); });
     }
 
     // Home search → browse.html?q=...&type=...
@@ -700,9 +698,11 @@
     if (form){
       form.addEventListener('submit', function(e){
         e.preventDefault();
-        const type = (document.getElementById('searchType') || {}).value || 'listings';
-        const q    = (document.getElementById('searchQ') || {}).value || '';
-        const url  = 'browse.html?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q);
+        const typeEl = document.getElementById('searchType');
+        const qEl    = document.getElementById('searchQ');
+        const type   = typeEl ? (typeEl.value || 'listings') : 'listings';
+        const q      = qEl ? (qEl.value || '') : '';
+        const url    = 'browse.html?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q);
         window.location.href = url;
       });
     }
@@ -723,7 +723,7 @@
 
         if (empty) empty.classList.add('is-hidden');
 
-        items.slice(0,6).forEach(item=>{
+        items.slice(0,6).forEach(function(item){
           const card = document.createElement('a');
           card.className = 'card';
 
@@ -735,18 +735,17 @@
           const sellerHandle = item.seller_handle || "";
           const initials = (item.seller_initials || (sellerHandle[1] || "S")).toUpperCase().slice(0,2);
 
-          card.innerHTML = `
-            <div class="thumb" aria-hidden="true">photo</div>
-            <div class="info">
-              <div class="title">${title}</div>
-              <div class="meta">
-                <span class="price">${priceDisplay}</span>
-                <span class="seller">
-                  <span class="av" aria-hidden="true">${initials}</span>${sellerHandle}
-                </span>
-              </div>
-            </div>
-          `;
+          card.innerHTML = '' +
+            '<div class="thumb" aria-hidden="true">photo</div>' +
+            '<div class="info">' +
+              '<div class="title">' + title + '</div>' +
+              '<div class="meta">' +
+                '<span class="price">' + priceDisplay + '</span>' +
+                '<span class="seller">' +
+                  '<span class="av" aria-hidden="true">' + initials + '</span>' + sellerHandle +
+                '</span>' +
+              '</div>' +
+            '</div>';
           grid.appendChild(card);
         });
       }catch(err){
@@ -758,38 +757,43 @@
   })();
 </script>
 
-<!-- Supabase auth state → header login/account toggle -->
-<script src="scripts/supabase-client.js"></script>
+<!-- Supabase: check session so login stays "on" across pages -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  (async function(){
+  (function(){
     if (!window.supabase) return;
 
-    const loginBtn   = document.getElementById('headerLoginBtn');
-    const accountBtn = document.getElementById('headerAccountBtn');
+    var supabaseClient = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+    );
 
-    function updateHeader(user){
-      if (!loginBtn || !accountBtn) return;
-      if (user){
-        loginBtn.classList.remove('is-hidden'); // ensure both start consistent
-        accountBtn.classList.remove('is-hidden');
-        loginBtn.classList.add('is-hidden');
-      }else{
-        loginBtn.classList.remove('is-hidden');
-        accountBtn.classList.add('is-hidden');
-      }
+    function applySessionState(){
+      supabaseClient.auth.getSession().then(function(result){
+        var session = result && result.data && result.data.session;
+        var headerLogin = document.getElementById('headerLoginBtn');
+        var heroLogin   = document.getElementById('heroLoginBtn');
+
+        if (session && session.user){
+          // User is logged in → hide login buttons
+          if (headerLogin) headerLogin.classList.add('is-hidden');
+          if (heroLogin)   heroLogin.classList.add('is-hidden');
+        } else {
+          // Logged out → show login buttons
+          if (headerLogin) headerLogin.classList.remove('is-hidden');
+          if (heroLogin)   heroLogin.classList.remove('is-hidden');
+        }
+      }).catch(function(err){
+        console.warn('Supabase session check failed on homepage:', err);
+      });
     }
 
-    try{
-      // Initial check (page load / refresh)
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) updateHeader(data.user || null);
-    }catch(e){
-      console.warn('Supabase getUser failed on homepage:', e);
-    }
+    // Run once on load
+    applySessionState();
 
-    // Keep in sync for any future auth changes
-    supabase.auth.onAuthStateChange((_event, session) => {
-      updateHeader(session?.user || null);
+    // Also respond to auth changes (e.g., OAuth redirect landing on homepage)
+    supabaseClient.auth.onAuthStateChange(function(){
+      applySessionState();
     });
   })();
 </script>
