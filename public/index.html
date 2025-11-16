@@ -223,7 +223,7 @@
       align-items:center;
       justify-content:center;
       height:36px;
-      border:1.5px solid var(--hm-border);
+      border:1.5px solid(var(--hm-border));
       border-radius:999px;
       background:#fff;
       font-weight:700;
@@ -488,6 +488,8 @@
 
       <!-- Header login button (visible when logged OUT) -->
       <a class="cta-header" id="headerLoginBtn" href="auth.html?view=login" aria-label="Log in to Hemline Market">Log in</a>
+      <!-- Header account button (visible when logged IN) -->
+      <a class="cta-header is-hidden" id="headerAccountBtn" href="account.html" aria-label="View your Hemline Market account">Account</a>
 
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
@@ -753,6 +755,42 @@
     }
 
     loadNewListings();
+  })();
+</script>
+
+<!-- Supabase auth state → header login/account toggle -->
+<script src="scripts/supabase-client.js"></script>
+<script>
+  (async function(){
+    if (!window.supabase) return;
+
+    const loginBtn   = document.getElementById('headerLoginBtn');
+    const accountBtn = document.getElementById('headerAccountBtn');
+
+    function updateHeader(user){
+      if (!loginBtn || !accountBtn) return;
+      if (user){
+        loginBtn.classList.remove('is-hidden'); // ensure both start consistent
+        accountBtn.classList.remove('is-hidden');
+        loginBtn.classList.add('is-hidden');
+      }else{
+        loginBtn.classList.remove('is-hidden');
+        accountBtn.classList.add('is-hidden');
+      }
+    }
+
+    try{
+      // Initial check (page load / refresh)
+      const { data, error } = await supabase.auth.getUser();
+      if (!error) updateHeader(data.user || null);
+    }catch(e){
+      console.warn('Supabase getUser failed on homepage:', e);
+    }
+
+    // Keep in sync for any future auth changes
+    supabase.auth.onAuthStateChange((_event, session) => {
+      updateHeader(session?.user || null);
+    });
   })();
 </script>
 
