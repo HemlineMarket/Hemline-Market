@@ -1,89 +1,232 @@
 // public/scripts/shared-auth.js
-// Keeps the header initials + header login button in sync with Supabase auth.
+// Shared login/signup + OAuth logic for auth.html
 
 import { supabase } from "./supabase-client.js";
 
-async function initHeaderAuth() {
-  const avatar = document.getElementById("avatar");
-  const headerLoginBtn = document.getElementById("headerLoginBtn");
+// --------- DOM HELPERS ----------
+function $(id) {
+  return document.getElementById(id);
+}
 
-  // If a page doesn't have the header, do nothing.
-  if (!avatar && !headerLoginBtn) return;
+const loginForm   = $("loginForm");
+const signupForm  = $("signupForm");
+const googleBtn   = $("googleBtn");
+const appleBtn    = $("appleBtn");
+const forgotBtn   = $("forgotPasswordBtn");
+const magicBtn    = $("magicLinkBtn");
+const errorBox    = $("authError");
+const messageBox  = $("authMessage");
 
-  // Get current user from Supabase
-  const { data, error } = await supabase.auth.getUser();
-  const user = data?.user || null;
+function setError(msg) {
+  if (errorBox) errorBox.textContent = msg || "";
+}
 
-  // Helper: set initials
-  function setInitials(userObj) {
-    if (!avatar) return;
+function setMessage(msg) {
+  if (messageBox) messageBox.textContent = msg || "";
+}
 
-    let initials = "";
-    const name =
-      userObj?.user_metadata?.display_name ||
-      userObj?.user_metadata?.full_name ||
-      "";
+function setBusy(isBusy) {
+  const allButtons = [
+    $("loginSubmit"),
+    $("signupSubmit"),
+    googleBtn,
+    appleBtn,
+    forgotBtn,
+    magicBtn
+  ].filter(Boolean);
 
-    if (name) {
-      initials = name
-        .trim()
-        .split(/\s+/)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 3)
-        .toUpperCase();
-    }
+  allButtons.forEach(b => {
+    b.disabled = !!isBusy;
+  });
 
-    if (!initials && userObj?.email) {
-      initials = userObj.email[0].toUpperCase();
-    }
-
-    if (!initials) initials = "U";
-
-    avatar.textContent = initials;
-    avatar.style.backgroundImage = "";
-    avatar.setAttribute("aria-label", `Account (${initials})`);
-  }
-
-  if (!user) {
-    // Not logged in
-    if (avatar) {
-      avatar.textContent = "AA";
-      avatar.style.backgroundImage = "";
-      avatar.setAttribute("aria-label", "Log in to Hemline Market");
-
-      avatar.addEventListener("click", (e) => {
-        // Always send logged-out users to the auth page, not a dead account page
-        e.preventDefault();
-        window.location.href = "auth.html?view=login";
-      });
-    }
-
-    if (headerLoginBtn) {
-      headerLoginBtn.style.display = "inline-flex";
-      headerLoginBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        window.location.href = "auth.html?view=login";
-      });
-    }
-
-    return;
-  }
-
-  // Logged in
-  setInitials(user);
-
-  if (headerLoginBtn) {
-    headerLoginBtn.style.display = "none";
-  }
-
-  if (avatar) {
-    avatar.href = "account.html";
+  if (isBusy) {
+    setMessage("Checking session…");
+  } else if (messageBox && messageBox.textContent === "Checking session…") {
+    setMessage("");
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  initHeaderAuth().catch((err) => {
-    console.error("Header auth init failed", err);
+// --------- SESSION CHECK ----------
+(async () => {
+  try {
+    setBusy(true);
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.warn("supabase.getSession error", error);
+    }
+
+    // If already logged in, go to homepage (your preference)
+    if (data && data.session) {
+      window.location.href = "/index.html";
+      return;
+    }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setBusy(false);
+  }
+})();
+
+// --------- EMAIL / PASSWORD LOGIN ----------
+if (loginForm) {
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    setBusy(true);
+
+    const email = (document.getElementById("loginEmail") || {}).value?.trim();
+    const password = (document.getElementById("loginPassword") || {}).value || "";
+
+   try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage("Logged in. Redirecting…");
+        // send them to homepage
+        window.location.href = "/index.html";
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong signing in.");
+    } finally {
+      setBusy(false);
+    }
   });
-});
+}
+
+// --------- EMAIL / PASSWORD SIGNUP ----------
+if (signupForm) {
+  signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    setBusy(true);
+
+    const name  = (document.getElementById("signupName") || {}).value?.trim();
+    const email = (document.getElementById("signupEmail") || {}).value?.trim();
+    const pw    = (document.getElementById("signupPassword") || {}).value || "";
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password: pw,
+        options: {
+          data: { display_name: name || null }
+        }
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage("Account created. Check your email to confirm.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong creating your account.");
+    } finally {
+      setBusy(false);
+    }
+  });
+}
+
+// --------- FORGOT PASSWORD ----------
+if (forgotBtn) {
+  forgotBtn.addEventListener("click", async () => {
+    setError("");
+    setMessage("");
+
+    const email = (document.getElementById("loginEmail") || {}).value?.trim();
+    if (!email) {
+      setError("Enter your email first.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/reset.html"
+      });
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage("Password reset email sent.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Could not send reset email.");
+    } finally {
+      setBusy(false);
+    }
+  });
+}
+
+// --------- MAGIC LINK (OPTIONAL) ----------
+if (magicBtn) {
+  magicBtn.addEventListener("click", async () => {
+    setError("");
+    setMessage("");
+
+    const email = (document.getElementById("loginEmail") || {}).value?.trim();
+    if (!email) {
+      setError("Enter your email first.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin + "/index.html" }
+      });
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage("Check your email for a sign-in link.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Could not send sign-in code.");
+    } finally {
+      setBusy(false);
+    }
+  });
+}
+
+// --------- OAUTH (GOOGLE / APPLE) ----------
+async function startOAuth(provider) {
+  setError("");
+  setMessage("");
+  setBusy(true);
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: window.location.origin + "/index.html"
+      }
+    });
+    if (error) {
+      setBusy(false); // Supabase won’t redirect if there’s an error
+      setError(error.message);
+    }
+  } catch (err) {
+    console.error(err);
+    setBusy(false);
+    setError("Could not start " + provider + " sign-in.");
+  }
+}
+
+if (googleBtn) {
+  googleBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    startOAuth("google");
+  });
+}
+
+if (appleBtn) {
+  appleBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    startOAuth("apple");
+  });
+}
