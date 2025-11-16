@@ -182,16 +182,40 @@
       background:#fff;
       color:#374151;
     }
-    .list{display:grid;gap:10px}
-    .item{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
+
+    .field-label{
+      font-size:13px;
+      display:block;
+      margin-top:6px;
+    }
+    .field-input,
+    .field-textarea,
+    .field-select{
+      width:100%;
+      margin-top:4px;
+      padding:8px 10px;
+      border-radius:8px;
       border:1px solid var(--border);
-      border-radius:10px;
-      padding:10px;
+      font:inherit;
+    }
+    .field-textarea{resize:vertical;}
+
+    .section-title{
+      font-weight:700;
+      margin-bottom:4px;
+    }
+    .section-note{
+      font-size:13px;
+      color:var(--muted);
+      margin:0 0 8px;
     }
 
+    .divider{
+      border-top:1px solid var(--border);
+      margin:12px 0;
+    }
+
+    /* Switch */
     .switch{
       position:relative;
       width:46px;height:26px;
@@ -229,19 +253,7 @@
     .footer-links{display:flex;gap:14px;flex-wrap:wrap}
     .copy{color:#6b7280;font-size:14px}
 
-    /* Payouts helper */
-    .status-rail{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-    .pill.red{color:#7f1d1d;border-color:#fecaca;background:#fef2f2}
-    .pill.green{color:#065f46;border-color:#a7f3d0;background:#ecfdf5}
-    .helper{
-      border:1px dashed var(--border);
-      border-radius:10px;
-      padding:10px;
-      background:#fcfcfc;
-    }
-    .helper p{margin:8px 0}
-
-    /* AUTH DRAWER */
+    /* Auth drawer */
     .auth-overlay{
       position:fixed;
       inset:0;
@@ -502,11 +514,11 @@
   <h1>Account</h1>
   <p class="subtle">Manage your profile, sales, purchases, vacation hold, and payouts.</p>
 
-  <!-- Logged-out state (JS toggles visibility) -->
+  <!-- Logged-out state (JS will show this if there is no session) -->
   <section id="accountLoggedOut" class="card" style="display:none;margin-bottom:14px;">
     <div class="bd">
       <h2 style="margin:0 0 6px;font-size:18px;">You’re not signed in</h2>
-      <p class="muted" style="margin:0 0 10px;font-size:14px;">
+      <p class="subtle" style="margin:0 0 10px;">
         Sign in to see your profile, purchases, sales, and payouts.
       </p>
       <button type="button" class="btn primary" onclick="window.location.href='auth.html'">
@@ -515,63 +527,61 @@
     </div>
   </section>
 
-  <!-- Main account content: shown when logged IN (JS toggles display) -->
-  <div class="grid" id="accountGrid" style="display:none">
+  <!-- Logged-in grid -->
+  <div class="grid" id="accountGrid" style="display:none;">
     <!-- LEFT: Profile -->
     <section class="card">
       <div class="hd">Profile</div>
       <div class="bd">
-        <!-- Top summary row -->
-        <div class="row" style="align-items:flex-start;gap:12px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span id="profileAvatar" class="hm-avatar" style="width:40px;height:40px;font-size:14px">AA</span>
+        <!-- Summary view (always visible when logged in) -->
+        <div id="profileSummary" class="row" style="align-items:flex-start;gap:12px;margin-bottom:10px;">
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <span id="profileAvatar" class="hm-avatar" style="width:40px;height:40px;font-size:14px;">AA</span>
             <div>
-              <div id="profileName" style="font-weight:800">Your name</div>
-              <div id="profileEmail" class="muted" style="font-size:13px">you@example.com</div>
-              <div id="profileMeta" style="margin-top:4px;font-size:13px;display:none;">
-                <div id="profileLocation" class="muted"></div>
-                <div id="profileBio" class="muted"></div>
-                <div id="profileWebsiteWrapper" class="muted" style="margin-top:2px;display:none;">
-                  <a id="profileWebsite" href="#" target="_blank" rel="noopener noreferrer"></a>
-                </div>
+              <div id="profileName" style="font-weight:800;">Your name</div>
+              <div id="profileEmail" class="muted" style="font-size:13px;">you@example.com</div>
+              <div id="profileLocationSummary" class="muted" style="font-size:13px;margin-top:4px;display:none;"></div>
+              <div id="profileBioSummary" class="muted" style="font-size:13px;margin-top:2px;display:none;"></div>
+              <div id="profileWebsiteWrapper" class="muted" style="font-size:13px;margin-top:2px;display:none;">
+                <a id="profileWebsite" href="#" target="_blank" rel="noopener noreferrer"></a>
               </div>
             </div>
           </div>
           <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
-            <!-- Future: this will open avatar upload via JS -->
             <button type="button" class="btn" id="avatarChangeBtn">Edit photo</button>
-            <a class="btn" href="profile-edit.html">Edit profile</a>
-            <button id="logoutBtn" class="btn" type="button" style="display:none">Log out</button>
+            <button type="button" class="btn" id="editProfileBtn">Edit profile</button>
+            <button id="logoutBtn" class="btn" type="button" style="display:none;">Log out</button>
           </div>
         </div>
 
-        <!-- Hidden file input for profile photo (wired in JS later) -->
-        <input id="avatarInput" type="file" accept="image/*" style="display:none"/>
+        <!-- Hidden file input for profile photo (JS will wire to Supabase later) -->
+        <input id="avatarInput" type="file" accept="image/*" style="display:none;"/>
 
-        <!-- Editable fields -->
-        <div style="display:grid;gap:8px;margin-top:10px;">
-          <label style="font-size:13px;">First name
-            <input id="firstNameInput" type="text" style="width:100%;margin-top:4px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font:inherit;">
+        <!-- Edit form: JS will show this when profile is incomplete or “Edit profile” is clicked -->
+        <form id="profileForm" style="display:none;margin-top:4px;">
+          <label class="field-label">First name
+            <input id="firstNameInput" type="text" class="field-input">
           </label>
-          <label style="font-size:13px;">Last name
-            <input id="lastNameInput" type="text" style="width:100%;margin-top:4px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font:inherit;">
+          <label class="field-label">Last name
+            <input id="lastNameInput" type="text" class="field-input">
           </label>
-          <label style="font-size:13px;">Location
-            <input id="locationInput" type="text" placeholder="City, State or ZIP (optional)" style="width:100%;margin-top:4px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font:inherit;">
+          <label class="field-label">Location
+            <input id="locationInput" type="text" class="field-input" placeholder="City, State or ZIP (optional)">
           </label>
-          <label style="font-size:13px;">Bio
-            <textarea id="bioInput" rows="3" placeholder="Tell us your story (optional)" style="width:100%;margin-top:4px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font:inherit;resize:vertical;"></textarea>
+          <label class="field-label">Bio
+            <textarea id="bioInput" rows="3" class="field-textarea" placeholder="Tell us your story (optional)"></textarea>
           </label>
-          <label style="font-size:13px;">Website / social link
-            <input id="websiteInput" type="url" placeholder="https://example.com (optional)" style="width:100%;margin-top:4px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font:inherit;">
+          <label class="field-label">Website / social link
+            <input id="websiteInput" type="url" class="field-input" placeholder="https://example.com (optional)">
           </label>
-        </div>
 
-        <div class="row" style="margin-top:10px;">
-          <button id="saveProfileBtn" class="btn primary" type="button">Save profile</button>
-        </div>
+          <div class="row" style="margin-top:10px;">
+            <button id="saveProfileBtn" class="btn primary" type="button">Save profile</button>
+            <button id="cancelProfileEditBtn" class="btn" type="button">Cancel</button>
+          </div>
+        </form>
 
-        <div class="row" style="margin-top:10px;">
+        <div class="row" style="margin-top:12px;">
           <a href="purchases.html" class="btn">Purchases</a>
           <a href="sales.html" class="btn">Sales</a>
           <a href="atelier.html" class="btn">Your Atelier</a>
@@ -579,38 +589,75 @@
       </div>
     </section>
 
-    <!-- RIGHT: Account & Payouts (still dev-style for now; wiring comes later) -->
+    <!-- RIGHT: Payouts & Shipping (Stripe + Shippo guidance for real users) -->
     <aside class="card">
-      <div class="hd">Account &amp; Payouts</div>
+      <div class="hd">Payouts &amp; shipping</div>
       <div class="bd">
-        <div class="status-rail">
-          <span id="pillCharges" class="pill red">Charges: Disabled</span>
-          <span id="pillPayouts" class="pill red">Payouts: Disabled</span>
-          <span id="pillReqs" class="pill">Requirements: —</span>
+        <!-- Payouts section -->
+        <div>
+          <div class="section-title">Payouts</div>
+          <p id="payoutStatusText" class="section-note">
+            Set up payouts so we can send you money from your fabric sales.
+          </p>
+          <div class="row" style="margin-top:4px;margin-bottom:8px;">
+            <button id="payoutSetupBtn" class="btn primary" type="button">
+              Set up payouts with Stripe
+            </button>
+            <button id="payoutManageBtn" class="btn" type="button" style="display:none;">
+              Manage payouts
+            </button>
+          </div>
+          <p class="section-note">
+            We’ll send you to a secure Stripe page to enter your bank and tax details. Hemline never sees your full bank information.
+          </p>
         </div>
 
-        <div class="row" style="margin-top:6px">
-          <button id="btnFinish" class="btn primary" type="button">Finish setup</button>
-          <button id="btnUpdate" class="btn" type="button">Update payout details</button>
-          <button id="btnDash" class="btn" type="button">Open Stripe dashboard</button>
-        </div>
+        <div class="divider"></div>
 
-        <div class="helper" style="margin-top:10px">
-          <strong>How payouts &amp; shipping work</strong>
-          <p>Hemline partners with <strong>Stripe</strong> to send your earnings and <strong>Shippo</strong> to create shipping labels.</p>
-          <p>When payouts and labels are fully wired, this card will guide you through setup before you sell.</p>
-        </div>
+        <!-- Shipping section -->
+        <div>
+          <div class="section-title">Shipping labels</div>
+          <p class="section-note">
+            Hemline uses Shippo to create shipping labels when you make a sale. We’ll use your default ship-from address below.
+          </p>
 
-        <div class="list" style="margin-top:12px">
-          <div class="item"><div>Stripe Account</div><div id="acctId" class="muted">—</div></div>
-          <div class="item"><div>Country</div><div id="acctCountry" class="muted">—</div></div>
-          <div class="item"><div>Email</div><div id="acctEmail" class="muted">—</div></div>
-          <div class="item"><div>Capabilities</div><div id="acctCaps" class="muted">—</div></div>
-        </div>
+          <label class="field-label">Ship-from name
+            <input id="shipFromName" type="text" class="field-input" placeholder="Name that appears on labels">
+          </label>
+          <label class="field-label">Street address
+            <input id="shipFromStreet" type="text" class="field-input">
+          </label>
+          <label class="field-label">Apartment, suite, etc. (optional)
+            <input id="shipFromStreet2" type="text" class="field-input">
+          </label>
+          <label class="field-label">City
+            <input id="shipFromCity" type="text" class="field-input">
+          </label>
+          <div class="row" style="margin-top:4px;">
+            <label class="field-label" style="flex:1;min-width:0;">State / Province
+              <input id="shipFromState" type="text" class="field-input">
+            </label>
+            <label class="field-label" style="flex:1;min-width:0;">Postal code
+              <input id="shipFromZip" type="text" class="field-input">
+            </label>
+          </div>
+          <label class="field-label">Country
+            <select id="shipFromCountry" class="field-select">
+              <option value="US">United States</option>
+              <!-- add more countries later if you expand -->
+            </select>
+          </label>
 
-        <p class="muted" style="margin-top:10px">
-          We use <strong>Stripe</strong> for secure payouts and tax info, and <strong>Shippo</strong> for shipping labels. Hemline never sees your bank details.
-        </p>
+          <div class="row" style="margin-top:10px;">
+            <button id="saveShippingSettingsBtn" class="btn" type="button">
+              Save shipping address
+            </button>
+          </div>
+
+          <p class="section-note" style="margin-top:8px;">
+            When you have a sale, your <strong>Sales</strong> page will let you create and download a label using this address.
+          </p>
+        </div>
       </div>
     </aside>
 
@@ -632,8 +679,8 @@
     <section class="card">
       <div class="hd">Security</div>
       <div class="bd">
-        <div class="row" style="margin-top:0">
-          <a class="btn" href="#" onclick="alert('Password reset link sent (demo).')">Change password</a>
+        <div class="row" style="margin-top:0;">
+          <a class="btn" href="#" onclick="alert('Password reset link sent (demo).');">Change password</a>
         </div>
       </div>
     </section>
@@ -643,9 +690,9 @@
       <div class="hd">Privacy</div>
       <div class="bd">
         <div class="row">
-          <button class="btn" onclick="alert('Account deletion flow (demo).')">Delete account</button>
+          <button class="btn" onclick="alert('Account deletion flow (demo).');">Delete account</button>
         </div>
-        <p class="muted" style="margin-top:10px">Learn more in our <a href="privacy.html">Privacy Policy</a>.</p>
+        <p class="muted" style="margin-top:10px;">Learn more in our <a href="privacy.html">Privacy Policy</a>.</p>
       </div>
     </section>
   </div>
@@ -670,7 +717,7 @@
     <div class="auth-header">
       <div class="auth-title" id="authTitle">Login</div>
       <button class="auth-close" id="authCloseBtn" aria-label="Close login">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
