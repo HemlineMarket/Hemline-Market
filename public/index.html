@@ -28,6 +28,7 @@
     }
     /* Utility */
     .is-hidden{display:none !important;}
+    .muted-small{margin:10px 2px 0;font-size:13px;color:var(--hm-muted);}
 
     /* Header */
     .hm-header{
@@ -400,6 +401,18 @@
     }
     .panel .panel-body{padding:8px 10px}
 
+    .likes-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:6px;
+    }
+    .like{
+      height:40px;
+      border-radius:999px;
+      border:1px dashed var(--hm-border);
+      background:rgba(255,255,255,.9);
+    }
+
     /* Footer */
     .hm-footer{
       background:#fff;
@@ -528,7 +541,7 @@
       <button type="submit" aria-label="Search">Search</button>
     </form>
 
-    <!-- Filters are present but visually hidden until wired up -->
+    <!-- Filter tabs + panels are visually hidden until wired to real data -->
     <div class="tab-row is-hidden" id="tabRow" aria-hidden="true">
       <button type="button" class="tab" data-panel="pContent" aria-expanded="false">Content</button>
       <button type="button" class="tab" data-panel="pColor"   aria-expanded="false">Color</button>
@@ -591,45 +604,12 @@
 <div class="layout">
   <main class="section" aria-label="New listings">
     <h2>New Listings</h2>
-    <div class="grid">
-      <!-- Use browse.html so links are real pages, not fake listing URLs -->
-      <a class="card" href="browse.html?type=listings" aria-label="Browse wool crepe listings">
-        <div class="thumb" aria-hidden="true">photo</div>
-        <div class="info">
-          <div class="title">Wool Crepe — Saffron</div>
-          <div class="meta">
-            <span class="price">$28/yd</span>
-            <span class="seller">
-              <span class="av" aria-hidden="true">F</span>@FabricFolio
-            </span>
-          </div>
-        </div>
-      </a>
-      <a class="card" href="browse.html?type=listings" aria-label="Browse cotton poplin listings">
-        <div class="thumb" aria-hidden="true">photo</div>
-        <div class="info">
-          <div class="title">Cotton Poplin — Moss</div>
-          <div class="meta">
-            <span class="price">$14/yd</span>
-            <span class="seller">
-              <span class="av" aria-hidden="true">S</span>@SewSimple
-            </span>
-          </div>
-        </div>
-      </a>
-      <a class="card" href="browse.html?type=listings" aria-label="Browse silk charmeuse listings">
-        <div class="thumb" aria-hidden="true">photo</div>
-        <div class="info">
-          <div class="title">Silk Charmeuse — Midnight</div>
-          <div class="meta">
-            <span class="price">$36/yd</span>
-            <span class="seller">
-              <span class="av" aria-hidden="true">L</span>@LoomLab
-            </span>
-          </div>
-        </div>
-      </a>
-    </div>
+
+    <!-- Dynamic new listings grid -->
+    <div class="grid" id="newListingsGrid" aria-live="polite"></div>
+    <p id="newListingsEmpty" class="muted-small">
+      Newest fabrics will appear here as they’re published.
+    </p>
 
     <div class="below-rails">
       <section class="panel" aria-label="Favorites">
@@ -677,7 +657,7 @@
   </div>
 </footer>
 
-<!-- JS: Hamburger + Search routing -->
+<!-- JS: Hamburger + Search routing + dynamic new listings -->
 <script>
   (function(){
     const sheet    = document.getElementById('menuSheet');
@@ -724,6 +704,55 @@
         window.location.href = url;
       });
     }
+
+    // Dynamic "New Listings" — expects your backend to expose a JSON feed.
+    // Update FEED_URL to your real endpoint that returns an array of listings.
+    const FEED_URL = "api/new-listings.json"; // e.g. your marketplace "new listings" endpoint
+    const grid = document.getElementById('newListingsGrid');
+    const empty = document.getElementById('newListingsEmpty');
+
+    async function loadNewListings(){
+      if (!grid) return;
+      try{
+        const res = await fetch(FEED_URL, { cache:"no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const items = await res.json();
+        if (!Array.isArray(items) || !items.length) return;
+
+        if (empty) empty.classList.add('is-hidden');
+
+        items.slice(0,6).forEach(item=>{
+          const card = document.createElement('a');
+          card.className = 'card';
+
+          // item.url should be a real permalink from your backend.
+          card.href = item.url || 'browse.html?listing=' + encodeURIComponent(item.id || "");
+
+          const title = item.title || "Untitled listing";
+          const priceDisplay = item.price_display || "";
+          const sellerHandle = item.seller_handle || "";
+          const initials = (item.seller_initials || (sellerHandle[1] || "S")).toUpperCase().slice(0,2);
+
+          card.innerHTML = `
+            <div class="thumb" aria-hidden="true">photo</div>
+            <div class="info">
+              <div class="title">${title}</div>
+              <div class="meta">
+                <span class="price">${priceDisplay}</span>
+                <span class="seller">
+                  <span class="av" aria-hidden="true">${initials}</span>${sellerHandle}
+                </span>
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      }catch(err){
+        console.warn("New listings feed failed:", err);
+      }
+    }
+
+    loadNewListings();
   })();
 </script>
 
