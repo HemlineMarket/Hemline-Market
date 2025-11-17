@@ -144,25 +144,10 @@ function getInitialsForUser(user) {
   return "HM";
 }
 
+// Avatar storage key (per user)
 function getAvatarStorageKey(user) {
   if (!user?.id) return null;
   return `hm-avatar-${user.id}`;
-}
-
-function applyAvatarFromStorage(user) {
-  const key = getAvatarStorageKey(user);
-  if (!key) return;
-  const dataUrl = window.localStorage.getItem(key);
-  if (!dataUrl) return;
-
-  if (profileAvatar) {
-    profileAvatar.style.backgroundImage = `url(${dataUrl})`;
-    profileAvatar.textContent = "";
-  }
-  if (headerInitials) {
-    headerInitials.style.backgroundImage = `url(${dataUrl})`;
-    headerInitials.textContent = "";
-  }
 }
 
 function saveAvatarToStorage(user, dataUrl) {
@@ -175,7 +160,20 @@ function saveAvatarToStorage(user, dataUrl) {
   }
 }
 
-// ---- SHIPPING HELPERS (for the "neat saved + Edit" behavior) ----
+// Apply avatar only to the PROFILE card (not header)
+function applyAvatarFromStorage(user) {
+  const key = getAvatarStorageKey(user);
+  if (!key) return;
+  const dataUrl = window.localStorage.getItem(key);
+  if (!dataUrl) return;
+
+  if (profileAvatar) {
+    profileAvatar.style.backgroundImage = `url(${dataUrl})`;
+    profileAvatar.textContent = "";
+  }
+}
+
+// ---- SHIPPING HELPERS (for the “neat saved + Edit” behavior) ----
 
 function addressIsComplete(meta = {}) {
   return (
@@ -412,9 +410,9 @@ function setLoggedInHeader(user) {
   const initials = getInitialsForUser(user);
 
   if (headerInitials) {
-    if (!headerInitials.style.backgroundImage) {
-      headerInitials.textContent = initials;
-    }
+    // Always use initials in header, never the photo
+    headerInitials.style.backgroundImage = "";
+    headerInitials.textContent = initials;
     show(headerInitials, "inline-grid");
   }
   if (loginHeaderBtn) hide(loginHeaderBtn);
@@ -440,6 +438,7 @@ function fillProfileSummary(user) {
   const initials = getInitialsForUser(user);
 
   if (profileAvatar) {
+    // If no stored photo yet, show initials text
     if (!profileAvatar.style.backgroundImage) {
       profileAvatar.textContent = initials;
     }
@@ -595,9 +594,10 @@ if (saveProfileBtn) {
     const bio = bioInput?.value.trim() || "";
     const website = websiteInput?.value.trim() || "";
 
-    const nameForDisplay = first || last
-      ? `${first} ${last}`.trim()
-      : currentUser.user_metadata?.display_name || "";
+    const nameForDisplay =
+      first || last
+        ? `${first} ${last}`.trim()
+        : currentUser.user_metadata?.display_name || "";
 
     try {
       const { data, error } = await supabase.auth.updateUser({
@@ -649,13 +649,10 @@ if (avatarChangeBtn && avatarInput) {
       const dataUrl = reader.result;
       if (!currentUser) return;
 
+      // Apply photo ONLY to profile avatar; header stays initials
       if (profileAvatar) {
         profileAvatar.style.backgroundImage = `url(${dataUrl})`;
         profileAvatar.textContent = "";
-      }
-      if (headerInitials) {
-        headerInitials.style.backgroundImage = `url(${dataUrl})`;
-        headerInitials.textContent = "";
       }
 
       saveAvatarToStorage(currentUser, dataUrl);
