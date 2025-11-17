@@ -545,32 +545,42 @@ function fillShippingFromMeta(user) {
   }
 }
 
-// Initial load
+// Initial load — use session so Google login is recognized
 (async () => {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    console.error("Error getting current user:", error);
-  }
+  try {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
 
-  currentUser = data?.user || null;
+    if (error) {
+      console.error("Error getting current session:", error);
+    }
 
-  if (!currentUser) {
+    currentUser = session?.user || null;
+
+    if (!currentUser) {
+      setLoggedOutUI();
+      return;
+    }
+
+    // Logged-in UI
+    show(accountGrid, "grid");
+    if (accountLoggedOut) hide(accountLoggedOut);
+    setLoggedInHeader(currentUser);
+    fillProfileSummary(currentUser);
+    fillProfileForm(currentUser);
+    fillShippingFromMeta(currentUser);
+    applyAvatarFromStorage(currentUser);
+
+    if (logoutBtn) show(logoutBtn, "inline-block");
+
+    if (isProfileIncomplete(currentUser) && profileForm) {
+      show(profileForm, "block");
+    }
+  } catch (e) {
+    console.error("Error during account initialization:", e);
     setLoggedOutUI();
-    return;
-  }
-
-  show(accountGrid, "grid");
-  if (accountLoggedOut) hide(accountLoggedOut);
-  setLoggedInHeader(currentUser);
-  fillProfileSummary(currentUser);
-  fillProfileForm(currentUser);
-  fillShippingFromMeta(currentUser);
-  applyAvatarFromStorage(currentUser);
-
-  if (logoutBtn) show(logoutBtn, "inline-block");
-
-  if (isProfileIncomplete(currentUser) && profileForm) {
-    show(profileForm, "block");
   }
 })();
 
