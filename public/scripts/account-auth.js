@@ -8,6 +8,16 @@ const SUPABASE_ANON =
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// ---- LAYOUT FIX: stop cards from stretching to full row height ----
+document.addEventListener("DOMContentLoaded", () => {
+  const grid = document.querySelector(".grid");
+  if (grid) {
+    grid.querySelectorAll(":scope > *").forEach((el) => {
+      el.style.alignSelf = "flex-start";
+    });
+  }
+});
+
 // ---- ELEMENTS ----
 
 // Auth drawer
@@ -173,7 +183,7 @@ function applyAvatarFromStorage(user) {
   }
 }
 
-// ---- SHIPPING HELPERS (for the “neat saved + Edit” behavior) ----
+// ---- SHIPPING HELPERS ----
 
 function addressIsComplete(meta = {}) {
   return (
@@ -244,7 +254,6 @@ function ensureShippingEditButton() {
   container.appendChild(editShippingBtn);
 
   editShippingBtn.addEventListener("click", () => {
-    // Let the user change their address
     unlockShippingInputs();
     show(saveShippingSettingsBtn, "inline-block");
     hide(editShippingBtn);
@@ -410,7 +419,6 @@ function setLoggedInHeader(user) {
   const initials = getInitialsForUser(user);
 
   if (headerInitials) {
-    // Always use initials in header, never the photo
     headerInitials.style.backgroundImage = "";
     headerInitials.textContent = initials;
     show(headerInitials, "inline-grid");
@@ -438,7 +446,6 @@ function fillProfileSummary(user) {
   const initials = getInitialsForUser(user);
 
   if (profileAvatar) {
-    // If no stored photo yet, show initials text
     if (!profileAvatar.style.backgroundImage) {
       profileAvatar.textContent = initials;
     }
@@ -524,16 +531,13 @@ function fillShippingFromMeta(user) {
     }
   }
 
-  // Now that we know meta, decide if this address should be "neatly saved"
   ensureShippingEditButton();
 
   if (addressIsComplete(meta)) {
-    // Address looks complete: lock inputs, hide Save, show Edit
     lockShippingInputs();
     if (saveShippingSettingsBtn) hide(saveShippingSettingsBtn);
     if (editShippingBtn) show(editShippingBtn, "inline-block");
   } else {
-    // No address yet (or incomplete): keep open, show Save, hide Edit
     unlockShippingInputs();
     if (saveShippingSettingsBtn) show(saveShippingSettingsBtn, "inline-block");
     if (editShippingBtn) hide(editShippingBtn);
@@ -649,7 +653,6 @@ if (avatarChangeBtn && avatarInput) {
       const dataUrl = reader.result;
       if (!currentUser) return;
 
-      // Apply photo ONLY to profile avatar; header stays initials
       if (profileAvatar) {
         profileAvatar.style.backgroundImage = `url(${dataUrl})`;
         profileAvatar.textContent = "";
@@ -695,7 +698,7 @@ if (saveShippingSettingsBtn) {
 
       currentUser = data.user;
       fillShippingFromMeta(currentUser);
-      alert("Shipping address saved for your labels.");
+      alert("Shipping address saved for आपके labels.");
     } catch (e) {
       console.error(e);
       alert("There was a problem saving your shipping address.");
@@ -703,7 +706,7 @@ if (saveShippingSettingsBtn) {
   });
 }
 
-// ---- STRIPE PAYOUT BUTTONS (live but simple) ----
+// ---- STRIPE PAYOUT BUTTONS ----
 if (payoutSetupBtn) {
   payoutSetupBtn.addEventListener("click", () => {
     window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
