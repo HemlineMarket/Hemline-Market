@@ -8,6 +8,9 @@ const SUPABASE_ANON =
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// ---- STATE ----
+let currentUser = null;
+
 // ---- ELEMENTS ----
 
 // Header
@@ -54,6 +57,15 @@ const shipFromZip = document.getElementById("shipFromZip");
 const shipFromCountry = document.getElementById("shipFromCountry");
 const saveShippingSettingsBtn = document.getElementById("saveShippingAddressBtn");
 
+// OAuth buttons (login drawer)
+const googleBtn = document.getElementById("googleBtn");
+const appleBtn = document.getElementById("appleBtn");
+
+// Payout & vacation controls (may or may not exist)
+const payoutSetupBtn = document.getElementById("payoutSetupBtn");
+const payoutManageBtn = document.getElementById("payoutManageBtn");
+const vacSwitch = document.getElementById("vacSwitch");
+
 // Logout
 const logoutBtn = document.getElementById("logoutBtn");
 
@@ -78,6 +90,14 @@ function getInitials(user) {
   return (user.email?.[0] || "H").toUpperCase();
 }
 
+function show(el) {
+  if (el) el.style.display = "block";
+}
+
+function hide(el) {
+  if (el) el.style.display = "none";
+}
+
 function applyHeaderUser(user) {
   if (!headerAvatar || !headerLoginBtn) return;
 
@@ -92,6 +112,18 @@ function applyHeaderUser(user) {
   headerLoginBtn.classList.add("is-hidden");
 }
 
+function setLoggedOutUI() {
+  hide(accountGrid);
+  show(accountLoggedOut);
+  applyHeaderUser(null);
+}
+
+function setLoggedInHeader(user) {
+  show(accountGrid);
+  hide(accountLoggedOut);
+  applyHeaderUser(user);
+}
+
 function applyProfileAvatar(user) {
   const key = `hm-avatar-${user.id}`;
   const stored = localStorage.getItem(key);
@@ -104,12 +136,6 @@ function applyProfileAvatar(user) {
   }
 }
 
-function show(el) {
-  if (el) el.style.display = "block";
-}
-function hide(el) {
-  if (el) el.style.display = "none";
-}
 // ---- FILL PROFILE SUMMARY ----
 function fillProfileSummary(user) {
   const meta = user.user_metadata || {};
@@ -189,13 +215,13 @@ if (saveShippingSettingsBtn) {
     const meta = currentUser.user_metadata || {};
     const updated = {
       ...meta,
-      ship_from_name: shipFromName.value.trim() || null,
-      ship_from_street: shipFromStreet.value.trim() || null,
-      ship_from_street2: shipFromStreet2.value.trim() || null,
-      ship_from_city: shipFromCity.value.trim() || null,
-      ship_from_state: shipFromState.value.trim() || null,
-      ship_from_zip: shipFromZip.value.trim() || null,
-      ship_from_country: shipFromCountry.value || null,
+      ship_from_name: shipFromName?.value.trim() || null,
+      ship_from_street: shipFromStreet?.value.trim() || null,
+      ship_from_street2: shipFromStreet2?.value.trim() || null,
+      ship_from_city: shipFromCity?.value.trim() || null,
+      ship_from_state: shipFromState?.value.trim() || null,
+      ship_from_zip: shipFromZip?.value.trim() || null,
+      ship_from_country: shipFromCountry?.value || null,
     };
 
     const { data, error } = await supabase.auth.updateUser({ data: updated });
@@ -224,12 +250,15 @@ if (avatarChangeBtn && avatarInput) {
 
     const reader = new FileReader();
     reader.onload = () => {
+      if (!currentUser) return;
       const dataUrl = reader.result;
       const key = `hm-avatar-${currentUser.id}`;
       localStorage.setItem(key, dataUrl);
 
-      profileAvatar.style.backgroundImage = `url(${dataUrl})`;
-      profileAvatar.textContent = "";
+      if (profileAvatar) {
+        profileAvatar.style.backgroundImage = `url(${dataUrl})`;
+        profileAvatar.textContent = "";
+      }
     };
     reader.readAsDataURL(file);
   });
@@ -240,11 +269,11 @@ if (saveProfileBtn) {
   saveProfileBtn.addEventListener("click", async () => {
     if (!currentUser) return;
 
-    const first = firstNameInput.value.trim();
-    const last = lastNameInput.value.trim();
-    const loc = locationInput.value.trim();
-    const bio = bioInput.value.trim();
-    const website = websiteInput.value.trim();
+    const first = firstNameInput?.value.trim() || "";
+    const last = lastNameInput?.value.trim() || "";
+    const loc = locationInput?.value.trim() || "";
+    const bio = bioInput?.value.trim() || "";
+    const website = websiteInput?.value.trim() || "";
 
     const display =
       first || last
@@ -273,6 +302,7 @@ if (saveProfileBtn) {
     hide(profileForm);
   });
 }
+
 // ---- STRIPE ----
 if (payoutSetupBtn) {
   payoutSetupBtn.addEventListener("click", () => {
@@ -294,6 +324,59 @@ if (vacSwitch) {
   });
 }
 
+// ---- GOOGLE OAUTH ----
+if (googleBtn) {
+  googleBtn.addEventListener("click", async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin + "/account.html",
+        },
+      });
+      if (error) {
+        console.error("Google sign-in error:", error);
+        alert("Google sign-in failed. Please try again.");
+      }
+    } catch (e) {
+      console.error("Google sign-in exception:", e);
+      alert("Google sign-in failed. Please try again.");
+    }
+  });
+}
+
+// ---- APPLE OAUTH ----
+if (appleBtn) {
+  appleBtn.addEventListener("click", async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: window.location.origin + "/account.html",
+        },
+      });
+      if (error) {
+        console.error("Apple sign-in error:", error);
+        alert("Apple sign-in failed. Please try again.");
+      }
+    } catch (e) {
+      console.error("Apple sign-in exception:", e);
+      alert("Apple sign-in failed. Please try again.");
+    }
+  });
+}
+
+// ---- LOG OUT ----
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      window.location.href = "/";
+    }
+  });
+}
+
 // ---- INITIAL LOAD ----
 (async () => {
   const { data } = await supabase.auth.getSession();
@@ -306,11 +389,7 @@ if (vacSwitch) {
 
   currentUser = sessionUser;
 
-  // Logged-in UI
-  show(accountGrid, "block");
-  hide(accountLoggedOut);
-
-  // Header initials
+  // Logged-in UI + header
   setLoggedInHeader(currentUser);
 
   // Profile
@@ -321,12 +400,7 @@ if (vacSwitch) {
   fillShippingFromMeta(currentUser);
 
   // Avatar
-  const avatarKey = `hm-avatar-${currentUser.id}`;
-  const savedAvatar = localStorage.getItem(avatarKey);
-  if (savedAvatar && profileAvatar) {
-    profileAvatar.style.backgroundImage = `url(${savedAvatar})`;
-    profileAvatar.textContent = "";
-  }
+  applyProfileAvatar(currentUser);
 
   if (logoutBtn) show(logoutBtn, "inline-block");
 })();
