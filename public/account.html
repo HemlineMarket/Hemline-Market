@@ -630,6 +630,446 @@
   if (openMenuBtn && menuSheet) {
     openMenuBtn.addEventListener("click", () => {
       menuSheet.classList.add("open");
+      menuSheet.setAttribute("aria-hidden", "false");
+    });
+  }
+  if (closeMenuBtn && menuSheet) {
+    closeMenuBtn.addEventListener("click", () => {
+      menuSheet.classList.remove("open");
+      menuSheet.setAttribute("aria-hidden", "true");
+    });
+  }
+
+  // ---- ACCOUNT ELEMENTS ----
+  const accountGrid = document.getElementById("accountGrid");
+  const notSignedIn = document.getElementById("notSignedIn");
+
+  const profileAvatar = document.getElementById("profileAvatar");
+  const profileName = document.getElementById("profileName");
+  const profileEmail = document.getElementById("profileEmail");
+  const profileLocation = document.getElementById("profileLocation");
+  const profileTagline = document.getElementById("profileTagline");
+  const editProfileBtn = document.getElementById("editProfileBtn");
+  const editPhotoBtn = document.getElementById("editPhotoBtn");
+  const photoInput = document.getElementById("photoInput");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  const shipNameInput = document.getElementById("shipName");
+  const shipStreetInput = document.getElementById("shipStreet");
+  const shipStreet2Input = document.getElementById("shipStreet2");
+  const shipCityInput = document.getElementById("shipCity");
+  const shipStateInput = document.getElementById("shipState");
+  const shipPostalInput = document.getElementById("shipPostal");
+  const shipCountrySelect = document.getElementById("shipCountry");
+  const shippingForm = document.getElementById("shippingForm");
+  const shippingSummary = document.getElementById("shippingSummary");
+  const shippingSummaryText = document.getElementById("shippingSummaryText");
+  const editAddressBtn = document.getElementById("editAddressBtn");
+  const shippingStatus = document.getElementById("shippingStatus");
+
+  const vacSwitch = document.getElementById("vacSwitch");
+
+  // ---- STATE ----
+  let authUser = null;
+  let profileExtras = null;
+
+  // ---- HELPERS ----
+  function getInitials(name, email) {
+    if (name && name.trim()) {
+      const parts = name.trim().split(/\s+/);
+      const first = parts[0]?.[0] || "";
+      const last = parts[parts.length - 1]?.[0] || "";
+      const letters = (first + last).toUpperCase();
+      if (letters) return letters;
+    }
+    if (email) return email[0].toUpperCase();
+    return "HM";
+  }
+
+  function show(el, displayValue = "") {
+    if (el) el.style.display = displayValue;
+  }
+
+  function hide(el) {
+    if (el) el.style.display = "none";
+  }
+
+  function saveLocal(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.warn("localStorage save failed", e);
+    }
+  }
+
+  function loadLocal(key, fallback = null) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function loadProfileExtras() {
+    const stored = loadLocal("hm_profile_extras", null);
+    if (stored && typeof stored === "object") {
+      return {
+        location: stored.location || "",
+        tagline: stored.tagline || "",
+        photoDataUrl: stored.photoDataUrl || null,
+        shippingAddress: stored.shippingAddress || null,
+        vacationHold: !!stored.vacationHold,
+      };
+    }
+    return {
+      location: "",
+      tagline: "",
+      photoDataUrl: null,
+      shippingAddress: null,
+      vacationHold: false,
+    };
+  }
+
+  function saveProfileExtras() {
+    if (!profileExtras) return;
+    saveLocal("hm_profile_extras", profileExtras);
+  }
+
+  function buildAddressSummary(addr) {
+    if (!addr) return "";
+    const lines = [];
+
+    if (addr.name) lines.push(addr.name);
+
+    if (addr.street) {
+      const streetLine = addr.street2
+        ? addr.street + ", " + addr.street2
+        : addr.street;
+      lines.push(streetLine);
+    }
+
+    let cityLine = "";
+    if (addr.city) cityLine += addr.city;
+    if (addr.state) cityLine += cityLine ? ", " + addr.state : addr.state;
+    if (addr.postal) cityLine += cityLine ? " " + addr.postal : addr.postal;
+    if (cityLine) lines.push(cityLine);
+
+    if (addr.countryLabel) {
+      lines.push(addr.countryLabel);
+    } else if (addr.country) {
+      lines.push(addr.country);
+    }
+
+    return lines.join("\n");
+  }
+
+  function applyProfileExtras(displayName, email) {
+    if (!profileExtras) return;
+
+    // Location & tagline
+    if (profileLocation) {
+      if (profileExtras.location) {
+        profileLocation.textContent = profileExtras.location;
+        profileLocation.style.display = "block";
+      } else {
+        profileLocation.textContent = "";
+        profileLocation.style.display = "none";
+      }
+    }
+
+    if (profileTagline) {
+      if (profileExtras.tagline) {
+        profileTagline.textContent = profileExtras.tagline;
+        profileTagline.style.display = "block";
+      } else {
+        profileTagline.textContent = "";
+        profileTagline.style.display = "none";
+      }
+    }
+
+    // Avatar (profile & header)
+    const initials = getInitials(displayName, email);
+
+    const hasPhoto = !!profileExtras.photoDataUrl;
+    if (profileAvatar) {
+      if (hasPhoto) {
+        profileAvatar.style.backgroundImage = `url(${profileExtras.photoDataUrl})`;
+        profileAvatar.textContent = "";
+      } else {
+        profileAvatar.style.backgroundImage = "none";
+        profileAvatar.textContent = initials;
+      }
+    }
+    if (headerAvatar) {
+      headerAvatar.style.backgroundImage = "none"; // keep initials only in header
+      headerAvatar.textContent = initials;
+    }
+
+    // Shipping
+    const addr = profileExtras.shippingAddress;
+    const summaryText = buildAddressSummary(addr);
+
+    if (addr && summaryText) {
+      if (shippingSummaryText) {
+        shippingSummaryText.textContent = summaryText;
+      }
+      if (shippingSummary) {
+        show(shippingSummary, "flex");
+      }
+      if (shippingForm) {
+        hide(shippingForm);
+      }
+
+      // keep inputs populated for editing
+      if (shipNameInput) shipNameInput.value = addr.name || "";
+      if (shipStreetInput) shipStreetInput.value = addr.street || "";
+      if (shipStreet2Input) shipStreet2Input.value = addr.street2 || "";
+      if (shipCityInput) shipCityInput.value = addr.city || "";
+      if (shipStateInput) shipStateInput.value = addr.state || "";
+      if (shipPostalInput) shipPostalInput.value = addr.postal || "";
+      if (shipCountrySelect && addr.country) {
+        shipCountrySelect.value = addr.country;
+      }
+    } else {
+      if (shippingSummary) hide(shippingSummary);
+      if (shippingForm) show(shippingForm, "grid");
+
+      // Default ship-from name to profile name
+      if (shipNameInput && displayName && !shipNameInput.value) {
+        shipNameInput.value = displayName;
+      }
+    }
+
+    // Vacation switch
+    if (vacSwitch) {
+      vacSwitch.dataset.on = profileExtras.vacationHold ? "true" : "false";
+    }
+  }
+
+  function toggleVacation() {
+    if (!profileExtras) return;
+    profileExtras.vacationHold = !profileExtras.vacationHold;
+    saveProfileExtras();
+    if (vacSwitch) {
+      vacSwitch.dataset.on = profileExtras.vacationHold ? "true" : "false";
+    }
+  }
+
+  // ---- EVENT HANDLERS ----
+
+  if (editProfileBtn) {
+    editProfileBtn.addEventListener("click", () => {
+      if (!profileExtras) profileExtras = loadProfileExtras();
+
+      const currentLoc = profileExtras.location || "";
+      const newLoc = window.prompt("Location (city, state or region):", currentLoc);
+      if (newLoc === null) return; // cancelled
+
+      profileExtras.location = newLoc.trim();
+
+      const currentTag = profileExtras.tagline || "";
+      const newTag = window.prompt(
+        "Short bio / tagline (optional):",
+        currentTag
+      );
+      if (newTag === null) {
+        // keep previous tagline if they cancel second prompt
+      } else {
+        profileExtras.tagline = newTag.trim();
+      }
+
+      saveProfileExtras();
+      const displayName =
+        authUser?.user_metadata?.display_name || profileName?.textContent || "";
+      applyProfileExtras(displayName, authUser?.email || "");
+    });
+  }
+
+  if (editPhotoBtn && photoInput) {
+    editPhotoBtn.addEventListener("click", () => {
+      photoInput.click();
+    });
+
+    photoInput.addEventListener("change", () => {
+      const file = photoInput.files && photoInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (!profileExtras) profileExtras = loadProfileExtras();
+        profileExtras.photoDataUrl = reader.result;
+        saveProfileExtras();
+        const displayName =
+          authUser?.user_metadata?.display_name || profileName?.textContent || "";
+        applyProfileExtras(displayName, authUser?.email || "");
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (shippingForm) {
+    shippingForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!profileExtras) profileExtras = loadProfileExtras();
+
+      const name = shipNameInput?.value.trim() || "";
+      const street = shipStreetInput?.value.trim() || "";
+      const street2 = shipStreet2Input?.value.trim() || "";
+      const city = shipCityInput?.value.trim() || "";
+      const state = shipStateInput?.value.trim() || "";
+      const postal = shipPostalInput?.value.trim() || "";
+      const country = shipCountrySelect?.value || "";
+
+      if (!name || !street || !city || !state || !postal || !country) {
+        if (shippingStatus) {
+          shippingStatus.textContent =
+            "Please fill in name, street, city, state, postal code, and country.";
+          shippingStatus.style.color = "#b91c1c";
+        }
+        return;
+      }
+
+      let countryLabel = country;
+      if (shipCountrySelect && shipCountrySelect.selectedOptions.length > 0) {
+        countryLabel = shipCountrySelect.selectedOptions[0].textContent || country;
+      }
+
+      profileExtras.shippingAddress = {
+        name,
+        street,
+        street2,
+        city,
+        state,
+        postal,
+        country,
+        countryLabel,
+      };
+      saveProfileExtras();
+
+      if (shippingStatus) {
+        shippingStatus.textContent = "Shipping address saved.";
+        shippingStatus.style.color = "#16a34a";
+        setTimeout(() => {
+          shippingStatus.textContent = "";
+        }, 2500);
+      }
+
+      const displayName =
+        authUser?.user_metadata?.display_name || profileName?.textContent || "";
+      applyProfileExtras(displayName, authUser?.email || "");
+    });
+  }
+
+  if (editAddressBtn) {
+    editAddressBtn.addEventListener("click", () => {
+      if (shippingSummary) hide(shippingSummary);
+      if (shippingForm) show(shippingForm, "grid");
+    });
+  }
+
+  if (vacSwitch) {
+    vacSwitch.addEventListener("click", toggleVacation);
+    vacSwitch.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleVacation();
+      }
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    });
+  }
+
+  // ---- INITIAL LOAD ----
+  (async () => {
+    let displayName = "";
+    let email = "";
+
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error("Error getting user:", error);
+      }
+      authUser = data?.user || null;
+    } catch (e) {
+      console.error("Supabase getUser failed", e);
+      authUser = null;
+    }
+
+    if (!authUser) {
+      // Logged OUT
+      hide(accountGrid);
+      show(notSignedIn, "block");
+      hide(headerAvatar);
+      show(loginHeaderBtn, "inline-block");
+      return;
+    }
+
+    // Logged IN
+    displayName =
+      authUser.user_metadata?.display_name ||
+      authUser.user_metadata?.name ||
+      authUser.user_metadata?.full_name ||
+      "";
+    email = authUser.email || "";
+
+    if (!displayName && email) {
+      displayName = email.split("@")[0];
+    }
+
+    if (profileName) {
+      profileName.textContent = displayName || "Hemline Market member";
+    }
+    if (profileEmail) {
+      profileEmail.textContent = email;
+    }
+
+    // Header: show initials, hide big login button
+    const initials = getInitials(displayName, email);
+    if (headerAvatar) {
+      headerAvatar.textContent = initials;
+      headerAvatar.style.display = "inline-grid";
+    }
+    hide(loginHeaderBtn);
+
+    // Load & apply extras
+    profileExtras = loadProfileExtras();
+    applyProfileExtras(displayName, email);
+
+    // Show main account grid
+    if (accountGrid) {
+      show(accountGrid, "grid");
+    }
+    if (notSignedIn) {
+      hide(notSignedIn);
+    }
+  })();
+</script>
+
+  // ---- CONFIG ----
+  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_ANON =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // ---- HEADER ELEMENTS ----
+  const headerAvatar = document.getElementById("headerAvatar");
+  const loginHeaderBtn = document.getElementById("loginHeaderBtn");
+
+  // ---- MENU ----
+  const openMenuBtn = document.getElementById("openMenu");
+  const closeMenuBtn = document.getElementById("closeMenu");
+  const menuSheet = document.getElementById("menuSheet");
+
+  if (openMenuBtn && menuSheet) {
+    openMenuBtn.addEventListener("click", () => {
+      menuSheet.classList.add("open");
       menuSheet.setAttribute("aria-hidden","false");
     });
   }
