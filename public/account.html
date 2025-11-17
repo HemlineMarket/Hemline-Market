@@ -199,6 +199,34 @@
       flex-wrap:wrap;
     }
 
+    /* Inline profile edit panel */
+    .profile-edit-panel{
+      margin-top:12px;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#f9fafb;
+      display:none;
+    }
+    .profile-edit-field{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      margin-bottom:8px;
+      font-size:13px;
+    }
+    .profile-edit-field label{
+      color:#4b5563;
+    }
+    .profile-edit-input,
+    .profile-edit-textarea{
+      border-radius:8px;
+      border:1px solid var(--border);
+      padding:7px 10px;
+      font:inherit;
+      background:#fff;
+    }
+
     .item{
       display:flex;
       align-items:center;
@@ -568,7 +596,7 @@
   <p class="subtle">Manage your profile, sales, purchases, vacation hold, and payouts.</p>
 
   <div id="accountGrid" style="display:none">
-        <!-- Profile -->
+    <!-- Profile -->
     <section class="card profile-card">
       <div class="hd">Profile</div>
       <div class="bd">
@@ -593,10 +621,25 @@
           <a class="btn" href="atelier.html">Your Atelier</a>
         </div>
 
+        <!-- inline edit panel -->
+        <div id="profileEditPanel" class="profile-edit-panel">
+          <div class="profile-edit-field">
+            <label for="editNameInput">Name</label>
+            <input id="editNameInput" class="profile-edit-input" type="text">
+          </div>
+          <div class="profile-edit-field">
+            <label for="editBioInput">Bio</label>
+            <textarea id="editBioInput" class="profile-edit-textarea" rows="2"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button id="saveProfileBtn" class="btn primary" type="button">Save</button>
+            <button id="cancelProfileBtn" class="btn" type="button">Cancel</button>
+          </div>
+        </div>
+
         <!-- hidden file input for profile photo -->
         <input id="photoInput" type="file" accept="image/*" style="display:none">
       </div>
-    </section>
     </section>
 
     <!-- Payouts & shipping -->
@@ -822,7 +865,7 @@
 <!-- Supabase auth + account wiring -->
 <script type="module" src="/scripts/account-auth.js"></script>
 
-<!-- Page-local JS: hamburger + profile extras + shipping address -->
+<!-- Page-local JS: hamburger + shipping address + profile edit -->
 <script>
   // Hamburger / side sheet
   (function(){
@@ -842,23 +885,6 @@
     }
     if(openBtn) openBtn.addEventListener('click', openSheet);
     if(closeBtn) closeBtn.addEventListener('click', closeSheet);
-  })();
-
-  // Profile extras (location + bio) from localStorage
-  (function(){
-    try{
-      const raw = localStorage.getItem('hm_profile_extras');
-      if(!raw) return;
-      const extras = JSON.parse(raw);
-      const locEl = document.getElementById('profileLocation');
-      const bioEl = document.getElementById('profileBio');
-      if(locEl && extras.location) locEl.textContent = extras.location;
-      if(bioEl && (extras.tagline || extras.bio)){
-        bioEl.textContent = extras.tagline || extras.bio;
-      }
-    }catch(e){
-      console.warn('Failed to load profile extras', e);
-    }
   })();
 
   // Shipping address: summary + edit form, stored in localStorage
@@ -977,120 +1003,97 @@
 
     document.addEventListener('DOMContentLoaded', loadAddress);
   })();
-</script>
-<script>
-  <script>
-/* -------------------------------------------
-   EDIT PHOTO + EDIT PROFILE (Inline panel)
---------------------------------------------*/
 
-document.addEventListener("DOMContentLoaded", () => {
-  const editPhotoBtn = document.getElementById("editPhotoBtn");
-  const editProfileBtn = document.getElementById("editProfileBtn");
-  const photoInput = document.getElementById("photoInput");
+  // Edit photo + edit profile (inline panel)
+  document.addEventListener('DOMContentLoaded', () => {
+    const editPhotoBtn   = document.getElementById('editPhotoBtn');
+    const editProfileBtn = document.getElementById('editProfileBtn');
+    const photoInput     = document.getElementById('photoInput');
+    const avatar         = document.getElementById('profileAvatar');
+    const profileNameEl  = document.getElementById('profileName');
+    const profileBioEl   = document.getElementById('profileBio');
 
-  const profileNameEl = document.getElementById("profileName");
-  const profileBioEl = document.getElementById("profileBio");
+    const panel          = document.getElementById('profileEditPanel');
+    const nameInput      = document.getElementById('editNameInput');
+    const bioInput       = document.getElementById('editBioInput');
+    const saveBtn        = document.getElementById('saveProfileBtn');
+    const cancelBtn      = document.getElementById('cancelProfileBtn');
 
-  /* ---------- PHOTO ---------- */
-  if (editPhotoBtn && photoInput) {
-    editPhotoBtn.addEventListener("click", () => photoInput.click());
-
-    photoInput.addEventListener("change", () => {
-      if (!photoInput.files || !photoInput.files[0]) return;
-      const file = photoInput.files[0];
-      const url = URL.createObjectURL(file);
-
-      const avatar = document.getElementById("profileAvatar");
-      if (avatar) {
-        avatar.style.backgroundImage = `url(${url})`;
-        avatar.textContent = "";
+    // Load saved profile info
+    try{
+      const raw = localStorage.getItem('hm_profile_info');
+      if(raw){
+        const data = JSON.parse(raw);
+        if(data.name) profileNameEl.textContent = data.name;
+        if(data.bio)  profileBioEl.textContent  = data.bio;
       }
-
-      localStorage.setItem("hm_profile_photo", url);
-    });
-
-    const savedPhoto = localStorage.getItem("hm_profile_photo");
-    if (savedPhoto) {
-      const avatar = document.getElementById("profileAvatar");
-      if (avatar) {
-        avatar.style.backgroundImage = `url(${savedPhoto})`;
-        avatar.textContent = "";
-      }
+    }catch(e){
+      console.warn('Failed to load profile info', e);
     }
-  }
 
-  /* ---------- INLINE EDIT PANEL (HTML inserted dynamically) ---------- */
+    // Load saved photo
+    try{
+      const savedPhoto = localStorage.getItem('hm_profile_photo');
+      if(savedPhoto && avatar){
+        avatar.style.backgroundImage = `url(${savedPhoto})`;
+        avatar.textContent = '';
+      }
+    }catch(e){
+      console.warn('Failed to load profile photo', e);
+    }
 
-  // Build and inject edit panel
-  const panelHTML = `
-    <div id="profileEditPanel" style="display:none; margin-top:12px;">
-      <div style="display:flex; flex-direction:column; gap:10px; padding:12px; border:1px solid var(--border); border-radius:10px; background:#f9fafb;">
-        
-        <div>
-          <label style="font-size:13px; color:#4b5563;">Name</label>
-          <input id="editNameInput" type="text" style="padding:8px 10px; width:100%; border-radius:8px; border:1px solid var(--border);">
-        </div>
+    // Edit photo
+    if(editPhotoBtn && photoInput && avatar){
+      editPhotoBtn.addEventListener('click', () => photoInput.click());
 
-        <div>
-          <label style="font-size:13px; color:#4b5563;">Bio</label>
-          <textarea id="editBioInput" style="padding:8px 10px; width:100%; border-radius:8px; border:1px solid var(--border);" rows="2"></textarea>
-        </div>
+      photoInput.addEventListener('change', () => {
+        if(!photoInput.files || !photoInput.files[0]) return;
+        const file = photoInput.files[0];
+        const url  = URL.createObjectURL(file);
+        avatar.style.backgroundImage = `url(${url})`;
+        avatar.textContent = '';
+        localStorage.setItem('hm_profile_photo', url);
+      });
+    }
 
-        <div style="display:flex; gap:8px;">
-          <button id="saveProfileBtn" class="btn primary" type="button">Save</button>
-          <button id="cancelProfileBtn" class="btn" type="button">Cancel</button>
-        </div>
-      </div>
-    </div>
-  `;
+    // Open edit profile panel
+    if(editProfileBtn && panel && nameInput && bioInput){
+      editProfileBtn.addEventListener('click', () => {
+        nameInput.value = profileNameEl.textContent || '';
+        bioInput.value  = profileBioEl.textContent || '';
+        panel.style.display = 'block';
+      });
+    }
 
-  const profileSection = document.querySelector(".profile-card .bd");
-  profileSection.insertAdjacentHTML("beforeend", panelHTML);
+    // Save profile
+    if(saveBtn && panel){
+      saveBtn.addEventListener('click', () => {
+        const newName = nameInput.value.trim();
+        const newBio  = bioInput.value.trim();
 
-  const panel = document.getElementById("profileEditPanel");
-  const nameInput = document.getElementById("editNameInput");
-  const bioInput = document.getElementById("editBioInput");
-  const saveBtn = document.getElementById("saveProfileBtn");
-  const cancelBtn = document.getElementById("cancelProfileBtn");
+        if(newName) profileNameEl.textContent = newName;
+        profileBioEl.textContent = newBio;
 
-  // Load saved profile
-  const stored = localStorage.getItem("hm_profile_info");
-  if (stored) {
-    const data = JSON.parse(stored);
-    if (data.name) profileNameEl.textContent = data.name;
-    if (data.bio) profileBioEl.textContent = data.bio;
-  }
+        try{
+          localStorage.setItem(
+            'hm_profile_info',
+            JSON.stringify({ name:newName, bio:newBio })
+          );
+        }catch(e){
+          console.warn('Failed to save profile info', e);
+        }
 
-  // Open edit panel
-  editProfileBtn.addEventListener("click", () => {
-    nameInput.value = profileNameEl.textContent;
-    bioInput.value = profileBioEl.textContent;
-    panel.style.display = "block";
+        panel.style.display = 'none';
+      });
+    }
+
+    // Cancel edit
+    if(cancelBtn && panel){
+      cancelBtn.addEventListener('click', () => {
+        panel.style.display = 'none';
+      });
+    }
   });
-
-  // Save
-  saveBtn.addEventListener("click", () => {
-    const newName = nameInput.value.trim();
-    const newBio = bioInput.value.trim();
-
-    if (newName) profileNameEl.textContent = newName;
-    profileBioEl.textContent = newBio;
-
-    localStorage.setItem(
-      "hm_profile_info",
-      JSON.stringify({ name: newName, bio: newBio })
-    );
-
-    panel.style.display = "none";
-  });
-
-  // Cancel
-  cancelBtn.addEventListener("click", () => {
-    panel.style.display = "none";
-  });
-});
-
 </script>
 </body>
 </html>
