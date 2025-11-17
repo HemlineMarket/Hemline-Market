@@ -978,6 +978,80 @@
     document.addEventListener('DOMContentLoaded', loadAddress);
   })();
 </script>
+<script>
+  // SIMPLE REPLACEMENT HANDLERS FOR EDIT PHOTO + EDIT PROFILE
 
+  document.addEventListener("DOMContentLoaded", () => {
+    const editPhotoBtn = document.getElementById("editPhotoBtn");
+    const editProfileBtn = document.getElementById("editProfileBtn");
+    const photoInput = document.getElementById("photoInput");
+    const profileNameEl = document.getElementById("profileName");
+    const profileBioEl = document.getElementById("profileBio");
+
+    // ---- EDIT PHOTO ----
+    if (editPhotoBtn && photoInput) {
+      editPhotoBtn.addEventListener("click", () => {
+        photoInput.click();
+      });
+
+      photoInput.addEventListener("change", () => {
+        if (!photoInput.files || !photoInput.files[0]) return;
+
+        const file = photoInput.files[0];
+        const url = URL.createObjectURL(file);
+
+        // Preview the new photo instantly
+        const avatar = document.getElementById("profileAvatar");
+        if (avatar) {
+          avatar.style.backgroundImage = `url(${url})`;
+          avatar.textContent = "";
+        }
+
+        // Store in localStorage so it persists
+        localStorage.setItem("hm_profile_photo", url);
+      });
+
+      // Load saved photo
+      const saved = localStorage.getItem("hm_profile_photo");
+      if (saved) {
+        const avatar = document.getElementById("profileAvatar");
+        if (avatar) {
+          avatar.style.backgroundImage = `url(${saved})`;
+          avatar.textContent = "";
+        }
+      }
+    }
+
+    // ---- EDIT PROFILE ----
+    if (editProfileBtn) {
+      editProfileBtn.addEventListener("click", async () => {
+        const newName = prompt("Enter your display name:", profileNameEl.textContent);
+        if (!newName) return;
+
+        const newBio = prompt("Enter your bio:", profileBioEl.textContent);
+
+        profileNameEl.textContent = newName;
+        profileBioEl.textContent = newBio || "";
+
+        // Save it locally so it persists
+        const info = {
+          name: newName,
+          bio: newBio || ""
+        };
+        localStorage.setItem("hm_profile_info", JSON.stringify(info));
+      });
+
+      // Load saved name + bio
+      const raw = localStorage.getItem("hm_profile_info");
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          if (data.name) profileNameEl.textContent = data.name;
+          if (data.bio) profileBioEl.textContent = data.bio;
+        } catch {}
+      }
+    }
+  });
+</script>
 </body>
 </html>
