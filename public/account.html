@@ -137,17 +137,18 @@
     h1{margin:0 0 6px;font-size:28px;font-weight:800}
     .subtle{color:var(--muted);font-size:14px;margin:0 0 16px}
 
-    .grid{
-      display:grid;
-      grid-template-columns:1.2fr 380px;
-      gap:14px;
-      align-items:flex-start; /* key: stop cards from stretching full height */
+    /* main two-column layout: override any JS "grid" display */
+    #accountGrid{
+      display:flex !important;
+      gap:16px;
+      align-items:flex-start;
+      flex-wrap:wrap;
     }
-
-    @media (max-width:1000px){
-      .grid{
-        grid-template-columns:1fr;
-      }
+    #accountGrid > .card.profile-card{
+      flex:1 1 0;
+    }
+    #accountGrid > .card.payouts-card{
+      flex:0 0 360px;
     }
 
     .card{
@@ -155,7 +156,6 @@
       border:1px solid var(--border);
       border-radius:12px;
       box-shadow:0 6px 16px rgba(0,0,0,.06);
-      align-self:flex-start; /* keep each card only as tall as its content */
     }
     .card .hd{
       padding:12px;
@@ -171,18 +171,13 @@
       background:#fff;
       font-weight:700;
       cursor:pointer;
-      font-size:13px;
+      font-size:14px;
     }
     .btn.primary{
       background:var(--accent);
       border-color:var(--accent);
       color:#fff;
       box-shadow:0 2px 8px rgba(153,27,27,.25);
-    }
-    .btn.small{
-      padding:6px 10px;
-      border-radius:999px;
-      font-size:12px;
     }
     .muted{color:var(--muted)}
     .pill{
@@ -193,7 +188,44 @@
       background:#fff;
       color:#374151;
     }
-    .list{display:grid;gap:10px}
+
+    .profile-main{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+    }
+    .profile-text{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .profile-name{font-weight:800}
+    .profile-bio{font-size:13px;color:var(--muted)}
+    .profile-actions{
+      margin-left:auto;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .profile-links{
+      margin-top:10px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    /* Status / footer cards */
+    .status-grid{
+      display:grid;
+      grid-template-columns:2fr 1.1fr;
+      gap:14px;
+      margin-top:16px;
+    }
+    @media (max-width:900px){
+      .status-grid{grid-template-columns:1fr}
+      #accountGrid > .card.payouts-card{flex:1 1 0}
+    }
+
     .item{
       display:flex;
       align-items:center;
@@ -240,95 +272,65 @@
     .footer-links{display:flex;gap:14px;flex-wrap:wrap}
     .copy{color:#6b7280;font-size:14px}
 
-    /* Profile card */
-    .profile-header{
-      display:flex;
-      align-items:flex-start;
-      gap:12px;
-    }
-    .profile-main{
-      flex:1;
-      min-width:0;
-    }
-    .profile-actions{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      margin-left:auto;
-    }
-    .profile-avatar-circle{
-      width:40px;
-      height:40px;
-      border-radius:50%;
-      border:1px solid var(--border);
-      background:#fff;
-      display:inline-grid;
-      place-items:center;
-      font-weight:700;
-      font-size:14px;
-      background-size:cover;
-      background-position:center;
-      color:#111827;
-    }
-    .profile-name{font-weight:800}
-    .profile-email{font-size:13px;color:var(--muted)}
-    .profile-line{font-size:13px;color:var(--muted)}
-    .profile-links{
-      margin-top:10px;
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-
     /* Payouts & shipping */
-    .payouts-section + .shipping-section{
-      margin-top:14px;
-      padding-top:10px;
-      border-top:1px solid var(--border);
-    }
-    .payouts-heading,
-    .shipping-heading{
-      font-weight:700;
-      margin-bottom:4px;
-    }
-    .payouts-body,
-    .shipping-body{
-      font-size:13px;
-      color:var(--muted);
-      margin-bottom:10px;
-    }
-    .shipping-form-grid{
+    .payouts-card .bd p{margin:4px 0 8px;font-size:13px}
+    .shipping-note{font-size:12px;color:var(--muted);margin-top:8px}
+
+    .shipping-fields{
       display:grid;
-      gap:8px;
+      gap:6px;
+      margin-top:8px;
     }
-    .field-label{
-      font-size:12px;
+    .shipping-field{
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+      font-size:13px;
+    }
+    .shipping-field label{
       color:#4b5563;
-      margin-bottom:2px;
     }
-    .text-input,
-    .select-input{
-      width:100%;
-      padding:8px 10px;
+    .shipping-input,
+    .shipping-select{
+      padding:7px 10px;
       border-radius:8px;
       border:1px solid var(--border);
       font:inherit;
       background:#f9fafb;
     }
-    .text-input:focus,
-    .select-input:focus{
-      outline:2px solid #f97316;
-      outline-offset:1px;
-      border-color:#f97316;
-      background:#fff;
-    }
-    .shipping-inline{
-      display:grid;
-      grid-template-columns:1fr 1fr;
+    .shipping-row{
+      display:flex;
       gap:8px;
     }
+    .shipping-row .shipping-field{flex:1}
 
-    /* Auth drawer */
+    /* READ-ONLY MODE: make saved address look like plain text */
+    .shipping-input[readonly]{
+      border-color:transparent;
+      background:transparent;
+      padding-left:0;
+      padding-right:0;
+      cursor:default;
+    }
+    .shipping-input[readonly]:focus{
+      outline:none;
+      box-shadow:none;
+    }
+    .shipping-select[disabled]{
+      border-color:transparent;
+      background:transparent;
+      padding-left:0;
+      padding-right:0;
+      cursor:default;
+    }
+
+    .shipping-actions{
+      margin-top:8px;
+      display:flex;
+      justify-content:flex-start;
+    }
+
+    /* AUTH OVERLAY */
     .auth-overlay{
       position:fixed;
       inset:0;
@@ -337,6 +339,7 @@
       z-index:200;
     }
     .auth-overlay.show{display:block;}
+
     .auth-panel{
       position:absolute;
       top:70px;
@@ -368,6 +371,7 @@
       color:#4b5563;
     }
     .auth-close:hover{background:#f3f4f6;}
+
     .auth-grid{
       display:grid;
       grid-template-columns:1.05fr 0.05fr 1fr;
@@ -381,6 +385,7 @@
       margin:0 auto;
     }
     .auth-left,.auth-right{font-size:14px}
+
     .auth-field{
       display:flex;
       flex-direction:column;
@@ -397,6 +402,7 @@
       border:1px solid var(--border);
       font:inherit;
     }
+
     .auth-forgot{
       margin-top:2px;
       font-size:12px;
@@ -412,6 +418,7 @@
       text-decoration:underline;
       font-size:12px;
     }
+
     .auth-primary-btn,
     .auth-secondary-btn{
       width:100%;
@@ -431,6 +438,7 @@
       background:#fff;
       color:#111827;
     }
+
     .auth-or{
       display:flex;
       align-items:center;
@@ -449,6 +457,7 @@
       justify-content:center;
       background:#fff;
     }
+
     .provider-btn{
       width:100%;
       display:flex;
@@ -470,6 +479,7 @@
       align-items:center;
       justify-content:center;
     }
+
     .auth-error{
       margin-top:6px;
       font-size:13px;
@@ -533,15 +543,6 @@
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
       </a>
-      <!-- ThreadTalk icon -->
-      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M4 4h16v11H5.5L4 16.5z"></path>
-          <path d="M8 9h8"></path>
-          <path d="M8 6h8"></path>
-          <path d="M8 12h4"></path>
-        </svg>
-      </a>
       <a class="hm-icon" href="cart.html" aria-label="Cart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9" cy="21" r="1"></circle>
@@ -549,9 +550,9 @@
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-      <!-- Initials circle: hidden by default; JS will show when logged in -->
-      <a class="hm-avatar" id="headerAvatar" href="account.html" title="Your account" style="display:none;">AA</a>
-      <!-- Big Log in button: visible when logged out; JS will hide when logged in -->
+      <!-- Header initials circle (keeps initials even if profile photo exists) -->
+      <a class="hm-avatar" id="headerAvatar" href="account.html" title="Your account" aria-label="Your account" style="display:none;">AA</a>
+      <!-- Big Log in button (hidden when logged in) -->
       <button id="loginHeaderBtn" type="button" class="hm-btn-dark">Log in</button>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
@@ -572,7 +573,6 @@
     <a href="browse.html">Browse</a>
     <a href="orders.html">Orders</a>
     <a href="favorites.html">Favorites</a>
-    <a href="atelier.html">Your Atelier</a>
     <a href="sell.html">Sell Fabric</a>
     <a href="help.html">Help</a>
     <a href="contact.html">Contact</a>
@@ -583,152 +583,112 @@
   <h1>Account</h1>
   <p class="subtle">Manage your profile, sales, purchases, vacation hold, and payouts.</p>
 
-  <!-- Logged-out message (filled by JS) -->
-  <section id="accountLoggedOut" class="card" style="display:none;margin-bottom:16px;">
-    <div class="bd">
-      <p class="muted">
-        You’re not signed in. <button type="button" class="btn small" id="accountLoginCta">Log in</button>
-      </p>
-    </div>
-  </section>
-
-  <!-- Main account content: shown when logged IN (JS toggles display) -->
-  <div class="grid" id="accountGrid" style="display:none">
+  <!-- Main account content: toggled by JS based on session -->
+  <div id="accountGrid" style="display:none">
     <!-- LEFT: Profile -->
-    <section class="card">
+    <section class="card profile-card">
       <div class="hd">Profile</div>
       <div class="bd">
-        <div class="profile-header">
-          <span id="profileAvatar" class="profile-avatar-circle">AA</span>
-          <div class="profile-main">
-            <div id="profileName" class="profile-name">Your name</div>
-            <div id="profileEmail" class="profile-email">you@example.com</div>
-            <div id="profileLocationSummary" class="profile-line" style="display:none;"></div>
-            <div id="profileBioSummary" class="profile-line" style="display:none;"></div>
-            <div id="profileWebsiteWrapper" class="profile-line" style="display:none;">
-              <a id="profileWebsite" href="#" rel="nofollow noreferrer" target="_blank"></a>
-            </div>
+        <div class="profile-main">
+          <span id="profileAvatar" class="hm-avatar" style="width:40px;height:40px;font-size:14px">AA</span>
+          <div class="profile-text">
+            <div id="profileName" class="profile-name">Hemline Market member</div>
+            <div id="profileEmail" class="muted" style="font-size:13px">you@example.com</div>
+            <div id="profileLocation" class="muted" style="font-size:13px"></div>
+            <div id="profileBio" class="profile-bio"></div>
           </div>
           <div class="profile-actions">
-            <button id="avatarChangeBtn" type="button" class="btn small">Edit photo</button>
-            <button id="editProfileBtn" type="button" class="btn small">Edit profile</button>
-            <button id="logoutBtn" class="btn small" type="button" style="display:none;">Log out</button>
+            <button id="editPhotoBtn" class="btn" type="button">Edit photo</button>
+            <button id="editProfileBtn" class="btn" type="button">Edit profile</button>
+            <button id="logoutBtn" class="btn" type="button" style="display:none">Log out</button>
           </div>
         </div>
 
-        <!-- Hidden profile edit form; JS shows it when needed -->
-        <form id="profileForm" style="display:none;margin-top:12px;">
-          <div class="shipping-form-grid">
-            <div>
-              <div class="field-label">First name</div>
-              <input id="firstNameInput" type="text" class="text-input" autocomplete="given-name">
-            </div>
-            <div>
-              <div class="field-label">Last name</div>
-              <input id="lastNameInput" type="text" class="text-input" autocomplete="family-name">
-            </div>
-            <div>
-              <div class="field-label">Location</div>
-              <input id="locationInput" type="text" class="text-input" placeholder="City, State or ZIP (optional)">
-            </div>
-            <div>
-              <div class="field-label">Bio</div>
-              <textarea id="bioInput" rows="2" class="text-input" style="resize:vertical;" placeholder="Tell us your story (optional)"></textarea>
-            </div>
-            <div>
-              <div class="field-label">Website / social link</div>
-              <input id="websiteInput" type="url" class="text-input" placeholder="https://example.com (optional)">
-            </div>
-          </div>
-          <div class="row" style="margin-top:10px;">
-            <button id="saveProfileBtn" type="button" class="btn primary">Save profile</button>
-            <button id="cancelProfileEditBtn" type="button" class="btn">Cancel</button>
-          </div>
-        </form>
-
         <div class="profile-links">
-          <a class="btn small" href="purchases.html">Purchases</a>
-          <a class="btn small" href="sales.html">Sales</a>
-          <a class="btn small" href="atelier.html">Your Atelier</a>
+          <a class="btn" href="purchases.html">Purchases</a>
+          <a class="btn" href="sales.html">Sales</a>
+          <a class="btn" href="atelier.html">Your Atelier</a>
         </div>
       </div>
     </section>
 
     <!-- RIGHT: Payouts & shipping -->
-    <aside class="card">
+    <aside class="card payouts-card">
       <div class="hd">Payouts &amp; shipping</div>
       <div class="bd">
-        <!-- Payouts -->
-        <section class="payouts-section">
-          <div class="payouts-heading">Payouts</div>
-          <div id="payoutStatusText" class="payouts-body">
-            Set up payouts so we can send you money from your fabric sales.
-          </div>
-          <div class="row">
-            <button id="payoutSetupBtn" type="button" class="btn primary">Set up payouts with Stripe</button>
-            <button id="payoutManageBtn" type="button" class="btn" style="display:none;">Open Stripe dashboard</button>
-          </div>
+        <section aria-labelledby="payoutsHeading">
+          <h2 id="payoutsHeading" style="font-size:14px;margin:0 0 4px;">Payouts</h2>
+          <p>Set up payouts so we can send you money from your fabric sales.</p>
+          <button id="stripeSetupBtn" class="btn primary" type="button">Set up payouts with Stripe</button>
+          <p class="shipping-note">
+            We’ll send you to a secure Stripe page to enter your bank and tax details. Hemline never sees your full bank information.
+          </p>
         </section>
 
-        <!-- Shipping labels / Shippo -->
-        <section class="shipping-section">
-          <div class="shipping-heading" style="margin-top:10px;">Shipping labels</div>
-          <div class="shipping-body">
-            Hemline uses Shippo to create shipping labels when you make a sale.
-            We’ll use your default ship-from address below.
-          </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px;">
 
-          <div class="shipping-form-grid">
-            <div>
-              <div class="field-label">Ship-from name</div>
-              <input id="shipFromName" type="text" class="text-input" placeholder="Name that appears on labels">
+        <section aria-labelledby="shippingHeading">
+          <h2 id="shippingHeading" style="font-size:14px;margin:0 0 4px;">Shipping labels</h2>
+          <p>Hemline uses Shippo to create shipping labels when you make a sale. We’ll use your default ship-from address below.</p>
+
+          <div class="shipping-fields">
+            <div class="shipping-field">
+              <label for="shipName">Ship-from name</label>
+              <input id="shipName" class="shipping-input" type="text" autocomplete="name">
             </div>
-            <div>
-              <div class="field-label">Street address</div>
-              <input id="shipFromStreet" type="text" class="text-input" placeholder="Street address">
+
+            <div class="shipping-field">
+              <label for="shipStreet">Street address</label>
+              <input id="shipStreet" class="shipping-input" type="text" autocomplete="address-line1">
             </div>
-            <div>
-              <div class="field-label">Apartment, suite, etc. (optional)</div>
-              <input id="shipFromStreet2" type="text" class="text-input" placeholder="">
+
+            <div class="shipping-field">
+              <label for="shipApt">Apartment, suite, etc. (optional)</label>
+              <input id="shipApt" class="shipping-input" type="text" autocomplete="address-line2">
             </div>
-            <div>
-              <div class="field-label">City</div>
-              <input id="shipFromCity" type="text" class="text-input">
-            </div>
-            <div class="shipping-inline">
-              <div>
-                <div class="field-label">State / Province</div>
-                <input id="shipFromState" type="text" class="text-input">
+
+            <div class="shipping-row">
+              <div class="shipping-field">
+                <label for="shipCity">City</label>
+                <input id="shipCity" class="shipping-input" type="text" autocomplete="address-level2">
               </div>
-              <div>
-                <div class="field-label">Postal code</div>
-                <input id="shipFromZip" type="text" class="text-input">
+            </div>
+
+            <div class="shipping-row">
+              <div class="shipping-field">
+                <label for="shipState">State / Province</label>
+                <input id="shipState" class="shipping-input" type="text" autocomplete="address-level1">
+              </div>
+              <div class="shipping-field">
+                <label for="shipPostal">Postal code</label>
+                <input id="shipPostal" class="shipping-input" type="text" autocomplete="postal-code">
               </div>
             </div>
-            <div>
-              <div class="field-label">Country</div>
-              <select id="shipFromCountry" class="select-input">
+
+            <div class="shipping-field">
+              <label for="shipCountry">Country</label>
+              <select id="shipCountry" class="shipping-select">
+                <option value="">Select country</option>
                 <option value="US">United States</option>
-                <!-- Future: add more countries if you open internationally -->
+                <!-- You can add more countries later if you expand -->
               </select>
             </div>
           </div>
 
-          <div class="row" style="margin-top:10px;">
-            <button id="saveShippingAddressBtn" type="button" class="btn primary">
-              Save shipping address
-            </button>
-            <!-- JS will reuse this button, or hide/show, when we add “summary + edit” later -->
+          <div class="shipping-actions">
+            <button id="shippingSaveBtn" class="btn primary" type="button">Save shipping address</button>
           </div>
 
-          <p class="shipping-body" style="margin-top:10px;">
-            When you have a sale, your <strong>Sales</strong> page will let you create and download a label using this address.
+          <p class="shipping-note">
+            When you have a sale, your Sales page will let you create and download a label using this address.
           </p>
         </section>
       </div>
     </aside>
+  </div>
 
-    <!-- Status -->
+  <!-- SECOND ROW: status + security + privacy -->
+  <div class="status-grid">
     <aside class="card">
       <div class="hd">Status</div>
       <div class="bd">
@@ -742,7 +702,6 @@
       </div>
     </aside>
 
-    <!-- Security -->
     <section class="card">
       <div class="hd">Security</div>
       <div class="bd">
@@ -752,8 +711,7 @@
       </div>
     </section>
 
-    <!-- Privacy -->
-    <section class="card">
+    <section class="card" style="grid-column:1 / -1">
       <div class="hd">Privacy</div>
       <div class="bd">
         <div class="row">
@@ -865,18 +823,8 @@
   </div>
 </div>
 
-<!-- All JS for this page lives in /scripts/account-auth.js to satisfy CSP -->
+<!-- All JS for this page lives in this file so CSP stays happy -->
 <script type="module" src="/scripts/account-auth.js"></script>
-<script>
-  // small helper: header "Log in" button inside accountLoggedOut
-  (function(){
-    const btn = document.getElementById("accountLoginCta");
-    const headerBtn = document.getElementById("loginHeaderBtn");
-    if(btn && headerBtn){
-      btn.addEventListener("click", () => headerBtn.click());
-    }
-  })();
-</script>
 
 </body>
 </html>
