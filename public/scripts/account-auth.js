@@ -4,7 +4,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // ---- CONFIG ----
 const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
 const SUPABASE_ANON =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9zZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -24,10 +24,9 @@ document.addEventListener("DOMContentLoaded", () => {
 const modal = document.getElementById("authOverlay");
 const closeBtn = document.getElementById("authCloseBtn");
 
-// Header (shared)
+// Header
 const loginHeaderBtn = document.getElementById("loginHeaderBtn");
-// IMPORTANT: this must match <a id="headerUser" ...> in your header HTML
-const headerInitials = document.getElementById("headerUser");
+const headerInitials = document.getElementById("headerAvatar");
 
 // Account layout
 const accountGrid = document.getElementById("accountGrid");
@@ -409,11 +408,24 @@ if (logoutBtn) {
 let currentUser = null;
 
 function setLoggedOutUI() {
-  hide(accountGrid);
+  // Hide account grid, show logged-out notice if present
+  if (accountGrid) hide(accountGrid);
   if (accountLoggedOut) show(accountLoggedOut, "block");
 
-  hide(headerInitials);
+  // Header: hide initials, show Login button
+  if (headerInitials) hide(headerInitials);
   if (loginHeaderBtn) show(loginHeaderBtn, "inline-block");
+
+  // Clear any personal info from profile card
+  if (profileName) profileName.textContent = "Hemline Market member";
+  if (profileEmail) profileEmail.textContent = "";
+  if (profileLocationSummary) profileLocationSummary.textContent = "";
+  if (profileBioSummary) profileBioSummary.textContent = "";
+  if (profileWebsiteWrapper) hide(profileWebsiteWrapper);
+  if (profileAvatar) {
+    profileAvatar.style.backgroundImage = "";
+    profileAvatar.textContent = "HM";
+  }
 }
 
 function setLoggedInHeader(user) {
@@ -545,42 +557,33 @@ function fillShippingFromMeta(user) {
   }
 }
 
-// Initial load — use session so Google login is recognized
+// Initial load
 (async () => {
-  try {
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession();
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error("Error getting current user:", error);
+  }
 
-    if (error) {
-      console.error("Error getting current session:", error);
-    }
+  currentUser = data?.user || null;
 
-    currentUser = session?.user || null;
-
-    if (!currentUser) {
-      setLoggedOutUI();
-      return;
-    }
-
-    // Logged-in UI
-    show(accountGrid, "grid");
-    if (accountLoggedOut) hide(accountLoggedOut);
-    setLoggedInHeader(currentUser);
-    fillProfileSummary(currentUser);
-    fillProfileForm(currentUser);
-    fillShippingFromMeta(currentUser);
-    applyAvatarFromStorage(currentUser);
-
-    if (logoutBtn) show(logoutBtn, "inline-block");
-
-    if (isProfileIncomplete(currentUser) && profileForm) {
-      show(profileForm, "block");
-    }
-  } catch (e) {
-    console.error("Error during account initialization:", e);
+  if (!currentUser) {
     setLoggedOutUI();
+    return;
+  }
+
+  if (accountLoggedOut) hide(accountLoggedOut);
+  if (accountGrid) show(accountGrid, "grid");
+
+  setLoggedInHeader(currentUser);
+  fillProfileSummary(currentUser);
+  fillProfileForm(currentUser);
+  fillShippingFromMeta(currentUser);
+  applyAvatarFromStorage(currentUser);
+
+  if (logoutBtn) show(logoutBtn, "inline-block");
+
+  if (isProfileIncomplete(currentUser) && profileForm) {
+    show(profileForm, "block");
   }
 })();
 
@@ -709,7 +712,7 @@ if (saveShippingSettingsBtn) {
 
       currentUser = data.user;
       fillShippingFromMeta(currentUser);
-      alert("Shipping address saved for आपके labels.");
+      alert("Shipping address saved for your labels.");
     } catch (e) {
       console.error(e);
       alert("There was a problem saving your shipping address.");
