@@ -8,389 +8,325 @@ const SUPABASE_ANON =
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ---- LAYOUT FIX: stop cards from stretching to full row height ----
-document.addEventListener("DOMContentLoaded", () => {
-  const grid = document.querySelector(".grid");
-  if (grid) {
-    grid.querySelectorAll(":scope > *").forEach((el) => {
-      el.style.alignSelf = "flex-start";
-    });
-  }
-});
-
 // ---- ELEMENTS ----
 
-// Auth drawer (login panel)
-const modal = document.getElementById("authOverlay");
-const closeBtn = document.getElementById("authCloseBtn");
+// Header
+const headerAvatar = document.getElementById("headerUser");
+const headerLoginBtn = document.getElementById("headerLoginBtn");
 
-// Header pieces (on Account page)
-const loginHeaderBtn = document.getElementById("loginHeaderBtn");
-const headerInitials = document.getElementById("headerAvatar");
-
-// Account layout
+// Account page containers
+const accountLoggedOut = document.getElementById("accountLoggedOut");
 const accountGrid = document.getElementById("accountGrid");
 
-// Simple profile display (Account > Profile card)
+// Profile summary
 const profileAvatar = document.getElementById("profileAvatar");
 const profileName = document.getElementById("profileName");
 const profileEmail = document.getElementById("profileEmail");
-const profileLocation = document.getElementById("profileLocation");
-const profileBio = document.getElementById("profileBio");
+const profileLocationSummary = document.getElementById("profileLocationSummary");
+const profileBioSummary = document.getElementById("profileBioSummary");
+const profileWebsiteWrapper = document.getElementById("profileWebsiteWrapper");
+const profileWebsite = document.getElementById("profileWebsite");
 
-// Logout button inside Profile card
+// Profile editing
+const editProfileBtn = document.getElementById("editProfileBtn");
+const profileForm = document.getElementById("profileForm");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const cancelProfileEditBtn = document.getElementById("cancelProfileEditBtn");
+
+// Profile form inputs
+const firstNameInput = document.getElementById("firstNameInput");
+const lastNameInput = document.getElementById("lastNameInput");
+const locationInput = document.getElementById("locationInput");
+const bioInput = document.getElementById("bioInput");
+const websiteInput = document.getElementById("websiteInput");
+
+// Avatar upload
+const avatarChangeBtn = document.getElementById("avatarChangeBtn");
+const avatarInput = document.getElementById("avatarInput");
+
+// Shipping
+const shipFromName = document.getElementById("shipFromName");
+const shipFromStreet = document.getElementById("shipFromStreet");
+const shipFromStreet2 = document.getElementById("shipFromStreet2");
+const shipFromCity = document.getElementById("shipFromCity");
+const shipFromState = document.getElementById("shipFromState");
+const shipFromZip = document.getElementById("shipFromZip");
+const shipFromCountry = document.getElementById("shipFromCountry");
+const saveShippingSettingsBtn = document.getElementById("saveShippingAddressBtn");
+
+// Logout
 const logoutBtn = document.getElementById("logoutBtn");
 
-// Auth forms inside the drawer
-const loginForm = document.getElementById("loginForm");
-const signupForm = document.getElementById("signupForm");
-const googleBtn = document.getElementById("googleBtn");
-const appleBtn = document.getElementById("appleBtn");
-const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
+// --- HELPERS ----
 
-const errBox = document.getElementById("authError");
-const msgBox = document.getElementById("authMessage");
+function getInitials(user) {
+  const meta = user?.user_metadata || {};
 
-// ---- SMALL HELPERS ----
-function showModal() {
-  if (!modal) return;
-  modal.classList.add("show");
-  clearMessages();
+  const first = (meta.first_name || "").trim();
+  const last = (meta.last_name || "").trim();
+  const display = (meta.display_name || "").trim();
+
+  if (first || last) {
+    return `${first[0] || ""}${last[0] || ""}`.toUpperCase();
+  }
+
+  if (display) {
+    const parts = display.split(/\s+/);
+    return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
+  }
+
+  return (user.email?.[0] || "H").toUpperCase();
 }
 
-function hideModal() {
-  if (!modal) return;
-  modal.classList.remove("show");
-  clearMessages();
+function applyHeaderUser(user) {
+  if (!headerAvatar || !headerLoginBtn) return;
+
+  if (!user) {
+    headerAvatar.classList.add("is-hidden");
+    headerLoginBtn.classList.remove("is-hidden");
+    return;
+  }
+
+  headerAvatar.textContent = getInitials(user);
+  headerAvatar.classList.remove("is-hidden");
+  headerLoginBtn.classList.add("is-hidden");
 }
 
-function clearMessages() {
-  if (errBox) errBox.textContent = "";
-  if (msgBox) msgBox.textContent = "";
+function applyProfileAvatar(user) {
+  const key = `hm-avatar-${user.id}`;
+  const stored = localStorage.getItem(key);
+
+  if (stored && profileAvatar) {
+    profileAvatar.style.backgroundImage = `url(${stored})`;
+    profileAvatar.textContent = "";
+  } else if (profileAvatar) {
+    profileAvatar.textContent = getInitials(user);
+  }
 }
 
-function setError(msg) {
-  if (errBox) errBox.textContent = msg || "";
+function show(el) {
+  if (el) el.style.display = "block";
 }
-
-function setMessage(msg) {
-  if (msgBox) msgBox.textContent = msg || "";
-}
-
-function show(el, displayValue = "") {
-  if (el) el.style.display = displayValue;
-}
-
 function hide(el) {
   if (el) el.style.display = "none";
 }
+// ---- FILL PROFILE SUMMARY ----
+function fillProfileSummary(user) {
+  const meta = user.user_metadata || {};
 
-// Build initials from name/email/profile
-function getInitials(user, profile) {
-  // Prefer profile.full_name if we have it
-  const fullName = (profile?.full_name || "").trim();
-  if (fullName) {
-    const parts = fullName.split(/\s+/);
-    if (parts.length === 1) {
-      return parts[0].slice(0, 2).toUpperCase();
-    }
-    const a = parts[0][0] || "";
-    const b = parts[1][0] || "";
-    const letters = (a + b).toUpperCase();
-    if (letters) return letters;
-  }
-
-  // Fall back to auth metadata display_name
-  const meta = user?.user_metadata || {};
+  const first = (meta.first_name || "").trim();
+  const last = (meta.last_name || "").trim();
   const display = (meta.display_name || "").trim();
-  if (display) {
-    const parts = display.split(/\s+/);
-    if (parts.length === 1) {
-      return parts[0].slice(0, 2).toUpperCase();
-    }
-    const a = parts[0][0] || "";
-    const b = parts[1][0] || "";
-    const letters = (a + b).toUpperCase();
-    if (letters) return letters;
+
+  const nameToShow =
+    first || last
+      ? `${first} ${last}`.trim()
+      : display || user.email?.split("@")[0] || "Hemline Member";
+
+  if (profileName) profileName.textContent = nameToShow;
+  if (profileEmail) profileEmail.textContent = user.email || "";
+
+  // LOCATION
+  const loc = (meta.location || "").trim();
+  if (loc && profileLocationSummary) {
+    profileLocationSummary.textContent = loc;
+    show(profileLocationSummary);
+  } else if (profileLocationSummary) {
+    hide(profileLocationSummary);
   }
 
-  // Last resort: first two letters of email local-part
-  const email = user?.email || "";
-  if (email) {
-    const local = email.split("@")[0] || "";
-    if (local) return local.slice(0, 2).toUpperCase();
+  // BIO
+  const bio = (meta.bio || "").trim();
+  if (bio && profileBioSummary) {
+    profileBioSummary.textContent = bio;
+    show(profileBioSummary);
+  } else if (profileBioSummary) {
+    hide(profileBioSummary);
   }
 
-  return "HM";
+  // WEBSITE
+  const website = (meta.website || "").trim();
+  if (website && profileWebsite && profileWebsiteWrapper) {
+    profileWebsite.href = website;
+    profileWebsite.textContent = website;
+    show(profileWebsiteWrapper);
+  } else if (profileWebsiteWrapper) {
+    hide(profileWebsiteWrapper);
+  }
 }
 
-// ---- AUTH DRAWER BEHAVIOR ----
-if (loginHeaderBtn) {
-  loginHeaderBtn.addEventListener("click", () => {
-    showModal();
-  });
+// ---- FILL PROFILE FORM ----
+function fillProfileForm(user) {
+  const meta = user.user_metadata || {};
+
+  if (firstNameInput) firstNameInput.value = meta.first_name || "";
+  if (lastNameInput) lastNameInput.value = meta.last_name || "";
+  if (locationInput) locationInput.value = meta.location || "";
+  if (bioInput) bioInput.value = meta.bio || "";
+  if (websiteInput) websiteInput.value = meta.website || "";
 }
 
-if (closeBtn) {
-  closeBtn.addEventListener("click", () => {
-    hideModal();
-  });
+// ---- SHIPPING SUMMARY ----
+function fillShippingFromMeta(user) {
+  const meta = user.user_metadata || {};
+
+  if (shipFromName) shipFromName.value = meta.ship_from_name || "";
+  if (shipFromStreet) shipFromStreet.value = meta.ship_from_street || "";
+  if (shipFromStreet2) shipFromStreet2.value = meta.ship_from_street2 || "";
+  if (shipFromCity) shipFromCity.value = meta.ship_from_city || "";
+  if (shipFromState) shipFromState.value = meta.ship_from_state || "";
+  if (shipFromZip) shipFromZip.value = meta.ship_from_zip || "";
+  if (shipFromCountry && meta.ship_from_country) {
+    shipFromCountry.value = meta.ship_from_country;
+  }
 }
 
-// ---- LOGIN (email/password) ----
-if (loginForm) {
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    clearMessages();
+// ---- SAVE SHIPPING ----
+if (saveShippingSettingsBtn) {
+  saveShippingSettingsBtn.addEventListener("click", async () => {
+    if (!currentUser) return;
 
-    const email = document.getElementById("loginEmail")?.value.trim();
-    const pw = document.getElementById("loginPassword")?.value.trim();
-
-    if (!email || !pw) {
-      setError("Please enter your email and password.");
-      return;
-    }
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: pw,
-    });
-
-    if (error) {
-      if (error.message.toLowerCase().includes("invalid login")) {
-        setError("Incorrect email or password. Please try again.");
-      } else {
-        setError(error.message);
-      }
-      return;
-    }
-
-    setMessage("Welcome back to Hemline Market!");
-    setTimeout(() => {
-      window.location.href = "/";
-    }, 700);
-  });
-}
-
-// ---- SIGNUP (create account) ----
-if (signupForm) {
-  signupForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    clearMessages();
-
-    const name = document.getElementById("signupName")?.value.trim();
-    const email = document.getElementById("signupEmail")?.value.trim();
-    const pw = document.getElementById("signupPassword")?.value.trim();
-
-    if (!name || !email || !pw) {
-      setError("Please fill in name, email, and password.");
-      return;
-    }
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password: pw,
-      options: {
-        data: { display_name: name },
-      },
-    });
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    setMessage(
-      "Account created! Check your email to confirm, then log in to start sewing, sharing, and selling on Hemline Market."
-    );
-  });
-}
-
-// ---- FORGOT PASSWORD ----
-if (forgotPasswordBtn) {
-  forgotPasswordBtn.addEventListener("click", async () => {
-    clearMessages();
-
-    const email = document.getElementById("loginEmail")?.value.trim();
-    if (!email) {
-      setError("Please enter your email first.");
-      return;
-    }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + "/reset.html",
-    });
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    setMessage("If an account exists for that email, a reset link has been sent.");
-  });
-}
-
-// ---- GOOGLE ----
-if (googleBtn) {
-  googleBtn.addEventListener("click", async () => {
-    clearMessages();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin + "/",
-      },
-    });
-    if (error) setError(error.message);
-  });
-}
-
-// ---- APPLE ----
-if (appleBtn) {
-  appleBtn.addEventListener("click", async () => {
-    clearMessages();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "apple",
-      options: {
-        redirectTo: window.location.origin + "/",
-      },
-    });
-    if (error) setError(error.message);
-  });
-}
-
-// ---- LOG OUT ----
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", async () => {
-    clearMessages();
-    await supabase.auth.signOut();
-    window.location.href = "/";
-  });
-}
-
-// ---- PROFILE + ACCOUNT STATE ----
-
-let currentUser = null;
-
-// Fetch or create a row in `profiles` for this user
-async function fetchOrCreateProfile(user) {
-  try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, tagline, location")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.warn("Error loading profile:", error);
-    }
-
-    if (data) {
-      return data;
-    }
-
-    // No row yet: create a basic one using display_name or email
-    const meta = user.user_metadata || {};
-    const displayName = (meta.display_name || "").trim();
-    const fullName = displayName || user.email || "Hemline sewist";
-
-    const { data: inserted, error: insertError } = await supabase
-      .from("profiles")
-      .insert({
-        id: user.id,
-        full_name: fullName,
-        tagline: "",
-        location: "",
-      })
-      .select("id, full_name, tagline, location")
-      .single();
-
-    if (insertError) {
-      console.warn("Error creating profile row:", insertError);
-      return {
-        id: user.id,
-        full_name: fullName,
-        tagline: "",
-        location: "",
-      };
-    }
-
-    return inserted;
-  } catch (e) {
-    console.error("Unexpected error loading/creating profile:", e);
-    return {
-      id: user.id,
-      full_name: user.email || "Hemline sewist",
-      tagline: "",
-      location: "",
+    const meta = currentUser.user_metadata || {};
+    const updated = {
+      ...meta,
+      ship_from_name: shipFromName.value.trim() || null,
+      ship_from_street: shipFromStreet.value.trim() || null,
+      ship_from_street2: shipFromStreet2.value.trim() || null,
+      ship_from_city: shipFromCity.value.trim() || null,
+      ship_from_state: shipFromState.value.trim() || null,
+      ship_from_zip: shipFromZip.value.trim() || null,
+      ship_from_country: shipFromCountry.value || null,
     };
-  }
-}
 
-function setLoggedOutUI() {
-  if (accountGrid) hide(accountGrid);
+    const { data, error } = await supabase.auth.updateUser({ data: updated });
 
-  if (headerInitials) hide(headerInitials);
-  if (loginHeaderBtn) show(loginHeaderBtn, "inline-block");
-  if (logoutBtn) hide(logoutBtn);
-}
-
-function applyProfileUI(user, profile) {
-  // Show account layout
-  if (accountGrid) show(accountGrid, "block");
-
-  // Header initials circle
-  const initials = getInitials(user, profile);
-  if (headerInitials) {
-    headerInitials.style.backgroundImage = "";
-    headerInitials.textContent = initials;
-    show(headerInitials, "inline-grid");
-  }
-  if (loginHeaderBtn) hide(loginHeaderBtn);
-  if (logoutBtn) show(logoutBtn, "inline-block");
-
-  // Profile card fields
-  if (profileName) {
-    profileName.textContent =
-      profile.full_name || user.email || "Hemline Market member";
-  }
-  if (profileEmail) {
-    profileEmail.textContent = user.email || "";
-  }
-  if (profileLocation) {
-    profileLocation.textContent = profile.location || "";
-  }
-  if (profileBio) {
-    // Use tagline if set, otherwise keep whatever was in HTML
-    if (profile.tagline && profile.tagline.trim()) {
-      profileBio.textContent = profile.tagline;
-    }
-  }
-
-  // If there's no custom avatar applied, show initials in the profile avatar
-  if (profileAvatar && !profileAvatar.style.backgroundImage) {
-    profileAvatar.textContent = initials;
-  }
-}
-
-// Initial load: check session, then load profile
-(async () => {
-  try {
-    const { data, error } = await supabase.auth.getUser();
     if (error) {
-      console.error("Error getting current user:", error);
-    }
-
-    currentUser = data?.user || null;
-
-    if (!currentUser) {
-      setLoggedOutUI();
+      alert("Could not save address.");
       return;
     }
 
-    const profile = await fetchOrCreateProfile(currentUser);
-    applyProfileUI(currentUser, profile);
-  } catch (e) {
-    console.error("Error during account initialization:", e);
+    currentUser = data.user;
+    fillShippingFromMeta(currentUser);
+    alert("Address saved!");
+  });
+}
+
+// ---- AVATAR UPLOAD ----
+if (avatarChangeBtn && avatarInput) {
+  avatarChangeBtn.addEventListener("click", () => avatarInput.click());
+
+  avatarInput.addEventListener("change", () => {
+    const file = avatarInput.files?.[0];
+    if (!file || !file.type.startsWith("image/")) {
+      alert("Choose an image file.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const key = `hm-avatar-${currentUser.id}`;
+      localStorage.setItem(key, dataUrl);
+
+      profileAvatar.style.backgroundImage = `url(${dataUrl})`;
+      profileAvatar.textContent = "";
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ---- SAVE PROFILE ----
+if (saveProfileBtn) {
+  saveProfileBtn.addEventListener("click", async () => {
+    if (!currentUser) return;
+
+    const first = firstNameInput.value.trim();
+    const last = lastNameInput.value.trim();
+    const loc = locationInput.value.trim();
+    const bio = bioInput.value.trim();
+    const website = websiteInput.value.trim();
+
+    const display =
+      first || last
+        ? `${first} ${last}`.trim()
+        : currentUser.user_metadata.display_name || null;
+
+    const updated = {
+      ...currentUser.user_metadata,
+      first_name: first || null,
+      last_name: last || null,
+      location: loc || null,
+      bio: bio || null,
+      website: website || null,
+      display_name: display,
+    };
+
+    const { data, error } = await supabase.auth.updateUser({ data: updated });
+
+    if (error) {
+      alert("Could not save profile.");
+      return;
+    }
+
+    currentUser = data.user;
+    fillProfileSummary(currentUser);
+    hide(profileForm);
+  });
+}
+// ---- STRIPE ----
+if (payoutSetupBtn) {
+  payoutSetupBtn.addEventListener("click", () => {
+    window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
+  });
+}
+
+if (payoutManageBtn) {
+  payoutManageBtn.addEventListener("click", () => {
+    window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
+  });
+}
+
+// ---- VACATION SWITCH ----
+if (vacSwitch) {
+  vacSwitch.addEventListener("click", () => {
+    const val = vacSwitch.getAttribute("data-on") === "true";
+    vacSwitch.setAttribute("data-on", val ? "false" : "true");
+  });
+}
+
+// ---- INITIAL LOAD ----
+(async () => {
+  const { data } = await supabase.auth.getSession();
+  const sessionUser = data?.session?.user || null;
+
+  if (!sessionUser) {
     setLoggedOutUI();
+    return;
   }
+
+  currentUser = sessionUser;
+
+  // Logged-in UI
+  show(accountGrid, "block");
+  hide(accountLoggedOut);
+
+  // Header initials
+  setLoggedInHeader(currentUser);
+
+  // Profile
+  fillProfileSummary(currentUser);
+  fillProfileForm(currentUser);
+
+  // Shipping
+  fillShippingFromMeta(currentUser);
+
+  // Avatar
+  const avatarKey = `hm-avatar-${currentUser.id}`;
+  const savedAvatar = localStorage.getItem(avatarKey);
+  if (savedAvatar && profileAvatar) {
+    profileAvatar.style.backgroundImage = `url(${savedAvatar})`;
+    profileAvatar.textContent = "";
+  }
+
+  if (logoutBtn) show(logoutBtn, "inline-block");
 })();
