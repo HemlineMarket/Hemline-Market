@@ -78,6 +78,9 @@ const saveShippingSettingsBtn =
 // Status
 const vacSwitch = document.getElementById("vacSwitch");
 
+// Will create this programmatically next to the Save button
+let editShippingBtn = null;
+
 // ---- SMALL HELPERS ----
 function showModal() {
   if (!modal) return;
@@ -170,6 +173,84 @@ function saveAvatarToStorage(user, dataUrl) {
   } catch (e) {
     console.warn("Could not save avatar to localStorage", e);
   }
+}
+
+// ---- SHIPPING HELPERS (for the "neat saved + Edit" behavior) ----
+
+function addressIsComplete(meta = {}) {
+  return (
+    meta.ship_from_name?.trim() &&
+    meta.ship_from_street?.trim() &&
+    meta.ship_from_city?.trim() &&
+    meta.ship_from_zip?.trim()
+  );
+}
+
+function lockShippingInputs() {
+  const textInputs = [
+    shipFromName,
+    shipFromStreet,
+    shipFromStreet2,
+    shipFromCity,
+    shipFromState,
+    shipFromZip,
+  ];
+
+  textInputs.forEach((inp) => {
+    if (!inp) return;
+    inp.readOnly = true;
+    inp.style.backgroundColor = "#f9fafb";
+  });
+
+  if (shipFromCountry) {
+    shipFromCountry.disabled = true;
+    shipFromCountry.style.backgroundColor = "#f9fafb";
+  }
+}
+
+function unlockShippingInputs() {
+  const textInputs = [
+    shipFromName,
+    shipFromStreet,
+    shipFromStreet2,
+    shipFromCity,
+    shipFromState,
+    shipFromZip,
+  ];
+
+  textInputs.forEach((inp) => {
+    if (!inp) return;
+    inp.readOnly = false;
+    inp.style.backgroundColor = "";
+  });
+
+  if (shipFromCountry) {
+    shipFromCountry.disabled = false;
+    shipFromCountry.style.backgroundColor = "";
+  }
+}
+
+function ensureShippingEditButton() {
+  if (!saveShippingSettingsBtn) return;
+  if (editShippingBtn) return;
+
+  const container = saveShippingSettingsBtn.parentElement || saveShippingSettingsBtn;
+  if (!container) return;
+
+  editShippingBtn = document.createElement("button");
+  editShippingBtn.type = "button";
+  editShippingBtn.textContent = "Edit address";
+  editShippingBtn.className = "btn";
+  editShippingBtn.style.marginLeft = "8px";
+
+  container.appendChild(editShippingBtn);
+
+  editShippingBtn.addEventListener("click", () => {
+    // Let the user change their address
+    unlockShippingInputs();
+    show(saveShippingSettingsBtn, "inline-block");
+    hide(editShippingBtn);
+  });
 }
 
 // ---- AUTH DRAWER BEHAVIOR ----
@@ -331,7 +412,6 @@ function setLoggedInHeader(user) {
   const initials = getInitialsForUser(user);
 
   if (headerInitials) {
-    // Only set initials if no avatar image already applied
     if (!headerInitials.style.backgroundImage) {
       headerInitials.textContent = initials;
     }
@@ -348,8 +428,7 @@ function fillProfileSummary(user) {
   const displayName = (meta.display_name || "").trim();
 
   const nameToShow =
-    (first || last) ? `${first} ${last}`.trim() :
-    displayName || "Hemline Market member";
+    first || last ? `${first} ${last}`.trim() : displayName || "Hemline Market member";
 
   if (profileName) {
     profileName.textContent = nameToShow;
@@ -361,13 +440,11 @@ function fillProfileSummary(user) {
   const initials = getInitialsForUser(user);
 
   if (profileAvatar) {
-    // If there is no photo set, show initials.
     if (!profileAvatar.style.backgroundImage) {
       profileAvatar.textContent = initials;
     }
   }
 
-  // Location
   const loc = (meta.location || "").trim();
   if (loc) {
     if (profileLocationSummary) {
@@ -378,7 +455,6 @@ function fillProfileSummary(user) {
     hide(profileLocationSummary);
   }
 
-  // Bio
   const bio = (meta.bio || "").trim();
   if (bio) {
     if (profileBioSummary) {
@@ -389,7 +465,6 @@ function fillProfileSummary(user) {
     hide(profileBioSummary);
   }
 
-  // Website
   const website = (meta.website || "").trim();
   if (website && profileWebsite && profileWebsiteWrapper) {
     profileWebsite.href = website;
@@ -449,6 +524,21 @@ function fillShippingFromMeta(user) {
       hide(payoutManageBtn);
     }
   }
+
+  // Now that we know meta, decide if this address should be "neatly saved"
+  ensureShippingEditButton();
+
+  if (addressIsComplete(meta)) {
+    // Address looks complete: lock inputs, hide Save, show Edit
+    lockShippingInputs();
+    if (saveShippingSettingsBtn) hide(saveShippingSettingsBtn);
+    if (editShippingBtn) show(editShippingBtn, "inline-block");
+  } else {
+    // No address yet (or incomplete): keep open, show Save, hide Edit
+    unlockShippingInputs();
+    if (saveShippingSettingsBtn) show(saveShippingSettingsBtn, "inline-block");
+    if (editShippingBtn) hide(editShippingBtn);
+  }
 }
 
 // Initial load
@@ -475,8 +565,8 @@ function fillShippingFromMeta(user) {
 
   if (logoutBtn) show(logoutBtn, "inline-block");
 
-  if (isProfileIncomplete(currentUser)) {
-    if (profileForm) show(profileForm, "block");
+  if (isProfileIncomplete(currentUser) && profileForm) {
+    show(profileForm, "block");
   }
 })();
 
@@ -505,7 +595,7 @@ if (saveProfileBtn) {
     const bio = bioInput?.value.trim() || "";
     const website = websiteInput?.value.trim() || "";
 
-    const nameForDisplay = (first || last)
+    const nameForDisplay = first || last
       ? `${first} ${last}`.trim()
       : currentUser.user_metadata?.display_name || "";
 
@@ -530,7 +620,7 @@ if (saveProfileBtn) {
 
       currentUser = data.user;
       fillProfileSummary(currentUser);
-      applyAvatarFromStorage(currentUser); // re-apply photo if present
+      applyAvatarFromStorage(currentUser);
       hide(profileForm);
     } catch (e) {
       console.error(e);
@@ -619,7 +709,6 @@ if (saveShippingSettingsBtn) {
 // ---- STRIPE PAYOUT BUTTONS (live but simple) ----
 if (payoutSetupBtn) {
   payoutSetupBtn.addEventListener("click", () => {
-    // For now: send them to Stripe dashboard login in a new tab.
     window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
   });
 }
