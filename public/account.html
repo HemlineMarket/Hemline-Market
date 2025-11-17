@@ -137,12 +137,13 @@
     h1{margin:0 0 4px;font-size:28px;font-weight:800}
     .subtle{color:var(--muted);font-size:14px;margin:0 0 12px}
 
-    /* main two-column layout */
+    /* main layout */
     #accountGrid{
       display:flex !important;
       gap:16px;
       align-items:flex-start;
       flex-wrap:wrap;
+      margin-bottom:8px; /* pull the row below closer */
     }
     #accountGrid > .card.profile-card{
       flex:1 1 0;
@@ -210,7 +211,7 @@
       display:grid;
       grid-template-columns:2fr 1.1fr;
       gap:14px;
-      margin-top:10px; /* pull these up to reduce the gap */
+      margin-top:0; /* eliminate big vertical gap */
     }
     @media (max-width:900px){
       .status-grid{grid-template-columns:1fr}
@@ -295,10 +296,10 @@
     }
     .shipping-row .shipping-field{flex:1}
 
-    /* READ-ONLY MODE: make saved address look like plain text */
+    /* READ-ONLY MODE: make saved address look like inline text */
     .shipping-input[readonly]{
-      border-color:transparent;
-      background:transparent;
+      border-color:transparent !important;
+      background:transparent !important;
       padding-left:0;
       padding-right:0;
       cursor:default;
@@ -308,8 +309,8 @@
       box-shadow:none;
     }
     .shipping-select[disabled]{
-      border-color:transparent;
-      background:transparent;
+      border-color:transparent !important;
+      background:transparent !important;
       padding-left:0;
       padding-right:0;
       cursor:default;
@@ -554,9 +555,9 @@
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-      <!-- Header initials circle (keeps initials even if profile photo exists) -->
+      <!-- Header initials circle -->
       <a class="hm-avatar" id="headerAvatar" href="account.html" title="Your account" aria-label="Your account" style="display:none;">AA</a>
-      <!-- Big Log in button (hidden when logged in) -->
+      <!-- Big Log in button -->
       <button id="loginHeaderBtn" type="button" class="hm-btn-dark">Log in</button>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
@@ -588,7 +589,6 @@
   <h1>Account</h1>
   <p class="subtle">Manage your profile, sales, purchases, vacation hold, and payouts.</p>
 
-  <!-- Main account content: shown when logged in -->
   <div id="accountGrid" style="display:none">
     <!-- LEFT: Profile -->
     <section class="card profile-card">
@@ -692,7 +692,6 @@
     </aside>
   </div>
 
-  <!-- SECOND ROW: status + security + privacy -->
   <div class="status-grid">
     <aside class="card">
       <div class="hd">Status</div>
@@ -833,7 +832,7 @@
 
 <!-- Page-local JS: hamburger + shipping address behavior -->
 <script>
-  // Hamburger / side sheet just for this page
+  // Hamburger / menu for this page
   (function(){
     const sheet = document.getElementById('menuSheet');
     const openBtn = document.getElementById('openMenu');
@@ -853,7 +852,7 @@
     if(closeBtn) closeBtn.addEventListener('click', closeSheet);
   })();
 
-  // Shipping address: save to localStorage + collapse into neat read-only view
+  // Shipping address: localStorage + neat read-only mode
   (function(){
     const STORAGE_KEY = 'hm_shipping_address_v1';
     const fieldIds = [
@@ -882,7 +881,7 @@
     function loadAddress(){
       try{
         const raw = localStorage.getItem(STORAGE_KEY);
-        if(!raw) return;
+        if(!raw) return false;
         const data = JSON.parse(raw);
         fieldIds.forEach(id=>{
           const el = document.getElementById(id);
@@ -892,8 +891,21 @@
         });
         setModeReadOnly(true);
         if(statusEl) statusEl.textContent = 'Shipping address saved.';
+        return true;
       }catch(err){
         console.error('Error loading shipping address', err);
+        return false;
+      }
+    }
+
+    function prefillShipFromNameIfEmpty(){
+      const nameEl = document.getElementById('profileName');
+      const shipEl = document.getElementById('shipName');
+      if(!nameEl || !shipEl) return;
+      if(shipEl.value.trim()) return; // already has something (user typed or saved)
+      const name = nameEl.textContent.trim();
+      if(name && name !== 'Hemline Market member'){
+        shipEl.value = name;
       }
     }
 
@@ -927,7 +939,7 @@
       saveBtn.addEventListener('click', () => {
         const mode = saveBtn.dataset.mode || 'editing';
         if(mode === 'saved'){
-          // Switch back to editing
+          // back to editing
           setModeReadOnly(false);
           if(statusEl) statusEl.textContent = '';
         } else {
@@ -936,8 +948,13 @@
       });
     }
 
-    // Load any saved address on first paint
-    document.addEventListener('DOMContentLoaded', loadAddress);
+    document.addEventListener('DOMContentLoaded', () => {
+      const hadSaved = loadAddress();
+      if(!hadSaved){
+        // Give account-auth.js a moment to populate profile name, then prefill
+        setTimeout(prefillShipFromNameIfEmpty, 600);
+      }
+    });
   })();
 </script>
 
