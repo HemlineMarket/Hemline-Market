@@ -4,7 +4,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // ---- CONFIG ----
 const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
 const SUPABASE_ANON =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9zZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -20,28 +20,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ---- ELEMENTS ----
 
-// Auth drawer (login panel)
+// Auth drawer
 const modal = document.getElementById("authOverlay");
 const closeBtn = document.getElementById("authCloseBtn");
 
-// Header pieces (on Account page)
+// Header (shared)
 const loginHeaderBtn = document.getElementById("loginHeaderBtn");
-const headerInitials = document.getElementById("headerAvatar");
+// IMPORTANT: this must match <a id="headerUser" ...> in your header HTML
+const headerInitials = document.getElementById("headerUser");
 
 // Account layout
 const accountGrid = document.getElementById("accountGrid");
+const accountLoggedOut = document.getElementById("accountLoggedOut");
 
-// Simple profile display (Account > Profile card)
+// Profile summary + form
 const profileAvatar = document.getElementById("profileAvatar");
 const profileName = document.getElementById("profileName");
 const profileEmail = document.getElementById("profileEmail");
-const profileLocation = document.getElementById("profileLocation");
-const profileBio = document.getElementById("profileBio");
+const profileLocationSummary = document.getElementById("profileLocationSummary");
+const profileBioSummary = document.getElementById("profileBioSummary");
+const profileWebsiteWrapper = document.getElementById("profileWebsiteWrapper");
+const profileWebsite = document.getElementById("profileWebsite");
 
-// Logout button inside Profile card
+const avatarChangeBtn = document.getElementById("avatarChangeBtn");
+const avatarInput = document.getElementById("avatarInput");
+
+const editProfileBtn = document.getElementById("editProfileBtn");
+const profileForm = document.getElementById("profileForm");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const cancelProfileEditBtn = document.getElementById("cancelProfileEditBtn");
+
+// Profile form fields
+const firstNameInput = document.getElementById("firstNameInput");
+const lastNameInput = document.getElementById("lastNameInput");
+const locationInput = document.getElementById("locationInput");
+const bioInput = document.getElementById("bioInput");
+const websiteInput = document.getElementById("websiteInput");
+
+// Logout
 const logoutBtn = document.getElementById("logoutBtn");
 
-// Auth forms inside the drawer
+// Auth forms
 const loginForm = document.getElementById("loginForm");
 const signupForm = document.getElementById("signupForm");
 const googleBtn = document.getElementById("googleBtn");
@@ -50,6 +69,28 @@ const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
 
 const errBox = document.getElementById("authError");
 const msgBox = document.getElementById("authMessage");
+
+// Payouts & shipping
+const payoutSetupBtn = document.getElementById("payoutSetupBtn");
+const payoutManageBtn = document.getElementById("payoutManageBtn");
+const payoutStatusText = document.getElementById("payoutStatusText");
+
+const shipFromName = document.getElementById("shipFromName");
+const shipFromStreet = document.getElementById("shipFromStreet");
+const shipFromStreet2 = document.getElementById("shipFromStreet2");
+const shipFromCity = document.getElementById("shipFromCity");
+const shipFromState = document.getElementById("shipFromState");
+const shipFromZip = document.getElementById("shipFromZip");
+const shipFromCountry = document.getElementById("shipFromCountry");
+const saveShippingSettingsBtn =
+  document.getElementById("saveShippingAddressBtn") ||
+  document.getElementById("saveShippingSettingsBtn");
+
+// Status
+const vacSwitch = document.getElementById("vacSwitch");
+
+// Will create this programmatically next to the Save button
+let editShippingBtn = null;
 
 // ---- SMALL HELPERS ----
 function showModal() {
@@ -85,43 +126,139 @@ function hide(el) {
   if (el) el.style.display = "none";
 }
 
-// Build initials from name/email/profile
-function getInitials(user, profile) {
-  // Prefer profile.full_name if we have it
-  const fullName = (profile?.full_name || "").trim();
-  if (fullName) {
-    const parts = fullName.split(/\s+/);
-    if (parts.length === 1) {
-      return parts[0].slice(0, 2).toUpperCase();
-    }
-    const a = parts[0][0] || "";
-    const b = parts[1][0] || "";
-    const letters = (a + b).toUpperCase();
-    if (letters) return letters;
-  }
-
-  // Fall back to auth metadata display_name
+// Build initials from name or email
+function getInitialsForUser(user) {
   const meta = user?.user_metadata || {};
+  const first = (meta.first_name || "").trim();
+  const last = (meta.last_name || "").trim();
   const display = (meta.display_name || "").trim();
-  if (display) {
-    const parts = display.split(/\s+/);
-    if (parts.length === 1) {
-      return parts[0].slice(0, 2).toUpperCase();
-    }
-    const a = parts[0][0] || "";
-    const b = parts[1][0] || "";
+
+  let source = "";
+
+  if (first || last) {
+    source = `${first} ${last}`.trim();
+  } else if (display) {
+    source = display;
+  }
+
+  if (source) {
+    const parts = source.split(/\s+/);
+    const a = parts[0]?.[0] || "";
+    const b = parts[parts.length - 1]?.[0] || "";
     const letters = (a + b).toUpperCase();
     if (letters) return letters;
   }
 
-  // Last resort: first two letters of email local-part
   const email = user?.email || "";
-  if (email) {
-    const local = email.split("@")[0] || "";
-    if (local) return local.slice(0, 2).toUpperCase();
-  }
+  if (email) return email[0].toUpperCase();
 
   return "HM";
+}
+
+// Avatar storage key (per user)
+function getAvatarStorageKey(user) {
+  if (!user?.id) return null;
+  return `hm-avatar-${user.id}`;
+}
+
+function saveAvatarToStorage(user, dataUrl) {
+  const key = getAvatarStorageKey(user);
+  if (!key) return;
+  try {
+    window.localStorage.setItem(key, dataUrl);
+  } catch (e) {
+    console.warn("Could not save avatar to localStorage", e);
+  }
+}
+
+// Apply avatar only to the PROFILE card (not header)
+function applyAvatarFromStorage(user) {
+  const key = getAvatarStorageKey(user);
+  if (!key) return;
+  const dataUrl = window.localStorage.getItem(key);
+  if (!dataUrl) return;
+
+  if (profileAvatar) {
+    profileAvatar.style.backgroundImage = `url(${dataUrl})`;
+    profileAvatar.textContent = "";
+  }
+}
+
+// ---- SHIPPING HELPERS ----
+
+function addressIsComplete(meta = {}) {
+  return (
+    meta.ship_from_name?.trim() &&
+    meta.ship_from_street?.trim() &&
+    meta.ship_from_city?.trim() &&
+    meta.ship_from_zip?.trim()
+  );
+}
+
+function lockShippingInputs() {
+  const textInputs = [
+    shipFromName,
+    shipFromStreet,
+    shipFromStreet2,
+    shipFromCity,
+    shipFromState,
+    shipFromZip,
+  ];
+
+  textInputs.forEach((inp) => {
+    if (!inp) return;
+    inp.readOnly = true;
+    inp.style.backgroundColor = "#f9fafb";
+  });
+
+  if (shipFromCountry) {
+    shipFromCountry.disabled = true;
+    shipFromCountry.style.backgroundColor = "#f9fafb";
+  }
+}
+
+function unlockShippingInputs() {
+  const textInputs = [
+    shipFromName,
+    shipFromStreet,
+    shipFromStreet2,
+    shipFromCity,
+    shipFromState,
+    shipFromZip,
+  ];
+
+  textInputs.forEach((inp) => {
+    if (!inp) return;
+    inp.readOnly = false;
+    inp.style.backgroundColor = "";
+  });
+
+  if (shipFromCountry) {
+    shipFromCountry.disabled = false;
+    shipFromCountry.style.backgroundColor = "";
+  }
+}
+
+function ensureShippingEditButton() {
+  if (!saveShippingSettingsBtn) return;
+  if (editShippingBtn) return;
+
+  const container = saveShippingSettingsBtn.parentElement || saveShippingSettingsBtn;
+  if (!container) return;
+
+  editShippingBtn = document.createElement("button");
+  editShippingBtn.type = "button";
+  editShippingBtn.textContent = "Edit address";
+  editShippingBtn.className = "btn";
+  editShippingBtn.style.marginLeft = "8px";
+
+  container.appendChild(editShippingBtn);
+
+  editShippingBtn.addEventListener("click", () => {
+    unlockShippingInputs();
+    show(saveShippingSettingsBtn, "inline-block");
+    hide(editShippingBtn);
+  });
 }
 
 // ---- AUTH DRAWER BEHAVIOR ----
@@ -271,126 +408,322 @@ if (logoutBtn) {
 
 let currentUser = null;
 
-// Fetch or create a row in `profiles` for this user
-async function fetchOrCreateProfile(user) {
-  try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, tagline, location")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.warn("Error loading profile:", error);
-    }
-
-    if (data) {
-      return data;
-    }
-
-    // No row yet: create a basic one using display_name or email
-    const meta = user.user_metadata || {};
-    const displayName = (meta.display_name || "").trim();
-    const fullName = displayName || user.email || "Hemline sewist";
-
-    const { data: inserted, error: insertError } = await supabase
-      .from("profiles")
-      .insert({
-        id: user.id,
-        full_name: fullName,
-        tagline: "",
-        location: "",
-      })
-      .select("id, full_name, tagline, location")
-      .single();
-
-    if (insertError) {
-      console.warn("Error creating profile row:", insertError);
-      return {
-        id: user.id,
-        full_name: fullName,
-        tagline: "",
-        location: "",
-      };
-    }
-
-    return inserted;
-  } catch (e) {
-    console.error("Unexpected error loading/creating profile:", e);
-    return {
-      id: user.id,
-      full_name: user.email || "Hemline sewist",
-      tagline: "",
-      location: "",
-    };
-  }
-}
-
 function setLoggedOutUI() {
-  if (accountGrid) hide(accountGrid);
+  hide(accountGrid);
+  if (accountLoggedOut) show(accountLoggedOut, "block");
 
-  if (headerInitials) hide(headerInitials);
+  hide(headerInitials);
   if (loginHeaderBtn) show(loginHeaderBtn, "inline-block");
-  if (logoutBtn) hide(logoutBtn);
 }
 
-function applyProfileUI(user, profile) {
-  // Show account layout
-  if (accountGrid) show(accountGrid, "block");
+function setLoggedInHeader(user) {
+  const initials = getInitialsForUser(user);
 
-  // Header initials circle
-  const initials = getInitials(user, profile);
   if (headerInitials) {
     headerInitials.style.backgroundImage = "";
     headerInitials.textContent = initials;
     show(headerInitials, "inline-grid");
   }
   if (loginHeaderBtn) hide(loginHeaderBtn);
-  if (logoutBtn) show(logoutBtn, "inline-block");
+}
 
-  // Profile card fields
+function fillProfileSummary(user) {
+  const meta = user.user_metadata || {};
+
+  const first = (meta.first_name || "").trim();
+  const last = (meta.last_name || "").trim();
+  const displayName = (meta.display_name || "").trim();
+
+  const nameToShow =
+    first || last ? `${first} ${last}`.trim() : displayName || "Hemline Market member";
+
   if (profileName) {
-    profileName.textContent =
-      profile.full_name || user.email || "Hemline Market member";
+    profileName.textContent = nameToShow;
   }
   if (profileEmail) {
     profileEmail.textContent = user.email || "";
   }
-  if (profileLocation) {
-    profileLocation.textContent = profile.location || "";
-  }
-  if (profileBio) {
-    // Use tagline if set, otherwise keep whatever was in HTML
-    if (profile.tagline && profile.tagline.trim()) {
-      profileBio.textContent = profile.tagline;
+
+  const initials = getInitialsForUser(user);
+
+  if (profileAvatar) {
+    if (!profileAvatar.style.backgroundImage) {
+      profileAvatar.textContent = initials;
     }
   }
 
-  // If there's no custom avatar applied, show initials in the profile avatar
-  if (profileAvatar && !profileAvatar.style.backgroundImage) {
-    profileAvatar.textContent = initials;
+  const loc = (meta.location || "").trim();
+  if (loc) {
+    if (profileLocationSummary) {
+      profileLocationSummary.textContent = loc;
+      show(profileLocationSummary, "block");
+    }
+  } else if (profileLocationSummary) {
+    hide(profileLocationSummary);
+  }
+
+  const bio = (meta.bio || "").trim();
+  if (bio) {
+    if (profileBioSummary) {
+      profileBioSummary.textContent = bio;
+      show(profileBioSummary, "block");
+    }
+  } else if (profileBioSummary) {
+    hide(profileBioSummary);
+  }
+
+  const website = (meta.website || "").trim();
+  if (website && profileWebsite && profileWebsiteWrapper) {
+    profileWebsite.href = website;
+    profileWebsite.textContent = website;
+    show(profileWebsiteWrapper, "block");
+  } else if (profileWebsiteWrapper) {
+    hide(profileWebsiteWrapper);
   }
 }
 
-// Initial load: check session, then load profile
-(async () => {
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (error) {
-      console.error("Error getting current user:", error);
+function fillProfileForm(user) {
+  const meta = user.user_metadata || {};
+
+  if (firstNameInput) firstNameInput.value = meta.first_name || "";
+  if (lastNameInput) lastNameInput.value = meta.last_name || "";
+  if (locationInput) locationInput.value = meta.location || "";
+  if (bioInput) bioInput.value = meta.bio || "";
+  if (websiteInput) websiteInput.value = meta.website || "";
+}
+
+function isProfileIncomplete(user) {
+  const meta = user.user_metadata || {};
+  const hasAny =
+    (meta.first_name && meta.first_name.trim()) ||
+    (meta.last_name && meta.last_name.trim()) ||
+    (meta.location && meta.location.trim()) ||
+    (meta.bio && meta.bio.trim()) ||
+    (meta.website && meta.website.trim());
+
+  return !hasAny;
+}
+
+function fillShippingFromMeta(user) {
+  const meta = user.user_metadata || {};
+
+  if (shipFromName) shipFromName.value = meta.ship_from_name || "";
+  if (shipFromStreet) shipFromStreet.value = meta.ship_from_street || "";
+  if (shipFromStreet2) shipFromStreet2.value = meta.ship_from_street2 || "";
+  if (shipFromCity) shipFromCity.value = meta.ship_from_city || "";
+  if (shipFromState) shipFromState.value = meta.ship_from_state || "";
+  if (shipFromZip) shipFromZip.value = meta.ship_from_zip || "";
+  if (shipFromCountry && meta.ship_from_country) {
+    shipFromCountry.value = meta.ship_from_country;
+  }
+
+  const payoutsStatus = meta.payouts_status || "not_configured";
+  if (payoutStatusText) {
+    if (payoutsStatus === "active") {
+      payoutStatusText.textContent =
+        "Payouts are active. Stripe will send your earnings to your bank account.";
+      hide(payoutSetupBtn);
+      show(payoutManageBtn, "inline-block");
+    } else {
+      payoutStatusText.textContent =
+        "Set up payouts so we can send you money from your fabric sales.";
+      show(payoutSetupBtn, "inline-block");
+      hide(payoutManageBtn);
     }
+  }
 
-    currentUser = data?.user || null;
+  ensureShippingEditButton();
 
-    if (!currentUser) {
-      setLoggedOutUI();
+  if (addressIsComplete(meta)) {
+    lockShippingInputs();
+    if (saveShippingSettingsBtn) hide(saveShippingSettingsBtn);
+    if (editShippingBtn) show(editShippingBtn, "inline-block");
+  } else {
+    unlockShippingInputs();
+    if (saveShippingSettingsBtn) show(saveShippingSettingsBtn, "inline-block");
+    if (editShippingBtn) hide(editShippingBtn);
+  }
+}
+
+// Initial load
+(async () => {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error("Error getting current user:", error);
+  }
+
+  currentUser = data?.user || null;
+
+  if (!currentUser) {
+    setLoggedOutUI();
+    return;
+  }
+
+  show(accountGrid, "grid");
+  if (accountLoggedOut) hide(accountLoggedOut);
+  setLoggedInHeader(currentUser);
+  fillProfileSummary(currentUser);
+  fillProfileForm(currentUser);
+  fillShippingFromMeta(currentUser);
+  applyAvatarFromStorage(currentUser);
+
+  if (logoutBtn) show(logoutBtn, "inline-block");
+
+  if (isProfileIncomplete(currentUser) && profileForm) {
+    show(profileForm, "block");
+  }
+})();
+
+// ---- PROFILE EDIT BEHAVIOR ----
+if (editProfileBtn && profileForm) {
+  editProfileBtn.addEventListener("click", () => {
+    if (!currentUser) return;
+    fillProfileForm(currentUser);
+    show(profileForm, "block");
+  });
+}
+
+if (cancelProfileEditBtn && profileForm) {
+  cancelProfileEditBtn.addEventListener("click", () => {
+    hide(profileForm);
+  });
+}
+
+if (saveProfileBtn) {
+  saveProfileBtn.addEventListener("click", async () => {
+    if (!currentUser) return;
+
+    const first = firstNameInput?.value.trim() || "";
+    const last = lastNameInput?.value.trim() || "";
+    const loc = locationInput?.value.trim() || "";
+    const bio = bioInput?.value.trim() || "";
+    const website = websiteInput?.value.trim() || "";
+
+    const nameForDisplay =
+      first || last
+        ? `${first} ${last}`.trim()
+        : currentUser.user_metadata?.display_name || "";
+
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          ...currentUser.user_metadata,
+          first_name: first || null,
+          last_name: last || null,
+          display_name: nameForDisplay || null,
+          location: loc || null,
+          bio: bio || null,
+          website: website || null,
+        },
+      });
+
+      if (error) {
+        console.error("Error saving profile:", error);
+        alert("There was a problem saving your profile. Please try again.");
+        return;
+      }
+
+      currentUser = data.user;
+      fillProfileSummary(currentUser);
+      applyAvatarFromStorage(currentUser);
+      hide(profileForm);
+    } catch (e) {
+      console.error(e);
+      alert("There was a problem saving your profile. Please try again.");
+    }
+  });
+}
+
+// ---- AVATAR PHOTO UPLOAD ----
+if (avatarChangeBtn && avatarInput) {
+  avatarChangeBtn.addEventListener("click", () => {
+    avatarInput.click();
+  });
+
+  avatarInput.addEventListener("change", () => {
+    const file = avatarInput.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please choose an image file.");
       return;
     }
 
-    const profile = await fetchOrCreateProfile(currentUser);
-    applyProfileUI(currentUser, profile);
-  } catch (e) {
-    console.error("Error during account initialization:", e);
-    setLoggedOutUI();
-  }
-})();
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (!currentUser) return;
+
+      if (profileAvatar) {
+        profileAvatar.style.backgroundImage = `url(${dataUrl})`;
+        profileAvatar.textContent = "";
+      }
+
+      saveAvatarToStorage(currentUser, dataUrl);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ---- SHIPPING ADDRESS SAVE ----
+if (saveShippingSettingsBtn) {
+  saveShippingSettingsBtn.addEventListener("click", async () => {
+    if (!currentUser) {
+      alert("Please sign in to save your shipping address.");
+      return;
+    }
+
+    const meta = currentUser.user_metadata || {};
+
+    const updatedMeta = {
+      ...meta,
+      ship_from_name: shipFromName?.value.trim() || null,
+      ship_from_street: shipFromStreet?.value.trim() || null,
+      ship_from_street2: shipFromStreet2?.value.trim() || null,
+      ship_from_city: shipFromCity?.value.trim() || null,
+      ship_from_state: shipFromState?.value.trim() || null,
+      ship_from_zip: shipFromZip?.value.trim() || null,
+      ship_from_country: shipFromCountry?.value || null,
+    };
+
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: updatedMeta,
+      });
+
+      if (error) {
+        console.error("Error saving shipping settings:", error);
+        alert("There was a problem saving your shipping address.");
+        return;
+      }
+
+      currentUser = data.user;
+      fillShippingFromMeta(currentUser);
+      alert("Shipping address saved for आपके labels.");
+    } catch (e) {
+      console.error(e);
+      alert("There was a problem saving your shipping address.");
+    }
+  });
+}
+
+// ---- STRIPE PAYOUT BUTTONS ----
+if (payoutSetupBtn) {
+  payoutSetupBtn.addEventListener("click", () => {
+    window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
+  });
+}
+
+if (payoutManageBtn) {
+  payoutManageBtn.addEventListener("click", () => {
+    window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
+  });
+}
+
+// ---- SIMPLE VACATION TOGGLE (visual only for now) ----
+if (vacSwitch) {
+  vacSwitch.addEventListener("click", () => {
+    const current = vacSwitch.getAttribute("data-on") === "true";
+    vacSwitch.setAttribute("data-on", current ? "false" : "true");
+  });
+}
