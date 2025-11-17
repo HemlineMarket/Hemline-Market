@@ -27,8 +27,10 @@
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
+
+    /* Narrower main column and single-column account layout */
     main.wrap{
-      max-width:1100px;
+      max-width:780px;
       margin:18px auto 28px;
       padding:0 12px;
     }
@@ -82,16 +84,13 @@
       box-shadow:0 2px 8px rgba(153,27,27,.25);
     }
 
+    /* SINGLE-COLUMN stack for all account cards */
     .account-grid{
-      display:grid;
-      grid-template-columns:2.2fr 1.8fr;
+      display:flex;
+      flex-direction:column;
       gap:12px;
-      align-items:flex-start;
-    }
-    @media (max-width:900px){
-      .account-grid{
-        grid-template-columns:1fr;
-      }
+      align-items:stretch;
+      margin-top:8px;
     }
 
     .card{
@@ -172,7 +171,8 @@
       color:#4b5563;
     }
     .field input,
-    .field textarea{
+    .field textarea,
+    .field select{
       padding:7px 10px;
       border-radius:8px;
       border:1px solid var(--hm-border);
@@ -188,6 +188,11 @@
       flex-wrap:wrap;
       gap:8px;
       margin-top:10px;
+    }
+
+    /* Make the shipping form feel less huge */
+    .shipping-section{
+      max-width:560px;
     }
 
     .switch{
@@ -415,7 +420,7 @@
 </head>
 <body>
 
-<!-- HEADER (unified with site, but using ids that account-auth.js expects) -->
+<!-- HEADER (shared) -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -460,7 +465,7 @@
         </svg>
       </a>
 
-      <!-- Avatar used by account-auth.js for initials (RK, etc.) -->
+      <!-- Avatar used for initials (RK, etc.) -->
       <a class="hm-avatar" id="headerAvatar" href="account.html" title="Your account" style="display:none;">RK</a>
 
       <!-- Header login button (shown when logged OUT) -->
@@ -473,9 +478,8 @@
   </div>
 </header>
 
-<!-- OVERLAY + LEFT MENU (shared) -->
+<!-- Overlay + hamburger menu -->
 <div id="sheetOverlay" aria-hidden="true"></div>
-
 <aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
   <header>
     <strong>Menu</strong>
@@ -500,7 +504,7 @@
   <h1>Account</h1>
   <p class="subtle">Manage your profile, payouts, shipping, vacation hold, and security.</p>
 
-  <!-- LOGGED OUT STATE (shown when no Supabase user) -->
+  <!-- LOGGED OUT STATE -->
   <section id="accountLoggedOut" class="account-logged-out" style="display:none;">
     <h2>Sign in to manage your Hemline Market account</h2>
     <p>
@@ -515,7 +519,7 @@
 
   <!-- LOGGED IN STATE -->
   <div id="accountGrid" class="account-grid" style="display:none;">
-    <!-- LEFT COLUMN: Profile -->
+    <!-- Profile -->
     <section class="card">
       <div class="hd">Profile</div>
       <div class="bd">
@@ -545,10 +549,8 @@
           <a class="btn" href="atelier.html">Your Atelier</a>
         </div>
 
-        <!-- Hidden avatar input used by account-auth.js (per-user, localStorage) -->
         <input id="avatarInput" type="file" accept="image/*" style="display:none"/>
 
-        <!-- INLINE PROFILE EDIT FORM (controlled entirely by account-auth.js) -->
         <div id="profileForm" class="profile-form">
           <div class="profile-form-grid">
             <div class="field">
@@ -580,11 +582,11 @@
         </div>
       </div>
     </section>
-        <!-- RIGHT COLUMN: Payouts & shipping -->
+
+    <!-- Payouts & shipping -->
     <section class="card">
       <div class="hd">Payouts &amp; shipping</div>
-      <div class="bd">
-        <!-- Payouts -->
+      <div class="bd shipping-section">
         <section aria-labelledby="payoutsHeading">
           <h2 id="payoutsHeading" style="font-size:14px;margin:0 0 4px;">Payouts</h2>
           <p id="payoutStatusText" style="margin:0 0 8px;font-size:13px;color:var(--hm-muted);">
@@ -599,7 +601,6 @@
 
         <hr style="border:none;border-top:1px solid var(--hm-border);margin:12px 0 10px;"/>
 
-        <!-- Shipping address -->
         <section aria-labelledby="shippingHeading">
           <h2 id="shippingHeading" style="font-size:14px;margin:0 0 4px;">Ship-from address</h2>
           <p style="margin:0 0 6px;font-size:13px;color:var(--hm-muted);">
@@ -646,7 +647,7 @@
             <button id="saveShippingSettingsBtn" class="btn primary" type="button">
               Save shipping address
             </button>
-            <!-- The "Edit address" button is injected here by account-auth.js -->
+            <!-- "Edit address" button is injected here by account-auth.js -->
           </div>
 
           <p style="margin:8px 0 0;font-size:12px;color:var(--hm-muted);">
@@ -656,8 +657,8 @@
       </div>
     </section>
 
-    <!-- FULL-WIDTH ROWS BELOW (span both columns on desktop) -->
-    <section class="card" style="grid-column:1 / -1;">
+    <!-- Status -->
+    <section class="card">
       <div class="hd">Status</div>
       <div class="bd">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -672,7 +673,8 @@
       </div>
     </section>
 
-    <section class="card" style="grid-column:1 / -1;">
+    <!-- Security -->
+    <section class="card">
       <div class="hd">Security</div>
       <div class="bd">
         <p style="margin:0 0 8px;font-size:13px;color:var(--hm-muted);">
@@ -684,7 +686,8 @@
       </div>
     </section>
 
-    <section class="card" style="grid-column:1 / -1;">
+    <!-- Privacy -->
+    <section class="card">
       <div class="hd">Privacy</div>
       <div class="bd">
         <p style="margin:0 0 8px;font-size:13px;color:var(--hm-muted);">
@@ -701,7 +704,6 @@
   </div>
 </main>
 
-<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -714,7 +716,8 @@
     </nav>
   </div>
 </footer>
-<!-- LOGIN DRAWER OVERLAY (used on this page only) -->
+
+<!-- Login drawer -->
 <div class="auth-overlay" id="authOverlay" aria-modal="true" role="dialog" aria-labelledby="authTitle">
   <div class="auth-panel">
     <div class="auth-header">
@@ -728,7 +731,6 @@
     </div>
 
     <div class="auth-grid">
-      <!-- LEFT: Sign in -->
       <div class="auth-left">
         <form id="loginForm">
           <div class="auth-field">
@@ -746,10 +748,8 @@
         </form>
       </div>
 
-      <!-- Divider -->
       <div class="auth-divider"></div>
 
-      <!-- RIGHT: Create account + providers -->
       <div class="auth-right">
         <form id="signupForm">
           <div class="auth-field">
@@ -801,7 +801,6 @@
   </div>
 </div>
 
-<!-- JS: Hamburger / sheet + session-aware account wiring -->
 <script>
   (function(){
     const sheet   = document.getElementById('menuSheet');
@@ -846,7 +845,6 @@
       });
     }
 
-    // "Log in" button inside the logged-out card opens the same auth overlay
     const accountLoginOpen = document.getElementById('accountLoginOpen');
     const loginHeaderBtn   = document.getElementById('loginHeaderBtn');
     const modal            = document.getElementById('authOverlay');
@@ -865,7 +863,6 @@
   })();
 </script>
 
-<!-- Supabase-powered account logic -->
 <script type="module" src="scripts/account-auth.js"></script>
 
 </body>
