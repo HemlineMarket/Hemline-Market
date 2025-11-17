@@ -979,79 +979,118 @@
   })();
 </script>
 <script>
-  // SIMPLE REPLACEMENT HANDLERS FOR EDIT PHOTO + EDIT PROFILE
+  <script>
+/* -------------------------------------------
+   EDIT PHOTO + EDIT PROFILE (Inline panel)
+--------------------------------------------*/
 
-  document.addEventListener("DOMContentLoaded", () => {
-    const editPhotoBtn = document.getElementById("editPhotoBtn");
-    const editProfileBtn = document.getElementById("editProfileBtn");
-    const photoInput = document.getElementById("photoInput");
-    const profileNameEl = document.getElementById("profileName");
-    const profileBioEl = document.getElementById("profileBio");
+document.addEventListener("DOMContentLoaded", () => {
+  const editPhotoBtn = document.getElementById("editPhotoBtn");
+  const editProfileBtn = document.getElementById("editProfileBtn");
+  const photoInput = document.getElementById("photoInput");
 
-    // ---- EDIT PHOTO ----
-    if (editPhotoBtn && photoInput) {
-      editPhotoBtn.addEventListener("click", () => {
-        photoInput.click();
-      });
+  const profileNameEl = document.getElementById("profileName");
+  const profileBioEl = document.getElementById("profileBio");
 
-      photoInput.addEventListener("change", () => {
-        if (!photoInput.files || !photoInput.files[0]) return;
+  /* ---------- PHOTO ---------- */
+  if (editPhotoBtn && photoInput) {
+    editPhotoBtn.addEventListener("click", () => photoInput.click());
 
-        const file = photoInput.files[0];
-        const url = URL.createObjectURL(file);
+    photoInput.addEventListener("change", () => {
+      if (!photoInput.files || !photoInput.files[0]) return;
+      const file = photoInput.files[0];
+      const url = URL.createObjectURL(file);
 
-        // Preview the new photo instantly
-        const avatar = document.getElementById("profileAvatar");
-        if (avatar) {
-          avatar.style.backgroundImage = `url(${url})`;
-          avatar.textContent = "";
-        }
+      const avatar = document.getElementById("profileAvatar");
+      if (avatar) {
+        avatar.style.backgroundImage = `url(${url})`;
+        avatar.textContent = "";
+      }
 
-        // Store in localStorage so it persists
-        localStorage.setItem("hm_profile_photo", url);
-      });
+      localStorage.setItem("hm_profile_photo", url);
+    });
 
-      // Load saved photo
-      const saved = localStorage.getItem("hm_profile_photo");
-      if (saved) {
-        const avatar = document.getElementById("profileAvatar");
-        if (avatar) {
-          avatar.style.backgroundImage = `url(${saved})`;
-          avatar.textContent = "";
-        }
+    const savedPhoto = localStorage.getItem("hm_profile_photo");
+    if (savedPhoto) {
+      const avatar = document.getElementById("profileAvatar");
+      if (avatar) {
+        avatar.style.backgroundImage = `url(${savedPhoto})`;
+        avatar.textContent = "";
       }
     }
+  }
 
-    // ---- EDIT PROFILE ----
-    if (editProfileBtn) {
-      editProfileBtn.addEventListener("click", async () => {
-        const newName = prompt("Enter your display name:", profileNameEl.textContent);
-        if (!newName) return;
+  /* ---------- INLINE EDIT PANEL (HTML inserted dynamically) ---------- */
 
-        const newBio = prompt("Enter your bio:", profileBioEl.textContent);
+  // Build and inject edit panel
+  const panelHTML = `
+    <div id="profileEditPanel" style="display:none; margin-top:12px;">
+      <div style="display:flex; flex-direction:column; gap:10px; padding:12px; border:1px solid var(--border); border-radius:10px; background:#f9fafb;">
+        
+        <div>
+          <label style="font-size:13px; color:#4b5563;">Name</label>
+          <input id="editNameInput" type="text" style="padding:8px 10px; width:100%; border-radius:8px; border:1px solid var(--border);">
+        </div>
 
-        profileNameEl.textContent = newName;
-        profileBioEl.textContent = newBio || "";
+        <div>
+          <label style="font-size:13px; color:#4b5563;">Bio</label>
+          <textarea id="editBioInput" style="padding:8px 10px; width:100%; border-radius:8px; border:1px solid var(--border);" rows="2"></textarea>
+        </div>
 
-        // Save it locally so it persists
-        const info = {
-          name: newName,
-          bio: newBio || ""
-        };
-        localStorage.setItem("hm_profile_info", JSON.stringify(info));
-      });
+        <div style="display:flex; gap:8px;">
+          <button id="saveProfileBtn" class="btn primary" type="button">Save</button>
+          <button id="cancelProfileBtn" class="btn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `;
 
-      // Load saved name + bio
-      const raw = localStorage.getItem("hm_profile_info");
-      if (raw) {
-        try {
-          const data = JSON.parse(raw);
-          if (data.name) profileNameEl.textContent = data.name;
-          if (data.bio) profileBioEl.textContent = data.bio;
-        } catch {}
-      }
-    }
+  const profileSection = document.querySelector(".profile-card .bd");
+  profileSection.insertAdjacentHTML("beforeend", panelHTML);
+
+  const panel = document.getElementById("profileEditPanel");
+  const nameInput = document.getElementById("editNameInput");
+  const bioInput = document.getElementById("editBioInput");
+  const saveBtn = document.getElementById("saveProfileBtn");
+  const cancelBtn = document.getElementById("cancelProfileBtn");
+
+  // Load saved profile
+  const stored = localStorage.getItem("hm_profile_info");
+  if (stored) {
+    const data = JSON.parse(stored);
+    if (data.name) profileNameEl.textContent = data.name;
+    if (data.bio) profileBioEl.textContent = data.bio;
+  }
+
+  // Open edit panel
+  editProfileBtn.addEventListener("click", () => {
+    nameInput.value = profileNameEl.textContent;
+    bioInput.value = profileBioEl.textContent;
+    panel.style.display = "block";
   });
+
+  // Save
+  saveBtn.addEventListener("click", () => {
+    const newName = nameInput.value.trim();
+    const newBio = bioInput.value.trim();
+
+    if (newName) profileNameEl.textContent = newName;
+    profileBioEl.textContent = newBio;
+
+    localStorage.setItem(
+      "hm_profile_info",
+      JSON.stringify({ name: newName, bio: newBio })
+    );
+
+    panel.style.display = "none";
+  });
+
+  // Cancel
+  cancelBtn.addEventListener("click", () => {
+    panel.style.display = "none";
+  });
+});
+</script>
 </script>
 </body>
 </html>
