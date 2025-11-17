@@ -59,7 +59,7 @@ const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
 const errBox = document.getElementById("authError");
 const msgBox = document.getElementById("authMessage");
 
-// Payouts & shipping (placeholders for wiring later)
+// Payouts & shipping
 const payoutSetupBtn = document.getElementById("payoutSetupBtn");
 const payoutManageBtn = document.getElementById("payoutManageBtn");
 const payoutStatusText = document.getElementById("payoutStatusText");
@@ -71,8 +71,9 @@ const shipFromCity = document.getElementById("shipFromCity");
 const shipFromState = document.getElementById("shipFromState");
 const shipFromZip = document.getElementById("shipFromZip");
 const shipFromCountry = document.getElementById("shipFromCountry");
-const saveShippingSettingsBtn = document.getElementById("saveShippingAddressBtn") ||
-                                document.getElementById("saveShippingSettingsBtn");
+const saveShippingSettingsBtn =
+  document.getElementById("saveShippingAddressBtn") ||
+  document.getElementById("saveShippingSettingsBtn");
 
 // Status
 const vacSwitch = document.getElementById("vacSwitch");
@@ -330,8 +331,10 @@ function setLoggedInHeader(user) {
   const initials = getInitialsForUser(user);
 
   if (headerInitials) {
-    headerInitials.style.backgroundImage = "";
-    headerInitials.textContent = initials;
+    // Only set initials if no avatar image already applied
+    if (!headerInitials.style.backgroundImage) {
+      headerInitials.textContent = initials;
+    }
     show(headerInitials, "inline-grid");
   }
   if (loginHeaderBtn) hide(loginHeaderBtn);
@@ -358,8 +361,10 @@ function fillProfileSummary(user) {
   const initials = getInitialsForUser(user);
 
   if (profileAvatar) {
-    profileAvatar.style.backgroundImage = "";
-    profileAvatar.textContent = initials;
+    // If there is no photo set, show initials.
+    if (!profileAvatar.style.backgroundImage) {
+      profileAvatar.textContent = initials;
+    }
   }
 
   // Location
@@ -430,7 +435,6 @@ function fillShippingFromMeta(user) {
     shipFromCountry.value = meta.ship_from_country;
   }
 
-  // Payout status text (VERY light for now)
   const payoutsStatus = meta.payouts_status || "not_configured";
   if (payoutStatusText) {
     if (payoutsStatus === "active") {
@@ -461,7 +465,6 @@ function fillShippingFromMeta(user) {
     return;
   }
 
-  // Logged-in UI
   show(accountGrid, "grid");
   hide(accountLoggedOut);
   setLoggedInHeader(currentUser);
@@ -472,7 +475,6 @@ function fillShippingFromMeta(user) {
 
   if (logoutBtn) show(logoutBtn, "inline-block");
 
-  // If profile is incomplete, open the form by default so they can fill it
   if (isProfileIncomplete(currentUser)) {
     if (profileForm) show(profileForm, "block");
   }
@@ -528,6 +530,7 @@ if (saveProfileBtn) {
 
       currentUser = data.user;
       fillProfileSummary(currentUser);
+      applyAvatarFromStorage(currentUser); // re-apply photo if present
       hide(profileForm);
     } catch (e) {
       console.error(e);
@@ -536,7 +539,7 @@ if (saveProfileBtn) {
   });
 }
 
-// ---- AVATAR PHOTO UPLOAD (localStorage-based persistence) ----
+// ---- AVATAR PHOTO UPLOAD ----
 if (avatarChangeBtn && avatarInput) {
   avatarChangeBtn.addEventListener("click", () => {
     avatarInput.click();
@@ -556,7 +559,6 @@ if (avatarChangeBtn && avatarInput) {
       const dataUrl = reader.result;
       if (!currentUser) return;
 
-      // Apply to avatars
       if (profileAvatar) {
         profileAvatar.style.backgroundImage = `url(${dataUrl})`;
         profileAvatar.textContent = "";
@@ -572,7 +574,7 @@ if (avatarChangeBtn && avatarInput) {
   });
 }
 
-// ---- SHIPPING ADDRESS SAVE (stored in user_metadata for now) ----
+// ---- SHIPPING ADDRESS SAVE ----
 if (saveShippingSettingsBtn) {
   saveShippingSettingsBtn.addEventListener("click", async () => {
     if (!currentUser) {
@@ -605,11 +607,26 @@ if (saveShippingSettingsBtn) {
       }
 
       currentUser = data.user;
+      fillShippingFromMeta(currentUser);
       alert("Shipping address saved for your labels.");
     } catch (e) {
       console.error(e);
       alert("There was a problem saving your shipping address.");
     }
+  });
+}
+
+// ---- STRIPE PAYOUT BUTTONS (live but simple) ----
+if (payoutSetupBtn) {
+  payoutSetupBtn.addEventListener("click", () => {
+    // For now: send them to Stripe dashboard login in a new tab.
+    window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
+  });
+}
+
+if (payoutManageBtn) {
+  payoutManageBtn.addEventListener("click", () => {
+    window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
   });
 }
 
