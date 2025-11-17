@@ -708,4 +708,258 @@
   // ---- PROFILE LOCAL DATA ----
   function loadProfileExtras() {
     const stored = loadLocal("hm_profile_extras", null);
-   
+    if (stored) {
+      if (profileLocation) profileLocation.textContent = stored.location || "";
+      if (profileTagline) profileTagline.textContent = stored.tagline || "";
+    } else {
+      // defaults you liked
+      if (profileLocation) profileLocation.textContent = "Salem, NH";
+      if (profileTagline) profileTagline.textContent = "I can’t wait to buy your fabric!";
+    }
+  }
+
+  function saveProfileExtras() {
+    const extras = {
+      location: profileLocation?.textContent || "",
+      tagline: profileTagline?.textContent || ""
+    };
+    saveLocal("hm_profile_extras", extras);
+  }
+
+  // ---- PROFILE PHOTO (local only) ----
+  function loadProfilePhoto() {
+    const stored = loadLocal("hm_profile_photo", null);
+    if (stored && profileAvatar) {
+      profileAvatar.style.backgroundImage = `url(${stored})`;
+      profileAvatar.textContent = "";
+    }
+  }
+
+  function setupPhotoUpload() {
+    if (!editPhotoBtn || !photoInput || !profileAvatar) return;
+    editPhotoBtn.addEventListener("click", () => {
+      photoInput.click();
+    });
+    photoInput.addEventListener("change", () => {
+      const file = photoInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result;
+        try {
+          saveLocal("hm_profile_photo", dataUrl);
+        } catch {}
+        profileAvatar.style.backgroundImage = `url(${dataUrl})`;
+        profileAvatar.textContent = "";
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---- SHIPPING ADDRESS ----
+  function formatShippingSummary(data) {
+    if (!data || !data.street || !data.city || !data.postal || !data.country) {
+      return "<span class=\\"ship-summary-empty\\">No shipping address saved yet.</span>";
+    }
+    const lines = [];
+    if (data.name) lines.push(data.name);
+    let streetLine = data.street;
+    if (data.street2) streetLine += ", " + data.street2;
+    lines.push(streetLine);
+    lines.push(`${data.city}, ${data.state || ""} ${data.postal}`.trim());
+    lines.push(data.countryLabel || data.country);
+    return lines.map(l => `<div>${l}</div>`).join("");
+  }
+
+  function loadShipping(userName) {
+    const stored = loadLocal("hm_shipping", null);
+
+    if (stored) {
+      // populate fields
+      if (shipNameInput) shipNameInput.value = stored.name || "";
+      if (shipStreetInput) shipStreetInput.value = stored.street || "";
+      if (shipStreet2Input) shipStreet2Input.value = stored.street2 || "";
+      if (shipCityInput) shipCityInput.value = stored.city || "";
+      if (shipStateInput) shipStateInput.value = stored.state || "";
+      if (shipPostalInput) shipPostalInput.value = stored.postal || "";
+      if (shipCountrySelect) shipCountrySelect.value = stored.country || "";
+      if (shippingSummaryText) {
+        shippingSummaryText.innerHTML = formatShippingSummary(stored);
+      }
+      if (stored.street && stored.city && stored.postal && stored.country) {
+        hide(shippingForm);
+        show(shippingSummary, "flex");
+      } else {
+        show(shippingForm, "grid");
+        hide(shippingSummary);
+      }
+    } else {
+      // no address yet: use profile name as default ship-from name
+      if (shipNameInput && userName) shipNameInput.value = userName;
+      hide(shippingSummary);
+      show(shippingForm, "grid");
+    }
+  }
+
+  function setupShipping() {
+    if (!shippingForm) return;
+
+    shippingForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const data = {
+        name: shipNameInput.value.trim(),
+        street: shipStreetInput.value.trim(),
+        street2: shipStreet2Input.value.trim(),
+        city: shipCityInput.value.trim(),
+        state: shipStateInput.value.trim(),
+        postal: shipPostalInput.value.trim(),
+        country: shipCountrySelect.value,
+        countryLabel: shipCountrySelect.options[shipCountrySelect.selectedIndex]?.text || ""
+      };
+
+      if (!data.street || !data.city || !data.postal || !data.country) {
+        if (shippingStatus) {
+          shippingStatus.style.color = "#b91c1c";
+          shippingStatus.textContent = "Please fill street, city, postal code, and country.";
+        }
+        return;
+      }
+
+      saveLocal("hm_shipping", data);
+
+      if (shippingSummaryText) {
+        shippingSummaryText.innerHTML = formatShippingSummary(data);
+      }
+      hide(shippingForm);
+      show(shippingSummary, "flex");
+      if (shippingStatus) {
+        shippingStatus.style.color = "#16a34a";
+        shippingStatus.textContent = "Shipping address saved.";
+      }
+    });
+
+    if (editAddressBtn) {
+      editAddressBtn.addEventListener("click", () => {
+        // keep existing values in the form, just show it
+        show(shippingForm, "grid");
+        hide(shippingSummary);
+        if (shippingStatus) shippingStatus.textContent = "";
+      });
+    }
+  }
+
+  // ---- VACATION HOLD (local only) ----
+  function loadVacation() {
+    const v = loadLocal("hm_vacation_hold", false);
+    if (vacSwitch) {
+      if (v) {
+        vacSwitch.setAttribute("data-on","true");
+      } else {
+        vacSwitch.setAttribute("data-on","false");
+      }
+    }
+  }
+  function setupVacation() {
+    if (!vacSwitch) return;
+    const toggle = () => {
+      const on = vacSwitch.getAttribute("data-on") === "true";
+      const next = !on;
+      vacSwitch.setAttribute("data-on", next ? "true" : "false");
+      saveLocal("hm_vacation_hold", next);
+    };
+    vacSwitch.addEventListener("click", toggle);
+    vacSwitch.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  }
+
+  // ---- MAIN SESSION CHECK ----
+  (async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error("Error getting session:", error);
+    }
+    const session = data?.session || null;
+    const user = session?.user || null;
+
+    if (!user) {
+      // Logged OUT
+      hide(accountGrid);
+      show(notSignedIn, "block");
+      if (headerAvatar) {
+        headerAvatar.style.display = "none";
+      }
+      if (loginHeaderBtn) {
+        loginHeaderBtn.style.display = "inline-block";
+      }
+      return;
+    }
+
+    // Logged IN
+    hide(notSignedIn);
+    show(accountGrid, "grid");
+
+    const name =
+      user.user_metadata?.display_name ||
+      user.user_metadata?.full_name ||
+      (user.email ? user.email.split("@")[0] : "Hemline Market member");
+    const email = user.email || "";
+
+    if (profileName) profileName.textContent = name;
+    if (profileEmail) profileEmail.textContent = email;
+
+    const initials = getInitials(name, email);
+    if (headerAvatar) {
+      headerAvatar.textContent = initials;
+      headerAvatar.style.backgroundImage = "";
+      headerAvatar.style.display = "inline-grid";
+    }
+    if (profileAvatar) {
+      // initials go in card; photo may override via loadProfilePhoto
+      profileAvatar.textContent = initials;
+    }
+
+    if (loginHeaderBtn) {
+      loginHeaderBtn.style.display = "none";
+    }
+
+    // Local profile extras & photo
+    loadProfileExtras();
+    loadProfilePhoto();
+    setupPhotoUpload();
+
+    if (editProfileBtn) {
+      editProfileBtn.addEventListener("click", () => {
+        const currentLocation = profileLocation?.textContent || "";
+        const currentTagline = profileTagline?.textContent || "";
+
+        const newLocation = prompt("Location (city, state):", currentLocation) ?? currentLocation;
+        const newTagline = prompt("Short bio (how buyers and sellers see you):", currentTagline) ?? currentTagline;
+
+        if (profileLocation) profileLocation.textContent = newLocation.trim();
+        if (profileTagline) profileTagline.textContent = newTagline.trim();
+
+        saveProfileExtras();
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        window.location.href = "index.html";
+      });
+    }
+
+    // Shipping + vacation
+    loadShipping(name);
+    setupShipping();
+    loadVacation();
+    setupVacation();
+  })();
+</script>
+
+</body>
+</html>
