@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Atelier — Hemline Market</title>
+  <title>Your Atelier — Hemline Market</title>
 
   <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
@@ -14,242 +14,265 @@
 
   <style>
     :root{
-      --ink:#111827;
-      --muted:#6b7280;
-      --border:#e5e7eb;
-      --accent:#991b1b;
-      --bg:#fafafa;
-      --tile:#ffffff;
+      --hm-accent:#991b1b;
+      --hm-text:#111827;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+      --hm-bg:#f3f4f6;
+      --hm-card:#ffffff;
     }
-    *{box-sizing:border-box}
     body{
       margin:0;
-      background:var(--bg);
-      color:var(--ink);
+      background:var(--hm-bg);
+      color:var(--hm-text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
-
     main.wrap{
       max-width:1100px;
       margin:18px auto 28px;
       padding:0 12px;
     }
     h1{
-      margin:0 0 8px;
-      font-size:26px;
+      margin:0 0 4px;
+      font-size:28px;
       font-weight:800;
     }
     .subtle{
-      color:var(--muted);
-      margin:0 0 14px;
+      margin:0 0 18px;
       font-size:14px;
+      color:var(--hm-muted);
     }
 
-    /* Layout: profile + listings */
-    .atelier-grid{
-      display:grid;
-      grid-template-columns:300px minmax(0,1fr);
-      gap:18px;
-      align-items:flex-start;
+    /* Logged-out notice */
+    #atelierLoggedOut{
+      margin-top:16px;
+      background:#fff;
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      padding:16px 16px 14px;
+      box-shadow:0 6px 16px rgba(0,0,0,.06);
+      display:none;
     }
-    @media (max-width:900px){
-      .atelier-grid{
+    #atelierLoggedOut h2{
+      margin:0 0 6px;
+      font-size:18px;
+      font-weight:700;
+    }
+    #atelierLoggedOut p{
+      margin:0 0 10px;
+      font-size:14px;
+      color:var(--hm-muted);
+    }
+    #atelierLoggedOut .actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:6px;
+    }
+    .btn{
+      padding:8px 14px;
+      border-radius:10px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      font-size:14px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .btn.primary{
+      border-color:var(--hm-accent);
+      background:var(--hm-accent);
+      color:#fff;
+      box-shadow:0 2px 8px rgba(153,27,27,.25);
+    }
+
+    /* Atelier layout */
+    #atelierGrid{
+      display:grid;
+      grid-template-columns:1.2fr 1.8fr;
+      gap:14px;
+      align-items:flex-start;
+      display:none; /* shown by JS when user is loaded */
+    }
+    @media (max-width:960px){
+      #atelierGrid{
         grid-template-columns:1fr;
       }
     }
 
     .card{
-      background:var(--tile);
-      border:1px solid var(--border);
+      background:var(--hm-card);
+      border:1px solid var(--hm-border);
       border-radius:12px;
       box-shadow:0 6px 16px rgba(0,0,0,.06);
     }
     .card .hd{
       padding:10px 12px;
-      border-bottom:1px solid var(--border);
+      border-bottom:1px solid var(--hm-border);
       font-weight:800;
-      font-size:14px;
+      font-size:15px;
     }
     .card .bd{
       padding:12px;
       font-size:14px;
     }
 
-    /* Profile block */
+    /* Profile card */
     .profile-top{
       display:flex;
       gap:12px;
       align-items:flex-start;
     }
     .profile-avatar{
-      width:72px;
-      height:72px;
+      width:52px;
+      height:52px;
       border-radius:999px;
-      border:1px solid var(--border);
-      background:#fff;
-      display:grid;
+      border:1px solid var(--hm-border);
+      display:inline-grid;
       place-items:center;
       font-weight:800;
+      font-size:18px;
       color:#334155;
+      background:#f9fafb;
       background-size:cover;
       background-position:center;
-      font-size:22px;
-      flex-shrink:0;
     }
     .profile-main{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
+      flex:1;
       min-width:0;
     }
     .profile-name{
       font-weight:800;
+      margin-bottom:2px;
     }
     .profile-location{
       font-size:13px;
-      color:var(--muted);
+      color:var(--hm-muted);
     }
     .profile-bio{
+      margin-top:6px;
       font-size:13px;
       color:#374151;
-      margin-top:6px;
     }
-
-    .profile-shop-block{
-      margin-top:12px;
+    .profile-shop{
+      margin-top:10px;
       padding-top:10px;
-      border-top:1px dashed var(--border);
+      border-top:1px dashed var(--hm-border);
       font-size:13px;
     }
-    .profile-shop-name{
-      font-weight:800;
+    .profile-shop-handle{
+      font-weight:700;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
     }
-    .profile-tagline{
-      color:var(--muted);
+    .profile-shop-tagline{
       margin-top:2px;
+      color:var(--hm-muted);
     }
-
     .profile-links{
+      margin-top:8px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px 10px;
+      font-size:12px;
+    }
+    .profile-links a{
+      color:#2563eb;
+      text-decoration:none;
+    }
+    .profile-links a:hover{
+      text-decoration:underline;
+    }
+    .profile-footnote{
+      margin-top:10px;
+      padding-top:8px;
+      border-top:1px solid #f3f4f6;
+      font-size:12px;
+      color:var(--hm-muted);
+    }
+    .profile-metrics{
       margin-top:10px;
       display:flex;
       flex-wrap:wrap;
-      gap:6px;
-    }
-    .profile-links a{
+      gap:8px 12px;
       font-size:12px;
-      padding:5px 9px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      text-decoration:none;
-      color:#374151;
-      background:#f9fafb;
-    }
-
-    .profile-meta-row{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:8px;
-      margin-top:10px;
-      font-size:12px;
-      color:var(--muted);
-    }
-    .pill-soft{
-      padding:4px 8px;
-      border-radius:999px;
-      border:1px dashed var(--border);
-      font-size:11px;
       color:#4b5563;
     }
 
-    /* Listings area */
-    .listing-header-row{
+    /* Listings card */
+    .listings-header-row{
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:8px;
-      margin-bottom:8px;
-    }
-    .listing-header-row h2{
-      font-size:16px;
-      margin:0;
-      font-weight:800;
-    }
-    .listing-header-row .meta{
       font-size:13px;
-      color:var(--muted);
+      color:var(--hm-muted);
     }
-
-    .listing-grid{
+    .listings-header-row strong{
+      color:var(--hm-text);
+    }
+    .listings-grid{
+      margin-top:10px;
       display:grid;
       grid-template-columns:repeat(3,minmax(0,1fr));
       gap:10px;
     }
     @media (max-width:900px){
-      .listing-grid{
+      .listings-grid{
         grid-template-columns:repeat(2,minmax(0,1fr));
       }
     }
-    @media (max-width:520px){
-      .listing-grid{
+    @media (max-width:640px){
+      .listings-grid{
         grid-template-columns:1fr;
       }
     }
-
     .listing-tile{
-      background:#fff;
-      border:1px solid var(--border);
       border-radius:12px;
-      overflow:hidden;
+      border:1px solid var(--hm-border);
+      background:#f9fafb;
       display:flex;
       flex-direction:column;
-      min-height:100px;
+      overflow:hidden;
+      min-height:120px;
     }
     .listing-img{
-      background:#e5e7eb;
-      aspect-ratio:4/3;
-      width:100%;
+      height:80px;
+      background:linear-gradient(135deg,#e5e7eb,#f3f4f6);
     }
     .listing-body{
       padding:8px 10px 10px;
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      font-size:13px;
+      font-size:12px;
     }
     .listing-title{
       font-weight:700;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .listing-meta{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:6px;
+      margin-bottom:2px;
     }
     .listing-price{
+      margin-top:4px;
       font-weight:700;
     }
-    .listing-yardage{
-      font-size:12px;
-      color:var(--muted);
+    .listing-meta{
+      margin-top:2px;
+      color:var(--hm-muted);
+      font-size:11px;
     }
-
-    .empty-state{
+    .listings-empty{
+      margin-top:8px;
       font-size:13px;
-      color:var(--muted);
-      padding:8px 0 2px;
+      color:var(--hm-muted);
     }
 
-    /* Footer already styled via hm-footer.css */
+    /* Footer tweak for this page */
+    .hm-footer{
+      margin-top:24px;
+      background:#fff;
+      border-top:1px solid var(--hm-border);
+    }
   </style>
 </head>
 <body>
 
-<!-- HEADER: same pattern as account/seller-profile, with ThreadTalk -->
+<!-- HEADER (shared layout) -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -294,15 +317,20 @@
         </svg>
       </a>
 
-      <!-- Avatar pill (we’ll reuse the same initials/photo as Account) -->
-      <a class="hm-avatar" id="headerAvatar" href="account.html" title="Your account">RK</a>
+      <!-- Avatar used across site -->
+      <a class="hm-avatar" id="headerAvatar" href="account.html" title="Your account" style="display:none;">AA</a>
+
+      <!-- Shown when logged OUT -->
+      <button class="cta-header" id="loginHeaderBtn" type="button" aria-label="Log in to Hemline Market">
+        Log in
+      </button>
 
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
 
-<!-- LEFT MENU -->
+<!-- OVERLAY + LEFT MENU (shared) -->
 <div id="sheetOverlay" aria-hidden="true"></div>
 
 <aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
@@ -318,121 +346,113 @@
   <nav>
     <a href="browse.html">Browse</a>
     <a href="atelier.html">My Atelier</a>
-    <a href="orders.html">Orders</a>
-    <a href="favorites.html">Favorites</a>
+    <a href="sell.html">Sell Fabric</a>
     <a href="ThreadTalk.html">ThreadTalk</a>
     <a href="account.html">Account</a>
-    <a href="help.html">Help</a>
+    <a href="contact.html">Contact</a>
   </nav>
 </aside>
 
 <main class="wrap" id="maincontent">
-  <h1>Atelier</h1>
+  <h1>Your Atelier</h1>
   <p class="subtle">
-    Your public shop profile and listings. This is what buyers see when they tap your name on a listing.
+    Your public shop profile and listings. Buyers see this page when they tap your name on a listing.
   </p>
 
-  <div class="atelier-grid">
-    <!-- LEFT: Public profile + shop info -->
-    <section>
-      <article class="card">
-        <div class="hd">Profile</div>
-        <div class="bd">
-          <div class="profile-top">
-            <div class="profile-avatar" id="publicProfileAvatar">RK</div>
-            <div class="profile-main">
-              <div class="profile-name" id="publicProfileName">Hemline Member</div>
-              <div class="profile-location" id="publicProfileLocation">City, State</div>
-              <div class="profile-bio" id="publicProfileBio">
-                A short bio about sewing, fabric, and favorite projects will show here.
-              </div>
-            </div>
-          </div>
+  <!-- LOGGED OUT STATE -->
+  <section id="atelierLoggedOut">
+    <h2>Sign in to see your atelier</h2>
+    <p>
+      Log in to preview the shop page buyers will see and to start listing fabric.
+    </p>
+    <div class="actions">
+      <a href="auth.html" class="btn primary">Log in or create account</a>
+      <a href="browse.html" class="btn">Browse fabric</a>
+    </div>
+  </section>
 
-          <div class="profile-shop-block">
-            <div class="profile-shop-name" id="publicShopName">@loomlab</div>
-            <div class="profile-tagline" id="publicShopTagline">
-              Designer deadstock &amp; luxury textiles.
-            </div>
-            <p style="margin:8px 0 0;font-size:13px;color:var(--muted);">
-              Shop details and links come from your Seller Profile settings.
+  <!-- LOGGED IN STATE -->
+  <div id="atelierGrid">
+    <!-- LEFT: Profile -->
+    <section class="card">
+      <div class="hd">Profile</div>
+      <div class="bd">
+        <div class="profile-top">
+          <div id="atelierAvatar" class="profile-avatar">AA</div>
+          <div class="profile-main">
+            <div id="atelierName" class="profile-name">Hemline Member</div>
+            <div id="atelierLocation" class="profile-location">City, State</div>
+            <p id="atelierBio" class="profile-bio">
+              A short bio about sewing, fabric, and favorite projects will show here.
             </p>
           </div>
+        </div>
 
-          <div class="profile-links" id="publicShopLinks">
-            <a href="#" id="publicShopWebsite" target="_blank" rel="noopener noreferrer" style="display:none;">
-              Website
-            </a>
-            <a href="#" id="publicShopInstagram" target="_blank" rel="noopener noreferrer" style="display:none;">
-              Instagram
-            </a>
-            <a href="#" id="publicShopTiktok" target="_blank" rel="noopener noreferrer" style="display:none;">
-              TikTok
-            </a>
+        <div class="profile-shop">
+          <div id="atelierHandle" class="profile-shop-handle">@loomlab</div>
+          <div id="atelierTagline" class="profile-shop-tagline">
+            Designer deadstock &amp; luxury fabrics.
           </div>
-
-          <div class="profile-meta-row">
-            <span id="publicStatsSummary">
-              0 completed listings · 0% on-time shipping
-            </span>
-            <span class="pill-soft">
-              Buyers only see this page — not your address or payout info.
-            </span>
+          <div class="profile-links" id="atelierLinks" style="display:none;">
+            <a id="atelierWebsite" href="#" target="_blank" rel="noopener noreferrer"></a>
+            <span id="atelierSocials"></span>
           </div>
         </div>
-      </article>
+
+        <div class="profile-metrics">
+          <span id="atelierCompleted">0 completed listings</span>
+          <span id="atelierOnTime">· 0% on-time shipping</span>
+        </div>
+
+        <div class="profile-footnote">
+          Buyers only see this page — not your address or payout info.  
+          Edit your name, location, and bio on your <a href="account.html">Account</a> page.
+        </div>
+      </div>
     </section>
 
-    <!-- RIGHT: listings card -->
-    <section>
-      <article class="card">
-        <div class="hd">Listings</div>
-        <div class="bd">
-          <div class="listing-header-row">
-            <h2>Available fabric</h2>
-            <div class="meta" id="listingCountLabel">0 active listings</div>
-          </div>
-
-          <!-- Listings grid will be filled from data later -->
-          <div class="listing-grid" id="listingGrid">
-            <!-- Placeholder tiles so the layout doesn’t look empty while we wire Supabase later -->
-            <div class="listing-tile">
-              <div class="listing-img"></div>
-              <div class="listing-body">
-                <div class="listing-title">Your fabric listing will show here</div>
-                <div class="listing-meta">
-                  <span class="listing-price">$—</span>
-                  <span class="listing-yardage">yds</span>
-                </div>
-              </div>
-            </div>
-            <div class="listing-tile">
-              <div class="listing-img"></div>
-              <div class="listing-body">
-                <div class="listing-title">Once wired, this pulls real data</div>
-                <div class="listing-meta">
-                  <span class="listing-price">$—</span>
-                  <span class="listing-yardage">yds</span>
-                </div>
-              </div>
-            </div>
-            <div class="listing-tile">
-              <div class="listing-img"></div>
-              <div class="listing-body">
-                <div class="listing-title">Designer deadstock, atelier finds…</div>
-                <div class="listing-meta">
-                  <span class="listing-price">$—</span>
-                  <span class="listing-yardage">yds</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="empty-state" id="listingEmptyText" style="display:none;">
-            No active listings yet. List fabric from your Sell page and they’ll appear here.
-          </div>
+    <!-- RIGHT: Listings -->
+    <section class="card">
+      <div class="hd">Listings</div>
+      <div class="bd">
+        <div class="listings-header-row">
+          <strong>Available fabric</strong>
+          <span id="activeListingCount">0 active listings</span>
         </div>
-      </article>
+
+        <div class="listings-grid" id="listingsGrid">
+          <article class="listing-tile">
+            <div class="listing-img"></div>
+            <div class="listing-body">
+              <div class="listing-title">Your fabric listing will show here</div>
+              <div class="listing-price">$—</div>
+              <div class="listing-meta">Once wired to Supabase, this will pull real data.</div>
+            </div>
+          </article>
+
+          <article class="listing-tile">
+            <div class="listing-img"></div>
+            <div class="listing-body">
+              <div class="listing-title">Designer deadstock, atelier finds</div>
+              <div class="listing-price">$—</div>
+              <div class="listing-meta">Yards, fiber content, and shipping show here.</div>
+            </div>
+          </article>
+
+          <article class="listing-tile">
+            <div class="listing-img"></div>
+            <div class="listing-body">
+              <div class="listing-title">Linen, wool, silk &amp; more</div>
+              <div class="listing-price">$—</div>
+              <div class="listing-meta">As you list fabric, cards will replace these samples.</div>
+            </div>
+          </article>
+        </div>
+
+        <p class="listings-empty" id="listingsEmpty">
+          No active listings yet. List fabric from your <a href="sell.html">Sell</a> page and they’ll appear here.
+        </p>
+      </div>
     </section>
   </div>
 </main>
@@ -450,8 +470,9 @@
   </div>
 </footer>
 
-<script>
-  // Hamburger / menu sheet (same pattern as account/seller-profile)
+<!-- JS: Hamburger / sheet + simple session-aware UI -->
+<script type="module">
+  // ---- MENU SHEET ----
   (function(){
     const sheet   = document.getElementById('menuSheet');
     const openBtn = document.getElementById('openMenu');
@@ -485,61 +506,234 @@
     }
 
     if (openBtn && closeBtn && sheet){
-      openBtn.addEventListener('click', function(e){ e.preventDefault(); openSheet(); });
-      closeBtn.addEventListener('click', function(e){ e.preventDefault(); closeSheet(); });
+      openBtn.addEventListener('click', (e)=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', (e)=>{ e.preventDefault(); closeSheet(); });
       if (overlay){
         overlay.addEventListener('click', closeSheet);
       }
-      document.addEventListener('keydown', function(e){
+      document.addEventListener('keydown', (e)=>{
         if (e.key === 'Escape') closeSheet();
       });
     }
   })();
 
-  // Very light wiring for now: reuse stored avatar initials, basic stats placeholders.
-  (function(){
-    const headerAvatar  = document.getElementById('headerAvatar');
-    const publicAvatar  = document.getElementById('publicProfileAvatar');
-    const statsSummary  = document.getElementById('publicStatsSummary');
-    const listingCount  = document.getElementById('listingCountLabel');
-    const listingEmpty  = document.getElementById('listingEmptyText');
-    const listingGrid   = document.getElementById('listingGrid');
+  // ---- SUPABASE + PROFILE PREVIEW ----
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-    try {
-      const initials = localStorage.getItem('hm.avatarInitials') || 'RK';
-      const avatarUrl = localStorage.getItem('hm.avatarUrl') || '';
+  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_ANON =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
-      if (headerAvatar && !headerAvatar.style.backgroundImage){
-        headerAvatar.textContent = initials;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  function getInitials(fullName, email){
+    const name = (fullName || "").trim();
+    if (name){
+      const parts = name.split(/\s+/);
+      if (parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+      return (parts[0][0] + (parts[1][0] || "")).toUpperCase();
+    }
+    if (email){
+      const local = email.split("@")[0] || "";
+      if (local) return local.slice(0,2).toUpperCase();
+    }
+    return "HM";
+  }
+
+  async function fetchOrCreateProfile(user){
+    try{
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, tagline, location")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error){
+        console.warn("Error loading profile for atelier:", error);
       }
-      if (publicAvatar){
+      if (data) return data;
+
+      // Create a very basic profile if it doesn't exist yet
+      const fullName = user.email || "Hemline Member";
+      const { data: inserted, error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          id: user.id,
+          full_name: fullName,
+          tagline: "",
+          location: ""
+        })
+        .select("id, full_name, tagline, location")
+        .single();
+
+      if (insertError){
+        console.warn("Error creating profile row:", insertError);
+        return { id:user.id, full_name:fullName, tagline:"", location:"" };
+      }
+      return inserted;
+    }catch(e){
+      console.error("Unexpected profile error:", e);
+      return {
+        id: user.id,
+        full_name: user.email || "Hemline Member",
+        tagline: "",
+        location: ""
+      };
+    }
+  }
+
+  function applyHeaderUser(user, profile){
+    const headerInitials = document.getElementById("headerAvatar");
+    const loginHeaderBtn = document.getElementById("loginHeaderBtn");
+    const initials = getInitials(profile?.full_name, user?.email);
+
+    if (headerInitials){
+      headerInitials.textContent = initials;
+      headerInitials.style.display = "inline-grid";
+    }
+    if (loginHeaderBtn){
+      loginHeaderBtn.style.display = "none";
+    }
+
+    // Try to reuse avatar image from localStorage if present
+    try{
+      const avatarUrl = localStorage.getItem("avatarUrl");
+      if (avatarUrl && headerInitials){
+        headerInitials.style.backgroundImage = `url('${avatarUrl}')`;
+        headerInitials.style.backgroundSize = "cover";
+        headerInitials.style.backgroundPosition = "center";
+        headerInitials.textContent = "";
+      }
+    }catch(e){}
+  }
+
+  function applyAtelierUI(user, profile){
+    const loggedOut = document.getElementById("atelierLoggedOut");
+    const grid = document.getElementById("atelierGrid");
+
+    if (loggedOut) loggedOut.style.display = "none";
+    if (grid) grid.style.display = "grid";
+
+    const nameEl = document.getElementById("atelierName");
+    const locEl  = document.getElementById("atelierLocation");
+    const bioEl  = document.getElementById("atelierBio");
+    const avatar = document.getElementById("atelierAvatar");
+    const handle = document.getElementById("atelierHandle");
+    const tagline= document.getElementById("atelierTagline");
+    const websiteLink = document.getElementById("atelierWebsite");
+    const linksWrap   = document.getElementById("atelierLinks");
+    const socialsSpan = document.getElementById("atelierSocials");
+
+    const fullName = profile.full_name || user.email || "Hemline Member";
+    if (nameEl) nameEl.textContent = fullName;
+    if (locEl)  locEl.textContent  = profile.location || "Location coming soon";
+    if (bioEl){
+      bioEl.textContent = profile.tagline?.trim()
+        ? profile.tagline
+        : "Add a short note about your sourcing, favorite textiles, or sewing style on your Account page.";
+    }
+
+    const initials = getInitials(fullName, user.email);
+    if (avatar){
+      avatar.textContent = initials;
+      try{
+        const avatarUrl = localStorage.getItem("avatarUrl");
         if (avatarUrl){
-          publicAvatar.textContent = '';
-          publicAvatar.style.backgroundImage = "url('" + avatarUrl + "')";
-        } else {
-          publicAvatar.textContent = initials;
+          avatar.textContent = "";
+          avatar.style.backgroundImage = `url('${avatarUrl}')`;
         }
+      }catch(e){}
+    }
+
+    // Simple handle: @ + first word of name or local-part of email
+    let rawHandle = "";
+    if (fullName && fullName !== user.email){
+      rawHandle = fullName.split(/\s+/)[0];
+    }else if (user.email){
+      rawHandle = user.email.split("@")[0];
+    }
+    if (handle){
+      handle.textContent = rawHandle ? "@" + rawHandle.toLowerCase() : "@yourshop";
+    }
+
+    // Fun default tagline if none set
+    if (tagline && !profile.tagline){
+      tagline.textContent = "Designer deadstock, atelier finds, and fabrics with a story.";
+    }
+
+    // Website + socials: for now we just look in localStorage
+    let hasLink = false;
+    try{
+      const website = localStorage.getItem("hm.shop.website") || "";
+      const insta   = localStorage.getItem("hm.shop.instagram") || "";
+      const tiktok  = localStorage.getItem("hm.shop.tiktok") || "";
+
+      if (website && websiteLink){
+        websiteLink.href = website;
+        websiteLink.textContent = website.replace(/^https?:\/\//,"");
+        hasLink = true;
+      }
+      const socials = [];
+      if (insta) socials.push(`Instagram: @${insta.replace(/^@/,"")}`);
+      if (tiktok) socials.push(`TikTok: @${tiktok.replace(/^@/,"")}`);
+      if (socialsSpan && socials.length){
+        socialsSpan.textContent = socials.join(" · ");
+        hasLink = true;
+      }
+    }catch(e){}
+
+    if (linksWrap){
+      linksWrap.style.display = hasLink ? "flex" : "none";
+    }
+
+    // Simple metrics stub; later we’ll wire real numbers
+    const completedEl = document.getElementById("atelierCompleted");
+    const onTimeEl    = document.getElementById("atelierOnTime");
+    if (completedEl) completedEl.textContent = "0 completed listings";
+    if (onTimeEl) onTimeEl.textContent = "· 0% on-time shipping";
+  }
+
+  function showLoggedOutUI(){
+    const loggedOut = document.getElementById("atelierLoggedOut");
+    const grid = document.getElementById("atelierGrid");
+    if (grid) grid.style.display = "none";
+    if (loggedOut) loggedOut.style.display = "block";
+
+    const headerInitials = document.getElementById("headerAvatar");
+    const loginHeaderBtn = document.getElementById("loginHeaderBtn");
+    if (headerInitials) headerInitials.style.display = "none";
+    if (loginHeaderBtn) loginHeaderBtn.style.display = "inline-block";
+  }
+
+  // Init
+  (async ()=>{
+    try{
+      const { data, error } = await supabase.auth.getUser();
+      if (error){
+        console.error("Atelier: getUser error", error);
+      }
+      const user = data?.user || null;
+      if (!user){
+        showLoggedOutUI();
+        return;
       }
 
-      // Simple demo stats while we haven’t wired real data yet
-      const completed = Number(localStorage.getItem('hm.seller.completed') || 0);
-      const ontime    = Number(localStorage.getItem('hm.seller.ontime') || 0);
-      const safePct   = Math.max(0, Math.min(100, ontime));
+      const profile = await fetchOrCreateProfile(user);
+      applyHeaderUser(user, profile);
+      applyAtelierUI(user, profile);
+    }catch(e){
+      console.error("Atelier init error:", e);
+      showLoggedOutUI();
+    }
+  })();
 
-      if (statsSummary){
-        statsSummary.textContent = `${completed} completed listings · ${safePct}% on-time shipping`;
-      }
-      if (listingCount){
-        listingCount.textContent = `${completed} active listings`;
-      }
-
-      // If there are zero listings, hide the placeholder tiles and show empty message
-      if (completed === 0 && listingGrid && listingEmpty){
-        listingGrid.style.opacity = 0.3;
-        listingEmpty.style.display = 'block';
-      }
-    } catch (e) {
-      // fail quietly
+  // Header login button -> auth page
+  (function(){
+    const loginBtn = document.getElementById("loginHeaderBtn");
+    if (loginBtn){
+      loginBtn.addEventListener("click", ()=>{
+        window.location.href = "auth.html";
+      });
     }
   })();
 </script>
