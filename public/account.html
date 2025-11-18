@@ -13,14 +13,21 @@
 
   <style>
     :root{
-      --ink:#111827;
-      --muted:#6b7280;
-      --border:#e5e7eb;
-      --accent:#991b1b;
-      --bg:#fafafa;
-      --card-radius:16px;
-      --shadow-soft:0 10px 30px rgba(15,23,42,.08);
+      /* Match homepage tokens */
+      --hm-accent:#991b1b;
+      --hm-text:#111827;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+
+      /* Local aliases */
+      --ink:var(--hm-text);
+      --muted:var(--hm-muted);
+      --border:var(--hm-border);
+      --bg:#f5f5f5;
+      --card-radius:14px;
+      --shadow-soft:0 10px 28px rgba(15,23,42,.07);
     }
+
     *{box-sizing:border-box}
     html,body{
       margin:0;
@@ -28,16 +35,18 @@
       overflow-x:hidden;
       background:var(--bg);
       color:var(--ink);
-      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
 
-    /* HEADER (same structure as index, do not touch) */
+    /* HEADER — visually matches homepage */
     .hm-header{
       min-height:56px;
       background:#fff;
-      border-bottom:1px solid var(--border);
+      border-bottom:1px solid var(--hm-border);
+      position:relative;
+      z-index:101;
     }
     .hm-header .wrap{
       max-width:1200px;
@@ -47,13 +56,10 @@
       align-items:center;
       justify-content:space-between;
     }
-    .left{display:flex;align-items:center;gap:10px}
     .hm-brand{
       font-size:24px;
       font-weight:800;
-      letter-spacing:.08em;
-      text-transform:uppercase;
-      color:var(--accent);
+      color:var(--hm-accent);
       text-decoration:none;
     }
     .hamburger{
@@ -61,7 +67,7 @@
       place-items:center;
       width:36px;
       height:36px;
-      border:1px solid var(--border);
+      border:1px solid var(--hm-border);
       border-radius:10px;
       background:#fff;
       color:#374151;
@@ -74,11 +80,31 @@
       place-items:center;
     }
     .hm-icon svg{width:26px;height:26px;stroke-width:2}
+    .hm-btn-primary{
+      background:var(--hm-accent);
+      color:#fff;
+      border:1px solid var(--hm-accent);
+      border-radius:999px;
+      padding:10px 18px;
+      font-weight:700;
+      text-decoration:none;
+      box-shadow:0 2px 8px rgba(153,27,27,.25);
+    }
+    .cta-header{
+      border:1px solid var(--hm-border);
+      border-radius:999px;
+      padding:7px 14px;
+      font-size:14px;
+      text-decoration:none;
+      color:#111827;
+      background:#fff;
+      font-weight:600;
+    }
     .hm-avatar{
       width:28px;
       height:28px;
       border-radius:50%;
-      border:1px solid var(--border);
+      border:1px solid var(--hm-border);
       background:#fff;
       color:#334155;
       display:inline-grid;
@@ -89,24 +115,15 @@
       background-size:cover;
       background-position:center;
     }
-    .hm-btn-primary{
-      background:var(--accent);
-      color:#fff;
-      border:1px solid var(--accent);
-      border-radius:999px;
-      padding:9px 18px;
-      font-weight:700;
-      text-decoration:none;
-      box-shadow:0 2px 8px rgba(153,27,27,.25);
-    }
+    .is-hidden{display:none !important;}
 
-    /* Slide-out menu (match index) */
+    /* Left drawer (same structure as home) */
     .sheet{
       position:fixed;
       inset:0 auto 0 0;
       width:min(84vw,340px);
       background:#fff;
-      border-right:1px solid var(--border);
+      border-right:1px solid var(--hm-border);
       transform:translateX(-100%);
       transition:transform .25s ease;
       z-index:100;
@@ -119,33 +136,38 @@
       align-items:center;
       justify-content:space-between;
       padding:10px;
-      border-bottom:1px solid var(--border);
+      border-bottom:1px solid var(--hm-border);
     }
-    .sheet nav{
-      display:grid;
-      padding:10px;
-      gap:8px;
-    }
+    .sheet nav{display:grid;padding:10px}
     .sheet nav a{
       padding:10px;
-      border:1px solid var(--border);
+      border:1px solid var(--hm-border);
       border-radius:10px;
       text-decoration:none;
       color:#1f2937;
-      font-weight:500;
     }
+    .sheet nav a + a{margin-top:8px}
     .sheet .close{
       display:inline-grid;
       place-items:center;
       width:30px;
       height:30px;
-      border:1px solid var(--border);
+      border:1px solid var(--hm-border);
       border-radius:8px;
       background:#fff;
       color:#444;
     }
+    #sheetOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.25);
+      backdrop-filter:blur(1px);
+      display:none;
+      z-index:90;
+    }
+    #sheetOverlay.show{display:block}
 
-    /* PAGE LAYOUT — single column, Dior/Apple-ish */
+    /* PAGE LAYOUT */
     main.wrap{
       max-width:1000px;
       margin:24px auto 32px;
@@ -153,10 +175,10 @@
     }
     h1{
       margin:0 0 6px;
-      font-size:28px;
-      letter-spacing:.04em;
-      text-transform:uppercase;
-      font-weight:700;
+      font-size:26px;
+      font-weight:800;
+      letter-spacing:0;
+      text-transform:none;
     }
     .subtle{
       margin:0 0 18px;
@@ -169,7 +191,7 @@
       border:1px solid var(--border);
       border-radius:var(--card-radius);
       box-shadow:var(--shadow-soft);
-      margin-bottom:14px;
+      margin-bottom:16px;
     }
     .card-hd{
       padding:12px 16px 8px;
@@ -258,8 +280,8 @@
       cursor:pointer;
     }
     .btn.primary{
-      background:var(--accent);
-      border-color:var(--accent);
+      background:var(--hm-accent);
+      border-color:var(--hm-accent);
       color:#fff;
       box-shadow:0 2px 8px rgba(153,27,27,.25);
     }
@@ -322,62 +344,53 @@
 
     .hidden{display:none}
 
-    /* Purchases / Sales / Atelier links */
+    /* Purchases / Sales / Your Atelier links */
     .account-links{
-      margin:-4px 0 18px;
+      margin:4px 0 18px;
       padding:0 2px 4px;
-      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;
     }
     .account-links a{
-      margin-right:18px;
-      font-size:12px;
-      letter-spacing:.16em;
-      text-transform:uppercase;
+      margin-right:22px;
+      font-size:14px;
+      text-transform:none;
       text-decoration:none;
-      color:#4b5563;
-      border-bottom:1px solid transparent;
-      padding-bottom:2px;
+      color:#111827;
+      font-weight:600;
+      border-bottom:2px solid transparent;
+      padding-bottom:4px;
     }
     .account-links a:hover{
       border-color:#9ca3af;
     }
 
-    /* Footer */
+    /* Footer (same structure as home) */
     .hm-footer{
       background:#fff;
-      border-top:1px solid var(--border);
-      margin-top:24px;
+      border-top:1px solid var(--hm-border);
+      margin-top:18px;
     }
     .hm-footer .footer-wrap{
       max-width:1200px;
       margin:0 auto;
       padding:12px 16px;
       display:flex;
+      flex-wrap:wrap;
+      gap:8px;
       align-items:center;
       justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
       font-size:13px;
     }
-    .hm-footer .footer-links{
-      display:flex;
-      flex-wrap:wrap;
-      gap:14px;
-    }
-    .hm-footer .footer-links a{
-      color:#4b5563;
-      text-decoration:none;
-    }
+    .hm-footer .footer-links a{color:#4b5563;text-decoration:none}
     .hm-footer .footer-links a:hover{text-decoration:underline}
   </style>
 </head>
 <body>
 
-<!-- HEADER (same as index) -->
+<!-- HEADER: copied from homepage, but always shows avatar on Account page -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
           <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
@@ -386,11 +399,17 @@
       </button>
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
+
     <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+      <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"></path>
         </svg>
       </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
@@ -406,19 +425,27 @@
       </a>
       <a class="hm-icon" href="cart.html" aria-label="Cart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="9" cy="21" r="1"></circle>
+          <circle cx="9"  cy="21" r="1"></circle>
           <circle cx="18" cy="21" r="1"></circle>
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-      <a class="hm-avatar" id="headerAvatar" href="account.html" title="Your profile">HM</a>
+
+      <!-- On Account page we always show avatar; log out happens inside the card -->
+      <a class="hm-avatar" id="headerUser" href="account.html" title="Your account">RK</a>
+
+      <!-- (Login button hidden on this page, but kept for structure parity) -->
+      <a class="cta-header is-hidden" id="headerLoginBtn" href="auth.html?view=login" aria-label="Log in to Hemline Market">Log in</a>
+
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
 
-<!-- HAMBURGER MENU (match index: Dashboard menu) -->
-<aside class="sheet" id="menuSheet" aria-hidden="true">
+<div id="sheetOverlay" aria-hidden="true"></div>
+
+<!-- LEFT MENU -->
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
   <header>
     <strong>Menu</strong>
     <button class="close" id="closeMenu" aria-label="Close menu">
@@ -429,11 +456,11 @@
     </button>
   </header>
   <nav>
-    <a href="index.html">Dashboard</a>
+    <a href="dashboard.html">Dashboard</a>
     <a href="atelier.html">My Atelier</a>
-    <a href="how-it-works.html">How It Works</a>
+    <a href="how.html">How It Works</a>
     <a href="sell.html">Sell Fabric</a>
-    <a href="threadtalk.html">ThreadTalk</a>
+    <a href="ThreadTalk.html">ThreadTalk</a>
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
@@ -508,7 +535,8 @@
           </div>
           <div class="field">
             <label for="profileWebsite">Website</label>
-            <input id="profileWebsite" type="url" placeholder="https://example.com">
+            <!-- TEXT, not URL, so no annoying browser validation -->
+            <input id="profileWebsite" type="text" placeholder="https://www.hemlinemarket.com">
           </div>
         </div>
 
@@ -533,7 +561,7 @@
     </div>
   </section>
 
-  <!-- LINKS: Purchases / Sales / Atelier -->
+  <!-- CLEAR NAV LINKS -->
   <nav class="account-links" aria-label="Account sections">
     <a href="purchases.html">Purchases</a>
     <a href="sales.html">Sales</a>
@@ -544,11 +572,11 @@
   <section class="card" id="payoutsCard">
     <div class="card-hd">Payouts</div>
     <div class="card-bd">
-      <h3 style="margin:0 0 6px;font-size:13px;font-weight:700;">Payouts</h3>
+      <h3 style="margin:0 0 6px;font-size:13px;font-weight:700;">Payouts &amp; payments</h3>
       <p class="muted-note" style="margin-top:0;">
-        Set up payouts so we can send you money from your fabric sales.
+        Stripe powers payments and payouts for your shop. Use one secure Stripe account to get paid for sales and pay any fees.
       </p>
-      <button class="btn primary" type="button">Set up payouts with Stripe</button>
+      <button class="btn primary" id="btnPayouts" type="button">Set up with Stripe</button>
       <p class="muted-note">
         We’ll send you to a secure Stripe page to enter your bank and tax details. Hemline never sees your full bank information.
       </p>
@@ -663,32 +691,61 @@
   </div>
 </footer>
 
-<!-- Inline logic: hamburger + account/session/profile/address -->
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-  // Hamburger menu (same as index)
+  // Hamburger + sheet overlay (same behaviour as homepage)
   (function(){
-    const sheet = document.getElementById("menuSheet");
-    const openBtn = document.getElementById("openMenu");
-    const closeBtn = document.getElementById("closeMenu");
-    function open(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-    function close(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
-    if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
-    if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
-    document.addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
+    const sheet    = document.getElementById('menuSheet');
+    const openBtn  = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const overlay  = document.getElementById('sheetOverlay');
+
+    function lockScroll(lock) {
+      document.body.style.overflow = lock ? 'hidden' : '';
+    }
+    function openSheet(){
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden','false');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      openBtn.setAttribute('aria-expanded','true');
+      lockScroll(true);
+    }
+    function closeSheet(){
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden','true');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden','true');
+      openBtn.setAttribute('aria-expanded','false');
+      lockScroll(false);
+      openBtn.focus();
+    }
+
+    if (openBtn && sheet && closeBtn && overlay){
+      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+      overlay.addEventListener('click', closeSheet);
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+    }
   })();
 </script>
 
-<script type="module">
-  import { supabase } from "./scripts/supabase-client.js";
+<script>
+  const supabase = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+  );
 
-  const headerAvatar     = document.getElementById("headerAvatar");
-  const profileAvatar    = document.getElementById("profileAvatar");
-  const summaryName      = document.getElementById("summaryName");
-  const summaryEmail     = document.getElementById("summaryEmail");
-  const summaryLocation  = document.getElementById("summaryLocation");
-  const summaryShop      = document.getElementById("summaryShop");
-  const summaryLinks     = document.getElementById("summaryLinks");
-  const summaryBio       = document.getElementById("summaryBio");
+  const headerAvatar    = document.getElementById("headerUser");
+  const profileAvatar   = document.getElementById("profileAvatar");
+  const summaryName     = document.getElementById("summaryName");
+  const summaryEmail    = document.getElementById("summaryEmail");
+  const summaryLocation = document.getElementById("summaryLocation");
+  const summaryShop     = document.getElementById("summaryShop");
+  const summaryLinks    = document.getElementById("summaryLinks");
+  const summaryBio      = document.getElementById("summaryBio");
 
   const profileForm      = document.getElementById("profileForm");
   const profileFirst     = document.getElementById("profileFirst");
@@ -720,6 +777,7 @@
   const btnEditAddress    = document.getElementById("btnEditAddress");
   const btnCancelAddress  = document.getElementById("btnCancelAddress");
   const btnLogout         = document.getElementById("btnLogout");
+  const btnPayouts        = document.getElementById("btnPayouts");
 
   let currentUser     = null;
   let currentProfile  = {};
@@ -797,11 +855,21 @@
     if (summaryName)     summaryName.textContent     = fullName;
     if (summaryEmail)    summaryEmail.textContent    = email;
     if (summaryLocation) summaryLocation.textContent = location;
-    if (summaryShop)     summaryShop.textContent     = shop ? shop : "";
-    if (summaryBio)      summaryBio.textContent      = bio;
 
-    if (summaryShop) summaryShop.style.display = shop ? "block" : "none";
-    if (summaryBio)  summaryBio.style.display  = bio  ? "block" : "none";
+    if (summaryShop) {
+      if (shop) {
+        summaryShop.textContent = "Store name: " + shop;
+        summaryShop.style.display = "block";
+      } else {
+        summaryShop.textContent = "";
+        summaryShop.style.display = "none";
+      }
+    }
+
+    if (summaryBio) {
+      summaryBio.textContent = bio || "";
+      summaryBio.style.display = bio ? "block" : "none";
+    }
 
     if (summaryLinks) {
       const links = [];
@@ -813,7 +881,7 @@
       summaryLinks.style.display = links.length ? "flex" : "none";
     }
 
-    // Prefill form fields
+    // Prefill form
     if (profileFirst)     profileFirst.value     = first || "";
     if (profileLast)      profileLast.value      = last || "";
     if (profileLocation)  profileLocation.value  = location || "";
@@ -858,12 +926,10 @@
 
   async function requireSession() {
     const { data, error } = await supabase.auth.getUser();
-    if (error) {
-      console.error("auth.getUser error", error);
-    }
+    if (error) console.error("auth.getUser error", error);
     const user = data?.user;
     if (!user) {
-      window.location.href = "auth.html";
+      window.location.href = "auth.html?view=login";
       return null;
     }
     return user;
@@ -900,7 +966,7 @@
         localStorage.setItem(profileKey(currentUser.id), JSON.stringify(profile));
         applyProfileUI(currentUser, profile);
 
-        // If address has no name yet, auto-populate from profile name
+        // If address has no name yet, auto-fill from profile name
         if (currentAddress && !currentAddress.name && currentFullName) {
           currentAddress.name = currentFullName;
           localStorage.setItem(addressKey(currentUser.id), JSON.stringify(currentAddress));
@@ -915,7 +981,6 @@
   function setupAddressForm() {
     if (btnEditAddress && addressForm) {
       btnEditAddress.addEventListener("click", () => {
-        // Auto-fill name from profile if empty
         if (shipNameInput && !shipNameInput.value && currentFullName) {
           shipNameInput.value = currentFullName;
         }
@@ -948,7 +1013,7 @@
       });
     }
 
-    // ZIP -> city/state auto-pop (stand-in for USPS; swap API later if needed)
+    // ZIP → city/state helper (placeholder for USPS)
     if (shipPostalInput) {
       shipPostalInput.addEventListener("blur", async () => {
         const zip = shipPostalInput.value.trim();
@@ -1014,6 +1079,13 @@
     });
   }
 
+  function setupPayoutsButton() {
+    if (!btnPayouts) return;
+    btnPayouts.addEventListener("click", () => {
+      alert("Stripe payouts setup is coming soon. For now, keep your profile and shipping address up to date.");
+    });
+  }
+
   async function init() {
     const user = await requireSession();
     if (!user) return;
@@ -1022,9 +1094,8 @@
     currentProfile = safeParse(localStorage.getItem(profileKey(user.id)));
     currentAddress = safeParse(localStorage.getItem(addressKey(user.id)));
 
-    applyProfileUI(user, currentProfile);
+    applyProfileUI(user, currentProfile || {});
 
-    // If address has no name yet, auto-populate from profile name
     if ((!currentAddress || !currentAddress.name) && currentFullName) {
       currentAddress = currentAddress || {};
       currentAddress.name = currentFullName;
@@ -1032,20 +1103,12 @@
     }
     applyAddressUI(currentAddress || {});
 
-    // Vacation hold
-    if (vacationToggle) {
-      const key = vacationKey(user.id);
-      const stored = localStorage.getItem(key);
-      vacationToggle.checked = stored === "on";
-      vacationToggle.addEventListener("change", () => {
-        localStorage.setItem(key, vacationToggle.checked ? "on" : "off");
-      });
-    }
-
     setupProfileForm();
     setupAddressForm();
     setupAvatarUpload();
+    setupVacationToggle();
     setupLogout();
+    setupPayoutsButton();
   }
 
   init();
