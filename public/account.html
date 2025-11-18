@@ -27,10 +27,8 @@
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
-
-    /* Narrower main column and single-column account layout */
     main.wrap{
-      max-width:780px;
+      max-width:1100px;
       margin:18px auto 28px;
       padding:0 12px;
     }
@@ -84,13 +82,16 @@
       box-shadow:0 2px 8px rgba(153,27,27,.25);
     }
 
-    /* SINGLE-COLUMN stack for all account cards */
     .account-grid{
-      display:flex;
-      flex-direction:column;
+      display:grid;
+      grid-template-columns:2.2fr 1.8fr;
       gap:12px;
-      align-items:stretch;
-      margin-top:8px;
+      align-items:flex-start;
+    }
+    @media (max-width:900px){
+      .account-grid{
+        grid-template-columns:1fr;
+      }
     }
 
     .card{
@@ -188,11 +189,6 @@
       flex-wrap:wrap;
       gap:8px;
       margin-top:10px;
-    }
-
-    /* Make the shipping form feel less huge */
-    .shipping-section{
-      max-width:560px;
     }
 
     .switch{
@@ -420,7 +416,7 @@
 </head>
 <body>
 
-<!-- HEADER (shared) -->
+<!-- HEADER (unified with site, but using ids that account-auth.js expects) -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -465,7 +461,7 @@
         </svg>
       </a>
 
-      <!-- Avatar used for initials (RK, etc.) -->
+      <!-- Avatar used by account-auth.js for initials (RK, etc.) -->
       <a class="hm-avatar" id="headerAvatar" href="account.html" title="Your account" style="display:none;">RK</a>
 
       <!-- Header login button (shown when logged OUT) -->
@@ -478,8 +474,9 @@
   </div>
 </header>
 
-<!-- Overlay + hamburger menu -->
+<!-- OVERLAY + LEFT MENU (shared) -->
 <div id="sheetOverlay" aria-hidden="true"></div>
+
 <aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
   <header>
     <strong>Menu</strong>
@@ -504,7 +501,7 @@
   <h1>Account</h1>
   <p class="subtle">Manage your profile, payouts, shipping, vacation hold, and security.</p>
 
-  <!-- LOGGED OUT STATE -->
+  <!-- LOGGED OUT STATE (shown when no Supabase user) -->
   <section id="accountLoggedOut" class="account-logged-out" style="display:none;">
     <h2>Sign in to manage your Hemline Market account</h2>
     <p>
@@ -519,7 +516,7 @@
 
   <!-- LOGGED IN STATE -->
   <div id="accountGrid" class="account-grid" style="display:none;">
-    <!-- Profile -->
+    <!-- LEFT COLUMN: Profile + shop -->
     <section class="card">
       <div class="hd">Profile</div>
       <div class="bd">
@@ -549,10 +546,13 @@
           <a class="btn" href="atelier.html">Your Atelier</a>
         </div>
 
+        <!-- Hidden avatar input used by account-auth.js (per-user, localStorage / Supabase) -->
         <input id="avatarInput" type="file" accept="image/*" style="display:none"/>
 
+        <!-- INLINE PROFILE + SHOP EDIT FORM (controlled by account-auth.js) -->
         <div id="profileForm" class="profile-form">
           <div class="profile-form-grid">
+            <!-- Name -->
             <div class="field">
               <label for="firstNameInput">First name</label>
               <input id="firstNameInput" type="text" autocomplete="given-name"/>
@@ -561,17 +561,37 @@
               <label for="lastNameInput">Last name</label>
               <input id="lastNameInput" type="text" autocomplete="family-name"/>
             </div>
+
+            <!-- Location -->
             <div class="field">
               <label for="locationInput">Location</label>
               <input id="locationInput" type="text" placeholder="City, State or City, Country"/>
             </div>
+
+            <!-- Shop name (optional, public) -->
             <div class="field">
-              <label for="websiteInput">Website (optional)</label>
-              <input id="websiteInput" type="url" placeholder="https://…"/>
+              <label for="shopNameInput">Shop name (optional)</label>
+              <input id="shopNameInput" type="text" placeholder="Aurora Atelier, LoomLab, etc."/>
             </div>
+
+            <!-- Public links (optional, public) -->
+            <div class="field">
+              <label for="websiteInput">Website (public, optional)</label>
+              <input id="websiteInput" type="url" placeholder="https://example.com"/>
+            </div>
+            <div class="field">
+              <label for="instagramInput">Instagram (optional)</label>
+              <input id="instagramInput" type="text" placeholder="@yourhandle"/>
+            </div>
+            <div class="field">
+              <label for="tiktokInput">TikTok (optional)</label>
+              <input id="tiktokInput" type="text" placeholder="@yourhandle"/>
+            </div>
+
+            <!-- Bio / shop story -->
             <div class="field" style="grid-column:1 / -1;">
-              <label for="bioInput">Bio</label>
-              <textarea id="bioInput" placeholder="Tell buyers a little about your sewing, fabric, or atelier."></textarea>
+              <label for="bioInput">Bio / shop story</label>
+              <textarea id="bioInput" placeholder="Tell buyers a little about your sewing, sourcing, or atelier style."></textarea>
             </div>
           </div>
 
@@ -583,10 +603,11 @@
       </div>
     </section>
 
-    <!-- Payouts & shipping -->
+    <!-- RIGHT COLUMN: Payouts & shipping -->
     <section class="card">
       <div class="hd">Payouts &amp; shipping</div>
-      <div class="bd shipping-section">
+      <div class="bd">
+        <!-- Payouts -->
         <section aria-labelledby="payoutsHeading">
           <h2 id="payoutsHeading" style="font-size:14px;margin:0 0 4px;">Payouts</h2>
           <p id="payoutStatusText" style="margin:0 0 8px;font-size:13px;color:var(--hm-muted);">
@@ -601,53 +622,62 @@
 
         <hr style="border:none;border-top:1px solid var(--hm-border);margin:12px 0 10px;"/>
 
+        <!-- Shipping address -->
         <section aria-labelledby="shippingHeading">
           <h2 id="shippingHeading" style="font-size:14px;margin:0 0 4px;">Ship-from address</h2>
           <p style="margin:0 0 6px;font-size:13px;color:var(--hm-muted);">
             This is the address used on prepaid labels for your fabric sales and purchases.
           </p>
 
-          <div class="field">
-            <label for="shipFromName">Name</label>
-            <input id="shipFromName" type="text" autocomplete="name"/>
-          </div>
-          <div class="field">
-            <label for="shipFromStreet">Street address</label>
-            <input id="shipFromStreet" type="text" autocomplete="address-line1"/>
-          </div>
-          <div class="field">
-            <label for="shipFromStreet2">Apartment, suite, etc. (optional)</label>
-            <input id="shipFromStreet2" type="text" autocomplete="address-line2"/>
-          </div>
+          <!-- Collapsed summary is injected here by account-auth.js when saved -->
+          <div id="shippingSummary" style="margin-bottom:8px;display:none;font-size:13px;color:var(--hm-muted);line-height:1.4;"></div>
 
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
-            <div class="field" style="flex:1 1 140px;min-width:0;">
-              <label for="shipFromCity">City</label>
-              <input id="shipFromCity" type="text" autocomplete="address-level2"/>
+          <!-- Editable fields (can be hidden when summarized) -->
+          <div id="shippingFields">
+            <div class="field">
+              <label for="shipFromName">Name</label>
+              <input id="shipFromName" type="text" autocomplete="name"/>
             </div>
-            <div class="field" style="flex:0 0 110px;">
-              <label for="shipFromState">State / Province</label>
-              <input id="shipFromState" type="text" autocomplete="address-level1"/>
+            <div class="field">
+              <label for="shipFromStreet">Street address</label>
+              <input id="shipFromStreet" type="text" autocomplete="address-line1"/>
             </div>
-            <div class="field" style="flex:0 0 110px;">
-              <label for="shipFromZip">Postal code</label>
-              <input id="shipFromZip" type="text" autocomplete="postal-code"/>
+            <div class="field">
+              <label for="shipFromStreet2">Apartment, suite, etc. (optional)</label>
+              <input id="shipFromStreet2" type="text" autocomplete="address-line2"/>
             </div>
-          </div>
 
-          <div class="field" style="margin-top:6px;">
-            <label for="shipFromCountry">Country</label>
-            <select id="shipFromCountry">
-              <option value="">Select country</option>
-              <option value="US">United States</option>
-            </select>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
+              <div class="field" style="flex:1 1 140px;min-width:0;">
+                <label for="shipFromCity">City</label>
+                <input id="shipFromCity" type="text" autocomplete="address-level2"/>
+              </div>
+              <div class="field" style="flex:0 0 110px;">
+                <label for="shipFromState">State / Province</label>
+                <input id="shipFromState" type="text" autocomplete="address-level1"/>
+              </div>
+              <div class="field" style="flex:0 0 110px;">
+                <label for="shipFromZip">Postal code</label>
+                <input id="shipFromZip" type="text" autocomplete="postal-code"/>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:6px;">
+              <label for="shipFromCountry">Country</label>
+              <select id="shipFromCountry">
+                <option value="">Select country</option>
+                <option value="US">United States</option>
+              </select>
+            </div>
           </div>
 
           <div style="margin-top:10px;">
             <button id="saveShippingSettingsBtn" class="btn primary" type="button">
               Save shipping address
             </button>
-            <!-- "Edit address" button is injected here by account-auth.js -->
+            <button id="editShippingBtn" class="btn" type="button" style="display:none;">
+              Edit address
+            </button>
           </div>
 
           <p style="margin:8px 0 0;font-size:12px;color:var(--hm-muted);">
@@ -657,8 +687,8 @@
       </div>
     </section>
 
-    <!-- Status -->
-    <section class="card">
+    <!-- FULL-WIDTH ROWS BELOW (span both columns on desktop) -->
+    <section class="card" style="grid-column:1 / -1;">
       <div class="hd">Status</div>
       <div class="bd">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
@@ -673,8 +703,7 @@
       </div>
     </section>
 
-    <!-- Security -->
-    <section class="card">
+    <section class="card" style="grid-column:1 / -1;">
       <div class="hd">Security</div>
       <div class="bd">
         <p style="margin:0 0 8px;font-size:13px;color:var(--hm-muted);">
@@ -686,8 +715,7 @@
       </div>
     </section>
 
-    <!-- Privacy -->
-    <section class="card">
+    <section class="card" style="grid-column:1 / -1;">
       <div class="hd">Privacy</div>
       <div class="bd">
         <p style="margin:0 0 8px;font-size:13px;color:var(--hm-muted);">
@@ -704,6 +732,7 @@
   </div>
 </main>
 
+<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -717,7 +746,7 @@
   </div>
 </footer>
 
-<!-- Login drawer -->
+<!-- LOGIN DRAWER OVERLAY (used on this page only) -->
 <div class="auth-overlay" id="authOverlay" aria-modal="true" role="dialog" aria-labelledby="authTitle">
   <div class="auth-panel">
     <div class="auth-header">
@@ -731,6 +760,7 @@
     </div>
 
     <div class="auth-grid">
+      <!-- LEFT: Sign in -->
       <div class="auth-left">
         <form id="loginForm">
           <div class="auth-field">
@@ -748,8 +778,10 @@
         </form>
       </div>
 
+      <!-- Divider -->
       <div class="auth-divider"></div>
 
+      <!-- RIGHT: Create account + providers -->
       <div class="auth-right">
         <form id="signupForm">
           <div class="auth-field">
@@ -801,6 +833,7 @@
   </div>
 </div>
 
+<!-- JS: Hamburger / sheet + session-aware account wiring -->
 <script>
   (function(){
     const sheet   = document.getElementById('menuSheet');
@@ -845,6 +878,7 @@
       });
     }
 
+    // "Log in" button inside the logged-out card opens the same auth overlay
     const accountLoginOpen = document.getElementById('accountLoginOpen');
     const loginHeaderBtn   = document.getElementById('loginHeaderBtn');
     const modal            = document.getElementById('authOverlay');
@@ -860,9 +894,17 @@
     if (loginHeaderBtn){
       loginHeaderBtn.addEventListener('click', openAuth);
     }
+
+    const authCloseBtn = document.getElementById('authCloseBtn');
+    if (authCloseBtn){
+      authCloseBtn.addEventListener('click', function(){
+        modal.classList.remove('show');
+      });
+    }
   })();
 </script>
 
+<!-- Supabase-powered account logic -->
 <script type="module" src="scripts/account-auth.js"></script>
 
 </body>
