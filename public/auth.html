@@ -22,6 +22,8 @@
     }
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .wrap{max-width:1200px;margin:0 auto;padding:0 12px}
+
+    /* Header */
     .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
     .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
     .hm-brand{font-size:24px;font-weight:800;color:var(--hm-accent);text-decoration:none}
@@ -40,7 +42,18 @@
       font-weight:700;font-size:12px;text-decoration:none;
       background-size:cover;background-position:center;
     }
+    .hm-btn-primary{
+      background:var(--hm-accent);
+      color:#fff;
+      border:1px solid var(--hm-accent);
+      border-radius:999px;
+      padding:10px 18px;
+      font-weight:700;
+      text-decoration:none;
+      box-shadow:0 2px 8px rgba(153,27,27,.25);
+    }
 
+    /* Slide-out menu */
     .sheet{
       position:fixed;inset:0 auto 0 0;width:min(84vw,340px);
       background:#fff;border-right:1px solid var(--hm-border);
@@ -64,6 +77,7 @@
       background:#fff;color:#444;
     }
 
+    /* Footer */
     .hm-footer{
       background:#fff;border-top:1px solid var(--hm-border);margin-top:18px;
     }
@@ -74,6 +88,7 @@
     .hm-footer .footer-links a{color:#4b5563;text-decoration:none}
     .hm-footer .footer-links a:hover{text-decoration:underline}
 
+    /* Auth cards */
     .auth-container{
       max-width:420px;margin:40px auto;background:#fff;
       border:1px solid var(--hm-border);border-radius:12px;
@@ -148,7 +163,7 @@
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
     <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
+      <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="M21 21l-4.3-4.3"></path>
@@ -191,7 +206,7 @@
   <nav>
     <a href="dashboard.html">Dashboard</a>
     <a href="atelier.html">My Atelier</a>
-    <a href="how-it-works.html">How It Works</a>
+    <a href="how.html">How It Works</a>
     <a href="sell.html">Sell Fabric</a>
     <a href="contact.html">Contact</a>
   </nav>
@@ -292,7 +307,7 @@
   </div>
 </footer>
 
-<!-- Supabase JS (CSP-allowed host) -->
+<!-- Supabase JS (classic script) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   // Menu
@@ -307,13 +322,13 @@
     document.addEventListener("keydown",e=>{if(e.key==="Escape") close()});
   })();
 
-  // Supabase (NO auto-redirects)
+  // Supabase client for this page only (does NOT interfere with module client on other pages)
   const supabase = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
   );
 
-  // Just show status; do not redirect automatically
+  // Just show status; do not auto-redirect
   (async ()=>{
     const { data:{ session } } = await supabase.auth.getSession();
     const st = document.getElementById('status');
@@ -359,12 +374,21 @@
     else alert(error.message);
   };
 
-  // Sign up
+  // Sign up → create user + display_name (from email local-part)
   document.getElementById("signup").onsubmit=async (e)=>{
     e.preventDefault();
     const email=document.getElementById("su-email").value.trim();
     const password=document.getElementById("su-pass").value;
-    const { error } = await supabase.auth.signUp({ email, password });
+    const local = email.split("@")[0] || "";
+    const display_name = local || "Hemline sewist";
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options:{
+        data:{ display_name }
+      }
+    });
     alert(error ? error.message : "Check your email to confirm.");
     hide('card-signup'); show('card-login');
   };
