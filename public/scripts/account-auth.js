@@ -8,9 +8,9 @@ const SUPABASE_ANON =
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ---- LAYOUT FIX: stop cards from stretching to full row height ----
+// ---- LAYOUT TWEAK (prevent tall stretching) ----
 document.addEventListener("DOMContentLoaded", () => {
-  const grid = document.querySelector(".grid");
+  const grid = document.getElementById("accountGrid");
   if (grid) {
     grid.querySelectorAll(":scope > *").forEach((el) => {
       el.style.alignSelf = "flex-start";
@@ -20,17 +20,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ---- ELEMENTS ----
 
-// Auth drawer
+// Auth overlay (login drawer on account page)
 const modal = document.getElementById("authOverlay");
-const closeBtn = document.getElementById("authCloseBtn");
+const closeAuthBtn = document.getElementById("authCloseBtn");
 
-// Header
+// Header pieces
 const loginHeaderBtn = document.getElementById("loginHeaderBtn");
-const headerInitials = document.getElementById("headerAvatar");
+const headerAvatar = document.getElementById("headerAvatar");
 
-// Account layout
-const accountGrid = document.getElementById("accountGrid");
+// Logged-out vs logged-in containers
 const accountLoggedOut = document.getElementById("accountLoggedOut");
+const accountGrid = document.getElementById("accountGrid");
+
+// Logged-out card login button
+const accountLoginOpen = document.getElementById("accountLoginOpen");
 
 // Profile summary + form
 const profileAvatar = document.getElementById("profileAvatar");
@@ -49,17 +52,16 @@ const profileForm = document.getElementById("profileForm");
 const saveProfileBtn = document.getElementById("saveProfileBtn");
 const cancelProfileEditBtn = document.getElementById("cancelProfileEditBtn");
 
-// Profile form fields
 const firstNameInput = document.getElementById("firstNameInput");
 const lastNameInput = document.getElementById("lastNameInput");
 const locationInput = document.getElementById("locationInput");
 const bioInput = document.getElementById("bioInput");
 const websiteInput = document.getElementById("websiteInput");
 
-// Logout
+// Logout button in profile card
 const logoutBtn = document.getElementById("logoutBtn");
 
-// Auth forms
+// Auth forms in the drawer
 const loginForm = document.getElementById("loginForm");
 const signupForm = document.getElementById("signupForm");
 const googleBtn = document.getElementById("googleBtn");
@@ -85,55 +87,50 @@ const saveShippingSettingsBtn =
   document.getElementById("saveShippingAddressBtn") ||
   document.getElementById("saveShippingSettingsBtn");
 
-// Status
+// Status / vacation
 const vacSwitch = document.getElementById("vacSwitch");
 
-// Will create this programmatically next to the Save button
-let editShippingBtn = null;
+// ---- STATE ----
+let currentUser = null;
+
+// Shipping-summary UI (created programmatically)
+let shippingSection = shipFromName
+  ? shipFromName.closest("section")
+  : null;
+let shipSummaryBox = null;
+let shipSummaryLines = null;
+let editAddressBtn = null;
+let cancelShippingBtn = null;
+let shipEditElements = [];
+let lastShippingMeta = null;
 
 // ---- SMALL HELPERS ----
-function showModal() {
-  if (!modal) return;
-  modal.classList.add("show");
-  clearMessages();
+function show(el, displayValue = "block") {
+  if (el) el.style.display = displayValue;
 }
-
-function hideModal() {
-  if (!modal) return;
-  modal.classList.remove("show");
-  clearMessages();
+function hide(el) {
+  if (el) el.style.display = "none";
 }
 
 function clearMessages() {
   if (errBox) errBox.textContent = "";
   if (msgBox) msgBox.textContent = "";
 }
-
 function setError(msg) {
   if (errBox) errBox.textContent = msg || "";
 }
-
 function setMessage(msg) {
   if (msgBox) msgBox.textContent = msg || "";
 }
 
-function show(el, displayValue = "") {
-  if (el) el.style.display = displayValue;
-}
-
-function hide(el) {
-  if (el) el.style.display = "none";
-}
-
-// Build initials from name or email
-function getInitialsForUser(user) {
+// Initials builder from user metadata/email
+function getInitials(user) {
   const meta = user?.user_metadata || {};
+  const display = (meta.display_name || "").trim();
   const first = (meta.first_name || "").trim();
   const last = (meta.last_name || "").trim();
-  const display = (meta.display_name || "").trim();
 
   let source = "";
-
   if (first || last) {
     source = `${first} ${last}`.trim();
   } else if (display) {
@@ -143,23 +140,25 @@ function getInitialsForUser(user) {
   if (source) {
     const parts = source.split(/\s+/);
     const a = parts[0]?.[0] || "";
-    const b = parts[parts.length - 1]?.[0] || "";
+    const b = (parts.length > 1 ? parts[parts.length - 1]?.[0] : "") || "";
     const letters = (a + b).toUpperCase();
     if (letters) return letters;
   }
 
   const email = user?.email || "";
-  if (email) return email[0].toUpperCase();
+  if (email) {
+    const local = email.split("@")[0] || "";
+    if (local) return local.slice(0, 2).toUpperCase();
+  }
 
   return "HM";
 }
 
-// Avatar storage key (per user)
+// Avatar localStorage helpers
 function getAvatarStorageKey(user) {
   if (!user?.id) return null;
   return `hm-avatar-${user.id}`;
 }
-
 function saveAvatarToStorage(user, dataUrl) {
   const key = getAvatarStorageKey(user);
   if (!key) return;
@@ -169,12 +168,15 @@ function saveAvatarToStorage(user, dataUrl) {
     console.warn("Could not save avatar to localStorage", e);
   }
 }
-
-// Apply avatar only to the PROFILE card (not header)
 function applyAvatarFromStorage(user) {
   const key = getAvatarStorageKey(user);
   if (!key) return;
-  const dataUrl = window.localStorage.getItem(key);
+  let dataUrl = null;
+  try {
+    dataUrl = window.localStorage.getItem(key);
+  } catch (e) {
+    console.warn("Could not read avatar from localStorage", e);
+  }
   if (!dataUrl) return;
 
   if (profileAvatar) {
@@ -183,94 +185,26 @@ function applyAvatarFromStorage(user) {
   }
 }
 
-// ---- SHIPPING HELPERS ----
-
-function addressIsComplete(meta = {}) {
-  return (
-    meta.ship_from_name?.trim() &&
-    meta.ship_from_street?.trim() &&
-    meta.ship_from_city?.trim() &&
-    meta.ship_from_zip?.trim()
-  );
-}
-
-function lockShippingInputs() {
-  const textInputs = [
-    shipFromName,
-    shipFromStreet,
-    shipFromStreet2,
-    shipFromCity,
-    shipFromState,
-    shipFromZip,
-  ];
-
-  textInputs.forEach((inp) => {
-    if (!inp) return;
-    inp.readOnly = true;
-    inp.style.backgroundColor = "#f9fafb";
-  });
-
-  if (shipFromCountry) {
-    shipFromCountry.disabled = true;
-    shipFromCountry.style.backgroundColor = "#f9fafb";
-  }
-}
-
-function unlockShippingInputs() {
-  const textInputs = [
-    shipFromName,
-    shipFromStreet,
-    shipFromStreet2,
-    shipFromCity,
-    shipFromState,
-    shipFromZip,
-  ];
-
-  textInputs.forEach((inp) => {
-    if (!inp) return;
-    inp.readOnly = false;
-    inp.style.backgroundColor = "";
-  });
-
-  if (shipFromCountry) {
-    shipFromCountry.disabled = false;
-    shipFromCountry.style.backgroundColor = "";
-  }
-}
-
-function ensureShippingEditButton() {
-  if (!saveShippingSettingsBtn) return;
-  if (editShippingBtn) return;
-
-  const container = saveShippingSettingsBtn.parentElement || saveShippingSettingsBtn;
-  if (!container) return;
-
-  editShippingBtn = document.createElement("button");
-  editShippingBtn.type = "button";
-  editShippingBtn.textContent = "Edit address";
-  editShippingBtn.className = "btn";
-  editShippingBtn.style.marginLeft = "8px";
-
-  container.appendChild(editShippingBtn);
-
-  editShippingBtn.addEventListener("click", () => {
-    unlockShippingInputs();
-    show(saveShippingSettingsBtn, "inline-block");
-    hide(editShippingBtn);
-  });
-}
-
 // ---- AUTH DRAWER BEHAVIOR ----
-if (loginHeaderBtn) {
-  loginHeaderBtn.addEventListener("click", () => {
-    showModal();
-  });
+function openAuthModal() {
+  if (!modal) return;
+  modal.classList.add("show");
+  clearMessages();
+}
+function closeAuthModal() {
+  if (!modal) return;
+  modal.classList.remove("show");
+  clearMessages();
 }
 
-if (closeBtn) {
-  closeBtn.addEventListener("click", () => {
-    hideModal();
-  });
+if (loginHeaderBtn) {
+  loginHeaderBtn.addEventListener("click", openAuthModal);
+}
+if (accountLoginOpen) {
+  accountLoginOpen.addEventListener("click", openAuthModal);
+}
+if (closeAuthBtn) {
+  closeAuthBtn.addEventListener("click", closeAuthModal);
 }
 
 // ---- LOGIN (email/password) ----
@@ -293,7 +227,8 @@ if (loginForm) {
     });
 
     if (error) {
-      if (error.message.toLowerCase().includes("invalid login")) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes("invalid login")) {
         setError("Incorrect email or password. Please try again.");
       } else {
         setError(error.message);
@@ -366,29 +301,23 @@ if (forgotPasswordBtn) {
   });
 }
 
-// ---- GOOGLE ----
+// ---- OAUTH (Google / Apple) ----
 if (googleBtn) {
   googleBtn.addEventListener("click", async () => {
     clearMessages();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: window.location.origin + "/",
-      },
+      options: { redirectTo: window.location.origin + "/" },
     });
     if (error) setError(error.message);
   });
 }
-
-// ---- APPLE ----
 if (appleBtn) {
   appleBtn.addEventListener("click", async () => {
     clearMessages();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "apple",
-      options: {
-        redirectTo: window.location.origin + "/",
-      },
+      options: { redirectTo: window.location.origin + "/" },
     });
     if (error) setError(error.message);
   });
@@ -403,38 +332,22 @@ if (logoutBtn) {
   });
 }
 
-// ---- PROFILE + ACCOUNT STATE ----
-
-let currentUser = null;
-
+// ---- PROFILE UI ----
 function setLoggedOutUI() {
-  // Hide account grid, show logged-out notice if present
   if (accountGrid) hide(accountGrid);
   if (accountLoggedOut) show(accountLoggedOut, "block");
 
-  // Header: hide initials, show Login button
-  if (headerInitials) hide(headerInitials);
+  if (headerAvatar) hide(headerAvatar);
   if (loginHeaderBtn) show(loginHeaderBtn, "inline-block");
-
-  // Clear any personal info from profile card
-  if (profileName) profileName.textContent = "Hemline Market member";
-  if (profileEmail) profileEmail.textContent = "";
-  if (profileLocationSummary) profileLocationSummary.textContent = "";
-  if (profileBioSummary) profileBioSummary.textContent = "";
-  if (profileWebsiteWrapper) hide(profileWebsiteWrapper);
-  if (profileAvatar) {
-    profileAvatar.style.backgroundImage = "";
-    profileAvatar.textContent = "HM";
-  }
+  if (logoutBtn) hide(logoutBtn);
 }
 
 function setLoggedInHeader(user) {
-  const initials = getInitialsForUser(user);
-
-  if (headerInitials) {
-    headerInitials.style.backgroundImage = "";
-    headerInitials.textContent = initials;
-    show(headerInitials, "inline-grid");
+  const initials = getInitials(user);
+  if (headerAvatar) {
+    headerAvatar.style.backgroundImage = "";
+    headerAvatar.textContent = initials;
+    show(headerAvatar, "inline-grid");
   }
   if (loginHeaderBtn) hide(loginHeaderBtn);
 }
@@ -449,41 +362,34 @@ function fillProfileSummary(user) {
   const nameToShow =
     first || last ? `${first} ${last}`.trim() : displayName || "Hemline Market member";
 
-  if (profileName) {
-    profileName.textContent = nameToShow;
-  }
-  if (profileEmail) {
-    profileEmail.textContent = user.email || "";
-  }
+  if (profileName) profileName.textContent = nameToShow;
+  if (profileEmail) profileEmail.textContent = user.email || "";
 
-  const initials = getInitialsForUser(user);
+  const initials = getInitials(user);
 
-  if (profileAvatar) {
-    if (!profileAvatar.style.backgroundImage) {
-      profileAvatar.textContent = initials;
-    }
+  if (profileAvatar && !profileAvatar.style.backgroundImage) {
+    profileAvatar.textContent = initials;
   }
 
+  // Location
   const loc = (meta.location || "").trim();
-  if (loc) {
-    if (profileLocationSummary) {
-      profileLocationSummary.textContent = loc;
-      show(profileLocationSummary, "block");
-    }
+  if (loc && profileLocationSummary) {
+    profileLocationSummary.textContent = loc;
+    show(profileLocationSummary, "block");
   } else if (profileLocationSummary) {
     hide(profileLocationSummary);
   }
 
+  // Bio
   const bio = (meta.bio || "").trim();
-  if (bio) {
-    if (profileBioSummary) {
-      profileBioSummary.textContent = bio;
-      show(profileBioSummary, "block");
-    }
+  if (bio && profileBioSummary) {
+    profileBioSummary.textContent = bio;
+    show(profileBioSummary, "block");
   } else if (profileBioSummary) {
     hide(profileBioSummary);
   }
 
+  // Website
   const website = (meta.website || "").trim();
   if (website && profileWebsite && profileWebsiteWrapper) {
     profileWebsite.href = website;
@@ -512,82 +418,10 @@ function isProfileIncomplete(user) {
     (meta.location && meta.location.trim()) ||
     (meta.bio && meta.bio.trim()) ||
     (meta.website && meta.website.trim());
-
   return !hasAny;
 }
 
-function fillShippingFromMeta(user) {
-  const meta = user.user_metadata || {};
-
-  if (shipFromName) shipFromName.value = meta.ship_from_name || "";
-  if (shipFromStreet) shipFromStreet.value = meta.ship_from_street || "";
-  if (shipFromStreet2) shipFromStreet2.value = meta.ship_from_street2 || "";
-  if (shipFromCity) shipFromCity.value = meta.ship_from_city || "";
-  if (shipFromState) shipFromState.value = meta.ship_from_state || "";
-  if (shipFromZip) shipFromZip.value = meta.ship_from_zip || "";
-  if (shipFromCountry && meta.ship_from_country) {
-    shipFromCountry.value = meta.ship_from_country;
-  }
-
-  const payoutsStatus = meta.payouts_status || "not_configured";
-  if (payoutStatusText) {
-    if (payoutsStatus === "active") {
-      payoutStatusText.textContent =
-        "Payouts are active. Stripe will send your earnings to your bank account.";
-      hide(payoutSetupBtn);
-      show(payoutManageBtn, "inline-block");
-    } else {
-      payoutStatusText.textContent =
-        "Set up payouts so we can send you money from your fabric sales.";
-      show(payoutSetupBtn, "inline-block");
-      hide(payoutManageBtn);
-    }
-  }
-
-  ensureShippingEditButton();
-
-  if (addressIsComplete(meta)) {
-    lockShippingInputs();
-    if (saveShippingSettingsBtn) hide(saveShippingSettingsBtn);
-    if (editShippingBtn) show(editShippingBtn, "inline-block");
-  } else {
-    unlockShippingInputs();
-    if (saveShippingSettingsBtn) show(saveShippingSettingsBtn, "inline-block");
-    if (editShippingBtn) hide(editShippingBtn);
-  }
-}
-
-// Initial load
-(async () => {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    console.error("Error getting current user:", error);
-  }
-
-  currentUser = data?.user || null;
-
-  if (!currentUser) {
-    setLoggedOutUI();
-    return;
-  }
-
-  if (accountLoggedOut) hide(accountLoggedOut);
-  if (accountGrid) show(accountGrid, "grid");
-
-  setLoggedInHeader(currentUser);
-  fillProfileSummary(currentUser);
-  fillProfileForm(currentUser);
-  fillShippingFromMeta(currentUser);
-  applyAvatarFromStorage(currentUser);
-
-  if (logoutBtn) show(logoutBtn, "inline-block");
-
-  if (isProfileIncomplete(currentUser) && profileForm) {
-    show(profileForm, "block");
-  }
-})();
-
-// ---- PROFILE EDIT BEHAVIOR ----
+// Profile edit
 if (editProfileBtn && profileForm) {
   editProfileBtn.addEventListener("click", () => {
     if (!currentUser) return;
@@ -595,13 +429,11 @@ if (editProfileBtn && profileForm) {
     show(profileForm, "block");
   });
 }
-
 if (cancelProfileEditBtn && profileForm) {
   cancelProfileEditBtn.addEventListener("click", () => {
     hide(profileForm);
   });
 }
-
 if (saveProfileBtn) {
   saveProfileBtn.addEventListener("click", async () => {
     if (!currentUser) return;
@@ -647,11 +479,9 @@ if (saveProfileBtn) {
   });
 }
 
-// ---- AVATAR PHOTO UPLOAD ----
+// Avatar upload
 if (avatarChangeBtn && avatarInput) {
-  avatarChangeBtn.addEventListener("click", () => {
-    avatarInput.click();
-  });
+  avatarChangeBtn.addEventListener("click", () => avatarInput.click());
 
   avatarInput.addEventListener("change", () => {
     const file = avatarInput.files?.[0];
@@ -678,7 +508,210 @@ if (avatarChangeBtn && avatarInput) {
   });
 }
 
-// ---- SHIPPING ADDRESS SAVE ----
+// ---- SHIPPING HELPERS ----
+function addressIsComplete(meta = {}) {
+  return (
+    meta.ship_from_name?.trim() &&
+    meta.ship_from_street?.trim() &&
+    meta.ship_from_city?.trim() &&
+    meta.ship_from_zip?.trim()
+  );
+}
+
+function ensureShippingSummaryUI() {
+  if (!shippingSection || shipSummaryBox || !shipFromName) return;
+
+  // Insert summary box after the explanatory paragraph (second child)
+  const children = Array.from(shippingSection.children);
+  const afterIndex =
+    children.findIndex((el) => el.tagName === "P") !== -1
+      ? children.findIndex((el) => el.tagName === "P")
+      : 0;
+
+  shipSummaryBox = document.createElement("div");
+  shipSummaryBox.id = "shipSummaryBox";
+  shipSummaryBox.style.margin = "6px 0 10px";
+  shipSummaryBox.style.fontSize = "13px";
+  shipSummaryBox.style.display = "none";
+
+  shipSummaryBox.innerHTML = `
+    <div id="shipSummaryLines" style="margin-bottom:6px;"></div>
+    <button id="editAddressBtn" class="btn" type="button">Edit address</button>
+  `;
+
+  if (afterIndex >= 0 && children[afterIndex]) {
+    children[afterIndex].insertAdjacentElement("afterend", shipSummaryBox);
+  } else {
+    shippingSection.insertBefore(shipSummaryBox, shippingSection.firstChild);
+  }
+
+  shipSummaryLines = document.getElementById("shipSummaryLines");
+  editAddressBtn = document.getElementById("editAddressBtn");
+
+  // Collect elements that belong to "edit mode" so we can hide/show them
+  shipEditElements = [];
+  shippingSection.querySelectorAll(".field").forEach((el) => {
+    shipEditElements.push(el);
+  });
+  // The row wrapper with city/state/zip & the button row
+  shippingSection.querySelectorAll("div[style*='flex'], div[style*='margin-top:10px']").forEach((el) => {
+    shipEditElements.push(el);
+  });
+
+  // Add Cancel button next to Save button
+  if (saveShippingSettingsBtn) {
+    cancelShippingBtn = document.createElement("button");
+    cancelShippingBtn.id = "cancelShippingEditBtn";
+    cancelShippingBtn.type = "button";
+    cancelShippingBtn.className = "btn";
+    cancelShippingBtn.textContent = "Cancel";
+    cancelShippingBtn.style.marginLeft = "8px";
+    saveShippingSettingsBtn.parentElement.appendChild(cancelShippingBtn);
+  }
+
+  if (editAddressBtn) {
+    editAddressBtn.addEventListener("click", () => {
+      setShippingMode("edit");
+      if (lastShippingMeta) {
+        applyShippingMetaToInputs(lastShippingMeta);
+      }
+    });
+  }
+
+  if (cancelShippingBtn) {
+    cancelShippingBtn.addEventListener("click", () => {
+      if (lastShippingMeta) {
+        applyShippingMetaToInputs(lastShippingMeta);
+      }
+      setShippingMode("summary");
+    });
+  }
+}
+
+function formatShippingLines(meta = {}) {
+  const lines = [];
+
+  const name = (meta.ship_from_name || "").trim();
+  if (name) lines.push(name);
+
+  let line1 = (meta.ship_from_street || "").trim();
+  const apt = (meta.ship_from_street2 || "").trim();
+  if (apt) {
+    line1 = line1 ? `${line1}, ${apt}` : apt;
+  }
+  if (line1) lines.push(line1);
+
+  const city = (meta.ship_from_city || "").trim();
+  const state = (meta.ship_from_state || "").trim();
+  const zip = (meta.ship_from_zip || "").trim();
+  let cityLine = "";
+  if (city) cityLine += city;
+  if (state) cityLine += (cityLine ? ", " : "") + state;
+  if (zip) cityLine += (cityLine ? " " : "") + zip;
+  if (cityLine) lines.push(cityLine);
+
+  const country = (meta.ship_from_country || "").trim();
+  if (country) lines.push(country);
+
+  return lines;
+}
+
+function updateShippingSummary(meta = {}) {
+  if (!shipSummaryBox || !shipSummaryLines) return;
+  const lines = formatShippingLines(meta);
+
+  if (!lines.length) {
+    shipSummaryBox.style.display = "none";
+    shipSummaryLines.innerHTML = "";
+    return;
+  }
+
+  shipSummaryLines.innerHTML = "";
+  lines.forEach((text) => {
+    const div = document.createElement("div");
+    div.textContent = text;
+    shipSummaryLines.appendChild(div);
+  });
+  shipSummaryBox.style.display = "block";
+}
+
+function setShippingMode(mode) {
+  const edit = mode === "edit";
+
+  shipEditElements.forEach((el) => {
+    el.style.display = edit ? "" : "none";
+  });
+
+  if (saveShippingSettingsBtn) {
+    saveShippingSettingsBtn.style.display = edit ? "inline-block" : "none";
+  }
+  if (cancelShippingBtn) {
+    cancelShippingBtn.style.display = edit ? "inline-block" : "none";
+  }
+  if (shipSummaryBox) {
+    const hasAddress = addressIsComplete(lastShippingMeta || {});
+    shipSummaryBox.style.display = !edit && hasAddress ? "block" : "none";
+  }
+}
+
+function applyShippingMetaToInputs(meta = {}) {
+  if (shipFromName) shipFromName.value = meta.ship_from_name || "";
+  if (shipFromStreet) shipFromStreet.value = meta.ship_from_street || "";
+  if (shipFromStreet2) shipFromStreet2.value = meta.ship_from_street2 || "";
+  if (shipFromCity) shipFromCity.value = meta.ship_from_city || "";
+  if (shipFromState) shipFromState.value = meta.ship_from_state || "";
+  if (shipFromZip) shipFromZip.value = meta.ship_from_zip || "";
+  if (shipFromCountry && meta.ship_from_country) {
+    shipFromCountry.value = meta.ship_from_country;
+  } else if (shipFromCountry && !meta.ship_from_country) {
+    shipFromCountry.value = "";
+  }
+}
+
+// Fill both inputs + summary from user metadata
+function fillShippingFromMeta(user) {
+  const meta = user.user_metadata || {};
+  ensureShippingSummaryUI();
+
+  lastShippingMeta = {
+    ship_from_name: meta.ship_from_name || "",
+    ship_from_street: meta.ship_from_street || "",
+    ship_from_street2: meta.ship_from_street2 || "",
+    ship_from_city: meta.ship_from_city || "",
+    ship_from_state: meta.ship_from_state || "",
+    ship_from_zip: meta.ship_from_zip || "",
+    ship_from_country: meta.ship_from_country || "",
+    payouts_status: meta.payouts_status || "not_configured",
+  };
+
+  applyShippingMetaToInputs(lastShippingMeta);
+  updateShippingSummary(lastShippingMeta);
+
+  // Payouts status text + buttons
+  const payoutsStatus = lastShippingMeta.payouts_status || "not_configured";
+  if (payoutStatusText) {
+    if (payoutsStatus === "active") {
+      payoutStatusText.textContent =
+        "Payouts are active. Stripe will send your earnings to your bank account.";
+      if (payoutSetupBtn) hide(payoutSetupBtn);
+      if (payoutManageBtn) show(payoutManageBtn, "inline-block");
+    } else {
+      payoutStatusText.textContent =
+        "Set up payouts so we can send you money from your fabric sales.";
+      if (payoutSetupBtn) show(payoutSetupBtn, "inline-block");
+      if (payoutManageBtn) hide(payoutManageBtn);
+    }
+  }
+
+  // Decide initial mode
+  if (addressIsComplete(lastShippingMeta)) {
+    setShippingMode("summary");
+  } else {
+    setShippingMode("edit");
+  }
+}
+
+// Save shipping
 if (saveShippingSettingsBtn) {
   saveShippingSettingsBtn.addEventListener("click", async () => {
     if (!currentUser) {
@@ -687,7 +720,6 @@ if (saveShippingSettingsBtn) {
     }
 
     const meta = currentUser.user_metadata || {};
-
     const updatedMeta = {
       ...meta,
       ship_from_name: shipFromName?.value.trim() || null,
@@ -713,6 +745,7 @@ if (saveShippingSettingsBtn) {
       currentUser = data.user;
       fillShippingFromMeta(currentUser);
       alert("Shipping address saved for your labels.");
+      setShippingMode("summary");
     } catch (e) {
       console.error(e);
       alert("There was a problem saving your shipping address.");
@@ -726,17 +759,53 @@ if (payoutSetupBtn) {
     window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
   });
 }
-
 if (payoutManageBtn) {
   payoutManageBtn.addEventListener("click", () => {
     window.open("https://dashboard.stripe.com/login", "_blank", "noopener");
   });
 }
 
-// ---- SIMPLE VACATION TOGGLE (visual only for now) ----
+// ---- VACATION SWITCH (visual only) ----
 if (vacSwitch) {
   vacSwitch.addEventListener("click", () => {
     const current = vacSwitch.getAttribute("data-on") === "true";
     vacSwitch.setAttribute("data-on", current ? "false" : "true");
   });
 }
+
+// ---- INITIAL LOAD ----
+(async () => {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error("Error getting current user:", error);
+    }
+
+    currentUser = data?.user || null;
+
+    if (!currentUser) {
+      setLoggedOutUI();
+      return;
+    }
+
+    // Logged-in UI
+    if (accountLoggedOut) hide(accountLoggedOut);
+    if (accountGrid) accountGrid.style.display = "grid";
+
+    setLoggedInHeader(currentUser);
+    fillProfileSummary(currentUser);
+    fillProfileForm(currentUser);
+    applyAvatarFromStorage(currentUser);
+    fillShippingFromMeta(currentUser);
+
+    if (logoutBtn) show(logoutBtn, "inline-block");
+
+    // If profile is totally empty, open the form once
+    if (isProfileIncomplete(currentUser) && profileForm) {
+      show(profileForm, "block");
+    }
+  } catch (e) {
+    console.error("Error during account initialization:", e);
+    setLoggedOutUI();
+  }
+})();
