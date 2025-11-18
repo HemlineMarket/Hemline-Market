@@ -615,56 +615,365 @@
   </div>
 </footer>
 
-<!-- Supabase JS -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Account logic -->
-<script src="scripts/account-auth.js"></script>
+<!-- Account/session logic -->
+<script type="module">
+  import { supabase } from "./scripts/supabase-client.js";
 
-<script>
-  // Hamburger menu
-  (function(){
-    const sheet = document.getElementById("menuSheet");
+  // ----- Helpers -----
+  const headerAvatar      = document.getElementById("headerAvatar");
+  const profileAvatar     = document.getElementById("profileAvatar");
+  const summaryName       = document.getElementById("summaryName");
+  const summaryEmail      = document.getElementById("summaryEmail");
+  const summaryLocation   = document.getElementById("summaryLocation");
+  const summaryBio        = document.getElementById("summaryBio");
+
+  const profileForm       = document.getElementById("profileForm");
+  const profileFirst      = document.getElementById("profileFirst");
+  const profileLast       = document.getElementById("profileLast");
+  const profileLocation   = document.getElementById("profileLocation");
+  const profileShop       = document.getElementById("profileShop");
+  const profileWebsite    = document.getElementById("profileWebsite");
+  const profileInsta      = document.getElementById("profileInsta");
+  const profileTiktok     = document.getElementById("profileTiktok");
+  const profileBio        = document.getElementById("profileBio");
+
+  const shipSummary       = document.getElementById("shipSummary");
+  const addressForm       = document.getElementById("addressForm");
+  const shipNameInput     = document.getElementById("shipName");
+  const shipAddress1Input = document.getElementById("shipAddress1");
+  const shipAddress2Input = document.getElementById("shipAddress2");
+  const shipCityInput     = document.getElementById("shipCity");
+  const shipStateInput    = document.getElementById("shipState");
+  const shipPostalInput   = document.getElementById("shipPostal");
+  const shipCountrySelect = document.getElementById("shipCountry");
+
+  const vacationToggle    = document.getElementById("vacationToggle");
+
+  const btnEditPhoto      = document.getElementById("btnEditPhoto");
+  const avatarInput       = document.getElementById("avatarInput");
+  const btnShowProfile    = document.getElementById("btnShowProfileForm");
+  const btnCancelProfile  = document.getElementById("btnCancelProfile");
+  const btnEditAddress    = document.getElementById("btnEditAddress");
+  const btnCancelAddress  = document.getElementById("btnCancelAddress");
+  const btnLogout         = document.getElementById("btnLogout");
+  const btnPurchases      = document.getElementById("btnPurchases");
+  const btnSales          = document.getElementById("btnSales");
+  const btnYourAtelier    = document.getElementById("btnYourAtelier");
+
+  let currentUser    = null;
+  let currentProfile = {};
+  let currentAddress = {};
+
+  const profileKey  = (id) => `hm_profile_${id}`;
+  const addressKey  = (id) => `hm_address_${id}`;
+  const vacationKey = (id) => `hm_vacation_${id}`;
+  const avatarKey   = (id) => `hm_avatar_${id}`;
+
+  function safeParse(json) {
+    if (!json) return {};
+    try { return JSON.parse(json); } catch { return {}; }
+  }
+
+  function computeInitials(first, last, email) {
+    const parts = [];
+    if (first) parts.push(first.trim()[0]);
+    if (last)  parts.push(last.trim()[0]);
+
+    if (!parts.length && email) {
+      const slug = String(email).split("@")[0] || "";
+      if (slug) parts.push(slug[0]);
+    }
+    return (parts.join("") || "HM").toUpperCase().slice(0, 2);
+  }
+
+  function applyAvatar(initials, avatarUrl) {
+    if (profileAvatar) {
+      if (avatarUrl) {
+        profileAvatar.style.backgroundImage = `url(${avatarUrl})`;
+        profileAvatar.textContent = "";
+      } else {
+        profileAvatar.style.backgroundImage = "";
+        profileAvatar.textContent = initials;
+      }
+    }
+    if (headerAvatar) {
+      if (avatarUrl) {
+        headerAvatar.style.backgroundImage = `url(${avatarUrl})`;
+        headerAvatar.textContent = "";
+      } else {
+        headerAvatar.style.backgroundImage = "";
+        headerAvatar.textContent = initials;
+      }
+    }
+  }
+
+  function applyProfileToUI(user, profile) {
+    const email = user.email || "";
+    const meta  = user.user_metadata || {};
+    const first = profile.first || meta.given_name || meta.first_name || "";
+    const last  = profile.last  || meta.family_name || meta.last_name || "";
+    const fullName =
+      [first, last].filter(Boolean).join(" ") ||
+      meta.full_name ||
+      "Hemline member";
+
+    const initials = computeInitials(first, last, email);
+    const avatarUrl = currentUser ? localStorage.getItem(avatarKey(currentUser.id)) : null;
+
+    applyAvatar(initials, avatarUrl);
+
+    if (summaryName)     summaryName.textContent     = fullName;
+    if (summaryEmail)    summaryEmail.textContent    = email;
+    if (summaryLocation) summaryLocation.textContent = profile.location || "";
+    if (summaryBio)      summaryBio.textContent      = profile.bio || "";
+
+    if (profileFirst)    profileFirst.value    = first || "";
+    if (profileLast)     profileLast.value     = last || "";
+    if (profileLocation) profileLocation.value = profile.location || "";
+    if (profileShop)     profileShop.value     = profile.shop || "";
+    if (profileWebsite)  profileWebsite.value  = profile.website || "";
+    if (profileInsta)    profileInsta.value    = profile.insta || "";
+    if (profileTiktok)   profileTiktok.value   = profile.tiktok || "";
+    if (profileBio)      profileBio.value      = profile.bio || "";
+  }
+
+  function formatAddressSummary(address) {
+    const lines = [];
+    if (address.name)       lines.push(address.name);
+    if (address.address1)   lines.push(address.address1);
+    if (address.address2)   lines.push(address.address2);
+
+    const cityStateLine = [address.city, address.state].filter(Boolean).join(", ");
+    const postalLine    = [cityStateLine, address.postal].filter(Boolean).join(" ");
+    if (postalLine) lines.push(postalLine);
+
+    if (address.country) lines.push(address.country);
+
+    if (!lines.length) {
+      return "Add your ship-from name and address.";
+    }
+    return lines.join("\n");
+  }
+
+  function applyAddressToUI(address) {
+    if (shipSummary) {
+      shipSummary.textContent = formatAddressSummary(address);
+    }
+    if (shipNameInput)     shipNameInput.value     = address.name     || "";
+    if (shipAddress1Input) shipAddress1Input.value = address.address1 || "";
+    if (shipAddress2Input) shipAddress2Input.value = address.address2 || "";
+    if (shipCityInput)     shipCityInput.value     = address.city     || "";
+    if (shipStateInput)    shipStateInput.value    = address.state    || "";
+    if (shipPostalInput)   shipPostalInput.value   = address.postal   || "";
+    if (shipCountrySelect) shipCountrySelect.value = address.country  || "United States";
+  }
+
+  async function requireSession() {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error("auth.getUser error", error);
+    }
+    const user = data?.user;
+    if (!user) {
+      window.location.href = "auth.html";
+      return null;
+    }
+    return user;
+  }
+
+  function setupHamburger() {
+    const sheet   = document.getElementById("menuSheet");
     const openBtn = document.getElementById("openMenu");
-    const closeBtn = document.getElementById("closeMenu");
-    function open(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-    function close(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
-    if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
-    if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
-    document.addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
-  })();
+    const closeBtn= document.getElementById("closeMenu");
+    if (!sheet || !openBtn || !closeBtn) return;
 
-  // Toggle profile + address edit panels
-  (function(){
-    const profilePanel = document.getElementById("profileForm");
-    const showProfile  = document.getElementById("btnShowProfileForm");
-    const cancelProfile= document.getElementById("btnCancelProfile");
-
-    if(showProfile && profilePanel){
-      showProfile.addEventListener("click",()=>{
-        profilePanel.classList.remove("hidden");
-      });
+    function open(){
+      sheet.classList.add("open");
+      sheet.setAttribute("aria-hidden","false");
     }
-    if(cancelProfile && profilePanel){
-      cancelProfile.addEventListener("click",()=>{
-        profilePanel.classList.add("hidden");
-      });
+    function close(){
+      sheet.classList.remove("open");
+      sheet.setAttribute("aria-hidden","true");
     }
 
-    const addrPanel = document.getElementById("addressForm");
-    const showAddr  = document.getElementById("btnEditAddress");
-    const cancelAddr= document.getElementById("btnCancelAddress");
+    openBtn.addEventListener("click", (e)=>{ e.preventDefault(); open(); });
+    closeBtn.addEventListener("click",(e)=>{ e.preventDefault(); close(); });
+    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") close(); });
+  }
 
-    if(showAddr && addrPanel){
-      showAddr.addEventListener("click",()=>{
-        addrPanel.classList.remove("hidden");
+  function setupProfileForm() {
+    if (!btnShowProfile || !profileForm) return;
+    btnShowProfile.addEventListener("click", () => {
+      profileForm.classList.remove("hidden");
+    });
+    if (btnCancelProfile) {
+      btnCancelProfile.addEventListener("click", () => {
+        profileForm.classList.add("hidden");
       });
     }
-    if(cancelAddr && addrPanel){
-      cancelAddr.addEventListener("click",()=>{
-        addrPanel.classList.add("hidden");
+    if (profileForm) {
+      profileForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!currentUser) return;
+        const profile = {
+          first:    (profileFirst?.value || "").trim(),
+          last:     (profileLast?.value || "").trim(),
+          location: (profileLocation?.value || "").trim(),
+          shop:     (profileShop?.value || "").trim(),
+          website:  (profileWebsite?.value || "").trim(),
+          insta:    (profileInsta?.value || "").trim(),
+          tiktok:   (profileTiktok?.value || "").trim(),
+          bio:      (profileBio?.value || "").trim(),
+        };
+        currentProfile = profile;
+        localStorage.setItem(profileKey(currentUser.id), JSON.stringify(profile));
+        applyProfileToUI(currentUser, profile);
+        profileForm.classList.add("hidden");
       });
     }
-  })();
+  }
+
+  function setupAddressForm() {
+    if (btnEditAddress && addressForm) {
+      btnEditAddress.addEventListener("click", () => {
+        // fields are already kept in sync by applyAddressToUI
+        addressForm.classList.remove("hidden");
+      });
+    }
+    if (btnCancelAddress && addressForm) {
+      btnCancelAddress.addEventListener("click", () => {
+        addressForm.classList.add("hidden");
+      });
+    }
+    if (addressForm) {
+      addressForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!currentUser) return;
+        const address = {
+          name:     (shipNameInput?.value || "").trim(),
+          address1: (shipAddress1Input?.value || "").trim(),
+          address2: (shipAddress2Input?.value || "").trim(),
+          city:     (shipCityInput?.value || "").trim(),
+          state:    (shipStateInput?.value || "").trim(),
+          postal:   (shipPostalInput?.value || "").trim(),
+          country:  (shipCountrySelect?.value || "").trim() || "United States",
+        };
+        currentAddress = address;
+        localStorage.setItem(addressKey(currentUser.id), JSON.stringify(address));
+        applyAddressToUI(address);
+        addressForm.classList.add("hidden");
+      });
+    }
+
+    // ZIP -> city/state autofill
+    if (shipPostalInput) {
+      shipPostalInput.addEventListener("blur", async () => {
+        const zip = shipPostalInput.value.trim();
+        if (!zip || zip.length < 5) return;
+        try {
+          const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          const place = data?.places?.[0];
+          if (!place) return;
+          if (shipCityInput && !shipCityInput.value) {
+            shipCityInput.value = place["place name"];
+          }
+          if (shipStateInput && !shipStateInput.value) {
+            shipStateInput.value = place["state abbreviation"];
+          }
+        } catch (err) {
+          console.error("ZIP lookup error", err);
+        }
+      });
+    }
+  }
+
+  function setupAvatarUpload() {
+    if (!btnEditPhoto || !avatarInput) return;
+    btnEditPhoto.addEventListener("click", () => {
+      avatarInput.click();
+    });
+    avatarInput.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file || !currentUser) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = reader.result;
+        localStorage.setItem(avatarKey(currentUser.id), url);
+        const initials = computeInitials(
+          currentProfile.first,
+          currentProfile.last,
+          currentUser.email
+        );
+        applyAvatar(initials, url);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function setupVacationToggle() {
+    if (!vacationToggle) return;
+    const key = currentUser ? vacationKey(currentUser.id) : null;
+    if (key) {
+      const value = localStorage.getItem(key);
+      vacationToggle.checked = value === "on";
+    }
+    vacationToggle.addEventListener("change", () => {
+      if (!currentUser) return;
+      const k = vacationKey(currentUser.id);
+      localStorage.setItem(k, vacationToggle.checked ? "on" : "off");
+    });
+  }
+
+  function setupNavigationChips() {
+    if (btnPurchases) {
+      btnPurchases.addEventListener("click", () => {
+        window.location.href = "purchases.html";
+      });
+    }
+    if (btnSales) {
+      btnSales.addEventListener("click", () => {
+        window.location.href = "sales.html";
+      });
+    }
+    if (btnYourAtelier) {
+      btnYourAtelier.addEventListener("click", () => {
+        window.location.href = "atelier.html";
+      });
+    }
+  }
+
+  function setupLogout() {
+    if (!btnLogout) return;
+    btnLogout.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = "index.html";
+    });
+  }
+
+  async function init() {
+    setupHamburger();
+
+    const user = await requireSession();
+    if (!user) return;
+    currentUser = user;
+
+    // Load stored profile/address for this user
+    currentProfile = safeParse(localStorage.getItem(profileKey(user.id)));
+    currentAddress = safeParse(localStorage.getItem(addressKey(user.id)));
+
+    applyProfileToUI(user, currentProfile);
+    applyAddressToUI(currentAddress);
+    setupProfileForm();
+    setupAddressForm();
+    setupAvatarUpload();
+    setupNavigationChips();
+    setupLogout();
+    setupVacationToggle();
+  }
+
+  init();
 </script>
 </body>
 </html>
