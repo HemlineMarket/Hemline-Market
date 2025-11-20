@@ -277,7 +277,7 @@
     }
     .pill-link-sub{
       font-size:12px;
-      color:var(--hm-muted);
+      color:#6b7280;
       margin-top:2px;
     }
 
@@ -513,7 +513,6 @@
           </div>
 
           <div class="profile-actions">
-            <button class="btn" type="button" id="btnEditPhoto">Edit photo</button>
             <button class="btn" type="button" id="btnEditProfile">Edit profile</button>
             <button class="btn" type="button" id="btnLogout">Log out</button>
           </div>
@@ -578,9 +577,6 @@
           </p>
         </form>
       </section>
-
-      <!-- Hidden file input for avatar -->
-      <input id="avatarInput" type="file" accept="image/*" class="is-hidden">
     </div>
   </section>
 
@@ -828,7 +824,6 @@
     const profileAvatarEl = document.getElementById('profileAvatar');
     const profileEditor   = document.getElementById('profileEditor');
     const profileForm     = document.getElementById('profileForm');
-    const avatarInput     = document.getElementById('avatarInput');
 
     const addressDisplay  = document.getElementById('addressDisplay');
     const addressEditor   = document.getElementById('addressEditor');
@@ -857,27 +852,14 @@
     if(profile.bio)       profileLines.push(profile.bio);
     profileExtraEl.textContent = profileLines.join("\n");
 
-    // ---- Avatar from storage ----
-    try{
-      const avatarUrl = localStorage.getItem("hm_avatar_" + userId);
-      if (avatarUrl){
-        profileAvatarEl.style.backgroundImage = "url(" + avatarUrl + ")";
-        profileAvatarEl.textContent = "";
-      } else {
-        const initials = initialsFromProfile(profile.firstName, profile.lastName, email);
-        profileAvatarEl.style.backgroundImage = "";
-        profileAvatarEl.textContent = initials;
-      }
-    }catch(e){
-      const initials = initialsFromProfile(profile.firstName, profile.lastName, email);
-      profileAvatarEl.style.backgroundImage = "";
-      profileAvatarEl.textContent = initials;
-    }
+    // Avatar initials based on profile/email
+    const avatarInitials = initialsFromProfile(profile.firstName, profile.lastName, email);
+    profileAvatarEl.style.backgroundImage = "";
+    profileAvatarEl.textContent = avatarInitials;
 
-    // Header initials (always initials, never photo)
+    // Header initials match profile initials
     if (headerUser){
-      const initials = initialsFromProfile(profile.firstName, profile.lastName, email);
-      headerUser.textContent = initials;
+      headerUser.textContent = avatarInitials;
     }
 
     // ---- Address from storage ----
@@ -886,6 +868,17 @@
       const rawA = localStorage.getItem(ADDRESS_KEY);
       if(rawA) address = JSON.parse(rawA) || {};
     }catch(e){ console.warn("Address parse failed", e); }
+
+    // If address name is empty but we have profile name, prefill it
+    if(!address.addrName && (profile.firstName || profile.lastName)){
+      const dn = (profile.firstName || "") + (profile.lastName ? (" " + profile.lastName) : "");
+      if(dn.trim()){
+        address.addrName = dn.trim();
+        try{
+          localStorage.setItem(ADDRESS_KEY, JSON.stringify(address));
+        }catch(e){}
+      }
+    }
 
     function renderAddress(){
       if(!address || !address.addrLine1){
@@ -957,38 +950,23 @@
       if(next.bio)       newLines.push(next.bio);
       profileExtraEl.textContent = newLines.join("\n");
 
-      // Refresh initials in header + avatar if no uploaded photo
+      // Refresh initials in header + avatar
       const initials = initialsFromProfile(next.firstName, next.lastName, email);
       if(headerUser) headerUser.textContent = initials;
+      profileAvatarEl.style.backgroundImage = "";
+      profileAvatarEl.textContent = initials;
 
-      const storedAvatarUrl = localStorage.getItem("hm_avatar_" + userId);
-      if(!storedAvatarUrl){
-        profileAvatarEl.style.backgroundImage = "";
-        profileAvatarEl.textContent = initials;
+      // If address name is still empty, prefill from profile name
+      if(!address.addrName && displayName.trim()){
+        address.addrName = displayName.trim();
+        try{
+          localStorage.setItem(ADDRESS_KEY, JSON.stringify(address));
+        }catch(e){}
+        addressForm.addrName.value = address.addrName;
+        renderAddress();
       }
 
       profileEditor.classList.add('is-hidden');
-    });
-
-    // Photo upload
-    document.getElementById('btnEditPhoto').addEventListener('click', ()=>{
-      avatarInput.click();
-    });
-    avatarInput.addEventListener('change', (e)=>{
-      const file = e.target.files[0];
-      if(!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt){
-        const url = evt.target.result;
-        profileAvatarEl.style.backgroundImage = "url(" + url + ")";
-        profileAvatarEl.textContent = "";
-        try{
-          localStorage.setItem("hm_avatar_" + userId, url);
-        }catch(err){
-          console.warn("Could not save avatar", err);
-        }
-      };
-      reader.readAsDataURL(file);
     });
 
     // Address editor
