@@ -717,4 +717,202 @@
     }
 
     const lines = [];
-    if(profile.storeName) lines.push("Store name: " + profile.store
+    if(profile.storeName) lines.push("Store name: " + profile.storeName);
+    if(profile.website)   lines.push("Website: " + profile.website);
+    if(profile.bio)       lines.push(profile.bio);
+    profileExtraEl.textContent = lines.join("\n");
+
+    // Avatar from storage
+    try{
+      const avatarUrl = localStorage.getItem("hm_avatar_" + userId);
+      if(avatarUrl){
+        profileAvatarEl.style.backgroundImage = "url(" + avatarUrl + ")";
+        profileAvatarEl.textContent = "";
+      }else{
+        profileAvatarEl.textContent = initialsFrom(email);
+      }
+    }catch(e){
+      profileAvatarEl.textContent = initialsFrom(email);
+    }
+
+    // Fill profile form with current values
+    profileForm.firstName.value = profile.firstName || "";
+    profileForm.lastName.value  = profile.lastName  || "";
+    profileForm.storeName.value = profile.storeName || "";
+    profileForm.website.value   = profile.website   || "";
+    profileForm.bio.value       = profile.bio       || "";
+
+    // ---- Address from storage ----
+    let address = {};
+    try{
+      const rawA = localStorage.getItem(ADDRESS_KEY);
+      if(rawA) address = JSON.parse(rawA) || {};
+    }catch(e){ console.warn("Address parse failed", e); }
+
+    function renderAddress(){
+      if(!address || !address.addrLine1){
+        addressDisplay.textContent = "Add your ship-from name and address.";
+        return;
+      }
+      const lines = [];
+      if(address.addrName)  lines.push(address.addrName);
+      let line1 = address.addrLine1;
+      if(address.addrLine2) line1 += "\n" + address.addrLine2;
+      lines.push(line1);
+      let cityLine = "";
+      if(address.addrCity)  cityLine += address.addrCity;
+      if(address.addrState) cityLine += (cityLine ? ", " : "") + address.addrState;
+      if(address.addrZip)   cityLine += (cityLine ? " " : "") + address.addrZip;
+      if(cityLine)          lines.push(cityLine);
+      if(address.addrCountry) lines.push(address.addrCountry);
+      addressDisplay.textContent = lines.join("\n");
+    }
+    renderAddress();
+
+    // Fill address form
+    Object.assign(addressForm, {
+      addrName:  { value: address.addrName  || "" },
+      addrLine1: { value: address.addrLine1 || "" },
+      addrLine2: { value: address.addrLine2 || "" },
+      addrCity:  { value: address.addrCity  || "" },
+      addrState: { value: address.addrState || "" },
+      addrZip:   { value: address.addrZip   || "" },
+      addrCountry:{ value: address.addrCountry || "United States" }
+    });
+
+    // Vacation toggle
+    try{
+      const vacRaw = localStorage.getItem(VAC_KEY);
+      vacationToggle.checked = vacRaw === "on";
+    }catch{}
+
+    vacationToggle.addEventListener('change', () => {
+      localStorage.setItem(VAC_KEY, vacationToggle.checked ? "on" : "off");
+    });
+
+    // ---- Button handlers ----
+    document.getElementById('btnEditProfile').addEventListener('click', () => {
+      profileEditor.classList.remove('is-hidden');
+      profileForm.firstName.focus();
+    });
+    document.getElementById('cancelProfileEdit').addEventListener('click', () => {
+      profileEditor.classList.add('is-hidden');
+    });
+
+    profileForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const next = {
+        firstName: profileForm.firstName.value.trim(),
+        lastName:  profileForm.lastName.value.trim(),
+        storeName: profileForm.storeName.value.trim(),
+        website:   profileForm.website.value.trim(),
+        bio:       profileForm.bio.value.trim()
+      };
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+      profile = next;
+
+      // Update summary
+      profileNameEl.textContent = (next.firstName || "") + (next.lastName ? (" " + next.lastName) : "") || (email.split("@")[0] || "Hemline member");
+
+      const newLines = [];
+      if(next.storeName) newLines.push("Store name: " + next.storeName);
+      if(next.website)   newLines.push("Website: " + next.website);
+      if(next.bio)       newLines.push(next.bio);
+      profileExtraEl.textContent = newLines.join("\n");
+
+      profileEditor.classList.add('is-hidden');
+    });
+
+    // Photo upload
+    document.getElementById('btnEditPhoto').addEventListener('click', ()=>{
+      avatarInput.click();
+    });
+    avatarInput.addEventListener('change', (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt){
+        const url = evt.target.result;
+        profileAvatarEl.style.backgroundImage = "url(" + url + ")";
+        profileAvatarEl.textContent = "";
+        try{
+          localStorage.setItem("hm_avatar_" + userId, url);
+        }catch(err){
+          console.warn("Could not save avatar", err);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Address editor
+    document.getElementById('btnEditAddress').addEventListener('click', ()=>{
+      addressEditor.classList.remove('is-hidden');
+      addressForm.addrName.focus();
+    });
+    document.getElementById('cancelAddressEdit').addEventListener('click', ()=>{
+      addressEditor.classList.add('is-hidden');
+    });
+
+    addressForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const next = {
+        addrName:  addressForm.addrName.value.trim(),
+        addrLine1: addressForm.addrLine1.value.trim(),
+        addrLine2: addressForm.addrLine2.value.trim(),
+        addrCity:  addressForm.addrCity.value.trim(),
+        addrState: addressForm.addrState.value.trim(),
+        addrZip:   addressForm.addrZip.value.trim(),
+        addrCountry: addressForm.addrCountry.value || "United States"
+      };
+      localStorage.setItem(ADDRESS_KEY, JSON.stringify(next));
+      address = next;
+      renderAddress();
+      addressEditor.classList.add('is-hidden');
+    });
+
+    // Logout + password
+    document.getElementById('btnLogout').addEventListener('click', async ()=>{
+      await supabaseClient.auth.signOut();
+      window.location.href = "auth.html?view=login";
+    });
+    document.getElementById('btnChangePassword').addEventListener('click', ()=>{
+      alert("For now, password changes happen through your email provider’s reset link for the account you used to sign up.");
+    });
+
+    // Stripe onboarding – graceful fallback if backend not wired yet
+    const stripeBtn  = document.getElementById('btnStripe');
+    const stripeNote = document.getElementById('stripeNote');
+
+    stripeBtn.addEventListener('click', ()=>{
+      stripeBtn.disabled = true;
+      stripeNote.textContent = "Contacting Stripe…";
+      fetch("/api/stripe/connect_onboard", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          return_url: window.location.origin + "/account.html",
+          refresh_url: window.location.origin + "/account.html"
+        })
+      })
+      .then(r => {
+        if(!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(data=>{
+        if(data && data.url){
+          window.location.href = data.url;
+        }else{
+          throw new Error("No onboarding URL returned");
+        }
+      })
+      .catch(err=>{
+        console.warn("Stripe onboarding not live yet:", err);
+        stripeNote.textContent = "Stripe payouts will start working once your backend route /api/stripe/connect_onboard is live. For now, keep your profile and address up to date.";
+        stripeBtn.disabled = false;
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
