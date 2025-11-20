@@ -32,7 +32,7 @@
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .is-hidden{display:none!important;}
 
-    /* ---------- HEADER (copied from index.html) ---------- */
+    /* ---------- HEADER (aligned with index.html) ---------- */
     .hm-header{
       min-height:56px;
       background:#fff;
@@ -91,6 +91,22 @@
       color:#111827;
       background:#fff;
       font-weight:600;
+    }
+
+    .hm-avatar{
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      color:#334155;
+      display:inline-grid;
+      place-items:center;
+      font-weight:700;
+      font-size:12px;
+      text-decoration:none;
+      background-size:cover;
+      background-position:center;
     }
 
     /* Left drawer */
@@ -398,7 +414,7 @@
 </head>
 <body>
 
-<!-- HEADER (same structure as index.html) -->
+<!-- HEADER -->
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
@@ -493,7 +509,7 @@
           <div class="profile-main-name" id="profileName">Hemline member</div>
           <div class="profile-main-email" id="profileEmail">you@example.com</div>
           <div class="profile-main-extra" id="profileExtra">
-            <!-- store name, website, bio will get slotted here -->
+            <!-- store name + bio will appear here -->
           </div>
 
           <div class="profile-actions">
@@ -528,7 +544,7 @@
         </a>
       </div>
 
-      <!-- PROFILE EDITOR (inline, hidden until “Edit profile”) -->
+      <!-- PROFILE EDITOR -->
       <section class="editor-panel is-hidden" id="profileEditor" aria-label="Edit profile">
         <form id="profileForm">
           <div class="field-row">
@@ -546,6 +562,7 @@
               <label for="storeName">Store name</label>
               <input id="storeName" name="storeName" type="text" placeholder="Aurora, Espresso Studio…">
             </div>
+          </div>
           <div class="field-row">
             <div class="field">
               <label for="bio">Short bio</label>
@@ -689,7 +706,7 @@
   </section>
 </main>
 
-<!-- FOOTER (same as index.html) -->
+<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -703,11 +720,11 @@
   </div>
 </footer>
 
-<!-- Supabase JS (same version as other pages) -->
+<!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ------- Hamburger / overlay (copied from index.html) -------
+  // Hamburger / overlay
   (function(){
     const sheet    = document.getElementById('menuSheet');
     const openBtn  = document.getElementById('openMenu');
@@ -743,19 +760,29 @@
 </script>
 
 <script>
-  // ------- Supabase session + per-user profile/address stored in localStorage -------
+  // Supabase session + per-user profile/address stored in localStorage
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
     { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
-  function initialsFrom(email){
+  function initialsFromEmail(email){
     if(!email) return "HM";
     const handle = email.split("@")[0].replace(/[\.\_\-]+/g," ").trim();
     const parts = handle.split(" ").filter(Boolean);
     if(parts.length === 1) return (parts[0][0] + (parts[0][1] || '')).toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  function initialsFromProfile(firstName, lastName, email){
+    if(firstName && lastName){
+      return (firstName[0] + lastName[0]).toUpperCase();
+    }
+    if(firstName){
+      return (firstName[0] + (firstName[1] || '')).toUpperCase();
+    }
+    return initialsFromEmail(email);
   }
 
   async function ensureSession({maxWaitMs=3000} = {}){
@@ -775,7 +802,6 @@
 
     const session = await ensureSession();
     if(!session || !session.user){
-      // not logged in -> go to auth
       window.location.href = "auth.html?view=login";
       return;
     }
@@ -784,9 +810,8 @@
     const email = user.email || "you@example.com";
     const userId = user.id;
 
-    // Header state
+    // Header visibility (text gets set after we load profile)
     if(headerUser && headerLoginBtn){
-      headerUser.textContent = initialsFrom(email);
       headerUser.classList.remove('is-hidden');
       headerLoginBtn.classList.add('is-hidden');
     }
@@ -811,6 +836,8 @@
 
     const vacationToggle  = document.getElementById('vacationToggle');
 
+    profileEmailEl.textContent = email;
+
     // ---- Load profile from storage ----
     let profile = {};
     try{
@@ -818,18 +845,17 @@
       if(raw) profile = JSON.parse(raw) || {};
     }catch(e){ console.warn("Profile parse failed", e); }
 
-    profileEmailEl.textContent = email;
-
     if(profile.firstName || profile.lastName){
-      profileNameEl.textContent = (profile.firstName || "") + (profile.lastName ? (" " + profile.lastName) : "");
+      profileNameEl.textContent =
+        (profile.firstName || "") + (profile.lastName ? (" " + profile.lastName) : "");
     }else{
       profileNameEl.textContent = email.split("@")[0] || "Hemline member";
     }
 
-    const lines = [];
-    if(profile.storeName) lines.push("Store name: " + profile.storeName);
-       if(profile.bio)       lines.push(profile.bio);
-    profileExtraEl.textContent = lines.join("\n");
+    const profileLines = [];
+    if(profile.storeName) profileLines.push("Store name: " + profile.storeName);
+    if(profile.bio)       profileLines.push(profile.bio);
+    profileExtraEl.textContent = profileLines.join("\n");
 
     // Avatar from storage
     try{
@@ -838,10 +864,16 @@
         profileAvatarEl.style.backgroundImage = "url(" + avatarUrl + ")";
         profileAvatarEl.textContent = "";
       }else{
-        profileAvatarEl.textContent = initialsFrom(email);
+        const initials = initialsFromProfile(profile.firstName, profile.lastName, email);
+        profileAvatarEl.textContent = initials;
       }
     }catch(e){
-      profileAvatarEl.textContent = initialsFrom(email);
+      profileAvatarEl.textContent = initialsFromProfile(profile.firstName, profile.lastName, email);
+    }
+
+    // Header initials based on profile name if available
+    if(headerUser){
+      headerUser.textContent = initialsFromProfile(profile.firstName, profile.lastName, email);
     }
 
     // Fill profile form with current values
@@ -877,13 +909,13 @@
     }
     renderAddress();
 
-    // ---- Fill address form safely (no Object.assign bug) ----
-    addressForm.addrName.value   = address.addrName   || "";
-    addressForm.addrLine1.value  = address.addrLine1  || "";
-    addressForm.addrLine2.value  = address.addrLine2  || "";
-    addressForm.addrCity.value   = address.addrCity   || "";
-    addressForm.addrState.value  = address.addrState  || "";
-    addressForm.addrZip.value    = address.addrZip    || "";
+    // Fill address form safely
+    addressForm.addrName.value    = address.addrName    || "";
+    addressForm.addrLine1.value   = address.addrLine1   || "";
+    addressForm.addrLine2.value   = address.addrLine2   || "";
+    addressForm.addrCity.value    = address.addrCity    || "";
+    addressForm.addrState.value   = address.addrState   || "";
+    addressForm.addrZip.value     = address.addrZip     || "";
     addressForm.addrCountry.value = address.addrCountry || "United States";
 
     // Vacation toggle
@@ -911,7 +943,7 @@
         firstName: profileForm.firstName.value.trim(),
         lastName:  profileForm.lastName.value.trim(),
         storeName: profileForm.storeName.value.trim(),
-          bio:       profileForm.bio.value.trim()
+        bio:       profileForm.bio.value.trim()
       };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
       profile = next;
@@ -924,8 +956,18 @@
 
       const newLines = [];
       if(next.storeName) newLines.push("Store name: " + next.storeName);
-            if(next.bio)       newLines.push(next.bio);
+      if(next.bio)       newLines.push(next.bio);
       profileExtraEl.textContent = newLines.join("\n");
+
+      // Refresh initials in header + avatar if no uploaded photo
+      const initials = initialsFromProfile(next.firstName, next.lastName, email);
+      if(headerUser) headerUser.textContent = initials;
+
+      const storedAvatarUrl = localStorage.getItem("hm_avatar_" + userId);
+      if(!storedAvatarUrl){
+        profileAvatarEl.style.backgroundImage = "";
+        profileAvatarEl.textContent = initials;
+      }
 
       profileEditor.classList.add('is-hidden');
     });
