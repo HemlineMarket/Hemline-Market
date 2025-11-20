@@ -857,25 +857,26 @@
     if(profile.bio)       profileLines.push(profile.bio);
     profileExtraEl.textContent = profileLines.join("\n");
 
-        // Avatar from storage + header initials
-    try{
-      const avatarUrl = localStorage.getItem("hm_avatar_" + userId);
+// Avatar from storage
+const avatarKey = "hm_avatar_" + userId;
 
-      if (avatarUrl){
-        // Show saved photo
-        profileAvatarEl.style.backgroundImage = "url(" + avatarUrl + ")";
-        profileAvatarEl.textContent = "";
-      } else {
-        // Fall back to initials
-        const initials = initialsFromProfile(profile.firstName, profile.lastName, email);
-        profileAvatarEl.style.backgroundImage = "";
-        profileAvatarEl.textContent = initials;
-      }
-    }catch(e){
-      const initials = initialsFromProfile(profile.firstName, profile.lastName, email);
-      profileAvatarEl.style.backgroundImage = "";
-      profileAvatarEl.textContent = initials;
-    }
+try {
+  const avatarUrl = localStorage.getItem(avatarKey);
+
+  if (avatarUrl) {
+    // Use saved photo
+    profileAvatarEl.style.backgroundImage = `url(${avatarUrl})`;
+    profileAvatarEl.textContent = "";
+  } else {
+    // Fall back to initials if nothing saved
+    profileAvatarEl.style.backgroundImage = "";
+    profileAvatarEl.textContent = initialsFrom(email);
+  }
+} catch (e) {
+  // Safety fallback
+  profileAvatarEl.style.backgroundImage = "";
+  profileAvatarEl.textContent = initialsFrom(email);
+}
 
     // Header initials (match avatar initials)
     if (headerUser){
@@ -972,26 +973,32 @@
       profileEditor.classList.add('is-hidden');
     });
 
-    // Photo upload
-    document.getElementById('btnEditPhoto').addEventListener('click', ()=>{
-      avatarInput.click();
-    });
-    avatarInput.addEventListener('change', (e)=>{
-      const file = e.target.files[0];
-      if(!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt){
-        const url = evt.target.result;
-        profileAvatarEl.style.backgroundImage = "url(" + url + ")";
-        profileAvatarEl.textContent = "";
-        try{
-          localStorage.setItem("hm_avatar_" + userId, url);
-        }catch(err){
-          console.warn("Could not save avatar", err);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+// Photo upload
+document.getElementById('btnEditPhoto').addEventListener('click', () => {
+  avatarInput.click();
+});
+
+avatarInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (evt) {
+    const url = evt.target.result;
+
+    // Update UI immediately
+    profileAvatarEl.style.backgroundImage = `url(${url})`;
+    profileAvatarEl.textContent = "";
+
+    // Persist for future visits
+    try {
+      localStorage.setItem(avatarKey, url);
+    } catch (err) {
+      console.warn("Could not save avatar", err);
+    }
+  };
+  reader.readAsDataURL(file);
+});
 
     // Address editor
     document.getElementById('btnEditAddress').addEventListener('click', ()=>{
