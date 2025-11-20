@@ -184,48 +184,46 @@ body{
   gap:10px;
   align-items:center;
   margin-bottom:12px;
+  flex-wrap:wrap;
 }
 .topbar input[type="search"]{
   flex:1;
+  min-width:0;
   padding:10px;
   border:1px solid var(--border);
   border-radius:10px;
   background:#fff;
 }
-/* Search button (accent) */
-.topbar .search-btn{
+.topbar button{
   padding:9px 12px;
   border-radius:10px;
   border:1px solid var(--accent);
   background:var(--accent);
   color:#fff;
   font-weight:700;
+  cursor:pointer;
 }
-/* Filter toggle button (outline) */
-.topbar .filter-btn{
-  padding:9px 12px;
-  border-radius:10px;
-  border:1px solid var(--border);
+.filter-toggle{
+  border-color:var(--border);
   background:#fff;
   color:#111827;
-  font-weight:600;
 }
-
 .layout{
   display:grid;
   grid-template-columns:280px 1fr;
   gap:14px;
 }
-@media(max-width:900px){
-  .layout{grid-template-columns:1fr;}
+.layout.filters-hidden .filters{
+  display:none;
 }
-
-/* When filters are collapsed, hide sidebar and give results full width */
-body.filters-collapsed .layout{
+.layout.filters-hidden{
   grid-template-columns:1fr;
 }
-body.filters-collapsed .filters{
-  display:none;
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;}
+  .topbar input[type="search"]{
+    flex-basis:100%;
+  }
 }
 
 /* FILTERS */
@@ -439,7 +437,7 @@ body.filters-collapsed .filters{
 }
 </style>
 </head>
-<body class="filters-collapsed">
+<body>
 
 <header class="hm-header" role="banner">
   <div class="hm-wrap">
@@ -483,7 +481,8 @@ body.filters-collapsed .filters{
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <!-- Hard-coded to your initials for now -->
+      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">RK</a>
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
@@ -512,11 +511,11 @@ body.filters-collapsed .filters{
 <main class="wrap">
   <div class="topbar">
     <input id="q" type="search" placeholder="Search fabrics…"/>
-    <button id="filterToggle" type="button" class="filter-btn">Show filters</button>
-    <button id="doSearch" type="button" class="search-btn">Search</button>
+    <button id="doSearch" type="button">Search</button>
+    <button id="toggleFilters" type="button" class="filter-toggle" aria-pressed="true">Hide filters</button>
   </div>
 
-  <div class="layout">
+  <div class="layout" id="layout">
     <aside class="filters">
       <h3>Filters</h3>
 
@@ -735,6 +734,19 @@ body.filters-collapsed .filters{
   }catch(_){}
 })();
 
+/* Toggle filters panel */
+(function(){
+  const layout = document.getElementById('layout');
+  const toggle = document.getElementById('toggleFilters');
+  if(!layout || !toggle) return;
+
+  toggle.addEventListener('click', ()=>{
+    const hidden = layout.classList.toggle('filters-hidden');
+    toggle.textContent = hidden ? 'Show filters' : 'Hide filters';
+    toggle.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+  });
+})();
+
 /* NOTE: No fake demo listings.
    Once Supabase is wired, replace DATA with real query results. */
 const DATA = [];
@@ -800,7 +812,7 @@ const COLORS = [
   {name:"Orange",hex:"#f27a22"},
   {name:"Yellow",hex:"#f3c321"},
   {name:"Green",hex:"#2f7d32"},
-  {name:"Blue",hex:"#2166d1"},
+  {name:"Blue",hex:"#216d"},
   {name:"Purple",hex:"#6b2da8"},
   {name:"Gold"},
   {name:"Silver"}
@@ -857,22 +869,6 @@ function el(tag, cls, txt){
     colorBox.append(sw);
   });
 })();
-
-/* Filter panel toggle */
-const filterToggle = document.getElementById('filterToggle');
-function updateFilterToggleLabel(){
-  const open = !document.body.classList.contains('filters-collapsed');
-  if(filterToggle){
-    filterToggle.textContent = open ? 'Hide filters' : 'Show filters';
-  }
-}
-if(filterToggle){
-  filterToggle.addEventListener('click', ()=>{
-    document.body.classList.toggle('filters-collapsed');
-    updateFilterToggleLabel();
-  });
-  updateFilterToggleLabel();
-}
 
 /* State + events */
 const state = {
