@@ -1,772 +1,1003 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Account — Hemline Market</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Create a Listing — Hemline Market</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+
+  <!-- Shared styles -->
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hem-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
 
   <style>
-    :root {
-      --hm-bg: #faf7f4;
-      --hm-card-bg: #ffffff;
-      --hm-border: #e5e1dc;
-      --hm-accent: #b07b5a;
-      --hm-text: #2b2623;
-      --hm-muted: #7b736c;
-      --hm-radius-lg: 16px;
-      --hm-radius-pill: 999px;
-      --hm-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.06);
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#fafafa;
+      --hm-danger:#b91c1c;
+    }
+    html,body{
+      margin:0;
+      max-width:100%;
+      overflow-x:hidden;
+      background:var(--hm-bg);
+      color:var(--hm-text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    img,svg,canvas,video{max-width:100%;height:auto;display:block}
+    .is-hidden{display:none!important;}
+
+    /* ---------- HEADER (match account.html) ---------- */
+    .hm-header{
+      min-height:56px;
+      background:#fff;
+      border-bottom:1px solid var(--hm-border);
+      position:relative;
+      z-index:101;
+    }
+    .hm-header .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:0 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .hm-brand{
+      font-size:24px;
+      font-weight:800;
+      color:var(--hm-accent);
+      text-decoration:none;
+    }
+    .hamburger{
+      display:inline-grid;
+      place-items:center;
+      width:36px;
+      height:36px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      background:#fff;
+      color:#374151;
+    }
+    .hamburger svg{width:22px;height:22px;stroke-width:2}
+    .right{display:flex;align-items:center;gap:14px}
+    .hm-icon{
+      color:#444;
+      display:inline-grid;
+      place-items:center;
+    }
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+    .hm-btn-primary{
+      background:var(--hm-accent);
+      color:#fff;
+      border:1px solid var(--hm-accent);
+      border-radius:999px;
+      padding:10px 18px;
+      font-weight:700;
+      text-decoration:none;
+      box-shadow:0 2px 8px rgba(153,27,27,.25);
+    }
+    .cta-header{
+      border:1px solid var(--hm-border);
+      border-radius:999px;
+      padding:7px 14px;
+      font-size:14px;
+      text-decoration:none;
+      color:#111827;
+      background:#fff;
+      font-weight:600;
+    }
+    .hm-avatar{
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      color:#334155;
+      display:inline-grid;
+      place-items:center;
+      font-weight:700;
+      font-size:12px;
+      text-decoration:none;
+      background-size:cover;
+      background-position:center;
     }
 
-    * {
-      box-sizing: border-box;
+    /* Left drawer */
+    .sheet{
+      position:fixed;
+      inset:0 auto 0 0;
+      width:min(84vw,340px);
+      background:#fff;
+      border-right:1px solid var(--hm-border);
+      transform:translateX(-100%);
+      transition:transform .25s ease;
+      z-index:100;
+      display:flex;
+      flex-direction:column;
+    }
+    .sheet.open{transform:translateX(0)}
+    .sheet header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px;
+      border-bottom:1px solid var(--hm-border);
+    }
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{
+      padding:10px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      text-decoration:none;
+      color:#1f2937;
+    }
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{
+      display:inline-grid;
+      place-items:center;
+      width:30px;
+      height:30px;
+      border:1px solid var(--hm-border);
+      border-radius:8px;
+      background:#fff;
+      color:#444;
     }
 
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Segoe UI", sans-serif;
-      background: var(--hm-bg);
-      color: var(--hm-text);
+    /* Overlay for sheet */
+    #sheetOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.25);
+      backdrop-filter:blur(1px);
+      display:none;
+      z-index:90;
+    }
+    #sheetOverlay.show{display:block}
+
+    /* ---------- CREATE LISTING LAYOUT ---------- */
+
+    .sell-wrap{
+      max-width:1100px;
+      margin:18px auto 28px;
+      padding:0 12px;
+    }
+    h1{
+      margin:0 0 12px;
+      font-size:28px;
+      font-weight:800;
+    }
+    .subtle{
+      color:var(--hm-muted);
+      margin:0 0 14px;
+      font-size:14px;
     }
 
-    a {
-      color: inherit;
-      text-decoration: none;
+    .stepper{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+      margin-bottom:12px;
+    }
+    .bubble{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      justify-content:center;
+      padding:10px;
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      background:#fff;
+      font-weight:700;
+      font-size:14px;
+    }
+    .bubble[data-active="true"]{
+      border-color:var(--hm-accent);
+      box-shadow:0 0 0 2px rgba(153,27,27,.10);
+    }
+    .bubble .num{
+      width:24px;
+      height:24px;
+      border-radius:999px;
+      display:grid;
+      place-items:center;
+      border:1px solid var(--hm-border);
+      background:#f9fafb;
+      font-weight:800;
+      font-size:13px;
+    }
+    .bubble[data-active="true"] .num{
+      border-color:var(--hm-accent);
+      color:#fff;
+      background:var(--hm-accent);
     }
 
-    /* Header */
-
-    .hm-header {
-      position: sticky;
-      top: 0;
-      z-index: 40;
-      background: rgba(250, 247, 244, 0.9);
-      backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(229, 225, 220, 0.9);
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 360px;
+      gap:14px;
+    }
+    @media (max-width:980px){
+      .grid{grid-template-columns:1fr;}
     }
 
-    .hm-header-inner {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 0.75rem 1.25rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.5rem;
+    .card{
+      background:#fff;
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      box-shadow:0 6px 16px rgba(0,0,0,.06);
+    }
+    .card .hd{
+      padding:12px;
+      border-bottom:1px solid var(--hm-border);
+      font-weight:800;
+      font-size:13px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:#9ca3af;
+    }
+    .card .bd{
+      padding:12px;
     }
 
-    .hm-logo {
-      font-size: 1.05rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      font-weight: 600;
+    .drop{
+      border:2px dashed #d1d5db;
+      border-radius:12px;
+      padding:18px;
+      text-align:center;
+      background:#fafafa;
+      font-size:14px;
+    }
+    .drop.drag{
+      border-color:var(--hm-accent);
+      background:#fff;
+    }
+    .thumbs{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:8px;
+      margin-top:10px;
+    }
+    .ph{
+      aspect-ratio:4/3;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      display:grid;
+      place-items:center;
+      color:#9ca3af;
+      font-size:12px;
+      overflow:hidden;
+    }
+    .ph img,
+    .ph video{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      border-radius:10px;
     }
 
-    .hm-nav {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      font-size: 0.9rem;
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      margin-bottom:10px;
+      font-size:14px;
+    }
+    .label-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .field label{
+      font-size:13px;
+      color:#374151;
+      font-weight:700;
+    }
+    .req{
+      font-size:11px;
+      background:#fde8e8;
+      border:1px solid #f8b4b4;
+      color:#7f1d1d;
+      border-radius:6px;
+      padding:2px 6px;
+    }
+    .field input[type="text"],
+    .field input[type="number"],
+    .field textarea,
+    .field select{
+      padding:10px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      background:#fff;
+      font-size:14px;
+    }
+    .field textarea{
+      min-height:120px;
+      resize:vertical;
+    }
+    .invalid{
+      border-color:var(--hm-danger)!important;
+      box-shadow:0 0 0 3px rgba(185,28,28,.08);
+    }
+    .help-error{
+      color:var(--hm-danger);
+      font-size:12px;
     }
 
-    .hm-nav a {
-      padding: 0.35rem 0.75rem;
-      border-radius: 999px;
-      border: 1px solid transparent;
+    .actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      padding:10px 14px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      background:#fff;
+      cursor:pointer;
+      font-weight:700;
+      font-size:14px;
+    }
+    .btn.primary{
+      background:var(--hm-accent);
+      border-color:var(--hm-accent);
+      color:#fff;
+      box-shadow:0 2px 8px rgba(153,27,27,.25);
+    }
+    .btn[disabled]{opacity:.5;cursor:not-allowed}
+
+    .kv{
+      display:grid;
+      grid-template-columns:120px 1fr;
+      gap:6px;
+      font-size:13px;
     }
 
-    .hm-nav a.hm-nav-active {
-      border-color: var(--hm-border);
-      background: rgba(255, 255, 255, 0.8);
+    /* Footer tweak (same as account) */
+    .hm-footer{
+      background:#fff;
+      border-top:1px solid #e5e7eb;
     }
-
-    .hm-nav a:hover {
-      border-color: var(--hm-border);
-      background: rgba(255, 255, 255, 0.6);
+    .hm-footer .footer-wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
     }
-
-    .hm-header-right {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
+    .hm-footer .footer-links{
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
     }
-
-    .hm-user-pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: var(--hm-radius-pill);
-      border: 1px solid var(--hm-border);
-      background: #fffaf5;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
+    .hm-footer .footer-links a{
+      color:#1f2937;
+      text-decoration:none;
     }
-
-    /* Layout */
-
-    .hm-page {
-      max-width: 960px;
-      margin: 1.75rem auto 2.75rem;
-      padding: 0 1.25rem 2.5rem;
-    }
-
-    .hm-page-header {
-      margin-bottom: 1.5rem;
-    }
-
-    .hm-page-eyebrow {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--hm-muted);
-      margin-bottom: 0.25rem;
-    }
-
-    .hm-page-title {
-      font-size: 1.6rem;
-      letter-spacing: 0.02em;
-      margin: 0;
-    }
-
-    .hm-page-subtitle {
-      font-size: 0.9rem;
-      margin-top: 0.4rem;
-      color: var(--hm-muted);
-      max-width: 36rem;
-    }
-
-    .hm-account-card {
-      background: var(--hm-card-bg);
-      border-radius: var(--hm-radius-lg);
-      box-shadow: var(--hm-shadow-soft);
-      border: 1px solid var(--hm-border);
-      padding: 1.5rem 1.5rem 1.75rem;
-    }
-
-    .hm-account-header {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1.25rem;
-    }
-
-    .hm-account-avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: 1px solid var(--hm-border);
-      background: #fff8f2;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-
-    .hm-account-heading {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-    }
-
-    .hm-account-name {
-      font-size: 1rem;
-      font-weight: 600;
-    }
-
-    .hm-account-email {
-      font-size: 0.85rem;
-      color: var(--hm-muted);
-    }
-
-    .hm-account-meta {
-      font-size: 0.75rem;
-      color: var(--hm-muted);
-    }
-
-    .hm-account-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 1.5rem;
-    }
-
-    @media (min-width: 768px) {
-      .hm-account-grid {
-        grid-template-columns: minmax(0, 1.1fr);
-      }
-    }
-
-    .hm-fieldset {
-      border: 0;
-      padding: 0;
-      margin: 0;
-    }
-
-    .hm-fieldset + .hm-fieldset {
-      margin-top: 1.25rem;
-    }
-
-    .hm-legend {
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--hm-muted);
-      margin-bottom: 0.75rem;
-    }
-
-    .hm-form-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 0.75rem;
-      margin-bottom: 0.75rem;
-    }
-
-    @media (min-width: 640px) {
-      .hm-form-row.hm-form-row-2 {
-        grid-template-columns: 1fr 1fr;
-      }
-      .hm-form-row.hm-form-row-3 {
-        grid-template-columns: 1.1fr 0.9fr 0.9fr;
-      }
-    }
-
-    label.hm-label {
-      font-size: 0.8rem;
-      display: block;
-      color: var(--hm-muted);
-      margin-bottom: 0.15rem;
-    }
-
-    input.hm-input,
-    select.hm-input {
-      width: 100%;
-      padding: 0.55rem 0.65rem;
-      border-radius: 10px;
-      border: 1px solid var(--hm-border);
-      font-size: 0.9rem;
-      background: #fffdfb;
-    }
-
-    input.hm-input[readonly] {
-      background: #f5f2ee;
-      color: var(--hm-muted);
-    }
-
-    .hm-input::placeholder {
-      color: #c0bab4;
-    }
-
-    .hm-helper {
-      font-size: 0.75rem;
-      color: var(--hm-muted);
-      margin-top: 0.25rem;
-    }
-
-    .hm-actions {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      margin-top: 1.25rem;
-      flex-wrap: wrap;
-    }
-
-    .hm-btn-primary {
-      border: 0;
-      border-radius: var(--hm-radius-pill);
-      padding: 0.55rem 1.4rem;
-      font-size: 0.9rem;
-      font-weight: 500;
-      background: radial-gradient(circle at 0% 0%, #f4d8bf, #b07b5a);
-      color: #231710;
-      cursor: pointer;
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
-    }
-
-    .hm-btn-primary:disabled {
-      opacity: 0.7;
-      cursor: default;
-      box-shadow: none;
-    }
-
-    .hm-status {
-      font-size: 0.8rem;
-      color: var(--hm-muted);
-    }
-
-    .hm-status--error {
-      color: #b3261e;
-    }
-
-    .hm-status--success {
-      color: #2e7d32;
-    }
-
-    /* Footer */
-
-    .hm-footer {
-      border-top: 1px solid var(--hm-border);
-      padding: 1.25rem 1.25rem 1.75rem;
-      font-size: 0.8rem;
-      color: var(--hm-muted);
-    }
-
-    .hm-footer-inner {
-      max-width: 1120px;
-      margin: 0 auto;
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
+    .hm-footer .copy{
+      color:#6b7280;
+      font-size:14px;
     }
   </style>
 </head>
 <body>
-  <!-- HEADER -->
-  <header class="hm-header">
-    <div class="hm-header-inner">
-      <a href="index.html" class="hm-logo">HEMLINE&nbsp;MARKET</a>
 
-      <nav class="hm-nav" aria-label="Primary">
-        <a href="atelier.html">Atelier</a>
-        <a href="threadtalk.html">ThreadTalk</a>
-        <a href="about.html">About</a>
-      </nav>
-
-      <div class="hm-header-right">
-        <a href="account.html" id="header-user-pill" class="hm-user-pill" aria-label="Account">
-          <span id="header-user-initials">RK</span>
-        </a>
-      </div>
+<!-- HEADER -->
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
+
+    <div class="right">
+      <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="9"  cy="21" r="1"></circle>
+          <circle cx="18" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+      </a>
+
+      <!-- Circle with initials (visible when logged IN) -->
+      <a class="hm-avatar is-hidden" id="headerUser" href="account.html" title="Your account">HM</a>
+
+      <!-- Header login button (visible when logged OUT) -->
+      <a class="cta-header" id="headerLoginBtn" href="auth.html?view=login" aria-label="Log in to Hemline Market">Log in</a>
+
+      <a class="hm-btn-primary" href="sell.html" aria-current="page">Sell</a>
+    </div>
+  </div>
+</header>
+
+<!-- OVERLAY + LEFT MENU -->
+<div id="sheetOverlay" aria-hidden="true"></div>
+
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
   </header>
+  <nav>
+    <a href="account.html">Account</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="how.html">How It Works</a>
+    <a href="sell.html">Sell Fabric</a>
+    <a href="ThreadTalk.html">ThreadTalk</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
 
-  <!-- PAGE -->
-  <main class="hm-page">
-    <header class="hm-page-header">
-      <div class="hm-page-eyebrow">Account</div>
-      <h1 class="hm-page-title">Profile & Shop details</h1>
-      <p class="hm-page-subtitle">
-        This is the “back room” of Hemline Market. Keep your profile and shipping
-        details up to date so orders and atelier projects stay tidy.
-      </p>
-    </header>
+<!-- MAIN -->
+<main class="sell-wrap" id="maincontent">
+  <h1>Create a Listing</h1>
+  <p class="subtle">Showcase your fabric in three quick steps.</p>
 
-    <section class="hm-account-card" aria-label="Account settings">
-      <div class="hm-account-header">
-        <div class="hm-account-avatar" id="account-avatar-initials">RK</div>
-        <div class="hm-account-heading">
-          <div class="hm-account-name" id="account-name">Roza Kalwar</div>
-          <div class="hm-account-email" id="account-email">you@example.com</div>
-          <div class="hm-account-meta" id="account-meta">
-            Signed in to Hemline Market
+  <div class="stepper" id="stepper">
+    <div class="bubble" data-step="1" data-active="true"><span class="num">1</span> Photos &amp; Video</div>
+    <div class="bubble" data-step="2"><span class="num">2</span> Details</div>
+    <div class="bubble" data-step="3"><span class="num">3</span> Review &amp; Publish</div>
+  </div>
+
+  <div class="grid">
+    <section class="card" id="stage">
+      <div class="hd" id="stageTitle">Step 1 — Photos &amp; Video</div>
+      <div class="bd">
+
+        <!-- STEP 1 -->
+        <div class="step step-1">
+          <div class="drop" id="photoDrop">
+            <strong>Drop photos here</strong> or
+            <label class="btn" style="margin-left:6px">
+              <input id="photoInput" type="file" accept="image/*" multiple hidden>
+              choose files
+            </label>
+            <div class="subtle" style="margin-top:6px">Up to 8 photos. First photo becomes the cover.</div>
+            <div id="photoError" class="help-error" style="margin-top:6px;display:none">At least one photo is required.</div>
           </div>
+          <div class="thumbs" id="photoThumbs" aria-live="polite" style="margin-top:10px"></div>
+
+          <div class="drop" id="videoDrop" style="margin-top:14px">
+            <strong>Drop one video here</strong> or
+            <label class="btn" style="margin-left:6px">
+              <input id="videoInput" type="file" accept="video/mp4,video/webm" hidden>
+              choose a video
+            </label>
+            <div class="subtle" style="margin-top:6px">MP4 or WebM, up to ~60s recommended.</div>
+          </div>
+          <div class="thumbs" id="videoThumb" style="grid-template-columns:1fr;margin-top:10px"></div>
         </div>
-      </div>
 
-      <form id="account-form" autocomplete="on">
-        <div class="hm-account-grid">
-          <div>
-            <!-- Identity -->
-            <fieldset class="hm-fieldset">
-              <legend class="hm-legend">Profile</legend>
+        <!-- STEP 2 -->
+        <div class="step step-2" hidden>
+          <div class="field">
+            <div class="label-row"><label for="title">Title</label><span class="req">Required</span></div>
+            <input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy">
+            <div id="err_title" class="help-error" style="display:none">Please add a title.</div>
+          </div>
 
-              <div class="hm-form-row hm-form-row-2">
-                <div>
-                  <label class="hm-label" for="first_name">First name</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="first_name"
-                    name="first_name"
-                    autocomplete="given-name"
-                    placeholder="Roza"
-                  />
-                </div>
-                <div>
-                  <label class="hm-label" for="last_name">Last name</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="last_name"
-                    name="last_name"
-                    autocomplete="family-name"
-                    placeholder="Kalwar"
-                  />
-                </div>
-              </div>
+          <div class="field">
+            <div class="label-row"><label for="price">Price ($/yd)</label><span class="req">Required</span></div>
+            <input id="price" type="number" min="0" step="0.01" placeholder="28.00">
+            <div id="err_price" class="help-error" style="display:none">Enter a price greater than 0.</div>
+          </div>
 
-              <div class="hm-form-row hm-form-row-2">
-                <div>
-                  <label class="hm-label" for="display_name">Display name</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="display_name"
-                    name="display_name"
-                    placeholder="Afroza at Hemline Market"
-                  />
-                  <div class="hm-helper">
-                    How your name appears on comments, atelier notes, etc.
-                  </div>
-                </div>
-                <div>
-                  <label class="hm-label" for="shop_name">Shop name</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="shop_name"
-                    name="shop_name"
-                    placeholder="Hemline Market"
-                  />
-                  <div class="hm-helper">
-                    Optional. This is the name visitors see for your shop.
-                  </div>
-                </div>
-              </div>
+          <!-- Original price (MSRP) per yard, optional -->
+          <div class="field">
+            <div class="label-row">
+              <label for="origPrice">Original price ($/yd)</label>
+              <span class="subtle" style="font-size:12px">(optional)</span>
+            </div>
+            <input id="origPrice" type="number" min="0" step="0.01" placeholder="e.g., 70.00">
+            <div class="subtle">Shown crossed-out on the listing to highlight the deal.</div>
+          </div>
 
-              <div class="hm-form-row">
-                <div>
-                  <label class="hm-label" for="email">Email</label>
-                  <input
-                    class="hm-input"
-                    type="email"
-                    id="email"
-                    name="email"
-                    readonly
-                  />
-                  <div class="hm-helper">
-                    Email is managed by sign-in. Change it via your auth provider.
-                  </div>
-                </div>
-              </div>
-            </fieldset>
+          <div class="field">
+            <div class="label-row"><label for="yards">Yards</label><span class="req">Required</span></div>
+            <input id="yards" type="number" min="0" step="0.5" placeholder="1.5">
+            <div id="err_yards" class="help-error" style="display:none">Enter yards greater than 0.</div>
+          </div>
 
-            <!-- Address -->
-            <fieldset class="hm-fieldset">
-              <legend class="hm-legend">Shipping address</legend>
+          <div class="field">
+            <label for="desc">Description</label>
+            <textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea>
+          </div>
 
-              <div class="hm-form-row">
-                <div>
-                  <label class="hm-label" for="address_line1">Address line 1</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="address_line1"
-                    name="address_line1"
-                    autocomplete="address-line1"
-                    placeholder="123 Atelier Lane"
-                  />
-                </div>
-              </div>
-
-              <div class="hm-form-row">
-                <div>
-                  <label class="hm-label" for="address_line2">Address line 2</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="address_line2"
-                    name="address_line2"
-                    autocomplete="address-line2"
-                    placeholder="Apt, floor, building (optional)"
-                  />
-                </div>
-              </div>
-
-              <div class="hm-form-row hm-form-row-3">
-                <div>
-                  <label class="hm-label" for="postal_code">ZIP code</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="postal_code"
-                    name="postal_code"
-                    autocomplete="postal-code"
-                    inputmode="numeric"
-                    placeholder="78258"
-                  />
-                  <div class="hm-helper">
-                    City & state will auto-fill from ZIP when possible.
-                  </div>
-                </div>
-
-                <div>
-                  <label class="hm-label" for="city">City</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="city"
-                    name="city"
-                    autocomplete="address-level2"
-                    placeholder="San Antonio"
-                  />
-                </div>
-
-                <div>
-                  <label class="hm-label" for="state">State</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="state"
-                    name="state"
-                    autocomplete="address-level1"
-                    placeholder="TX"
-                  />
-                </div>
-              </div>
-
-              <div class="hm-form-row">
-                <div>
-                  <label class="hm-label" for="country">Country / Region</label>
-                  <input
-                    class="hm-input"
-                    type="text"
-                    id="country"
-                    name="country"
-                    autocomplete="country-name"
-                    placeholder="United States"
-                  />
-                </div>
-              </div>
-            </fieldset>
-
-            <div class="hm-actions">
-              <button class="hm-btn-primary" type="submit" id="account-save-btn">
-                Save changes
-              </button>
-              <div class="hm-status" id="account-status" aria-live="polite">
-                &nbsp;
-              </div>
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+            <div class="field">
+              <label for="content">Content</label>
+              <select id="content">
+                <option value="">Select…</option>
+                <option>Silk</option>
+                <option>Wool</option>
+                <option>Cotton</option>
+                <option>Linen</option>
+                <option>Rayon / Viscose</option>
+                <option>Polyester</option>
+                <option>Blend</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fabric">Fabric</label>
+              <select id="fabric">
+                <option value="">Select…</option>
+                <option>Twill</option>
+                <option>Crepe</option>
+                <option>Poplin</option>
+                <option>Denim</option>
+                <option>Satin</option>
+                <option>Jersey</option>
+                <option>Canvas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="color">Color</label>
+              <input id="color" type="text" placeholder="Navy">
+            </div>
+            <div class="field">
+              <label for="pattern">Pattern</label>
+              <select id="pattern">
+                <option value="">Select…</option>
+                <option>Solid</option>
+                <option>Printed</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="width">Width (in)</label>
+              <input id="width" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label for="gsm">Weight (GSM)</label>
+              <input id="gsm" type="number" min="0" step="1">
             </div>
           </div>
         </div>
-      </form>
+
+        <!-- STEP 3 -->
+        <div class="step step-3" hidden>
+          <div class="field">
+            <label>Preview</label>
+            <div class="thumbs" id="reviewMedia"></div>
+          </div>
+          <div class="kv" id="reviewKv" style="margin-top:10px"></div>
+          <p class="subtle" style="margin-top:8px">
+            Review your details. You can go back to make changes.
+          </p>
+
+          <!-- Legal acknowledgment (required) -->
+          <div class="field" style="margin-top:10px">
+            <label style="font-weight:600;display:flex;gap:8px;align-items:flex-start">
+              <input id="agreeSell" type="checkbox" style="margin-top:3px">
+              <span>I confirm this listing follows the
+                <a href="terms.html" target="_blank">Terms of Service</a> and I’ve read the
+                <a href="privacy.html" target="_blank">Privacy Policy</a>.
+              </span>
+            </label>
+            <div id="err_agree" class="help-error" style="display:none">Please agree to continue.</div>
+          </div>
+        </div>
+
+      </div>
     </section>
-  </main>
 
-  <!-- FOOTER -->
-  <footer class="hm-footer">
-    <div class="hm-footer-inner">
-      <div>© <span id="hm-year"></span> Hemline Market.</div>
-      <div>Built in the Hemline Market atelier.</div>
-    </div>
-  </footer>
+    <aside class="card">
+      <div class="hd">Actions</div>
+      <div class="bd">
+        <div class="actions">
+          <button class="btn" id="backBtn" type="button" disabled>Back</button>
+          <button class="btn primary" id="nextBtn" type="button" disabled>Next</button>
+          <button class="btn" id="saveDraftBtn" type="button">Save Draft</button>
+        </div>
+        <p class="subtle" style="margin-top:8px">We’ll guide you through each step.</p>
+      </div>
+    </aside>
+  </div>
+</main>
 
-  <!-- SCRIPTS -->
-  <script type="module">
-    import { supabase } from "./scripts/supabase-client.js";
+<!-- FOOTER -->
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
 
-    const initialsSpan = document.querySelector("#header-user-initials");
-    const headerPill = document.querySelector("#header-user-pill");
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    const accountAvatar = document.querySelector("#account-avatar-initials");
-    const accountName = document.querySelector("#account-name");
-    const accountEmail = document.querySelector("#account-email");
-    const accountMeta = document.querySelector("#account-meta");
-    const accountForm = document.querySelector("#account-form");
-    const saveButton = document.querySelector("#account-save-btn");
-    const statusEl = document.querySelector("#account-status");
+<script>
+  // Hamburger / overlay
+  (function(){
+    const sheet    = document.getElementById('menuSheet');
+    const openBtn  = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const overlay  = document.getElementById('sheetOverlay');
 
-    const zipInput = document.querySelector("#postal_code");
-    const cityInput = document.querySelector("#city");
-    const stateInput = document.querySelector("#state");
-
-    document.querySelector("#hm-year").textContent = new Date().getFullYear();
-
-    async function requireSession() {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data?.user) {
-        window.location.href = "auth.html";
-        return null;
-      }
-      return data.user;
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+    function openSheet(){
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden','false');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      openBtn.setAttribute('aria-expanded','true');
+      lockScroll(true);
+    }
+    function closeSheet(){
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden','true');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden','true');
+      openBtn.setAttribute('aria-expanded','false');
+      lockScroll(false);
+      openBtn.focus();
     }
 
-    function computeInitials(firstName, lastName, fallbackEmail) {
-      const parts = [];
-      if (firstName) parts.push(firstName.trim()[0]);
-      if (lastName) parts.push(lastName.trim()[0]);
-      if (!parts.length && fallbackEmail) {
-        const emailPart = String(fallbackEmail).split("@")[0] || "";
-        parts.push(emailPart[0] || "R");
-      }
-      return parts.join("").toUpperCase().slice(0, 2);
+    if (openBtn && sheet && closeBtn && overlay){
+      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+      overlay.addEventListener('click', closeSheet);
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+    }
+  })();
+</script>
+
+<script>
+  // Supabase session + header initials + create-listing logic
+  const supabaseClient = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+    { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+  );
+
+  function initialsFromEmail(email){
+    if(!email) return "HM";
+    const handle = email.split("@")[0].replace(/[\.\_\-]+/g," ").trim();
+    const parts = handle.split(" ").filter(Boolean);
+    if(parts.length === 1) return (parts[0][0] + (parts[0][1] || '')).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  function initialsFromProfile(firstName, lastName, email){
+    if(firstName && lastName){
+      return (firstName[0] + lastName[0]).toUpperCase();
+    }
+    if(firstName){
+      return (firstName[0] + (firstName[1] || '')).toUpperCase();
+    }
+    return initialsFromEmail(email);
+  }
+
+  async function ensureSession({maxWaitMs=3000} = {}){
+    let { data:{ session } } = await supabaseClient.auth.getSession();
+    if(session?.user) return session;
+    const start = Date.now();
+    while(!session?.user && Date.now() - start < maxWaitMs){
+      await new Promise(r=>setTimeout(r,120));
+      ({ data:{ session } } = await supabaseClient.auth.getSession());
+    }
+    return session;
+  }
+
+  (async function initSellPage(){
+    const headerLoginBtn = document.getElementById('headerLoginBtn');
+    const headerUser     = document.getElementById('headerUser');
+
+    // Require login to create listings
+    const session = await ensureSession();
+    if(!session || !session.user){
+      window.location.href = "auth.html?view=login";
+      return;
     }
 
-    function setStatus(message, kind = "neutral") {
-      if (!statusEl) return;
-      statusEl.textContent = message || "";
-      statusEl.classList.remove("hm-status--error", "hm-status--success");
-      if (kind === "error") statusEl.classList.add("hm-status--error");
-      if (kind === "success") statusEl.classList.add("hm-status--success");
+    const user   = session.user;
+    const email  = user.email || "";
+    const userId = user.id;
+
+    // Show header initials instead of "Log in"
+    if(headerUser && headerLoginBtn){
+      headerUser.classList.remove('is-hidden');
+      headerLoginBtn.classList.add('is-hidden');
+
+      const PROFILE_KEY = "hm_profile_" + userId;
+      let profile = {};
+      try{
+        const raw = localStorage.getItem(PROFILE_KEY);
+        if(raw) profile = JSON.parse(raw) || {};
+      }catch(e){}
+
+      const initials = initialsFromProfile(profile.firstName, profile.lastName, email);
+      headerUser.textContent = initials;
     }
 
-    async function loadProfile(user) {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
+    // ---------- Create Listing UI logic ----------
 
-      if (error) {
-        console.error("loadProfile error", error);
-        return { profile: null };
+    let step = 1;
+    const MAX_STEP = 3;
+    const stepper    = document.getElementById('stepper');
+    const stageTitle = document.getElementById('stageTitle');
+    const backBtn    = document.getElementById('backBtn');
+    const nextBtn    = document.getElementById('nextBtn');
+    const state      = { photos:[], video:null, fields:{} };
+
+    function setStep(n){
+      step = Math.max(1, Math.min(MAX_STEP, n));
+      document.querySelectorAll('.step').forEach((el, i)=>{
+        el.hidden = (i+1) !== step;
+      });
+      document.querySelectorAll('.bubble').forEach(b=>{
+        b.dataset.active = (Number(b.dataset.step) === step) ? 'true' : '';
+      });
+      const titles = [
+        'Step 1 — Photos & Video',
+        'Step 2 — Details',
+        'Step 3 — Review & Publish'
+      ];
+      stageTitle.textContent = titles[step-1];
+      backBtn.disabled = (step === 1);
+      nextBtn.textContent = (step === MAX_STEP ? 'Publish' : 'Next');
+      validateCurrentStep();
+      if(step === 3) buildReview();
+    }
+
+    function enableNext(ok){ nextBtn.disabled = !ok; }
+
+    function validateStep1(){
+      const ok = state.photos.length >= 1;
+      document.getElementById('photoError').style.display = ok ? 'none' : 'block';
+      return ok;
+    }
+    function validateStep2(){
+      const title = document.getElementById('title');
+      const price = document.getElementById('price');
+      const yards = document.getElementById('yards');
+      let ok = true;
+
+      const tGood = !!title.value.trim();
+      title.classList.toggle('invalid', !tGood);
+      document.getElementById('err_title').style.display = tGood ? 'none' : 'block';
+      ok = ok && tGood;
+
+      const pVal  = parseFloat(price.value);
+      const pGood = !isNaN(pVal) && pVal > 0;
+      price.classList.toggle('invalid', !pGood);
+      document.getElementById('err_price').style.display = pGood ? 'none' : 'block';
+      ok = ok && pGood;
+
+      const yVal  = parseFloat(yards.value);
+      const yGood = !isNaN(yVal) && yVal > 0;
+      yards.classList.toggle('invalid', !yGood);
+      document.getElementById('err_yards').style.display = yGood ? 'none' : 'block';
+      ok = ok && yGood;
+
+      return ok;
+    }
+    function validateStep3(){
+      const agree = document.getElementById('agreeSell');
+      const ok = !!(agree && agree.checked);
+      document.getElementById('err_agree').style.display = ok ? 'none' : 'block';
+      return ok;
+    }
+    function validateCurrentStep(){
+      if(step === 1) return enableNext(validateStep1());
+      if(step === 2) return enableNext(validateStep2());
+      return enableNext(validateStep3());
+    }
+
+    backBtn.addEventListener('click', ()=>setStep(step-1));
+    nextBtn.addEventListener('click', ()=>{
+      if(step === 1 && !validateStep1()) return;
+      if(step === 2 && !validateStep2()) return;
+      if(step === 3 && !validateStep3()) return;
+
+      if(step < MAX_STEP){
+        setStep(step+1);
+      }else{
+        // Later: real publish request to backend
+        alert('Publish would submit the listing here.');
       }
+    });
 
-      const profile = data || {};
-      const firstName = profile.first_name || "";
-      const lastName = profile.last_name || "";
-      const displayName = profile.display_name || "";
-      const shopName = profile.shop_name || "";
-      const email = user.email;
-
-      const initials = computeInitials(firstName || profile.full_name, lastName, email);
-
-      if (initialsSpan) initialsSpan.textContent = initials;
-      if (accountAvatar) accountAvatar.textContent = initials;
-      if (headerPill) headerPill.title = displayName || profile.full_name || email;
-      if (accountName) {
-        const fullName =
-          profile.full_name ||
-          [firstName, lastName].filter(Boolean).join(" ") ||
-          displayName ||
-          email;
-        accountName.textContent = fullName;
+    stepper.addEventListener('click', (e)=>{
+      const b = e.target.closest('.bubble');
+      if(!b) return;
+      const target = Number(b.dataset.step || 1);
+      if(target > step){
+        if(step === 1 && !validateStep1()) return;
+        if(step === 2 && !validateStep2()) return;
       }
-      if (accountEmail) accountEmail.textContent = email;
-      if (accountMeta) accountMeta.textContent = "Signed in";
+      setStep(target);
+    });
 
-      const set = (name, value) => {
-        const input = accountForm.elements[name];
-        if (input && value != null) input.value = value;
+    // Photos
+    const photoDrop   = document.getElementById('photoDrop');
+    const photoInput  = document.getElementById('photoInput');
+    const photoThumbs = document.getElementById('photoThumbs');
+
+    function handlePhotoFiles(files){
+      const arr = [...files].slice(0,8);
+      state.photos = arr;
+      photoThumbs.innerHTML = '';
+      arr.forEach(f=>{
+        const url = URL.createObjectURL(f);
+        const ph  = document.createElement('div');
+        ph.className = 'ph';
+        const img = document.createElement('img');
+        img.src = url;
+        ph.appendChild(img);
+        photoThumbs.appendChild(ph);
+      });
+      validateCurrentStep();
+    }
+
+    photoInput.addEventListener('change', e=>handlePhotoFiles(e.target.files));
+    ['dragenter','dragover'].forEach(ev=>{
+      photoDrop.addEventListener(ev, e=>{ e.preventDefault(); photoDrop.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      photoDrop.addEventListener(ev, e=>{ e.preventDefault(); photoDrop.classList.remove('drag'); });
+    });
+    photoDrop.addEventListener('drop', e=>handlePhotoFiles(e.dataTransfer.files));
+
+    // Video
+    const videoDrop  = document.getElementById('videoDrop');
+    const videoInput = document.getElementById('videoInput');
+    const videoThumb = document.getElementById('videoThumb');
+
+    function handleVideoFile(file){
+      state.video = file || null;
+      videoThumb.innerHTML = '';
+      if(!file) return;
+      const url = URL.createObjectURL(file);
+      const ph  = document.createElement('div');
+      ph.className = 'ph';
+      const vid = document.createElement('video');
+      vid.src = url;
+      vid.controls = true;
+      vid.muted = true;
+      ph.appendChild(vid);
+      videoThumb.appendChild(ph);
+    }
+
+    videoInput.addEventListener('change', e=>handleVideoFile(e.target.files[0]));
+    ['dragenter','dragover'].forEach(ev=>{
+      videoDrop.addEventListener(ev, e=>{ e.preventDefault(); videoDrop.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      videoDrop.addEventListener(ev, e=>{ e.preventDefault(); videoDrop.classList.remove('drag'); });
+    });
+    videoDrop.addEventListener('drop', e=>handleVideoFile(e.dataTransfer.files[0]));
+
+    // Validate as user types
+    ['title','price','yards'].forEach(id=>{
+      const el = document.getElementById(id);
+      el && el.addEventListener('input', validateCurrentStep);
+    });
+    document.addEventListener('change', e=>{
+      if(e.target && e.target.id === 'agreeSell') validateCurrentStep();
+    });
+
+    function read(id){
+      const el = document.getElementById(id);
+      return el ? (el.value || '').trim() : '';
+    }
+
+    function buildReview(){
+      state.fields = {
+        title: read('title'),
+        price: read('price'),
+        msrpPerYd: read('origPrice'),
+        yards: read('yards'),
+        desc: read('desc'),
+        content: read('content'),
+        fabric: read('fabric'),
+        color: read('color'),
+        pattern: read('pattern'),
+        width: read('width'),
+        gsm: read('gsm')
       };
 
-      set("first_name", firstName);
-      set("last_name", lastName);
-      set("display_name", displayName);
-      set("shop_name", shopName);
-      set("email", email);
-
-      set("address_line1", profile.address_line1);
-      set("address_line2", profile.address_line2);
-      set("city", profile.city);
-      set("state", profile.state);
-      set("postal_code", profile.postal_code);
-      set("country", profile.country || "United States");
-
-      return { profile };
-    }
-
-    async function handleSave(event) {
-      event.preventDefault();
-      setStatus("Saving…");
-      saveButton.disabled = true;
-
-      const { data, error: userError } = await supabase.auth.getUser();
-      if (userError || !data?.user) {
-        window.location.href = "auth.html";
-        return;
-      }
-      const user = data.user;
-
-      const formData = new FormData(accountForm);
-
-      const firstName = (formData.get("first_name") || "").toString().trim();
-      const lastName = (formData.get("last_name") || "").toString().trim();
-      const displayName = (formData.get("display_name") || "").toString().trim();
-      const shopName = (formData.get("shop_name") || "").toString().trim();
-      const addressLine1 = (formData.get("address_line1") || "").toString().trim();
-      const addressLine2 = (formData.get("address_line2") || "").toString().trim();
-      const city = (formData.get("city") || "").toString().trim();
-      const state = (formData.get("state") || "").toString().trim();
-      const postalCode = (formData.get("postal_code") || "").toString().trim();
-      const country = (formData.get("country") || "").toString().trim();
-
-      const fullName =
-        [firstName, lastName].filter(Boolean).join(" ") ||
-        displayName ||
-        user.email;
-
-      const payload = {
-        id: user.id,
-        email: user.email,
-        first_name: firstName || null,
-        last_name: lastName || null,
-        display_name: displayName || null,
-        shop_name: shopName || null,
-        address_line1: addressLine1 || null,
-        address_line2: addressLine2 || null,
-        city: city || null,
-        state: state || null,
-        postal_code: postalCode || null,
-        country: country || null,
-        full_name: fullName || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from("profiles")
-        .upsert(payload, { onConflict: "id" });
-
-      if (error) {
-        console.error("saveProfile error", error);
-        setStatus("Could not save changes. Please try again.", "error");
-      } else {
-        setStatus("Saved.", "success");
-        // Keep header/avatar in sync immediately after save
-        const initials = computeInitials(firstName, lastName, user.email);
-        if (initialsSpan) initialsSpan.textContent = initials;
-        if (accountAvatar) accountAvatar.textContent = initials;
-        if (accountName) accountName.textContent = fullName;
-        if (headerPill) headerPill.title = displayName || fullName;
+      const media = document.getElementById('reviewMedia');
+      media.innerHTML = '';
+      state.photos.forEach(f=>{
+        const url = URL.createObjectURL(f);
+        const ph  = document.createElement('div');
+        ph.className = 'ph';
+        const img = document.createElement('img');
+        img.src = url;
+        ph.appendChild(img);
+        media.appendChild(ph);
+      });
+      if(state.video){
+        const url = URL.createObjectURL(state.video);
+        const ph  = document.createElement('div');
+        ph.className = 'ph';
+        const vid = document.createElement('video');
+        vid.src = url;
+        vid.controls = true;
+        vid.muted = true;
+        ph.appendChild(vid);
+        media.appendChild(ph);
       }
 
-      saveButton.disabled = false;
+      const kv = document.getElementById('reviewKv');
+      kv.innerHTML = '';
+      Object.entries(state.fields).forEach(([k,v])=>{
+        const keyEl = document.createElement('div');
+        keyEl.textContent = k;
+        const valEl = document.createElement('div');
+        valEl.textContent = v || '—';
+        kv.appendChild(keyEl);
+        kv.appendChild(valEl);
+      });
     }
 
-    async function autoFillCityStateFromZip() {
-      if (!zipInput) return;
-      const zip = zipInput.value.trim();
-      if (!zip || zip.length < 5) return;
-
-      try {
-        const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const place = data?.places?.[0];
-        if (!place) return;
-
-        if (cityInput && !cityInput.value) {
-          cityInput.value = place["place name"];
-        }
-        if (stateInput && !stateInput.value) {
-          stateInput.value = place["state abbreviation"];
-        }
-      } catch (err) {
-        console.error("ZIP lookup error", err);
+    document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
+      try{
+        const data = { fields: state.fields, ts: Date.now() };
+        localStorage.setItem('hm.draft.listing', JSON.stringify(data));
+        alert('Draft saved locally.');
+      }catch(e){
+        alert('Unable to save draft.');
       }
-    }
+    });
 
-    async function init() {
-      const user = await requireSession();
-      if (!user) return;
+    // Start on step 1
+    setStep(1);
+  })();
+</script>
 
-      await loadProfile(user);
-
-      accountForm.addEventListener("submit", handleSave);
-
-      if (zipInput) {
-        zipInput.addEventListener("blur", autoFillCityStateFromZip);
-      }
-    }
-
-    init();
-  </script>
 </body>
 </html>
