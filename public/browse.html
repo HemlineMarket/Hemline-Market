@@ -192,7 +192,8 @@ body{
   border-radius:10px;
   background:#fff;
 }
-.topbar button{
+/* Search button (accent) */
+.topbar .search-btn{
   padding:9px 12px;
   border-radius:10px;
   border:1px solid var(--accent);
@@ -200,6 +201,16 @@ body{
   color:#fff;
   font-weight:700;
 }
+/* Filter toggle button (outline) */
+.topbar .filter-btn{
+  padding:9px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:#fff;
+  color:#111827;
+  font-weight:600;
+}
+
 .layout{
   display:grid;
   grid-template-columns:280px 1fr;
@@ -207,6 +218,14 @@ body{
 }
 @media(max-width:900px){
   .layout{grid-template-columns:1fr;}
+}
+
+/* When filters are collapsed, hide sidebar and give results full width */
+body.filters-collapsed .layout{
+  grid-template-columns:1fr;
+}
+body.filters-collapsed .filters{
+  display:none;
 }
 
 /* FILTERS */
@@ -420,7 +439,7 @@ body{
 }
 </style>
 </head>
-<body>
+<body class="filters-collapsed">
 
 <header class="hm-header" role="banner">
   <div class="hm-wrap">
@@ -493,7 +512,8 @@ body{
 <main class="wrap">
   <div class="topbar">
     <input id="q" type="search" placeholder="Search fabrics…"/>
-    <button id="doSearch">Search</button>
+    <button id="filterToggle" type="button" class="filter-btn">Show filters</button>
+    <button id="doSearch" type="button" class="search-btn">Search</button>
   </div>
 
   <div class="layout">
@@ -837,6 +857,22 @@ function el(tag, cls, txt){
     colorBox.append(sw);
   });
 })();
+
+/* Filter panel toggle */
+const filterToggle = document.getElementById('filterToggle');
+function updateFilterToggleLabel(){
+  const open = !document.body.classList.contains('filters-collapsed');
+  if(filterToggle){
+    filterToggle.textContent = open ? 'Hide filters' : 'Show filters';
+  }
+}
+if(filterToggle){
+  filterToggle.addEventListener('click', ()=>{
+    document.body.classList.toggle('filters-collapsed');
+    updateFilterToggleLabel();
+  });
+  updateFilterToggleLabel();
+}
 
 /* State + events */
 const state = {
