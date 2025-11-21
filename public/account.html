@@ -588,7 +588,7 @@
               <label for="storeName">Store name</label>
               <input id="storeName" name="storeName" type="text" placeholder="Aurora Atelier, Espresso Studio…">
               <p class="muted-small" id="storeNameHint">
-                This becomes your shop link. Use letters, numbers, spaces, apostrophes, and hyphens.
+                This becomes your shop link. Use letters, numbers, spaces, apostrophes, and hyphens. No emojis or extra symbols.
               </p>
               <p class="muted-small" id="storeSlugPreviewRow">
                 Store link preview:
@@ -837,6 +837,17 @@
       // Store name is optional; empty is allowed
       return { ok:true, slug:"" };
     }
+
+    // 1) Raw name must only have letters, numbers, spaces, apostrophes, and hyphens
+    if(!/^[A-Za-z0-9\s'\-]+$/.test(raw)){
+      return {
+        ok:false,
+        slug:slugifyStoreName(raw),
+        message:"Use only letters, numbers, spaces, apostrophes, and hyphens for your store name. Remove other symbols like ! or emoji."
+      };
+    }
+
+    // 2) Slug must be a sane, URL-safe link
     const slug = slugifyStoreName(raw);
     if(slug.length < 3){
       return {
@@ -875,7 +886,6 @@
 
   (async function initAccount(){
     const headerAccountLink  = document.getElementById('headerAccountLink');
-    const headerAccountBadge = document.getElementById('headerAccountBadge');
 
     const session = await ensureSession();
     if(!session || !session.user){
