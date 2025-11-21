@@ -37,7 +37,7 @@
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .is-hidden{display:none!important;}
 
-    /* ---------- HEADER (match homepage/account) ---------- */
+    /* ---------- HEADER (match browse/account/index) ---------- */
     .hm-header{
       min-height:56px;
       background:#fff;
@@ -101,7 +101,7 @@
       height:10px;
       border-radius:50%;
       border:2px solid #fff;
-      background:#d1d5db;
+      background:#d1d5db; /* default / logged-out */
     }
     .hm-account.is-logged-in .hm-account-badge{
       background:#16a34a;
@@ -398,6 +398,7 @@
       font-size:13px;
     }
 
+    /* "Feels like" grid */
     .feels-grid{
       display:grid;
       grid-template-columns:1fr 1fr;
@@ -415,6 +416,7 @@
       height:13px;
     }
 
+    /* Footer tweak (same as account/browse) */
     .hm-footer{
       background:#fff;
       border-top:1px solid #e5e7eb;
@@ -441,6 +443,19 @@
     .hm-footer .copy{
       color:#6b7280;
       font-size:14px;
+    }
+
+    /* Small inline status message under buttons */
+    #publishStatus{
+      margin-top:6px;
+      font-size:12px;
+      color:#6b7280;
+    }
+    #publishStatus.error{
+      color:#b91c1c;
+    }
+    #publishStatus.success{
+      color:#166534;
     }
   </style>
 </head>
@@ -487,7 +502,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9"  cy="21" r="1"></circle>
           <circle cx="18" cy="21" r="1"></circle>
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6"></path>
         </svg>
       </a>
 
@@ -582,6 +597,7 @@
             <div id="err_price" class="help-error" style="display:none">Enter a price greater than 0.</div>
           </div>
 
+          <!-- Original price (MSRP) per yard, optional -->
           <div class="field">
             <div class="label-row">
               <label for="origPrice">Original price ($/yd)</label>
@@ -602,7 +618,9 @@
             <textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea>
           </div>
 
+          <!-- Main attribute grid (mirrors browse filters) -->
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+            <!-- Content -->
             <div class="field">
               <label for="content">Content</label>
               <select id="content">
@@ -633,6 +651,7 @@
               </select>
             </div>
 
+            <!-- Fabric Type -->
             <div class="field">
               <label for="fabric">Fabric type</label>
               <select id="fabric">
@@ -658,11 +677,13 @@
               </select>
             </div>
 
+            <!-- Color (free text) -->
             <div class="field">
               <label for="color">Color (name)</label>
               <input id="color" type="text" placeholder="Navy, camel, cherry red…">
             </div>
 
+            <!-- Color family -->
             <div class="field">
               <label for="colorFamily">Color family (for filters)</label>
               <select id="colorFamily">
@@ -684,6 +705,7 @@
               </select>
             </div>
 
+            <!-- Pattern -->
             <div class="field">
               <label for="pattern">Pattern</label>
               <select id="pattern">
@@ -693,6 +715,7 @@
               </select>
             </div>
 
+            <!-- Department -->
             <div class="field">
               <label for="dept">Department</label>
               <select id="dept">
@@ -704,6 +727,7 @@
               </select>
             </div>
 
+            <!-- Fiber type -->
             <div class="field">
               <label for="fiberType">Fiber type</label>
               <select id="fiberType">
@@ -715,6 +739,7 @@
               </select>
             </div>
 
+            <!-- Country / origin -->
             <div class="field">
               <label for="origin">Country / origin</label>
               <select id="origin">
@@ -730,26 +755,32 @@
               </select>
             </div>
 
+            <!-- Width -->
             <div class="field">
               <label for="width">Width (in)</label>
               <input id="width" type="number" min="0" step="1">
             </div>
 
+            <!-- GSM -->
             <div class="field">
               <label for="gsm">Weight (GSM)</label>
               <input id="gsm" type="number" min="0" step="1">
             </div>
           </div>
 
+          <!-- Designer / mill -->
           <div class="field" style="margin-top:4px">
             <label for="designer">Designer / mill (optional)</label>
             <input id="designer" type="text" placeholder="e.g., Loro Piana, Ratti">
           </div>
 
+          <!-- Fabric feels like (for mystery / unknown content) -->
           <div class="field">
             <div class="label-row">
               <label>Fabric feels like</label>
-              <span class="subtle" style="font-size:12px">(for mystery / unknown content)</span>
+              <span class="subtle" style="font-size:12px">
+                (for mystery / unknown content)
+              </span>
             </div>
             <div id="feelsLikeGroup" class="feels-grid">
               <label><input type="checkbox" name="feelsLike" value="Feels like cotton / poplin"> cotton / poplin</label>
@@ -785,6 +816,7 @@
             Review your details. You can go back to make changes.
           </p>
 
+          <!-- Legal acknowledgment (required) -->
           <div class="field" style="margin-top:10px">
             <label style="font-weight:600;display:flex;gap:8px;align-items:flex-start">
               <input id="agreeSell" type="checkbox" style="margin-top:3px">
@@ -809,6 +841,7 @@
           <button class="btn" id="saveDraftBtn" type="button">Save Draft</button>
         </div>
         <p class="subtle" style="margin-top:8px">We’ll guide you through each step.</p>
+        <div id="publishStatus" aria-live="polite"></div>
       </div>
     </aside>
   </div>
@@ -832,6 +865,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+  // Hamburger / overlay
   (function(){
     const sheet    = document.getElementById('menuSheet');
     const openBtn  = document.getElementById('openMenu');
@@ -869,6 +903,7 @@
 </script>
 
 <script>
+  // Supabase session + header account icon + create-listing logic
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
@@ -888,7 +923,16 @@
 
   (async function initSellPage(){
     const headerAccountLink = document.getElementById('headerAccountLink');
+    const publishStatus     = document.getElementById('publishStatus');
 
+    function setStatus(msg, type){
+      if(!publishStatus) return;
+      publishStatus.textContent = msg || '';
+      publishStatus.classList.remove('error','success');
+      if(type) publishStatus.classList.add(type);
+    }
+
+    // Require login to create listings
     const session = await ensureSession();
     if(!session || !session.user){
       window.location.href = "auth.html?view=login";
@@ -897,6 +941,7 @@
 
     const user = session.user;
 
+    // Update header account icon to "logged in" state and point to Account
     if (headerAccountLink){
       headerAccountLink.href = "account.html";
       headerAccountLink.setAttribute("aria-label","Your account");
@@ -904,11 +949,14 @@
       headerAccountLink.classList.remove("is-logged-out");
     }
 
+    // If user logs out in another tab, kick them back to login on this page
     supabaseClient.auth.onAuthStateChange((_event, newSession) => {
       if (!newSession || !newSession.user){
         window.location.href = "auth.html?view=login";
       }
     });
+
+    // ---------- Create Listing UI logic ----------
 
     let step = 1;
     const MAX_STEP = 3;
@@ -934,11 +982,14 @@
       stageTitle.textContent = titles[step-1];
       backBtn.disabled = (step === 1);
       nextBtn.textContent = (step === MAX_STEP ? 'Publish' : 'Next');
+      setStatus('', null);
       validateCurrentStep();
       if(step === 3) buildReview();
     }
 
-    function enableNext(ok){ nextBtn.disabled = !ok; }
+    function enableNext(ok){
+      nextBtn.disabled = !ok;
+    }
 
     function validateStep1(){
       const ok = state.photos.length >= 1;
@@ -983,17 +1034,6 @@
     }
 
     backBtn.addEventListener('click', ()=>setStep(step-1));
-    nextBtn.addEventListener('click', ()=>{
-      if(step === 1 && !validateStep1()) return;
-      if(step === 2 && !validateStep2()) return;
-      if(step === 3 && !validateStep3()) return;
-
-      if(step < MAX_STEP){
-        setStep(step+1);
-      }else{
-        publishListing();
-      }
-    });
 
     stepper.addEventListener('click', (e)=>{
       const b = e.target.closest('.bubble');
@@ -1006,6 +1046,7 @@
       setStep(target);
     });
 
+    // Photos
     const photoDrop   = document.getElementById('photoDrop');
     const photoInput  = document.getElementById('photoInput');
     const photoThumbs = document.getElementById('photoThumbs');
@@ -1035,6 +1076,7 @@
     });
     photoDrop.addEventListener('drop', e=>handlePhotoFiles(e.dataTransfer.files));
 
+    // Video
     const videoDrop  = document.getElementById('videoDrop');
     const videoInput = document.getElementById('videoInput');
     const videoThumb = document.getElementById('videoThumb');
@@ -1063,6 +1105,7 @@
     });
     videoDrop.addEventListener('drop', e=>handleVideoFile(e.dataTransfer.files[0]));
 
+    // Validate as user types
     ['title','price','yards'].forEach(id=>{
       const el = document.getElementById(id);
       el && el.addEventListener('input', validateCurrentStep);
@@ -1137,86 +1180,6 @@
       });
     }
 
-    async function publishListing(){
-      if(!validateStep1() || !validateStep2() || !validateStep3()) return;
-
-      buildReview();
-      const f = state.fields;
-
-      nextBtn.disabled = true;
-      const originalLabel = nextBtn.textContent;
-      nextBtn.textContent = 'Publishing…';
-
-      try{
-        const photoUrls = [];
-        for(let i=0;i<state.photos.length;i++){
-          const file = state.photos[i];
-          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-          const path = `${user.id}/images/${Date.now()}-${i}.${ext}`;
-          const { error: upErr } = await supabaseClient
-            .storage
-            .from('listing-images')
-            .upload(path, file, { upsert:false });
-          if(upErr) throw upErr;
-          const { data: pub } = supabaseClient
-            .storage
-            .from('listing-images')
-            .getPublicUrl(path);
-          photoUrls.push(pub.publicUrl);
-        }
-
-        let videoUrl = null;
-        if(state.video){
-          const ext = (state.video.name.split('.').pop() || 'mp4').toLowerCase();
-          const vPath = `${user.id}/video/${Date.now()}.${ext}`;
-          const { error: vErr } = await supabaseClient
-            .storage
-            .from('listing-media')
-            .upload(vPath, state.video, { upsert:false });
-          if(vErr) throw vErr;
-          const { data: vPub } = supabaseClient
-            .storage
-            .from('listing-media')
-            .getPublicUrl(vPath);
-          videoUrl = vPub.publicUrl;
-        }
-
-        const priceNumber = parseFloat(f.price || '0');
-        const yardsNumber = parseFloat(f.yards || '0');
-        const gsmNumber   = f.gsm ? parseInt(f.gsm,10) : null;
-
-        const { error: insertError } = await supabaseClient
-          .from('listings')
-          .insert({
-            seller_id: user.id,
-            title: f.title || null,
-            description: f.desc || null,
-            price_cents: isNaN(priceNumber) ? null : Math.round(priceNumber * 100),
-            yardage: isNaN(yardsNumber) ? null : yardsNumber,
-            status: 'active',
-            category: f.dept || null,
-            color: f.color || null,
-            item_type: 'Fabric',
-            image_urls: photoUrls,
-            fabric_content: f.content || null,
-            color_category: f.colorFamily || null,
-            weight_gsm: isNaN(gsmNumber) ? null : gsmNumber,
-            video_url: videoUrl
-          });
-
-        if(insertError) throw insertError;
-
-        alert('Listing published!');
-        window.location.href = 'browse.html';
-      }catch(err){
-        console.error(err);
-        alert('Could not publish listing. Please try again.');
-      }finally{
-        nextBtn.disabled = false;
-        nextBtn.textContent = originalLabel;
-      }
-    }
-
     document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
       try{
         const data = { fields: state.fields, ts: Date.now() };
@@ -1227,6 +1190,88 @@
       }
     });
 
+    // --------- PUBLISH TO SUPABASE (listings_public) ---------
+
+    async function publishListing(){
+      setStatus('Publishing listing…', null);
+      nextBtn.disabled = true;
+      backBtn.disabled = true;
+
+      try{
+        // Build payload to match listings_public columns
+        const f = state.fields;
+
+        const priceNum = f.price ? Number(f.price) : null;
+        const yardsNum = f.yards ? Number(f.yards) : null;
+        const widthNum = f.width ? Number(f.width) : null;
+        const gsmNum   = f.gsm ? Number(f.gsm) : null;
+        const msrpNum  = f.msrpPerYd ? Number(f.msrpPerYd) : null;
+
+        const payload = {
+          seller_id: user.id,
+          title: f.title || null,
+          price_per_yard: priceNum,
+          msrp_per_yard: msrpNum,
+          yards: yardsNum,
+          description: f.desc || null,
+          content: f.content || null,
+          fabric_type: f.fabric || null,
+          color: f.color || null,
+          color_family: f.colorFamily || null,
+          pattern: f.pattern || null,
+          dept: f.dept || null,
+          fiber_type: f.fiberType || null,
+          origin: f.origin || null,
+          designer: f.designer || null,
+          width: widthNum,
+          gsm: gsmNum,
+          feels_like: f.feelsLike || null,
+          // Media not wired yet; will be added later
+          cover_photo_url: null,
+          video_url: null,
+          is_published: true
+        };
+
+        const { data, error } = await supabaseClient
+          .from('listings_public')
+          .insert(payload)
+          .select('id')
+          .single();
+
+        if(error){
+          console.error('Publish error', error);
+          setStatus('Error publishing listing. Check console for details.', 'error');
+          nextBtn.disabled = false;
+          backBtn.disabled = false;
+          return;
+        }
+
+        setStatus('Listing published. Redirecting to Browse…', 'success');
+        setTimeout(()=>{
+          window.location.href = 'browse.html';
+        }, 800);
+
+      }catch(err){
+        console.error('Unexpected publish error', err);
+        setStatus('Unexpected error publishing listing.', 'error');
+        nextBtn.disabled = false;
+        backBtn.disabled = false;
+      }
+    }
+
+    nextBtn.addEventListener('click', async ()=>{
+      if(step === 1 && !validateStep1()) return;
+      if(step === 2 && !validateStep2()) return;
+      if(step === 3 && !validateStep3()) return;
+
+      if(step < MAX_STEP){
+        setStep(step+1);
+      }else{
+        await publishListing();
+      }
+    });
+
+    // Start on step 1
     setStep(1);
   })();
 </script>
