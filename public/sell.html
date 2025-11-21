@@ -53,6 +53,11 @@
       align-items:center;
       justify-content:space-between;
     }
+    .left{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
     .hm-brand{
       font-size:24px;
       font-weight:800;
@@ -596,7 +601,7 @@
 
           <div class="field">
             <div class="label-row"><label for="yards">Yards</label><span class="req">Required</span></div>
-            <input id="yards" type="number" min="0" step="0.25" placeholder="1.5">
+            <input id="yards" type="number" min="0" step="0.5" placeholder="1.5">
             <div id="err_yards" class="help-error" style="display:none">Enter yards greater than 0.</div>
           </div>
 
@@ -605,9 +610,8 @@
             <textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea>
           </div>
 
-          <!-- Main attribute grid -->
+          <!-- Main attribute grid (mirrors browse filters) -->
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
-
             <!-- Content -->
             <div class="field">
               <label for="content">Content</label>
@@ -665,7 +669,7 @@
               </select>
             </div>
 
-            <!-- Color (family only, label just "Color") -->
+            <!-- Color family only -->
             <div class="field">
               <label for="colorFamily">Color</label>
               <select id="colorFamily">
@@ -899,7 +903,6 @@
       window.location.href = "auth.html?view=login";
       return;
     }
-
     const user = session.user;
 
     // Update header account icon to "logged in" state and point to Account
@@ -926,9 +929,6 @@
     const backBtn    = document.getElementById('backBtn');
     const nextBtn    = document.getElementById('nextBtn');
     const state      = { photos:[], video:null, fields:{} };
-
-    // ensure Next starts disabled
-    nextBtn.disabled = true;
 
     function setStep(n){
       step = Math.max(1, Math.min(MAX_STEP, n));
@@ -995,7 +995,6 @@
     }
 
     backBtn.addEventListener('click', ()=>setStep(step-1));
-
     nextBtn.addEventListener('click', async ()=>{
       if(step === 1 && !validateStep1()) return;
       if(step === 2 && !validateStep2()) return;
@@ -1004,20 +1003,7 @@
       if(step < MAX_STEP){
         setStep(step+1);
       }else{
-        // Publish
-        nextBtn.disabled = true;
-        nextBtn.textContent = 'Publishing…';
-        try{
-          await publishListing(user, state);
-          alert('Listing published.');
-          window.location.href = 'browse.html';
-        }catch(err){
-          console.error(err);
-          alert('Sorry, something went wrong while publishing.');
-        }finally{
-          nextBtn.textContent = 'Publish';
-          nextBtn.disabled = false;
-        }
+        await publishListing(user, state, nextBtn);
       }
     });
 
@@ -1037,19 +1023,27 @@
     const photoInput  = document.getElementById('photoInput');
     const photoThumbs = document.getElementById('photoThumbs');
 
-    function handlePhotoFiles(files){
-      const arr = [...files].slice(0,8);
-      state.photos = arr;
+    function renderPhotoThumbs(){
       photoThumbs.innerHTML = '';
-      arr.forEach(f=>{
-        const url = URL.createObjectURL(f);
+      if(!state.photos.length) return;
+      state.photos.forEach(file=>{
+        const url = URL.createObjectURL(file);
         const ph  = document.createElement('div');
         ph.className = 'ph';
         const img = document.createElement('img');
         img.src = url;
+        img.alt = file.name || 'Photo';
         ph.appendChild(img);
         photoThumbs.appendChild(ph);
       });
+    }
+
+    function handlePhotoFiles(files){
+      const arr = Array.from(files || []);
+      if(!arr.length) return;
+      const combined = state.photos.concat(arr);
+      state.photos = combined.slice(0,8);
+      renderPhotoThumbs();
       validateCurrentStep();
     }
 
@@ -1062,16 +1056,15 @@
     });
     photoDrop.addEventListener('drop', e=>handlePhotoFiles(e.dataTransfer.files));
 
-    // Video (optional, not wired to DB yet)
+    // Video
     const videoDrop  = document.getElementById('videoDrop');
     const videoInput = document.getElementById('videoInput');
     const videoThumb = document.getElementById('videoThumb');
 
-    function handleVideoFile(file){
-      state.video = file || null;
+    function renderVideoThumb(){
       videoThumb.innerHTML = '';
-      if(!file) return;
-      const url = URL.createObjectURL(file);
+      if(!state.video) return;
+      const url = URL.createObjectURL(state.video);
       const ph  = document.createElement('div');
       ph.className = 'ph';
       const vid = document.createElement('video');
@@ -1080,6 +1073,11 @@
       vid.muted = true;
       ph.appendChild(vid);
       videoThumb.appendChild(ph);
+    }
+
+    function handleVideoFile(file){
+      state.video = file || null;
+      renderVideoThumb();
     }
 
     videoInput.addEventListener('change', e=>handleVideoFile(e.target.files[0]));
@@ -1110,6 +1108,18 @@
         .map(cb => cb.value);
     }
 
+    function deriveFiberType(content){
+      const c = (content || '').toLowerCase();
+      if(!c || c.includes('not sure') || c.includes('other')) return '';
+      const naturals = ['cotton','linen','hemp','wool','cashmere','alpaca','angora','mohair','silk','leather','bamboo'];
+      const modified = ['rayon','viscose','tencel','lyocell','modal','cupro','bamboo'];
+      const synthetics = ['polyester','nylon','acrylic','spandex','elastane','lurex'];
+      if(naturals.some(x=>c.includes(x))) return 'Natural';
+      if(modified.some(x=>c.includes(x))) return 'Modified Natural';
+      if(synthetics.some(x=>c.includes(x))) return 'Synthetic';
+      return 'Blend';
+    }
+
     function buildReview(){
       state.fields = {
         title: read('title'),
@@ -1126,7 +1136,8 @@
         designer: read('designer'),
         width: read('width'),
         gsm: read('gsm'),
-        feelsLike: readFeelsLike().join(', ')
+        feelsLike: readFeelsLike().join(', '),
+        fiberType: deriveFiberType(read('content'))
       };
 
       const media = document.getElementById('reviewMedia');
@@ -1137,6 +1148,7 @@
         ph.className = 'ph';
         const img = document.createElement('img');
         img.src = url;
+        img.alt = f.name || 'Photo';
         ph.appendChild(img);
         media.appendChild(ph);
       });
@@ -1154,28 +1166,17 @@
 
       const kv = document.getElementById('reviewKv');
       kv.innerHTML = '';
-      const friendly = {
-        title:'title',
-        price:'price',
-        msrpPerYd:'orig price',
-        yards:'yards',
-        desc:'description',
-        content:'content',
-        fabric:'fabric',
-        colorFamily:'color',
-        pattern:'pattern',
-        dept:'dept',
-        origin:'origin',
-        designer:'designer',
-        width:'width',
-        gsm:'gsm',
-        feelsLike:'feels like'
-      };
-      Object.entries(state.fields).forEach(([k,v])=>{
+      const ordered = [
+        'title','price','msrpPerYd','yards','desc',
+        'content','fabric','colorFamily','pattern',
+        'dept','origin','designer','width','gsm',
+        'fiberType','feelsLike'
+      ];
+      ordered.forEach(key=>{
         const keyEl = document.createElement('div');
-        keyEl.textContent = friendly[k] || k;
+        keyEl.textContent = key.replace(/([A-Z])/g,' $1').toLowerCase();
         const valEl = document.createElement('div');
-        valEl.textContent = v || '—';
+        valEl.textContent = state.fields[key] || '—';
         kv.appendChild(keyEl);
         kv.appendChild(valEl);
       });
@@ -1184,38 +1185,109 @@
     document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
       try{
         const data = {
+          ts: Date.now(),
           fields: state.fields,
-          ts: Date.now()
+          // we don't persist files, just text fields
         };
         localStorage.setItem('hm.draft.listing', JSON.stringify(data));
-        alert('Draft saved locally.');
+        alert('Draft saved locally on this device.');
       }catch(e){
         alert('Unable to save draft.');
       }
     });
 
-    async function publishListing(user, state){
-      // Minimal publish: insert row into public.listings_public.
-      const title = read('title');
-      const price = parseFloat(read('price') || '0');
-      const yards = parseFloat(read('yards') || '0');
-      const desc  = read('desc');
+    async function publishListing(user, state, nextBtn){
+      nextBtn.disabled = true;
+      const originalLabel = nextBtn.textContent;
+      nextBtn.textContent = 'Publishing…';
 
-      const priceCents = Math.round(price * 100);
+      try{
+        // 1) Upload photos to listing-images bucket
+        const imageUrls = [];
+        for(let i=0;i<state.photos.length;i++){
+          const file = state.photos[i];
+          const ext  = (file.name && file.name.includes('.'))
+            ? file.name.split('.').pop()
+            : 'jpg';
+          const path = `${user.id}/listing-${Date.now()}-${i}.${ext}`;
+          const { data, error } = await supabaseClient
+            .storage
+            .from('listing-images')
+            .upload(path, file, { contentType:file.type || 'image/jpeg' });
 
-      const { error } = await supabaseClient
-        .from('listings_public')
-        .insert({
-          seller_id: user.id,
-          title,
-          description: desc || null,
-          price_cents: priceCents,
-          yards: isNaN(yards) ? null : yards,
-          // status will use default (likely 'active')
-        });
+          if(error){
+            throw new Error('Image upload failed: ' + error.message);
+          }
 
-      if(error){
-        throw error;
+          const { data:pub } = supabaseClient
+            .storage
+            .from('listing-images')
+            .getPublicUrl(data.path);
+
+          if(pub && pub.publicUrl){
+            imageUrls.push(pub.publicUrl);
+          }
+        }
+
+        // 2) Optional video upload
+        let videoUrl = null;
+        if(state.video){
+          const file = state.video;
+          const ext  = (file.name && file.name.includes('.'))
+            ? file.name.split('.').pop()
+            : 'mp4';
+          const path = `${user.id}/listing-video-${Date.now()}.${ext}`;
+          const { data, error } = await supabaseClient
+            .storage
+            .from('listing-media')
+            .upload(path, file, { contentType:file.type || 'video/mp4' });
+
+          if(error){
+            throw new Error('Video upload failed: ' + error.message);
+          }
+          const { data:pub } = supabaseClient
+            .storage
+            .from('listing-media')
+            .getPublicUrl(data.path);
+          if(pub && pub.publicUrl){
+            videoUrl = pub.publicUrl;
+          }
+        }
+
+        // 3) Insert listing into listings_public
+        const f = state.fields;
+        const priceNumber = parseFloat(f.price) || 0;
+        const yardsNumber = parseFloat(f.yards) || 0;
+
+        const { data:inserted, error:insertError } = await supabaseClient
+          .from('listings_public')
+          .insert({
+            seller_id: user.id,
+            title: f.title,
+            description: f.desc || null,
+            price_cents: Math.round(priceNumber * 100),
+            yards_available: yardsNumber,
+            status: 'active',
+            // only include columns we know exist; media URLs can be wired later
+          })
+          .select('id')
+          .single();
+
+        if(insertError){
+          throw new Error('Insert failed: ' + insertError.message);
+        }
+
+        // 4) For now we are *not* inserting into listing_images table;
+        // photos live in storage. We can wire that later when schema is final.
+
+        alert('Listing published!');
+        window.location.href = 'browse.html';
+      }catch(err){
+        console.error(err);
+        alert('Sorry, something went wrong while publishing.\n\n' + (err.message || err));
+      }finally{
+        nextBtn.disabled = false;
+        nextBtn.textContent = originalLabel;
       }
     }
 
