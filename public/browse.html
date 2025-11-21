@@ -76,6 +76,8 @@ body{
   height:26px;
   stroke-width:2;
 }
+
+/* Old avatar left for backward compatibility (not used now) */
 .hm-avatar{
   width:28px;
   height:28px;
@@ -89,6 +91,38 @@ body{
   font-size:12px;
   text-decoration:none;
 }
+
+/* Account icon + login badge */
+.hm-account{
+  position:relative;
+  display:inline-grid;
+  place-items:center;
+  width:26px;
+  height:26px;
+}
+.hm-account svg{
+  width:26px;
+  height:26px;
+  stroke-width:2;
+  display:block;
+}
+.hm-account-badge{
+  position:absolute;
+  bottom:-2px;
+  right:-2px;
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  border:2px solid #fff;
+  background:#d1d5db; /* default / logged-out */
+}
+.hm-account.is-logged-in .hm-account-badge{
+  background:#16a34a;
+}
+.hm-account.is-logged-out .hm-account-badge{
+  background:#d1d5db;
+}
+
 .hm-btn-primary{
   background:var(--accent);
   color:#fff;
@@ -481,8 +515,16 @@ body{
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
-      <!-- Hard-coded to your initials for now -->
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">RK</a>
+
+      <!-- Account icon with login status -->
+      <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
+        <span class="hm-account-badge" id="headerAccountBadge"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="8" r="3.2"></circle>
+          <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+        </svg>
+      </a>
+
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
@@ -708,32 +750,69 @@ body{
   </div>
 </footer>
 
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-/* Header + avatar (same pattern as other simple pages) */
-(function(){
-  const sheet  = document.getElementById("menuSheet");
-  const openBtn= document.getElementById("openMenu");
-  const closeBtn=document.getElementById("closeMenu");
+/* Header menu + Supabase session badge */
+const supabaseClient = window.supabase.createClient(
+  "https://clkizksbvxjkoatdajgd.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+);
 
-  function open(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-  function close(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+function updateHeaderForSession(session){
+  const link = document.getElementById("headerAccountLink");
+  if(!link) return;
+  if(session && session.user){
+    link.href = "account.html";
+    link.setAttribute("aria-label","Your account");
+    link.classList.add("is-logged-in");
+    link.classList.remove("is-logged-out");
+  }else{
+    link.href = "auth.html?view=login";
+    link.setAttribute("aria-label","Sign in or manage your account");
+    link.classList.remove("is-logged-in");
+    link.classList.add("is-logged-out");
+  }
+}
 
-  openBtn && openBtn.addEventListener("click", e=>{e.preventDefault();open();});
-  closeBtn && closeBtn.addEventListener("click", e=>{e.preventDefault();close();});
+(function initHeader(){
+  const sheet   = document.getElementById("menuSheet");
+  const openBtn = document.getElementById("openMenu");
+  const closeBtn= document.getElementById("closeMenu");
+
+  function open(){
+    if(!sheet) return;
+    sheet.classList.add("open");
+    sheet.setAttribute("aria-hidden","false");
+  }
+  function close(){
+    if(!sheet) return;
+    sheet.classList.remove("open");
+    sheet.setAttribute("aria-hidden","true");
+  }
+
+  if(openBtn){
+    openBtn.addEventListener("click", e=>{e.preventDefault();open();});
+  }
+  if(closeBtn){
+    closeBtn.addEventListener("click", e=>{e.preventDefault();close();});
+  }
   document.addEventListener("keydown", e=>{ if(e.key==="Escape") close(); });
 
-  try{
-    const avatar=document.getElementById("avatar");
-    const url=localStorage.getItem("avatarUrl");
-    if(url){
-      avatar.textContent='';
-      avatar.style.backgroundImage="url('"+url+"')";
-      avatar.style.backgroundSize="cover";
-      avatar.style.backgroundPosition="center";
-    }
-  }catch(_){}
-})();
+  // Initial session check
+  supabaseClient.auth.getSession().then(({ data:{ session } })=>{
+    updateHeaderForSession(session);
+  });
 
+  // Live updates if auth state changes
+  supabaseClient.auth.onAuthStateChange((_event, session)=>{
+    updateHeaderForSession(session);
+  });
+})();
+</script>
+
+<script>
 /* Toggle filters panel */
 (function(){
   const layout = document.getElementById('layout');
@@ -1053,6 +1132,7 @@ function render(){
 
 render();
 </script>
+
 <script src="assets/add-to-cart.js" defer></script>
 </body>
 </html>
