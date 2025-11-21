@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
-  <!-- Shared styles (your existing stylesheets) -->
+  <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -37,7 +37,7 @@
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .is-hidden{display:none!important;}
 
-    /* HEADER (same structure as browse) */
+    /* ---------- HEADER (same as browse) ---------- */
     .hm-header{
       min-height:56px;
       background:#fff;
@@ -84,7 +84,7 @@
     }
     .hm-icon svg{width:26px;height:26px;stroke-width:2}
 
-    /* Account icon + login badge */
+    /* Account icon + login status badge */
     .hm-account{
       position:relative;
       display:inline-grid;
@@ -106,7 +106,7 @@
       height:10px;
       border-radius:50%;
       border:2px solid #fff;
-      background:#d1d5db;
+      background:#d1d5db; /* default / logged-out */
     }
     .hm-account.is-logged-in .hm-account-badge{
       background:#16a34a;
@@ -155,7 +155,7 @@
       text-decoration:none;
       color:#1f2937;
     }
-    .sheet nav a+a{margin-top:8px}
+    .sheet nav a + a{margin-top:8px}
     .sheet .close{
       display:inline-grid;
       place-items:center;
@@ -179,7 +179,7 @@
     }
     #sheetOverlay.show{display:block}
 
-    /* CREATE LISTING LAYOUT */
+    /* ---------- CREATE LISTING LAYOUT ---------- */
 
     .sell-wrap{
       max-width:1100px;
@@ -301,19 +301,15 @@
       object-fit:cover;
       border-radius:10px;
     }
-    .ph span.filename{
+    .ph-label{
       position:absolute;
       left:6px;
-      bottom:4px;
+      top:4px;
+      padding:2px 6px;
+      border-radius:999px;
+      background:rgba(15,23,42,.75);
+      color:#f9fafb;
       font-size:11px;
-      color:#111827;
-      background:rgba(255,255,255,.8);
-      padding:2px 4px;
-      border-radius:4px;
-      max-width:90%;
-      overflow:hidden;
-      white-space:nowrap;
-      text-overflow:ellipsis;
     }
 
     .field{
@@ -392,11 +388,10 @@
       gap:6px;
       font-size:13px;
     }
-    .kv .label{
-      color:#6b7280;
-      text-transform:lowercase;
-    }
+    .kv-key{color:#6b7280}
+    .kv-val{color:#111827}
 
+    /* "Feels like" grid */
     .feels-grid{
       display:grid;
       grid-template-columns:1fr 1fr;
@@ -414,7 +409,7 @@
       height:13px;
     }
 
-    /* Footer (same as browse) */
+    /* Footer tweak (same as browse) */
     .hm-footer{
       background:#fff;
       border-top:1px solid #e5e7eb;
@@ -491,6 +486,7 @@
         </svg>
       </a>
 
+      <!-- Account icon with login status -->
       <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -581,13 +577,14 @@
             <div id="err_price" class="help-error" style="display:none">Enter a price greater than 0.</div>
           </div>
 
+          <!-- Original price (MSRP) per yard, optional -->
           <div class="field">
             <div class="label-row">
               <label for="origPrice">Original price ($/yd)</label>
               <span class="subtle" style="font-size:12px">(optional)</span>
             </div>
             <input id="origPrice" type="number" min="0" step="0.01" placeholder="e.g., 70.00">
-            <div class="subtle">Shown crossed-out on the listing to highlight the deal (not yet wired).</div>
+            <div class="subtle">Shown crossed-out on the listing to highlight the deal (later).</div>
           </div>
 
           <div class="field">
@@ -601,8 +598,9 @@
             <textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea>
           </div>
 
-          <!-- Attribute grid (for future filters; not all stored yet) -->
+          <!-- Main attribute grid (mirrors browse filters loosely) -->
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+            <!-- Content -->
             <div class="field">
               <label for="content">Content</label>
               <select id="content">
@@ -633,6 +631,7 @@
               </select>
             </div>
 
+            <!-- Fabric Type -->
             <div class="field">
               <label for="fabric">Fabric type</label>
               <select id="fabric">
@@ -658,7 +657,7 @@
               </select>
             </div>
 
-            <!-- Color family only, label "Color" -->
+            <!-- Color family -->
             <div class="field">
               <label for="colorFamily">Color</label>
               <select id="colorFamily">
@@ -680,6 +679,7 @@
               </select>
             </div>
 
+            <!-- Pattern -->
             <div class="field">
               <label for="pattern">Pattern</label>
               <select id="pattern">
@@ -689,6 +689,7 @@
               </select>
             </div>
 
+            <!-- Department -->
             <div class="field">
               <label for="dept">Department</label>
               <select id="dept">
@@ -700,7 +701,7 @@
               </select>
             </div>
 
-            <!-- Fiber type: still selectable for now -->
+            <!-- Fiber type (auto suggestion later; optional now) -->
             <div class="field">
               <label for="fiberType">Fiber type</label>
               <select id="fiberType">
@@ -712,6 +713,7 @@
               </select>
             </div>
 
+            <!-- Country / origin -->
             <div class="field">
               <label for="origin">Country / origin</label>
               <select id="origin">
@@ -727,22 +729,26 @@
               </select>
             </div>
 
+            <!-- Width -->
             <div class="field">
               <label for="width">Width (in)</label>
               <input id="width" type="number" min="0" step="1">
             </div>
 
+            <!-- GSM -->
             <div class="field">
               <label for="gsm">Weight (GSM)</label>
               <input id="gsm" type="number" min="0" step="1">
             </div>
           </div>
 
+          <!-- Designer / mill -->
           <div class="field" style="margin-top:4px">
             <label for="designer">Designer / mill (optional)</label>
             <input id="designer" type="text" placeholder="e.g., Loro Piana, Ratti">
           </div>
 
+          <!-- Fabric feels like (for mystery / unknown content) -->
           <div class="field">
             <div class="label-row">
               <label>Fabric feels like</label>
@@ -773,7 +779,7 @@
           </div>
         </div>
 
-        <!-- STEP 3 -->
+                <!-- STEP 3 -->
         <div class="step step-3" hidden>
           <div class="field">
             <label>Preview</label>
@@ -784,30 +790,38 @@
             Review your details. You can go back to make changes.
           </p>
 
+          <!-- Legal acknowledgment (required) -->
           <div class="field" style="margin-top:10px">
             <label style="font-weight:600;display:flex;gap:8px;align-items:flex-start">
               <input id="agreeSell" type="checkbox" style="margin-top:3px">
-              <span>I confirm this listing follows the
-                <a href="terms.html" target="_blank">Terms of Service</a> and I’ve read the
-                <a href="privacy.html" target="_blank">Privacy Policy</a>.
+              <span>
+                I confirm this listing follows the
+                <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>
+                and I've read the
+                <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.
               </span>
             </label>
-            <div id="err_agree" class="help-error" style="display:none">Please agree to continue.</div>
+            <div id="err_agree" class="help-error" style="display:none">
+              Please agree before publishing.
+            </div>
           </div>
         </div>
 
       </div>
     </section>
 
+    <!-- ACTIONS SIDEBAR -->
     <aside class="card">
       <div class="hd">Actions</div>
       <div class="bd">
         <div class="actions">
           <button class="btn" id="backBtn" type="button" disabled>Back</button>
-          <button class="btn primary" id="primaryBtn" type="button" disabled>Next</button>
+          <button class="btn primary" id="nextBtn" type="button" disabled>Next</button>
           <button class="btn" id="saveDraftBtn" type="button">Save Draft</button>
         </div>
-        <p class="subtle" style="margin-top:8px">We’ll guide you through each step.</p>
+        <p class="subtle" style="margin-top:8px">
+          We'll guide you through each step.
+        </p>
       </div>
     </aside>
   </div>
@@ -831,7 +845,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  /* Hamburger / overlay */
+  // Hamburger / overlay
   (function(){
     const sheet    = document.getElementById('menuSheet');
     const openBtn  = document.getElementById('openMenu');
@@ -869,7 +883,7 @@
 </script>
 
 <script>
-  // Supabase session + create-listing logic
+  // ---- Supabase client ----
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
@@ -887,426 +901,487 @@
     return session;
   }
 
-  const state = {
-    step:1,
-    photos:[],   // { file, url }
-    video:null,  // { file, url }
-  };
-
-  const dom = {};
-
-  function qs(id){ return document.getElementById(id); }
-
-  function initDomRefs(){
-    dom.stepper    = qs('stepper');
-    dom.stageTitle = qs('stageTitle');
-    dom.backBtn    = qs('backBtn');
-    dom.primaryBtn = qs('primaryBtn');
-    dom.photoDrop  = qs('photoDrop');
-    dom.photoInput = qs('photoInput');
-    dom.photoThumbs= qs('photoThumbs');
-    dom.photoError = qs('photoError');
-    dom.videoDrop  = qs('videoDrop');
-    dom.videoInput = qs('videoInput');
-    dom.videoThumb = qs('videoThumb');
-    dom.saveDraft  = qs('saveDraftBtn');
-
-    dom.title      = qs('title');
-    dom.price      = qs('price');
-    dom.origPrice  = qs('origPrice');
-    dom.yards      = qs('yards');
-    dom.desc       = qs('desc');
-    dom.content    = qs('content');
-    dom.fabric     = qs('fabric');
-    dom.colorFamily= qs('colorFamily');
-    dom.pattern    = qs('pattern');
-    dom.dept       = qs('dept');
-    dom.fiberType  = qs('fiberType');
-    dom.origin     = qs('origin');
-    dom.width      = qs('width');
-    dom.gsm        = qs('gsm');
-    dom.designer   = qs('designer');
-    dom.feelsGroup = qs('feelsLikeGroup');
-
-    dom.err_title  = qs('err_title');
-    dom.err_price  = qs('err_price');
-    dom.err_yards  = qs('err_yards');
-
-    dom.reviewMedia= qs('reviewMedia');
-    dom.reviewKv   = qs('reviewKv');
-    dom.agree      = qs('agreeSell');
-    dom.err_agree  = qs('err_agree');
-  }
-
-  function setStep(step){
-    state.step = step;
-    // bubbles
-    document.querySelectorAll('.bubble').forEach(b=>{
-      const s = Number(b.dataset.step);
-      b.dataset.active = String(s === step);
-    });
-    // panels
-    document.querySelectorAll('.step').forEach((panel, idx)=>{
-      const s = idx+1;
-      panel.hidden = (s !== step);
-    });
-    // stage title
-    if(step === 1) dom.stageTitle.textContent = 'Step 1 — Photos & Video';
-    if(step === 2) dom.stageTitle.textContent = 'Step 2 — Details';
-    if(step === 3) dom.stageTitle.textContent = 'Step 3 — Review & Publish';
-
-    // buttons
-    dom.backBtn.disabled = (step === 1);
-    dom.primaryBtn.textContent = (step === 3 ? 'Publish' : 'Next');
-
-    validateCurrentStep();
-  }
-
-  function validateStep1(){
-    const ok = state.photos.length > 0;
-    dom.photoError.style.display = ok ? 'none' : 'block';
-    return ok;
-  }
-
-  function validateStep2(){
-    let ok = true;
-
-    const t = dom.title.value.trim();
-    const p = Number(dom.price.value);
-    const y = Number(dom.yards.value);
-
-    // title
-    if(!t){
-      ok = false;
-      dom.title.classList.add('invalid');
-      dom.err_title.style.display='block';
-    }else{
-      dom.title.classList.remove('invalid');
-      dom.err_title.style.display='none';
-    }
-
-    // price
-    if(!(p>0)){
-      ok = false;
-      dom.price.classList.add('invalid');
-      dom.err_price.style.display='block';
-    }else{
-      dom.price.classList.remove('invalid');
-      dom.err_price.style.display='none';
-    }
-
-    // yards
-    if(!(y>0)){
-      ok = false;
-      dom.yards.classList.add('invalid');
-      dom.err_yards.style.display='block';
-    }else{
-      dom.yards.classList.remove('invalid');
-      dom.err_yards.style.display='none';
-    }
-
-    return ok;
-  }
-
-  function validateStep3(){
-    const ok = dom.agree.checked;
-    dom.err_agree.style.display = ok ? 'none' : 'block';
-    return ok;
-  }
-
-  function validateCurrentStep(){
-    let ok = false;
-    if(state.step === 1) ok = validateStep1();
-    if(state.step === 2) ok = validateStep2();
-    if(state.step === 3) ok = validateStep3();
-    dom.primaryBtn.disabled = !ok;
-  }
-
-  function renderPhotoThumbs(){
-    dom.photoThumbs.innerHTML = '';
-    state.photos.forEach((p, idx)=>{
-      const box = document.createElement('div');
-      box.className = 'ph';
-      if(p.url){
-        const img = document.createElement('img');
-        img.src = p.url;
-        img.alt = idx === 0 ? 'Cover photo' : 'Photo '+(idx+1);
-        box.appendChild(img);
-      }
-      const label = document.createElement('span');
-      label.className='filename';
-      label.textContent = p.file.name;
-      box.appendChild(label);
-      dom.photoThumbs.appendChild(box);
-    });
-  }
-
-  function renderVideoThumb(){
-    dom.videoThumb.innerHTML = '';
-    if(!state.video) return;
-    const box = document.createElement('div');
-    box.className = 'ph';
-    const vid = document.createElement('video');
-    vid.src = state.video.url;
-    vid.controls = true;
-    box.appendChild(vid);
-    const label = document.createElement('span');
-    label.className='filename';
-    label.textContent = state.video.file.name;
-    box.appendChild(label);
-    dom.videoThumb.appendChild(box);
-  }
-
-  function handlePhotoFiles(files){
-    const list = Array.from(files || []);
-    if(!list.length) return;
-    // reset previous urls
-    state.photos.forEach(p=>{ if(p.url) URL.revokeObjectURL(p.url); });
-    state.photos = list.slice(0,8).map(f=>({ file:f, url:URL.createObjectURL(f) }));
-    renderPhotoThumbs();
-    validateCurrentStep();
-  }
-
-  function handleVideoFiles(files){
-    const list = Array.from(files || []);
-    if(!list.length) return;
-    if(state.video && state.video.url) URL.revokeObjectURL(state.video.url);
-    const f = list[0];
-    state.video = { file:f, url:URL.createObjectURL(f) };
-    renderVideoThumb();
-  }
-
-  function wireMedia(){
-    // click input
-    dom.photoInput.addEventListener('change', e=>{
-      handlePhotoFiles(e.target.files);
-      dom.photoInput.value = '';
-    });
-
-    dom.videoInput.addEventListener('change', e=>{
-      handleVideoFiles(e.target.files);
-      dom.videoInput.value = '';
-    });
-
-    // drag for photos
-    ['dragenter','dragover'].forEach(ev=>{
-      dom.photoDrop.addEventListener(ev, e=>{
-        e.preventDefault();e.stopPropagation();
-        dom.photoDrop.classList.add('drag');
-      });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      dom.photoDrop.addEventListener(ev, e=>{
-        e.preventDefault();e.stopPropagation();
-        dom.photoDrop.classList.remove('drag');
-      });
-    });
-    dom.photoDrop.addEventListener('drop', e=>{
-      handlePhotoFiles(e.dataTransfer.files);
-    });
-
-    // drag for video
-    ['dragenter','dragover'].forEach(ev=>{
-      dom.videoDrop.addEventListener(ev, e=>{
-        e.preventDefault();e.stopPropagation();
-        dom.videoDrop.classList.add('drag');
-      });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      dom.videoDrop.addEventListener(ev, e=>{
-        e.preventDefault();e.stopPropagation();
-        dom.videoDrop.classList.remove('drag');
-      });
-    });
-    dom.videoDrop.addEventListener('drop', e=>{
-      handleVideoFiles(e.dataTransfer.files);
-    });
-  }
-
-  function collectFeelsLike(){
-    const vals = [];
-    dom.feelsGroup.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
-      if(cb.checked) vals.push(cb.value);
-    });
-    return vals;
-  }
-
-  function buildPreview(){
-    // media
-    dom.reviewMedia.innerHTML = '';
-    state.photos.forEach((p, idx)=>{
-      const box = document.createElement('div');
-      box.className='ph';
-      const img = document.createElement('img');
-      img.src = p.url;
-      img.alt = idx===0?'Cover photo':'Photo '+(idx+1);
-      box.appendChild(img);
-      dom.reviewMedia.appendChild(box);
-    });
-
-    // kv
-    const kv = [
-      ['title', dom.title.value.trim() || '—'],
-      ['price', dom.price.value || '—'],
-      ['orig price', dom.origPrice.value || '—'],
-      ['yards', dom.yards.value || '—'],
-      ['desc', dom.desc.value.trim() || '—'],
-      ['content', dom.content.value || '—'],
-      ['fabric', dom.fabric.value || '—'],
-      ['color', dom.colorFamily.value || '—'],
-      ['pattern', dom.pattern.value || '—'],
-      ['dept', dom.dept.value || '—'],
-      ['fiber type', dom.fiberType.value || '—'],
-      ['origin', dom.origin.value || '—'],
-      ['width', dom.width.value || '—'],
-      ['gsm', dom.gsm.value || '—'],
-      ['designer', dom.designer.value.trim() || '—'],
-      ['feels like', collectFeelsLike().join(', ') || '—']
-    ];
-
-    dom.reviewKv.innerHTML = '';
-    kv.forEach(([label,value])=>{
-      const l = document.createElement('div');
-      l.className='label';
-      l.textContent = label;
-      const v = document.createElement('div');
-      v.textContent = value;
-      dom.reviewKv.appendChild(l);
-      dom.reviewKv.appendChild(v);
-    });
-  }
-
-  async function uploadMediaIfNeeded(userId, listingId){
-    // For now: upload images to 'listing-images' bucket but
-    // we don't store URLs in the table yet. This keeps DB insert simple.
-    if(!state.photos.length) return;
-
-    const bucket = supabaseClient.storage.from('listing-images');
-
-    for(let i=0;i<state.photos.length;i++){
-      const p = state.photos[i];
-      const ext = (p.file.name.split('.').pop() || 'jpg').toLowerCase();
-      const path = `${userId}/${listingId}/${i}.${ext}`;
-      const { error } = await bucket.upload(path, p.file, {
-        cacheControl:'3600',
-        upsert:true,
-        contentType:p.file.type || 'image/jpeg'
-      });
-      if(error){
-        console.error('Image upload failed', error);
-        throw new Error('Upload failed for one of the images.');
-      }
-    }
-
-    // Video upload skipped for now to keep things simple.
-  }
-
-  async function publishListing(user){
-    if(!validateStep3()) return;
-
-    dom.primaryBtn.disabled = true;
-    dom.primaryBtn.textContent = 'Publishing...';
-
-    try{
-      const listingId = crypto.randomUUID();
-      await uploadMediaIfNeeded(user.id, listingId);
-
-      const title = dom.title.value.trim();
-      const desc  = dom.desc.value.trim();
-      const priceNumber = Number(dom.price.value);
-      const yardsNumber = Number(dom.yards.value);
-
-      const priceCents = Math.round((priceNumber || 0) * 100);
-
-      const { error } = await supabaseClient
-        .from('listings_public')               // << IMPORTANT: use listings_public
-        .insert({
-          id: listingId,
-          seller_id: user.id,
-          title: title,
-          description: desc || null,
-          price_cents: priceCents,
-          yards_total: yardsNumber,
-          status: 'active'
-        });
-
-      if(error){
-        console.error('Insert error', error);
-        throw error;
-      }
-
-      alert('Listing published!');
-      window.location.href = 'browse.html';
-    }catch(err){
-      console.error(err);
-      alert('Sorry, something went wrong while publishing.\n\n' + (err.message || err));
-    }finally{
-      dom.primaryBtn.textContent = 'Publish';
-      dom.primaryBtn.disabled = false;
-    }
-  }
-
   (async function initSellPage(){
-    initDomRefs();
-    wireMedia();
+    const headerAccountLink = document.getElementById('headerAccountLink');
+    const headerAccountBadge = document.getElementById('headerAccountBadge');
 
-    // Require login
+    // Require login to create listings
     const session = await ensureSession();
     if(!session || !session.user){
-      window.location.href = 'auth.html?view=login';
+      window.location.href = "auth.html?view=login";
       return;
     }
     const user = session.user;
 
-    // Header account icon state
-    const headerAccountLink = document.getElementById('headerAccountLink');
+    // Header account icon -> Account
     if (headerAccountLink){
-      headerAccountLink.href = 'account.html';
-      headerAccountLink.setAttribute('aria-label','Your account');
-      headerAccountLink.classList.add('is-logged-in');
-      headerAccountLink.classList.remove('is-logged-out');
+      headerAccountLink.href = "account.html";
+      headerAccountLink.setAttribute("aria-label","Your account");
+      headerAccountLink.classList.add("is-logged-in");
+      headerAccountLink.classList.remove("is-logged-out");
+    }
+    if (headerAccountBadge){
+      headerAccountBadge.setAttribute("title","Signed in");
     }
 
-    supabaseClient.auth.onAuthStateChange((_event, newSession)=>{
-      if(!newSession || !newSession.user){
-        window.location.href = 'auth.html?view=login';
+    // If user logs out elsewhere, kick them back to login
+    supabaseClient.auth.onAuthStateChange((_event, newSession) => {
+      if (!newSession || !newSession.user){
+        window.location.href = "auth.html?view=login";
       }
     });
 
-    // Navigation buttons
-    dom.backBtn.addEventListener('click', ()=>{
-      if(state.step>1){
-        setStep(state.step-1);
-      }
-    });
+    // ---------- Create Listing UI logic ----------
 
-    dom.primaryBtn.addEventListener('click', ()=>{
+    const state = {
+      step: 1,
+      photos: [],
+      video: null
+    };
+
+    const stepper    = document.getElementById('stepper');
+    const stageTitle = document.getElementById('stageTitle');
+    const backBtn    = document.getElementById('backBtn');
+    const nextBtn    = document.getElementById('nextBtn');
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+
+    const photoDrop   = document.getElementById('photoDrop');
+    const photoInput  = document.getElementById('photoInput');
+    const photoThumbs = document.getElementById('photoThumbs');
+    const photoError  = document.getElementById('photoError');
+
+    const videoDrop   = document.getElementById('videoDrop');
+    const videoInput  = document.getElementById('videoInput');
+    const videoThumb  = document.getElementById('videoThumb');
+
+    const titleInput  = document.getElementById('title');
+    const priceInput  = document.getElementById('price');
+    const origPriceInput = document.getElementById('origPrice');
+    const yardsInput  = document.getElementById('yards');
+    const descInput   = document.getElementById('desc');
+
+    const errTitle = document.getElementById('err_title');
+    const errPrice = document.getElementById('err_price');
+    const errYards = document.getElementById('err_yards');
+
+    const contentSelect = document.getElementById('content');
+    const fabricSelect  = document.getElementById('fabric');
+    const colorFamilySelect = document.getElementById('colorFamily');
+    const patternSelect = document.getElementById('pattern');
+    const deptSelect    = document.getElementById('dept');
+    const fiberTypeSelect = document.getElementById('fiberType');
+    const originSelect  = document.getElementById('origin');
+    const widthInput    = document.getElementById('width');
+    const gsmInput      = document.getElementById('gsm');
+    const designerInput = document.getElementById('designer');
+    const feelsLikeGroup = document.getElementById('feelsLikeGroup');
+
+    const reviewMedia = document.getElementById('reviewMedia');
+    const reviewKv    = document.getElementById('reviewKv');
+    const agreeSell   = document.getElementById('agreeSell');
+    const errAgree    = document.getElementById('err_agree');
+
+    const stepPanels = Array.from(document.querySelectorAll('.step'));
+    const bubbles    = Array.from(stepper.querySelectorAll('.bubble'));
+
+    function setStep(n){
+      state.step = n;
+      stepPanels.forEach((panel, idx)=>{
+        panel.hidden = (idx+1 !== n);
+      });
+      bubbles.forEach(b=>{
+        const s = Number(b.dataset.step);
+        b.setAttribute('data-active', s === n ? 'true' : 'false');
+      });
+      if(n === 1){
+        stageTitle.textContent = 'Step 1 — Photos & Video';
+      } else if(n === 2){
+        stageTitle.textContent = 'Step 2 — Details';
+      } else {
+        stageTitle.textContent = 'Step 3 — Review & Publish';
+      }
+      backBtn.disabled = (n === 1);
+      nextBtn.textContent = (n === 3 ? 'Publish' : 'Next');
+      updateNextDisabled();
+    }
+
+    function updateNextDisabled(){
       if(state.step === 1){
-        if(!validateStep1()) return;
-        setStep(2);
-      }else if(state.step === 2){
-        if(!validateStep2()) return;
-        buildPreview();
-        setStep(3);
-      }else if(state.step === 3){
-        publishListing(user);
+        nextBtn.disabled = state.photos.length === 0;
+      } else {
+        nextBtn.disabled = false;
+      }
+    }
+
+    // ---- Photo handling ----
+    function renderPhotos(){
+      photoThumbs.innerHTML = '';
+      state.photos.forEach((file, idx)=>{
+        const ph = document.createElement('div');
+        ph.className = 'ph';
+        const img = document.createElement('img');
+        const url = URL.createObjectURL(file);
+        img.src = url;
+        img.onload = () => URL.revokeObjectURL(url);
+        if(idx === 0){
+          const badge = document.createElement('div');
+          badge.className = 'ph-label';
+          badge.textContent = 'Cover photo';
+          ph.appendChild(badge);
+        }
+        ph.appendChild(img);
+        photoThumbs.appendChild(ph);
+      });
+      updateNextDisabled();
+    }
+
+    function addPhotoFiles(fileList){
+      const files = Array.from(fileList || []);
+      if(!files.length) return;
+      const remaining = Math.max(0, 8 - state.photos.length);
+      const toAdd = files.slice(0, remaining);
+      state.photos = state.photos.concat(toAdd);
+      photoError.style.display = 'none';
+      photoDrop.classList.remove('invalid');
+      renderPhotos();
+    }
+
+    // Drag & drop for photos
+    if(photoDrop){
+      ['dragenter','dragover'].forEach(evt=>{
+        photoDrop.addEventListener(evt, e=>{
+          e.preventDefault(); e.stopPropagation();
+          photoDrop.classList.add('drag');
+        });
+      });
+      ['dragleave','drop'].forEach(evt=>{
+        photoDrop.addEventListener(evt, e=>{
+          e.preventDefault(); e.stopPropagation();
+          photoDrop.classList.remove('drag');
+        });
+      });
+      photoDrop.addEventListener('drop', e=>{
+        addPhotoFiles(e.dataTransfer.files);
+      });
+    }
+    if(photoInput){
+      photoInput.addEventListener('change', e=>{
+        addPhotoFiles(e.target.files);
+        photoInput.value = '';
+      });
+    }
+
+    // ---- Video handling ----
+    function renderVideo(){
+      videoThumb.innerHTML = '';
+      if(!state.video) return;
+      const ph = document.createElement('div');
+      ph.className = 'ph';
+      const vid = document.createElement('video');
+      vid.controls = true;
+      const url = URL.createObjectURL(state.video);
+      vid.src = url;
+      vid.onloadeddata = () => URL.revokeObjectURL(url);
+      const badge = document.createElement('div');
+      badge.className = 'ph-label';
+      badge.textContent = 'Video';
+      ph.appendChild(badge);
+      ph.appendChild(vid);
+      videoThumb.appendChild(ph);
+    }
+
+    if(videoDrop){
+      ['dragenter','dragover'].forEach(evt=>{
+        videoDrop.addEventListener(evt, e=>{
+          e.preventDefault(); e.stopPropagation();
+          videoDrop.classList.add('drag');
+        });
+      });
+      ['dragleave','drop'].forEach(evt=>{
+        videoDrop.addEventListener(evt, e=>{
+          e.preventDefault(); e.stopPropagation();
+          videoDrop.classList.remove('drag');
+        });
+      });
+      videoDrop.addEventListener('drop', e=>{
+        const files = Array.from(e.dataTransfer.files || []).filter(f=>f.type.startsWith('video/'));
+        if(files[0]){
+          state.video = files[0];
+          renderVideo();
+        }
+      });
+    }
+    if(videoInput){
+      videoInput.addEventListener('change', e=>{
+        const files = Array.from(e.target.files || []).filter(f=>f.type.startsWith('video/'));
+        if(files[0]){
+          state.video = files[0];
+          renderVideo();
+        }
+        videoInput.value = '';
+      });
+    }
+
+    // ---- Validation for Step 2 ----
+    function validateStep2(){
+      let ok = true;
+
+      const title = (titleInput.value || '').trim();
+      const price = parseFloat(priceInput.value);
+      const yards = parseFloat(yardsInput.value);
+
+      // reset
+      [titleInput, priceInput, yardsInput].forEach(el=>el.classList.remove('invalid'));
+      [errTitle, errPrice, errYards].forEach(el=>el.style.display='none');
+
+      if(!title){
+        ok = false;
+        titleInput.classList.add('invalid');
+        errTitle.style.display = 'block';
+      }
+      if(!(price > 0)){
+        ok = false;
+        priceInput.classList.add('invalid');
+        errPrice.style.display = 'block';
+      }
+      if(!(yards > 0)){
+        ok = false;
+        yardsInput.classList.add('invalid');
+        errYards.style.display = 'block';
+      }
+      return ok;
+    }
+
+    // ---- Build review (Step 3) ----
+    function buildReview(){
+      reviewMedia.innerHTML = '';
+      reviewKv.innerHTML = '';
+
+      // Photos
+      state.photos.forEach((file, idx)=>{
+        const ph = document.createElement('div');
+        ph.className = 'ph';
+        const img = document.createElement('img');
+        const url = URL.createObjectURL(file);
+        img.src = url;
+        img.onload = () => URL.revokeObjectURL(url);
+        if(idx === 0){
+          const badge = document.createElement('div');
+          badge.className = 'ph-label';
+          badge.textContent = 'Cover';
+          ph.appendChild(badge);
+        }
+        ph.appendChild(img);
+        reviewMedia.appendChild(ph);
+      });
+
+      // Video badge only
+      if(state.video){
+        const ph = document.createElement('div');
+        ph.className = 'ph';
+        const badge = document.createElement('div');
+        badge.className = 'ph-label';
+        badge.textContent = 'Video';
+        ph.appendChild(badge);
+        reviewMedia.appendChild(ph);
+      }
+
+      function addRow(k,v){
+        const key = document.createElement('div');
+        key.className = 'kv-key';
+        key.textContent = k;
+        const val = document.createElement('div');
+        val.className = 'kv-val';
+        val.textContent = v || '—';
+        reviewKv.appendChild(key);
+        reviewKv.appendChild(val);
+      }
+
+      addRow('title', (titleInput.value || '').trim());
+      addRow('price', priceInput.value ? `$${priceInput.value}` : '');
+      addRow('orig price', origPriceInput.value ? `$${origPriceInput.value}` : '');
+      addRow('yards', yardsInput.value || '');
+      addRow('desc', (descInput.value || '').trim());
+      addRow('content', contentSelect.value);
+      addRow('fabric', fabricSelect.value);
+      addRow('color', colorFamilySelect.value);
+      addRow('pattern', patternSelect.value);
+      addRow('dept', deptSelect.value);
+      addRow('fiber type', fiberTypeSelect.value);
+      addRow('origin', originSelect.value);
+      addRow('width', widthInput.value);
+      addRow('gsm', gsmInput.value);
+      addRow('designer', designerInput.value);
+
+      const feelsSelected = Array.from(
+        feelsLikeGroup.querySelectorAll('input[name="feelsLike"]:checked')
+      ).map(cb=>cb.value.replace(/^Feels like\s*/i,''));
+      addRow('feels like', feelsSelected.join(', '));
+    }
+
+    // ---- Draft saving (local only) ----
+    const DRAFT_KEY = 'hm_sell_draft_v1';
+
+    function saveDraft(){
+      const feelsSelected = Array.from(
+        feelsLikeGroup.querySelectorAll('input[name="feelsLike"]:checked')
+      ).map(cb=>cb.value);
+
+      const draft = {
+        title: titleInput.value,
+        price: priceInput.value,
+        origPrice: origPriceInput.value,
+        yards: yardsInput.value,
+        desc: descInput.value,
+        content: contentSelect.value,
+        fabric: fabricSelect.value,
+        colorFamily: colorFamilySelect.value,
+        pattern: patternSelect.value,
+        dept: deptSelect.value,
+        fiberType: fiberTypeSelect.value,
+        origin: originSelect.value,
+        width: widthInput.value,
+        gsm: gsmInput.value,
+        designer: designerInput.value,
+        feelsLike: feelsSelected
+      };
+      try{
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        alert('Draft saved in this browser.');
+      }catch(e){
+        console.error(e);
+        alert('Could not save draft locally.');
+      }
+    }
+
+    function restoreDraft(){
+      try{
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if(!raw) return;
+        const d = JSON.parse(raw);
+        if(!d) return;
+
+        titleInput.value = d.title || '';
+        priceInput.value = d.price || '';
+        origPriceInput.value = d.origPrice || '';
+        yardsInput.value = d.yards || '';
+        descInput.value = d.desc || '';
+        contentSelect.value = d.content || '';
+        fabricSelect.value = d.fabric || '';
+        colorFamilySelect.value = d.colorFamily || '';
+        patternSelect.value = d.pattern || '';
+        deptSelect.value = d.dept || '';
+        fiberTypeSelect.value = d.fiberType || '';
+        originSelect.value = d.origin || '';
+        widthInput.value = d.width || '';
+        gsmInput.value = d.gsm || '';
+        designerInput.value = d.designer || '';
+
+        const feelsSet = new Set(d.feelsLike || []);
+        feelsLikeGroup.querySelectorAll('input[name="feelsLike"]').forEach(cb=>{
+          cb.checked = feelsSet.has(cb.value);
+        });
+      }catch(e){
+        console.error('Error restoring draft', e);
+      }
+    }
+
+    // ---- Publish ----
+    async function publishListing(){
+      if(!agreeSell.checked){
+        errAgree.style.display = 'block';
+        agreeSell.focus();
+        return;
+      }
+      errAgree.style.display = 'none';
+
+      const title = (titleInput.value || '').trim();
+      const price = parseFloat(priceInput.value) || 0;
+      const yards = parseFloat(yardsInput.value);
+      const desc  = (descInput.value || '').trim();
+
+      const payload = {
+        seller_id: user.id,
+        title,
+        description: desc || null,
+        price_cents: Math.round(price * 100),
+        // We'll try to send yards; if the column doesn't exist, Supabase will throw and we'll handle it.
+        yards: isNaN(yards) ? null : yards,
+        status: 'active'
+      };
+
+      const originalText = nextBtn.textContent;
+      nextBtn.textContent = 'Publishing…';
+      nextBtn.disabled = true;
+      backBtn.disabled = true;
+      saveDraftBtn.disabled = true;
+
+      try{
+        let { error } = await supabaseClient
+          .from('listings_public')
+          .insert(payload);
+
+        // Fallback if yards column doesn't exist
+        if (error && error.message && error.message.includes('yards')){
+          console.warn('Retrying insert without yards column:', error.message);
+          const { yards, ...rest } = payload;
+          ({ error } = await supabaseClient
+            .from('listings_public')
+            .insert(rest));
+        }
+
+        if(error){
+          console.error('Publish error', error);
+          alert('Sorry, something went wrong while publishing.\n\n' + (error.message || ''));
+        }else{
+          try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+          alert('Listing published!');
+          window.location.href = 'browse.html';
+        }
+      }catch(err){
+        console.error(err);
+        alert('Sorry, something went wrong while publishing.');
+      }finally{
+        nextBtn.textContent = originalText;
+        backBtn.disabled = (state.step === 1);
+        saveDraftBtn.disabled = false;
+        updateNextDisabled();
+      }
+    }
+
+    // ---- Button wiring ----
+    backBtn.addEventListener('click', ()=>{
+      if(state.step > 1){
+        setStep(state.step - 1);
       }
     });
 
-    // Re-validate when typing/changing
-    ['input','change'].forEach(ev=>{
-      dom.title.addEventListener(ev, validateCurrentStep);
-      dom.price.addEventListener(ev, validateCurrentStep);
-      dom.yards.addEventListener(ev, validateCurrentStep);
-      dom.agree.addEventListener(ev, validateCurrentStep);
+    nextBtn.addEventListener('click', ()=>{
+      if(state.step === 1){
+        if(!state.photos.length){
+          photoError.style.display = 'block';
+          photoDrop.classList.add('invalid');
+          return;
+        }
+        photoError.style.display = 'none';
+        photoDrop.classList.remove('invalid');
+        setStep(2);
+      } else if(state.step === 2){
+        if(!validateStep2()) return;
+        buildReview();
+        setStep(3);
+      } else {
+        publishListing();
+      }
     });
 
-    dom.saveDraft.addEventListener('click', ()=>{
-      alert('Draft saving is not wired yet, but your listing will be published when you click Publish.');
-    });
+    saveDraftBtn.addEventListener('click', saveDraft);
 
+    // Restore draft if present
+    restoreDraft();
     setStep(1);
   })();
 </script>
+
 </body>
 </html>
