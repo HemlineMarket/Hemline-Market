@@ -61,6 +61,7 @@
       border-radius:10px;
       background:#fff;
       color:#374151;
+      cursor:pointer;
     }
     .hamburger svg{width:22px;height:22px;stroke-width:2}
     .right{display:flex;align-items:center;gap:14px}
@@ -70,6 +71,38 @@
       place-items:center;
     }
     .hm-icon svg{width:26px;height:26px;stroke-width:2}
+
+    /* Account icon + login badge */
+    .hm-account{
+      position:relative;
+      display:inline-grid;
+      place-items:center;
+      width:26px;
+      height:26px;
+    }
+    .hm-account svg{
+      width:26px;
+      height:26px;
+      stroke-width:2;
+      display:block;
+    }
+    .hm-account-badge{
+      position:absolute;
+      bottom:-2px;
+      right:-2px;
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      border:2px solid #fff;
+      background:#d1d5db; /* default / logged-out */
+    }
+    .hm-account.is-logged-in .hm-account-badge{
+      background:#16a34a;
+    }
+    .hm-account.is-logged-out .hm-account-badge{
+      background:#d1d5db;
+    }
+
     .hm-btn-primary{
       background:var(--hm-accent);
       color:#fff;
@@ -79,16 +112,6 @@
       font-weight:700;
       text-decoration:none;
       box-shadow:0 2px 8px rgba(153,27,27,.25);
-    }
-    .cta-header{
-      border:1px solid var(--hm-border);
-      border-radius:999px;
-      padding:7px 14px;
-      font-size:14px;
-      text-decoration:none;
-      color:#111827;
-      background:#fff;
-      font-weight:600;
     }
 
     /* Left drawer */
@@ -130,6 +153,7 @@
       border-radius:8px;
       background:#fff;
       color:#444;
+      cursor:pointer;
     }
 
     /* Overlay for sheet */
@@ -478,7 +502,6 @@
 
     @media (max-width:640px){
       .hm-header .wrap{padding:0 8px}
-      .cta-header{padding:6px 12px;font-size:13px}
       .hm-btn-primary{padding:8px 14px}
     }
   </style>
@@ -530,11 +553,14 @@
         </svg>
       </a>
 
-      <!-- Circle with initials (visible when logged IN) -->
-      <a class="hm-avatar is-hidden" id="headerUser" href="account.html" title="Your account">RK</a>
-
-      <!-- Header login button (visible when logged OUT) -->
-      <a class="cta-header" id="headerLoginBtn" href="auth.html?view=login" aria-label="Log in to Hemline Market">Log in</a>
+      <!-- Account icon with login status -->
+      <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
+        <span class="hm-account-badge" id="headerAccountBadge"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="8" r="3.2"></circle>
+          <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+        </svg>
+      </a>
 
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
@@ -556,7 +582,7 @@
     </button>
   </header>
   <nav>
-    <a href="dashboard.html">Dashboard</a>
+    <a href="account.html">Account</a>
     <a href="atelier.html">My Atelier</a>
     <a href="how.html">How It Works</a>
     <a href="sell.html">Sell Fabric</a>
@@ -738,21 +764,23 @@
       document.body.style.overflow = lock ? 'hidden' : '';
     }
     function openSheet(){
+      if(!sheet) return;
       sheet.classList.add('open');
       sheet.setAttribute('aria-hidden','false');
       overlay.classList.add('show');
       overlay.setAttribute('aria-hidden','false');
-      openBtn.setAttribute('aria-expanded','true');
+      if(openBtn) openBtn.setAttribute('aria-expanded','true');
       lockScroll(true);
     }
     function closeSheet(){
+      if(!sheet) return;
       sheet.classList.remove('open');
       sheet.setAttribute('aria-hidden','true');
       overlay.classList.remove('show');
       overlay.setAttribute('aria-hidden','true');
-      openBtn.setAttribute('aria-expanded','false');
+      if(openBtn) openBtn.setAttribute('aria-expanded','false');
       lockScroll(false);
-      openBtn.focus();
+      if(openBtn) openBtn.focus();
     }
 
     if (openBtn && sheet && closeBtn && overlay){
@@ -825,42 +853,50 @@
 
     loadNewListings();
 
-    // ----- Header session state (stay logged in across pages) -----
-    const headerLoginBtn = document.getElementById('headerLoginBtn');
-    const headerUser     = document.getElementById('headerUser');
-    const heroAuthCtas   = document.getElementById('heroAuthCtas');
+    // ----- Header session state (account icon + hero CTAs) -----
+    const headerAccountLink = document.getElementById('headerAccountLink');
+    const heroAuthCtas      = document.getElementById('heroAuthCtas');
 
-    if (window.supabase && headerLoginBtn && headerUser) {
+    if (window.supabase && headerAccountLink) {
       const supabaseClient = window.supabase.createClient(
         "https://clkizksbvxjkoatdajgd.supabase.co",
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
       );
 
-      function applyUserToHeader(user) {
-        if (user) {
-          // For now, force your initials so it matches Account page
-          headerUser.textContent = "RK";
-          headerUser.classList.remove('is-hidden');
-          headerLoginBtn.classList.add('is-hidden');
-          if (heroAuthCtas) heroAuthCtas.classList.add('is-hidden');
-        } else {
-          headerUser.classList.add('is-hidden');
-          headerLoginBtn.classList.remove('is-hidden');
-          if (heroAuthCtas) heroAuthCtas.classList.remove('is-hidden');
+      function applySession(session){
+        const user = session && session.user;
+
+        if (headerAccountLink){
+          if (user){
+            headerAccountLink.href = "account.html";
+            headerAccountLink.setAttribute("aria-label","Your account");
+            headerAccountLink.classList.add("is-logged-in");
+            headerAccountLink.classList.remove("is-logged-out");
+          } else {
+            headerAccountLink.href = "auth.html?view=login";
+            headerAccountLink.setAttribute("aria-label","Sign in or manage your account");
+            headerAccountLink.classList.remove("is-logged-in");
+            headerAccountLink.classList.add("is-logged-out");
+          }
+        }
+
+        if (heroAuthCtas){
+          if (user) heroAuthCtas.classList.add('is-hidden');
+          else      heroAuthCtas.classList.remove('is-hidden');
         }
       }
 
       (async () => {
         try {
           const { data:{ session } } = await supabaseClient.auth.getSession();
-          applyUserToHeader(session?.user || null);
+          applySession(session);
         } catch (e) {
           console.warn("Header session check failed:", e);
         }
       })();
 
       supabaseClient.auth.onAuthStateChange((_event, session) => {
-        applyUserToHeader(session?.user || null);
+        applySession(session);
       });
     }
   })();
