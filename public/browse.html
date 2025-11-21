@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <title>Browse — Hemline Market</title>
 <style>
 :root{
@@ -20,14 +20,18 @@ body{
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;
 }
+img,svg,video{max-width:100%;height:auto;display:block}
+button{font-family:inherit}
 
-/* HEADER */
+/* HEADER (match sell.html) */
 .hm-header{
   min-height:56px;
   background:#fff;
   border-bottom:1px solid var(--border);
+  position:relative;
+  z-index:101;
 }
-.hm-wrap{
+.hm-header .wrap{
   max-width:1200px;
   margin:0 auto;
   padding:0 12px;
@@ -55,6 +59,7 @@ body{
   border-radius:10px;
   background:#fff;
   color:#374151;
+  cursor:pointer;
 }
 .hamburger svg{
   width:22px;
@@ -77,22 +82,7 @@ body{
   stroke-width:2;
 }
 
-/* Old avatar left for backward compatibility (not used now) */
-.hm-avatar{
-  width:28px;
-  height:28px;
-  border-radius:50%;
-  border:1px solid var(--border);
-  background:#fff;
-  color:#334155;
-  display:inline-grid;
-  place-items:center;
-  font-weight:700;
-  font-size:12px;
-  text-decoration:none;
-}
-
-/* Account icon + login badge */
+/* Account icon + login badge (same as sell.html) */
 .hm-account{
   position:relative;
   display:inline-grid;
@@ -134,32 +124,7 @@ body{
   box-shadow:0 2px 8px rgba(153,27,27,.25);
 }
 
-/* FOOTER */
-.hm-footer{
-  background:#fff;
-  border-top:1px solid var(--border);
-}
-.footer-wrap{
-  max-width:1200px;
-  margin:0 auto;
-  padding:10px 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.footer-links{
-  display:flex;
-  gap:14px;
-  flex-wrap:wrap;
-}
-.copy{
-  color:#6b7280;
-  font-size:14px;
-}
-
-/* LEFT SHEET MENU */
+/* LEFT SHEET MENU (same structure as sell.html) */
 .sheet{
   position:fixed;
   inset:0 auto 0 0;
@@ -205,10 +170,22 @@ body{
   border-radius:8px;
   background:#fff;
   color:#444;
+  cursor:pointer;
 }
 
-/* MAIN LAYOUT */
-.wrap{
+/* Overlay for sheet (same as sell.html) */
+#sheetOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.25);
+  backdrop-filter:blur(1px);
+  display:none;
+  z-index:90;
+}
+#sheetOverlay.show{display:block}
+
+/* MAIN LAYOUT (rename to avoid clash with header .wrap) */
+.browse-wrap{
   max-width:1100px;
   margin:18px auto 28px;
   padding:0 12px;
@@ -469,14 +446,40 @@ body{
   font-weight:700;
   cursor:pointer;
 }
+
+/* FOOTER (match sell.html) */
+.hm-footer{
+  background:#fff;
+  border-top:1px solid var(--border);
+}
+.footer-wrap{
+  max-width:1200px;
+  margin:0 auto;
+  padding:10px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.footer-links{
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+}
+.copy{
+  color:#6b7280;
+  font-size:14px;
+}
 </style>
 </head>
 <body>
 
 <header class="hm-header" role="banner">
-  <div class="hm-wrap">
+  <div class="wrap">
     <div class="left">
-      <button id="openMenu" class="hamburger" aria-label="Open menu">
+      <button id="openMenu" class="hamburger" type="button"
+              aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
           <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
@@ -517,7 +520,10 @@ body{
       </a>
 
       <!-- Account icon with login status -->
-      <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
+      <a class="hm-icon hm-account is-logged-out"
+         id="headerAccountLink"
+         href="auth.html?view=login"
+         aria-label="Sign in or manage your account">
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="8" r="3.2"></circle>
@@ -530,7 +536,10 @@ body{
   </div>
 </header>
 
-<aside class="sheet" id="menuSheet" aria-hidden="true">
+<!-- OVERLAY + LEFT MENU (match sell.html) -->
+<div id="sheetOverlay" aria-hidden="true"></div>
+
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
   <header>
     <strong>Menu</strong>
     <button class="close" id="closeMenu" aria-label="Close menu">
@@ -541,16 +550,16 @@ body{
     </button>
   </header>
   <nav>
-    <a href="browse.html">Browse</a>
-    <a href="sell.html">Sell Fabric</a>
-    <a href="atelier.html">My Atelier</a>
     <a href="account.html">Account</a>
+    <a href="atelier.html">My Atelier</a>
     <a href="how.html">How It Works</a>
+    <a href="sell.html">Sell Fabric</a>
+    <a href="ThreadTalk.html">ThreadTalk</a>
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
 
-<main class="wrap">
+<main class="browse-wrap">
   <div class="topbar">
     <input id="q" type="search" placeholder="Search fabrics…"/>
     <button id="doSearch" type="button">Search</button>
@@ -754,7 +763,45 @@ body{
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-/* Header menu + Supabase session badge */
+// Hamburger / overlay (copied from sell.html)
+(function(){
+  const sheet    = document.getElementById('menuSheet');
+  const openBtn  = document.getElementById('openMenu');
+  const closeBtn = document.getElementById('closeMenu');
+  const overlay  = document.getElementById('sheetOverlay');
+
+  function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+  function openSheet(){
+    if(!sheet) return;
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden','false');
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden','false');
+    if(openBtn) openBtn.setAttribute('aria-expanded','true');
+    lockScroll(true);
+  }
+  function closeSheet(){
+    if(!sheet) return;
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden','true');
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden','true');
+    if(openBtn) openBtn.setAttribute('aria-expanded','false');
+    lockScroll(false);
+    if(openBtn) openBtn.focus();
+  }
+
+  if (openBtn && sheet && closeBtn && overlay){
+    openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+    closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+    overlay.addEventListener('click', closeSheet);
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+  }
+})();
+</script>
+
+<script>
+// Supabase session + account badge (no listing logic)
 const supabaseClient = window.supabase.createClient(
   "https://clkizksbvxjkoatdajgd.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
@@ -776,40 +823,15 @@ function updateHeaderForSession(session){
   }
 }
 
-(function initHeader(){
-  const sheet   = document.getElementById("menuSheet");
-  const openBtn = document.getElementById("openMenu");
-  const closeBtn= document.getElementById("closeMenu");
+// Initial session check
+supabaseClient.auth.getSession().then(({ data:{ session } })=>{
+  updateHeaderForSession(session);
+});
 
-  function open(){
-    if(!sheet) return;
-    sheet.classList.add("open");
-    sheet.setAttribute("aria-hidden","false");
-  }
-  function close(){
-    if(!sheet) return;
-    sheet.classList.remove("open");
-    sheet.setAttribute("aria-hidden","true");
-  }
-
-  if(openBtn){
-    openBtn.addEventListener("click", e=>{e.preventDefault();open();});
-  }
-  if(closeBtn){
-    closeBtn.addEventListener("click", e=>{e.preventDefault();close();});
-  }
-  document.addEventListener("keydown", e=>{ if(e.key==="Escape") close(); });
-
-  // Initial session check
-  supabaseClient.auth.getSession().then(({ data:{ session } })=>{
-    updateHeaderForSession(session);
-  });
-
-  // Live updates if auth state changes
-  supabaseClient.auth.onAuthStateChange((_event, session)=>{
-    updateHeaderForSession(session);
-  });
-})();
+// Live updates if auth state changes
+supabaseClient.auth.onAuthStateChange((_event, session)=>{
+  updateHeaderForSession(session);
+});
 </script>
 
 <script>
@@ -891,7 +913,7 @@ const COLORS = [
   {name:"Orange",hex:"#f27a22"},
   {name:"Yellow",hex:"#f3c321"},
   {name:"Green",hex:"#2f7d32"},
-  {name:"Blue",hex:"#216d"},
+  {name:"Blue",hex:"#2166f3"},
   {name:"Purple",hex:"#6b2da8"},
   {name:"Gold"},
   {name:"Silver"}
