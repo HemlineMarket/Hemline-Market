@@ -37,7 +37,7 @@
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .is-hidden{display:none!important;}
 
-    /* ---------- HEADER (same as browse) ---------- */
+    /* ---------- HEADER (match browse) ---------- */
     .hm-header{
       min-height:56px;
       background:#fff;
@@ -596,7 +596,7 @@
 
           <div class="field">
             <div class="label-row"><label for="yards">Yards</label><span class="req">Required</span></div>
-            <input id="yards" type="number" min="0" step="0.5" placeholder="1.5">
+            <input id="yards" type="number" min="0" step="0.25" placeholder="1.5">
             <div id="err_yards" class="help-error" style="display:none">Enter yards greater than 0.</div>
           </div>
 
@@ -605,8 +605,9 @@
             <textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea>
           </div>
 
-          <!-- Main attribute grid (mirrors browse filters) -->
+          <!-- Main attribute grid -->
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+
             <!-- Content -->
             <div class="field">
               <label for="content">Content</label>
@@ -664,15 +665,9 @@
               </select>
             </div>
 
-            <!-- Color (free text) -->
+            <!-- Color (family only, label just "Color") -->
             <div class="field">
-              <label for="color">Color (name)</label>
-              <input id="color" type="text" placeholder="Navy, camel, cherry red…">
-            </div>
-
-            <!-- Color family -->
-            <div class="field">
-              <label for="colorFamily">Color family (for filters)</label>
+              <label for="colorFamily">Color</label>
               <select id="colorFamily">
                 <option value="">Select…</option>
                 <option>Black</option>
@@ -711,18 +706,6 @@
                 <option>Home</option>
                 <option>Quilting</option>
                 <option>Notions</option>
-              </select>
-            </div>
-
-            <!-- Fiber type -->
-            <div class="field">
-              <label for="fiberType">Fiber type</label>
-              <select id="fiberType">
-                <option value="">Select…</option>
-                <option>Natural</option>
-                <option>Modified Natural</option>
-                <option>Synthetic</option>
-                <option>Blend</option>
               </select>
             </div>
 
@@ -942,302 +925,304 @@
     const stageTitle = document.getElementById('stageTitle');
     const backBtn    = document.getElementById('backBtn');
     const nextBtn    = document.getElementById('nextBtn');
-    const state      =
-    {
-      photos: [],
-      video: null,
-      fields: {}
-    };
+    const state      = { photos:[], video:null, fields:{} };
 
-    /* -------------------- STEP HANDLING -------------------- */
+    // ensure Next starts disabled
+    nextBtn.disabled = true;
 
     function setStep(n){
-      step = n;
-      // update bubbles
+      step = Math.max(1, Math.min(MAX_STEP, n));
+      document.querySelectorAll('.step').forEach((el, i)=>{
+        el.hidden = (i+1) !== step;
+      });
       document.querySelectorAll('.bubble').forEach(b=>{
-        b.dataset.active = (Number(b.dataset.step) === n) ? "true" : "false";
+        b.dataset.active = (Number(b.dataset.step) === step) ? 'true' : '';
       });
-
-      // show/hide step sections
-      document.querySelectorAll('.step').forEach(s=>{
-        s.hidden = !s.classList.contains(`step-${n}`);
-      });
-
-      // update stage title
-      stageTitle.textContent =
-        n === 1 ? "Step 1 — Photos & Video" :
-        n === 2 ? "Step 2 — Details" :
-                  "Step 3 — Review & Publish";
-
-      // back button
-      backBtn.disabled = n === 1;
-
-      // next button logic
-      if(n === MAX_STEP){
-        nextBtn.textContent = "Publish";
-      } else {
-        nextBtn.textContent = "Next";
-      }
-
+      const titles = [
+        'Step 1 — Photos & Video',
+        'Step 2 — Details',
+        'Step 3 — Review & Publish'
+      ];
+      stageTitle.textContent = titles[step-1];
+      backBtn.disabled = (step === 1);
+      nextBtn.textContent = (step === MAX_STEP ? 'Publish' : 'Next');
       validateCurrentStep();
+      if(step === 3) buildReview();
     }
 
+    function enableNext(ok){ nextBtn.disabled = !ok; }
+
+    function validateStep1(){
+      const ok = state.photos.length >= 1;
+      document.getElementById('photoError').style.display = ok ? 'none' : 'block';
+      return ok;
+    }
+    function validateStep2(){
+      const title = document.getElementById('title');
+      const price = document.getElementById('price');
+      const yards = document.getElementById('yards');
+      let ok = true;
+
+      const tGood = !!title.value.trim();
+      title.classList.toggle('invalid', !tGood);
+      document.getElementById('err_title').style.display = tGood ? 'none' : 'block';
+      ok = ok && tGood;
+
+      const pVal  = parseFloat(price.value);
+      const pGood = !isNaN(pVal) && pVal > 0;
+      price.classList.toggle('invalid', !pGood);
+      document.getElementById('err_price').style.display = pGood ? 'none' : 'block';
+      ok = ok && pGood;
+
+      const yVal  = parseFloat(yards.value);
+      const yGood = !isNaN(yVal) && yVal > 0;
+      yards.classList.toggle('invalid', !yGood);
+      document.getElementById('err_yards').style.display = yGood ? 'none' : 'block';
+      ok = ok && yGood;
+
+      return ok;
+    }
+    function validateStep3(){
+      const agree = document.getElementById('agreeSell');
+      const ok = !!(agree && agree.checked);
+      document.getElementById('err_agree').style.display = ok ? 'none' : 'block';
+      return ok;
+    }
     function validateCurrentStep(){
-      if(step === 1){
-        nextBtn.disabled = state.photos.length === 0;
-        return;
-      }
-
-      if(step === 2){
-        const title = document.getElementById('title').value.trim();
-        const price = Number(document.getElementById('price').value);
-        const yards = Number(document.getElementById('yards').value);
-
-        const valid = title.length > 0 && price > 0 && yards > 0;
-        nextBtn.disabled = !valid;
-        return;
-      }
-
-      if(step === 3){
-        const agreed = document.getElementById('agreeSell').checked;
-        nextBtn.disabled = !agreed;
-        return;
-      }
+      if(step === 1) return enableNext(validateStep1());
+      if(step === 2) return enableNext(validateStep2());
+      return enableNext(validateStep3());
     }
 
-    backBtn.addEventListener('click', ()=>{
-      if(step > 1){
-        setStep(step - 1);
-      }
-    });
+    backBtn.addEventListener('click', ()=>setStep(step-1));
 
     nextBtn.addEventListener('click', async ()=>{
+      if(step === 1 && !validateStep1()) return;
+      if(step === 2 && !validateStep2()) return;
+      if(step === 3 && !validateStep3()) return;
+
       if(step < MAX_STEP){
-        // going to next step
-        // collect step 2 fields if leaving step 2
-        if(step === 2){
-          collectFields();
-          buildReview();
+        setStep(step+1);
+      }else{
+        // Publish
+        nextBtn.disabled = true;
+        nextBtn.textContent = 'Publishing…';
+        try{
+          await publishListing(user, state);
+          alert('Listing published.');
+          window.location.href = 'browse.html';
+        }catch(err){
+          console.error(err);
+          alert('Sorry, something went wrong while publishing.');
+        }finally{
+          nextBtn.textContent = 'Publish';
+          nextBtn.disabled = false;
         }
-        setStep(step + 1);
-      } else {
-        // PUBLISH
-        await publishListing();
       }
     });
 
-    /* -------------------- MEDIA HANDLING -------------------- */
+    stepper.addEventListener('click', (e)=>{
+      const b = e.target.closest('.bubble');
+      if(!b) return;
+      const target = Number(b.dataset.step || 1);
+      if(target > step){
+        if(step === 1 && !validateStep1()) return;
+        if(step === 2 && !validateStep2()) return;
+      }
+      setStep(target);
+    });
 
-    const photoInput = document.getElementById('photoInput');
-    const videoInput = document.getElementById('videoInput');
-    const photoDrop  = document.getElementById('photoDrop');
-    const videoDrop  = document.getElementById('videoDrop');
+    // Photos
+    const photoDrop   = document.getElementById('photoDrop');
+    const photoInput  = document.getElementById('photoInput');
     const photoThumbs = document.getElementById('photoThumbs');
-    const videoThumb  = document.getElementById('videoThumb');
 
-    function renderPhotos(){
-      photoThumbs.innerHTML = "";
-      state.photos.forEach((file, idx)=>{
-        const ph = document.createElement('div');
+    function handlePhotoFiles(files){
+      const arr = [...files].slice(0,8);
+      state.photos = arr;
+      photoThumbs.innerHTML = '';
+      arr.forEach(f=>{
+        const url = URL.createObjectURL(f);
+        const ph  = document.createElement('div');
         ph.className = 'ph';
         const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        ph.append(img);
-        photoThumbs.append(ph);
+        img.src = url;
+        ph.appendChild(img);
+        photoThumbs.appendChild(ph);
       });
       validateCurrentStep();
     }
 
-    function renderVideo(){
-      videoThumb.innerHTML = "";
-      if(state.video){
-        const ph = document.createElement('div');
-        ph.className = 'ph';
-        const vid = document.createElement('video');
-        vid.src = URL.createObjectURL(state.video);
-        vid.controls = true;
-        ph.append(vid);
-        videoThumb.append(ph);
-      }
+    photoInput.addEventListener('change', e=>handlePhotoFiles(e.target.files));
+    ['dragenter','dragover'].forEach(ev=>{
+      photoDrop.addEventListener(ev, e=>{ e.preventDefault(); photoDrop.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      photoDrop.addEventListener(ev, e=>{ e.preventDefault(); photoDrop.classList.remove('drag'); });
+    });
+    photoDrop.addEventListener('drop', e=>handlePhotoFiles(e.dataTransfer.files));
+
+    // Video (optional, not wired to DB yet)
+    const videoDrop  = document.getElementById('videoDrop');
+    const videoInput = document.getElementById('videoInput');
+    const videoThumb = document.getElementById('videoThumb');
+
+    function handleVideoFile(file){
+      state.video = file || null;
+      videoThumb.innerHTML = '';
+      if(!file) return;
+      const url = URL.createObjectURL(file);
+      const ph  = document.createElement('div');
+      ph.className = 'ph';
+      const vid = document.createElement('video');
+      vid.src = url;
+      vid.controls = true;
+      vid.muted = true;
+      ph.appendChild(vid);
+      videoThumb.appendChild(ph);
     }
 
-    photoInput.addEventListener('change', e=>{
-      const files = Array.from(e.target.files);
-      state.photos.push(...files.slice(0, 8 - state.photos.length));
-      renderPhotos();
+    videoInput.addEventListener('change', e=>handleVideoFile(e.target.files[0]));
+    ['dragenter','dragover'].forEach(ev=>{
+      videoDrop.addEventListener(ev, e=>{ e.preventDefault(); videoDrop.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      videoDrop.addEventListener(ev, e=>{ e.preventDefault(); videoDrop.classList.remove('drag'); });
+    });
+    videoDrop.addEventListener('drop', e=>handleVideoFile(e.dataTransfer.files[0]));
+
+    // Validate as user types
+    ['title','price','yards'].forEach(id=>{
+      const el = document.getElementById(id);
+      el && el.addEventListener('input', validateCurrentStep);
+    });
+    document.addEventListener('change', e=>{
+      if(e.target && e.target.id === 'agreeSell') validateCurrentStep();
     });
 
-    videoInput.addEventListener('change', e=>{
-      const file = e.target.files[0];
-      if(file){
-        state.video = file;
-      }
-      renderVideo();
-    });
-
-    /* Drag-drop */
-    function makeDropZone(el, onFiles){
-      el.addEventListener('dragover', e=>{
-        e.preventDefault();
-        el.classList.add('drag');
-      });
-      el.addEventListener('dragleave', e=>{
-        el.classList.remove('drag');
-      });
-      el.addEventListener('drop', e=>{
-        e.preventDefault();
-        el.classList.remove('drag');
-        const files = Array.from(e.dataTransfer.files);
-        onFiles(files);
-      });
+    function read(id){
+      const el = document.getElementById(id);
+      return el ? (el.value || '').trim() : '';
     }
 
-    makeDropZone(photoDrop, files=>{
-      state.photos.push(...files.slice(0, 8 - state.photos.length));
-      renderPhotos();
-    });
-
-    makeDropZone(videoDrop, files=>{
-      state.video = files[0] || null;
-      renderVideo();
-    });
-
-    /* -------------------- STEP 2 FIELD COLLECTION -------------------- */
-
-    function collectFields(){
-      const feelsBoxes = [...document.querySelectorAll('input[name="feelsLike"]:checked')].map(b=>b.value);
-
-      state.fields = {
-        title: document.getElementById('title').value.trim(),
-        price: Number(document.getElementById('price').value),
-        orig_price: Number(document.getElementById('origPrice').value) || null,
-        yards: Number(document.getElementById('yards').value),
-        description: document.getElementById('desc').value.trim(),
-        content: document.getElementById('content').value,
-        fabric: document.getElementById('fabric').value,
-        color: document.getElementById('color').value.trim(),
-        color_family: document.getElementById('colorFamily').value,
-        pattern: document.getElementById('pattern').value,
-        dept: document.getElementById('dept').value,
-        fiber_type: document.getElementById('fiberType').value,
-        origin: document.getElementById('origin').value,
-        width: Number(document.getElementById('width').value) || null,
-        gsm: Number(document.getElementById('gsm').value) || null,
-        designer: document.getElementById('designer').value.trim(),
-        feels_like: feelsBoxes
-      };
+    function readFeelsLike(){
+      return Array.from(document.querySelectorAll('input[name="feelsLike"]:checked'))
+        .map(cb => cb.value);
     }
-
-    /* -------------------- REVIEW (STEP 3) -------------------- */
 
     function buildReview(){
-      // media preview
-      const reviewMedia = document.getElementById('reviewMedia');
-      reviewMedia.innerHTML = "";
-      state.photos.forEach(file=>{
-        const ph = document.createElement('div');
+      state.fields = {
+        title: read('title'),
+        price: read('price'),
+        msrpPerYd: read('origPrice'),
+        yards: read('yards'),
+        desc: read('desc'),
+        content: read('content'),
+        fabric: read('fabric'),
+        colorFamily: read('colorFamily'),
+        pattern: read('pattern'),
+        dept: read('dept'),
+        origin: read('origin'),
+        designer: read('designer'),
+        width: read('width'),
+        gsm: read('gsm'),
+        feelsLike: readFeelsLike().join(', ')
+      };
+
+      const media = document.getElementById('reviewMedia');
+      media.innerHTML = '';
+      state.photos.forEach(f=>{
+        const url = URL.createObjectURL(f);
+        const ph  = document.createElement('div');
         ph.className = 'ph';
         const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        ph.append(img);
-        reviewMedia.append(ph);
+        img.src = url;
+        ph.appendChild(img);
+        media.appendChild(ph);
       });
       if(state.video){
-        const ph = document.createElement('div');
+        const url = URL.createObjectURL(state.video);
+        const ph  = document.createElement('div');
         ph.className = 'ph';
         const vid = document.createElement('video');
-        vid.src = URL.createObjectURL(state.video);
+        vid.src = url;
         vid.controls = true;
-        ph.append(vid);
-        reviewMedia.append(ph);
+        vid.muted = true;
+        ph.appendChild(vid);
+        media.appendChild(ph);
       }
 
-      // key-values
       const kv = document.getElementById('reviewKv');
-      kv.innerHTML = "";
-      Object.entries(state.fields).forEach(([k, v])=>{
-        const row = document.createElement('div');
-        row.style.display = "contents";
-        const key = document.createElement('div');
-        key.textContent = k.replace(/_/g, " ");
-        const val = document.createElement('div');
-        val.textContent = Array.isArray(v) ? v.join(", ") : (v ?? "");
-        row.append(key, val);
-        kv.append(row);
+      kv.innerHTML = '';
+      const friendly = {
+        title:'title',
+        price:'price',
+        msrpPerYd:'orig price',
+        yards:'yards',
+        desc:'description',
+        content:'content',
+        fabric:'fabric',
+        colorFamily:'color',
+        pattern:'pattern',
+        dept:'dept',
+        origin:'origin',
+        designer:'designer',
+        width:'width',
+        gsm:'gsm',
+        feelsLike:'feels like'
+      };
+      Object.entries(state.fields).forEach(([k,v])=>{
+        const keyEl = document.createElement('div');
+        keyEl.textContent = friendly[k] || k;
+        const valEl = document.createElement('div');
+        valEl.textContent = v || '—';
+        kv.appendChild(keyEl);
+        kv.appendChild(valEl);
       });
     }
 
-    /* -------------------- PUBLISH -------------------- */
-
-    async function uploadToBucket(bucket, file){
-      const ext = file.name.split('.').pop();
-      const path = `${session.user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabaseClient.storage.from(bucket).upload(path, file);
-      if(error) throw error;
-      const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
-      return data.publicUrl;
-    }
-
-    async function publishListing(){
-      nextBtn.disabled = true;
-
-      // 1) Upload photos
-      let photo_urls = [];
-      for(const f of state.photos){
-        photo_urls.push(await uploadToBucket("listing-images", f));
+    document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
+      try{
+        const data = {
+          fields: state.fields,
+          ts: Date.now()
+        };
+        localStorage.setItem('hm.draft.listing', JSON.stringify(data));
+        alert('Draft saved locally.');
+      }catch(e){
+        alert('Unable to save draft.');
       }
+    });
 
-      // 2) Upload video (optional)
-      let video_url = null;
-      if(state.video){
-        video_url = await uploadToBucket("listing-media", state.video);
-      }
+    async function publishListing(user, state){
+      // Minimal publish: insert row into public.listings_public.
+      const title = read('title');
+      const price = parseFloat(read('price') || '0');
+      const yards = parseFloat(read('yards') || '0');
+      const desc  = read('desc');
 
-      // 3) Insert listing
-      const { data, error } = await supabaseClient
-        .from("listings")
+      const priceCents = Math.round(price * 100);
+
+      const { error } = await supabaseClient
+        .from('listings_public')
         .insert({
-          seller_id: session.user.id,
-          title: state.fields.title,
-          description: state.fields.description,
-          price_cents: Math.round(state.fields.price * 100),
-          orig_price_cents: state.fields.orig_price ? Math.round(state.fields.orig_price * 100) : null,
-          yards: state.fields.yards,
-          content: state.fields.content,
-          fabric_type: state.fields.fabric,
-          color_name: state.fields.color,
-          color_family: state.fields.color_family,
-          pattern: state.fields.pattern,
-          dept: state.fields.dept,
-          fiber_type: state.fields.fiber_type,
-          origin: state.fields.origin,
-          width: state.fields.width,
-          gsm: state.fields.gsm,
-          designer: state.fields.designer,
-          feels_like: state.fields.feels_like,
-          photo_urls,
-          video_url,
-          status: "active"
-        })
-        .select()
-        .single();
+          seller_id: user.id,
+          title,
+          description: desc || null,
+          price_cents: priceCents,
+          yards: isNaN(yards) ? null : yards,
+          // status will use default (likely 'active')
+        });
 
       if(error){
-        alert("Error publishing listing: " + error.message);
-        nextBtn.disabled = false;
-        return;
+        throw error;
       }
-
-      // 4) Redirect to newly created listing page
-      window.location.href = `listing.html?id=${data.id}`;
     }
 
-    // initial validate
-    validateCurrentStep();
-
+    // Start on step 1
+    setStep(1);
   })();
 </script>
 
 </body>
 </html>
-  
