@@ -93,6 +93,24 @@
       font-weight:600;
     }
 
+    /* Account icon with status dot */
+    .hm-account{
+      position:relative;
+    }
+    .hm-account-badge{
+      position:absolute;
+      bottom:2px;
+      right:2px;
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      border:2px solid #fff;
+      background:#d1d5db; /* logged out / unknown */
+    }
+    .hm-account.is-logged-in .hm-account-badge{
+      background:#16a34a; /* logged in */
+    }
+
     .hm-avatar{
       width:28px;
       height:28px;
@@ -388,6 +406,12 @@
       margin-top:6px;
     }
 
+    .field-error{
+      font-size:12px;
+      color:#b91c1c;
+      margin-top:2px;
+    }
+
     /* Vacation + security */
     .toggle-row{
       display:flex;
@@ -459,11 +483,14 @@
         </svg>
       </a>
 
-      <!-- Circle with initials (visible when logged IN) -->
-      <a class="hm-avatar is-hidden" id="headerUser" href="account.html" title="Your account">HM</a>
-
-      <!-- Header login button (visible when logged OUT) -->
-      <a class="cta-header" id="headerLoginBtn" href="auth.html?view=login" aria-label="Log in to Hemline Market">Log in</a>
+      <!-- Account icon with status dot (gray = logged out, green = logged in) -->
+      <a class="hm-icon hm-account" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
+        <span class="hm-account-badge" id="headerAccountBadge"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="8" r="3.2"></circle>
+          <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+        </svg>
+      </a>
 
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
@@ -559,7 +586,15 @@
           <div class="field-row">
             <div class="field">
               <label for="storeName">Store name</label>
-              <input id="storeName" name="storeName" type="text" placeholder="Aurora, Espresso Studio…">
+              <input id="storeName" name="storeName" type="text" placeholder="Aurora Atelier, Espresso Studio…">
+              <p class="muted-small" id="storeNameHint">
+                This becomes your shop link. Use letters, numbers, spaces, apostrophes, and hyphens.
+              </p>
+              <p class="muted-small" id="storeSlugPreviewRow">
+                Store link preview:
+                <code>hemline.market/shop/<span id="storeSlugPreview">your-shop</span></code>
+              </p>
+              <p class="field-error" id="storeNameError"></p>
             </div>
           </div>
           <div class="field-row">
@@ -695,7 +730,9 @@
     <div class="hm-card-header" id="securityHeading">Security</div>
     <div class="hm-card-body">
       <p class="muted-small" style="margin-top:0;">
-        For now, password changes happen through your email. We’ll add a dedicated security page later.
+        Hemline Market passwords must be at least 8 characters and include at least one letter and one number or symbol.
+        For now, password changes happen through your email provider’s reset link for the account you used to sign up.
+        We’ll add a dedicated security page later.
       </p>
       <button class="btn" type="button" id="btnChangePassword">Change password</button>
     </div>
@@ -781,6 +818,50 @@
     return initialsFromEmail(email);
   }
 
+  // Turn a store name into a URL-safe slug for the shop link
+  function slugifyStoreName(raw){
+    if(!raw) return "";
+    let slug = raw
+      .trim()
+      .toLowerCase()
+      .replace(/['’]/g,"")          // drop apostrophes in the link
+      .replace(/[^a-z0-9]+/g,"-")   // non-allowed -> hyphen
+      .replace(/^-+|-+$/g,"");      // trim hyphens
+    return slug;
+  }
+
+  // Validate store name for use as a link
+  function validateStoreName(raw){
+    raw = (raw || "").trim();
+    if(!raw){
+      // Store name is optional; empty is allowed
+      return { ok:true, slug:"" };
+    }
+    const slug = slugifyStoreName(raw);
+    if(slug.length < 3){
+      return {
+        ok:false,
+        slug,
+        message:"Store name is too short. Use at least 3 characters with letters or numbers."
+      };
+    }
+    if(slug.length > 40){
+      return {
+        ok:false,
+        slug,
+        message:"Store name is too long. Try 40 characters or fewer."
+      };
+    }
+    if(!/^[a-z0-9\-]+$/.test(slug)){
+      return {
+        ok:false,
+        slug,
+        message:"Use only letters, numbers, and hyphens for your store link."
+      };
+    }
+    return { ok:true, slug };
+  }
+
   async function ensureSession({maxWaitMs=3000} = {}){
     let { data:{ session } } = await supabaseClient.auth.getSession();
     if(session?.user) return session;
@@ -793,11 +874,12 @@
   }
 
   (async function initAccount(){
-    const headerLoginBtn = document.getElementById('headerLoginBtn');
-    const headerUser     = document.getElementById('headerUser');
+    const headerAccountLink  = document.getElementById('headerAccountLink');
+    const headerAccountBadge = document.getElementById('headerAccountBadge');
 
     const session = await ensureSession();
     if(!session || !session.user){
+      // Not logged in: go to login view
       window.location.href = "auth.html?view=login";
       return;
     }
@@ -806,10 +888,11 @@
     const email = user.email || "you@example.com";
     const userId = user.id;
 
-    // Header visibility (text gets set after we load profile)
-    if(headerUser && headerLoginBtn){
-      headerUser.classList.remove('is-hidden');
-      headerLoginBtn.classList.add('is-hidden');
+    // Header: logged-in state (green dot, link to account)
+    if(headerAccountLink){
+      headerAccountLink.href = "account.html";
+      headerAccountLink.setAttribute("aria-label","Your account");
+      headerAccountLink.classList.add("is-logged-in");
     }
 
     // LocalStorage keys
@@ -818,18 +901,22 @@
     const VAC_KEY     = "hm_vacation_" + userId;
 
     // Elements
-    const profileNameEl   = document.getElementById('profileName');
-    const profileEmailEl  = document.getElementById('profileEmail');
-    const profileExtraEl  = document.getElementById('profileExtra');
-    const profileAvatarEl = document.getElementById('profileAvatar');
-    const profileEditor   = document.getElementById('profileEditor');
-    const profileForm     = document.getElementById('profileForm');
+    const profileNameEl        = document.getElementById('profileName');
+    const profileEmailEl       = document.getElementById('profileEmail');
+    const profileExtraEl       = document.getElementById('profileExtra');
+    const profileAvatarEl      = document.getElementById('profileAvatar');
+    const profileEditor        = document.getElementById('profileEditor');
+    const profileForm          = document.getElementById('profileForm');
 
-    const addressDisplay  = document.getElementById('addressDisplay');
-    const addressEditor   = document.getElementById('addressEditor');
-    const addressForm     = document.getElementById('addressForm');
+    const storeNameInput       = document.getElementById('storeName');
+    const storeSlugPreviewEl   = document.getElementById('storeSlugPreview');
+    const storeNameErrorEl     = document.getElementById('storeNameError');
 
-    const vacationToggle  = document.getElementById('vacationToggle');
+    const addressDisplay       = document.getElementById('addressDisplay');
+    const addressEditor        = document.getElementById('addressEditor');
+    const addressForm          = document.getElementById('addressForm');
+
+    const vacationToggle       = document.getElementById('vacationToggle');
 
     profileEmailEl.textContent = email;
 
@@ -840,6 +927,7 @@
       if(raw) profile = JSON.parse(raw) || {};
     }catch(e){ console.warn("Profile parse failed", e); }
 
+    // Compute display name
     if(profile.firstName || profile.lastName){
       profileNameEl.textContent =
         (profile.firstName || "") + (profile.lastName ? (" " + profile.lastName) : "");
@@ -847,8 +935,12 @@
       profileNameEl.textContent = email.split("@")[0] || "Hemline member";
     }
 
+    // Store slug (backfill for old profiles)
+    const existingSlug = profile.storeSlug || slugifyStoreName(profile.storeName || "");
+
     const profileLines = [];
     if(profile.storeName) profileLines.push("Store name: " + profile.storeName);
+    if(existingSlug)      profileLines.push("Store link: hemline.market/shop/" + existingSlug);
     if(profile.bio)       profileLines.push(profile.bio);
     profileExtraEl.textContent = profileLines.join("\n");
 
@@ -857,9 +949,29 @@
     profileAvatarEl.style.backgroundImage = "";
     profileAvatarEl.textContent = avatarInitials;
 
-    // Header initials match profile initials
-    if (headerUser){
-      headerUser.textContent = avatarInitials;
+    // Prefill profile form + slug preview
+    if(profileForm){
+      profileForm.firstName.value = profile.firstName || "";
+      profileForm.lastName.value  = profile.lastName  || "";
+      if(storeNameInput){
+        storeNameInput.value = profile.storeName || "";
+      }
+      if(storeSlugPreviewEl){
+        storeSlugPreviewEl.textContent = existingSlug || "your-shop";
+      }
+      const bioInput = document.getElementById('bio');
+      if(bioInput) bioInput.value = profile.bio || "";
+    }
+
+    // Live slug preview as user types (no hard errors until submit)
+    if(storeNameInput && storeSlugPreviewEl){
+      storeNameInput.addEventListener('input', ()=>{
+        const raw  = storeNameInput.value;
+        const slug = slugifyStoreName(raw);
+        storeSlugPreviewEl.textContent = slug || "your-shop";
+        if(storeNameErrorEl) storeNameErrorEl.textContent = "";
+        storeNameInput.removeAttribute("aria-invalid");
+      });
     }
 
     // ---- Address from storage ----
@@ -930,10 +1042,28 @@
 
     profileForm.addEventListener('submit', (e)=>{
       e.preventDefault();
+
+      const rawStoreName = (storeNameInput ? storeNameInput.value : "").trim();
+      const storeCheck   = validateStoreName(rawStoreName);
+
+      if(!storeCheck.ok){
+        if(storeNameErrorEl) storeNameErrorEl.textContent = storeCheck.message;
+        if(storeSlugPreviewEl) storeSlugPreviewEl.textContent = storeCheck.slug || "your-shop";
+        if(storeNameInput){
+          storeNameInput.setAttribute("aria-invalid","true");
+          storeNameInput.focus();
+        }
+        return;
+      }else{
+        if(storeNameErrorEl) storeNameErrorEl.textContent = "";
+        if(storeNameInput) storeNameInput.removeAttribute("aria-invalid");
+      }
+
       const next = {
         firstName: profileForm.firstName.value.trim(),
         lastName:  profileForm.lastName.value.trim(),
-        storeName: profileForm.storeName.value.trim(),
+        storeName: rawStoreName,
+        storeSlug: storeCheck.slug,
         bio:       profileForm.bio.value.trim()
       };
       localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
@@ -947,14 +1077,19 @@
 
       const newLines = [];
       if(next.storeName) newLines.push("Store name: " + next.storeName);
+      if(next.storeSlug) newLines.push("Store link: hemline.market/shop/" + next.storeSlug);
       if(next.bio)       newLines.push(next.bio);
       profileExtraEl.textContent = newLines.join("\n");
 
-      // Refresh initials in header + avatar
+      // Refresh initials in avatar
       const initials = initialsFromProfile(next.firstName, next.lastName, email);
-      if(headerUser) headerUser.textContent = initials;
       profileAvatarEl.style.backgroundImage = "";
       profileAvatarEl.textContent = initials;
+
+      // Update slug preview
+      if(storeSlugPreviewEl){
+        storeSlugPreviewEl.textContent = next.storeSlug || "your-shop";
+      }
 
       // If address name is still empty, prefill from profile name
       if(!address.addrName && displayName.trim()){
@@ -1001,7 +1136,10 @@
       window.location.href = "auth.html?view=login";
     });
     document.getElementById('btnChangePassword').addEventListener('click', ()=>{
-      alert("For now, password changes happen through your email provider’s reset link for the account you used to sign up.");
+      alert(
+        "To change your password, use the reset link sent to the email address you used to sign up. " +
+        "Passwords must be at least 8 characters and include at least one letter and one number or symbol."
+      );
     });
 
     // Stripe onboarding – graceful fallback if backend not wired yet
