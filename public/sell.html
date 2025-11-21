@@ -37,7 +37,7 @@
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .is-hidden{display:none!important;}
 
-    /* ---------- HEADER (match browse/account/index) ---------- */
+    /* ---------- HEADER (same as browse) ---------- */
     .hm-header{
       min-height:56px;
       background:#fff;
@@ -416,7 +416,7 @@
       height:13px;
     }
 
-    /* Footer tweak (same as account/browse) */
+    /* Footer tweak (same as browse) */
     .hm-footer{
       background:#fff;
       border-top:1px solid #e5e7eb;
@@ -443,19 +443,6 @@
     .hm-footer .copy{
       color:#6b7280;
       font-size:14px;
-    }
-
-    /* Small inline status message under buttons */
-    #publishStatus{
-      margin-top:6px;
-      font-size:12px;
-      color:#6b7280;
-    }
-    #publishStatus.error{
-      color:#b91c1c;
-    }
-    #publishStatus.success{
-      color:#166534;
     }
   </style>
 </head>
@@ -502,7 +489,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9"  cy="21" r="1"></circle>
           <circle cx="18" cy="21" r="1"></circle>
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6"></path>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
 
@@ -841,7 +828,6 @@
           <button class="btn" id="saveDraftBtn" type="button">Save Draft</button>
         </div>
         <p class="subtle" style="margin-top:8px">We’ll guide you through each step.</p>
-        <div id="publishStatus" aria-live="polite"></div>
       </div>
     </aside>
   </div>
@@ -903,7 +889,7 @@
 </script>
 
 <script>
-  // Supabase session + header account icon + create-listing logic
+  // Supabase session + create-listing logic
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
@@ -923,14 +909,6 @@
 
   (async function initSellPage(){
     const headerAccountLink = document.getElementById('headerAccountLink');
-    const publishStatus     = document.getElementById('publishStatus');
-
-    function setStatus(msg, type){
-      if(!publishStatus) return;
-      publishStatus.textContent = msg || '';
-      publishStatus.classList.remove('error','success');
-      if(type) publishStatus.classList.add(type);
-    }
 
     // Require login to create listings
     const session = await ensureSession();
@@ -964,317 +942,302 @@
     const stageTitle = document.getElementById('stageTitle');
     const backBtn    = document.getElementById('backBtn');
     const nextBtn    = document.getElementById('nextBtn');
-    const state      = { photos:[], video:null, fields:{} };
+    const state      =
+    {
+      photos: [],
+      video: null,
+      fields: {}
+    };
+
+    /* -------------------- STEP HANDLING -------------------- */
 
     function setStep(n){
-      step = Math.max(1, Math.min(MAX_STEP, n));
-      document.querySelectorAll('.step').forEach((el, i)=>{
-        el.hidden = (i+1) !== step;
-      });
+      step = n;
+      // update bubbles
       document.querySelectorAll('.bubble').forEach(b=>{
-        b.dataset.active = (Number(b.dataset.step) === step) ? 'true' : '';
+        b.dataset.active = (Number(b.dataset.step) === n) ? "true" : "false";
       });
-      const titles = [
-        'Step 1 — Photos & Video',
-        'Step 2 — Details',
-        'Step 3 — Review & Publish'
-      ];
-      stageTitle.textContent = titles[step-1];
-      backBtn.disabled = (step === 1);
-      nextBtn.textContent = (step === MAX_STEP ? 'Publish' : 'Next');
-      setStatus('', null);
+
+      // show/hide step sections
+      document.querySelectorAll('.step').forEach(s=>{
+        s.hidden = !s.classList.contains(`step-${n}`);
+      });
+
+      // update stage title
+      stageTitle.textContent =
+        n === 1 ? "Step 1 — Photos & Video" :
+        n === 2 ? "Step 2 — Details" :
+                  "Step 3 — Review & Publish";
+
+      // back button
+      backBtn.disabled = n === 1;
+
+      // next button logic
+      if(n === MAX_STEP){
+        nextBtn.textContent = "Publish";
+      } else {
+        nextBtn.textContent = "Next";
+      }
+
       validateCurrentStep();
-      if(step === 3) buildReview();
     }
 
-    function enableNext(ok){
-      nextBtn.disabled = !ok;
-    }
-
-    function validateStep1(){
-      const ok = state.photos.length >= 1;
-      document.getElementById('photoError').style.display = ok ? 'none' : 'block';
-      return ok;
-    }
-    function validateStep2(){
-      const title = document.getElementById('title');
-      const price = document.getElementById('price');
-      const yards = document.getElementById('yards');
-      let ok = true;
-
-      const tGood = !!title.value.trim();
-      title.classList.toggle('invalid', !tGood);
-      document.getElementById('err_title').style.display = tGood ? 'none' : 'block';
-      ok = ok && tGood;
-
-      const pVal  = parseFloat(price.value);
-      const pGood = !isNaN(pVal) && pVal > 0;
-      price.classList.toggle('invalid', !pGood);
-      document.getElementById('err_price').style.display = pGood ? 'none' : 'block';
-      ok = ok && pGood;
-
-      const yVal  = parseFloat(yards.value);
-      const yGood = !isNaN(yVal) && yVal > 0;
-      yards.classList.toggle('invalid', !yGood);
-      document.getElementById('err_yards').style.display = yGood ? 'none' : 'block';
-      ok = ok && yGood;
-
-      return ok;
-    }
-    function validateStep3(){
-      const agree = document.getElementById('agreeSell');
-      const ok = !!(agree && agree.checked);
-      document.getElementById('err_agree').style.display = ok ? 'none' : 'block';
-      return ok;
-    }
     function validateCurrentStep(){
-      if(step === 1) return enableNext(validateStep1());
-      if(step === 2) return enableNext(validateStep2());
-      return enableNext(validateStep3());
-    }
-
-    backBtn.addEventListener('click', ()=>setStep(step-1));
-
-    stepper.addEventListener('click', (e)=>{
-      const b = e.target.closest('.bubble');
-      if(!b) return;
-      const target = Number(b.dataset.step || 1);
-      if(target > step){
-        if(step === 1 && !validateStep1()) return;
-        if(step === 2 && !validateStep2()) return;
-      }
-      setStep(target);
-    });
-
-    // Photos
-    const photoDrop   = document.getElementById('photoDrop');
-    const photoInput  = document.getElementById('photoInput');
-    const photoThumbs = document.getElementById('photoThumbs');
-
-    function handlePhotoFiles(files){
-      const arr = [...files].slice(0,8);
-      state.photos = arr;
-      photoThumbs.innerHTML = '';
-      arr.forEach(f=>{
-        const url = URL.createObjectURL(f);
-        const ph  = document.createElement('div');
-        ph.className = 'ph';
-        const img = document.createElement('img');
-        img.src = url;
-        ph.appendChild(img);
-        photoThumbs.appendChild(ph);
-      });
-      validateCurrentStep();
-    }
-
-    photoInput.addEventListener('change', e=>handlePhotoFiles(e.target.files));
-    ['dragenter','dragover'].forEach(ev=>{
-      photoDrop.addEventListener(ev, e=>{ e.preventDefault(); photoDrop.classList.add('drag'); });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      photoDrop.addEventListener(ev, e=>{ e.preventDefault(); photoDrop.classList.remove('drag'); });
-    });
-    photoDrop.addEventListener('drop', e=>handlePhotoFiles(e.dataTransfer.files));
-
-    // Video
-    const videoDrop  = document.getElementById('videoDrop');
-    const videoInput = document.getElementById('videoInput');
-    const videoThumb = document.getElementById('videoThumb');
-
-    function handleVideoFile(file){
-      state.video = file || null;
-      videoThumb.innerHTML = '';
-      if(!file) return;
-      const url = URL.createObjectURL(file);
-      const ph  = document.createElement('div');
-      ph.className = 'ph';
-      const vid = document.createElement('video');
-      vid.src = url;
-      vid.controls = true;
-      vid.muted = true;
-      ph.appendChild(vid);
-      videoThumb.appendChild(ph);
-    }
-
-    videoInput.addEventListener('change', e=>handleVideoFile(e.target.files[0]));
-    ['dragenter','dragover'].forEach(ev=>{
-      videoDrop.addEventListener(ev, e=>{ e.preventDefault(); videoDrop.classList.add('drag'); });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      videoDrop.addEventListener(ev, e=>{ e.preventDefault(); videoDrop.classList.remove('drag'); });
-    });
-    videoDrop.addEventListener('drop', e=>handleVideoFile(e.dataTransfer.files[0]));
-
-    // Validate as user types
-    ['title','price','yards'].forEach(id=>{
-      const el = document.getElementById(id);
-      el && el.addEventListener('input', validateCurrentStep);
-    });
-    document.addEventListener('change', e=>{
-      if(e.target && e.target.id === 'agreeSell') validateCurrentStep();
-    });
-
-    function read(id){
-      const el = document.getElementById(id);
-      return el ? (el.value || '').trim() : '';
-    }
-
-    function readFeelsLike(){
-      return Array.from(document.querySelectorAll('input[name="feelsLike"]:checked'))
-        .map(cb => cb.value);
-    }
-
-    function buildReview(){
-      state.fields = {
-        title: read('title'),
-        price: read('price'),
-        msrpPerYd: read('origPrice'),
-        yards: read('yards'),
-        desc: read('desc'),
-        content: read('content'),
-        fabric: read('fabric'),
-        color: read('color'),
-        colorFamily: read('colorFamily'),
-        pattern: read('pattern'),
-        dept: read('dept'),
-        fiberType: read('fiberType'),
-        origin: read('origin'),
-        designer: read('designer'),
-        width: read('width'),
-        gsm: read('gsm'),
-        feelsLike: readFeelsLike().join(', ')
-      };
-
-      const media = document.getElementById('reviewMedia');
-      media.innerHTML = '';
-      state.photos.forEach(f=>{
-        const url = URL.createObjectURL(f);
-        const ph  = document.createElement('div');
-        ph.className = 'ph';
-        const img = document.createElement('img');
-        img.src = url;
-        ph.appendChild(img);
-        media.appendChild(ph);
-      });
-      if(state.video){
-        const url = URL.createObjectURL(state.video);
-        const ph  = document.createElement('div');
-        ph.className = 'ph';
-        const vid = document.createElement('video');
-        vid.src = url;
-        vid.controls = true;
-        vid.muted = true;
-        ph.appendChild(vid);
-        media.appendChild(ph);
+      if(step === 1){
+        nextBtn.disabled = state.photos.length === 0;
+        return;
       }
 
-      const kv = document.getElementById('reviewKv');
-      kv.innerHTML = '';
-      Object.entries(state.fields).forEach(([k,v])=>{
-        const keyEl = document.createElement('div');
-        keyEl.textContent = k;
-        const valEl = document.createElement('div');
-        valEl.textContent = v || '—';
-        kv.appendChild(keyEl);
-        kv.appendChild(valEl);
-      });
+      if(step === 2){
+        const title = document.getElementById('title').value.trim();
+        const price = Number(document.getElementById('price').value);
+        const yards = Number(document.getElementById('yards').value);
+
+        const valid = title.length > 0 && price > 0 && yards > 0;
+        nextBtn.disabled = !valid;
+        return;
+      }
+
+      if(step === 3){
+        const agreed = document.getElementById('agreeSell').checked;
+        nextBtn.disabled = !agreed;
+        return;
+      }
     }
 
-    document.getElementById('saveDraftBtn').addEventListener('click', ()=>{
-      try{
-        const data = { fields: state.fields, ts: Date.now() };
-        localStorage.setItem('hm.draft.listing', JSON.stringify(data));
-        alert('Draft saved locally.');
-      }catch(e){
-        alert('Unable to save draft.');
+    backBtn.addEventListener('click', ()=>{
+      if(step > 1){
+        setStep(step - 1);
       }
     });
-
-    // --------- PUBLISH TO SUPABASE (listings_public) ---------
-
-    async function publishListing(){
-      setStatus('Publishing listing…', null);
-      nextBtn.disabled = true;
-      backBtn.disabled = true;
-
-      try{
-        // Build payload to match listings_public columns
-        const f = state.fields;
-
-        const priceNum = f.price ? Number(f.price) : null;
-        const yardsNum = f.yards ? Number(f.yards) : null;
-        const widthNum = f.width ? Number(f.width) : null;
-        const gsmNum   = f.gsm ? Number(f.gsm) : null;
-        const msrpNum  = f.msrpPerYd ? Number(f.msrpPerYd) : null;
-
-        const payload = {
-          seller_id: user.id,
-          title: f.title || null,
-          price_per_yard: priceNum,
-          msrp_per_yard: msrpNum,
-          yards: yardsNum,
-          description: f.desc || null,
-          content: f.content || null,
-          fabric_type: f.fabric || null,
-          color: f.color || null,
-          color_family: f.colorFamily || null,
-          pattern: f.pattern || null,
-          dept: f.dept || null,
-          fiber_type: f.fiberType || null,
-          origin: f.origin || null,
-          designer: f.designer || null,
-          width: widthNum,
-          gsm: gsmNum,
-          feels_like: f.feelsLike || null,
-          // Media not wired yet; will be added later
-          cover_photo_url: null,
-          video_url: null,
-          is_published: true
-        };
-
-        const { data, error } = await supabaseClient
-          .from('listings_public')
-          .insert(payload)
-          .select('id')
-          .single();
-
-        if(error){
-          console.error('Publish error', error);
-          setStatus('Error publishing listing. Check console for details.', 'error');
-          nextBtn.disabled = false;
-          backBtn.disabled = false;
-          return;
-        }
-
-        setStatus('Listing published. Redirecting to Browse…', 'success');
-        setTimeout(()=>{
-          window.location.href = 'browse.html';
-        }, 800);
-
-      }catch(err){
-        console.error('Unexpected publish error', err);
-        setStatus('Unexpected error publishing listing.', 'error');
-        nextBtn.disabled = false;
-        backBtn.disabled = false;
-      }
-    }
 
     nextBtn.addEventListener('click', async ()=>{
-      if(step === 1 && !validateStep1()) return;
-      if(step === 2 && !validateStep2()) return;
-      if(step === 3 && !validateStep3()) return;
-
       if(step < MAX_STEP){
-        setStep(step+1);
-      }else{
+        // going to next step
+        // collect step 2 fields if leaving step 2
+        if(step === 2){
+          collectFields();
+          buildReview();
+        }
+        setStep(step + 1);
+      } else {
+        // PUBLISH
         await publishListing();
       }
     });
 
-    // Start on step 1
-    setStep(1);
+    /* -------------------- MEDIA HANDLING -------------------- */
+
+    const photoInput = document.getElementById('photoInput');
+    const videoInput = document.getElementById('videoInput');
+    const photoDrop  = document.getElementById('photoDrop');
+    const videoDrop  = document.getElementById('videoDrop');
+    const photoThumbs = document.getElementById('photoThumbs');
+    const videoThumb  = document.getElementById('videoThumb');
+
+    function renderPhotos(){
+      photoThumbs.innerHTML = "";
+      state.photos.forEach((file, idx)=>{
+        const ph = document.createElement('div');
+        ph.className = 'ph';
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        ph.append(img);
+        photoThumbs.append(ph);
+      });
+      validateCurrentStep();
+    }
+
+    function renderVideo(){
+      videoThumb.innerHTML = "";
+      if(state.video){
+        const ph = document.createElement('div');
+        ph.className = 'ph';
+        const vid = document.createElement('video');
+        vid.src = URL.createObjectURL(state.video);
+        vid.controls = true;
+        ph.append(vid);
+        videoThumb.append(ph);
+      }
+    }
+
+    photoInput.addEventListener('change', e=>{
+      const files = Array.from(e.target.files);
+      state.photos.push(...files.slice(0, 8 - state.photos.length));
+      renderPhotos();
+    });
+
+    videoInput.addEventListener('change', e=>{
+      const file = e.target.files[0];
+      if(file){
+        state.video = file;
+      }
+      renderVideo();
+    });
+
+    /* Drag-drop */
+    function makeDropZone(el, onFiles){
+      el.addEventListener('dragover', e=>{
+        e.preventDefault();
+        el.classList.add('drag');
+      });
+      el.addEventListener('dragleave', e=>{
+        el.classList.remove('drag');
+      });
+      el.addEventListener('drop', e=>{
+        e.preventDefault();
+        el.classList.remove('drag');
+        const files = Array.from(e.dataTransfer.files);
+        onFiles(files);
+      });
+    }
+
+    makeDropZone(photoDrop, files=>{
+      state.photos.push(...files.slice(0, 8 - state.photos.length));
+      renderPhotos();
+    });
+
+    makeDropZone(videoDrop, files=>{
+      state.video = files[0] || null;
+      renderVideo();
+    });
+
+    /* -------------------- STEP 2 FIELD COLLECTION -------------------- */
+
+    function collectFields(){
+      const feelsBoxes = [...document.querySelectorAll('input[name="feelsLike"]:checked')].map(b=>b.value);
+
+      state.fields = {
+        title: document.getElementById('title').value.trim(),
+        price: Number(document.getElementById('price').value),
+        orig_price: Number(document.getElementById('origPrice').value) || null,
+        yards: Number(document.getElementById('yards').value),
+        description: document.getElementById('desc').value.trim(),
+        content: document.getElementById('content').value,
+        fabric: document.getElementById('fabric').value,
+        color: document.getElementById('color').value.trim(),
+        color_family: document.getElementById('colorFamily').value,
+        pattern: document.getElementById('pattern').value,
+        dept: document.getElementById('dept').value,
+        fiber_type: document.getElementById('fiberType').value,
+        origin: document.getElementById('origin').value,
+        width: Number(document.getElementById('width').value) || null,
+        gsm: Number(document.getElementById('gsm').value) || null,
+        designer: document.getElementById('designer').value.trim(),
+        feels_like: feelsBoxes
+      };
+    }
+
+    /* -------------------- REVIEW (STEP 3) -------------------- */
+
+    function buildReview(){
+      // media preview
+      const reviewMedia = document.getElementById('reviewMedia');
+      reviewMedia.innerHTML = "";
+      state.photos.forEach(file=>{
+        const ph = document.createElement('div');
+        ph.className = 'ph';
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        ph.append(img);
+        reviewMedia.append(ph);
+      });
+      if(state.video){
+        const ph = document.createElement('div');
+        ph.className = 'ph';
+        const vid = document.createElement('video');
+        vid.src = URL.createObjectURL(state.video);
+        vid.controls = true;
+        ph.append(vid);
+        reviewMedia.append(ph);
+      }
+
+      // key-values
+      const kv = document.getElementById('reviewKv');
+      kv.innerHTML = "";
+      Object.entries(state.fields).forEach(([k, v])=>{
+        const row = document.createElement('div');
+        row.style.display = "contents";
+        const key = document.createElement('div');
+        key.textContent = k.replace(/_/g, " ");
+        const val = document.createElement('div');
+        val.textContent = Array.isArray(v) ? v.join(", ") : (v ?? "");
+        row.append(key, val);
+        kv.append(row);
+      });
+    }
+
+    /* -------------------- PUBLISH -------------------- */
+
+    async function uploadToBucket(bucket, file){
+      const ext = file.name.split('.').pop();
+      const path = `${session.user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabaseClient.storage.from(bucket).upload(path, file);
+      if(error) throw error;
+      const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
+      return data.publicUrl;
+    }
+
+    async function publishListing(){
+      nextBtn.disabled = true;
+
+      // 1) Upload photos
+      let photo_urls = [];
+      for(const f of state.photos){
+        photo_urls.push(await uploadToBucket("listing-images", f));
+      }
+
+      // 2) Upload video (optional)
+      let video_url = null;
+      if(state.video){
+        video_url = await uploadToBucket("listing-media", state.video);
+      }
+
+      // 3) Insert listing
+      const { data, error } = await supabaseClient
+        .from("listings")
+        .insert({
+          seller_id: session.user.id,
+          title: state.fields.title,
+          description: state.fields.description,
+          price_cents: Math.round(state.fields.price * 100),
+          orig_price_cents: state.fields.orig_price ? Math.round(state.fields.orig_price * 100) : null,
+          yards: state.fields.yards,
+          content: state.fields.content,
+          fabric_type: state.fields.fabric,
+          color_name: state.fields.color,
+          color_family: state.fields.color_family,
+          pattern: state.fields.pattern,
+          dept: state.fields.dept,
+          fiber_type: state.fields.fiber_type,
+          origin: state.fields.origin,
+          width: state.fields.width,
+          gsm: state.fields.gsm,
+          designer: state.fields.designer,
+          feels_like: state.fields.feels_like,
+          photo_urls,
+          video_url,
+          status: "active"
+        })
+        .select()
+        .single();
+
+      if(error){
+        alert("Error publishing listing: " + error.message);
+        nextBtn.disabled = false;
+        return;
+      }
+
+      // 4) Redirect to newly created listing page
+      window.location.href = `listing.html?id=${data.id}`;
+    }
+
+    // initial validate
+    validateCurrentStep();
+
   })();
 </script>
 
 </body>
 </html>
+  
