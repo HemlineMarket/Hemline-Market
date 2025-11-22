@@ -437,32 +437,27 @@ html,body{
   margin-bottom:4px;
   line-height:1.2;
 }
-.meta .sub{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  justify-content:flex-start;
-  font-size:13px;
-  color:#6b7280;
-}
-.meta .sub span{
-  white-space:nowrap;
-}
 
-/* NEW price styling */
-.price-total{
-  font-weight:700;
-  font-size:14px;
-  margin:4px 0 6px;
+/* New price row under the button */
+.price-row{
+  margin-top:6px;
+  font-size:12px;
+  color:#4b5563;
+  display:flex;
+  gap:6px;
+  align-items:baseline;
 }
-.price-orig{
+.price-current{
+  font-weight:600;
+}
+.price-original{
   text-decoration:line-through;
   color:#9ca3af;
 }
 
 .add-btn{
   width:100%;
-  margin-top:10px;
+  margin-top:8px;
   padding:10px 12px;
   border-radius:10px;
   border:1px solid var(--accent);
@@ -1081,7 +1076,7 @@ document.getElementById('colorBox').addEventListener('click', e=>{
 function n(v){ return v===''?null:Number(v); }
 
 function pass(it){
-  if(state.q && !(`${it.title} ${it.designer||''}`.toLowerCase().includes(state.q))) return false;
+  if(state.q && !(`${it.title}`.toLowerCase().includes(state.q))) return false;
 
   if(state.content.size){
     const lc=(it.content||[]).map(s=>s.toLowerCase());
@@ -1097,8 +1092,8 @@ function pass(it){
 
   if(state.colors.size && !state.colors.has(it.colorFamily)) return false;
 
-  if(n(state.minPrice)!=null && it.pricePerYd < n(state.minPrice)) return false;
-  if(n(state.maxPrice)!=null && it.pricePerYd > n(state.maxPrice)) return false;
+  if(n(state.minPrice)!=null && it.pricePerYard < n(state.minPrice)) return false;
+  if(n(state.maxPrice)!=null && it.pricePerYard > n(state.maxPrice)) return false;
 
   if(n(state.minYards)!=null && it.yards < n(state.minYards)) return false;
 
@@ -1119,16 +1114,20 @@ function pass(it){
   return true;
 }
 
-function cents(x){ return Math.round(Number(x||0)*100); }
+function centsFromDollars(x){
+  return Math.round(Number(x||0)*100);
+}
 
-/* CARD RENDERING: $total for X yards, then per-yard + crossed-out original */
+/* Card builder:
+   - Button text: "Add to Cart — $4.00 for 2 yards"
+   - Below button: "$2.00/yard" and original "$X.XX/yard" crossed out.
+*/
 function makeCard(it){
   const a = el('a','card');
-  a.href = 'listing.html?id=' + encodeURIComponent(it.id);
+  a.href = 'listing.html?id='+encodeURIComponent(it.id);
   a.dataset.id = it.id;
 
-  // Image / placeholder
-  const ph = el('div','ph', it.photo ? '' : it.title);
+  const ph = el('div','ph',it.photo ? '' : it.title);
   if(it.photo){
     const img = new Image();
     img.src = it.photo;
@@ -1137,52 +1136,54 @@ function makeCard(it){
   }
 
   const meta = el('div','meta');
-  const t = el('div','title', it.title);
+  const t    = el('div','title',it.title);
+  meta.append(t);
 
-  // Total price + yards
-  const pricePerYd = Number(it.pricePerYd || 0);
-  const yards = Number(it.yards || 0);
-  let total = 0;
-  if(pricePerYd && yards){
-    total = pricePerYd * yards;
+  const pricePerYard  = it.pricePerYard;
+  const origPerYard   = it.origPricePerYard;
+  const yards         = it.yards || 0;
+  const hasPricing    = pricePerYard != null && yards > 0;
+  const total         = hasPricing ? pricePerYard * yards : null;
+
+  // Button text: only place the total + yards shows
+  let btnLabel = 'Add to Cart';
+  if(hasPricing){
+    btnLabel = `Add to Cart — $${total.toFixed(2)} for ${yards} yard${yards===1?'':'s'}`;
   }
 
-  let totalText = '';
-  if(total && yards){
-    const yardsLabel = yards === 1 ? '1 yard' : `${yards} yards`;
-    totalText = `$${total.toFixed(2)} for ${yardsLabel}`;
-  }
-
-  const totalDiv = el('div','price-total', totalText);
-
-  // Add-to-cart button
-  const amountCents = cents(total);
-  const btnLabel = total ? `Add to Cart — $${total.toFixed(2)}` : 'Add to Cart';
-
-  const btn = el('button','add-btn add-to-cart', btnLabel);
+  const btn = el('button','add-btn',btnLabel);
   btn.type = 'button';
-  btn.dataset.name = it.title;
-  btn.dataset.amount = String(amountCents || 0);
-  btn.dataset.yards = String(it.yards ?? '');
-  btn.dataset.price = String(it.pricePerYd ?? '');
-  btn.dataset.sellerId = it.sellerId || ('seller_' + it.id);
+
+  if(hasPricing){
+    btn.dataset.amount    = String(centsFromDollars(total));
+    btn.dataset.price     = String(pricePerYard);
+    btn.dataset.yards     = String(yards);
+  }else{
+    btn.dataset.amount    = '';
+    btn.dataset.price     = '';
+    btn.dataset.yards     = '';
+  }
+  btn.dataset.name       = it.title;
+  btn.dataset.sellerId   = it.sellerId || ('seller_'+it.id);
   btn.dataset.sellerName = it.sellerName || 'Seller';
 
-  // Per-yard sale + original line
-  const perLine = el('div','sub');
+  meta.append(btn);
 
-  if(it.pricePerYd != null){
-    const saleSpan = el('span','price-sale', `$${pricePerYd.toFixed(2)}/yard`);
-    perLine.append(saleSpan);
+  // Under the button: sale per-yard + original per-yard struck through
+  if(pricePerYard != null){
+    const row = el('div','price-row');
+    const saleSpan = el('span','price-current', `$${pricePerYard.toFixed(2)}/yard`);
+    row.append(saleSpan);
+
+    if(origPerYard != null){
+      const origSpan = el('span','price-original', `$${origPerYard.toFixed(2)}/yard`);
+      row.append(origSpan);
+    }
+
+    meta.append(row);
   }
 
-  if(it.origPricePerYd != null){
-    const origSpan = el('span','price-orig', `$${Number(it.origPricePerYd).toFixed(2)}/yard`);
-    perLine.append(origSpan);
-  }
-
-  meta.append(t, totalDiv, btn, perLine);
-  a.append(ph, meta);
+  a.append(ph,meta);
   return a;
 }
 
@@ -1220,7 +1221,7 @@ function render(){
         is_published
       `)
       .eq('is_published', true)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending:false });
 
     if(error){
       console.error('Error loading listings', error);
@@ -1231,39 +1232,26 @@ function render(){
     }
 
     LISTINGS = (data || []).map(row => {
-      const feels = row.feels_like
-        ? String(row.feels_like).split(',').map(s=>s.trim()).filter(Boolean)
-        : [];
-
-      const pricePerYd =
-        row.price_cents != null ? Number(row.price_cents) / 100 : null;
-
-      const origPricePerYd =
-        row.orig_price_cents != null ? Number(row.orig_price_cents) / 100 : null;
-
       return {
         id: row.id,
         sellerId: row.seller_id || null,
         sellerName: null,
         title: row.title || 'Untitled listing',
-
-        // pricing
-        pricePerYd,
-        origPricePerYd,
+        // cents -> dollars per yard
+        pricePerYard: row.price_cents != null ? row.price_cents / 100 : null,
+        origPricePerYard: row.orig_price_cents != null ? row.orig_price_cents / 100 : null,
         yards: row.yards_available != null ? Number(row.yards_available) : null,
-
-        // optional fields for future filters
-        width: row.width != null ? Number(row.width) : null,
-        gsm: row.gsm != null ? Number(row.gsm) : null,
-        colorFamily: row.color_family || '',
-        dept: row.dept || '',
-        fabricType: row.fabric_type || '',
-        fiberType: row.fiber_type || '',
-        designer: row.designer || '',
-        origin: row.origin || '',
-        pattern: row.pattern || '',
-        content: row.content ? [row.content] : [],
-        feelsLike: feels,
+        width: null,
+        gsm: null,
+        colorFamily: '',
+        dept: '',
+        fabricType: '',
+        fiberType: '',
+        designer: '',
+        origin: '',
+        pattern: '',
+        content: [],
+        feelsLike: [],
         photo: row.image_url || '',
         desc: row.description || ''
       };
