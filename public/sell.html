@@ -835,7 +835,6 @@
     </nav>
   </div>
 </footer>
-
 <!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -847,7 +846,10 @@
     const closeBtn = document.getElementById('closeMenu');
     const overlay  = document.getElementById('sheetOverlay');
 
-    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+    function lockScroll(lock){
+      document.body.style.overflow = lock ? 'hidden' : '';
+    }
+
     function openSheet(){
       if(!sheet) return;
       sheet.classList.add('open');
@@ -857,6 +859,7 @@
       if(openBtn) openBtn.setAttribute('aria-expanded','true');
       lockScroll(true);
     }
+
     function closeSheet(){
       if(!sheet) return;
       sheet.classList.remove('open');
@@ -957,8 +960,8 @@
     const errPrice  = document.getElementById('err_price');
     const errYards  = document.getElementById('err_yards');
 
-    const agreeBox  = document.getElementById('agreeSell');
-    const errAgree  = document.getElementById('err_agree');
+    const agreeBox    = document.getElementById('agreeSell');
+    const errAgree    = document.getElementById('err_agree');
     const reviewMedia = document.getElementById('reviewMedia');
     const reviewKv    = document.getElementById('reviewKv');
 
@@ -1196,7 +1199,9 @@
         k.textContent = label;
         const v = document.createElement('div');
         v.className = 'kv-val';
-        v.textContent = (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length)) ? '—' : (Array.isArray(val) ? val.join(', ') : String(val));
+        v.textContent = (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length))
+          ? '—'
+          : (Array.isArray(val) ? val.join(', ') : String(val));
         reviewKv.appendChild(k);
         reviewKv.appendChild(v);
       };
@@ -1265,7 +1270,7 @@
       }
     });
 
-    // Draft is a no-op placeholder for now
+    // Draft is a placeholder for now
     saveDraft.addEventListener('click', ()=>{
       alert('Draft saving is not wired yet. For now, publish when you are ready.');
     });
@@ -1277,7 +1282,7 @@
         nextBtn.textContent = 'Publishing…';
         backBtn.disabled = true;
 
-        // Upload photos to storage (optional; we won’t rely on URLs yet)
+        // Upload photos to storage
         const photoPaths = [];
         for(let i=0;i<state.photos.length;i++){
           const p = state.photos[i];
@@ -1305,8 +1310,12 @@
           if(!vErr) videoPath = vpath;
         }
 
-        // Build payload for base table "listings"
         const d = state.details;
+
+        // NOTE: this assumes your "listings" table has these columns:
+        // seller_id (uuid), title (text), description (text),
+        // price_cents (integer), yards (numeric), status (text),
+        // cover_photo_path (text), photo_paths (text[]), video_path (text)
         const priceCents = d.price !== null ? Math.round(d.price * 100) : null;
 
         const payload = {
@@ -1316,8 +1325,9 @@
           price_cents: priceCents,
           yards: d.yards,
           status: 'active',
-          // metadata columns are optional; if they don't exist, Supabase will error.
-          // So keep this minimal for now.
+          cover_photo_path: photoPaths[0] || null,
+          photo_paths: photoPaths.length ? photoPaths : null,
+          video_path: videoPath
         };
 
         const { error: insertErr } = await supabaseClient
@@ -1326,7 +1336,10 @@
 
         if(insertErr){
           console.error(insertErr);
-          alert('Sorry, something went wrong while publishing.\n\n' + (insertErr.message || 'Unknown error.'));
+          alert(
+            'Sorry, something went wrong while publishing.\n\n' +
+            (insertErr.message || 'Unknown error.')
+          );
           nextBtn.disabled = false;
           nextBtn.textContent = 'Publish';
           backBtn.disabled = false;
