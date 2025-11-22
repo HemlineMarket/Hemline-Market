@@ -439,15 +439,27 @@ html,body{
 }
 .meta .sub{
   display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  justify-content:space-between;
+  flex-direction:column;
+  gap:2px;
   font-size:13px;
   color:#6b7280;
 }
 .meta .sub span{
   white-space:nowrap;
 }
+
+/* price line with crossed-out original */
+.price-line{
+  font-weight:700;
+}
+.price-line .orig-price{
+  text-decoration:line-through;
+  color:#9ca3af;
+  margin-left:6px;
+  font-weight:400;
+  font-size:12px;
+}
+
 .add-btn{
   width:100%;
   margin-top:10px;
@@ -1125,19 +1137,26 @@ function makeCard(it){
   const meta=el('div','meta');
   const t=el('div','title',it.title);
   const sub=el('div','sub');
-  const infoPieces=[];
-  if(it.price!=null) infoPieces.push(`$${it.price}/yd`);
+
+  // First line: sale price + optional crossed-out original
+  const priceDiv = el('div','price-line');
+  if(it.price != null){
+    const saleSpan = el('span','',`$${it.price.toFixed(2)}/yd`);
+    priceDiv.append(saleSpan);
+    if(it.origPrice != null && it.origPrice > it.price){
+      const origSpan = el('span','orig-price',`$${it.origPrice.toFixed(2)}/yd`);
+      priceDiv.append(origSpan);
+    }
+  }
+
+  // Second line: width / GSM / yards
   const widthPart = it.width ? `${it.width}″` : null;
   const gsmPart   = it.gsm ? `${it.gsm} GSM` : null;
   const yardsPart = it.yards ? `${it.yards} yd lot` : null;
-  const secondLine = [widthPart,gsmPart,yardsPart].filter(Boolean).join(' • ');
+  const secondLineText = [widthPart,gsmPart,yardsPart].filter(Boolean).join(' • ');
+  const secondDiv = el('div','',secondLineText || '');
 
-  if(secondLine) infoPieces.push(secondLine);
-
-  sub.append(
-    el('span','',infoPieces[0] || ''),
-    infoPieces[1] ? el('span','',infoPieces[1]) : el('span','')
-  );
+  sub.append(priceDiv, secondDiv);
 
   const total=(Number(it.price)||0)*(Number(it.yards)||0);
   const amountCents=cents(total);
@@ -1175,21 +1194,32 @@ function render(){
     resultSpan.textContent = 'Loading…';
 
     const { data, error } = await supabaseClient
-  .from('listings_public')
-  .select(`
-    id,
-    seller_id,
-    title,
-    description,
-    price_cents,
-    yards_available,
-    status,
-    image_url,
-    created_at,
-    is_published
-  `)
-  .eq('is_published', true)
-  .order('created_at', { ascending: false });
+      .from('listings_public')
+      .select(`
+        id,
+        seller_id,
+        title,
+        description,
+        price_per_yard_cents,
+        orig_price_per_yard_cents,
+        yards,
+        width,
+        gsm,
+        color_family,
+        dept,
+        fabric_type,
+        fiber_type,
+        designer,
+        origin,
+        pattern,
+        content,
+        feels_like,
+        image_url,
+        created_at,
+        is_published
+      `)
+      .eq('is_published', true)
+      .order('created_at', { ascending: false });
 
     if(error){
       console.error('Error loading listings', error);
@@ -1200,16 +1230,20 @@ function render(){
     }
 
     LISTINGS = (data || []).map(row => {
-      const feels = row.feels_like
-        ? String(row.feels_like).split(',').map(s=>s.trim()).filter(Boolean)
-        : [];
+      const feelsArr =
+        row.feels_like && Array.isArray(row.feels_like)
+          ? row.feels_like
+          : (row.feels_like
+              ? String(row.feels_like).split(',').map(s=>s.trim()).filter(Boolean)
+              : []);
+
       return {
         id: row.id,
         sellerId: row.seller_id || null,
         sellerName: null,
         title: row.title || 'Untitled listing',
-        price: row.price_per_yard != null ? Number(row.price_per_yard) : null,
-        msrpPerYd: row.msrp_per_yard != null ? Number(row.msrp_per_yard) : null,
+        price: row.price_per_yard_cents != null ? (row.price_per_yard_cents / 100) : null,
+        origPrice: row.orig_price_per_yard_cents != null ? (row.orig_price_per_yard_cents / 100) : null,
         yards: row.yards != null ? Number(row.yards) : null,
         width: row.width != null ? Number(row.width) : null,
         gsm: row.gsm != null ? Number(row.gsm) : null,
@@ -1221,8 +1255,8 @@ function render(){
         origin: row.origin || '',
         pattern: row.pattern || '',
         content: row.content ? [row.content] : [],
-        feelsLike: feels,
-        photo: row.cover_photo_url || '',
+        feelsLike: feelsArr,
+        photo: row.image_url || '',
         desc: row.description || ''
       };
     });
