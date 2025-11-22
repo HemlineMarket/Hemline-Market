@@ -846,10 +846,7 @@
     const closeBtn = document.getElementById('closeMenu');
     const overlay  = document.getElementById('sheetOverlay');
 
-    function lockScroll(lock){
-      document.body.style.overflow = lock ? 'hidden' : '';
-    }
-
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
     function openSheet(){
       if(!sheet) return;
       sheet.classList.add('open');
@@ -859,7 +856,6 @@
       if(openBtn) openBtn.setAttribute('aria-expanded','true');
       lockScroll(true);
     }
-
     function closeSheet(){
       if(!sheet) return;
       sheet.classList.remove('open');
@@ -875,7 +871,7 @@
       openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
       closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
       overlay.addEventListener('click', closeSheet);
-      document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeSheet(); });
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
     }
   })();
 </script>
@@ -908,9 +904,10 @@
       window.location.href = "auth.html?view=login";
       return;
     }
+
     const user = session.user;
 
-    // Mark header as logged in
+    // Update header account icon to "logged in"
     if (headerAccountLink){
       headerAccountLink.href = "account.html";
       headerAccountLink.setAttribute("aria-label","Your account");
@@ -918,17 +915,17 @@
       headerAccountLink.classList.remove("is-logged-out");
     }
 
-    // If user logs out in another tab, send back to login
+    // If user logs out in another tab, kick them back to login
     supabaseClient.auth.onAuthStateChange((_event, newSession) => {
       if (!newSession || !newSession.user){
         window.location.href = "auth.html?view=login";
       }
     });
 
-    // ---------- Stepper + state ----------
+    // ---------- Create Listing UI logic ----------
+
     let step = 1;
     const MAX_STEP = 3;
-
     const stepper    = document.getElementById('stepper');
     const stageTitle = document.getElementById('stageTitle');
     const backBtn    = document.getElementById('backBtn');
@@ -967,21 +964,24 @@
     function setStep(newStep){
       step = newStep;
 
+      // Toggle step panels
       document.querySelectorAll('.step').forEach((el, idx)=>{
         el.hidden = (idx !== (step-1));
       });
 
+      // Highlight stepper
       document.querySelectorAll('.bubble').forEach(b=>{
         const s = Number(b.getAttribute('data-step'));
         b.dataset.active = (s === step) ? 'true' : 'false';
       });
 
+      // Stage title
       if(step === 1) stageTitle.textContent = 'Step 1 — Photos & Video';
       if(step === 2) stageTitle.textContent = 'Step 2 — Details';
       if(step === 3) stageTitle.textContent = 'Step 3 — Review & Publish';
 
+      // Buttons
       backBtn.disabled = (step === 1);
-
       if(step === 1){
         nextBtn.textContent = 'Next';
         nextBtn.disabled = (state.photos.length === 0);
@@ -994,7 +994,7 @@
       }
     }
 
-    // ---------- Photos ----------
+    // ---------- Photo handling ----------
     function renderPhotoThumbs(){
       photoThumbs.innerHTML = '';
       state.photos.forEach((p, idx)=>{
@@ -1015,7 +1015,7 @@
 
       photoError.style.display = state.photos.length ? 'none' : 'block';
       if(step === 1){
-        nextBtn.disabled = (state.photos.length === 0);
+        nextBtn.disabled = state.photos.length === 0;
       }
     }
 
@@ -1031,32 +1031,28 @@
       renderPhotoThumbs();
     }
 
-    if(photoInput){
-      photoInput.addEventListener('change', e=>{
-        handlePhotoFiles(e.target.files);
-        photoInput.value = '';
-      });
-    }
+    photoInput.addEventListener('change', e=>{
+      handlePhotoFiles(e.target.files);
+      photoInput.value = '';
+    });
 
-    if(photoDrop){
-      ['dragenter','dragover'].forEach(ev=>{
-        photoDrop.addEventListener(ev, e=>{
-          e.preventDefault(); e.stopPropagation();
-          photoDrop.classList.add('drag');
-        });
+    ['dragenter','dragover'].forEach(ev=>{
+      photoDrop.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        photoDrop.classList.add('drag');
       });
-      ['dragleave','drop'].forEach(ev=>{
-        photoDrop.addEventListener(ev, e=>{
-          e.preventDefault(); e.stopPropagation();
-          photoDrop.classList.remove('drag');
-        });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      photoDrop.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        photoDrop.classList.remove('drag');
       });
-      photoDrop.addEventListener('drop', e=>{
-        handlePhotoFiles(e.dataTransfer.files);
-      });
-    }
+    });
+    photoDrop.addEventListener('drop', e=>{
+      handlePhotoFiles(e.dataTransfer.files);
+    });
 
-    // ---------- Video ----------
+    // ---------- Video handling ----------
     function renderVideo(){
       videoThumb.innerHTML = '';
       if(!state.video) return;
@@ -1070,7 +1066,8 @@
     }
 
     function handleVideoFile(file){
-      if(!file || !file.type.startsWith('video/')) return;
+      if(!file) return;
+      if(!file.type.startsWith('video/')) return;
       if(state.video && state.video.url){
         URL.revokeObjectURL(state.video.url);
       }
@@ -1079,34 +1076,30 @@
       renderVideo();
     }
 
-    if(videoInput){
-      videoInput.addEventListener('change', e=>{
-        const file = e.target.files[0];
-        handleVideoFile(file);
-        videoInput.value = '';
-      });
-    }
+    videoInput.addEventListener('change', e=>{
+      const file = e.target.files[0];
+      handleVideoFile(file);
+      videoInput.value = '';
+    });
 
-    if(videoDrop){
-      ['dragenter','dragover'].forEach(ev=>{
-        videoDrop.addEventListener(ev, e=>{
-          e.preventDefault(); e.stopPropagation();
-          videoDrop.classList.add('drag');
-        });
+    ['dragenter','dragover'].forEach(ev=>{
+      videoDrop.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        videoDrop.classList.add('drag');
       });
-      ['dragleave','drop'].forEach(ev=>{
-        videoDrop.addEventListener(ev, e=>{
-          e.preventDefault(); e.stopPropagation();
-          videoDrop.classList.remove('drag');
-        });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      videoDrop.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        videoDrop.classList.remove('drag');
       });
-      videoDrop.addEventListener('drop', e=>{
-        const file = e.dataTransfer.files[0];
-        handleVideoFile(file);
-      });
-    }
+    });
+    videoDrop.addEventListener('drop', e=>{
+      const file = e.dataTransfer.files[0];
+      handleVideoFile(file);
+    });
 
-    // ---------- Validation (step 2) ----------
+    // ---------- Validation for Step 2 ----------
     function validateStep2(){
       let ok = true;
 
@@ -1144,11 +1137,10 @@
       return ok;
     }
 
-    // ---------- Collect step 2 details ----------
+    // ---------- Collect step 2 details into state ----------
     function collectDetails(){
-      const feels = Array.from(
-        document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]:checked')
-      ).map(cb=>cb.value);
+      const feels = Array.from(document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]:checked'))
+        .map(cb=>cb.value);
 
       state.details = {
         title: titleInput.value.trim(),
@@ -1170,12 +1162,12 @@
       };
     }
 
-    // ---------- Build review (step 3) ----------
+    // ---------- Build review (Step 3) ----------
     function buildReview(){
       reviewMedia.innerHTML = '';
       reviewKv.innerHTML = '';
 
-      // photos
+      // Photos
       state.photos.forEach((p, idx)=>{
         const div = document.createElement('div');
         div.className = 'ph';
@@ -1192,7 +1184,6 @@
         reviewMedia.appendChild(div);
       });
 
-      // video
       if(state.video){
         const div = document.createElement('div');
         div.className = 'ph';
@@ -1210,10 +1201,9 @@
         const v = document.createElement('div');
         v.className = 'kv-val';
         v.textContent =
-          (val === null || val === undefined || val === '' ||
-           (Array.isArray(val) && !val.length))
-            ? '—'
-            : (Array.isArray(val) ? val.join(', ') : String(val));
+          (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length))
+          ? '—'
+          : (Array.isArray(val) ? val.join(', ') : String(val));
         reviewKv.appendChild(k);
         reviewKv.appendChild(v);
       };
@@ -1282,19 +1272,19 @@
       }
     });
 
-    // Draft stub
+    // Draft is a placeholder for now
     saveDraft.addEventListener('click', ()=>{
       alert('Draft saving is not wired yet. For now, publish when you are ready.');
     });
 
-    // ---------- Publish (minimal columns only) ----------
+    // ---------- Publish ----------
     async function publishListing(user){
       try{
         nextBtn.disabled = true;
         nextBtn.textContent = 'Publishing…';
         backBtn.disabled = true;
 
-        // Upload media to storage; ignore errors for now
+        // Upload photos to storage (non-blocking: failures are tolerated)
         const photoPaths = [];
         for(let i=0;i<state.photos.length;i++){
           const p = state.photos[i];
@@ -1305,11 +1295,12 @@
             .upload(path, p.file, { upsert:false });
           if(upErr){
             console.warn('Photo upload error', upErr);
-          } else {
+          }else{
             photoPaths.push(path);
           }
         }
 
+        // Upload video if present (optional)
         if(state.video && state.video.file){
           const vfile = state.video.file;
           const vpath = `${user.id}/${Date.now()}_video_${vfile.name}`;
@@ -1325,12 +1316,15 @@
         const d = state.details;
         const priceCents = d.price !== null ? Math.round(d.price * 100) : null;
 
-        // IMPORTANT: only use columns that actually exist on 'listings'
+        // IMPORTANT: match your current "listings" table schema.
+        // price_unit_yards is NOT NULL, so we set a simple value like "yard".
         const payload = {
           seller_id: user.id,
           title: d.title,
           description: d.desc,
           price_cents: priceCents,
+          price_unit_yards: 'yard',
+          yards: d.yards,
           status: 'active'
         };
 
@@ -1358,10 +1352,9 @@
       }
     }
 
-    // Initial step
+    // Initial step state
     setStep(1);
   })();
 </script>
-
 </body>
 </html>
