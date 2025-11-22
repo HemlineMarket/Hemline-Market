@@ -434,8 +434,34 @@ html,body{
 }
 .meta .title{
   font-weight:800;
-  margin-bottom:4px;
+  margin-bottom:2px;
   line-height:1.2;
+}
+.seller-line{
+  font-size:12px;
+  color:#6b7280;
+  margin-bottom:4px;
+}
+.price-line{
+  display:flex;
+  gap:6px;
+  align-items:baseline;
+  font-size:14px;
+  font-weight:600;
+  margin-bottom:2px;
+}
+.price-sale{
+  color:#111827;
+}
+.price-original{
+  font-size:12px;
+  color:#9ca3af;
+  text-decoration:line-through;
+}
+.total-line{
+  font-size:13px;
+  color:#374151;
+  margin-bottom:6px;
 }
 .meta .sub{
   display:flex;
@@ -448,21 +474,9 @@ html,body{
 .meta .sub span{
   white-space:nowrap;
 }
-
-/* sale + original price */
-.price-sale{
-  font-weight:700;
-}
-.price-orig{
-  text-decoration:line-through;
-  color:var(--muted);
-  margin-left:4px;
-  font-size:12px;
-}
-
 .add-btn{
   width:100%;
-  margin-top:10px;
+  margin-top:4px;
   padding:10px 12px;
   border-radius:10px;
   border:1px solid var(--accent);
@@ -1137,37 +1151,36 @@ function makeCard(it){
   const meta=el('div','meta');
   const t=el('div','title',it.title);
 
-  const sub=el('div','sub');
+  const sellerLine = it.sellerName
+    ? el('div','seller-line','by ' + it.sellerName)
+    : null;
 
-  // Price line: sale first, original crossed out (per yard)
-  const priceSpan = el('span');
+  const priceLine = el('div','price-line');
   if(it.price != null){
-    const saleSpan = el('span','price-sale', `$${it.price.toFixed(2)}/yd`);
-    priceSpan.appendChild(saleSpan);
-    if(it.origPrice != null && it.origPrice > it.price){
-      const origSpan = el('span','price-orig', `$${it.origPrice.toFixed(2)}/yd`);
-      priceSpan.appendChild(document.createTextNode(' '));
-      priceSpan.appendChild(origSpan);
+    const saleSpan = el('span','price-sale', `$${it.price}/yard`);
+    priceLine.appendChild(saleSpan);
+    if(it.msrpPerYd != null){
+      const origSpan = el('span','price-original', `$${it.msrpPerYd}/yard`);
+      priceLine.appendChild(origSpan);
     }
   }
 
-  // Second line: width / GSM / yards
-  const widthPart = it.width ? `${it.width}″` : null;
-  const gsmPart   = it.gsm ? `${it.gsm} GSM` : null;
-  const yardsPart = it.yards ? `${it.yards} yd lot` : null;
-  const secondLineText = [widthPart,gsmPart,yardsPart].filter(Boolean).join(' • ');
-  const secondSpan = el('span','',secondLineText);
+  const total = (it.price != null && it.yards != null)
+    ? Number(it.price) * Number(it.yards)
+    : null;
+  const totalLine = el('div','total-line');
+  const bits = [];
+  if(total != null) bits.push(`$${total.toFixed(2)}`);
+  if(it.yards != null) bits.push(`${it.yards} yards`);
+  totalLine.textContent = bits.join(' · ');
 
-  sub.append(priceSpan, secondSpan);
-
-  // Button: total price for the lot
-  const perYd = it.price ?? 0;
-  const yards = it.yards ?? 0;
-  const total = perYd * yards;
-  const amountCents = cents(total);
-
-  const btn=el('button','add-btn add-to-cart',`Add to Cart — $${total.toFixed(2)}`);
+  const btnLabel = total != null
+    ? `Add to Cart — $${total.toFixed(2)}`
+    : 'Add to Cart';
+  const btn=el('button','add-btn add-to-cart',btnLabel);
   btn.type='button';
+
+  const amountCents = total != null ? cents(total) : 0;
   btn.dataset.name=it.title;
   btn.dataset.amount=String(amountCents);
   btn.dataset.yards=String(it.yards ?? '');
@@ -1175,7 +1188,12 @@ function makeCard(it){
   btn.dataset.sellerId=it.sellerId || ('seller_'+it.id);
   btn.dataset.sellerName=it.sellerName || 'Seller';
 
-  meta.append(t,sub,btn);
+  meta.append(t);
+  if(sellerLine) meta.append(sellerLine);
+  if(priceLine.textContent) meta.append(priceLine);
+  if(totalLine.textContent) meta.append(totalLine);
+  meta.append(btn);
+
   a.append(ph,meta);
   return a;
 }
@@ -1213,6 +1231,7 @@ function render(){
         created_at,
         is_published
       `)
+      .eq('is_published', true)
       .order('created_at', { ascending: false });
 
     if(error){
@@ -1223,31 +1242,56 @@ function render(){
       return;
     }
 
+    let profilesById = {};
+    if(data && data.length){
+      const sellerIds = [...new Set(data.map(r => r.seller_id).filter(Boolean))];
+      if(sellerIds.length){
+        const { data: profileRows, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('id, username, full_name')
+          .in('id', sellerIds);
+
+        if(profileError){
+          console.error('Error loading profiles', profileError);
+        }else if(profileRows){
+          profilesById = Object.fromEntries(
+            profileRows.map(p => [
+              p.id,
+              p.username || p.full_name || 'Seller'
+            ])
+          );
+        }
+      }
+    }
+
     LISTINGS = (data || []).map(row => {
-      const feels = []; // placeholder for future feels_like column
+      const pricePerYard = row.price_cents != null && row.yards_available
+        ? Number(row.price_cents) / 100 / Number(row.yards_available)
+        : null;
+      const msrpPerYd = row.orig_price_cents != null && row.yards_available
+        ? Number(row.orig_price_cents) / 100 / Number(row.yards_available)
+        : null;
+
       return {
         id: row.id,
         sellerId: row.seller_id || null,
-        sellerName: null,
+        sellerName: profilesById[row.seller_id] || null,
         title: row.title || 'Untitled listing',
-
-        // prices stored in cents in the view
-        price: row.price_cents != null ? Number(row.price_cents) / 100 : null,
-        origPrice: row.orig_price_cents != null ? Number(row.orig_price_cents) / 100 : null,
-
+        price: pricePerYard != null ? Number(pricePerYard.toFixed(2)) : null,
+        msrpPerYd: msrpPerYd != null ? Number(msrpPerYd.toFixed(2)) : null,
         yards: row.yards_available != null ? Number(row.yards_available) : null,
-        width: null,
-        gsm: null,
-        colorFamily: '',
-        dept: '',
-        fabricType: '',
-        fiberType: '',
-        designer: '',
-        origin: '',
-        pattern: '',
-        content: [],
-        feelsLike: feels,
-        photo: row.image_url || '',
+        width: row.width != null ? Number(row.width) : null,
+        gsm: row.gsm != null ? Number(row.gsm) : null,
+        colorFamily: row.color_family || '',
+        dept: row.dept || '',
+        fabricType: row.fabric_type || '',
+        fiberType: row.fiber_type || '',
+        designer: row.designer || '',
+        origin: row.origin || '',
+        pattern: row.pattern || '',
+        content: row.content ? [row.content] : [],
+        feelsLike: [],
+        photo: row.image_url || row.cover_photo_url || '',
         desc: row.description || ''
       };
     });
