@@ -878,8 +878,6 @@
       document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
     }
   })();
-</script>
-
 <script>
   // Supabase session + create-listing logic
   const supabaseClient = window.supabase.createClient(
@@ -908,10 +906,9 @@
       window.location.href = "auth.html?view=login";
       return;
     }
-
     const user = session.user;
 
-    // Update header account icon to "logged in" state and point to Account
+    // Header account icon => logged-in state
     if (headerAccountLink){
       headerAccountLink.href = "account.html";
       headerAccountLink.setAttribute("aria-label","Your account");
@@ -919,25 +916,23 @@
       headerAccountLink.classList.remove("is-logged-out");
     }
 
-    // If user logs out in another tab, kick them back to login on this page
+    // If user logs out elsewhere, kick them back to login
     supabaseClient.auth.onAuthStateChange((_event, newSession) => {
       if (!newSession || !newSession.user){
         window.location.href = "auth.html?view=login";
       }
     });
 
-    // ---------- Create Listing UI logic ----------
-
+    // ---------- STEP / STATE SETUP ----------
     let step = 1;
     const MAX_STEP = 3;
-    const stepper    = document.getElementById('stepper');
     const stageTitle = document.getElementById('stageTitle');
     const backBtn    = document.getElementById('backBtn');
     const nextBtn    = document.getElementById('nextBtn');
     const saveDraft  = document.getElementById('saveDraftBtn');
 
     const state = {
-      photos: [],  // { file, url }
+      photos: [],  // { file, url } where url is a local object URL
       video: null, // { file, url }
       details: {}
     };
@@ -965,18 +960,22 @@
     const reviewMedia = document.getElementById('reviewMedia');
     const reviewKv    = document.getElementById('reviewKv');
 
+    // ---------- STEP LOGIC ----------
     function setStep(newStep){
       step = newStep;
-      // Toggle step panels
+
+      // Toggle panels
       document.querySelectorAll('.step').forEach((el, idx)=>{
         el.hidden = (idx !== (step-1));
       });
+
       // Highlight stepper
       document.querySelectorAll('.bubble').forEach(b=>{
         const s = Number(b.getAttribute('data-step'));
         b.dataset.active = (s === step) ? 'true' : 'false';
       });
-      // Title
+
+      // Title text
       if(step === 1) stageTitle.textContent = 'Step 1 — Photos & Video';
       if(step === 2) stageTitle.textContent = 'Step 2 — Details';
       if(step === 3) stageTitle.textContent = 'Step 3 — Review & Publish';
@@ -995,14 +994,14 @@
       }
     }
 
-    // ---------- Photo handling ----------
+    // ---------- PHOTOS ----------
     function renderPhotoThumbs(){
       photoThumbs.innerHTML = '';
       state.photos.forEach((p, idx)=>{
         const div = document.createElement('div');
         div.className = 'ph';
         const img = document.createElement('img');
-        img.src = p.url;
+        img.src = p.url;                      // local object URL
         img.alt = idx === 0 ? 'Cover photo' : 'Photo ' + (idx+1);
         div.appendChild(img);
         if(idx === 0){
@@ -1015,7 +1014,9 @@
       });
 
       photoError.style.display = state.photos.length ? 'none' : 'block';
-      nextBtn.disabled = state.photos.length === 0 && step === 1;
+      if(step === 1){
+        nextBtn.disabled = state.photos.length === 0;
+      }
     }
 
     function handlePhotoFiles(files){
@@ -1024,7 +1025,7 @@
       const remaining = Math.max(0, 8 - state.photos.length);
       const slice = list.slice(0, remaining);
       slice.forEach(file=>{
-        const url = URL.createObjectURL(file);
+        const url = URL.createObjectURL(file);     // preview only
         state.photos.push({ file, url });
       });
       renderPhotoThumbs();
@@ -1051,7 +1052,7 @@
       handlePhotoFiles(e.dataTransfer.files);
     });
 
-    // ---------- Video handling ----------
+    // ---------- VIDEO ----------
     function renderVideo(){
       videoThumb.innerHTML = '';
       if(!state.video) return;
@@ -1098,7 +1099,7 @@
       handleVideoFile(file);
     });
 
-    // ---------- Validation for Step 2 ----------
+    // ---------- VALIDATION (STEP 2) ----------
     function validateStep2(){
       let ok = true;
 
@@ -1136,10 +1137,11 @@
       return ok;
     }
 
-    // ---------- Collect step 2 details into state ----------
+    // ---------- COLLECT DETAILS ----------
     function collectDetails(){
-      const feels = Array.from(document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]:checked'))
-        .map(cb=>cb.value);
+      const feels = Array.from(
+        document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]:checked')
+      ).map(cb=>cb.value);
 
       state.details = {
         title: titleInput.value.trim(),
@@ -1161,12 +1163,12 @@
       };
     }
 
-    // ---------- Build review (Step 3) ----------
+    // ---------- BUILD REVIEW (STEP 3) ----------
     function buildReview(){
       reviewMedia.innerHTML = '';
       reviewKv.innerHTML = '';
 
-      // Photos
+      // photos
       state.photos.forEach((p, idx)=>{
         const div = document.createElement('div');
         div.className = 'ph';
@@ -1183,6 +1185,7 @@
         reviewMedia.appendChild(div);
       });
 
+      // video
       if(state.video){
         const div = document.createElement('div');
         div.className = 'ph';
@@ -1193,15 +1196,17 @@
         reviewMedia.appendChild(div);
       }
 
+      // key/value rows
       const addRow = (key,label,val)=>{
         const k = document.createElement('div');
         k.className = 'kv-key';
         k.textContent = label;
         const v = document.createElement('div');
         v.className = 'kv-val';
-        v.textContent = (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length))
-          ? '—'
-          : (Array.isArray(val) ? val.join(', ') : String(val));
+        v.textContent =
+          (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length))
+            ? '—'
+            : (Array.isArray(val) ? val.join(', ') : String(val));
         reviewKv.appendChild(k);
         reviewKv.appendChild(v);
       };
@@ -1225,7 +1230,7 @@
       addRow('feels_like','feels like', d.feelsLike);
     }
 
-    // ---------- Step navigation ----------
+    // ---------- STEP NAV ----------
     backBtn.addEventListener('click', ()=>{
       if(step > 1){
         setStep(step - 1);
@@ -1275,30 +1280,32 @@
       alert('Draft saving is not wired yet. For now, publish when you are ready.');
     });
 
-    // ---------- Publish ----------
+    // ---------- PUBLISH ----------
     async function publishListing(user){
       try{
         nextBtn.disabled = true;
         nextBtn.textContent = 'Publishing…';
         backBtn.disabled = true;
 
-        // Upload photos to storage
-        const photoPaths = [];
-        for(let i=0;i<state.photos.length;i++){
-          const p = state.photos[i];
-          const path = `${user.id}/${Date.now()}_${i}_${p.file.name}`;
-          const { error: upErr } = await supabaseClient
-            .storage
-            .from('listing-media')
-            .upload(path, p.file, { upsert:false });
-          if(upErr){
-            console.warn('Photo upload error', upErr);
-            continue;
+        // Upload photos to storage so they exist for later
+        let coverPath = null;
+        if(state.photos.length){
+          for(let i=0;i<state.photos.length;i++){
+            const p = state.photos[i];
+            const path = `${user.id}/${Date.now()}_${i}_${p.file.name}`;
+            const { error: upErr } = await supabaseClient
+              .storage
+              .from('listing-media')
+              .upload(path, p.file, { upsert:false });
+            if(upErr){
+              console.warn('Photo upload error', upErr);
+              continue;
+            }
+            if(coverPath === null) coverPath = path;
           }
-          photoPaths.push(path);
         }
 
-        // Optional: upload video
+        // Optional video upload (ignored by DB for now)
         let videoPath = null;
         if(state.video && state.video.file){
           const vfile = state.video.file;
@@ -1311,23 +1318,17 @@
         }
 
         const d = state.details;
+        const priceCents = d.price != null ? Math.round(d.price * 100) : null;
 
-        // NOTE: this assumes your "listings" table has these columns:
-        // seller_id (uuid), title (text), description (text),
-        // price_cents (integer), yards (numeric), status (text),
-        // cover_photo_path (text), photo_paths (text[]), video_path (text)
-        const priceCents = d.price !== null ? Math.round(d.price * 100) : null;
-
+        // Minimal payload that matches current "listings" table
         const payload = {
           seller_id: user.id,
           title: d.title,
           description: d.desc,
           price_cents: priceCents,
           yards: d.yards,
-          status: 'active',
-          cover_photo_path: photoPaths[0] || null,
-          photo_paths: photoPaths.length ? photoPaths : null,
-          video_path: videoPath
+          status: 'active'
+          // coverPath / videoPath / metadata will be wired later when columns exist
         };
 
         const { error: insertErr } = await supabaseClient
@@ -1335,11 +1336,8 @@
           .insert(payload);
 
         if(insertErr){
-          console.error(insertErr);
-          alert(
-            'Sorry, something went wrong while publishing.\n\n' +
-            (insertErr.message || 'Unknown error.')
-          );
+          console.error('insert error', insertErr);
+          alert('Sorry, something went wrong while publishing.\n\n' + (insertErr.message || 'Unknown error.'));
           nextBtn.disabled = false;
           nextBtn.textContent = 'Publish';
           backBtn.disabled = false;
@@ -1357,10 +1355,11 @@
       }
     }
 
-    // Initial step state
+    // Initial
     setStep(1);
   })();
 </script>
+
 
 </body>
 </html>
