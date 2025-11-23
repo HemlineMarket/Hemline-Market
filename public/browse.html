@@ -1022,7 +1022,6 @@ document.getElementById('colorBox').addEventListener('click', e=>{
   'designer','origin','pattern'
 ].forEach(id=>{
   const node=document.getElementById(id);
-  if(!node) return;
   node.addEventListener('input', ()=>{
     state[id]=node.value.trim();
     render();
@@ -1059,11 +1058,11 @@ function pass(it){
 
   if(n(state.minYards)!=null && it.yards < n(state.minYards)) return false;
 
-  if(n(state.minWidth)!=null && it.width < n(state.minWidth)) return false;
-  if(n(state.maxWidth)!=null && it.width > n(state.maxWidth)) return false;
+  if(n(state.minWidth)!=null && it.width != null && it.width < n(state.minWidth)) return false;
+  if(n(state.maxWidth)!=null && it.width != null && it.width > n(state.maxWidth)) return false;
 
-  if(n(state.minGsm)!=null && it.gsm < n(state.minGsm)) return false;
-  if(n(state.maxGsm)!=null && it.gsm > n(state.maxGsm)) return false;
+  if(n(state.minGsm)!=null && it.gsm != null && it.gsm < n(state.minGsm)) return false;
+  if(n(state.maxGsm)!=null && it.gsm != null && it.gsm > n(state.maxGsm)) return false;
 
   if(state.dept && it.dept !== state.dept) return false;
   if(state.fabricType && it.fabricType !== state.fabricType) return false;
@@ -1076,7 +1075,7 @@ function pass(it){
   return true;
 }
 
-/* -------- Card rendering helpers -------- */
+function cents(x){ return Math.round(Number(x||0)*100); }
 
 function makeCard(it){
   const a=el('a','card');
@@ -1093,57 +1092,38 @@ function makeCard(it){
 
   const meta=el('div','meta');
   const t=el('div','title',it.title);
-  meta.append(t);
 
-  // Seller + store row
-  const sub = el('div','sub');
-  if(it.sellerName){
-    sub.append(el('span','',it.sellerName));
-  }
-  if(it.storeName){
-    sub.append(el('span','',it.storeName));
-  }
-  if(it.origin){
-    sub.append(el('span','',it.origin));
-  }
-  if(sub.childNodes.length){
-    meta.append(sub);
-  }
-
-  // Button label: total price for all yards
-  let btnLabel = 'Add to Cart';
-  if(it.yards && it.totalPrice != null){
-    const yardsLabel = it.yards === 1 ? '1 yard' : `${it.yards} yards`;
-    btnLabel = `Add to Cart — $${it.totalPrice.toFixed(2)} for ${yardsLabel}`;
-  }else if(it.totalPrice != null){
-    btnLabel = `Add to Cart — $${it.totalPrice.toFixed(2)}`;
-  }
+  const total = it.totalPrice ?? 0;
+  const yardsLabel = it.yards ? `${it.yards} ${it.yards === 1 ? 'yard' : 'yards'}` : '';
+  const btnLabel = yardsLabel
+    ? `Add to Cart — $${total.toFixed(2)} for ${yardsLabel}`
+    : `Add to Cart — $${total.toFixed(2)}`;
 
   const btn=el('button','add-btn add-to-cart',btnLabel);
   btn.type='button';
+  const amountCents=cents(total);
+  btn.dataset.name=it.title;
+  btn.dataset.amount=String(amountCents);
+  btn.dataset.yards=String(it.yards ?? '');
+  btn.dataset.price=String(it.pricePerYard ?? '');
+  btn.dataset.sellerId=it.sellerId || ('seller_'+it.id);
+  btn.dataset.sellerName=it.sellerName || 'Seller';
 
-  const amountCents = it.totalPrice != null ? Math.round(it.totalPrice * 100) : 0;
-  btn.dataset.name   = it.title;
-  btn.dataset.amount = String(amountCents);
-  btn.dataset.yards  = String(it.yards ?? '');
-  btn.dataset.price  = String(it.pricePerYard ?? '');
-  btn.dataset.sellerId   = it.sellerId || ('seller_'+it.id);
-  btn.dataset.sellerName = it.sellerName || 'Seller';
+  const priceRow = it.pricePerYardText
+    ? el('div','price-row')
+    : null;
 
-  meta.append(btn);
-
-  // Per-yard price row
-  if(it.pricePerYardText || it.origPerYardText){
-    const priceRow = el('div','price-row');
-    if(it.pricePerYardText){
-      priceRow.appendChild(el('span','price-sale', it.pricePerYardText));
-    }
+  if(priceRow){
+    const saleSpan = el('span','price-sale', it.pricePerYardText);
+    priceRow.appendChild(saleSpan);
     if(it.origPerYardText){
-      priceRow.appendChild(el('span','price-orig', it.origPerYardText));
+      const origSpan = el('span','price-orig', it.origPerYardText);
+      priceRow.appendChild(origSpan);
     }
-    meta.append(priceRow);
   }
 
+  meta.append(t,btn);
+  if(priceRow) meta.append(priceRow);
   a.append(ph,meta);
   return a;
 }
@@ -1161,14 +1141,11 @@ function render(){
   list.forEach(it=>grid.append(makeCard(it)));
 }
 
-/* Load listings from Supabase listings_public */
-<script>
-/* Load listings from the real `listings` table with your current columns */
+/* Load listings from the real `listings` table */
 (async function loadListings(){
   try{
     resultSpan.textContent = 'Loading…';
 
-    // Minimal, schema-accurate select
     const { data, error } = await supabaseClient
       .from('listings')
       .select(`
@@ -1197,23 +1174,19 @@ function render(){
     LISTINGS = (data || []).map(row => {
       const yards = row.yards_available != null ? Number(row.yards_available) : 0;
 
-      // price_cents is **per yard**
+      // price_cents is PER YARD
       const pricePerYard = row.price_cents != null
         ? Number(row.price_cents) / 100
         : null;
 
-      // Total for all yards (this is what goes on the button)
       const totalPrice = pricePerYard != null && yards
         ? pricePerYard * yards
-        : pricePerYard;
+        : (pricePerYard ?? 0);
 
       return {
         id: row.id,
         sellerId: row.seller_id || null,
-
-        // We’ll wire these once your view exposes them
-        sellerName: null,
-        storeName: '',
+        sellerName: null, // to be filled from profiles later
 
         title: row.title || 'Untitled listing',
         desc: row.description || '',
@@ -1221,12 +1194,9 @@ function render(){
         yards,
         pricePerYard,
         totalPrice,
-
-        // Text used by the card renderer
         pricePerYardText: pricePerYard != null ? `$${pricePerYard.toFixed(2)}/yard` : '',
-        origPerYardText:  '', // no orig_price column yet
+        origPerYardText: '', // no orig_price yet
 
-        // Filters that your table doesn’t have yet – keep them empty for now
         width: null,
         gsm: null,
         colorFamily: '',
@@ -1238,9 +1208,7 @@ function render(){
         pattern: '',
         content: [],
         feelsLike: [],
-
-        // No media wired yet – cards will fall back to the title text in the photo box
-        photo: ''
+        photo: '' // media wiring later
       };
     });
 
