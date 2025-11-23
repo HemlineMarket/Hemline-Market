@@ -1022,6 +1022,7 @@ document.getElementById('colorBox').addEventListener('click', e=>{
   'designer','origin','pattern'
 ].forEach(id=>{
   const node=document.getElementById(id);
+  if(!node) return;
   node.addEventListener('input', ()=>{
     state[id]=node.value.trim();
     render();
@@ -1058,11 +1059,11 @@ function pass(it){
 
   if(n(state.minYards)!=null && it.yards < n(state.minYards)) return false;
 
-  if(n(state.minWidth)!=null && it.width != null && it.width < n(state.minWidth)) return false;
-  if(n(state.maxWidth)!=null && it.width != null && it.width > n(state.maxWidth)) return false;
+  if(n(state.minWidth)!=null && it.width < n(state.minWidth)) return false;
+  if(n(state.maxWidth)!=null && it.width > n(state.maxWidth)) return false;
 
-  if(n(state.minGsm)!=null && it.gsm != null && it.gsm < n(state.minGsm)) return false;
-  if(n(state.maxGsm)!=null && it.gsm != null && it.gsm > n(state.maxGsm)) return false;
+  if(n(state.minGsm)!=null && it.gsm < n(state.minGsm)) return false;
+  if(n(state.maxGsm)!=null && it.gsm > n(state.maxGsm)) return false;
 
   if(state.dept && it.dept !== state.dept) return false;
   if(state.fabricType && it.fabricType !== state.fabricType) return false;
@@ -1075,82 +1076,66 @@ function pass(it){
   return true;
 }
 
-/* Build card */
-function makeCard(it){
-  const a = el('a','card');
-  a.href = 'listing.html?id=' + encodeURIComponent(it.id);
-  a.dataset.id = it.id;
+function cents(x){ return Math.round(Number(x||0)*100); }
 
-  // Image / placeholder
-  const ph = el('div','ph', it.photo ? '' : it.title);
-  if (it.photo){
-    const img = new Image();
-    img.src = it.photo;
-    img.alt = it.title;
+function makeCard(it){
+  const a=el('a','card');
+  a.href='listing.html?id='+encodeURIComponent(it.id);
+  a.dataset.id=it.id;
+
+  const ph=el('div','ph');
+  if(it.photo){
+    const img=new Image();
+    img.src=it.photo;
+    img.alt=it.title;
     ph.append(img);
   }
-  a.append(ph);
+  // if no photo, we just show a clean placeholder block
 
-  const meta = el('div','meta');
+  const meta=el('div','meta');
+  const t=el('div','title',it.title);
 
-  // Title
-  const t = el('div','title', it.title);
-  meta.append(t);
-
-  // Store / seller + yards row
-  const sub = el('div','sub');
-  const store = it.storeName || it.sellerName || '';
-  if(store){
-    sub.append(el('span','',store));
-  }
-  if(it.yards){
-    sub.append(el('span','', `${it.yards} ${it.yards === 1 ? 'yard' : 'yards'}`));
-  }
-  if(sub.childNodes.length){
-    meta.append(sub);
-  }
-
-  // Add to Cart button (totals already correct)
-  const total = it.totalPrice ?? 0;
   const yardsLabel = it.yards
     ? `${it.yards} ${it.yards === 1 ? 'yard' : 'yards'}`
     : '';
 
+  const storeLabel = it.sellerName || 'Store name';
+
+  const sub = el('div','sub');
+  if(yardsLabel) sub.append(el('span','',yardsLabel));
+  sub.append(el('span','',storeLabel));
+
+  const total = it.totalPrice ?? 0;
   const btnLabel = yardsLabel
     ? `Add to Cart — $${total.toFixed(2)} for ${yardsLabel}`
     : `Add to Cart — $${total.toFixed(2)}`;
 
-  const btn = el('button','add-btn add-to-cart', btnLabel);
-  btn.type = 'button';
+  const btn=el('button','add-btn add-to-cart',btnLabel);
+  btn.type='button';
+  const amountCents=cents(total);
+  btn.dataset.name=it.title;
+  btn.dataset.amount=String(amountCents);
+  btn.dataset.yards=String(it.yards ?? '');
+  btn.dataset.price=String(it.pricePerYard ?? '');
+  btn.dataset.sellerId=it.sellerId || ('seller_'+it.id);
+  btn.dataset.sellerName=storeLabel;
 
-  const amountCents = Math.round(total * 100);
-  btn.dataset.name       = it.title;
-  btn.dataset.amount     = String(amountCents);
-  btn.dataset.yards      = String(it.yards ?? '');
-  btn.dataset.price      = String(it.pricePerYard ?? '');
-  btn.dataset.sellerId   = it.sellerId || ('seller_'+it.id);
-  btn.dataset.sellerName = it.sellerName || it.storeName || 'Seller';
+  const priceRow = it.pricePerYard != null
+    ? el('div','price-row')
+    : null;
 
-  meta.append(btn);
-
-  // Per-yard row: sale price + original crossed-out
-  if (it.pricePerYardText || it.origPerYardText){
-    const priceRow = el('div','price-row');
-
-    if (it.pricePerYardText){
-      const saleSpan = el('span','price-sale', it.pricePerYardText);
-      priceRow.appendChild(saleSpan);
-    }
-
-    if (it.origPerYardText && it.origPerYardText !== it.pricePerYardText){
-      const origSpan = el('span','price-orig', it.origPerYardText);
+  if(priceRow){
+    const saleSpan = el('span','price-sale', `$${it.pricePerYard.toFixed(2)}/yard`);
+    priceRow.appendChild(saleSpan);
+    if(it.origPerYard != null){
+      const origSpan = el('span','price-orig', `$${it.origPerYard.toFixed(2)}/yard`);
       priceRow.appendChild(origSpan);
     }
-
-    meta.append(priceRow);
   }
 
-  a.append(meta);
+  meta.append(t,sub,btn);
+  if(priceRow) meta.append(priceRow);
+  a.append(ph,meta);
   return a;
 }
 
@@ -1167,14 +1152,26 @@ function render(){
   list.forEach(it=>grid.append(makeCard(it)));
 }
 
-/* Load listings from listings_public view */
+/* Load listings from Supabase listings_public */
 (async function loadListings(){
   try{
     resultSpan.textContent = 'Loading…';
 
     const { data, error } = await supabaseClient
       .from('listings_public')
-      .select('*')
+      .select(`
+        id,
+        seller_id,
+        title,
+        description,
+        price_cents,
+        orig_price_cents,
+        yards_available,
+        status,
+        image_url,
+        created_at,
+        is_published
+      `)
       .eq('is_published', true)
       .order('created_at', { ascending: false });
 
@@ -1188,47 +1185,42 @@ function render(){
 
     LISTINGS = (data || []).map(row => {
       const yards = row.yards_available != null ? Number(row.yards_available) : 0;
-      const totalPrice = row.price_cents != null ? Number(row.price_cents) / 100 : 0;
-      const origTotal = row.orig_price_cents != null
-        ? Number(row.orig_price_cents) / 100
-        : totalPrice;
 
-      const pricePerYard = yards ? totalPrice / yards : null;
-      const origPerYard  = yards ? origTotal / yards  : null;
+      // Treat price_cents as price PER YARD
+      const pricePerYard = row.price_cents != null
+        ? Number(row.price_cents) / 100
+        : null;
+
+      const origPerYard = row.orig_price_cents != null
+        ? Number(row.orig_price_cents) / 100
+        : null;
+
+      const totalPrice = pricePerYard != null && yards
+        ? pricePerYard * yards
+        : (pricePerYard ?? 0);
 
       const feels = row.feels_like
         ? String(row.feels_like).split(',').map(s=>s.trim()).filter(Boolean)
         : [];
 
-      const storeName =
-        row.store_name ||
-        row.seller_store_name ||
-        row.profile_store_name ||
-        row.display_name ||
-        row.username ||
-        null;
-
       return {
         id: row.id,
         sellerId: row.seller_id || null,
-        sellerName: row.seller_name || storeName || null,
-        storeName,
+        sellerName: row.seller_name || 'Hemline Market seller', // placeholder for now
         title: row.title || 'Untitled listing',
         totalPrice,
         yards,
         pricePerYard,
         origPerYard,
-        pricePerYardText: pricePerYard != null ? `$${pricePerYard.toFixed(2)}/yard` : '',
-        origPerYardText:  origPerYard  != null ? `$${origPerYard.toFixed(2)}/yard`  : '',
-        width: row.width_in != null ? Number(row.width_in) : null,
-        gsm:   row.gsm != null ? Number(row.gsm) : null,
+        width: null,
+        gsm: null,
         colorFamily: row.color_family || '',
-        dept:        row.dept || '',
-        fabricType:  row.fabric_type || '',
-        fiberType:   row.fiber_type || '',
-        designer:    row.designer || '',
-        origin:      row.origin || '',
-        pattern:     row.pattern || '',
+        dept: row.dept || '',
+        fabricType: row.fabric_type || '',
+        fiberType: row.fiber_type || '',
+        designer: row.designer || '',
+        origin: row.origin || '',
+        pattern: row.pattern || '',
         content: row.content ? [row.content] : [],
         feelsLike: feels,
         photo: row.image_url || '',
