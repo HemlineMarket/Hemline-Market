@@ -1239,18 +1239,9 @@
         nextBtn.textContent = 'Publishing…';
         backBtn.disabled = true;
 
-        // Make sure we have the latest details
-        collectDetails();
         const d = state.details;
-
-        const priceCents     = d.price != null ? Math.round(d.price * 100) : null;
-        const origPriceCents = d.origPrice != null ? Math.round(d.origPrice * 100) : null;
-        const feelsLikeStr   = d.feelsLike && d.feelsLike.length ? d.feelsLike.join(', ') : null;
-
-        // Temporary placeholder image until storage upload is wired
-        const placeholderImage =
-          'https://via.placeholder.com/800x600.png?text=' +
-          encodeURIComponent(d.title || 'Fabric');
+        const priceCents      = d.price     != null ? Math.round(d.price * 100)     : null;
+        const origPriceCents  = d.origPrice != null ? Math.round(d.origPrice * 100) : null;
 
         const payload = {
           seller_id: user.id,
@@ -1263,16 +1254,11 @@
           is_published: true,
           width_in: d.width,
           gsm: d.gsm,
-          color_family: d.colorFamily,
-          dept: d.dept,
-          fabric_type: d.fabric,
           fiber_type: d.fiberType,
-          designer: d.designer,
-          origin: d.origin,
-          pattern: d.pattern,
-          content: d.content,
-          feels_like: feelsLikeStr,
-          image_url_1: placeholderImage
+          country_of_origin: d.origin
+          // NOTE: we are intentionally NOT sending color_family, dept, fabric_type,
+          // pattern, designer, feels_like yet because those columns do not
+          // exist on the `listings` table right now.
         };
 
         const { error: insertErr } = await supabaseClient
