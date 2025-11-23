@@ -1162,42 +1162,31 @@ function render(){
 }
 
 /* Load listings from Supabase listings_public */
+<script>
+/* Load listings from the real `listings` table with your current columns */
 (async function loadListings(){
   try{
     resultSpan.textContent = 'Loading…';
 
+    // Minimal, schema-accurate select
     const { data, error } = await supabaseClient
-      .from('listings_public')
+      .from('listings')
       .select(`
         id,
         seller_id,
-        seller_name,
-        store_name,
         title,
         description,
         price_cents,
-        orig_price_cents,
         yards_available,
         status,
-        image_url_1,
-        color_family,
-        dept,
-        fabric_type,
-        fiber_type,
-        designer,
-        origin,
-        pattern,
-        content,
-        feels_like,
-        width_in,
-        gsm,
-        created_at,
-        is_published
+        is_published,
+        created_at
       `)
       .eq('is_published', true)
+      .eq('status', 'active')
       .order('created_at', { ascending: false });
 
-    if(error){
+    if (error){
       console.error('Error loading listings', error);
       resultSpan.textContent = 'Error loading listings';
       grid.innerHTML = '';
@@ -1208,74 +1197,57 @@ function render(){
     LISTINGS = (data || []).map(row => {
       const yards = row.yards_available != null ? Number(row.yards_available) : 0;
 
-      // NOTE: price_cents and orig_price_cents are **per yard**
+      // price_cents is **per yard**
       const pricePerYard = row.price_cents != null
         ? Number(row.price_cents) / 100
         : null;
 
-      const origPerYard = row.orig_price_cents != null
-        ? Number(row.orig_price_cents) / 100
-        : null;
-
+      // Total for all yards (this is what goes on the button)
       const totalPrice = pricePerYard != null && yards
         ? pricePerYard * yards
         : pricePerYard;
 
-      const origTotalPrice = origPerYard != null && yards
-        ? origPerYard * yards
-        : origPerYard;
-
-      const feels = row.feels_like
-        ? String(row.feels_like).split(',').map(s=>s.trim()).filter(Boolean)
-        : [];
-
-      const sellerName =
-        row.seller_name ||
-        row.store_name ||            // fallback if you put name here
-        null;
-
-      const photo =
-        row.image_url_1 ||
-        row.image_url ||
-        '';
-
       return {
         id: row.id,
         sellerId: row.seller_id || null,
-        sellerName,
-        storeName: row.store_name || '',
+
+        // We’ll wire these once your view exposes them
+        sellerName: null,
+        storeName: '',
+
         title: row.title || 'Untitled listing',
+        desc: row.description || '',
 
         yards,
         pricePerYard,
-        origPerYard,
         totalPrice,
-        origTotalPrice,
 
+        // Text used by the card renderer
         pricePerYardText: pricePerYard != null ? `$${pricePerYard.toFixed(2)}/yard` : '',
-        origPerYardText:  origPerYard  != null ? `$${origPerYard.toFixed(2)}/yard`  : '',
+        origPerYardText:  '', // no orig_price column yet
 
-        width: row.width_in != null ? Number(row.width_in) : null,
-        gsm: row.gsm != null ? Number(row.gsm) : null,
+        // Filters that your table doesn’t have yet – keep them empty for now
+        width: null,
+        gsm: null,
+        colorFamily: '',
+        dept: '',
+        fabricType: '',
+        fiberType: '',
+        designer: '',
+        origin: '',
+        pattern: '',
+        content: [],
+        feelsLike: [],
 
-        colorFamily: row.color_family || '',
-        dept: row.dept || '',
-        fabricType: row.fabric_type || '',
-        fiberType: row.fiber_type || '',
-        designer: row.designer || '',
-        origin: row.origin || '',
-        pattern: row.pattern || '',
-        content: row.content ? [row.content] : [],
-        feelsLike: feels,
-        photo,
-        desc: row.description || ''
+        // No media wired yet – cards will fall back to the title text in the photo box
+        photo: ''
       };
     });
 
-    if(!LISTINGS.length){
+    if (!LISTINGS.length){
       resultSpan.textContent = '0 results';
-      grid.innerHTML='';
-      empty.style.display='block';
+      grid.innerHTML = '';
+      empty.style.display = 'block';
       return;
     }
 
@@ -1283,8 +1255,8 @@ function render(){
   }catch(err){
     console.error('Unexpected error loading listings', err);
     resultSpan.textContent = 'Error loading listings';
-    grid.innerHTML='';
-    empty.style.display='block';
+    grid.innerHTML = '';
+    empty.style.display = 'block';
   }
 })();
 </script>
