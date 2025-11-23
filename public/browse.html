@@ -413,16 +413,17 @@ html,body{
 }
 .meta .title{
   font-weight:800;
-  margin-bottom:4px;
+  margin-bottom:2px;
   line-height:1.2;
 }
 .meta .sub{
   display:flex;
   flex-wrap:wrap;
-  gap:8px;
+  gap:4px 10px;
   justify-content:space-between;
   font-size:13px;
   color:#6b7280;
+  margin-bottom:4px;
 }
 .meta .sub span{white-space:nowrap;}
 
@@ -762,7 +763,8 @@ html,body{
 </footer>
 
 <!-- Supabase JS -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@sup
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 /* Hamburger / overlay */
@@ -899,9 +901,9 @@ const COLORS = [
 ];
 
 function el(tag, cls, txt){
-  const n=document.createElement(tag);
-  if(cls) n.className=cls;
-  if(txt!=null) n.textContent=txt;
+  const n = document.createElement(tag);
+  if(cls) n.className = cls;
+  if(txt != null) n.textContent = txt;
   return n;
 }
 
@@ -1022,7 +1024,6 @@ document.getElementById('colorBox').addEventListener('click', e=>{
   'designer','origin','pattern'
 ].forEach(id=>{
   const node=document.getElementById(id);
-  if(!node) return;
   node.addEventListener('input', ()=>{
     state[id]=node.value.trim();
     render();
@@ -1059,11 +1060,11 @@ function pass(it){
 
   if(n(state.minYards)!=null && it.yards < n(state.minYards)) return false;
 
-  if(n(state.minWidth)!=null && it.width < n(state.minWidth)) return false;
-  if(n(state.maxWidth)!=null && it.width > n(state.maxWidth)) return false;
+  if(n(state.minWidth)!=null && it.width != null && it.width < n(state.minWidth)) return false;
+  if(n(state.maxWidth)!=null && it.width != null && it.width > n(state.maxWidth)) return false;
 
-  if(n(state.minGsm)!=null && it.gsm < n(state.minGsm)) return false;
-  if(n(state.maxGsm)!=null && it.gsm > n(state.maxGsm)) return false;
+  if(n(state.minGsm)!=null && it.gsm != null && it.gsm < n(state.minGsm)) return false;
+  if(n(state.maxGsm)!=null && it.gsm != null && it.gsm > n(state.maxGsm)) return false;
 
   if(state.dept && it.dept !== state.dept) return false;
   if(state.fabricType && it.fabricType !== state.fabricType) return false;
@@ -1089,21 +1090,20 @@ function makeCard(it){
     img.src=it.photo;
     img.alt=it.title;
     ph.append(img);
+  }else{
+    ph.textContent = it.title;
   }
-  // if no photo, we just show a clean placeholder block
 
   const meta=el('div','meta');
   const t=el('div','title',it.title);
 
-  const yardsLabel = it.yards
-    ? `${it.yards} ${it.yards === 1 ? 'yard' : 'yards'}`
-    : '';
+  const seller = it.sellerName || 'Aurora';
 
-  const storeLabel = it.sellerName || 'Store name';
-
-  const sub = el('div','sub');
-  if(yardsLabel) sub.append(el('span','',yardsLabel));
-  sub.append(el('span','',storeLabel));
+  const infoRow = el('div','sub');
+  const yardsLabel = it.yards ? `${it.yards} ${it.yards === 1 ? 'yard' : 'yards'}` : '';
+  const yardsSpan = el('span','', yardsLabel);
+  const sellerSpan = el('span','', seller);
+  infoRow.append(yardsSpan,sellerSpan);
 
   const total = it.totalPrice ?? 0;
   const btnLabel = yardsLabel
@@ -1118,23 +1118,19 @@ function makeCard(it){
   btn.dataset.yards=String(it.yards ?? '');
   btn.dataset.price=String(it.pricePerYard ?? '');
   btn.dataset.sellerId=it.sellerId || ('seller_'+it.id);
-  btn.dataset.sellerName=storeLabel;
+  btn.dataset.sellerName=seller;
 
-  const priceRow = it.pricePerYard != null
-    ? el('div','price-row')
-    : null;
-
-  if(priceRow){
-    const saleSpan = el('span','price-sale', `$${it.pricePerYard.toFixed(2)}/yard`);
+  const priceRow = el('div','price-row');
+  if(it.pricePerYardText){
+    const saleSpan = el('span','price-sale', it.pricePerYardText);
     priceRow.appendChild(saleSpan);
-    if(it.origPerYard != null){
-      const origSpan = el('span','price-orig', `$${it.origPerYard.toFixed(2)}/yard`);
+    if(it.origPerYardText){
+      const origSpan = el('span','price-orig', it.origPerYardText);
       priceRow.appendChild(origSpan);
     }
   }
 
-  meta.append(t,sub,btn);
-  if(priceRow) meta.append(priceRow);
+  meta.append(t,infoRow,btn,priceRow);
   a.append(ph,meta);
   return a;
 }
@@ -1162,6 +1158,7 @@ function render(){
       .select(`
         id,
         seller_id,
+        seller_display_name,
         title,
         description,
         price_cents,
@@ -1169,8 +1166,19 @@ function render(){
         yards_available,
         status,
         image_url,
+        image_url_1,
         created_at,
-        is_published
+        is_published,
+        color_family,
+        dept,
+        fabric_type,
+        fiber_type,
+        designer,
+        origin,
+        pattern,
+        width_in,
+        gsm,
+        feels_like
       `)
       .eq('is_published', true)
       .order('created_at', { ascending: false });
@@ -1186,18 +1194,16 @@ function render(){
     LISTINGS = (data || []).map(row => {
       const yards = row.yards_available != null ? Number(row.yards_available) : 0;
 
-      // Treat price_cents as price PER YARD
-      const pricePerYard = row.price_cents != null
-        ? Number(row.price_cents) / 100
-        : null;
+      // price_cents is TOTAL price in cents
+      const totalPrice = row.price_cents != null ? Number(row.price_cents) / 100 : 0;
+      const pricePerYard = yards ? totalPrice / yards : null;
 
-      const origPerYard = row.orig_price_cents != null
-        ? Number(row.orig_price_cents) / 100
-        : null;
-
-      const totalPrice = pricePerYard != null && yards
-        ? pricePerYard * yards
-        : (pricePerYard ?? 0);
+      // orig_price_cents is TOTAL original price in cents
+      let origPerYard = null;
+      if(row.orig_price_cents != null){
+        const origTotal = Number(row.orig_price_cents) / 100;
+        origPerYard = yards ? origTotal / yards : origTotal;
+      }
 
       const feels = row.feels_like
         ? String(row.feels_like).split(',').map(s=>s.trim()).filter(Boolean)
@@ -1206,14 +1212,16 @@ function render(){
       return {
         id: row.id,
         sellerId: row.seller_id || null,
-        sellerName: row.seller_name || 'Hemline Market seller', // placeholder for now
+        sellerName: row.seller_display_name || 'Aurora',
         title: row.title || 'Untitled listing',
         totalPrice,
         yards,
         pricePerYard,
         origPerYard,
-        width: null,
-        gsm: null,
+        pricePerYardText: pricePerYard != null ? `$${pricePerYard.toFixed(2)}/yard` : '',
+        origPerYardText: origPerYard  != null ? `$${origPerYard.toFixed(2)}/yard`  : '',
+        width: row.width_in != null ? Number(row.width_in) : null,
+        gsm: row.gsm != null ? Number(row.gsm) : null,
         colorFamily: row.color_family || '',
         dept: row.dept || '',
         fabricType: row.fabric_type || '',
@@ -1223,7 +1231,7 @@ function render(){
         pattern: row.pattern || '',
         content: row.content ? [row.content] : [],
         feelsLike: feels,
-        photo: row.image_url || '',
+        photo: row.image_url_1 || row.image_url || '',
         desc: row.description || ''
       };
     });
