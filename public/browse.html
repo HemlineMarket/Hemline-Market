@@ -1022,6 +1022,7 @@ document.getElementById('colorBox').addEventListener('click', e=>{
   'designer','origin','pattern'
 ].forEach(id=>{
   const node=document.getElementById(id);
+  if(!node) return;
   node.addEventListener('input', ()=>{
     state[id]=node.value.trim();
     render();
@@ -1056,13 +1057,13 @@ function pass(it){
   if(n(state.minPrice)!=null && it.pricePerYard!=null && it.pricePerYard < n(state.minPrice)) return false;
   if(n(state.maxPrice)!=null && it.pricePerYard!=null && it.pricePerYard > n(state.maxPrice)) return false;
 
-  if(n(state.minYards)!=null && it.yards != null && it.yards < n(state.minYards)) return false;
+  if(n(state.minYards)!=null && it.yards < n(state.minYards)) return false;
 
-  if(n(state.minWidth)!=null && it.width != null && it.width < n(state.minWidth)) return false;
-  if(n(state.maxWidth)!=null && it.width != null && it.width > n(state.maxWidth)) return false;
+  if(n(state.minWidth)!=null && it.width < n(state.minWidth)) return false;
+  if(n(state.maxWidth)!=null && it.width > n(state.maxWidth)) return false;
 
-  if(n(state.minGsm)!=null && it.gsm != null && it.gsm < n(state.minGsm)) return false;
-  if(n(state.maxGsm)!=null && it.gsm != null && it.gsm > n(state.maxGsm)) return false;
+  if(n(state.minGsm)!=null && it.gsm < n(state.minGsm)) return false;
+  if(n(state.maxGsm)!=null && it.gsm > n(state.maxGsm)) return false;
 
   if(state.dept && it.dept !== state.dept) return false;
   if(state.fabricType && it.fabricType !== state.fabricType) return false;
@@ -1075,7 +1076,7 @@ function pass(it){
   return true;
 }
 
-function cents(x){ return Math.round(Number(x||0)*100); }
+/* -------- Card rendering helpers -------- */
 
 function makeCard(it){
   const a=el('a','card');
@@ -1092,38 +1093,57 @@ function makeCard(it){
 
   const meta=el('div','meta');
   const t=el('div','title',it.title);
+  meta.append(t);
 
-  const total = it.totalPrice ?? 0;
-  const yardsLabel = it.yards ? `${it.yards} ${it.yards === 1 ? 'yard' : 'yards'}` : '';
-  const btnLabel = yardsLabel
-    ? `Add to Cart — $${total.toFixed(2)} for ${yardsLabel}`
-    : `Add to Cart — $${total.toFixed(2)}`;
+  // Seller + store row
+  const sub = el('div','sub');
+  if(it.sellerName){
+    sub.append(el('span','',it.sellerName));
+  }
+  if(it.storeName){
+    sub.append(el('span','',it.storeName));
+  }
+  if(it.origin){
+    sub.append(el('span','',it.origin));
+  }
+  if(sub.childNodes.length){
+    meta.append(sub);
+  }
+
+  // Button label: total price for all yards
+  let btnLabel = 'Add to Cart';
+  if(it.yards && it.totalPrice != null){
+    const yardsLabel = it.yards === 1 ? '1 yard' : `${it.yards} yards`;
+    btnLabel = `Add to Cart — $${it.totalPrice.toFixed(2)} for ${yardsLabel}`;
+  }else if(it.totalPrice != null){
+    btnLabel = `Add to Cart — $${it.totalPrice.toFixed(2)}`;
+  }
 
   const btn=el('button','add-btn add-to-cart',btnLabel);
   btn.type='button';
-  const amountCents=cents(total);
-  btn.dataset.name=it.title;
-  btn.dataset.amount=String(amountCents);
-  btn.dataset.yards=String(it.yards ?? '');
-  btn.dataset.price=String(it.pricePerYard ?? '');
-  btn.dataset.sellerId=it.sellerId || ('seller_'+it.id);
-  btn.dataset.sellerName=it.sellerName || 'Seller';
 
-  const priceRow = it.pricePerYardText
-    ? el('div','price-row')
-    : null;
+  const amountCents = it.totalPrice != null ? Math.round(it.totalPrice * 100) : 0;
+  btn.dataset.name   = it.title;
+  btn.dataset.amount = String(amountCents);
+  btn.dataset.yards  = String(it.yards ?? '');
+  btn.dataset.price  = String(it.pricePerYard ?? '');
+  btn.dataset.sellerId   = it.sellerId || ('seller_'+it.id);
+  btn.dataset.sellerName = it.sellerName || 'Seller';
 
-  if(priceRow){
-    const saleSpan = el('span','price-sale', it.pricePerYardText);
-    priceRow.appendChild(saleSpan);
-    if(it.origPerYardText){
-      const origSpan = el('span','price-orig', it.origPerYardText);
-      priceRow.appendChild(origSpan);
+  meta.append(btn);
+
+  // Per-yard price row
+  if(it.pricePerYardText || it.origPerYardText){
+    const priceRow = el('div','price-row');
+    if(it.pricePerYardText){
+      priceRow.appendChild(el('span','price-sale', it.pricePerYardText));
     }
+    if(it.origPerYardText){
+      priceRow.appendChild(el('span','price-orig', it.origPerYardText));
+    }
+    meta.append(priceRow);
   }
 
-  meta.append(t,btn);
-  if(priceRow) meta.append(priceRow);
   a.append(ph,meta);
   return a;
 }
@@ -1141,28 +1161,41 @@ function render(){
   list.forEach(it=>grid.append(makeCard(it)));
 }
 
-/* Load listings from Supabase */
+/* Load listings from Supabase listings_public */
 (async function loadListings(){
   try{
     resultSpan.textContent = 'Loading…';
 
     const { data, error } = await supabaseClient
-      .from('listings')
+      .from('listings_public')
       .select(`
         id,
         seller_id,
+        seller_name,
+        store_name,
         title,
         description,
         price_cents,
+        orig_price_cents,
         yards_available,
         status,
         image_url_1,
-        image_url,
+        color_family,
+        dept,
+        fabric_type,
+        fiber_type,
+        designer,
+        origin,
+        pattern,
+        content,
+        feels_like,
+        width_in,
+        gsm,
         created_at,
         is_published
       `)
       .eq('is_published', true)
-      .order('created_at', { ascending:false });
+      .order('created_at', { ascending: false });
 
     if(error){
       console.error('Error loading listings', error);
@@ -1174,33 +1207,67 @@ function render(){
 
     LISTINGS = (data || []).map(row => {
       const yards = row.yards_available != null ? Number(row.yards_available) : 0;
-      const totalPrice = row.price_cents != null ? Number(row.price_cents) / 100 : 0;
 
-      const pricePerYard = yards ? totalPrice / yards : null;
+      // NOTE: price_cents and orig_price_cents are **per yard**
+      const pricePerYard = row.price_cents != null
+        ? Number(row.price_cents) / 100
+        : null;
+
+      const origPerYard = row.orig_price_cents != null
+        ? Number(row.orig_price_cents) / 100
+        : null;
+
+      const totalPrice = pricePerYard != null && yards
+        ? pricePerYard * yards
+        : pricePerYard;
+
+      const origTotalPrice = origPerYard != null && yards
+        ? origPerYard * yards
+        : origPerYard;
+
+      const feels = row.feels_like
+        ? String(row.feels_like).split(',').map(s=>s.trim()).filter(Boolean)
+        : [];
+
+      const sellerName =
+        row.seller_name ||
+        row.store_name ||            // fallback if you put name here
+        null;
+
+      const photo =
+        row.image_url_1 ||
+        row.image_url ||
+        '';
 
       return {
         id: row.id,
         sellerId: row.seller_id || null,
-        sellerName: null, // later from profiles
+        sellerName,
+        storeName: row.store_name || '',
         title: row.title || 'Untitled listing',
-        totalPrice,
+
         yards,
         pricePerYard,
-        origPerYard: null,
+        origPerYard,
+        totalPrice,
+        origTotalPrice,
+
         pricePerYardText: pricePerYard != null ? `$${pricePerYard.toFixed(2)}/yard` : '',
-        origPerYardText: '',
-        width: null,
-        gsm: null,
-        colorFamily: '',   // not wired yet
-        dept: '',
-        fabricType: '',
-        fiberType: '',
-        designer: '',
-        origin: '',
-        pattern: '',
-        content: [],
-        feelsLike: [],
-        photo: row.image_url_1 || row.image_url || '',
+        origPerYardText:  origPerYard  != null ? `$${origPerYard.toFixed(2)}/yard`  : '',
+
+        width: row.width_in != null ? Number(row.width_in) : null,
+        gsm: row.gsm != null ? Number(row.gsm) : null,
+
+        colorFamily: row.color_family || '',
+        dept: row.dept || '',
+        fabricType: row.fabric_type || '',
+        fiberType: row.fiber_type || '',
+        designer: row.designer || '',
+        origin: row.origin || '',
+        pattern: row.pattern || '',
+        content: row.content ? [row.content] : [],
+        feelsLike: feels,
+        photo,
         desc: row.description || ''
       };
     });
