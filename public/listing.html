@@ -715,44 +715,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  /* Hamburger / overlay */
-  (function(){
-    const sheet    = document.getElementById('menuSheet');
-    const openBtn  = document.getElementById('openMenu');
-    const closeBtn = document.getElementById('closeMenu');
-    const overlay  = document.getElementById('sheetOverlay');
-
-    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
-    function openSheet(){
-      if(!sheet) return;
-      sheet.classList.add('open');
-      sheet.setAttribute('aria-hidden','false');
-      overlay.classList.add('show');
-      overlay.setAttribute('aria-hidden','false');
-      if(openBtn) openBtn.setAttribute('aria-expanded','true');
-      lockScroll(true);
-    }
-    function closeSheet(){
-      if(!sheet) return;
-      sheet.classList.remove('open');
-      sheet.setAttribute('aria-hidden','true');
-      overlay.classList.remove('show');
-      overlay.setAttribute('aria-hidden','true');
-      if(openBtn) openBtn.setAttribute('aria-expanded','false');
-      lockScroll(false);
-      if(openBtn) openBtn.focus();
-    }
-
-    if(openBtn && sheet && closeBtn && overlay){
-      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
-      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
-      overlay.addEventListener('click', closeSheet);
-      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
-    }
-  })();
-</script>
-
-<script>
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
@@ -1071,21 +1033,21 @@
     initShareButton();
   }
 
- function getFavorites(){
-  try{
-    return JSON.parse(localStorage.getItem("hm_favorites_v1") || "[]");
-  }catch(e){
-    return [];
+  function getFavorites(){
+    try{
+      return JSON.parse(localStorage.getItem("hm_favorites_v1") || "[]");
+    }catch(e){
+      return [];
+    }
   }
-}
 
-function setFavorites(list){
-  try{
-    localStorage.setItem("hm_favorites_v1", JSON.stringify(list));
-  }catch(e){
-    // ignore storage errors
+  function setFavorites(list){
+    try{
+      localStorage.setItem("hm_favorites_v1", JSON.stringify(list));
+    }catch(e){
+      // ignore storage errors
+    }
   }
-}
 
   function initFavoriteButton(){
     const btn = document.getElementById("favoriteBtn");
@@ -1124,16 +1086,7 @@ function setFavorites(list){
       const url = window.location.href;
       const title = currentListing?.title || "Hemline Market listing";
 
-      if(navigator.share){
-        try{
-          await navigator.share({ title, url });
-          return;
-        }catch(e){
-          if(e && e.name === "AbortError") return;
-          console.warn("Share failed", e);
-        }
-      }
-
+      // Prefer copying to clipboard (what you actually want on desktop)
       if(navigator.clipboard && window.isSecureContext){
         try{
           await navigator.clipboard.writeText(url);
@@ -1145,6 +1098,18 @@ function setFavorites(list){
         }
       }
 
+      // Fallback: Web Share API if available
+      if(navigator.share){
+        try{
+          await navigator.share({ title, url });
+          return;
+        }catch(e){
+          if(e && e.name === "AbortError") return;
+          console.warn("Share failed", e);
+        }
+      }
+
+      // Last resort
       alert("Share this link:\n\n" + url);
     });
   }
@@ -1162,7 +1127,7 @@ function setFavorites(list){
 
     try{
       const { data, error } = await supabaseClient
-        .from("questions")          // table name: questions(listing_id, author_id, body, created_at)
+        .from("questions")
         .select("id, listing_id, author_id, body, created_at")
         .eq("listing_id", listingId)
         .order("created_at", { ascending:true });
@@ -1178,7 +1143,6 @@ function setFavorites(list){
         return;
       }
 
-      // pull author profiles so we can format names nicely
       const authorIds = Array.from(new Set(data.map(q=>q.author_id).filter(Boolean)));
       let profileMap = {};
       if(authorIds.length){
@@ -1335,6 +1299,5 @@ function setFavorites(list){
     });
   });
 </script>
-
 </body>
 </html>
