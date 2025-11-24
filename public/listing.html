@@ -927,10 +927,14 @@
     }
   }
 
-  function buildMedia(listing){
+    function buildMedia(listing){
     const hero = document.getElementById("hero");
     const thumbs = document.getElementById("thumbs");
     if(!hero || !thumbs) return;
+
+    // Make sure the image is not cropped/zoomed
+    hero.style.objectFit = "contain";
+    hero.style.background = "#f3f4f6";
 
     const urls = [];
     for(let i=1;i<=8;i++){
@@ -1190,46 +1194,42 @@
     };
   }
 
-  /* Share button (keeps OS share *and* has an explicit copy-link fallback) */
-
+    /* Share button: copy link first, then fallbacks */
   function initShareButton(){
     const btn = document.getElementById("shareBtn");
     if(!btn) return;
 
     btn.onclick = async ()=>{
       const url = window.location.href;
-      const title = currentListing?.title || "Hemline Market listing";
+      const title = currentListing?.title || document.title || "Hemline Market listing";
 
-      // 1) Web Share API
-      if(navigator.share){
-        try{
-          await navigator.share({ title, url });
-          return;
-        }catch(e){
-          if(e && e.name === "AbortError") return;
-          console.warn("navigator.share failed", e);
-        }
-      }
-
-      // 2) Clipboard option
+      // 1) Try to copy to clipboard (most desktops / phones)
       if(navigator.clipboard && window.isSecureContext){
         try{
           await navigator.clipboard.writeText(url);
-          showToast("Link copied to clipboard");
+          showToast("Link copied");
           return;
         }catch(e){
           console.warn("clipboard write failed", e);
         }
       }
 
-      // 3) Fallback prompt
-      const copied = window.prompt("Copy this link:", url);
-      if(copied !== null){
-        showToast("Copy link ready");
+      // 2) If clipboard failed, try Web Share API (native share sheet)
+      if(navigator.share){
+        try{
+          await navigator.share({ title, url });
+          return; // no extra toast needed
+        }catch(e){
+          if(e && e.name === "AbortError") return; // user cancelled
+          console.warn("navigator.share failed", e);
+        }
       }
+
+      // 3) Old-school fallback
+      window.prompt("Copy this link:", url);
+      showToast("Link ready to copy");
     };
   }
-
   /* Q&A */
 
   async function loadQuestions(){
