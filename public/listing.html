@@ -27,7 +27,7 @@
     }
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
 
-    /* HEADER (matches other pages) --------------------------------------- */
+    /* HEADER */
     .hm-header{
       min-height:56px;
       background:#fff;
@@ -114,7 +114,7 @@
       box-shadow:0 2px 8px rgba(153,27,27,.25);
     }
 
-    /* LEFT SHEET MENU ---------------------------------------------------- */
+    /* LEFT SHEET MENU */
     .sheet{
       position:fixed;
       inset:0 auto 0 0;
@@ -168,7 +168,7 @@
     }
     #sheetOverlay.show{display:block;}
 
-    /* PAGE LAYOUT -------------------------------------------------------- */
+    /* PAGE LAYOUT */
     .wrap-main{
       max-width:1200px;
       margin:18px auto 28px;
@@ -236,7 +236,7 @@
       margin:0 0 2px;
     }
     .price-line{
-      font-size:20px;
+      font-size:18px;
       font-weight:800;
     }
     .peryd{
@@ -406,7 +406,7 @@
       padding:3px 7px;
     }
 
-    /* Q&A --------------------------------------------------------------- */
+    /* Q&A */
     .qa-intro{
       color:#6b7280;
       margin:0 0 8px;
@@ -473,22 +473,8 @@
       gap:10px;
       margin-bottom:10px;
     }
-    .qa-actions{
-      margin-top:4px;
-      display:flex;
-      gap:10px;
-      font-size:12px;
-    }
-    .qa-reply-btn{
-      background:none;
-      border:none;
-      padding:0;
-      cursor:pointer;
-      color:var(--accent);
-      font-weight:500;
-    }
 
-    /* FOOTER ------------------------------------------------------------ */
+    /* FOOTER */
     .hm-footer{
       background:#fff;
       border-top:1px solid var(--border);
@@ -568,6 +554,7 @@
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
       </a>
+
       <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -575,6 +562,7 @@
           <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
         </svg>
       </a>
+
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
@@ -615,7 +603,7 @@
     </section>
 
     <!-- Buy box -->
-    <aside class="buy" id="buyBox">
+    <aside class="buy">
       <h1 class="title" id="tTitle">Title</h1>
       <div class="price-line">
         <span id="tPriceMain">$0.00</span>
@@ -640,18 +628,19 @@
           data-photo=""
         >Add to Cart</button>
 
-        <button class="icon-btn" type="button" id="favoriteBtn" aria-label="Favorite">
+        <button id="favoriteBtn" class="icon-btn" type="button" aria-label="Save to favorites">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
           </svg>
         </button>
 
-        <button class="icon-btn" type="button" id="shareBtn" aria-label="Share listing">
+        <button id="shareBtn" class="icon-btn" type="button" aria-label="Share listing">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="18" cy="5" r="3"></circle>
             <circle cx="6" cy="12" r="3"></circle>
             <circle cx="18" cy="19" r="3"></circle>
-            <path d="M8.5 11l6-3.5M8.5 13l6 3.5"></path>
+            <path d="M8.7 10.7 16 7.3"></path>
+            <path d="m8.7 13.3 7.3 3.4"></path>
           </svg>
         </button>
       </div>
@@ -671,8 +660,8 @@
 
       <div class="seller">
         <div class="seller-lines">
-          <strong id="sellerPrimary">Seller</strong>
-          <div id="sellerSecondary">Member</div>
+          <strong id="sellerStore">Member</strong>
+          <div id="sellerPerson">Member</div>
         </div>
       </div>
     </aside>
@@ -689,6 +678,7 @@
   <article class="card qa" style="margin-top:12px;display:none;" id="qaCard">
     <h3>Q&amp;A</h3>
 
+    <!-- Signed-out message -->
     <div class="qa-signedout" id="qaSignedOut" style="display:none;">
       <span>Sign in to ask a question about this fabric.</span>
       <button class="btn btn-primary" type="button" id="qaSignInBtn">Sign in</button>
@@ -697,10 +687,10 @@
     <p class="qa-intro" id="qaIntro">No questions yet—be the first to ask!</p>
     <ul class="qa-list" id="qaList"></ul>
 
+    <!-- Composer (only when logged in) -->
     <div id="qaComposer" style="display:none;">
       <textarea id="qaBody" placeholder="Have a question about this fabric?"></textarea>
       <div class="row">
-        <button class="btn" type="button" id="qaCancelReplyBtn" style="display:none;">Cancel</button>
         <button class="btn btn-primary" type="button" id="qaSubmitBtn">Post</button>
       </div>
       <div class="qa-note" id="qaNote"></div>
@@ -725,703 +715,626 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-/* Drawer ------------------------------------------------------------ */
-(function(){
-  const sheet    = document.getElementById('menuSheet');
-  const openBtn  = document.getElementById('openMenu');
-  const closeBtn = document.getElementById('closeMenu');
-  const overlay  = document.getElementById('sheetOverlay');
+  /* Hamburger / overlay */
+  (function(){
+    const sheet    = document.getElementById('menuSheet');
+    const openBtn  = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const overlay  = document.getElementById('sheetOverlay');
 
-  function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
-  function openSheet(){
-    if(!sheet) return;
-    sheet.classList.add('open');
-    sheet.setAttribute('aria-hidden','false');
-    overlay.classList.add('show');
-    overlay.setAttribute('aria-hidden','false');
-    if(openBtn) openBtn.setAttribute('aria-expanded','true');
-    lockScroll(true);
-  }
-  function closeSheet(){
-    if(!sheet) return;
-    sheet.classList.remove('open');
-    sheet.setAttribute('aria-hidden','true');
-    overlay.classList.remove('show');
-    overlay.setAttribute('aria-hidden','true');
-    if(openBtn) openBtn.setAttribute('aria-expanded','false');
-    lockScroll(false);
-    if(openBtn) openBtn.focus();
-  }
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+    function openSheet(){
+      if(!sheet) return;
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden','false');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      if(openBtn) openBtn.setAttribute('aria-expanded','true');
+      lockScroll(true);
+    }
+    function closeSheet(){
+      if(!sheet) return;
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden','true');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden','true');
+      if(openBtn) openBtn.setAttribute('aria-expanded','false');
+      lockScroll(false);
+      if(openBtn) openBtn.focus();
+    }
 
-  if(openBtn && sheet && closeBtn && overlay){
-    openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
-    closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
-    overlay.addEventListener('click', closeSheet);
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
-  }
-})();
+    if(openBtn && sheet && closeBtn && overlay){
+      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+      overlay.addEventListener('click', closeSheet);
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+    }
+  })();
 </script>
 
 <script>
-/* Listing logic + Supabase ------------------------------------------ */
+  const supabaseClient = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+  );
 
-const supabaseClient = window.supabase.createClient(
-  "https://clkizksbvxjkoatdajgd.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-);
+  let currentSession = null;
+  let currentListing = null;
+  let listingId = null;
 
-let currentSession = null;
-let currentProfile = null;
-let currentListing = null;
-let listingId = null;
-
-let replyToCommentId = null;
-let replyToCommentAuthorId = null;
-let replyToCommentDisplayName = "";
-
-/* Helpers ----------------------------------------------------------- */
-
-function moneyFromCents(c){
-  if(c == null) return null;
-  const v = c / 100;
-  return v.toLocaleString("en-US",{
-    style:"currency",
-    currency:"USD",
-    minimumFractionDigits:2,
-    maximumFractionDigits:2
-  });
-}
-
-function personLabelFromProfile(p){
-  if(!p) return "Member";
-  const first = (p.first_name || "").trim();
-  const last  = (p.last_name  || "").trim();
-  const store = (p.store_name || "").trim();
-  const display = (p.display_name || "").trim();
-
-  const person = first
-    ? (last ? first + " " + last[0].toUpperCase() + "." : first)
-    : (display || "Member");
-
-  return { store, person };
-}
-
-function showError(msg){
-  const err = document.getElementById("listingError");
-  const shell = document.getElementById("listingShell");
-  if(err){
-    err.textContent = msg;
-    err.style.display = "block";
+  function showError(msg){
+    const err = document.getElementById("listingError");
+    const shell = document.getElementById("listingShell");
+    if(err){
+      err.textContent = msg;
+      err.style.display = "block";
+    }
+    if(shell) shell.style.display = "none";
   }
-  if(shell) shell.style.display = "none";
-}
 
-/* Auth / profile ---------------------------------------------------- */
+  function moneyFromCents(c){
+    if(c == null) return null;
+    const v = c / 100;
+    return v.toLocaleString("en-US",{
+      style:"currency",
+      currency:"USD",
+      minimumFractionDigits:2,
+      maximumFractionDigits:2
+    });
+  }
 
-async function ensureSession(){
-  const { data:{ session } } = await supabaseClient.auth.getSession();
-  currentSession = session || null;
+  function nameFromProfile(p){
+    if(!p){
+      return { store:"Member", person:"Member" };
+    }
+    const store = (p.store_name || "").trim();
+    const first = (p.first_name || "").trim();
+    const last  = (p.last_name  || "").trim();
+    const displayName = (p.display_name || "").trim();
 
-  const link = document.getElementById("headerAccountLink");
-  if(link){
-    if(currentSession && currentSession.user){
+    let person = "";
+    if(first){
+      person = first + (last ? " " + last[0].toUpperCase() + "." : "");
+    }else if(displayName){
+      person = displayName;
+    }else{
+      person = "Member";
+    }
+    return {
+      store: store || person,
+      person
+    };
+  }
+
+  function updateHeaderForSession(session){
+    const link = document.getElementById("headerAccountLink");
+    if(!link) return;
+    if(session && session.user){
       link.href = "account.html";
+      link.setAttribute("aria-label","Your account");
       link.classList.add("is-logged-in");
       link.classList.remove("is-logged-out");
-      link.setAttribute("aria-label","Your account");
     }else{
       link.href = "auth.html?view=login";
+      link.setAttribute("aria-label","Sign in or manage your account");
       link.classList.remove("is-logged-in");
       link.classList.add("is-logged-out");
-      link.setAttribute("aria-label","Sign in or manage your account");
-    }
-  }
-}
-
-async function fetchCurrentProfile(){
-  if(!currentSession || !currentSession.user) return null;
-  const { data, error } = await supabaseClient
-    .from("profiles")
-    .select("id, first_name, last_name, store_name, display_name, email")
-    .eq("id", currentSession.user.id)
-    .maybeSingle();
-  if(error) return null;
-  currentProfile = data;
-  return data;
-}
-
-/* Listing + seller -------------------------------------------------- */
-
-async function fetchListing(id){
-  const { data, error } = await supabaseClient
-    .from("listings")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if(error){
-    console.error("Listing error", error);
-    showError("We couldn’t load this listing. It may have been removed.");
-    return null;
-  }
-  if(!data){
-    showError("This listing does not exist or has been removed.");
-    return null;
-  }
-  return data;
-}
-
-async function fetchSellerProfile(sellerId){
-  if(!sellerId) return null;
-  const { data, error } = await supabaseClient
-    .from("profiles")
-    .select("id, first_name, last_name, store_name, display_name, email")
-    .eq("id", sellerId)
-    .maybeSingle();
-  if(error) return null;
-  return data;
-}
-
-function buildMedia(listing){
-  const hero = document.getElementById("hero");
-  const thumbs = document.getElementById("thumbs");
-  if(!hero || !thumbs) return;
-
-  const urls = [];
-  for(let i=1;i<=8;i++){
-    const key = "image_url_" + i;
-    if(listing[key]) urls.push(listing[key]);
-  }
-
-  thumbs.innerHTML = "";
-  if(urls.length){
-    hero.src = urls[0];
-    urls.forEach((src, idx)=>{
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "thumb" + (idx===0 ? " active" : "");
-      const img = document.createElement("img");
-      img.src = src;
-      img.alt = "";
-      btn.appendChild(img);
-      btn.addEventListener("click", ()=>{
-        hero.src = src;
-        thumbs.querySelectorAll(".thumb").forEach(el=>el.classList.remove("active"));
-        btn.classList.add("active");
-      });
-      thumbs.appendChild(btn);
-    });
-  }else{
-    hero.alt = "Listing photo";
-    hero.src = "";
-  }
-}
-
-function renderListing(listing, sellerProfile){
-  const shell = document.getElementById("listingShell");
-  const descCard = document.getElementById("descCard");
-  const qaCard = document.getElementById("qaCard");
-  if(shell) shell.style.display = "grid";
-  if(descCard) descCard.style.display = "block";
-  if(qaCard) qaCard.style.display = "block";
-
-  buildMedia(listing);
-
-  const titleEl = document.getElementById("tTitle");
-  const priceMainEl = document.getElementById("tPriceMain");
-  const perYdEl = document.getElementById("tPerYd");
-  const msrpEl = document.getElementById("tMsrp");
-  const statusRow = document.getElementById("tStatusRow");
-  const addBtn = document.getElementById("addToCart");
-
-  const yards = listing.yards_available != null ? Number(listing.yards_available) : null;
-  const priceCents = listing.price_cents != null ? Number(listing.price_cents) : null;
-  const origPriceCents = listing.orig_price_cents != null ? Number(listing.orig_price_cents) : null;
-
-  if(titleEl) titleEl.textContent = listing.title || "Untitled listing";
-
-  // price display
-  if(priceCents != null){
-    const perYd = moneyFromCents(priceCents);
-    if(yards && yards > 0){
-      const total = moneyFromCents(priceCents * yards);
-      if(priceMainEl) priceMainEl.textContent = `${total} for ${yards} yards`;
-      if(perYdEl) perYdEl.textContent = `${perYd}/yard`;
-    }else{
-      if(priceMainEl) priceMainEl.textContent = moneyFromCents(priceCents);
-      if(perYdEl) perYdEl.textContent = `${perYd}/yard`;
-    }
-  }else{
-    if(priceMainEl) priceMainEl.textContent = "Price coming soon";
-    if(perYdEl) perYdEl.textContent = "";
-  }
-
-  if(origPriceCents != null && msrpEl){
-    msrpEl.textContent = moneyFromCents(origPriceCents) + "/yard";
-    msrpEl.style.display = "inline";
-  }else if(msrpEl){
-    msrpEl.style.display = "none";
-  }
-
-  // status / sold
-  const isSold = (listing.status || "").toLowerCase() === "sold";
-  if(statusRow){
-    const pub = listing.is_published === false ? "Draft" : "Published";
-    statusRow.textContent = pub;
-    if(isSold){
-      const pill = document.createElement("span");
-      pill.className = "sold-pill";
-      pill.textContent = "Sold";
-      statusRow.appendChild(pill);
     }
   }
 
-  // seller lines
-  const sellerPrimary = document.getElementById("sellerPrimary");
-  const sellerSecondary = document.getElementById("sellerSecondary");
-
-  let primaryLabel = "Seller";
-  let secondaryLabel = "Member";
-
-  if(sellerProfile){
-    const labels = personLabelFromProfile(sellerProfile);
-    primaryLabel = labels.store || labels.person;
-    secondaryLabel = labels.person;
+  async function ensureSession(){
+    const { data:{ session } } = await supabaseClient.auth.getSession();
+    currentSession = session || null;
+    updateHeaderForSession(currentSession);
+    return currentSession;
   }
 
-  if(sellerPrimary) sellerPrimary.textContent = primaryLabel;
-  if(sellerSecondary) sellerSecondary.textContent = secondaryLabel;
-
-  // description + tags
-  const descText = document.getElementById("descText");
-  const descTags = document.getElementById("descTags");
-  if(descText) descText.textContent = listing.description || "No description yet.";
-  if(descTags){
-    descTags.innerHTML = "";
-    const tags = [];
-    if(listing.color_family) tags.push(listing.color_family);
-    if(listing.fabric_type) tags.push(listing.fabric_type);
-    if(listing.pattern) tags.push(listing.pattern);
-    if(listing.dept) tags.push(listing.dept);
-    tags.forEach(tag=>{
-      const span = document.createElement("span");
-      span.className = "tag";
-      span.textContent = tag;
-      descTags.appendChild(span);
-    });
-  }
-
-  // specs – always show all rows, even if value is "—"
-  const specTable = document.getElementById("specTable");
-  if(specTable){
-    const rows = [
-      ["Content", listing.content || "—"],
-      ["Fabric", listing.fabric_type || "—"],
-      ["Color", listing.color_family || "—"],
-      ["Pattern", listing.pattern || "—"],
-      ["Width", listing.width_in != null ? listing.width_in + "″" : "—"],
-      ["Weight", listing.weight_gsm != null ? listing.weight_gsm + " GSM" : "—"],
-      ["Origin", listing.country_of_origin || "—"],
-      ["Fiber type", listing.fiber_type || "—"],
-      ["Designer / Mill", listing.designer || "—"],
-      ["Feels like", listing.feels_like || "—"]
-    ];
-    specTable.innerHTML = "";
-    rows.forEach(([label,value])=>{
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<th>${label}</th><td>${value}</td>`;
-      specTable.appendChild(tr);
-    });
-  }
-
-  // wire Add to Cart
-  if(addBtn){
-    const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
-    const totalCents = (priceCents != null && yards != null && yards > 0)
-      ? priceCents * yards
-      : priceCents || 0;
-
-    addBtn.dataset.id = listing.id;
-    addBtn.dataset.name = listing.title || "Fabric listing";
-    addBtn.dataset.amount = String(totalCents);
-    addBtn.dataset.price = perYdDollars.toFixed(2);
-    addBtn.dataset.yards = yards != null ? String(yards) : "0";
-    addBtn.dataset.sellerId = listing.seller_id || "";
-    addBtn.dataset.sellerName = primaryLabel || "Seller";
-    addBtn.dataset.photo = listing.image_url_1 || "";
-
-    if(isSold){
-      addBtn.disabled = true;
-      addBtn.textContent = "Sold";
-    }else if(priceCents == null){
-      addBtn.disabled = true;
-      addBtn.textContent = "Add to Cart";
-    }else{
-      const totalMoney = moneyFromCents(totalCents);
-      addBtn.disabled = false;
-      addBtn.textContent = `Add to Cart — ${totalMoney}`;
-    }
-  }
-}
-
-/* Q&A --------------------------------------------------------------- */
-
-async function fetchComments(listingId){
-  const { data, error } = await supabaseClient
-    .from("listing_comments")
-    .select("id, listing_id, author_id, body, created_at")
-    .eq("listing_id", listingId)
-    .order("created_at", { ascending:true });
-  if(error){
-    console.error("Comments error", error);
-    return { comments:[], profiles:{} };
-  }
-
-  const ids = Array.from(new Set((data || []).map(c => c.author_id).filter(Boolean)));
-  let profilesMap = {};
-  if(ids.length){
-    const { data:profilesData, error:profErr } = await supabaseClient
-      .from("profiles")
-      .select("id, first_name, last_name, store_name, display_name, email")
-      .in("id", ids);
-    if(!profErr && profilesData){
-      profilesData.forEach(p => { profilesMap[p.id] = p; });
-    }
-  }
-  return { comments:data || [], profiles:profilesMap };
-}
-
-function timeAgo(dateStr){
-  const dt = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now - dt;
-  if(!isFinite(diffMs)) return "";
-  const diffMin = Math.floor(diffMs / 60000);
-  if(diffMin < 1) return "just now";
-  if(diffMin < 60) return diffMin + " min ago";
-  const diffHr = Math.floor(diffMin / 60);
-  if(diffHr < 24) return diffHr + "h ago";
-  const diffDay = Math.floor(diffHr / 24);
-  if(diffDay < 7) return diffDay + "d ago";
-  return dt.toLocaleDateString();
-}
-
-function enterReplyMode(commentId, authorId, displayName){
-  replyToCommentId = commentId;
-  replyToCommentAuthorId = authorId;
-  replyToCommentDisplayName = displayName || "";
-
-  const textarea = document.getElementById("qaBody");
-  const note = document.getElementById("qaNote");
-  const cancelBtn = document.getElementById("qaCancelReplyBtn");
-
-  if(textarea){
-    textarea.focus();
-    if(displayName && !textarea.value.startsWith("@" + displayName)){
-      textarea.value = "@" + displayName + " ";
-    }
-  }
-  if(note && displayName){
-    note.textContent = `Replying to ${displayName}`;
-  }
-  if(cancelBtn){
-    cancelBtn.style.display = "inline-flex";
-  }
-}
-
-function exitReplyMode(){
-  replyToCommentId = null;
-  replyToCommentAuthorId = null;
-  replyToCommentDisplayName = "";
-
-  const note = document.getElementById("qaNote");
-  const cancelBtn = document.getElementById("qaCancelReplyBtn");
-  if(note) note.textContent = "";
-  if(cancelBtn) cancelBtn.style.display = "none";
-}
-
-function renderComments(comments, profilesMap){
-  const listEl = document.getElementById("qaList");
-  const intro = document.getElementById("qaIntro");
-  if(!listEl || !intro) return;
-
-  listEl.innerHTML = "";
-  if(!comments.length){
-    intro.textContent = "No questions yet—be the first to ask!";
-    return;
-  }
-  intro.textContent = "Questions";
-
-  comments.forEach(c=>{
-    const prof = profilesMap[c.author_id] || null;
-    let nameLabels = { store:"", person:"Member" };
-    if(prof) nameLabels = personLabelFromProfile(prof);
-
-    const displayName = nameLabels.store || nameLabels.person;
-    const when = c.created_at ? timeAgo(c.created_at) : "";
-    const authorId = c.author_id || null;
-
-    const li = document.createElement("li");
-    li.className = "qa-item";
-
-    const meta = document.createElement("div");
-    meta.className = "qa-meta";
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "qa-author";
-    nameSpan.textContent = displayName;
-    meta.appendChild(nameSpan);
-    if(when){
-      const dot = document.createElement("span");
-      dot.textContent = "•";
-      meta.appendChild(dot);
-      const timeSpan = document.createElement("span");
-      timeSpan.textContent = when;
-      meta.appendChild(timeSpan);
-    }
-    li.appendChild(meta);
-
-    const bodyP = document.createElement("p");
-    bodyP.className = "qa-body";
-    bodyP.textContent = c.body;
-    li.appendChild(bodyP);
-
-    const actions = document.createElement("div");
-    actions.className = "qa-actions";
-    const replyBtn = document.createElement("button");
-    replyBtn.type = "button";
-    replyBtn.className = "qa-reply-btn";
-    replyBtn.textContent = "Reply";
-    replyBtn.addEventListener("click", ()=>{
-      if(authorId){
-        enterReplyMode(c.id, authorId, displayName);
+  async function fetchListing(id){
+    try{
+      const { data, error } = await supabaseClient
+        .from("listings")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if(error){
+        console.error("Listing fetch error", error);
+        showError("We couldn’t load this listing. It may have been removed.");
+        return null;
       }
+      if(!data){
+        showError("This listing does not exist or has been removed.");
+        return null;
+      }
+      return data;
+    }catch(e){
+      console.error("Listing fetch exception", e);
+      showError("Unexpected error loading this listing.");
+      return null;
+    }
+  }
+
+  async function fetchProfile(id){
+    if(!id) return null;
+    try{
+      const { data, error } = await supabaseClient
+        .from("profiles")
+        .select("id, store_name, first_name, last_name, display_name")
+        .eq("id", id)
+        .maybeSingle();
+      if(error){
+        console.warn("Profile fetch error", error);
+        return null;
+      }
+      return data;
+    }catch(e){
+      console.warn("Profile fetch exception", e);
+      return null;
+    }
+  }
+
+  function buildMedia(listing){
+    const hero = document.getElementById("hero");
+    const thumbs = document.getElementById("thumbs");
+    if(!hero || !thumbs) return;
+
+    const urls = [];
+    for(let i=1;i<=8;i++){
+      const key = "image_url_" + i;
+      if(listing[key]) urls.push(listing[key]);
+    }
+
+    thumbs.innerHTML = "";
+    if(urls.length){
+      hero.src = urls[0];
+      urls.forEach((src, idx)=>{
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "thumb" + (idx===0 ? " active" : "");
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = "";
+        btn.appendChild(img);
+        btn.addEventListener("click", ()=>{
+          hero.src = src;
+          thumbs.querySelectorAll(".thumb").forEach(el=>el.classList.remove("active"));
+          btn.classList.add("active");
+        });
+        thumbs.appendChild(btn);
+      });
+    }else{
+      hero.alt = "Listing photo placeholder";
+      hero.src = "";
+    }
+  }
+
+  function renderSpecs(listing){
+    const table = document.getElementById("specTable");
+    if(!table) return;
+
+    const rows = [
+      ["Content", listing.content],
+      ["Fabric", listing.fabric_type],
+      ["Color", listing.color_family],
+      ["Pattern", listing.pattern],
+      ["Width", listing.width_in ? listing.width_in + "″" : null],
+      ["Weight", listing.weight_gsm ? listing.weight_gsm + " GSM" : null],
+      ["Origin", listing.country_of_origin],
+      ["Fiber type", listing.fiber_type],
+      ["Designer / Mill", listing.designer],
+      ["Feels like", listing.feels_like]
+    ];
+
+    // Optional: back-fill from "Specs:" in the description for any blanks
+    if(listing.description){
+      const lower = listing.description.toLowerCase();
+      const idx = lower.indexOf("specs:");
+      if(idx !== -1){
+        const raw = listing.description.slice(idx + 6).trim();
+        if(raw){
+          const pieces = raw.split(/[,•]/).map(s=>s.trim()).filter(Boolean);
+          for(let i=0;i<rows.length && i<pieces.length;i++){
+            if(!rows[i][1]) rows[i][1] = pieces[i];
+          }
+        }
+      }
+    }
+
+    table.innerHTML = "";
+    rows.forEach(([label, val])=>{
+      const tr = document.createElement("tr");
+      const safeVal = (val === null || val === undefined || String(val).trim()==="") ? "—" : String(val);
+      tr.innerHTML = `<th>${label}</th><td>${safeVal}</td>`;
+      table.appendChild(tr);
     });
-    actions.appendChild(replyBtn);
-    li.appendChild(actions);
+  }
 
-    listEl.appendChild(li);
-  });
-}
+  function renderListing(listing, sellerProfile){
+    currentListing = listing;
+    const shell = document.getElementById("listingShell");
+    const descCard = document.getElementById("descCard");
+    const qaCard = document.getElementById("qaCard");
+    if(shell) shell.style.display = "grid";
+    if(descCard) descCard.style.display = "block";
+    if(qaCard) qaCard.style.display = "block";
 
-async function loadComments(){
-  if(!listingId) return;
-  const { comments, profiles } = await fetchComments(listingId);
-  renderComments(comments, profiles);
-}
+    buildMedia(listing);
+    renderSpecs(listing);
 
-async function notifySellerOnComment(listing, authorId){
-  try{
-    if(!listing || !listing.seller_id || !authorId) return;
-    if(listing.seller_id === authorId) return;
-    const message = `New question on "${listing.title || "your listing"}"`;
-    await supabaseClient
-      .from("notifications")
-      .insert({
-        user_id: listing.seller_id,
-        type: "listing_comment",
-        listing_id: listing.id,
-        actor_id: authorId,
-        message,
-        is_read: false
+    const titleEl = document.getElementById("tTitle");
+    const priceMainEl = document.getElementById("tPriceMain");
+    const perYdEl = document.getElementById("tPerYd");
+    const msrpEl = document.getElementById("tMsrp");
+    const statusRow = document.getElementById("tStatusRow");
+    const addBtn = document.getElementById("addToCart");
+
+    const yards = (listing.yards_available != null)
+      ? Number(listing.yards_available)
+      : (listing.yardage != null ? Number(listing.yardage) : null);
+    const priceCents = listing.price_cents != null ? Number(listing.price_cents) : null;
+    const origPriceCents = listing.orig_price_cents != null ? Number(listing.orig_price_cents) : null;
+
+    if(titleEl) titleEl.textContent = listing.title || "Untitled listing";
+
+    // Price line
+    if(priceCents != null){
+      const perYd = moneyFromCents(priceCents);
+      let main = perYd || "$0.00";
+      if(yards != null && !isNaN(yards) && yards > 0){
+        const total = moneyFromCents(priceCents * yards);
+        if(total) main = `${total} for ${yards} yards`;
+      }
+      if(priceMainEl) priceMainEl.textContent = main;
+      if(perYdEl && perYd) perYdEl.textContent = `${perYd}/yard`;
+    }else{
+      if(priceMainEl) priceMainEl.textContent = "Price coming soon";
+      if(perYdEl) perYdEl.textContent = "";
+    }
+
+    if(origPriceCents != null && msrpEl){
+      const origPer = moneyFromCents(origPriceCents);
+      msrpEl.textContent = origPer + "/yard";
+      msrpEl.style.display = "inline";
+    }else if(msrpEl){
+      msrpEl.style.display = "none";
+    }
+
+    const isPublished = listing.is_published !== false;
+    const status = (listing.status || "active").toLowerCase();
+    const isSold = status === "sold";
+
+    if(statusRow){
+      statusRow.textContent = (isPublished ? "Published" : "Draft") +
+        " · " + (isSold ? "Sold" : "Active");
+      if(isSold){
+        const pill = document.createElement("span");
+        pill.className = "sold-pill";
+        pill.textContent = "SOLD";
+        statusRow.appendChild(pill);
+      }
+    }
+
+    // Seller lines
+    const sellerStoreEl = document.getElementById("sellerStore");
+    const sellerPersonEl = document.getElementById("sellerPerson");
+    const names = nameFromProfile(sellerProfile);
+    if(sellerStoreEl) sellerStoreEl.textContent = names.store;
+    if(sellerPersonEl) sellerPersonEl.textContent = names.person;
+
+    // Description + tags
+    const descText = document.getElementById("descText");
+    const descTags = document.getElementById("descTags");
+    if(descText) descText.textContent = listing.description || "No description yet.";
+    if(descTags){
+      descTags.innerHTML = "";
+      const tags = [];
+      if(listing.color_family) tags.push(listing.color_family);
+      if(listing.fabric_type) tags.push(listing.fabric_type);
+      if(listing.pattern) tags.push(listing.pattern);
+      if(listing.dept) tags.push(listing.dept);
+      tags.forEach(tag=>{
+        const span = document.createElement("span");
+        span.className = "tag";
+        span.textContent = tag;
+        descTags.appendChild(span);
       });
-  }catch(e){
-    console.warn("notifySellerOnComment error", e);
-  }
-}
+    }
 
-async function notifyCommentAuthorOnReply(commentAuthorId, listing, replierId){
-  try{
-    if(!commentAuthorId || !listing || !replierId) return;
-    if(commentAuthorId === replierId) return;
-    const message = `New reply on a question for "${listing.title || "a listing"}"`;
-    await supabaseClient
-      .from("notifications")
-      .insert({
-        user_id: commentAuthorId,
-        type: "comment_reply",
-        listing_id: listing.id,
-        actor_id: replierId,
-        message,
-        is_read: false
-      });
-  }catch(e){
-    console.warn("notifyCommentAuthorOnReply error", e);
-  }
-}
+    // Wire Add to Cart button
+    if(addBtn){
+      const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
+      const totalCents = (priceCents != null && yards != null && !isNaN(yards))
+        ? priceCents * yards
+        : 0;
 
-async function handlePostComment(){
-  const textarea = document.getElementById("qaBody");
-  const note = document.getElementById("qaNote");
-  if(!textarea) return;
-  const body = (textarea.value || "").trim();
-  if(!body){
-    if(note) note.textContent = "Please enter a question or reply before posting.";
-    return;
+      addBtn.dataset.id = listing.id;
+      addBtn.dataset.name = listing.title || "Fabric listing";
+      addBtn.dataset.amount = String(totalCents);
+      addBtn.dataset.price = perYdDollars.toFixed(2);
+      addBtn.dataset.yards = yards != null ? String(yards) : "0";
+      addBtn.dataset.sellerId = listing.seller_id || "";
+      addBtn.dataset.sellerName = names.store || names.person || "Seller";
+      const firstImg = listing.image_url_1 || "";
+      addBtn.dataset.photo = firstImg;
+
+      if(isSold || priceCents == null || yards == null || yards <= 0){
+        addBtn.disabled = true;
+        addBtn.textContent = isSold ? "Sold out" : "Unavailable";
+      }else{
+        const totalMoney = moneyFromCents(totalCents);
+        addBtn.disabled = false;
+        addBtn.textContent = totalMoney ? `Add to Cart — ${totalMoney}` : "Add to Cart";
+      }
+    }
+
+    // Favorites + share
+    initFavoriteButton();
+    initShareButton();
   }
-  if(!currentSession || !currentSession.user){
-    if(note) note.textContent = "Please sign in to post.";
-    return;
+
+  function getFavorites(){
+    try{
+      return JSON.parse(localStorage.getItem("hm_favorites_v1") || "[]");
+    }catch(e){
+      return [];
+    }
   }
-  try{
-    if(note) note.textContent = "Posting…";
-    const { error } = await supabaseClient
-      .from("listing_comments")
-      .insert({
-        listing_id: listingId,
-        author_id: currentSession.user.id,
-        body
-      });
-    if(error){
-      console.error("Insert comment error", error);
-      if(note) note.textContent = "Sorry, something went wrong. Please try again.";
+  function set
+      function setFavorites(list){
+    try{
+      localStorage.setItem("hm_favorites_v1", JSON.stringify(list));
+    }catch(e){
+      // ignore storage errors
+    }
+  }
+
+  function initFavoriteButton(){
+    const btn = document.getElementById("favoriteBtn");
+    if(!btn) return;
+    if(!currentListing) return;
+
+    const id = currentListing.id;
+
+    function sync(){
+      const favs = getFavorites();
+      const on = favs.includes(id);
+      if(on){
+        btn.classList.add("heart-active");
+      }else{
+        btn.classList.remove("heart-active");
+      }
+    }
+
+    sync();
+
+    btn.addEventListener("click", ()=>{
+      let favs = getFavorites();
+      const idx = favs.indexOf(id);
+      if(idx === -1) favs.push(id);
+      else favs.splice(idx,1);
+      setFavorites(favs);
+      sync();
+    });
+  }
+
+  function initShareButton(){
+    const btn = document.getElementById("shareBtn");
+    if(!btn) return;
+
+    btn.addEventListener("click", async ()=>{
+      const url = window.location.href;
+      const title = currentListing?.title || "Hemline Market listing";
+
+      if(navigator.share){
+        try{
+          await navigator.share({ title, url });
+          return;
+        }catch(e){
+          if(e && e.name === "AbortError") return;
+          console.warn("Share failed", e);
+        }
+      }
+
+      if(navigator.clipboard && window.isSecureContext){
+        try{
+          await navigator.clipboard.writeText(url);
+          btn.title = "Link copied!";
+          setTimeout(()=>{ btn.title = ""; }, 2000);
+          return;
+        }catch(e){
+          console.warn("Clipboard share failed", e);
+        }
+      }
+
+      alert("Share this link:\n\n" + url);
+    });
+  }
+
+  async function loadQuestions(){
+    const qaIntro = document.getElementById("qaIntro");
+    const qaList  = document.getElementById("qaList");
+
+    if(!qaList || !listingId){
       return;
     }
 
-    await notifySellerOnComment(currentListing, currentSession.user.id);
-    if(replyToCommentAuthorId){
-      await notifyCommentAuthorOnReply(
-        replyToCommentAuthorId,
-        currentListing,
-        currentSession.user.id
-      );
-    }
+    qaList.innerHTML = "";
+    if(qaIntro) qaIntro.textContent = "Loading questions…";
 
-    textarea.value = "";
-    if(note) note.textContent = "";
-    exitReplyMode();
-    await loadComments();
-  }catch(e){
-    console.error("Insert comment exception", e);
-    if(note) note.textContent = "Unexpected error. Please try again.";
-  }
-}
-
-/* Favorites + Share ------------------------------------------------- */
-
-function getFavorites(){
-  try{
-    return JSON.parse(localStorage.getItem("saved_listings") || "[]");
-  }catch(e){
-    return [];
-  }
-}
-function setFavorites(arr){
-  localStorage.setItem("saved_listings", JSON.stringify(arr));
-}
-
-function initFavoriteButton(){
-  const btn = document.getElementById("favoriteBtn");
-  if(!btn || !currentListing) return;
-
-  function isFav(id){
-    return getFavorites().some(f => f.id === id);
-  }
-  function syncUI(){
-    const active = isFav(currentListing.id);
-    btn.classList.toggle("heart-active", active);
-    btn.setAttribute("aria-pressed", active ? "true" : "false");
-  }
-
-  syncUI();
-
-  btn.addEventListener("click", ()=>{
-    let favs = getFavorites();
-    const idx = favs.findIndex(f => f.id === currentListing.id);
-    if(idx === -1){
-      favs.push({
-        id: currentListing.id,
-        title: currentListing.title || "",
-        image_url_1: currentListing.image_url_1 || "",
-        price_cents: currentListing.price_cents || null,
-        yards_available: currentListing.yards_available || null
-      });
-    }else{
-      favs.splice(idx, 1);
-    }
-    setFavorites(favs);
-    syncUI();
-  });
-}
-
-function initShareButton(){
-  const btn = document.getElementById("shareBtn");
-  if(!btn) return;
-  btn.addEventListener("click", async ()=>{
-    const url = window.location.href;
-    const title = currentListing?.title || "Hemline Market listing";
     try{
-      if(navigator.share){
-        await navigator.share({ title, url });
-      }else if(navigator.clipboard){
-        await navigator.clipboard.writeText(url);
-        alert("Link copied to clipboard.");
-      }else{
-        alert("Share this link:\n\n" + url);
+      const { data, error } = await supabaseClient
+        .from("questions")          // table name: questions(listing_id, author_id, body, created_at)
+        .select("id, listing_id, author_id, body, created_at")
+        .eq("listing_id", listingId)
+        .order("created_at", { ascending:true });
+
+      if(error){
+        console.warn("Q&A load error", error);
+        if(qaIntro) qaIntro.textContent = "Questions could not be loaded.";
+        return;
       }
+
+      if(!data || !data.length){
+        if(qaIntro) qaIntro.textContent = "No questions yet—be the first to ask!";
+        return;
+      }
+
+      // pull author profiles so we can format names nicely
+      const authorIds = Array.from(new Set(data.map(q=>q.author_id).filter(Boolean)));
+      let profileMap = {};
+      if(authorIds.length){
+        const { data: profiles, error: pErr } = await supabaseClient
+          .from("profiles")
+          .select("id, store_name, first_name, last_name, display_name")
+          .in("id", authorIds);
+        if(!pErr && profiles){
+          profiles.forEach(p=>{ profileMap[p.id] = p; });
+        }
+      }
+
+      if(qaIntro) qaIntro.textContent = "Questions";
+      qaList.innerHTML = "";
+
+      data.forEach(row=>{
+        const li = document.createElement("li");
+        li.className = "qa-item";
+
+        const meta = document.createElement("div");
+        meta.className = "qa-meta";
+
+        const authorSpan = document.createElement("span");
+        authorSpan.className = "qa-author";
+        const np = nameFromProfile(profileMap[row.author_id]);
+        authorSpan.textContent = np.person || "Member";
+
+        const dateSpan = document.createElement("span");
+        if(row.created_at){
+          const d = new Date(row.created_at);
+          dateSpan.textContent = "· " + d.toLocaleString(undefined,{
+            month:"short",
+            day:"numeric"
+          });
+        }
+
+        meta.appendChild(authorSpan);
+        meta.appendChild(dateSpan);
+
+        const body = document.createElement("p");
+        body.className = "qa-body";
+        body.textContent = row.body || "";
+
+        li.appendChild(meta);
+        li.appendChild(body);
+        qaList.appendChild(li);
+      });
+
     }catch(e){
-      console.warn("Share cancelled or failed", e);
+      console.warn("Q&A load exception", e);
+      if(qaIntro) qaIntro.textContent = "Questions could not be loaded.";
     }
-  });
-}
-
-/* Init -------------------------------------------------------------- */
-
-document.addEventListener("DOMContentLoaded", async ()=>{
-  const params = new URLSearchParams(window.location.search);
-  listingId = params.get("id") || "";
-  if(!listingId){
-    showError("This listing link is missing an ID.");
-    return;
   }
 
-  await ensureSession();
-  await fetchCurrentProfile();
+  function setupQAUI(){
+    const signedOut = document.getElementById("qaSignedOut");
+    const composer  = document.getElementById("qaComposer");
+    const signInBtn = document.getElementById("qaSignInBtn");
+    const submitBtn = document.getElementById("qaSubmitBtn");
+    const note      = document.getElementById("qaNote");
 
-  const listing = await fetchListing(listingId);
-  if(!listing) return;
-  currentListing = listing;
+    const loggedIn = !!(currentSession && currentSession.user);
 
-  const sellerProfile = await fetchSellerProfile(listing.seller_id);
-  renderListing(listing, sellerProfile);
+    if(loggedIn){
+      if(signedOut) signedOut.style.display = "none";
+      if(composer)  composer.style.display  = "block";
+    }else{
+      if(signedOut) signedOut.style.display = "flex";
+      if(composer)  composer.style.display  = "none";
+    }
 
-  // Q&A visibility
-  const qaCard = document.getElementById("qaCard");
-  const qaSignedOut = document.getElementById("qaSignedOut");
-  const qaComposer = document.getElementById("qaComposer");
-  const qaSignInBtn = document.getElementById("qaSignInBtn");
-  const qaSubmitBtn = document.getElementById("qaSubmitBtn");
-  const qaCancelReplyBtn = document.getElementById("qaCancelReplyBtn");
+    if(signInBtn){
+      signInBtn.onclick = ()=>{
+        window.location.href = "auth.html?view=login";
+      };
+    }
 
-  if(qaCard) qaCard.style.display = "block";
+    if(submitBtn){
+      submitBtn.onclick = async ()=>{
+        const textarea = document.getElementById("qaBody");
+        if(!textarea) return;
+        const body = textarea.value.trim();
+        if(!body){
+          if(note) note.textContent = "Please write a question first.";
+          return;
+        }
 
-  if(currentSession && currentSession.user){
-    if(qaSignedOut) qaSignedOut.style.display = "none";
-    if(qaComposer) qaComposer.style.display = "block";
-  }else{
-    if(qaSignedOut) qaSignedOut.style.display = "flex";
-    if(qaComposer) qaComposer.style.display = "none";
+        if(!currentSession || !currentSession.user){
+          window.location.href = "auth.html?view=login";
+          return;
+        }
+
+        submitBtn.disabled = true;
+        if(note) note.textContent = "Posting…";
+
+        try{
+          const { error } = await supabaseClient
+            .from("questions")
+            .insert({
+              listing_id: listingId,
+              author_id: currentSession.user.id,
+              body
+            });
+
+          if(error){
+            console.warn("Q&A insert error", error);
+            if(note) note.textContent = "We couldn’t post your question. Please try again.";
+          }else{
+            textarea.value = "";
+            if(note) note.textContent = "";
+            await loadQuestions();
+          }
+        }catch(e){
+          console.warn("Q&A insert exception", e);
+          if(note) note.textContent = "We couldn’t post your question. Please try again.";
+        }finally{
+          submitBtn.disabled = false;
+        }
+      };
+    }
   }
 
-  if(qaSignInBtn){
-    qaSignInBtn.addEventListener("click", ()=>{
-      const redirect = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.href = "auth.html?view=login&redirect=" + redirect;
+  function getListingIdFromUrl(){
+    try{
+      const url = new URL(window.location.href);
+      return url.searchParams.get("id");
+    }catch(e){
+      return null;
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", async ()=>{
+    listingId = getListingIdFromUrl();
+    if(!listingId){
+      showError("No listing specified.");
+      return;
+    }
+
+    await ensureSession();
+
+    const listing = await fetchListing(listingId);
+    if(!listing) return;
+
+    const sellerProfile = await fetchProfile(listing.seller_id);
+    renderListing(listing, sellerProfile);
+
+    setupQAUI();
+    loadQuestions();
+
+    supabaseClient.auth.onAuthStateChange((_event, session)=>{
+      currentSession = session;
+      updateHeaderForSession(session);
+      setupQAUI();
     });
-  }
-  if(qaSubmitBtn){
-    qaSubmitBtn.addEventListener("click", handlePostComment);
-  }
-  if(qaCancelReplyBtn){
-    qaCancelReplyBtn.addEventListener("click", ()=>{ exitReplyMode(); });
-  }
-
-  await loadComments();
-  initFavoriteButton();
-  initShareButton();
-});
+  });
 </script>
-
-<!-- Cart script (shared) -->
-<script src="assets/add-to-cart.js" defer></script>
 
 </body>
 </html>
