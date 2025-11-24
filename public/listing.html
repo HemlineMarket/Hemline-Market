@@ -615,8 +615,10 @@
       <div class="seller">
         <span class="avatar" id="sellerAvatar">HM</span>
         <div>
-          <strong id="sellerName">Hemline Market seller</strong>
-          <div style="color:#6b7280;font-size:12px" id="sellerSubline">Hemline Market</div>
+          <!-- Line 1: Store name (or best equivalent) -->
+          <strong id="sellerName">Store name</strong>
+          <!-- Line 2: First name + last initial -->
+          <div style="color:#6b7280;font-size:12px" id="sellerSubline">Seller name</div>
         </div>
       </div>
     </aside>
@@ -666,7 +668,6 @@
     </nav>
   </div>
 </footer>
-
 <!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -709,7 +710,7 @@
 </script>
 
 <script>
-  /* Supabase client + listing + Q&A */
+  /* Supabase client + listing + Q&A + notifications */
 
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
@@ -724,7 +725,12 @@
   function moneyFromCents(c){
     if(c == null) return null;
     const v = c / 100;
-    return v.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
+    return v.toLocaleString("en-US",{
+      style:"currency",
+      currency:"USD",
+      minimumFractionDigits:2,
+      maximumFractionDigits:2
+    });
   }
 
   function initialsFromProfile(firstName, lastName, email){
@@ -735,6 +741,18 @@
     const parts = handle.split(" ").filter(Boolean);
     if(parts.length === 1) return (parts[0][0] + (parts[0][1] || '')).toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  function personLabelFromProfile(p){
+    if(!p) return "Member";
+    const first = (p.first_name || "").trim();
+    const last  = (p.last_name  || "").trim();
+    if(first && last){
+      return first + " " + last[0].toUpperCase() + ".";
+    }
+    if(first) return first;
+    if(p.display_name && p.display_name.trim()) return p.display_name.trim();
+    return "Member";
   }
 
   function updateHeaderForSession(session){
@@ -840,7 +858,6 @@
       const key = "image_url_" + i;
       if(listing[key]) urls.push(listing[key]);
     }
-    // If no upload yet, just leave hero blank with gradient.
 
     thumbs.innerHTML = "";
     if(urls.length){
@@ -914,28 +931,39 @@
       statusRow.textContent = `${pub} • ${status}`;
     }
 
-    // Seller info
+    // Seller info (store name + seller name)
     const sellerAvatar = document.getElementById("sellerAvatar");
     const sellerNameEl = document.getElementById("sellerName");
     const sellerSubline = document.getElementById("sellerSubline");
 
-    let storeName = "Hemline Market seller";
-    let displayName = "Hemline Market";
+    let primaryLabel = "Store";
+    let secondaryLabel = "Seller";
 
     if(sellerProfile){
-      const first = sellerProfile.first_name || "";
-      const last = sellerProfile.last_name || "";
-      const dn = (first + " " + last).trim() || sellerProfile.display_name || "";
-      displayName = dn || "Hemline member";
-      storeName = sellerProfile.store_name || displayName;
-      const initials = initialsFromProfile(first, last, sellerProfile.email || "");
+      const personLabel = personLabelFromProfile(sellerProfile); // First L.
+      const storeName = (sellerProfile.store_name || "").trim();
+
+      // Line 1: store name if present, otherwise person label
+      primaryLabel = storeName || personLabel;
+      // Line 2: person label (first + last initial)
+      secondaryLabel = personLabel;
+
+      const initials = initialsFromProfile(
+        sellerProfile.first_name || "",
+        sellerProfile.last_name || "",
+        sellerProfile.email || ""
+      );
       if(sellerAvatar){
         sellerAvatar.textContent = initials;
       }
+    }else{
+      // No profile found (should be rare)
+      primaryLabel = "Hemline Market seller";
+      secondaryLabel = "Member";
     }
 
-    if(sellerNameEl) sellerNameEl.textContent = storeName;
-    if(sellerSubline) sellerSubline.textContent = displayName;
+    if(sellerNameEl) sellerNameEl.textContent = primaryLabel;
+    if(sellerSubline) sellerSubline.textContent = secondaryLabel;
 
     // Description
     const descText = document.getElementById("descText");
@@ -956,7 +984,7 @@
       });
     }
 
-    // Specs
+    // Specs – always render all rows
     const specTable = document.getElementById("specTable");
     if(specTable){
       const rows = [
@@ -990,7 +1018,7 @@
       addBtn.dataset.price = perYdDollars.toFixed(2);     // per-yard price in dollars
       addBtn.dataset.yards = yards != null ? String(yards) : "0";
       addBtn.dataset.sellerId = listing.seller_id || "";
-      addBtn.dataset.sellerName = storeName;
+      addBtn.dataset.sellerName = primaryLabel;
       const firstImg = listing.image_url_1 || "";
       addBtn.dataset.photo = firstImg;
 
@@ -1069,13 +1097,28 @@
       intro.textContent = "No questions yet—be the first to ask!";
       return;
     }
-    intro.textContent = "Questions from buyers";
+    intro.textContent = "Questions";
 
     comments.forEach(c=>{
-      const prof = profilesMap[c.author_id] || {};
-      const first = prof.first_name || "";
-      const last = prof.last_name || "";
-      let name = (first + " " + last).trim() || prof.store_name || prof.display_name || "Buyer";
+      const prof = profilesMap[c.author_id] || null;
+
+      let displayName = "Member";
+      if(prof){
+        const storeName = (prof.store_name || "").trim();
+        const first = (prof.first_name || "").trim();
+        const last  = (prof.last_name  || "").trim();
+
+        // Requirement: Q&A name = store name if they have one,
+        // otherwise first name + last initial
+        if(storeName){
+          displayName = storeName;
+        }else if(first){
+          displayName = first + (last ? " " + last[0].toUpperCase() + "." : "");
+        }else if(prof.display_name && prof.display_name.trim()){
+          displayName = prof.display_name.trim();
+        }
+      }
+
       const when = c.created_at ? timeAgo(c.created_at) : "";
 
       const li = document.createElement("li");
@@ -1084,7 +1127,7 @@
       meta.className = "qa-meta";
       const nameSpan = document.createElement("span");
       nameSpan.className = "qa-author";
-      nameSpan.textContent = name;
+      nameSpan.textContent = displayName;
       meta.appendChild(nameSpan);
       if(when){
         const dot = document.createElement("span");
@@ -1111,6 +1154,30 @@
     renderComments(comments, profilesMap);
   }
 
+  // Create a notification row for the seller when someone comments
+  async function notifySellerOnComment(listing, authorId, body){
+    try{
+      if(!listing || !listing.seller_id) return;
+      if(listing.seller_id === authorId) return; // don't notify self
+
+      const message = `New question on "${listing.title || "your listing"}"`;
+
+      await supabaseClient
+        .from("notifications")
+        .insert({
+          user_id: listing.seller_id,
+          type: "listing_comment",
+          listing_id: listing.id,
+          actor_id: authorId,
+          message,
+          is_read: false
+        });
+      // If this fails, we don't block the comment.
+    }catch(e){
+      console.warn("notifySellerOnComment exception", e);
+    }
+  }
+
   async function handlePostComment(){
     const textarea = document.getElementById("qaBody");
     const note = document.getElementById("qaNote");
@@ -1126,18 +1193,24 @@
     }
     try{
       if(note) note.textContent = "Posting…";
-      const { error } = await supabaseClient
+      const { data, error } = await supabaseClient
         .from("listing_comments")
         .insert({
           listing_id: listingId,
           author_id: currentSession.user.id,
           body
-        });
+        })
+        .select("id")
+        .single();
       if(error){
         console.error("Insert comment error", error);
         if(note) note.textContent = "Sorry, something went wrong. Please try again.";
         return;
       }
+
+      // Trigger seller notification
+      await notifySellerOnComment(currentListing, currentSession.user.id, body);
+
       textarea.value = "";
       if(note) note.textContent = "";
       await loadCommentsSection();
