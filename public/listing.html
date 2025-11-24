@@ -430,10 +430,21 @@
       color:#6b7280;
       font-size:11px;
       margin-bottom:2px;
+      flex-wrap:wrap;
     }
     .qa-author{
       font-weight:600;
       color:#374151;
+    }
+    .qa-badge-seller{
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid #fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
     }
     .qa-body{
       margin:0;
@@ -472,6 +483,32 @@
       justify-content:space-between;
       gap:10px;
       margin-bottom:10px;
+    }
+
+    /* TOAST NOTIFICATIONS */
+    .toast-container{
+      position:fixed;
+      bottom:16px;
+      right:16px;
+      z-index:120;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .toast{
+      background:#111827;
+      color:#f9fafb;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      box-shadow:0 6px 18px rgba(15,23,42,0.35);
+      opacity:0;
+      transform:translateY(8px);
+      transition:opacity .18s ease, transform .18s ease;
+    }
+    .toast.show{
+      opacity:1;
+      transform:translateY(0);
     }
 
     /* FOOTER */
@@ -711,6 +748,8 @@
   </div>
 </footer>
 
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
 <!-- Hamburger / overlay script -->
 <script>
   (function(){
@@ -772,6 +811,21 @@
     if(shell) shell.style.display = "none";
   }
 
+  /* tiny toast helper for "notifications" on this page */
+  function showToast(message){
+    const container = document.getElementById("toastContainer");
+    if(!container) return;
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.textContent = message;
+    container.appendChild(toast);
+    requestAnimationFrame(()=>toast.classList.add("show"));
+    setTimeout(()=>{
+      toast.classList.remove("show");
+      setTimeout(()=>toast.remove(),180);
+    },2500);
+  }
+
   function moneyFromCents(c){
     if(c == null) return null;
     const v = c / 100;
@@ -800,8 +854,9 @@
     }else{
       person = "Member";
     }
+    const storeFinal = store || person;
     return {
-      store: store || person,
+      store: storeFinal,
       person
     };
   }
@@ -1013,7 +1068,7 @@
       }
     }
 
-    // Seller lines
+    // Seller lines: store name + first name + last initial
     const sellerStoreEl = document.getElementById("sellerStore");
     const sellerPersonEl = document.getElementById("sellerPerson");
     const names = nameFromProfile(sellerProfile);
@@ -1023,7 +1078,7 @@
     // Description + tags
     const descText = document.getElementById("descText");
     const descTags = document.getElementById("descTags");
-    if(descText) descText.textContent = listing.description || "No description yet.";
+        if(descText) descText.textContent = listing.description || "No description yet.";
     if(descTags){
       descTags.innerHTML = "";
       const tags = [];
@@ -1064,6 +1119,12 @@
         addBtn.disabled = false;
         addBtn.textContent = totalMoney ? `Add to Cart — ${totalMoney}` : "Add to Cart";
       }
+
+      // Local toast for feedback if some other script handles the actual add-to-cart
+      addBtn.addEventListener("click", ()=>{
+        if(addBtn.disabled) return;
+        showToast("Added to cart");
+      });
     }
 
     // Favorites + share
@@ -1099,8 +1160,10 @@
       const on = favs.includes(id);
       if(on){
         btn.classList.add("heart-active");
+        btn.setAttribute("aria-pressed","true");
       }else{
         btn.classList.remove("heart-active");
+        btn.setAttribute("aria-pressed","false");
       }
     }
 
@@ -1109,10 +1172,16 @@
     btn.addEventListener("click", ()=>{
       let favs = getFavorites();
       const idx = favs.indexOf(id);
-      if(idx === -1) favs.push(id);
-      else favs.splice(idx,1);
+      let added = false;
+      if(idx === -1){
+        favs.push(id);
+        added = true;
+      }else{
+        favs.splice(idx,1);
+      }
       setFavorites(favs);
       sync();
+      showToast(added ? "Saved to favorites" : "Removed from favorites");
     });
   }
 
@@ -1128,8 +1197,7 @@
       if(navigator.clipboard && window.isSecureContext){
         try{
           await navigator.clipboard.writeText(url);
-          btn.title = "Link copied!";
-          setTimeout(()=>{ btn.title = ""; }, 2000);
+          showToast("Link copied");
           return;
         }catch(e){
           console.warn("Clipboard share failed", e);
@@ -1165,7 +1233,7 @@
 
     try{
       const { data, error } = await supabaseClient
-        .from("questions")          // questions(listing_id, author_id, body, created_at)
+        .from("questions")
         .select("id, listing_id, author_id, body, created_at")
         .eq("listing_id", listingId)
         .order("created_at", { ascending:true });
@@ -1206,8 +1274,8 @@
 
         const authorSpan = document.createElement("span");
         authorSpan.className = "qa-author";
+
         const np = nameFromProfile(profileMap[row.author_id]);
-        // Show store · person for Q&A
         const storeName = np.store || "Member";
         const personName = np.person || "Member";
         authorSpan.textContent = storeName + " · " + personName;
@@ -1295,6 +1363,7 @@
           }else{
             textarea.value = "";
             if(note) note.textContent = "";
+            showToast("Question posted");
             await loadQuestions();
           }
         }catch(e){
