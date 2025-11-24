@@ -1068,17 +1068,30 @@
       }
     }
 
-    // Seller lines: store name + first name + last initial
+    // Seller lines: store name + first name + last initial, click → Atelier
     const sellerStoreEl = document.getElementById("sellerStore");
     const sellerPersonEl = document.getElementById("sellerPerson");
     const names = nameFromProfile(sellerProfile);
     if(sellerStoreEl) sellerStoreEl.textContent = names.store;
     if(sellerPersonEl) sellerPersonEl.textContent = names.person;
 
+    // link both to Atelier page (pass seller id in query for future use)
+    const sellerId = listing.seller_id || (sellerProfile && sellerProfile.id) || "";
+    function wireAtelierLink(el){
+      if(!el) return;
+      el.style.cursor = "pointer";
+      el.addEventListener("click", ()=>{
+        const url = "atelier.html" + (sellerId ? ("?seller=" + encodeURIComponent(sellerId)) : "");
+        window.location.href = url;
+      });
+    }
+    wireAtelierLink(sellerStoreEl);
+    wireAtelierLink(sellerPersonEl);
+
     // Description + tags
     const descText = document.getElementById("descText");
     const descTags = document.getElementById("descTags");
-        if(descText) descText.textContent = listing.description || "No description yet.";
+    if(descText) descText.textContent = listing.description || "No description yet.";
     if(descTags){
       descTags.innerHTML = "";
       const tags = [];
@@ -1094,7 +1107,7 @@
       });
     }
 
-    // Wire Add to Cart button
+    // Wire Add to Cart button datasets (site-wide cart script will read these)
     if(addBtn){
       const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
       const totalCents = (priceCents != null && yards != null && !isNaN(yards))
@@ -1106,7 +1119,7 @@
       addBtn.dataset.amount = String(totalCents);
       addBtn.dataset.price = perYdDollars.toFixed(2);
       addBtn.dataset.yards = yards != null ? String(yards) : "0";
-      addBtn.dataset.sellerId = listing.seller_id || "";
+      addBtn.dataset.sellerId = sellerId;
       addBtn.dataset.sellerName = names.store || names.person || "Seller";
       const firstImg = listing.image_url_1 || "";
       addBtn.dataset.photo = firstImg;
@@ -1119,18 +1132,14 @@
         addBtn.disabled = false;
         addBtn.textContent = totalMoney ? `Add to Cart — ${totalMoney}` : "Add to Cart";
       }
-
-      // Local toast for feedback if some other script handles the actual add-to-cart
-      addBtn.addEventListener("click", ()=>{
-        if(addBtn.disabled) return;
-        showToast("Added to cart");
-      });
     }
 
     // Favorites + share
     initFavoriteButton();
     initShareButton();
   }
+
+  /* Favorites */
 
   function getFavorites(){
     try{
@@ -1160,65 +1169,68 @@
       const on = favs.includes(id);
       if(on){
         btn.classList.add("heart-active");
-        btn.setAttribute("aria-pressed","true");
       }else{
         btn.classList.remove("heart-active");
-        btn.setAttribute("aria-pressed","false");
       }
     }
 
     sync();
 
-    btn.addEventListener("click", ()=>{
+    btn.onclick = ()=>{
       let favs = getFavorites();
       const idx = favs.indexOf(id);
-      let added = false;
       if(idx === -1){
         favs.push(id);
-        added = true;
+        showToast("Saved to favorites");
       }else{
         favs.splice(idx,1);
+        showToast("Removed from favorites");
       }
       setFavorites(favs);
       sync();
-      showToast(added ? "Saved to favorites" : "Removed from favorites");
-    });
+    };
   }
+
+  /* Robust share button */
 
   function initShareButton(){
     const btn = document.getElementById("shareBtn");
     if(!btn) return;
 
-    btn.addEventListener("click", async ()=>{
+    btn.onclick = async ()=>{
       const url = window.location.href;
       const title = currentListing?.title || "Hemline Market listing";
 
-      // Prefer copying to clipboard
-      if(navigator.clipboard && window.isSecureContext){
-        try{
-          await navigator.clipboard.writeText(url);
-          showToast("Link copied");
-          return;
-        }catch(e){
-          console.warn("Clipboard share failed", e);
-        }
-      }
-
-      // Fallback: Web Share API if available
+      // 1) Web Share API (phones, Safari, Chrome etc.)
       if(navigator.share){
         try{
           await navigator.share({ title, url });
+          showToast("Share sheet opened");
           return;
         }catch(e){
           if(e && e.name === "AbortError") return;
-          console.warn("Share failed", e);
+          console.warn("navigator.share failed", e);
         }
       }
 
-      // Last resort
-      alert("Share this link:\n\n" + url);
-    });
+      // 2) Clipboard on secure origins
+      if(navigator.clipboard && window.isSecureContext){
+        try{
+          await navigator.clipboard.writeText(url);
+          showToast("Link copied to clipboard");
+          return;
+        }catch(e){
+          console.warn("clipboard write failed", e);
+        }
+      }
+
+      // 3) Fallback: old-school prompt
+      window.prompt("Copy this link and share it:", url);
+      showToast("Link ready to share");
+    };
   }
+
+  /* Q&A */
 
   async function loadQuestions(){
     const qaIntro = document.getElementById("qaIntro");
@@ -1234,7 +1246,7 @@
     try{
       const { data, error } = await supabaseClient
         .from("questions")
-        .select("id, listing_id, author_id, body, created_at")
+        .select("id, listing_id, author_id, body, created_at, answer_body, answer_author_id, answered_at")
         .eq("listing_id", listingId)
         .order("created_at", { ascending:true });
 
@@ -1249,8 +1261,11 @@
         return;
       }
 
-      // pull author profiles so we can format names nicely
-      const authorIds = Array.from(new Set(data.map(q=>q.author_id).filter(Boolean)));
+      // pull author & answer profiles so we can format names nicely
+      const authorIds = Array.from(new Set(
+        data.flatMap(q=>[q.author_id, q.answer_author_id]).filter(Boolean)
+      ));
+
       let profileMap = {};
       if(authorIds.length){
         const { data: profiles, error: pErr } = await supabaseClient
@@ -1262,6 +1277,11 @@
         }
       }
 
+      const isSeller =
+        currentListing &&
+        currentSession &&
+        currentListing.seller_id === currentSession.user?.id;
+
       if(qaIntro) qaIntro.textContent = "Questions";
       qaList.innerHTML = "";
 
@@ -1269,16 +1289,17 @@
         const li = document.createElement("li");
         li.className = "qa-item";
 
+        /* Question header */
         const meta = document.createElement("div");
         meta.className = "qa-meta";
 
+        const qNameBits = nameFromProfile(profileMap[row.author_id]);
+        const qStoreName = qNameBits.store || "Member";
+        const qPersonName = qNameBits.person || "Member";
+
         const authorSpan = document.createElement("span");
         authorSpan.className = "qa-author";
-
-        const np = nameFromProfile(profileMap[row.author_id]);
-        const storeName = np.store || "Member";
-        const personName = np.person || "Member";
-        authorSpan.textContent = storeName + " · " + personName;
+        authorSpan.textContent = qStoreName + " · " + qPersonName;
 
         const dateSpan = document.createElement("span");
         if(row.created_at){
@@ -1298,6 +1319,109 @@
 
         li.appendChild(meta);
         li.appendChild(body);
+
+        /* Answer (if present) */
+        if(row.answer_body){
+          const answerMeta = document.createElement("div");
+          answerMeta.className = "qa-meta";
+
+          const aNameBits = nameFromProfile(profileMap[row.answer_author_id]);
+          const aStoreName = aNameBits.store || "Member";
+          const aPersonName = aNameBits.person || "Member";
+
+          const answerAuthor = document.createElement("span");
+          answerAuthor.className = "qa-author";
+          answerAuthor.textContent = aStoreName + " · " + aPersonName;
+
+          const sellerBadge = document.createElement("span");
+          sellerBadge.className = "qa-badge-seller";
+          sellerBadge.textContent = "Seller";
+
+          const ansDateSpan = document.createElement("span");
+          if(row.answered_at){
+            const d2 = new Date(row.answered_at);
+            ansDateSpan.textContent = "· " + d2.toLocaleString(undefined,{
+              month:"short",
+              day:"numeric"
+            });
+          }
+
+          answerMeta.appendChild(answerAuthor);
+          answerMeta.appendChild(sellerBadge);
+          answerMeta.appendChild(ansDateSpan);
+
+          const answerBody = document.createElement("p");
+          answerBody.className = "qa-body";
+          answerBody.style.marginTop = "2px";
+          answerBody.textContent = row.answer_body;
+
+          li.appendChild(answerMeta);
+          li.appendChild(answerBody);
+        }else if(isSeller){
+          // Seller reply box (only if no answer yet)
+          const replyWrap = document.createElement("div");
+          replyWrap.style.marginTop = "6px";
+
+          const replyArea = document.createElement("textarea");
+          replyArea.rows = 2;
+          replyArea.placeholder = "Reply as the seller…";
+          replyArea.style.width = "100%";
+          replyArea.style.fontSize = "12px";
+          replyArea.style.borderRadius = "8px";
+          replyArea.style.border = "1px solid var(--border)";
+          replyArea.style.padding = "6px";
+
+          const replyRow = document.createElement("div");
+          replyRow.style.display = "flex";
+          replyRow.style.justifyContent = "flex-end";
+          replyRow.style.marginTop = "4px";
+
+          const replyBtn = document.createElement("button");
+          replyBtn.type = "button";
+          replyBtn.className = "btn btn-primary";
+          replyBtn.textContent = "Reply";
+
+          replyBtn.addEventListener("click", async ()=>{
+            const text = replyArea.value.trim();
+            if(!text) return;
+            if(!currentSession || !currentSession.user){
+              window.location.href = "auth.html?view=login";
+              return;
+            }
+            replyBtn.disabled = true;
+            replyBtn.textContent = "Posting…";
+            try{
+              const { error } = await supabaseClient
+                .from("questions")
+                .update({
+                  answer_body: text,
+                  answer_author_id: currentSession.user.id,
+                  answered_at: new Date().toISOString()
+                })
+                .eq("id", row.id);
+
+              if(error){
+                console.warn("Reply insert error", error);
+                showToast("Could not post reply");
+              }else{
+                showToast("Reply posted");
+                await loadQuestions();
+              }
+            }catch(e){
+              console.warn("Reply insert exception", e);
+              showToast("Could not post reply");
+            }finally{
+              replyBtn.disabled = false;
+              replyBtn.textContent = "Reply";
+            }
+          });
+
+          replyRow.appendChild(replyBtn);
+          replyWrap.appendChild(replyArea);
+          replyWrap.appendChild(replyRow);
+          li.appendChild(replyWrap);
+        }
+
         qaList.appendChild(li);
       });
 
