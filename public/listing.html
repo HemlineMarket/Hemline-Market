@@ -73,6 +73,11 @@
   .qa textarea{width:100%;min-height:88px;padding:10px;border:1px solid var(--border);border-radius:10px;resize:vertical}
   .qa .row{display:flex;justify-content:flex-end;margin-top:8px}
 
+  /* Empty / error state */
+  .empty-wrap{max-width:600px;margin:40px auto;padding:0 12px;text-align:left}
+  .empty-wrap h1{font-size:24px;margin:0 0 8px}
+  .empty-wrap p{margin:4px 0;color:#4b5563}
+
   /* Footer */
   .hm-footer{background:#fff;border-top:1px solid var(--border)}
   .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -128,14 +133,14 @@
   <nav>
     <a href="browse.html">Browse</a>
     <a href="sell.html">Sell Fabric</a>
-    <a href="dashboard.html">Dashboard</a>
+    <a href="atelier.html">My Atelier</a>
     <a href="how.html">How It Works</a>
     <a href="about.html">About</a>
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
 
-<main class="wrap">
+<main class="wrap" id="listingMain">
   <div class="toprow">
     <!-- Media -->
     <section>
@@ -153,7 +158,7 @@
         <span class="strike" id="tMsrp"></span>
       </div>
       <div class="cta">
-        <!-- NOTE: add-to-cart.js will handle this button by reading data-* set below -->
+        <!-- add-to-cart.js reads these data-* attributes -->
         <button
           id="addToCart"
           class="btn btn-primary add-to-cart"
@@ -180,7 +185,6 @@
 
       <div class="trust">
         <span class="pill">Verified seller</span>
-        <span class="pill">Fast replies</span>
         <span class="pill">Secure checkout</span>
       </div>
 
@@ -188,7 +192,7 @@
         <span class="avatar" id="sellerAvatar">AA</span>
         <div>
           <strong id="sellerName">Seller</strong>
-          <div style="color:#6b7280;font-size:12px">Last active yesterday</div>
+          <div style="color:#6b7280;font-size:12px">Hemline Market</div>
         </div>
       </div>
     </aside>
@@ -201,12 +205,10 @@
     <p id="descText" style="margin:0;color:#1f2937;line-height:1.55"></p>
   </article>
 
-  <!-- Q&A -->
+  <!-- Q&A (placeholder) -->
   <article class="card qa" style="margin-top:12px">
     <h3>Q&A</h3>
-    <p style="color:#6b7280;margin:0 0 8px">No questions yet—be the first to ask!</p>
-    <textarea placeholder="Have a question about this fabric?"></textarea>
-    <div class="row"><button class="btn btn-primary">Post question</button></div>
+    <p style="color:#6b7280;margin:0 0 8px">Questions and comments are coming later.</p>
   </article>
 </main>
 
@@ -224,8 +226,11 @@
   </div>
 </footer>
 
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-/* Header/menu + avatar (same pattern as FAQ/Terms) */
+/* Header/menu + avatar */
 (function(){
   var sheet=document.getElementById("menuSheet");
   var openBtn=document.getElementById("openMenu");
@@ -243,126 +248,250 @@
   }catch(_){}
 })();
 
-/* Page data + render */
-(function(){
+/* Supabase client */
+const supabaseClient = window.supabase.createClient(
+  "https://clkizksbvxjkoatdajgd.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+);
+
+/* Helpers */
+function $(id){ return document.getElementById(id); }
+
+function moneyFromCents(c){
+  if(c == null) return null;
+  return (c/100).toLocaleString("en-US",{
+    style:"currency",
+    currency:"USD",
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+  });
+}
+
+function initialsFromName(name){
+  if(!name) return "HM";
+  const parts = String(name).trim().split(/\s+/);
+  if(parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function showNotFound(msg){
+  const main = document.getElementById("listingMain");
+  if(!main) return;
+  main.innerHTML = `
+    <div class="empty-wrap">
+      <h1>Listing not found</h1>
+      <p>${msg || "This listing may have been removed or never existed."}</p>
+      <p><a href="browse.html">Back to Browse</a></p>
+    </div>
+  `;
+}
+
+/* Load listing from Supabase based on ?id= */
+(async function loadListing(){
   try{
-    var params=new URLSearchParams(location.search);
-    var id=params.get('id')||'1';
-
-    var DATA={
-      id:id,
-      title:"Italian Silk Twill — Navy",
-      yards:2.5,
-      price:42.00,                 // total lot price (USD)
-      msrpPerYd:28.00,             // crossed-out reference
-      content:["Silk"],
-      fabric:"Twill",
-      color:"Navy",
-      pattern:"Solid",
-      width:54,
-      gsm:180,
-      origin:"Italy",
-      designer:"",
-      tags:["soft drape","gentle sheen"],
-      desc:"Smooth twill with soft drape and gentle sheen. Ideal for blouses, dresses, and scarves.",
-      photos:[
-        "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=1600&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1515165562835-c3b8c8e0b4b0?q=80&w=1200&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1481349518771-20055b2a7b24?q=80&w=1200&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1503602642458-232111445657?q=80&w=1200&auto=format&fit=crop"
-      ],
-      seller:{ id:"seller_brianap712", name:"brianap712", initials:"BP" }
-    };
-
-    function $(id){ return document.getElementById(id); }
-
-    // Title & pricing
-    var tTitle=$('tTitle'), tPrice=$('tPrice'), tPerYd=$('tPerYd'), tMsrp=$('tMsrp'), addBtn=$('addToCart');
-    if(tTitle) tTitle.textContent=DATA.title;
-    if(tPrice) tPrice.firstChild.nodeValue = "$"+DATA.price.toFixed(2)+" for "+DATA.yards+" yards";
-    if(tPerYd){
-      var per=DATA.yards?DATA.price/DATA.yards:DATA.price;
-      tPerYd.textContent="$"+per.toFixed(2)+"/yd";
-    }
-    if(tMsrp){ if(DATA.msrpPerYd){ tMsrp.textContent="$"+DATA.msrpPerYd.toFixed(2)+"/yd"; } else { tMsrp.style.display='none'; } }
-
-    // Wire up Add to Cart button with the data the shared script expects
-    if(addBtn){
-      var perYd = DATA.yards ? (DATA.price / DATA.yards) : DATA.price;
-      addBtn.dataset.id = DATA.id;
-      addBtn.dataset.name = DATA.title;
-      addBtn.dataset.amount = String(Math.round(DATA.price * 100)); // total lot price in cents
-      addBtn.dataset.price = String(perYd.toFixed(2));              // per-yard price in dollars
-      addBtn.dataset.yards = String(DATA.yards);                    // yards in this lot
-      addBtn.dataset.sellerId = DATA.seller.id || "seller_default";
-      addBtn.dataset.sellerName = DATA.seller.name || "Seller";
-      addBtn.dataset.photo = DATA.photos && DATA.photos[0] ? DATA.photos[0] : "";
-      addBtn.textContent = "Add to Cart — $"+DATA.price.toFixed(2);
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if(!id){
+      showNotFound("Missing listing id in the URL.");
+      return;
     }
 
-    // Specs table
-    var rows=[
-      ["Content", (DATA.content&&DATA.content.join(', '))||"—"],
-      ["Fabric", DATA.fabric||"—"],
-      ["Color", DATA.color||"—"],
-      ["Pattern", DATA.pattern||"—"],
-      ["Width", DATA.width?DATA.width+"″":"—"],
-      ["Weight", DATA.gsm?DATA.gsm+" GSM":"—"],
-      ["Origin", DATA.origin||"—"],
-      ["Designer", DATA.designer||"—"]
-    ];
-    var st=$('specTable');
-    if(st){
-      st.innerHTML='';
-      for(var i=0;i<rows.length;i++){
-        var tr=document.createElement('tr');
-        tr.innerHTML='<th>'+rows[i][0]+'</th><td>'+rows[i][1]+'</td>';
-        st.appendChild(tr);
+    const { data: listing, error } = await supabaseClient
+      .from("listings")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if(error || !listing){
+      console.error("Listing fetch error", error);
+      showNotFound();
+      return;
+    }
+
+    // Fetch seller profile for store / display name
+    let profile = null;
+    if(listing.seller_id){
+      const { data: prof, error: profErr } = await supabaseClient
+        .from("profiles")
+        .select("display_name, store_name")
+        .eq("id", listing.seller_id)
+        .maybeSingle();
+
+      if(profErr){
+        console.error("Profile fetch error", profErr);
       }
+      profile = prof || null;
     }
 
-    // Seller
-    var sn=$('sellerName'), sa=$('sellerAvatar');
-    if(sn) sn.textContent=DATA.seller.name;
-    if(sa) sa.textContent=DATA.seller.initials;
-
-    // Description
-    var dt=$('descText'); if(dt) dt.textContent=DATA.desc;
-    var tagsEl=$('descTags');
-    if(tagsEl && DATA.tags){
-      for(var j=0;j<DATA.tags.length;j++){
-        var s=document.createElement('span'); s.className='tag'; s.textContent=DATA.tags[j]; tagsEl.appendChild(s);
-      }
-    }
-
-    // Photos
-    var hero=$('hero'), thumbs=$('thumbs');
-    if(hero && thumbs){
-      var first = DATA.photos[0] || '';
-      hero.src = first;
-      thumbs.innerHTML='';
-      for(var k=0;k<DATA.photos.length;k++){
-        (function(src, idx){
-          var b=document.createElement('button');
-          b.type='button'; b.className='thumb'+(idx===0?' active':'');
-          b.innerHTML='<img alt="" src="'+src+'">';
-          b.addEventListener('click', function(){
-            hero.src=src;
-            var all=thumbs.querySelectorAll('.thumb'); for(var m=0;m<all.length;m++){ all[m].classList.remove('active'); }
-            b.classList.add('active');
-          });
-          thumbs.appendChild(b);
-        })(DATA.photos[k], k);
-      }
-    }
+    renderListing(listing, profile);
   }catch(err){
-    console.error('Listing render error:', err);
+    console.error("Listing render error:", err);
+    showNotFound();
   }
 })();
+
+/* Render into the template */
+function renderListing(listing, profile){
+  const titleEl   = $("tTitle");
+  const priceLine = $("tPrice");
+  const perYdEl   = $("tPerYd");
+  const msrpEl    = $("tMsrp");
+  const addBtn    = $("addToCart");
+  const hero      = $("hero");
+  const thumbs    = $("thumbs");
+  const specTable = $("specTable");
+  const descText  = $("descText");
+  const descTags  = $("descTags");
+  const sellerNameEl   = $("sellerName");
+  const sellerAvatarEl = $("sellerAvatar");
+
+  const yards   = listing.yards_available != null ? Number(listing.yards_available) : null;
+  const priceC  = listing.price_cents != null ? Number(listing.price_cents) : null;       // per yard in cents
+  const origC   = listing.orig_price_cents != null ? Number(listing.orig_price_cents) : null;
+  const perYd   = priceC != null ? moneyFromCents(priceC) : null;
+  const totalC  = (priceC != null && yards != null) ? priceC * yards : null;
+  const total   = moneyFromCents(totalC);
+
+  const title   = listing.title || "Untitled listing";
+
+  if(titleEl) titleEl.textContent = title;
+
+  if(priceLine){
+    if(total && yards != null){
+      priceLine.firstChild.nodeValue = `${total} for ${yards} yards`;
+    }else if(perYd){
+      priceLine.firstChild.nodeValue = `${perYd} per yard`;
+    }else{
+      priceLine.firstChild.nodeValue = "$0.00";
+    }
+  }
+
+  if(perYdEl && perYd){
+    perYdEl.textContent = perYd + "/yard";
+  }else if(perYdEl){
+    perYdEl.textContent = "";
+  }
+
+  if(msrpEl && origC != null){
+    msrpEl.textContent = moneyFromCents(origC) + "/yard";
+  }else if(msrpEl){
+    msrpEl.style.display = "none";
+  }
+
+  // Add-to-cart dataset
+  if(addBtn){
+    addBtn.dataset.id          = String(listing.id);
+    addBtn.dataset.name        = title;
+    addBtn.dataset.yards       = yards != null ? String(yards) : "0";
+    addBtn.dataset.sellerId    = listing.seller_id || "";
+    const sellerDisplayName =
+      (profile && (profile.store_name || profile.display_name)) ||
+      "Hemline Market seller";
+    addBtn.dataset.sellerName  = sellerDisplayName;
+    addBtn.dataset.photo       = listing.image_url_1 || "";
+
+    if(totalC != null){
+      addBtn.dataset.amount = String(totalC); // cents
+      addBtn.textContent = `Add to Cart — ${total}`;
+    }else{
+      addBtn.dataset.amount = "0";
+      addBtn.textContent = "Add to Cart";
+    }
+
+    if(priceC != null){
+      addBtn.dataset.price = (priceC/100).toFixed(2); // per yard dollars
+    }else{
+      addBtn.dataset.price = "0";
+    }
+  }
+
+  // Media (we currently only store cover image)
+  const cover = listing.image_url_1 ||
+    "https://images.unsplash.com/photo-1514996937319-344454492b37?q=80&w=1200&auto=format&fit=crop";
+
+  if(hero){
+    hero.src = cover;
+  }
+  if(thumbs){
+    thumbs.innerHTML = "";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "thumb active";
+    btn.innerHTML = `<img src="${cover}" alt="">`;
+    btn.addEventListener("click", function(){
+      if(hero) hero.src = cover;
+    });
+    thumbs.appendChild(btn);
+  }
+
+  // Specs
+  if(specTable){
+    const feelsLike = Array.isArray(listing.feels_like)
+      ? listing.feels_like
+      : (typeof listing.feels_like === "string" && listing.feels_like.length
+          ? listing.feels_like.split(",").map(s=>s.trim())
+          : []);
+
+    const rows = [
+      ["Content", listing.content || "—"],
+      ["Fabric", listing.fabric_type || "—"],
+      ["Color", listing.color_family || "—"],
+      ["Pattern", listing.pattern || "—"],
+      ["Width", listing.width_in != null ? listing.width_in + "″" : "—"],
+      ["Weight", listing.gsm != null ? listing.gsm + " GSM" : "—"],
+      ["Fiber type", listing.fiber_type || "—"],
+      ["Origin", listing.country_of_origin || "—"],
+      ["Designer / Mill", listing.designer || "—"],
+      ["Feels like", feelsLike.length ? feelsLike.join(", ") : "—"]
+    ];
+
+    specTable.innerHTML = "";
+    rows.forEach(([label, value])=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<th>${label}</th><td>${value}</td>`;
+      specTable.appendChild(tr);
+    });
+  }
+
+  // Description + tags
+  if(descText){
+    descText.textContent = listing.description || "No description yet.";
+  }
+  if(descTags){
+    descTags.innerHTML = "";
+    const tags = [];
+
+    if(listing.content)       tags.push(listing.content);
+    if(listing.fabric_type)   tags.push(listing.fabric_type);
+    if(listing.color_family)  tags.push(listing.color_family);
+    if(listing.pattern)       tags.push(listing.pattern);
+
+    const feelsLike = Array.isArray(listing.feels_like)
+      ? listing.feels_like
+      : (typeof listing.feels_like === "string" && listing.feels_like.length
+          ? listing.feels_like.split(",").map(s=>s.trim())
+          : []);
+    feelsLike.forEach(v => tags.push(v));
+
+    tags.slice(0,8).forEach(t=>{
+      const span = document.createElement("span");
+      span.className = "tag";
+      span.textContent = t;
+      descTags.appendChild(span);
+    });
+  }
+
+  // Seller name + avatar
+  const sellerDisplayName =
+    (profile && (profile.store_name || profile.display_name)) ||
+    "Hemline Market seller";
+
+  if(sellerNameEl) sellerNameEl.textContent = sellerDisplayName;
+  if(sellerAvatarEl) sellerAvatarEl.textContent = initialsFromName(sellerDisplayName);
+}
 </script>
 
-<!-- Use the shared add-to-cart logic (no inline handlers) -->
+<!-- Shared Add-to-Cart logic -->
 <script src="assets/add-to-cart.js" defer></script>
 </body>
 </html>
