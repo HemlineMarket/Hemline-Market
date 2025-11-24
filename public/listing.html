@@ -346,6 +346,7 @@
       font-weight:800;
       color:#334155;
       background:#fff;
+      font-size:11px;
     }
 
     .card{
@@ -420,6 +421,7 @@
     .qa .row{
       display:flex;
       justify-content:flex-end;
+      gap:8px;
       margin-top:8px;
     }
     .qa-note{
@@ -439,6 +441,21 @@
       justify-content:space-between;
       gap:10px;
       margin-bottom:10px;
+    }
+
+    .qa-actions{
+      margin-top:4px;
+      display:flex;
+      gap:10px;
+      font-size:12px;
+    }
+    .qa-reply-btn{
+      background:none;
+      border:none;
+      padding:0;
+      cursor:pointer;
+      color:var(--accent);
+      font-weight:500;
     }
 
     /* FOOTER */
@@ -613,7 +630,7 @@
       </div>
 
       <div class="seller">
-        <span class="avatar" id="sellerAvatar">HM</span>
+        <span class="avatar" id="sellerAvatar"></span>
         <div>
           <!-- Line 1: Store name (or best equivalent) -->
           <strong id="sellerName">Store name</strong>
@@ -649,7 +666,8 @@
     <div id="qaComposer" style="display:none;">
       <textarea id="qaBody" placeholder="Have a question about this fabric?"></textarea>
       <div class="row">
-        <button class="btn btn-primary" type="button" id="qaSubmitBtn">Post question</button>
+        <button class="btn" type="button" id="qaCancelReplyBtn" style="display:none;">Cancel</button>
+        <button class="btn btn-primary" type="button" id="qaSubmitBtn">Post</button>
       </div>
       <div class="qa-note" id="qaNote"></div>
     </div>
@@ -668,6 +686,7 @@
     </nav>
   </div>
 </footer>
+
 <!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -722,6 +741,11 @@
   let currentListing = null;
   let listingId = null;
 
+  // reply state
+  let replyToCommentId = null;
+  let replyToCommentAuthorId = null;
+  let replyToCommentDisplayName = "";
+
   function moneyFromCents(c){
     if(c == null) return null;
     const v = c / 100;
@@ -736,7 +760,7 @@
   function initialsFromProfile(firstName, lastName, email){
     if(firstName && lastName) return (firstName[0] + lastName[0]).toUpperCase();
     if(firstName) return (firstName[0] + (firstName[1] || '')).toUpperCase();
-    if(!email) return "HM";
+    if(!email) return "";
     const handle = email.split("@")[0].replace(/[\.\_\-]+/g," ").trim();
     const parts = handle.split(" ").filter(Boolean);
     if(parts.length === 1) return (parts[0][0] + (parts[0][1] || '')).toUpperCase();
@@ -876,7 +900,7 @@
           btn.classList.add("active");
         });
         thumbs.appendChild(btn);
-      });
+           });
     }else{
       hero.alt = "Listing photo placeholder";
       hero.src = "";
@@ -936,11 +960,11 @@
     const sellerNameEl = document.getElementById("sellerName");
     const sellerSubline = document.getElementById("sellerSubline");
 
-    let primaryLabel = "Store";
-    let secondaryLabel = "Seller";
+    let primaryLabel = "";
+    let secondaryLabel = "";
 
     if(sellerProfile){
-      const personLabel = personLabelFromProfile(sellerProfile); // First L.
+      const personLabel = personLabelFromProfile(sellerProfile); // First + last initial
       const storeName = (sellerProfile.store_name || "").trim();
 
       // Line 1: store name if present, otherwise person label
@@ -956,10 +980,6 @@
       if(sellerAvatar){
         sellerAvatar.textContent = initials;
       }
-    }else{
-      // No profile found (should be rare)
-      primaryLabel = "Hemline Market seller";
-      secondaryLabel = "Member";
     }
 
     if(sellerNameEl) sellerNameEl.textContent = primaryLabel;
@@ -1018,7 +1038,7 @@
       addBtn.dataset.price = perYdDollars.toFixed(2);     // per-yard price in dollars
       addBtn.dataset.yards = yards != null ? String(yards) : "0";
       addBtn.dataset.sellerId = listing.seller_id || "";
-      addBtn.dataset.sellerName = primaryLabel;
+      addBtn.dataset.sellerName = primaryLabel || secondaryLabel || "Seller";
       const firstImg = listing.image_url_1 || "";
       addBtn.dataset.photo = firstImg;
 
@@ -1087,6 +1107,43 @@
     return dt.toLocaleDateString();
   }
 
+  function enterReplyMode(commentId, authorId, displayName){
+    replyToCommentId = commentId;
+    replyToCommentAuthorId = authorId;
+    replyToCommentDisplayName = displayName || "";
+
+    const textarea = document.getElementById("qaBody");
+    const note = document.getElementById("qaNote");
+    const cancelBtn = document.getElementById("qaCancelReplyBtn");
+
+    if(textarea){
+      textarea.focus();
+      if(displayName){
+        // Pre-fill @mention if not already there
+        if(!textarea.value.startsWith("@" + displayName)){
+          textarea.value = "@" + displayName + " ";
+        }
+      }
+    }
+    if(note && displayName){
+      note.textContent = `Replying to ${displayName}`;
+    }
+    if(cancelBtn){
+      cancelBtn.style.display = "inline-flex";
+    }
+  }
+
+  function exitReplyMode(){
+    replyToCommentId = null;
+    replyToCommentAuthorId = null;
+    replyToCommentDisplayName = "";
+
+    const note = document.getElementById("qaNote");
+    const cancelBtn = document.getElementById("qaCancelReplyBtn");
+    if(note) note.textContent = "";
+    if(cancelBtn) cancelBtn.style.display = "none";
+  }
+
   function renderComments(comments, profilesMap){
     const listEl = document.getElementById("qaList");
     const intro = document.getElementById("qaIntro");
@@ -1103,6 +1160,8 @@
       const prof = profilesMap[c.author_id] || null;
 
       let displayName = "Member";
+      let authorId = c.author_id || null;
+
       if(prof){
         const storeName = (prof.store_name || "").trim();
         const first = (prof.first_name || "").trim();
@@ -1123,12 +1182,15 @@
 
       const li = document.createElement("li");
       li.className = "qa-item";
+
       const meta = document.createElement("div");
       meta.className = "qa-meta";
+
       const nameSpan = document.createElement("span");
       nameSpan.className = "qa-author";
       nameSpan.textContent = displayName;
       meta.appendChild(nameSpan);
+
       if(when){
         const dot = document.createElement("span");
         dot.textContent = "•";
@@ -1137,12 +1199,28 @@
         timeSpan.textContent = when;
         meta.appendChild(timeSpan);
       }
+
+      li.appendChild(meta);
+
       const bodyP = document.createElement("p");
       bodyP.className = "qa-body";
       bodyP.textContent = c.body;
-
-      li.appendChild(meta);
       li.appendChild(bodyP);
+
+      const actions = document.createElement("div");
+      actions.className = "qa-actions";
+      const replyBtn = document.createElement("button");
+      replyBtn.type = "button";
+      replyBtn.className = "qa-reply-btn";
+      replyBtn.textContent = "Reply";
+      replyBtn.addEventListener("click", ()=>{
+        if(authorId){
+          enterReplyMode(c.id, authorId, displayName);
+        }
+      });
+      actions.appendChild(replyBtn);
+      li.appendChild(actions);
+
       listEl.appendChild(li);
     });
   }
@@ -1155,7 +1233,7 @@
   }
 
   // Create a notification row for the seller when someone comments
-  async function notifySellerOnComment(listing, authorId, body){
+  async function notifySellerOnComment(listing, authorId){
     try{
       if(!listing || !listing.seller_id) return;
       if(listing.seller_id === authorId) return; // don't notify self
@@ -1172,9 +1250,31 @@
           message,
           is_read: false
         });
-      // If this fails, we don't block the comment.
     }catch(e){
       console.warn("notifySellerOnComment exception", e);
+    }
+  }
+
+  // Notification for the comment author when they get a reply
+  async function notifyCommentAuthorOnReply(commentAuthorId, listing, replierId){
+    try{
+      if(!commentAuthorId || !listing) return;
+      if(commentAuthorId === replierId) return;
+
+      const message = `New reply on a question for "${listing.title || "a listing"}"`;
+
+      await supabaseClient
+        .from("notifications")
+        .insert({
+          user_id: commentAuthorId,
+          type: "comment_reply",
+          listing_id: listing.id,
+          actor_id: replierId,
+          message,
+          is_read: false
+        });
+    }catch(e){
+      console.warn("notifyCommentAuthorOnReply exception", e);
     }
   }
 
@@ -1184,11 +1284,11 @@
     if(!textarea) return;
     const body = (textarea.value || "").trim();
     if(!body){
-      if(note) note.textContent = "Please enter a question before posting.";
+      if(note) note.textContent = "Please enter a question or reply before posting.";
       return;
     }
     if(!currentSession || !currentSession.user){
-      if(note) note.textContent = "Please sign in to ask a question.";
+      if(note) note.textContent = "Please sign in to post.";
       return;
     }
     try{
@@ -1208,11 +1308,21 @@
         return;
       }
 
-      // Trigger seller notification
-      await notifySellerOnComment(currentListing, currentSession.user.id, body);
+      // Notify seller of any new comment
+      await notifySellerOnComment(currentListing, currentSession.user.id);
+
+      // If this was a reply, notify the original commenter
+      if(replyToCommentAuthorId){
+        await notifyCommentAuthorOnReply(
+          replyToCommentAuthorId,
+          currentListing,
+          currentSession.user.id
+        );
+      }
 
       textarea.value = "";
       if(note) note.textContent = "";
+      exitReplyMode();
       await loadCommentsSection();
     }catch(e){
       console.error("Insert comment exception", e);
@@ -1246,6 +1356,7 @@
     const qaComposer = document.getElementById("qaComposer");
     const qaSignInBtn = document.getElementById("qaSignInBtn");
     const qaSubmitBtn = document.getElementById("qaSubmitBtn");
+    const qaCancelReplyBtn = document.getElementById("qaCancelReplyBtn");
 
     if(qaCard) qaCard.style.display = "block";
 
@@ -1265,6 +1376,11 @@
     }
     if(qaSubmitBtn){
       qaSubmitBtn.addEventListener("click", handlePostComment);
+    }
+    if(qaCancelReplyBtn){
+      qaCancelReplyBtn.addEventListener("click", ()=>{
+        exitReplyMode();
+      });
     }
 
     await loadCommentsSection();
