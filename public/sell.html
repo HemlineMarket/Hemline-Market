@@ -1233,6 +1233,56 @@
       alert('Draft saving is not wired yet. For now, publish when you are ready.');
     });
 
+    async function uploadListingMedia(listingId){
+      if(!state.photos.length) return;
+
+      for(let idx = 0; idx < state.photos.length; idx++){
+        const p = state.photos[idx];
+        const file = p.file;
+        if(!file) continue;
+
+        const ext = (file.name && file.name.includes('.'))
+          ? file.name.split('.').pop()
+          : 'jpg';
+
+        const filePath = `${listingId}/${Date.now()}-${idx}.${ext}`;
+
+        const { error: uploadErr } = await supabaseClient
+          .storage
+          .from('listing-media')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: file.type || 'image/jpeg'
+          });
+
+        if(uploadErr){
+          console.error('Upload failed for photo', idx, uploadErr);
+          continue;
+        }
+
+        const { data: urlData } = supabaseClient
+          .storage
+          .from('listing-media')
+          .getPublicUrl(filePath);
+
+        const publicUrl = urlData?.publicUrl || null;
+
+        const { error: mediaErr } = await supabaseClient
+          .from('listing_media')
+          .insert({
+            listing_id: listingId,
+            image_url: publicUrl,
+            is_cover: idx === 0,
+            sort_order: idx
+          });
+
+        if(mediaErr){
+          console.error('Failed to insert listing_media row', mediaErr);
+        }
+      }
+    }
+
     async function publishListing(user){
       try{
         nextBtn.disabled = true;
@@ -1255,15 +1305,17 @@
           width_in: d.width,
           gsm: d.gsm,
           fiber_type: d.fiberType,
-          country_of_origin: d.origin
-          // NOTE: we are intentionally NOT sending color_family, dept, fabric_type,
-          // pattern, designer, feels_like yet because those columns do not
-          // exist on the `listings` table right now.
+          country_of_origin: d.origin,
+          store_name: 'Aurora' // current store name
+          // color_family, dept, fabric_type, pattern, designer, feels_like
+          // are omitted until those columns exist on `listings`.
         };
 
-        const { error: insertErr } = await supabaseClient
+        const { data: listingRow, error: insertErr } = await supabaseClient
           .from('listings')
-          .insert(payload);
+          .insert(payload)
+          .select('id')
+          .single();
 
         if(insertErr){
           console.error(insertErr);
@@ -1276,6 +1328,10 @@
           backBtn.disabled = false;
           return;
         }
+
+        const listingId = listingRow.id;
+
+        await uploadListingMedia(listingId);
 
         alert('Listing published!');
         window.location.href = 'browse.html';
