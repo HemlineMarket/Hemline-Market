@@ -1122,7 +1122,7 @@
       el.style.cursor = "pointer";
       el.style.fontWeight = "700";
       el.addEventListener("click", ()=>{
-        const url = "atelier.html" + (sellerId ? ("?seller=" + encodeURIComponent(sellerId)) : "");
+        const url = "atelier.html" + (sellerId ? ("?u=" + encodeURIComponent(sellerId))) : "");
         window.location.href = url;
       });
     }
@@ -1353,38 +1353,47 @@
         const replySpan = document.createElement("span");
         replySpan.textContent = "Reply";
         replySpan.className = "qa-link";
-        if(isSeller && !row.answer_body){
-          replySpan.addEventListener("click", async ()=>{
-            if(!currentSession || !currentSession.user){
-              window.location.href = "auth.html?view=login";
-              return;
-            }
-            const text = window.prompt("Reply as the seller:");
-            if(!text || !text.trim()) return;
-            try{
-              const { error } = await supabaseClient
-                .from("questions")
-                .update({
-                  answer_body: text.trim(),
-                  answer_author_id: currentSession.user.id,
-                  answered_at: new Date().toISOString()
-                })
-                .eq("id", row.id);
-              if(error){
-                console.warn("Reply error", error);
-                showToast("Could not post reply");
-              }else{
-                showToast("Reply posted");
-                await loadQuestions();
-              }
-            }catch(e){
-              console.warn("Reply exception", e);
-              showToast("Could not post reply");
-            }
-          });
-        }else{
-          replySpan.style.opacity = "0.5";
-          replySpan.style.cursor = "default";
+        // Reply always clickable for the seller
+replySpan.addEventListener("click", async ()=>{
+  if(!isSeller){
+    showToast("Only the seller can reply.");
+    return;
+  }
+  if(row.answer_body){
+    showToast("This question already has a reply.");
+    return;
+  }
+
+  if(!currentSession || !currentSession.user){
+    window.location.href = "auth.html?view=login";
+    return;
+  }
+
+  const text = window.prompt("Reply as the seller:");
+  if(!text || !text.trim()) return;
+
+  try{
+    const { error } = await supabaseClient
+      .from("questions")
+      .update({
+        answer_body: text.trim(),
+        answer_author_id: currentSession.user.id,
+        answered_at: new Date().toISOString()
+      })
+      .eq("id", row.id);
+
+    if(error){
+      console.warn("Reply error", error);
+      showToast("Could not post reply");
+    }else{
+      showToast("Reply posted");
+      await loadQuestions();
+    }
+  }catch(e){
+    console.warn("Reply exception", e);
+    showToast("Could not post reply");
+  }
+});
         }
         metaRow.appendChild(replySpan);
 
