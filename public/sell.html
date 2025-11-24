@@ -906,7 +906,7 @@
     const saveDraft  = document.getElementById('saveDraftBtn');
 
     const state = {
-      photos: [],
+      photos: [], // { file, previewUrl, storagePath, publicUrl }
       video: null,
       details: {}
     };
@@ -966,7 +966,7 @@
         const div = document.createElement('div');
         div.className = 'ph';
         const img = document.createElement('img');
-        img.src = p.url;
+        img.src = p.previewUrl;
         img.alt = idx === 0 ? 'Cover photo' : 'Photo ' + (idx+1);
         div.appendChild(img);
         if(idx === 0){
@@ -989,11 +989,21 @@
       if(!list.length) return;
       const remaining = Math.max(0, 8 - state.photos.length);
       const slice = list.slice(0, remaining);
+
       slice.forEach(file=>{
-        const url = URL.createObjectURL(file);
-        state.photos.push({ file, url });
+        const reader = new FileReader();
+        reader.onload = (e)=>{
+          const previewUrl = e.target.result;
+          state.photos.push({
+            file,
+            previewUrl,
+            storagePath: null,
+            publicUrl: null
+          });
+          renderPhotoThumbs();
+        };
+        reader.readAsDataURL(file);
       });
-      renderPhotoThumbs();
     }
 
     photoInput.addEventListener('change', e=>{
@@ -1132,7 +1142,7 @@
         const div = document.createElement('div');
         div.className = 'ph';
         const img = document.createElement('img');
-        img.src = p.url;
+        img.src = p.previewUrl;
         img.alt = idx === 0 ? 'Cover photo' : 'Photo ' + (idx+1);
         div.appendChild(img);
         if(idx === 0){
@@ -1252,7 +1262,7 @@
         const ext = parts.length > 1 ? parts.pop() : 'jpg';
         const path = `${base}_${i}.${ext}`;
 
-        const { error: uploadErr } = await bucket.upload(path, file, {
+        const { data: uploadData, error: uploadErr } = await bucket.upload(path, file, {
           cacheControl: '3600',
           upsert: false,
           contentType: file.type || undefined
@@ -1262,11 +1272,16 @@
           throw uploadErr;
         }
 
-        const { data } = bucket.getPublicUrl(path);
-        uploaded.push({ path, publicUrl: data.publicUrl });
+        const { data: pubData } = bucket.getPublicUrl(path);
+        const publicUrl = pubData?.publicUrl || null;
+
+        uploaded.push({ path, publicUrl });
+
+        // keep it on the photo state too (just in case later)
+        state.photos[i].storagePath = path;
+        state.photos[i].publicUrl = publicUrl;
       }
 
-      console.log('Uploaded listing media:', uploaded);
       return {
         coverUrl: uploaded[0]?.publicUrl || null,
         items: uploaded
@@ -1300,8 +1315,9 @@
           fiber_type: d.fiberType,
           country_of_origin: d.origin,
           image_url_1: coverUrl || null,
-          store_name: 'Aurora'
-          // not sending color_family, dept, fabric_type, pattern, designer, feels_like yet
+          store_name: 'Aurora' // temporary default store name
+          // we are intentionally not sending color_family, dept, fabric_type,
+          // pattern, designer, feels_like yet.
         };
 
         const { error: insertErr } = await supabaseClient
