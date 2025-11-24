@@ -19,9 +19,6 @@
       --hm-muted:#6b7280;
       --hm-text:#111827;
       --hm-bg:#f4f4f7;
-      --hm-success:#16a34a;
-      --hm-warning:#f97316;
-      --hm-soft:#f3f4f6;
     }
     html,body{
       margin:0;
@@ -35,7 +32,7 @@
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .is-hidden{display:none!important;}
 
-    /* HEADER (aligned with account) */
+    /* HEADER (aligned with account/browse) */
     .hm-header{
       min-height:56px;
       background:#fff;
@@ -207,14 +204,9 @@
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      margin-bottom:10px;
-    }
-    .listings-header-row span.small-muted{
-      font-size:12px;
-      color:var(--hm-muted);
     }
     .listings-empty{
-      margin-top:4px;
+      margin-top:12px;
       padding:12px 14px;
       border-radius:12px;
       border:1px dashed #d1d5db;
@@ -238,91 +230,100 @@
       color:#fff;
       box-shadow:0 2px 10px rgba(153,27,27,.28);
     }
+    .btn-ghost{
+      border-color:transparent;
+      background:transparent;
+      padding:4px 0;
+      font-size:12px;
+      color:#4b5563;
+    }
+    .btn-ghost.danger{
+      color:#b91c1c;
+    }
 
     .atelier-listings-grid{
+      margin-top:14px;
       display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
-      gap:10px;
-      margin-top:6px;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:12px;
     }
-    .atelier-listing-card{
-      display:block;
-      text-decoration:none;
-      color:inherit;
+    @media(max-width:1050px){
+      .atelier-listings-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+    @media(max-width:640px){
+      .atelier-listings-grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+    .atelier-card{
       border-radius:12px;
       border:1px solid var(--hm-border);
       background:#fff;
       overflow:hidden;
-      transition:box-shadow .15s ease, transform .15s ease;
+      display:flex;
+      flex-direction:column;
     }
-    .atelier-listing-card:hover{
-      box-shadow:0 8px 20px rgba(15,23,42,.12);
-      transform:translateY(-2px);
-    }
-    .atelier-card-media{
+    .atelier-card-photo{
       aspect-ratio:4/3;
-      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      background:linear-gradient(180deg,#f8fafc,#e5e7eb);
       display:grid;
       place-items:center;
       color:#9ca3af;
       font-size:12px;
     }
-    .atelier-card-media img{
+    .atelier-card-photo img{
       width:100%;
       height:100%;
       object-fit:cover;
-      display:block;
     }
     .atelier-card-body{
       padding:8px 10px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      font-size:13px;
     }
     .atelier-card-title{
-      font-size:14px;
       font-weight:700;
-      margin:0 0 3px;
       line-height:1.3;
     }
     .atelier-card-meta{
       display:flex;
       justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
+      color:#6b7280;
+      font-size:12px;
+    }
+    .atelier-card-meta span{white-space:nowrap;}
+    .atelier-card-foot{
+      margin-top:4px;
+      display:flex;
+      justify-content:space-between;
       align-items:center;
       gap:8px;
       font-size:12px;
-      color:var(--hm-muted);
-      margin-bottom:4px;
-      flex-wrap:wrap;
     }
-    .atelier-card-status{
+    .badge-status{
       font-size:11px;
-      padding:2px 7px;
+      padding:2px 8px;
       border-radius:999px;
-      border:1px solid var(--hm-border);
-      background:#f9fafb;
+      border:1px solid #bbf7d0;
+      background:#ecfdf3;
+      color:#166534;
       white-space:nowrap;
     }
-    .atelier-card-status.published{
-      border-color:#bbf7d0;
-      background:#ecfdf5;
-      color:#15803d;
+    .badge-status.draft{
+      border-color:#fee2e2;
+      background:#fef2f2;
+      color:#b91c1c;
     }
-    .atelier-card-status.draft{
-      border-color:#fed7aa;
-      background:#fff7ed;
-      color:#c2410c;
-    }
-    .atelier-card-status.inactive{
-      background:#f3f4f6;
-      color:#6b7280;
-    }
-    .atelier-card-price{
-      font-size:13px;
-      font-weight:600;
-      color:#111827;
-    }
-    .atelier-card-date{
-      font-size:11px;
-      color:#9ca3af;
-      margin-top:2px;
+    .atelier-card-actions{
+      display:flex;
+      gap:8px;
     }
 
     /* PROFILE PANEL */
@@ -395,6 +396,16 @@
       margin-top:10px;
       background:#f9fafb;
       color:#6b7280;
+    }
+
+    .error-msg{
+      margin-bottom:12px;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
+      font-size:13px;
     }
   </style>
 </head>
@@ -489,22 +500,25 @@
       Browse fabrics from this studio and discover the story behind each piece.
     </p>
 
+    <div id="atelierError" class="error-msg" style="display:none;"></div>
+
     <!-- LISTINGS CARD -->
     <section class="hm-card" aria-labelledby="listingsHeading">
       <div class="hm-card-header" id="listingsHeading">Listings</div>
       <div class="hm-card-body">
         <div class="listings-header-row">
-          <div>
-            <strong style="font-size:14px;">Fabrics from this shop</strong><br>
-            <span class="small-muted" id="atelierListingCount">Loading listings…</span>
-          </div>
+          <strong style="font-size:14px;">Fabrics from this shop</strong>
           <a class="btn btn-primary" href="sell.html">List an item</a>
         </div>
 
-        <div id="atelierListingsGrid" class="atelier-listings-grid"></div>
-        <div id="atelierListingsEmpty" class="listings-empty" style="display:none">
-          No listings yet. Once you publish fabrics, they’ll appear here in reverse date order.
+        <!-- Empty state -->
+        <div class="listings-empty" id="listingsEmpty">
+          No active listings yet. When this shop lists fabrics, cards will appear here with photos,
+          yardage, and prices.
         </div>
+
+        <!-- Grid of cards -->
+        <div class="atelier-listings-grid" id="listingsGrid" style="display:none;"></div>
       </div>
     </section>
   </section>
@@ -612,6 +626,7 @@
 </script>
 
 <script>
+  // Supabase setup + Atelier logic
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
@@ -642,6 +657,12 @@
     return slug;
   }
 
+  function moneyFromCents(c){
+    if(c == null) return null;
+    const v = c / 100;
+    return v.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+
   async function ensureSession({maxWaitMs=3000} = {}){
     let { data:{ session } } = await supabaseClient.auth.getSession();
     if(session?.user) return session;
@@ -653,139 +674,192 @@
     return session;
   }
 
-  function moneyFromCents(cents){
-    if(cents == null) return null;
-    const v = cents / 100;
-    return v.toLocaleString("en-US",{
-      style:"currency",
-      currency:"USD",
-      minimumFractionDigits:2,
-      maximumFractionDigits:2
-    });
+  function setHeaderForSession(session){
+    const headerAccountLink = document.getElementById('headerAccountLink');
+    if(!headerAccountLink) return;
+    if(session && session.user){
+      headerAccountLink.href = "account.html";
+      headerAccountLink.setAttribute("aria-label","Your account");
+      headerAccountLink.classList.add("is-logged-in");
+    }else{
+      headerAccountLink.href = "auth.html?view=login";
+      headerAccountLink.setAttribute("aria-label","Sign in or manage your account");
+      headerAccountLink.classList.remove("is-logged-in");
+    }
   }
 
-  function formatDateShort(iso){
-    if(!iso) return "";
-    const d = new Date(iso);
-    if(Number.isNaN(d.getTime())) return "";
-    return d.toLocaleDateString("en-US",{month:"short", day:"numeric", year:"numeric"});
+  function showAtelierError(msg){
+    const el = document.getElementById('atelierError');
+    if(!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
   }
 
-  async function loadAtelierListings(userId){
-    const gridEl   = document.getElementById("atelierListingsGrid");
-    const emptyEl  = document.getElementById("atelierListingsEmpty");
-    const countEl  = document.getElementById("atelierListingCount");
+  async function loadListingsForSeller(sellerId){
+    const grid  = document.getElementById('listingsGrid');
+    const empty = document.getElementById('listingsEmpty');
+    if(!grid || !empty) return;
 
-    if(gridEl) gridEl.innerHTML = "";
-    if(emptyEl) emptyEl.style.display = "none";
-    if(countEl) countEl.textContent = "Loading listings…";
-
-    let listings = [];
     try{
       const { data, error } = await supabaseClient
         .from("listings")
         .select("*")
-        .eq("seller_id", userId)
-        .order("created_at", { ascending:false });
-
+        .eq("seller_id", sellerId)
+        .order("created_at",{ascending:false});
       if(error){
-        console.error("Atelier listings error", error);
-        if(countEl) countEl.textContent = "Error loading listings";
+        console.error("Listings fetch error", error);
+        showAtelierError("We couldn’t load your listings. Please refresh.");
         return;
       }
-      listings = data || [];
-    }catch(e){
-      console.error("Atelier listings exception", e);
-      if(countEl) countEl.textContent = "Error loading listings";
-      return;
+
+      grid.innerHTML = "";
+
+      if(!data || !data.length){
+        empty.style.display = "block";
+        grid.style.display  = "none";
+        return;
+      }
+
+      empty.style.display = "none";
+      grid.style.display  = "grid";
+
+      data.forEach(listing=>{
+        const card = document.createElement("article");
+        card.className = "atelier-card";
+        card.dataset.id = listing.id;
+
+        // Photo
+        const photoDiv = document.createElement("a");
+        photoDiv.className = "atelier-card-photo";
+        photoDiv.href = "listing.html?id=" + encodeURIComponent(listing.id);
+        photoDiv.setAttribute("aria-label","View listing");
+        const imgUrl = listing.image_url_1;
+        if(imgUrl){
+          const img = document.createElement("img");
+          img.src = imgUrl;
+          img.alt = listing.title || "Listing photo";
+          photoDiv.appendChild(img);
+        }else{
+          photoDiv.textContent = "Photo";
+        }
+
+        // Body
+        const body = document.createElement("div");
+        body.className = "atelier-card-body";
+
+        const titleLink = document.createElement("a");
+        titleLink.href = "listing.html?id=" + encodeURIComponent(listing.id);
+        titleLink.className = "atelier-card-title";
+        titleLink.textContent = listing.title || "Untitled listing";
+
+        const meta = document.createElement("div");
+        meta.className = "atelier-card-meta";
+
+        const yards = listing.yards_available != null ? Number(listing.yards_available) : null;
+        const priceCents = listing.price_cents != null ? Number(listing.price_cents) : null;
+        const createdAt = listing.created_at ? new Date(listing.created_at) : null;
+
+        const yardsSpan = document.createElement("span");
+        yardsSpan.textContent = yards != null ? (yards + " yards") : "Yardage?";
+
+        const priceSpan = document.createElement("span");
+        if(priceCents != null){
+          priceSpan.textContent = moneyFromCents(priceCents) + "/yard";
+        }else{
+          priceSpan.textContent = "Price?";
+        }
+
+        const dateSpan = document.createElement("span");
+        if(createdAt){
+          const opts = { month:"short", day:"numeric", year:"numeric" };
+          dateSpan.textContent = "Created " + createdAt.toLocaleDateString(undefined, opts);
+        }
+
+        meta.appendChild(yardsSpan);
+        meta.appendChild(priceSpan);
+        if(createdAt) meta.appendChild(dateSpan);
+
+        const foot = document.createElement("div");
+        foot.className = "atelier-card-foot";
+
+        const statusBadge = document.createElement("span");
+        statusBadge.className = "badge-status";
+        const isPublished = listing.is_published !== false; // default true
+        if(isPublished){
+          statusBadge.textContent = "Published";
+        }else{
+          statusBadge.textContent = "Draft";
+          statusBadge.classList.add("draft");
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "atelier-card-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "btn-ghost";
+        editBtn.textContent = "Edit";
+        editBtn.addEventListener("click", e=>{
+          e.preventDefault();
+          window.location.href = "sell.html?listingId=" + encodeURIComponent(listing.id);
+        });
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "btn-ghost danger";
+        delBtn.textContent = "Delete";
+        delBtn.addEventListener("click", async e=>{
+          e.preventDefault();
+          const ok = window.confirm("Delete this listing? This cannot be undone.");
+          if(!ok) return;
+          try{
+            delBtn.disabled = true;
+            delBtn.textContent = "Deleting…";
+            const { error:delError } = await supabaseClient
+              .from("listings")
+              .delete()
+              .eq("id", listing.id)
+              .eq("seller_id", sellerId);
+            if(delError){
+              console.error("Delete listing error", delError);
+              alert("Something went wrong deleting this listing.");
+              delBtn.disabled = false;
+              delBtn.textContent = "Delete";
+              return;
+            }
+            card.remove();
+            // If grid becomes empty, show empty state again
+            if(!grid.querySelector(".atelier-card")){
+              empty.style.display = "block";
+              grid.style.display  = "none";
+            }
+          }catch(err){
+            console.error("Delete listing exception", err);
+            alert("Unexpected error deleting this listing.");
+            delBtn.disabled = false;
+            delBtn.textContent = "Delete";
+          }
+        });
+
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+
+        foot.appendChild(statusBadge);
+        foot.appendChild(actions);
+
+        body.appendChild(titleLink);
+        body.appendChild(meta);
+        body.appendChild(foot);
+
+        card.appendChild(photoDiv);
+        card.appendChild(body);
+
+        grid.appendChild(card);
+      });
+    }catch(err){
+      console.error("Listings fetch exception", err);
+      showAtelierError("Unexpected error loading your listings.");
     }
-
-    // Show count
-    const total = listings.length;
-    if(countEl){
-      countEl.textContent = total === 1 ? "1 listing" : total + " listings";
-    }
-
-    if(!total){
-      if(emptyEl) emptyEl.style.display = "block";
-      return;
-    }
-
-    // Render cards
-    listings.forEach(l => {
-      const card = document.createElement("a");
-      card.className = "atelier-listing-card";
-      card.href = "listing.html?id=" + encodeURIComponent(l.id);
-
-      // media
-      const media = document.createElement("div");
-      media.className = "atelier-card-media";
-      if(l.image_url_1){
-        const img = document.createElement("img");
-        img.src = l.image_url_1;
-        img.alt = l.title || "Listing photo";
-        media.appendChild(img);
-      }else{
-        media.textContent = "Photo";
-      }
-      card.appendChild(media);
-
-      const body = document.createElement("div");
-      body.className = "atelier-card-body";
-
-      const title = document.createElement("div");
-      title.className = "atelier-card-title";
-      title.textContent = l.title || "Untitled listing";
-      body.appendChild(title);
-
-      const metaRow = document.createElement("div");
-      metaRow.className = "atelier-card-meta";
-
-      const yardsSpan = document.createElement("span");
-      const yardsVal = l.yards_available != null ? Number(l.yards_available) : null;
-      yardsSpan.textContent = (yardsVal != null ? yardsVal : "—") + " yards";
-      metaRow.appendChild(yardsSpan);
-
-      const statusSpan = document.createElement("span");
-      statusSpan.className = "atelier-card-status";
-      const status = (l.status || "").toLowerCase();
-      const published = l.is_published !== false;
-
-      if(status === "inactive"){
-        statusSpan.classList.add("inactive");
-        statusSpan.textContent = "Inactive";
-      }else if(published){
-        statusSpan.classList.add("published");
-        statusSpan.textContent = "Published";
-      }else{
-        statusSpan.classList.add("draft");
-        statusSpan.textContent = "Draft";
-      }
-      metaRow.appendChild(statusSpan);
-
-      body.appendChild(metaRow);
-
-      const priceRow = document.createElement("div");
-      const priceCents = l.price_cents != null ? Number(l.price_cents) : null;
-      if(priceCents != null){
-        const perYard = moneyFromCents(priceCents);
-        const priceSpan = document.createElement("div");
-        priceSpan.className = "atelier-card-price";
-        priceSpan.textContent = perYard + "/yard";
-        priceRow.appendChild(priceSpan);
-      }
-      const dateStr = formatDateShort(l.created_at);
-      if(dateStr){
-        const dateSpan = document.createElement("div");
-        dateSpan.className = "atelier-card-date";
-        dateSpan.textContent = "Created " + dateStr;
-        priceRow.appendChild(dateSpan);
-      }
-      body.appendChild(priceRow);
-
-      card.appendChild(body);
-      gridEl.appendChild(card);
-    });
   }
 
   (async function initAtelier(){
@@ -796,17 +870,11 @@
       window.location.href = "auth.html?view=login";
       return;
     }
-
     const user   = session.user;
     const email  = user.email || "";
     const userId = user.id;
 
-    // Header state: logged in
-    if(headerAccountLink){
-      headerAccountLink.href = "account.html";
-      headerAccountLink.setAttribute("aria-label","Your account");
-      headerAccountLink.classList.add("is-logged-in");
-    }
+    setHeaderForSession(session);
 
     const PROFILE_KEY = "hm_profile_" + userId;
 
@@ -818,7 +886,7 @@
     const atelierTitle  = document.getElementById('atelierTitle');
     const atelierSub    = document.getElementById('atelierSubtitle');
 
-    // Load profile from localStorage
+    // Load profile from localStorage (for now)
     let profile = {};
     try{
       const raw = localStorage.getItem(PROFILE_KEY);
@@ -830,11 +898,13 @@
     const storeName = (profile.storeName || "").trim();
     const bio       = (profile.bio || "").trim();
 
+    // Display name
     let displayName = (firstName + " " + lastName).trim();
     if(!displayName){
       displayName = "Hemline member";
     }
 
+    // Shop name: prefer storeName, fall back to display name
     const shopName = storeName || displayName;
 
     if(atelierTitle){
@@ -860,10 +930,12 @@
     const shopUrl = window.location.origin + "/shop/" + storeSlug;
     shareInput.value = shopUrl;
 
+    // Edit shop details -> Account page
     document.getElementById('btnEditShop').addEventListener('click', ()=>{
       window.location.href = "account.html";
     });
 
+    // Copy link
     document.getElementById('btnCopyLink').addEventListener('click', ()=>{
       shareInput.select();
       shareInput.setSelectionRange(0, 99999);
@@ -879,8 +951,8 @@
       window.getSelection().removeAllRanges();
     });
 
-    // Finally, load this seller's listings into the grid
-    await loadAtelierListings(userId);
+    // Finally, load listings for this seller
+    await loadListingsForSeller(userId);
   })();
 </script>
 
