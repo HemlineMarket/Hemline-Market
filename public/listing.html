@@ -27,7 +27,7 @@
     }
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
 
-    /* HEADER (matches browse/atelier) */
+    /* HEADER (matches other pages) */
     .hm-header{
       min-height:56px;
       background:#fff;
@@ -78,7 +78,6 @@
     }
     .hm-icon svg{width:26px;height:26px;stroke-width:2}
 
-    /* Account icon + login badge */
     .hm-account{
       position:relative;
       display:inline-grid;
@@ -159,7 +158,6 @@
       color:#444;
       cursor:pointer;
     }
-
     #sheetOverlay{
       position:fixed;
       inset:0;
@@ -252,6 +250,26 @@
       margin-left:6px;
       font-size:13px;
     }
+    .status-line{
+      margin-top:4px;
+      color:#6b7280;
+      font-size:13px;
+    }
+    .sold-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:2px 8px;
+      border-radius:999px;
+      background:#fee2e2;
+      color:#b91c1c;
+      font-size:11px;
+      font-weight:600;
+      margin-left:6px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+
     .cta{
       display:flex;
       gap:8px;
@@ -266,10 +284,6 @@
       font-weight:700;
       cursor:pointer;
       font-size:13px;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:6px;
     }
     .btn-primary{
       background:var(--accent);
@@ -280,17 +294,20 @@
       opacity:.6;
       cursor:not-allowed;
     }
-    .btn-icon{
-      width:40px;
-      padding:10px;
+
+    .icon-btn{
+      width:36px;
+      height:36px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#fff;
+      display:inline-grid;
+      place-items:center;
+      cursor:pointer;
     }
-    .btn-icon svg{
-      width:18px;
-      height:18px;
-      stroke-width:2;
-    }
-    .btn-icon[data-active="true"]{
-      border-color:var(--accent);
+    .icon-btn svg{width:18px;height:18px;}
+    .icon-btn.heart-active{
+      border-color:#f97373;
       background:#fef2f2;
     }
 
@@ -354,6 +371,13 @@
       border-top:1px dashed #f0f2f4;
       color:#374151;
       font-size:13px;
+    }
+    .seller-lines strong{
+      display:block;
+    }
+    .seller-lines div{
+      color:#6b7280;
+      font-size:12px;
     }
 
     .card{
@@ -546,7 +570,6 @@
         </svg>
       </a>
 
-      <!-- Account icon with login status -->
       <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -602,10 +625,9 @@
         <span class="peryd" id="tPerYd"></span>
         <span class="strike" id="tMsrp"></span>
       </div>
-      <div style="margin-top:4px;color:#6b7280;font-size:13px;" id="tStatusRow"></div>
+      <div class="status-line" id="tStatusRow"></div>
 
       <div class="cta">
-        <!-- add-to-cart.js will read these data-* attributes -->
         <button
           id="addToCart"
           class="btn btn-primary add-to-cart"
@@ -621,22 +643,25 @@
           data-photo=""
         >Add to Cart</button>
 
-        <button class="btn btn-icon" type="button" id="saveListingBtn" aria-label="Save to favorites" data-active="false">
+        <!-- Favorite heart -->
+        <button class="icon-btn" id="favoriteBtn" type="button" aria-label="Favorite listing">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
           </svg>
         </button>
 
-        <button class="btn btn-icon" type="button" id="shareListingBtn" aria-label="Share listing">
+        <!-- Share icon -->
+        <button class="icon-btn" id="shareBtn" type="button" aria-label="Share listing">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="18" cy="5" r="3"></circle>
             <circle cx="6" cy="12" r="3"></circle>
             <circle cx="18" cy="19" r="3"></circle>
-            <path d="M8.59 13.51 15.42 17.5"></path>
-            <path d="M15.41 6.5 8.59 10.49"></path>
+            <path d="M8.59 11.51l6.83-3.02"></path>
+            <path d="M15.41 15.51l-6.82-3.02"></path>
           </svg>
         </button>
       </div>
+
       <div class="mini-note">
         • Seller ships within <strong>5 business days</strong> • Buyer Protection • Price is for the entire lot.
       </div>
@@ -651,9 +676,9 @@
       </div>
 
       <div class="seller">
-        <div>
-          <strong id="sellerName">Member</strong>
-          <div style="color:#6b7280;font-size:12px" id="sellerSubline"></div>
+        <div class="seller-lines">
+          <strong id="sellerPrimary">Member</strong>
+          <div id="sellerSecondary">Member</div>
         </div>
       </div>
     </aside>
@@ -745,737 +770,605 @@
     }
   })();
 </script>
-
 <script>
-  /* Supabase client + listing + Q&A + favorites + share */
-
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+    { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
+  const profileCache = new Map();
   let currentSession = null;
-  let currentProfile = null;
-  let currentListing = null;
-  let listingId = null;
+  let currentListing  = null;
 
-  // reply state
-  let replyToCommentId = null;
-  let replyToCommentAuthorId = null;
-  let replyToCommentDisplayName = "";
-
-  function moneyFromCents(c){
-    if(c == null) return null;
-    const v = c / 100;
-    return v.toLocaleString("en-US",{
-      style:"currency",
-      currency:"USD",
-      minimumFractionDigits:2,
-      maximumFractionDigits:2
-    });
+  function getListingIdFromUrl(){
+    const params = new URLSearchParams(window.location.search);
+    return params.get('id');
   }
 
-  function personLabelFromProfile(p){
-    if(!p) return "Member";
-    const first = (p.first_name || "").trim();
-    const last  = (p.last_name  || "").trim();
-    if(first && last){
-      return first + " " + last[0].toUpperCase() + ".";
+  function formatMoney(cents){
+    if(cents == null) return '$0.00';
+    return '$' + (cents / 100).toFixed(2);
+  }
+
+  function formatPerYard(priceCents, yards){
+    if(priceCents == null || !yards || yards <= 0) return '';
+    const per = (priceCents / 100) / yards;
+    return per ? per.toFixed(2) + '/yard' : '';
+  }
+
+  function formatOrigPerYard(origPriceCents, yards){
+    if(origPriceCents == null || !yards || yards <= 0) return '';
+    const per = (origPriceCents / 100) / yards;
+    return per ? per.toFixed(2) + '/yard' : '';
+  }
+
+  function formatMemberName(profile, fallbackEmail){
+    let name = (profile && (profile.display_name || profile.full_name)) || null;
+
+    if(!name && profile && profile.email){
+      const raw = profile.email.split('@')[0].replace(/[._]/g,' ');
+      name = raw;
     }
-    if(first) return first;
-    if(p.display_name && p.display_name.trim()) return p.display_name.trim();
-    return "Member";
-  }
-
-  function deriveDisplayNameForQA(p){
-    if(!p) return "Member";
-    const store = (p.store_name || "").trim();
-    const base  = personLabelFromProfile(p);
-    return store || base;
-  }
-
-  function updateHeaderForSession(session){
-    const link = document.getElementById("headerAccountLink");
-    if(!link) return;
-    if(session && session.user){
-      link.href = "account.html";
-      link.setAttribute("aria-label","Your account");
-      link.classList.add("is-logged-in");
-      link.classList.remove("is-logged-out");
-    }else{
-      link.href = "auth.html?view=login";
-      link.setAttribute("aria-label","Sign in or manage your account");
-      link.classList.remove("is-logged-in");
-      link.classList.add("is-logged-out");
+    if(!name && fallbackEmail){
+      const raw = fallbackEmail.split('@')[0].replace(/[._]/g,' ');
+      name = raw;
     }
+    if(!name) return 'Member';
+
+    const parts = name.trim().split(/\s+/);
+    if(parts.length === 1) return parts[0];
+    return parts[0] + ' ' + (parts[1][0] ? parts[1][0].toUpperCase() + '.' : '');
   }
 
-  async function ensureSession(){
+  async function fetchProfile(userId){
+    if(!userId) return null;
+    if(profileCache.has(userId)) return profileCache.get(userId);
+
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('id, display_name, full_name, email')
+      .eq('id', userId)
+      .limit(1);
+
+    if(error){
+      console.error('profiles error', error);
+      profileCache.set(userId, null);
+      return null;
+    }
+    const profile = data && data[0] ? data[0] : null;
+    profileCache.set(userId, profile);
+    return profile;
+  }
+
+  async function getSessionAndWireHeader(){
+    const headerAccountLink = document.getElementById('headerAccountLink');
     const { data:{ session } } = await supabaseClient.auth.getSession();
     currentSession = session || null;
-    updateHeaderForSession(currentSession);
+
+    if(headerAccountLink){
+      if(currentSession && currentSession.user){
+        headerAccountLink.href = 'account.html';
+        headerAccountLink.setAttribute('aria-label','Your account');
+        headerAccountLink.classList.add('is-logged-in');
+        headerAccountLink.classList.remove('is-logged-out');
+      }else{
+        headerAccountLink.href = 'auth.html?view=login';
+        headerAccountLink.setAttribute('aria-label','Sign in or manage your account');
+        headerAccountLink.classList.remove('is-logged-in');
+        headerAccountLink.classList.add('is-logged-out');
+      }
+    }
+
+    supabaseClient.auth.onAuthStateChange((_event, newSession)=>{
+      currentSession = newSession || null;
+      if(!newSession || !newSession.user){
+        if(headerAccountLink){
+          headerAccountLink.href = 'auth.html?view=login';
+          headerAccountLink.classList.remove('is-logged-in');
+          headerAccountLink.classList.add('is-logged-out');
+        }
+      }else{
+        if(headerAccountLink){
+          headerAccountLink.href = 'account.html';
+          headerAccountLink.classList.add('is-logged-in');
+          headerAccountLink.classList.remove('is-logged-out');
+        }
+      }
+    });
+
     return currentSession;
   }
 
-  async function fetchCurrentProfile(){
-    if(!currentSession || !currentSession.user) return null;
-    try{
-      const { data, error } = await supabaseClient
-        .from("profiles")
-        .select("id, first_name, last_name, store_name, display_name, email")
-        .eq("id", currentSession.user.id)
-        .maybeSingle();
-      if(error){ console.warn("Profile fetch error", error); return null; }
-      currentProfile = data;
-      return data;
-    }catch(e){
-      console.warn("Profile fetch exception", e);
-      return null;
-    }
-  }
+  function buildSpecs(listing){
+    const specTable = document.getElementById('specTable');
+    if(!specTable) return;
 
-  async function fetchListing(id){
-    try{
-      const { data, error } = await supabaseClient
-        .from("listings")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
-      if(error){
-        console.error("Listing fetch error", error);
-        showError("We couldn’t load this listing. It may have been removed.");
-        return null;
-      }
-      if(!data){
-        showError("This listing does not exist or has been removed.");
-        return null;
-      }
-      return data;
-    }catch(e){
-      console.error("Listing fetch exception", e);
-      showError("Unexpected error loading this listing.");
-      return null;
-    }
-  }
+    const rows = [
+      ['Content',       listing.content],
+      ['Fabric',        listing.fabric_type],
+      ['Color',         listing.color_family],
+      ['Pattern',       listing.pattern],
+      ['Width',         listing.width_in ? listing.width_in + '″' : null],
+      ['Weight',        listing.weight_gsm ? listing.weight_gsm + ' GSM' : null],
+      ['Origin',        listing.country_of_origin],
+      ['Fiber type',    listing.fiber_type],
+      ['Designer / Mill', listing.designer],
+      ['Feels like',    listing.feels_like]
+    ];
 
-  async function fetchProfileForSeller(sellerId){
-    if(!sellerId) return null;
-    try{
-      const { data, error } = await supabaseClient
-        .from("profiles")
-        .select("id, first_name, last_name, store_name, display_name, email")
-        .eq("id", sellerId)
-        .maybeSingle();
-      if(error){
-        console.warn("Seller profile error", error);
-        return null;
-      }
-      return data;
-    }catch(e){
-      console.warn("Seller profile exception", e);
-      return null;
-    }
-  }
-
-  function showError(msg){
-    const err = document.getElementById("listingError");
-    const shell = document.getElementById("listingShell");
-    if(err){
-      err.textContent = msg;
-      err.style.display = "block";
-    }
-    if(shell) shell.style.display = "none";
-  }
-
-  function buildMedia(listing){
-    const hero = document.getElementById("hero");
-    const thumbs = document.getElementById("thumbs");
-    if(!hero || !thumbs) return;
-
-    const urls = [];
-    for(let i=1;i<=8;i++){
-      const key = "image_url_" + i;
-      if(listing[key]) urls.push(listing[key]);
-    }
-
-    thumbs.innerHTML = "";
-    if(urls.length){
-      hero.src = urls[0];
-      urls.forEach((src, idx)=>{
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "thumb" + (idx===0 ? " active" : "");
-        const img = document.createElement("img");
-        img.src = src;
-        img.alt = "";
-        btn.appendChild(img);
-        btn.addEventListener("click", ()=>{
-          hero.src = src;
-          thumbs.querySelectorAll(".thumb").forEach(el=>el.classList.remove("active"));
-          btn.classList.add("active");
-        });
-        thumbs.appendChild(btn);
-      });
-    }else{
-      hero.alt = "Listing photo placeholder";
-      hero.src = "";
-    }
-  }
-
-  function renderListing(listing, sellerProfile){
-    const shell = document.getElementById("listingShell");
-    const descCard = document.getElementById("descCard");
-    const qaCard = document.getElementById("qaCard");
-    if(shell) shell.style.display = "grid";
-    if(descCard) descCard.style.display = "block";
-    if(qaCard) qaCard.style.display = "block";
-
-    buildMedia(listing);
-
-    const titleEl = document.getElementById("tTitle");
-    const priceMainEl = document.getElementById("tPriceMain");
-    const perYdEl = document.getElementById("tPerYd");
-    const msrpEl = document.getElementById("tMsrp");
-    const statusRow = document.getElementById("tStatusRow");
-    const addBtn = document.getElementById("addToCart");
-
-    const yards = listing.yards_available != null ? Number(listing.yards_available) : null;
-    const priceCents = listing.price_cents != null ? Number(listing.price_cents) : null;
-    const origPriceCents = listing.orig_price_cents != null ? Number(listing.orig_price_cents) : null;
-
-    if(titleEl) titleEl.textContent = listing.title || "Untitled listing";
-
-    // Main price line
-    if(yards != null && priceCents != null){
-      const perYd = moneyFromCents(priceCents);
-      const total = moneyFromCents(priceCents * yards);
-      if(priceMainEl) priceMainEl.textContent = `${total} for ${yards} yards`;
-      if(perYdEl) perYdEl.textContent = `${perYd}/yard`;
-    }else if(priceMainEl){
-      priceMainEl.textContent = "Price coming soon";
-      if(perYdEl) perYdEl.textContent = "";
-    }
-
-    if(origPriceCents != null && msrpEl){
-      const origPer = moneyFromCents(origPriceCents);
-      msrpEl.textContent = origPer + "/yard";
-      msrpEl.style.display = "inline";
-    }else if(msrpEl){
-      msrpEl.style.display = "none";
-    }
-
-    if(statusRow){
-      const status = (listing.status || "active").toLowerCase();
-      const niceStatus = status === "sold" ? "Sold" : "active";
-      const pub = listing.is_published === false ? "Draft" : "Published";
-      statusRow.textContent = `${pub} • ${niceStatus}`;
-    }
-
-    // Seller info (store name + seller name)
-    const sellerNameEl = document.getElementById("sellerName");
-    const sellerSubline = document.getElementById("sellerSubline");
-
-    let primaryLabel = "Member";
-    let secondaryLabel = "";
-
-    if(sellerProfile){
-      const personLabel = personLabelFromProfile(sellerProfile); // First + last initial
-      const storeName = (sellerProfile.store_name || "").trim();
-
-      primaryLabel = storeName || personLabel;
-      secondaryLabel = personLabel;
-    }
-
-    if(sellerNameEl) sellerNameEl.textContent = primaryLabel;
-    if(sellerSubline) sellerSubline.textContent = secondaryLabel;
-
-    // Description
-    const descText = document.getElementById("descText");
-    const descTags = document.getElementById("descTags");
-    if(descText) descText.textContent = listing.description || "No description yet.";
-    if(descTags){
-      descTags.innerHTML = "";
-      const tags = [];
-      if(listing.color_family) tags.push(listing.color_family);
-      if(listing.fabric_type) tags.push(listing.fabric_type);
-      if(listing.pattern) tags.push(listing.pattern);
-      if(listing.dept) tags.push(listing.dept);
-      tags.forEach(tag=>{
-        const span = document.createElement("span");
-        span.className = "tag";
-        span.textContent = tag;
-        descTags.appendChild(span);
-      });
-    }
-
-    // Specs – always render all rows
-    const specTable = document.getElementById("specTable");
-    if(specTable){
-      const rows = [
-        ["Content", listing.content || "—"],
-        ["Fabric", listing.fabric_type || "—"],
-        ["Color", listing.color_family || "—"],
-        ["Pattern", listing.pattern || "—"],
-        ["Width", listing.width_in ? listing.width_in + "″" : "—"],
-        ["Weight", listing.weight_gsm ? listing.weight_gsm + " GSM" : "—"],
-        ["Origin", listing.country_of_origin || "—"],
-        ["Fiber type", listing.fiber_type || "—"],
-        ["Designer / Mill", listing.designer || "—"],
-        ["Feels like", listing.feels_like || "—"]
-      ];
-      specTable.innerHTML = "";
-      rows.forEach(([label,value])=>{
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<th>${label}</th><td>${value}</td>`;
-        specTable.appendChild(tr);
-      });
-    }
-
-    // Wire Add to Cart
-    if(addBtn){
-      const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
-      const totalCents = (priceCents != null && yards != null) ? priceCents * yards : 0;
-
-      addBtn.dataset.id = listing.id;
-      addBtn.dataset.name = listing.title || "Fabric listing";
-      addBtn.dataset.amount = String(totalCents);         // total price in cents for the lot
-      addBtn.dataset.price = perYdDollars.toFixed(2);     // per-yard price in dollars
-      addBtn.dataset.yards = yards != null ? String(yards) : "0";
-      addBtn.dataset.sellerId = listing.seller_id || "";
-      addBtn.dataset.sellerName = primaryLabel || "Seller";
-      const firstImg = listing.image_url_1 || "";
-      addBtn.dataset.photo = firstImg;
-
-      if(priceCents == null || yards == null){
-        addBtn.disabled = true;
-        addBtn.textContent = "Add to Cart";
-      }else{
-        const totalMoney = moneyFromCents(totalCents);
-        addBtn.disabled = false;
-        addBtn.textContent = `Add to Cart — ${totalMoney}`;
-      }
-    }
-
-    patchSpecsFromDescription(listing);
-  }
-
-  async function fetchComments(listingId){
-    try{
-      const { data, error } = await supabaseClient
-        .from("listing_comments")
-        .select("id, listing_id, author_id, body, created_at")
-        .eq("listing_id", listingId)
-        .order("created_at", { ascending:true });
-      if(error){
-        console.error("Comments fetch error", error);
-        return [];
-      }
-      return data || [];
-    }catch(e){
-      console.error("Comments fetch exception", e);
-      return [];
-    }
-  }
-
-  async function fetchProfilesForAuthors(comments){
-    const ids = Array.from(new Set((comments || []).map(c => c.author_id).filter(Boolean)));
-    const map = {};
-    if(!ids.length) return map;
-    try{
-      const { data, error } = await supabaseClient
-        .from("profiles")
-        .select("id, first_name, last_name, store_name, display_name, email")
-        .in("id", ids);
-      if(error){
-        console.error("Comment profiles error", error);
-        return map;
-      }
-      (data || []).forEach(p => { map[p.id] = p; });
-      return map;
-    }catch(e){
-      console.error("Comment profiles exception", e);
-      return map;
-    }
-  }
-
-  function timeAgo(dateStr){
-    const dt = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now - dt;
-    if(!isFinite(diffMs)) return "";
-    const diffMin = Math.floor(diffMs / 60000);
-    if(diffMin < 1) return "just now";
-    if(diffMin < 60) return diffMin + " min ago";
-    const diffHr = Math.floor(diffMin / 60);
-    if(diffHr < 24) return diffHr + "h ago";
-    const diffDay = Math.floor(diffHr / 24);
-    if(diffDay < 7) return diffDay + "d ago";
-    return dt.toLocaleDateString();
-  }
-
-  function enterReplyMode(commentId, authorId, displayName){
-    replyToCommentId = commentId;
-    replyToCommentAuthorId = authorId;
-    replyToCommentDisplayName = displayName || "";
-
-    const textarea = document.getElementById("qaBody");
-    const note = document.getElementById("qaNote");
-    const cancelBtn = document.getElementById("qaCancelReplyBtn");
-
-    if(textarea){
-      textarea.focus();
-      if(displayName){
-        if(!textarea.value.startsWith("@" + displayName)){
-          textarea.value = "@" + displayName + " ";
-        }
-      }
-    }
-    if(note && displayName){
-      note.textContent = `Replying to ${displayName}`;
-    }
-    if(cancelBtn){
-      cancelBtn.style.display = "inline-flex";
-    }
-  }
-
-  function exitReplyMode(){
-    replyToCommentId = null;
-    replyToCommentAuthorId = null;
-    replyToCommentDisplayName = "";
-
-    const note = document.getElementById("qaNote");
-    const cancelBtn = document.getElementById("qaCancelReplyBtn");
-    if(note) note.textContent = "";
-    if(cancelBtn) cancelBtn.style.display = "none";
-  }
-
-  function renderComments(comments, profilesMap){
-    const listEl = document.getElementById("qaList");
-    const intro = document.getElementById("qaIntro");
-    if(!listEl || !intro) return;
-
-    listEl.innerHTML = "";
-    if(!comments.length){
-      intro.textContent = "No questions yet—be the first to ask!";
-      return;
-    }
-    intro.textContent = "Questions";
-
-    comments.forEach(c=>{
-      const prof = profilesMap[c.author_id] || null;
-
-      let displayName = deriveDisplayNameForQA(prof);
-      let authorId = c.author_id || null;
-
-      const when = c.created_at ? timeAgo(c.created_at) : "";
-
-      const li = document.createElement("li");
-      li.className = "qa-item";
-
-      const meta = document.createElement("div");
-      meta.className = "qa-meta";
-
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "qa-author";
-      nameSpan.textContent = displayName;
-      meta.appendChild(nameSpan);
-
-      if(when){
-        const dot = document.createElement("span");
-        dot.textContent = "•";
-        meta.appendChild(dot);
-        const timeSpan = document.createElement("span");
-        timeSpan.textContent = when;
-        meta.appendChild(timeSpan);
-      }
-
-      li.appendChild(meta);
-
-      const bodyP = document.createElement("p");
-      bodyP.className = "qa-body";
-      bodyP.textContent = c.body;
-      li.appendChild(bodyP);
-
-      const actions = document.createElement("div");
-      actions.className = "qa-actions";
-      const replyBtn = document.createElement("button");
-      replyBtn.type = "button";
-      replyBtn.className = "qa-reply-btn";
-      replyBtn.textContent = "Reply";
-      replyBtn.addEventListener("click", ()=>{
-        if(authorId){
-          enterReplyMode(c.id, authorId, displayName);
-        }
-      });
-      actions.appendChild(replyBtn);
-      li.appendChild(actions);
-
-      listEl.appendChild(li);
+    specTable.innerHTML = '';
+    rows.forEach(([label,val])=>{
+      const tr = document.createElement('tr');
+      const th = document.createElement('th');
+      th.textContent = label;
+      const td = document.createElement('td');
+      td.textContent = (val === null || val === undefined || val === '') ? '—' : String(val);
+      tr.appendChild(th);
+      tr.appendChild(td);
+      specTable.appendChild(tr);
     });
   }
 
-  async function loadCommentsSection(){
-    if(!listingId) return;
-    const comments = await fetchComments(listingId);
-    const profilesMap = await fetchProfilesForAuthors(comments);
-    renderComments(comments, profilesMap);
+  function buildTagsFromListing(listing){
+    const tags = [];
+    if(listing.content) tags.push(listing.content);
+    if(listing.fabric_type) tags.push(listing.fabric_type);
+    if(listing.color_family) tags.push(listing.color_family);
+    if(listing.pattern) tags.push(listing.pattern);
+    if(listing.fiber_type) tags.push(listing.fiber_type);
+    if(listing.country_of_origin) tags.push(listing.country_of_origin);
+    if(listing.width_in) tags.push(listing.width_in + '″');
+    if(listing.weight_gsm) tags.push(listing.weight_gsm + ' GSM');
+    return tags;
   }
 
-  // Create a notification row for the seller when someone comments
-  async function notifySellerOnComment(listing, authorId){
+  async function hydrateListing(listing){
+    currentListing = listing;
+
+    const listingShell = document.getElementById('listingShell');
+    const descCard     = document.getElementById('descCard');
+    const qaCard       = document.getElementById('qaCard');
+
+    const hero   = document.getElementById('hero');
+    const thumbs = document.getElementById('thumbs');
+
+    const tTitle      = document.getElementById('tTitle');
+    const tPriceMain  = document.getElementById('tPriceMain');
+    const tPerYd      = document.getElementById('tPerYd');
+    const tMsrp       = document.getElementById('tMsrp');
+    const tStatusRow  = document.getElementById('tStatusRow');
+    const addToCart   = document.getElementById('addToCart');
+
+    const sellerPrimary   = document.getElementById('sellerPrimary');
+    const sellerSecondary = document.getElementById('sellerSecondary');
+
+    const descTags = document.getElementById('descTags');
+    const descText = document.getElementById('descText');
+
+    // Media
+    const mainImg = listing.image_url_1 || '';
+    if(mainImg){
+      hero.src = mainImg;
+      hero.alt = listing.title || 'Fabric photo';
+      thumbs.innerHTML = '';
+      const th = document.createElement('button');
+      th.type = 'button';
+      th.className = 'thumb active';
+      const img = document.createElement('img');
+      img.src = mainImg;
+      img.alt = 'Photo 1';
+      th.appendChild(img);
+      th.addEventListener('click', ()=>{
+        hero.src = mainImg;
+      });
+      thumbs.appendChild(th);
+    }
+
+    // Prices
+    const yards = listing.yards_available || listing.yards || null;
+    const priceCents = listing.price_cents;
+    const origPriceCents = listing.orig_price_cents;
+
+    const totalPrice = formatMoney(priceCents || 0);
+    const perYard = formatPerYard(priceCents, yards);
+    const origPerYard = formatOrigPerYard(origPriceCents, yards);
+
+    tTitle.textContent = listing.title || 'Listing';
+    tPriceMain.textContent = totalPrice + (yards ? ' for ' + yards + ' yards' : '');
+    tPerYd.textContent = perYard ? perYard : '';
+    tMsrp.textContent = origPerYard ? '$' + origPerYard : '';
+
+    // Status
+    let statusText = 'Published';
+    if(listing.status === 'sold' || (yards !== null && yards <= 0)){
+      statusText += ' • ';
+      const span = document.createElement('span');
+      span.className = 'sold-pill';
+      span.textContent = 'Sold';
+      tStatusRow.textContent = 'Published';
+      tStatusRow.appendChild(span);
+      addToCart.disabled = true;
+      addToCart.textContent = 'Sold';
+    }else{
+      statusText += ' • Active';
+      tStatusRow.textContent = statusText;
+      addToCart.disabled = false;
+      addToCart.textContent = 'Add to Cart — ' + totalPrice;
+    }
+
+    // Specs
+    buildSpecs(listing);
+
+    // Seller info
+    let sellerLabel = 'Member';
+    let sellerSub   = 'Member';
+    let sellerNameForCart = 'Member';
+
     try{
-      if(!listing || !listing.seller_id) return;
-      if(listing.seller_id === authorId) return; // don't notify self
-
-      const message = `New question on "${listing.title || "your listing"}"`;
-
-      await supabaseClient
-        .from("notifications")
-        .insert({
-          user_id: listing.seller_id,
-          type: "listing_comment",
-          listing_id: listing.id,
-          actor_id: authorId,
-          message,
-          is_read: false
-        });
+      const profile = await fetchProfile(listing.seller_id);
+      sellerLabel = formatMemberName(profile, profile && profile.email);
+      sellerSub   = 'Seller';
+      sellerNameForCart = sellerLabel;
     }catch(e){
-      console.warn("notifySellerOnComment exception", e);
+      console.error('seller profile', e);
     }
+
+    sellerPrimary.textContent   = sellerLabel;
+    sellerSecondary.textContent = sellerSub;
+
+    // Description + tags
+    descTags.innerHTML = '';
+    buildTagsFromListing(listing).forEach(tag=>{
+      const span = document.createElement('span');
+      span.className = 'tag';
+      span.textContent = tag;
+      descTags.appendChild(span);
+    });
+
+    descText.textContent = listing.description || '';
+    descCard.style.display = 'block';
+
+    // Wire cart button dataset
+    addToCart.dataset.id          = listing.id;
+    addToCart.dataset.name        = listing.title || 'Listing';
+    addToCart.dataset.amount      = (priceCents || 0).toString();
+    addToCart.dataset.price       = (priceCents || 0).toString();
+    addToCart.dataset.yards       = yards || 0;
+    addToCart.dataset.sellerId    = listing.seller_id || '';
+    addToCart.dataset.sellerName  = sellerNameForCart;
+    addToCart.dataset.photo       = mainImg || '';
+
+    listingShell.style.display = 'grid';
+    qaCard.style.display       = 'block';
+
+    await wireFavoriteButton(listing);
+    await initQA(listing);
   }
 
-  // Notification for the comment author when they get a reply
-  async function notifyCommentAuthorOnReply(commentAuthorId, listing, replierId){
-    try{
-      if(!commentAuthorId || !listing) return;
-      if(commentAuthorId === replierId) return;
+  async function wireFavoriteButton(listing){
+    const btn = document.getElementById('favoriteBtn');
+    if(!btn) return;
 
-      const message = `New reply on a question for "${listing.title || "a listing"}"`;
+    function setState(isFav){
+      if(isFav){
+        btn.classList.add('heart-active');
+      }else{
+        btn.classList.remove('heart-active');
+      }
+    }
 
-      await supabaseClient
-        .from("notifications")
-        .insert({
-          user_id: commentAuthorId,
-          type: "comment_reply",
-          listing_id: listing.id,
-          actor_id: replierId,
-          message,
-          is_read: false
-        });
-    }catch(e){
-      console.warn("notifyCommentAuthorOnReply exception", e);
-    }
-  }
-
-  async function handlePostComment(){
-    const textarea = document.getElementById("qaBody");
-    const note = document.getElementById("qaNote");
-    if(!textarea) return;
-    const body = (textarea.value || "").trim();
-    if(!body){
-      if(note) note.textContent = "Please enter a question or reply before posting.";
-      return;
-    }
-    if(!currentSession || !currentSession.user){
-      if(note) note.textContent = "Please sign in to post.";
-      return;
-    }
-    try{
-      if(note) note.textContent = "Posting…";
+    let isFavorite = false;
+    if(currentSession && currentSession.user){
       const { data, error } = await supabaseClient
-        .from("listing_comments")
-        .insert({
-          listing_id: listingId,
-          author_id: currentSession.user.id,
-          body
-        })
-        .select("id")
-        .single();
+        .from('favorites')
+        .select('id')
+        .eq('user_id', currentSession.user.id)
+        .eq('listing_id', listing.id)
+        .maybeSingle();
+
+      if(!error && data){
+        isFavorite = true;
+      }
+    }
+
+    setState(isFavorite);
+
+    btn.onclick = async ()=>{
+      if(!currentSession || !currentSession.user){
+        window.location.href = 'auth.html?view=login';
+        return;
+      }
+      try{
+        if(isFavorite){
+          const { error } = await supabaseClient
+            .from('favorites')
+            .delete()
+            .eq('user_id', currentSession.user.id)
+            .eq('listing_id', listing.id);
+          if(error) throw error;
+          isFavorite = false;
+        }else{
+          const { error } = await supabaseClient
+            .from('favorites')
+            .insert({ user_id: currentSession.user.id, listing_id: listing.id });
+          if(error) throw error;
+          isFavorite = true;
+        }
+        setState(isFavorite);
+      }catch(err){
+        console.error('favorite toggle error', err);
+        alert('Could not update favorites right now.');
+      }
+    };
+  }
+
+  function wireShareButton(listing){
+    const btn = document.getElementById('shareBtn');
+    if(!btn) return;
+    btn.onclick = async ()=>{
+      const url = window.location.href;
+      const title = listing && listing.title ? listing.title : 'Hemline Market listing';
+      const text = 'Check out this fabric on Hemline Market';
+
+      if(navigator.share){
+        try{
+          await navigator.share({ title, text, url });
+        }catch(e){
+          // user cancelled; ignore
+        }
+      }else if(navigator.clipboard && navigator.clipboard.writeText){
+        try{
+          await navigator.clipboard.writeText(url);
+          alert('Link copied to clipboard.');
+        }catch(e){
+          alert(url);
+        }
+      }else{
+        alert(url);
+      }
+    };
+  }
+
+  async function initQA(listing){
+    const qaCard       = document.getElementById('qaCard');
+    const qaSignedOut  = document.getElementById('qaSignedOut');
+    const qaSignInBtn  = document.getElementById('qaSignInBtn');
+    const qaComposer   = document.getElementById('qaComposer');
+    const qaIntro      = document.getElementById('qaIntro');
+    const qaList       = document.getElementById('qaList');
+    const qaBody       = document.getElementById('qaBody');
+    const qaSubmitBtn  = document.getElementById('qaSubmitBtn');
+    const qaNote       = document.getElementById('qaNote');
+    const qaCancelReplyBtn = document.getElementById('qaCancelReplyBtn');
+
+    if(!qaCard) return;
+
+    if(!currentSession || !currentSession.user){
+      qaSignedOut.style.display = 'flex';
+      qaComposer.style.display  = 'none';
+      qaSignInBtn.onclick = ()=>{ window.location.href = 'auth.html?view=login'; };
+    }else{
+      qaSignedOut.style.display = 'none';
+      qaComposer.style.display  = 'block';
+    }
+
+    let replyToId = null;
+
+    function setReplyTo(id){
+      replyToId = id;
+      if(id){
+        qaCancelReplyBtn.style.display = 'inline-flex';
+        qaNote.textContent = 'Replying to a previous question.';
+      }else{
+        qaCancelReplyBtn.style.display = 'none';
+        qaNote.textContent = '';
+      }
+    }
+
+    qaCancelReplyBtn.onclick = ()=> setReplyTo(null);
+
+    async function loadQuestions(){
+      const { data, error } = await supabaseClient
+        .from('listing_questions')
+        .select('id, listing_id, user_id, body, created_at, parent_id')
+        .eq('listing_id', listing.id)
+        .order('created_at', { ascending:true });
+
       if(error){
-        console.error("Insert comment error", error);
-        if(note) note.textContent = "Sorry, something went wrong. Please try again.";
+        console.error('load questions error', error);
+        qaIntro.textContent = 'Questions could not be loaded.';
         return;
       }
 
-      await notifySellerOnComment(currentListing, currentSession.user.id);
+      qaList.innerHTML = '';
 
-      if(replyToCommentAuthorId){
-        await notifyCommentAuthorOnReply(
-          replyToCommentAuthorId,
-          currentListing,
-          currentSession.user.id
-        );
+      if(!data || !data.length){
+        qaIntro.textContent = 'No questions yet—be the first to ask!';
+        return;
       }
+      qaIntro.textContent = 'Questions';
 
-      textarea.value = "";
-      if(note) note.textContent = "";
-      exitReplyMode();
-      await loadCommentsSection();
-    }catch(e){
-      console.error("Insert comment exception", e);
-      if(note) note.textContent = "Unexpected error. Please try again.";
+      for(const row of data){
+        const li = document.createElement('li');
+        li.className = 'qa-item';
+
+        const meta = document.createElement('div');
+        meta.className = 'qa-meta';
+
+        let authorLabel = 'Member';
+        try{
+          const profile = await fetchProfile(row.user_id);
+          authorLabel = formatMemberName(profile, profile && profile.email);
+        }catch(e){
+          console.error('author profile', e);
+        }
+
+        const authorSpan = document.createElement('span');
+        authorSpan.className = 'qa-author';
+        authorSpan.textContent = authorLabel;
+
+        const timeSpan = document.createElement('span');
+        const dt = new Date(row.created_at);
+        timeSpan.textContent = '• ' + dt.toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+
+        meta.appendChild(authorSpan);
+        meta.appendChild(timeSpan);
+
+        const bodyP = document.createElement('p');
+        bodyP.className = 'qa-body';
+        bodyP.textContent = row.body;
+
+        const actions = document.createElement('div');
+        actions.className = 'qa-actions';
+
+        if(currentSession && currentSession.user){
+          const replyBtn = document.createElement('button');
+          replyBtn.type = 'button';
+          replyBtn.className = 'qa-reply-btn';
+          replyBtn.textContent = 'Reply';
+          replyBtn.addEventListener('click', ()=>{
+            setReplyTo(row.id);
+            qaBody.focus();
+          });
+          actions.appendChild(replyBtn);
+        }
+
+        li.appendChild(meta);
+        li.appendChild(bodyP);
+        if(actions.children.length) li.appendChild(actions);
+
+        qaList.appendChild(li);
+      }
     }
+
+    qaSubmitBtn.onclick = async ()=>{
+      if(!currentSession || !currentSession.user){
+        window.location.href = 'auth.html?view=login';
+        return;
+      }
+      const body = qaBody.value.trim();
+      if(!body){
+        qaNote.textContent = 'Please enter a question.';
+        return;
+      }
+      qaNote.textContent = '';
+      qaSubmitBtn.disabled = true;
+
+      try{
+        const payload = {
+          listing_id: listing.id,
+          user_id: currentSession.user.id,
+          body,
+          parent_id: replyToId
+        };
+        const { error } = await supabaseClient
+          .from('listing_questions')
+          .insert(payload);
+        if(error) throw error;
+
+        qaBody.value = '';
+        setReplyTo(null);
+        await loadQuestions();
+      }catch(err){
+        console.error('post question error', err);
+        qaNote.textContent = 'Could not post right now.';
+      }finally{
+        qaSubmitBtn.disabled = false;
+      }
+    };
+
+    await loadQuestions();
   }
 
-  // Specs helper: if DB specs are all blank, try to parse from description after "Specs:"
-  function patchSpecsFromDescription(listing){
-    const table = document.getElementById("specTable");
-    if(!table) return;
-    const rows = Array.from(table.querySelectorAll("tr"));
-    if(!rows.length) return;
-
-    const anyRealValue = rows.some(tr=>{
-      const td = tr.children[1];
-      if(!td) return false;
-      const v = (td.textContent || "").trim();
-      return v && v !== "—";
-    });
-    if(anyRealValue) return;
-
-    const desc = listing.description || "";
-    const idx = desc.toLowerCase().indexOf("specs:");
-    if(idx === -1) return;
-    const raw = desc.slice(idx + 6).trim();
-    if(!raw) return;
-    const pieces = raw.split(",").map(s=>s.trim()).filter(Boolean);
-    if(!pieces.length) return;
-
-    rows.forEach((tr, i)=>{
-      const td = tr.children[1];
-      if(!td) return;
-      if((td.textContent || "").trim() !== "—") return;
-      if(pieces[i]) td.textContent = pieces[i];
-    });
-  }
-
-  // Favorites helpers (localStorage)
-  function getFavorites(){
-    try{
-      return JSON.parse(localStorage.getItem("hm_favorites_v1") || "[]");
-    }catch(e){
-      return [];
-    }
-  }
-  function setFavorites(arr){
-    localStorage.setItem("hm_favorites_v1", JSON.stringify(arr));
-    // keep legacy key for favorites.html
-    localStorage.setItem("saved_listings", JSON.stringify(arr));
-  }
-  function initFavoriteButton(){
-    const btn = document.getElementById("saveListingBtn");
+  async function handleAddToCartClick(){
+    const btn = document.getElementById('addToCart');
     if(!btn || !currentListing) return;
 
-    function isFav(id){
-      return getFavorites().some(f => f.id === id);
-    }
-    function syncUI(){
-      const active = isFav(currentListing.id);
-      btn.dataset.active = active ? "true" : "false";
-      btn.setAttribute("aria-pressed", active ? "true" : "false");
-    }
-
-    syncUI();
-
-    btn.addEventListener("click", ()=>{
-      let favs = getFavorites();
-      const idx = favs.findIndex(f => f.id === currentListing.id);
-      if(idx === -1){
-        favs.push({
-          id: currentListing.id,
-          title: currentListing.title || "",
-          image_url_1: currentListing.image_url_1 || "",
-          price_cents: currentListing.price_cents || null,
-          yards_available: currentListing.yards_available || null
-        });
-      }else{
-        favs.splice(idx, 1);
+    btn.addEventListener('click', async ()=>{
+      if(!currentSession || !currentSession.user){
+        window.location.href = 'auth.html?view=login';
+        return;
       }
-      setFavorites(favs);
-      syncUI();
-    });
-  }
+      if(currentListing.status === 'sold' || (currentListing.yards_available && currentListing.yards_available <= 0)){
+        return;
+      }
 
-  function initShareButton(){
-    const btn = document.getElementById("shareListingBtn");
-    if(!btn) return;
-    btn.addEventListener("click", async ()=>{
-      const url = window.location.href;
-      const title = currentListing?.title || "Hemline Market listing";
       try{
-        if(navigator.share){
-          await navigator.share({ title, url });
-        }else if(navigator.clipboard){
-          await navigator.clipboard.writeText(url);
-          alert("Link copied to clipboard.");
-        }else{
-          alert("Share this link: " + url);
-        }
-      }catch(e){
-        console.warn("Share cancelled or failed", e);
+        btn.disabled = true;
+        btn.textContent = 'Processing…';
+
+        // Create a simple order record (uses whatever "orders" schema you already have)
+        await supabaseClient
+          .from('orders')
+          .insert({
+            buyer_id: currentSession.user.id,
+            listing_id: currentListing.id
+          });
+
+        // Mark listing as sold
+        const { error } = await supabaseClient
+          .from('listings')
+          .update({ status:'sold', yards_available: 0 })
+          .eq('id', currentListing.id);
+
+        if(error) throw error;
+
+        currentListing.status = 'sold';
+        currentListing.yards_available = 0;
+        await hydrateListing(currentListing); // Refresh UI
+        alert('Order placed. This listing is now sold.');
+      }catch(err){
+        console.error('checkout error', err);
+        alert('Could not complete purchase right now.');
+        btn.disabled = false;
+        btn.textContent = 'Add to Cart — ' + formatMoney(currentListing.price_cents || 0);
       }
     });
   }
 
-  document.addEventListener("DOMContentLoaded", async ()=>{
-    // Grab listing id from URL
-    const params = new URLSearchParams(window.location.search);
-    listingId = params.get("id") || "";
-    if(!listingId){
-      showError("This listing link is missing an ID.");
-      return;
+  async function initListingPage(){
+    const errorBox = document.getElementById('listingError');
+    try{
+      await getSessionAndWireHeader();
+
+      const listingId = getListingIdFromUrl();
+      if(!listingId){
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'No listing id was provided.';
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from('listings')
+        .select('*')
+        .eq('id', listingId)
+        .maybeSingle();
+
+      if(error){
+        console.error('listing fetch error', error);
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'We could not load this listing.';
+        return;
+      }
+      if(!data){
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'Listing not found.';
+        return;
+      }
+
+      await hydrateListing(data);
+      wireShareButton(data);
+      await handleAddToCartClick();
+    }catch(err){
+      console.error(err);
+      errorBox.style.display = 'block';
+      errorBox.textContent = 'Something went wrong loading this page.';
     }
+  }
 
-    await ensureSession();
-    await fetchCurrentProfile();
-
-    const listing = await fetchListing(listingId);
-    if(!listing) return;
-    currentListing = listing;
-
-    const sellerProfile = await fetchProfileForSeller(listing.seller_id);
-    renderListing(listing, sellerProfile);
-
-    // Q&A visibility depending on auth
-    const qaCard = document.getElementById("qaCard");
-    const qaSignedOut = document.getElementById("qaSignedOut");
-    const qaComposer = document.getElementById("qaComposer");
-    const qaSignInBtn = document.getElementById("qaSignInBtn");
-    const qaSubmitBtn = document.getElementById("qaSubmitBtn");
-    const qaCancelReplyBtn = document.getElementById("qaCancelReplyBtn");
-
-    if(qaCard) qaCard.style.display = "block";
-
-    if(currentSession && currentSession.user){
-      if(qaSignedOut) qaSignedOut.style.display = "none";
-      if(qaComposer) qaComposer.style.display = "block";
-    }else{
-      if(qaSignedOut) qaSignedOut.style.display = "flex";
-      if(qaComposer) qaComposer.style.display = "none";
-    }
-
-    if(qaSignInBtn){
-      qaSignInBtn.addEventListener("click", ()=>{
-        const redirect = encodeURIComponent(window.location.pathname + window.location.search);
-        window.location.href = "auth.html?view=login&redirect=" + redirect;
-      });
-    }
-    if(qaSubmitBtn){
-      qaSubmitBtn.addEventListener("click", handlePostComment);
-    }
-    if(qaCancelReplyBtn){
-      qaCancelReplyBtn.addEventListener("click", ()=>{
-        exitReplyMode();
-      });
-    }
-
-    await loadCommentsSection();
-    initFavoriteButton();
-    initShareButton();
-  });
+  window.addEventListener('DOMContentLoaded', initListingPage);
 </script>
-
-<!-- Cart script (shared) -->
-<script src="assets/add-to-cart.js" defer></script>
 
 </body>
 </html>
