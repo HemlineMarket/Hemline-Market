@@ -256,6 +256,7 @@
       display:flex;
       gap:8px;
       margin-top:10px;
+      align-items:center;
     }
     .btn{
       padding:10px 14px;
@@ -275,6 +276,26 @@
       opacity:.6;
       cursor:not-allowed;
     }
+
+    /* Favorite heart button */
+    .favorite-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px 10px;
+      width:40px;
+      height:40px;
+      border-radius:999px;
+    }
+    .favorite-btn svg{
+      width:18px;
+      height:18px;
+    }
+    .favorite-btn.favorited svg{
+      fill:var(--accent);
+      color:var(--accent);
+    }
+
     .mini-note{
       color:#6b7280;
       font-size:12px;
@@ -328,25 +349,21 @@
 
     .seller{
       display:flex;
-      align-items:center;
-      gap:8px;
+      flex-direction:column;
+      align-items:flex-start;
+      gap:2px;
       margin-top:8px;
       padding-top:8px;
       border-top:1px dashed #f0f2f4;
       color:#374151;
       font-size:13px;
     }
-    .avatar{
-      width:26px;
-      height:26px;
-      border-radius:50%;
-      border:1px solid var(--border);
-      display:inline-grid;
-      place-items:center;
-      font-weight:800;
-      color:#334155;
-      background:#fff;
-      font-size:11px;
+    .seller-main{
+      font-weight:600;
+    }
+    .seller-sub{
+      color:#6b7280;
+      font-size:12px;
     }
 
     .card{
@@ -442,7 +459,6 @@
       gap:10px;
       margin-bottom:10px;
     }
-
     .qa-actions{
       margin-top:4px;
       display:flex;
@@ -614,7 +630,12 @@
           data-photo=""
         >Add to Cart</button>
 
-        <button class="btn" type="button" id="saveListingBtn">Save</button>
+        <!-- Favorite heart button -->
+        <button class="btn favorite-btn" type="button" id="favoriteBtn" aria-pressed="false" aria-label="Save to favorites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+        </button>
       </div>
       <div class="mini-note">
         • Seller ships within <strong>5 business days</strong> • Buyer Protection • Price is for the entire lot.
@@ -630,13 +651,8 @@
       </div>
 
       <div class="seller">
-        <span class="avatar" id="sellerAvatar"></span>
-        <div>
-          <!-- Line 1: Store name (or best equivalent) -->
-          <strong id="sellerName">Store name</strong>
-          <!-- Line 2: First name + last initial -->
-          <div style="color:#6b7280;font-size:12px" id="sellerSubline">Seller name</div>
-        </div>
+        <span class="seller-main" id="sellerName">Store name</span>
+        <span class="seller-sub" id="sellerSubline">Seller name</span>
       </div>
     </aside>
   </div>
@@ -673,7 +689,6 @@
     </div>
   </article>
 </main>
-
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -729,7 +744,7 @@
 </script>
 
 <script>
-  /* Supabase client + listing + Q&A + notifications */
+  /* Supabase client + listing + Q&A + notifications + favorites */
 
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
@@ -757,26 +772,47 @@
     });
   }
 
-  function initialsFromProfile(firstName, lastName, email){
-    if(firstName && lastName) return (firstName[0] + lastName[0]).toUpperCase();
-    if(firstName) return (firstName[0] + (firstName[1] || '')).toUpperCase();
-    if(!email) return "";
-    const handle = email.split("@")[0].replace(/[\.\_\-]+/g," ").trim();
-    const parts = handle.split(" ").filter(Boolean);
-    if(parts.length === 1) return (parts[0][0] + (parts[0][1] || '')).toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
+  // Pick the first non-empty field out of several possible column names
+  function pick(listing, keys){
+    for(const k of keys){
+      if(k in listing && listing[k] != null && String(listing[k]).trim() !== ""){
+        return listing[k];
+      }
+    }
+    return null;
   }
 
-  function personLabelFromProfile(p){
+  // Generic display name: prefers store name, then first + last initial, then email handle, else "Member"
+  function displayNameFromProfile(p){
+    if(!p) return "Member";
+    const store = (p.store_name || "").trim();
+    const first = (p.first_name || "").trim();
+    const last  = (p.last_name  || "").trim();
+    const email = (p.email || "").trim();
+
+    if(store) return store;
+    if(first && last) return first + " " + last[0].toUpperCase() + ".";
+    if(first) return first;
+    if(email){
+      const handle = email.split("@")[0].replace(/[\.\_\-]+/g," ");
+      const parts = handle.split(" ").filter(Boolean);
+      if(parts.length){
+        const base = parts[0];
+        return base.charAt(0).toUpperCase() + base.slice(1);
+      }
+    }
+    if(p.display_name && p.display_name.trim()) return p.display_name.trim();
+    return "Member";
+  }
+
+  // Secondary line: strictly first + last initial if available, otherwise same as displayNameFromProfile
+  function personLineFromProfile(p){
     if(!p) return "Member";
     const first = (p.first_name || "").trim();
     const last  = (p.last_name  || "").trim();
-    if(first && last){
-      return first + " " + last[0].toUpperCase() + ".";
-    }
+    if(first && last) return first + " " + last[0].toUpperCase() + ".";
     if(first) return first;
-    if(p.display_name && p.display_name.trim()) return p.display_name.trim();
-    return "Member";
+    return displayNameFromProfile(p);
   }
 
   function updateHeaderForSession(session){
@@ -900,7 +936,7 @@
           btn.classList.add("active");
         });
         thumbs.appendChild(btn);
-           });
+      });
     }else{
       hero.alt = "Listing photo placeholder";
       hero.src = "";
@@ -908,34 +944,35 @@
   }
 
   function renderListing(listing, sellerProfile){
-    const shell = document.getElementById("listingShell");
+    currentListing = listing;
+
+    const shell    = document.getElementById("listingShell");
     const descCard = document.getElementById("descCard");
-    const qaCard = document.getElementById("qaCard");
+    const qaCard   = document.getElementById("qaCard");
     if(shell) shell.style.display = "grid";
     if(descCard) descCard.style.display = "block";
     if(qaCard) qaCard.style.display = "block";
 
     buildMedia(listing);
 
-    const titleEl = document.getElementById("tTitle");
+    const titleEl     = document.getElementById("tTitle");
     const priceMainEl = document.getElementById("tPriceMain");
-    const perYdEl = document.getElementById("tPerYd");
-    const msrpEl = document.getElementById("tMsrp");
-    const statusRow = document.getElementById("tStatusRow");
-    const addBtn = document.getElementById("addToCart");
+    const perYdEl     = document.getElementById("tPerYd");
+    const msrpEl      = document.getElementById("tMsrp");
+    const statusRow   = document.getElementById("tStatusRow");
+    const addBtn      = document.getElementById("addToCart");
 
-    const yards = listing.yards_available != null ? Number(listing.yards_available) : null;
-    const priceCents = listing.price_cents != null ? Number(listing.price_cents) : null;
+    const yards          = listing.yards_available != null ? Number(listing.yards_available) : null;
+    const priceCents     = listing.price_cents != null ? Number(listing.price_cents) : null;
     const origPriceCents = listing.orig_price_cents != null ? Number(listing.orig_price_cents) : null;
 
     if(titleEl) titleEl.textContent = listing.title || "Untitled listing";
 
-    // Main price line
     if(yards != null && priceCents != null){
       const perYd = moneyFromCents(priceCents);
       const total = moneyFromCents(priceCents * yards);
       if(priceMainEl) priceMainEl.textContent = `${total} for ${yards} yards`;
-      if(perYdEl) perYdEl.textContent = `${perYd}/yard`;
+      if(perYdEl)     perYdEl.textContent     = `${perYd}/yard`;
     }else if(priceMainEl){
       priceMainEl.textContent = "Price coming soon";
       if(perYdEl) perYdEl.textContent = "";
@@ -955,47 +992,36 @@
       statusRow.textContent = `${pub} • ${status}`;
     }
 
-    // Seller info (store name + seller name)
-    const sellerAvatar = document.getElementById("sellerAvatar");
-    const sellerNameEl = document.getElementById("sellerName");
+    // Seller name block: line 1 store name or person, line 2 first + last initial
+    const sellerNameEl  = document.getElementById("sellerName");
     const sellerSubline = document.getElementById("sellerSubline");
 
-    let primaryLabel = "";
-    let secondaryLabel = "";
+    let primaryLabel   = "Member";
+    let secondaryLabel = "Member";
 
     if(sellerProfile){
-      const personLabel = personLabelFromProfile(sellerProfile); // First + last initial
-      const storeName = (sellerProfile.store_name || "").trim();
-
-      // Line 1: store name if present, otherwise person label
-      primaryLabel = storeName || personLabel;
-      // Line 2: person label (first + last initial)
-      secondaryLabel = personLabel;
-
-      const initials = initialsFromProfile(
-        sellerProfile.first_name || "",
-        sellerProfile.last_name || "",
-        sellerProfile.email || ""
-      );
-      if(sellerAvatar){
-        sellerAvatar.textContent = initials;
-      }
+      primaryLabel   = displayNameFromProfile(sellerProfile);
+      secondaryLabel = personLineFromProfile(sellerProfile);
     }
 
-    if(sellerNameEl) sellerNameEl.textContent = primaryLabel;
+    if(sellerNameEl)  sellerNameEl.textContent  = primaryLabel;
     if(sellerSubline) sellerSubline.textContent = secondaryLabel;
 
-    // Description
+    // Description + tags
     const descText = document.getElementById("descText");
     const descTags = document.getElementById("descTags");
     if(descText) descText.textContent = listing.description || "No description yet.";
     if(descTags){
       descTags.innerHTML = "";
       const tags = [];
-      if(listing.color_family) tags.push(listing.color_family);
-      if(listing.fabric_type) tags.push(listing.fabric_type);
-      if(listing.pattern) tags.push(listing.pattern);
-      if(listing.dept) tags.push(listing.dept);
+      const colorVal   = pick(listing, ["color_family","color"]);
+      const fabricVal  = pick(listing, ["fabric_type","fabric"]);
+      const patternVal = pick(listing, ["pattern","pattern_type"]);
+      const deptVal    = pick(listing, ["dept","department"]);
+      if(colorVal)   tags.push(colorVal);
+      if(fabricVal)  tags.push(fabricVal);
+      if(patternVal) tags.push(patternVal);
+      if(deptVal)    tags.push(deptVal);
       tags.forEach(tag=>{
         const span = document.createElement("span");
         span.className = "tag";
@@ -1004,20 +1030,34 @@
       });
     }
 
-    // Specs – always render all rows
+    // Specs – always show all rows, mapping to multiple possible columns
     const specTable = document.getElementById("specTable");
     if(specTable){
+      const contentVal  = pick(listing, ["content","spec_content"]);
+      const fabricVal   = pick(listing, ["fabric_type","fabric"]);
+      const colorVal    = pick(listing, ["color_family","color"]);
+      const patternVal  = pick(listing, ["pattern","pattern_type"]);
+      const widthValRaw = pick(listing, ["width_in","width_inches","width"]);
+      const weightValRaw= pick(listing, ["weight_gsm","gsm","weight"]);
+      const originVal   = pick(listing, ["origin"]);
+      const fiberVal    = pick(listing, ["fiber_type","fiber"]);
+      const designerVal = pick(listing, ["designer","designer_mill","mill"]);
+      const feelsVal    = pick(listing, ["feels_like"]);
+
+      const widthVal  = widthValRaw  ? widthValRaw + "″" : "—";
+      const weightVal = weightValRaw ? weightValRaw + " GSM" : "—";
+
       const rows = [
-        ["Content", listing.content || "—"],
-        ["Fabric", listing.fabric_type || "—"],
-        ["Color", listing.color_family || "—"],
-        ["Pattern", listing.pattern || "—"],
-        ["Width", listing.width_in ? listing.width_in + "″" : "—"],
-        ["Weight", listing.weight_gsm ? listing.weight_gsm + " GSM" : "—"],
-        ["Origin", listing.origin || "—"],
-        ["Fiber type", listing.fiber_type || "—"],
-        ["Designer / Mill", listing.designer || "—"],
-        ["Feels like", listing.feels_like || "—"]
+        ["Content",       contentVal  || "—"],
+        ["Fabric",        fabricVal   || "—"],
+        ["Color",         colorVal    || "—"],
+        ["Pattern",       patternVal  || "—"],
+        ["Width",         widthVal],
+        ["Weight",        weightVal],
+        ["Origin",        originVal   || "—"],
+        ["Fiber type",    fiberVal    || "—"],
+        ["Designer / Mill", designerVal || "—"],
+        ["Feels like",    feelsVal    || "—"]
       ];
       specTable.innerHTML = "";
       rows.forEach(([label,value])=>{
@@ -1030,17 +1070,16 @@
     // Wire Add to Cart
     if(addBtn){
       const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
-      const totalCents = (priceCents != null && yards != null) ? priceCents * yards : 0;
+      const totalCents   = (priceCents != null && yards != null) ? priceCents * yards : 0;
 
-      addBtn.dataset.id = listing.id;
-      addBtn.dataset.name = listing.title || "Fabric listing";
-      addBtn.dataset.amount = String(totalCents);         // total price in cents for the lot
-      addBtn.dataset.price = perYdDollars.toFixed(2);     // per-yard price in dollars
-      addBtn.dataset.yards = yards != null ? String(yards) : "0";
-      addBtn.dataset.sellerId = listing.seller_id || "";
-      addBtn.dataset.sellerName = primaryLabel || secondaryLabel || "Seller";
-      const firstImg = listing.image_url_1 || "";
-      addBtn.dataset.photo = firstImg;
+      addBtn.dataset.id         = listing.id;
+      addBtn.dataset.name       = listing.title || "Fabric listing";
+      addBtn.dataset.amount     = String(totalCents);       // total price in cents for the lot
+      addBtn.dataset.price      = perYdDollars.toFixed(2);  // per-yard price in dollars
+      addBtn.dataset.yards      = yards != null ? String(yards) : "0";
+      addBtn.dataset.sellerId   = listing.seller_id || "";
+      addBtn.dataset.sellerName = primaryLabel || "Seller";
+      addBtn.dataset.photo      = listing.image_url_1 || "";
 
       if(priceCents == null || yards == null){
         addBtn.disabled = true;
@@ -1051,6 +1090,8 @@
         addBtn.textContent = `Add to Cart — ${totalMoney}`;
       }
     }
+
+    initFavoriteButton(); // needs currentListing
   }
 
   async function fetchComments(listingId){
@@ -1113,16 +1154,13 @@
     replyToCommentDisplayName = displayName || "";
 
     const textarea = document.getElementById("qaBody");
-    const note = document.getElementById("qaNote");
-    const cancelBtn = document.getElementById("qaCancelReplyBtn");
+    const note     = document.getElementById("qaNote");
+    const cancelBtn= document.getElementById("qaCancelReplyBtn");
 
     if(textarea){
       textarea.focus();
-      if(displayName){
-        // Pre-fill @mention if not already there
-        if(!textarea.value.startsWith("@" + displayName)){
-          textarea.value = "@" + displayName + " ";
-        }
+      if(displayName && !textarea.value.startsWith("@" + displayName)){
+        textarea.value = "@" + displayName + " ";
       }
     }
     if(note && displayName){
@@ -1137,7 +1175,6 @@
     replyToCommentId = null;
     replyToCommentAuthorId = null;
     replyToCommentDisplayName = "";
-
     const note = document.getElementById("qaNote");
     const cancelBtn = document.getElementById("qaCancelReplyBtn");
     if(note) note.textContent = "";
@@ -1146,7 +1183,7 @@
 
   function renderComments(comments, profilesMap){
     const listEl = document.getElementById("qaList");
-    const intro = document.getElementById("qaIntro");
+    const intro  = document.getElementById("qaIntro");
     if(!listEl || !intro) return;
 
     listEl.innerHTML = "";
@@ -1157,28 +1194,10 @@
     intro.textContent = "Questions";
 
     comments.forEach(c=>{
-      const prof = profilesMap[c.author_id] || null;
-
-      let displayName = "Member";
-      let authorId = c.author_id || null;
-
-      if(prof){
-        const storeName = (prof.store_name || "").trim();
-        const first = (prof.first_name || "").trim();
-        const last  = (prof.last_name  || "").trim();
-
-        // Requirement: Q&A name = store name if they have one,
-        // otherwise first name + last initial
-        if(storeName){
-          displayName = storeName;
-        }else if(first){
-          displayName = first + (last ? " " + last[0].toUpperCase() + "." : "");
-        }else if(prof.display_name && prof.display_name.trim()){
-          displayName = prof.display_name.trim();
-        }
-      }
-
-      const when = c.created_at ? timeAgo(c.created_at) : "";
+      const prof        = profilesMap[c.author_id] || null;
+      const displayName = displayNameFromProfile(prof);
+      const when        = c.created_at ? timeAgo(c.created_at) : "";
+      const authorId    = c.author_id || null;
 
       const li = document.createElement("li");
       li.className = "qa-item";
@@ -1199,7 +1218,6 @@
         timeSpan.textContent = when;
         meta.appendChild(timeSpan);
       }
-
       li.appendChild(meta);
 
       const bodyP = document.createElement("p");
@@ -1227,19 +1245,17 @@
 
   async function loadCommentsSection(){
     if(!listingId) return;
-    const comments = await fetchComments(listingId);
+    const comments    = await fetchComments(listingId);
     const profilesMap = await fetchProfilesForAuthors(comments);
     renderComments(comments, profilesMap);
   }
 
-  // Create a notification row for the seller when someone comments
+  // Notification helpers
   async function notifySellerOnComment(listing, authorId){
     try{
       if(!listing || !listing.seller_id) return;
-      if(listing.seller_id === authorId) return; // don't notify self
-
+      if(listing.seller_id === authorId) return;
       const message = `New question on "${listing.title || "your listing"}"`;
-
       await supabaseClient
         .from("notifications")
         .insert({
@@ -1255,14 +1271,11 @@
     }
   }
 
-  // Notification for the comment author when they get a reply
   async function notifyCommentAuthorOnReply(commentAuthorId, listing, replierId){
     try{
       if(!commentAuthorId || !listing) return;
       if(commentAuthorId === replierId) return;
-
       const message = `New reply on a question for "${listing.title || "a listing"}"`;
-
       await supabaseClient
         .from("notifications")
         .insert({
@@ -1280,7 +1293,7 @@
 
   async function handlePostComment(){
     const textarea = document.getElementById("qaBody");
-    const note = document.getElementById("qaNote");
+    const note     = document.getElementById("qaNote");
     if(!textarea) return;
     const body = (textarea.value || "").trim();
     if(!body){
@@ -1308,10 +1321,8 @@
         return;
       }
 
-      // Notify seller of any new comment
       await notifySellerOnComment(currentListing, currentSession.user.id);
 
-      // If this was a reply, notify the original commenter
       if(replyToCommentAuthorId){
         await notifyCommentAuthorOnReply(
           replyToCommentAuthorId,
@@ -1330,233 +1341,7 @@
     }
   }
 
-  document.addEventListener("DOMContentLoaded", async ()=>{
-    // Grab listing id from URL
-    const params = new URLSearchParams(window.location.search);
-    listingId = params.get("id") || "";
-    if(!listingId){
-      showError("This listing link is missing an ID.");
-      return;
-    }
-
-    await ensureSession();
-    await fetchCurrentProfile();
-
-    // Load listing + seller profile
-    const listing = await fetchListing(listingId);
-    if(!listing) return;
-    currentListing = listing;
-
-    const sellerProfile = await fetchProfileForSeller(listing.seller_id);
-    renderListing(listing, sellerProfile);
-
-    // Q&A visibility depending on auth
-    const qaCard = document.getElementById("qaCard");
-    const qaSignedOut = document.getElementById("qaSignedOut");
-    const qaComposer = document.getElementById("qaComposer");
-    const qaSignInBtn = document.getElementById("qaSignInBtn");
-    const qaSubmitBtn = document.getElementById("qaSubmitBtn");
-    const qaCancelReplyBtn = document.getElementById("qaCancelReplyBtn");
-
-    if(qaCard) qaCard.style.display = "block";
-
-    if(currentSession && currentSession.user){
-      if(qaSignedOut) qaSignedOut.style.display = "none";
-      if(qaComposer) qaComposer.style.display = "block";
-    }else{
-      if(qaSignedOut) qaSignedOut.style.display = "flex";
-      if(qaComposer) qaComposer.style.display = "none";
-    }
-
-    if(qaSignInBtn){
-      qaSignInBtn.addEventListener("click", ()=>{
-        const redirect = encodeURIComponent(window.location.pathname + window.location.search);
-        window.location.href = "auth.html?view=login&redirect=" + redirect;
-      });
-    }
-    if(qaSubmitBtn){
-      qaSubmitBtn.addEventListener("click", handlePostComment);
-    }
-    if(qaCancelReplyBtn){
-      qaCancelReplyBtn.addEventListener("click", ()=>{
-        exitReplyMode();
-      });
-    }
-
-    await loadCommentsSection();
-  });
-</script>
-
-<script>
-(function(){
-
-  // Helper: derive a nice display name from a profile
-  function deriveDisplayName(profile){
-    if(!profile) return "Member";
-    const store = (profile.store_name || "").trim();
-    const first = (profile.first_name || "").trim();
-    const last  = (profile.last_name  || "").trim();
-    const email = (profile.email || "").trim();
-
-    if(store) return store;
-    if(first && last) return first + " " + last[0].toUpperCase() + ".";
-    if(first) return first;
-
-    if(email){
-      const handle = email.split("@")[0].replace(/[\.\_\-]+/g," ");
-      const parts = handle.split(" ").filter(Boolean);
-      if(parts.length){
-        const p = parts[0];
-        return p.charAt(0).toUpperCase() + p.slice(1);
-      }
-    }
-    return "Member";
-  }
-
-  // Seller box: hide avatar + update store name + first/last initial
-  async function patchSellerBox(){
-    const avatar = document.getElementById("sellerAvatar");
-    if(avatar) avatar.style.display = "none"; // remove avatar forever
-
-    if(!currentListing || !currentListing.seller_id) return;
-    try{
-      const { data: profile, error } = await supabaseClient
-        .from("profiles")
-        .select("id, first_name, last_name, store_name, display_name, email")
-        .eq("id", currentListing.seller_id)
-        .maybeSingle();
-      if(error || !profile) return;
-
-      const storeName = (profile.store_name || "").trim();
-      const person    = deriveDisplayName(profile);
-
-      const primary   = storeName || person; // line 1
-      let secondary   = "";
-
-      const first = (profile.first_name || "").trim();
-      const last  = (profile.last_name  || "").trim();
-      if(first && last){
-        secondary = first + " " + last[0].toUpperCase() + ".";
-      }else if(first){
-        secondary = first;
-      }else{
-        secondary = person;
-      }
-
-      const sellerNameEl  = document.getElementById("sellerName");
-      const sellerSubline = document.getElementById("sellerSubline");
-      if(sellerNameEl)  sellerNameEl.textContent  = primary;
-      if(sellerSubline) sellerSubline.textContent = secondary;
-    }catch(e){
-      console.warn("patchSellerBox exception", e);
-    }
-  }
-
-  // Q&A: re-render comments with store name / first + last initial,
-  // and keep Reply buttons wired up.
-  async function patchCommentsSection(){
-    if(!listingId) return;
-    const comments = await fetchComments(listingId);
-    const profilesMap = await fetchProfilesForAuthors(comments);
-
-    const listEl = document.getElementById("qaList");
-    const intro  = document.getElementById("qaIntro");
-    if(!listEl || !intro) return;
-
-    listEl.innerHTML = "";
-    if(!comments.length){
-      intro.textContent = "No questions yet—be the first to ask!";
-      return;
-    }
-    intro.textContent = "Questions";
-
-    comments.forEach(c=>{
-      const prof = profilesMap[c.author_id] || null;
-      const displayName = deriveDisplayName(prof);
-      const when = c.created_at ? timeAgo(c.created_at) : "";
-      const authorId = c.author_id || null;
-
-      const li = document.createElement("li");
-      li.className = "qa-item";
-
-      const meta = document.createElement("div");
-      meta.className = "qa-meta";
-
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "qa-author";
-      nameSpan.textContent = displayName;
-      meta.appendChild(nameSpan);
-
-      if(when){
-        const dot = document.createElement("span");
-        dot.textContent = "•";
-        meta.appendChild(dot);
-        const timeSpan = document.createElement("span");
-        timeSpan.textContent = when;
-        meta.appendChild(timeSpan);
-      }
-      li.appendChild(meta);
-
-      const bodyP = document.createElement("p");
-      bodyP.className = "qa-body";
-      bodyP.textContent = c.body;
-      li.appendChild(bodyP);
-
-      const actions = document.createElement("div");
-      actions.className = "qa-actions";
-      const replyBtn = document.createElement("button");
-      replyBtn.type = "button";
-      replyBtn.className = "qa-reply-btn";
-      replyBtn.textContent = "Reply";
-      replyBtn.addEventListener("click", ()=>{
-        if(authorId){
-          enterReplyMode(c.id, authorId, displayName);
-        }
-      });
-      actions.appendChild(replyBtn);
-      li.appendChild(actions);
-
-      listEl.appendChild(li);
-    });
-  }
-
-  // Specs: if DB fields are mostly empty, try to pull from "Specs:" in description
-  function patchSpecsFromDescription(){
-    if(!currentListing) return;
-    const desc = currentListing.description || "";
-    const table = document.getElementById("specTable");
-    if(!table) return;
-
-    const rows = Array.from(table.querySelectorAll("tr"));
-    if(!rows.length) return;
-
-    const anyRealValue = rows.some(tr=>{
-      const td = tr.children[1];
-      if(!td) return false;
-      const v = (td.textContent || "").trim();
-      return v && v !== "—";
-    });
-    // If you already have real DB-backed specs, don't touch them.
-    if(anyRealValue) return;
-
-    const idx = desc.toLowerCase().indexOf("specs:");
-    if(idx === -1) return;
-
-    const raw = desc.slice(idx + 6).trim();
-    if(!raw) return;
-
-    const pieces = raw.split(",").map(s=>s.trim()).filter(Boolean);
-    if(!pieces.length) return;
-
-    rows.forEach((tr, i)=>{
-      const td = tr.children[1];
-      if(!td) return;
-      if((td.textContent || "").trim() !== "—") return;
-      if(pieces[i]) td.textContent = pieces[i];
-    });
-  }
-
-  // Favorites helpers (localStorage)
+  // Favorites helpers: stored in localStorage (also mirrored to saved_listings)
   function getFavorites(){
     try{
       return JSON.parse(localStorage.getItem("hm_favorites_v1") || "[]");
@@ -1566,12 +1351,12 @@
   }
   function setFavorites(arr){
     localStorage.setItem("hm_favorites_v1", JSON.stringify(arr));
-    // optional legacy key if you ever want favorites.html to look here too
+    // keep a legacy key some pages may already read
     localStorage.setItem("saved_listings", JSON.stringify(arr));
   }
 
   function initFavoriteButton(){
-    const btn = document.getElementById("saveListingBtn");
+    const btn = document.getElementById("favoriteBtn");
     if(!btn || !currentListing) return;
 
     function isFav(id){
@@ -1579,7 +1364,7 @@
     }
     function syncUI(){
       const active = isFav(currentListing.id);
-      btn.textContent = active ? "Favorited" : "Favorite";
+      btn.classList.toggle("favorited", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     }
 
@@ -1604,26 +1389,55 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", ()=>{
-    // Hide avatar immediately in case it renders early
-    const avatar = document.getElementById("sellerAvatar");
-    if(avatar) avatar.style.display = "none";
+  document.addEventListener("DOMContentLoaded", async ()=>{
+    const params = new URLSearchParams(window.location.search);
+    listingId = params.get("id") || "";
+    if(!listingId){
+      showError("This listing link is missing an ID.");
+      return;
+    }
 
-    // Wait until currentListing has been loaded by the main script
-    const checkInterval = setInterval(()=>{
-      if(currentListing){
-        clearInterval(checkInterval);
-        patchSellerBox();
-        patchCommentsSection();
-        patchSpecsFromDescription();
-        initFavoriteButton();
-      }
-    }, 150);
+    await ensureSession();
+    await fetchCurrentProfile();
+
+    const listing = await fetchListing(listingId);
+    if(!listing) return;
+
+    const sellerProfile = await fetchProfileForSeller(listing.seller_id);
+    renderListing(listing, sellerProfile);
+
+    // Q&A auth UI
+    const qaSignedOut      = document.getElementById("qaSignedOut");
+    const qaComposer       = document.getElementById("qaComposer");
+    const qaSignInBtn      = document.getElementById("qaSignInBtn");
+    const qaSubmitBtn      = document.getElementById("qaSubmitBtn");
+    const qaCancelReplyBtn = document.getElementById("qaCancelReplyBtn");
+
+    if(currentSession && currentSession.user){
+      if(qaSignedOut) qaSignedOut.style.display = "none";
+      if(qaComposer)  qaComposer.style.display  = "block";
+    }else{
+      if(qaSignedOut) qaSignedOut.style.display = "flex";
+      if(qaComposer)  qaComposer.style.display  = "none";
+    }
+
+    if(qaSignInBtn){
+      qaSignInBtn.addEventListener("click", ()=>{
+        const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = "auth.html?view=login&redirect=" + redirect;
+      });
+    }
+    if(qaSubmitBtn){
+      qaSubmitBtn.addEventListener("click", handlePostComment);
+    }
+    if(qaCancelReplyBtn){
+      qaCancelReplyBtn.addEventListener("click", ()=>{ exitReplyMode(); });
+    }
+
+    await loadCommentsSection();
   });
-
-})();
 </script>
-  
+
 <!-- Cart script (shared) -->
 <script src="assets/add-to-cart.js" defer></script>
 
