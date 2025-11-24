@@ -1075,18 +1075,11 @@
     if(sellerStoreEl) sellerStoreEl.textContent = names.store;
     if(sellerPersonEl) sellerPersonEl.textContent = names.person;
 
-    // make store name look more like a link
-    if(sellerStoreEl){
-      sellerStoreEl.style.fontSize = "14px";
-      sellerStoreEl.style.fontWeight = "700";
-      sellerStoreEl.style.color = "var(--accent)";
-    }
-
-    // link both to Atelier page (pass seller id in query for future use)
     const sellerId = listing.seller_id || (sellerProfile && sellerProfile.id) || "";
     function wireAtelierLink(el){
       if(!el) return;
       el.style.cursor = "pointer";
+      el.style.fontWeight = "700";
       el.addEventListener("click", ()=>{
         const url = "atelier.html" + (sellerId ? ("?seller=" + encodeURIComponent(sellerId)) : "");
         window.location.href = url;
@@ -1166,8 +1159,7 @@
 
   function initFavoriteButton(){
     const btn = document.getElementById("favoriteBtn");
-    if(!btn) return;
-    if(!currentListing) return;
+    if(!btn || !currentListing) return;
 
     const id = currentListing.id;
 
@@ -1198,7 +1190,7 @@
     };
   }
 
-  /* Share button: now prefers "Copy link" */
+  /* Share button (keeps OS share *and* has an explicit copy-link fallback) */
 
   function initShareButton(){
     const btn = document.getElementById("shareBtn");
@@ -1208,30 +1200,32 @@
       const url = window.location.href;
       const title = currentListing?.title || "Hemline Market listing";
 
-      let copied = false;
+      // 1) Web Share API
+      if(navigator.share){
+        try{
+          await navigator.share({ title, url });
+          return;
+        }catch(e){
+          if(e && e.name === "AbortError") return;
+          console.warn("navigator.share failed", e);
+        }
+      }
 
-      // 1) Try to copy link first
+      // 2) Clipboard option
       if(navigator.clipboard && window.isSecureContext){
         try{
           await navigator.clipboard.writeText(url);
-          copied = true;
           showToast("Link copied to clipboard");
+          return;
         }catch(e){
           console.warn("clipboard write failed", e);
         }
       }
 
-      // 2) Then open the native share sheet if available
-      if(navigator.share){
-        try{
-          await navigator.share({ title, url });
-        }catch(e){
-          if(e && e.name === "AbortError") return;
-          console.warn("navigator.share failed", e);
-        }
-      }else if(!copied){
-        // 3) Last resort prompt
-        window.prompt("Copy this link:", url);
+      // 3) Fallback prompt
+      const copied = window.prompt("Copy this link:", url);
+      if(copied !== null){
+        showToast("Copy link ready");
       }
     };
   }
@@ -1267,7 +1261,6 @@
         return;
       }
 
-      // pull author & answer profiles so we can format names nicely
       const authorIds = Array.from(new Set(
         data.flatMap(q=>[q.author_id, q.answer_author_id]).filter(Boolean)
       ));
