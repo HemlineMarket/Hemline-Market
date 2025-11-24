@@ -862,6 +862,8 @@
     { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
+  const MEDIA_BUCKET = 'listing-media';
+
   async function ensureSession({maxWaitMs=3000} = {}){
     let { data:{ session } } = await supabaseClient.auth.getSession();
     if(session?.user) return session;
@@ -1233,54 +1235,41 @@
       alert('Draft saving is not wired yet. For now, publish when you are ready.');
     });
 
-    async function uploadListingMedia(listingId){
-      if(!state.photos.length) return;
-
-      for(let idx = 0; idx < state.photos.length; idx++){
-        const p = state.photos[idx];
-        const file = p.file;
-        if(!file) continue;
-
-        const ext = (file.name && file.name.includes('.'))
-          ? file.name.split('.').pop()
-          : 'jpg';
-
-        const filePath = `${listingId}/${Date.now()}-${idx}.${ext}`;
-
-        const { error: uploadErr } = await supabaseClient
-          .storage
-          .from('listing-media')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: file.type || 'image/jpeg'
-          });
-
-        if(uploadErr){
-          console.error('Upload failed for photo', idx, uploadErr);
-          continue;
-        }
-
-        const { data: urlData } = supabaseClient
-          .storage
-          .from('listing-media')
-          .getPublicUrl(filePath);
-
-        const publicUrl = urlData?.publicUrl || null;
-
-        const { error: mediaErr } = await supabaseClient
-          .from('listing_media')
-          .insert({
-            listing_id: listingId,
-            image_url: publicUrl,
-            is_cover: idx === 0,
-            sort_order: idx
-          });
-
-        if(mediaErr){
-          console.error('Failed to insert listing_media row', mediaErr);
-        }
+    // --- NEW: upload photos to Supabase storage and return cover URL ---
+    async function uploadListingPhotos(user){
+      if(!state.photos.length){
+        return { coverUrl:null, items:[] };
       }
+
+      const bucket = supabaseClient.storage.from(MEDIA_BUCKET);
+      const uploaded = [];
+      const base = `${user.id}/${Date.now()}`;
+
+      for(let i=0;i<state.photos.length;i++){
+        const { file } = state.photos[i];
+        const name = file.name || `photo_${i}.jpg`;
+        const parts = name.split('.');
+        const ext = parts.length > 1 ? parts.pop() : 'jpg';
+        const path = `${base}_${i}.${ext}`;
+
+        const { error: uploadErr } = await bucket.upload(path, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type || undefined
+        });
+        if(uploadErr){
+          console.error('Upload error', uploadErr);
+          throw uploadErr;
+        }
+
+        const { data } = bucket.getPublicUrl(path);
+        uploaded.push({ path, publicUrl: data.publicUrl });
+      }
+
+      return {
+        coverUrl: uploaded[0]?.publicUrl || null,
+        items: uploaded
+      };
     }
 
     async function publishListing(user){
@@ -1292,6 +1281,9 @@
         const d = state.details;
         const priceCents      = d.price     != null ? Math.round(d.price * 100)     : null;
         const origPriceCents  = d.origPrice != null ? Math.round(d.origPrice * 100) : null;
+
+        // Upload photos first so we can save the cover image URL
+        const { coverUrl } = await uploadListingPhotos(user);
 
         const payload = {
           seller_id: user.id,
@@ -1306,16 +1298,15 @@
           gsm: d.gsm,
           fiber_type: d.fiberType,
           country_of_origin: d.origin,
-          store_name: 'Aurora' // current store name
-          // color_family, dept, fabric_type, pattern, designer, feels_like
-          // are omitted until those columns exist on `listings`.
+          image_url_1: coverUrl || null,
+          store_name: 'Aurora' // temporary default store name
+          // we are intentionally not sending color_family, dept, fabric_type,
+          // pattern, designer, feels_like yet.
         };
 
-        const { data: listingRow, error: insertErr } = await supabaseClient
+        const { error: insertErr } = await supabaseClient
           .from('listings')
-          .insert(payload)
-          .select('id')
-          .single();
+          .insert(payload);
 
         if(insertErr){
           console.error(insertErr);
@@ -1328,10 +1319,6 @@
           backBtn.disabled = false;
           return;
         }
-
-        const listingId = listingRow.id;
-
-        await uploadListingMedia(listingId);
 
         alert('Listing published!');
         window.location.href = 'browse.html';
