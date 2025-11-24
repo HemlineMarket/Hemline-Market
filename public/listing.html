@@ -711,6 +711,44 @@
   </div>
 </footer>
 
+<!-- Hamburger / overlay script -->
+<script>
+  (function(){
+    const sheet    = document.getElementById('menuSheet');
+    const openBtn  = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const overlay  = document.getElementById('sheetOverlay');
+
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+    function openSheet(){
+      if(!sheet) return;
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden','false');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      if(openBtn) openBtn.setAttribute('aria-expanded','true');
+      lockScroll(true);
+    }
+    function closeSheet(){
+      if(!sheet) return;
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden','true');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden','true');
+      if(openBtn) openBtn.setAttribute('aria-expanded','false');
+      lockScroll(false);
+      if(openBtn) openBtn.focus();
+    }
+
+    if(openBtn && sheet && closeBtn && overlay){
+      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+      overlay.addEventListener('click', closeSheet);
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+    }
+  })();
+</script>
+
 <!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -1086,7 +1124,7 @@
       const url = window.location.href;
       const title = currentListing?.title || "Hemline Market listing";
 
-      // Prefer copying to clipboard (what you actually want on desktop)
+      // Prefer copying to clipboard
       if(navigator.clipboard && window.isSecureContext){
         try{
           await navigator.clipboard.writeText(url);
@@ -1127,7 +1165,7 @@
 
     try{
       const { data, error } = await supabaseClient
-        .from("questions")
+        .from("questions")          // questions(listing_id, author_id, body, created_at)
         .select("id, listing_id, author_id, body, created_at")
         .eq("listing_id", listingId)
         .order("created_at", { ascending:true });
@@ -1143,6 +1181,7 @@
         return;
       }
 
+      // pull author profiles so we can format names nicely
       const authorIds = Array.from(new Set(data.map(q=>q.author_id).filter(Boolean)));
       let profileMap = {};
       if(authorIds.length){
@@ -1168,7 +1207,10 @@
         const authorSpan = document.createElement("span");
         authorSpan.className = "qa-author";
         const np = nameFromProfile(profileMap[row.author_id]);
-        authorSpan.textContent = np.person || "Member";
+        // Show store · person for Q&A
+        const storeName = np.store || "Member";
+        const personName = np.person || "Member";
+        authorSpan.textContent = storeName + " · " + personName;
 
         const dateSpan = document.createElement("span");
         if(row.created_at){
