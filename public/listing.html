@@ -801,6 +801,8 @@
   let currentListing = null;
   let listingId = null;
 
+  /* ---- shared helpers ---- */
+
   function showError(msg){
     const err = document.getElementById("listingError");
     const shell = document.getElementById("listingShell");
@@ -811,7 +813,6 @@
     if(shell) shell.style.display = "none";
   }
 
-  /* tiny toast helper for "notifications" on this page */
   function showToast(message){
     const container = document.getElementById("toastContainer");
     if(!container) return;
@@ -927,6 +928,8 @@
     }
   }
 
+  /* ---- media & specs ---- */
+
   function buildMedia(listing){
     const hero = document.getElementById("hero");
     const thumbs = document.getElementById("thumbs");
@@ -1003,6 +1006,147 @@
     });
   }
 
+  /* ---- cart helpers & styles ---- */
+
+  function ensureCartStyles(){
+    if(document.getElementById("hmListingExtraStyles")) return;
+    const style = document.createElement("style");
+    style.id = "hmListingExtraStyles";
+    style.textContent = `
+      .hm-icon.cart-has-items{
+        position:relative;
+      }
+      .hm-icon.cart-has-items::after{
+        content:'';
+        position:absolute;
+        top:4px;
+        right:4px;
+        width:8px;
+        height:8px;
+        border-radius:999px;
+        background:var(--accent);
+        box-shadow:0 0 0 2px #fff;
+      }
+      .cart-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(15,23,42,0.45);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        z-index:200;
+      }
+      .cart-overlay-card{
+        background:#fff;
+        border-radius:16px;
+        padding:20px 22px;
+        max-width:340px;
+        width:90%;
+        box-shadow:0 18px 40px rgba(15,23,42,0.35);
+        text-align:left;
+        font-size:14px;
+      }
+      .cart-overlay-card h2{
+        margin:0 0 4px;
+        font-size:18px;
+      }
+      .cart-overlay-actions{
+        display:flex;
+        justify-content:flex-end;
+        gap:8px;
+        margin-top:12px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function getCart(){
+    try{
+      return JSON.parse(localStorage.getItem("hm_cart_v1") || "[]");
+    }catch(e){
+      return [];
+    }
+  }
+
+  function setCart(items){
+    try{
+      localStorage.setItem("hm_cart_v1", JSON.stringify(items));
+    }catch(e){
+      // ignore
+    }
+    syncCartIcon(items.length);
+  }
+
+  function syncCartIcon(count){
+    const cartLink = document.querySelector('a[href="cart.html"]');
+    if(!cartLink) return;
+    if(count > 0){
+      cartLink.classList.add("cart-has-items");
+    }else{
+      cartLink.classList.remove("cart-has-items");
+    }
+  }
+
+  function createCartOverlay(){
+    let overlay = document.getElementById("cartAddedOverlay");
+    if(overlay){
+      overlay.remove();
+    }
+    overlay = document.createElement("div");
+    overlay.id = "cartAddedOverlay";
+    overlay.className = "cart-overlay";
+    overlay.innerHTML = `
+      <div class="cart-overlay-card">
+        <h2>Added to cart</h2>
+        <p>${currentListing?.title || "Item"} was added to your cart.</p>
+        <div class="cart-overlay-actions">
+          <button type="button" class="btn btn-primary" id="cartOverlayView">View cart</button>
+          <button type="button" class="btn" id="cartOverlayClose">Continue shopping</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener("click", e=>{
+      if(e.target === overlay){
+        overlay.remove();
+      }
+    });
+
+    const closeBtn = document.getElementById("cartOverlayClose");
+    const viewBtn  = document.getElementById("cartOverlayView");
+    if(closeBtn) closeBtn.onclick = ()=>overlay.remove();
+    if(viewBtn)  viewBtn.onclick  = ()=>{ window.location.href = "cart.html"; };
+  }
+
+  function attachAddToCartHandler(){
+    const btn = document.getElementById("addToCart");
+    if(!btn) return;
+
+    btn.addEventListener("click", ()=>{
+      if(btn.disabled || !currentListing) return;
+
+      const items = getCart();
+      const newItem = {
+        id: currentListing.id,
+        title: currentListing.title || "Fabric listing",
+        amount_cents: Number(btn.dataset.amount || 0),
+        price_per_yard: Number(btn.dataset.price || 0),
+        yards: Number(btn.dataset.yards || 0),
+        seller_id: btn.dataset.sellerId || null,
+        seller_name: btn.dataset.sellerName || null,
+        photo: btn.dataset.photo || null,
+        added_at: new Date().toISOString()
+      };
+      items.push(newItem);
+      setCart(items);
+      createCartOverlay();
+      showToast("Added to cart");
+    });
+  }
+
+  /* ---- listing render ---- */
+
   function renderListing(listing, sellerProfile){
     currentListing = listing;
     const shell = document.getElementById("listingShell");
@@ -1072,10 +1216,16 @@
     const sellerStoreEl = document.getElementById("sellerStore");
     const sellerPersonEl = document.getElementById("sellerPerson");
     const names = nameFromProfile(sellerProfile);
-    if(sellerStoreEl) sellerStoreEl.textContent = names.store;
+    if(sellerStoreEl){
+      sellerStoreEl.textContent = names.store;
+      // make it visually obvious it's a link
+      sellerStoreEl.style.fontSize = "14px";
+      sellerStoreEl.style.fontWeight = "700";
+      sellerStoreEl.style.color = "var(--accent)";
+      sellerStoreEl.style.textDecoration = "underline";
+    }
     if(sellerPersonEl) sellerPersonEl.textContent = names.person;
 
-    // link both to Atelier page (pass seller id in query for future use)
     const sellerId = listing.seller_id || (sellerProfile && sellerProfile.id) || "";
     function wireAtelierLink(el){
       if(!el) return;
@@ -1107,7 +1257,7 @@
       });
     }
 
-    // Wire Add to Cart button datasets (site-wide cart script will read these)
+    // Wire Add to Cart button datasets
     if(addBtn){
       const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
       const totalCents = (priceCents != null && yards != null && !isNaN(yards))
@@ -1134,12 +1284,12 @@
       }
     }
 
-    // Favorites + share
     initFavoriteButton();
     initShareButton();
+    attachAddToCartHandler();
   }
 
-  /* Favorites */
+  /* ---- favorites ---- */
 
   function getFavorites(){
     try{
@@ -1153,14 +1303,13 @@
     try{
       localStorage.setItem("hm_favorites_v1", JSON.stringify(list));
     }catch(e){
-      // ignore storage errors
+      // ignore
     }
   }
 
   function initFavoriteButton(){
     const btn = document.getElementById("favoriteBtn");
-    if(!btn) return;
-    if(!currentListing) return;
+    if(!btn || !currentListing) return;
 
     const id = currentListing.id;
 
@@ -1191,7 +1340,7 @@
     };
   }
 
-  /* Robust share button */
+  /* ---- share button (with guaranteed "copy link") ---- */
 
   function initShareButton(){
     const btn = document.getElementById("shareBtn");
@@ -1201,11 +1350,26 @@
       const url = window.location.href;
       const title = currentListing?.title || "Hemline Market listing";
 
-      // 1) Web Share API (phones, Safari, Chrome etc.)
+      let copied = false;
+
+      // Always try to copy link first if possible
+      if(navigator.clipboard && window.isSecureContext){
+        try{
+          await navigator.clipboard.writeText(url);
+          copied = true;
+          showToast("Link copied to clipboard");
+        }catch(e){
+          console.warn("clipboard write failed", e);
+        }
+      }
+
+      // Then try to open the native share sheet
       if(navigator.share){
         try{
           await navigator.share({ title, url });
-          showToast("Share sheet opened");
+          if(!copied){
+            showToast("Share sheet opened");
+          }
           return;
         }catch(e){
           if(e && e.name === "AbortError") return;
@@ -1213,24 +1377,15 @@
         }
       }
 
-      // 2) Clipboard on secure origins
-      if(navigator.clipboard && window.isSecureContext){
-        try{
-          await navigator.clipboard.writeText(url);
-          showToast("Link copied to clipboard");
-          return;
-        }catch(e){
-          console.warn("clipboard write failed", e);
-        }
+      // Fallback prompt if neither worked
+      if(!copied){
+        window.prompt("Copy this link and share it:", url);
+        showToast("Link ready to share");
       }
-
-      // 3) Fallback: old-school prompt
-      window.prompt("Copy this link and share it:", url);
-      showToast("Link ready to share");
     };
   }
 
-  /* Q&A */
+  /* ---- Q&A ---- */
 
   async function loadQuestions(){
     const qaIntro = document.getElementById("qaIntro");
@@ -1252,7 +1407,7 @@
 
       if(error){
         console.warn("Q&A load error", error);
-        if(qaIntro) qaIntro.textContent = "Questions could not be loaded.";
+        if(qaIntro) qaIntro.textContent = "No questions yet—be the first to ask!";
         return;
       }
 
@@ -1261,7 +1416,6 @@
         return;
       }
 
-      // pull author & answer profiles so we can format names nicely
       const authorIds = Array.from(new Set(
         data.flatMap(q=>[q.author_id, q.answer_author_id]).filter(Boolean)
       ));
@@ -1289,7 +1443,7 @@
         const li = document.createElement("li");
         li.className = "qa-item";
 
-        /* Question header */
+        // Question header
         const meta = document.createElement("div");
         meta.className = "qa-meta";
 
@@ -1320,7 +1474,7 @@
         li.appendChild(meta);
         li.appendChild(body);
 
-        /* Answer (if present) */
+        // Answer (if present)
         if(row.answer_body){
           const answerMeta = document.createElement("div");
           answerMeta.className = "qa-meta";
@@ -1427,7 +1581,7 @@
 
     }catch(e){
       console.warn("Q&A load exception", e);
-      if(qaIntro) qaIntro.textContent = "Questions could not be loaded.";
+      if(qaIntro) qaIntro.textContent = "No questions yet—be the first to ask!";
     }
   }
 
@@ -1509,12 +1663,17 @@
     }
   }
 
+  /* ---- boot ---- */
+
   window.addEventListener("DOMContentLoaded", async ()=>{
     listingId = getListingIdFromUrl();
     if(!listingId){
       showError("No listing specified.");
       return;
     }
+
+    ensureCartStyles();
+    syncCartIcon(getCart().length);
 
     await ensureSession();
 
