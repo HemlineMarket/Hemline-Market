@@ -10,13 +10,12 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
-  <!-- Shared styles (UNIVERSAL REQUIRED) -->
+  <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hm-header.css"/>
+  <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
-  <!-- PAGE-SPECIFIC STYLES ONLY (old header/footer removed, EVERYTHING ELSE preserved) -->
   <style>
     :root{
       --hm-accent:#991b1b;
@@ -38,7 +37,149 @@
     img,svg,canvas,video{max-width:100%;height:auto;display:block}
     .is-hidden{display:none!important;}
 
-    /* --- CREATE LISTING UI (UNCHANGED) --- */
+    /* ---------- HEADER ---------- */
+    .hm-header{
+      min-height:56px;
+      background:#fff;
+      border-bottom:1px solid var(--hm-border);
+      position:relative;
+      z-index:101;
+    }
+    .hm-header .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:0 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .left{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .hm-brand{
+      font-size:24px;
+      font-weight:800;
+      color:var(--hm-accent);
+      text-decoration:none;
+    }
+    .hamburger{
+      display:inline-grid;
+      place-items:center;
+      width:36px;
+      height:36px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      background:#fff;
+      color:#374151;
+      cursor:pointer;
+    }
+    .hamburger svg{width:22px;height:22px;stroke-width:2}
+    .right{display:flex;align-items:center;gap:14px}
+    .hm-icon{
+      color:#444;
+      display:inline-grid;
+      place-items:center;
+    }
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+
+    /* Account icon + login status badge */
+    .hm-account{
+      position:relative;
+      display:inline-grid;
+      place-items:center;
+      width:26px;
+      height:26px;
+    }
+    .hm-account svg{
+      width:26px;
+      height:26px;
+      stroke-width:2;
+      display:block;
+    }
+    .hm-account-badge{
+      position:absolute;
+      bottom:-2px;
+      right:-2px;
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      border:2px solid #fff;
+      background:#d1d5db;
+    }
+    .hm-account.is-logged-in .hm-account-badge{
+      background:#16a34a;
+    }
+    .hm-account.is-logged-out .hm-account-badge{
+      background:#d1d5db;
+    }
+
+    .hm-btn-primary{
+      background:var(--hm-accent);
+      color:#fff;
+      border:1px solid var(--hm-accent);
+      border-radius:999px;
+      padding:10px 18px;
+      font-weight:700;
+      text-decoration:none;
+      box-shadow:0 2px 8px rgba(153,27,27,.25);
+    }
+
+    /* Left drawer */
+    .sheet{
+      position:fixed;
+      inset:0 auto 0 0;
+      width:min(84vw,340px);
+      background:#fff;
+      border-right:1px solid var(--hm-border);
+      transform:translateX(-100%);
+      transition:transform .25s ease;
+      z-index:100;
+      display:flex;
+      flex-direction:column;
+    }
+    .sheet.open{transform:translateX(0)}
+    .sheet header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px;
+      border-bottom:1px solid var(--hm-border);
+    }
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{
+      padding:10px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      text-decoration:none;
+      color:#1f2937;
+    }
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{
+      display:inline-grid;
+      place-items:center;
+      width:30px;
+      height:30px;
+      border:1px solid var(--hm-border);
+      border-radius:8px;
+      background:#fff;
+      color:#444;
+      cursor:pointer;
+    }
+
+    #sheetOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.25);
+      backdrop-filter:blur(1px);
+      display:none;
+      z-index:90;
+    }
+    #sheetOverlay.show{display:block}
+
+    /* ---------- CREATE LISTING LAYOUT ---------- */
+
     .sell-wrap{
       max-width:1100px;
       margin:18px auto 28px;
@@ -239,20 +380,147 @@
       box-shadow:0 2px 8px rgba(153,27,27,.25);
     }
     .btn[disabled]{opacity:.5;cursor:not-allowed}
+
+    .kv{
+      display:grid;
+      grid-template-columns:120px 1fr;
+      gap:6px;
+      font-size:13px;
+    }
+    .kv-key{color:#6b7280}
+    .kv-val{color:#111827}
+
+    .feels-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:4px 12px;
+      font-size:12px;
+      color:#374151;
+    }
+    .feels-grid label{
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+    .feels-grid input[type="checkbox"]{
+      width:13px;
+      height:13px;
+    }
+
+    .hm-footer{
+      background:#fff;
+      border-top:1px solid #e5e7eb;
+    }
+    .hm-footer .footer-wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .hm-footer .footer-links{
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .hm-footer .footer-links a{
+      color:#1f2937;
+      text-decoration:none;
+    }
+    .hm-footer .copy{
+      color:#6b7280;
+      font-size:14px;
+    }
   </style>
 </head>
-
 <body>
 
-<!-- ✅ UNIVERSAL HEADER (new) -->
-<div id="hm-shell-header"></div>
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
+    </div>
 
-<!-- ✅ OLD CONTENT STARTS HERE (UNCHANGED) -->
+    <div class="right">
+      <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="9"  cy="21" r="1"></circle>
+          <circle cx="18" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+      </a>
+
+      <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
+        <span class="hm-account-badge" id="headerAccountBadge"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="8" r="3.2"></circle>
+          <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+        </svg>
+      </a>
+
+      <a class="hm-btn-primary" href="sell.html" aria-current="page">Sell</a>
+    </div>
+  </div>
+</header>
+
+<div id="sheetOverlay" aria-hidden="true"></div>
+
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </header>
+  <nav>
+    <a href="account.html">Account</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="how.html">How It Works</a>
+    <a href="sell.html">Sell Fabric</a>
+    <a href="ThreadTalk.html">ThreadTalk</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
+
 <main class="sell-wrap" id="maincontent">
   <h1>Create a Listing</h1>
   <p class="subtle">Showcase your fabric in three quick steps.</p>
 
-  <!-- STEP BUILDER -->
   <div class="stepper" id="stepper">
     <div class="bubble" data-step="1" data-active="true"><span class="num">1</span> Photos &amp; Video</div>
     <div class="bubble" data-step="2"><span class="num">2</span> Details</div>
@@ -260,7 +528,6 @@
   </div>
 
   <div class="grid">
-    <!-- LEFT SIDE -->
     <section class="card" id="stage">
       <div class="hd" id="stageTitle">Step 1 — Photos &amp; Video</div>
       <div class="bd">
@@ -276,8 +543,7 @@
             <div class="subtle" style="margin-top:6px">Up to 8 photos. First photo becomes the cover.</div>
             <div id="photoError" class="help-error" style="margin-top:6px;display:none">At least one photo is required.</div>
           </div>
-
-          <div class="thumbs" id="photoThumbs" aria-live="polite"></div>
+          <div class="thumbs" id="photoThumbs" aria-live="polite" style="margin-top:10px"></div>
 
           <div class="drop" id="videoDrop" style="margin-top:14px">
             <strong>Drop one video here</strong> or
@@ -287,13 +553,11 @@
             </label>
             <div class="subtle" style="margin-top:6px">MP4 or WebM, up to ~60s recommended (optional).</div>
           </div>
-
           <div class="thumbs" id="videoThumb" style="grid-template-columns:1fr;margin-top:10px"></div>
         </div>
 
-        <!-- STEP 2 (UNCHANGED) -->
+        <!-- STEP 2 -->
         <div class="step step-2" hidden>
-
           <div class="field">
             <div class="label-row"><label for="title">Title</label><span class="req">Required</span></div>
             <input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy">
@@ -312,6 +576,7 @@
               <span class="subtle" style="font-size:12px">(optional)</span>
             </div>
             <input id="origPrice" type="number" min="0" step="0.01" placeholder="e.g., 70.00">
+            <div class="subtle">Shown crossed-out on the listing to highlight the deal (later).</div>
           </div>
 
           <div class="field">
@@ -325,24 +590,193 @@
             <textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea>
           </div>
 
-          <!-- many fields preserved exactly... -->
-          <!-- (omitted here only for visual clarity, but I will paste the FULL file if needed) -->
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+            <div class="field">
+              <label for="content">Content</label>
+              <select id="content">
+                <option value="">Select…</option>
+                <option>Not sure (content unknown)</option>
+                <option>Acetate</option>
+                <option>Acrylic</option>
+                <option>Alpaca</option>
+                <option>Angora</option>
+                <option>Bamboo</option>
+                <option>Cashmere</option>
+                <option>Cotton</option>
+                <option>Cupro</option>
+                <option>Hemp</option>
+                <option>Leather</option>
+                <option>Linen</option>
+                <option>Lurex</option>
+                <option>Modal</option>
+                <option>Mohair</option>
+                <option>Nylon</option>
+                <option>Polyester</option>
+                <option>Rayon / Viscose</option>
+                <option>Silk</option>
+                <option>Spandex / Elastane</option>
+                <option>Tencel / Lyocell</option>
+                <option>Wool</option>
+                <option>Other Fibers</option>
+              </select>
+            </div>
 
+            <div class="field">
+              <label for="fabric">Fabric type</label>
+              <select id="fabric">
+                <option value="">Select…</option>
+                <option>Canvas</option>
+                <option>Chiffon</option>
+                <option>Corduroy</option>
+                <option>Crepe</option>
+                <option>Denim</option>
+                <option>Flannel</option>
+                <option>Georgette</option>
+                <option>Jersey</option>
+                <option>Lace</option>
+                <option>Lawn</option>
+                <option>Organza</option>
+                <option>Poplin</option>
+                <option>Sateen</option>
+                <option>Satin</option>
+                <option>Tulle</option>
+                <option>Twill</option>
+                <option>Velvet</option>
+                <option>Voile</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="colorFamily">Color</label>
+              <select id="colorFamily">
+                <option value="">Select…</option>
+                <option>Black</option>
+                <option>Grey</option>
+                <option>White</option>
+                <option>Cream</option>
+                <option>Brown</option>
+                <option>Pink</option>
+                <option>Red</option>
+                <option>Orange</option>
+                <option>Yellow</option>
+                <option>Green</option>
+                <option>Blue</option>
+                <option>Purple</option>
+                <option>Gold</option>
+                <option>Silver</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="pattern">Pattern</label>
+              <select id="pattern">
+                <option value="">Select…</option>
+                <option>Solid</option>
+                <option>Printed</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="dept">Department</label>
+              <select id="dept">
+                <option value="">Select…</option>
+                <option>Fashion</option>
+                <option>Home</option>
+                <option>Quilting</option>
+                <option>Notions</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="fiberType">Fiber type</label>
+              <select id="fiberType">
+                <option value="">Select…</option>
+                <option>Natural</option>
+                <option>Modified Natural</option>
+                <option>Synthetic</option>
+                <option>Blend</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="origin">Country / origin</label>
+              <select id="origin">
+                <option value="">Select…</option>
+                <option>Italy</option>
+                <option>France</option>
+                <option>Japan</option>
+                <option>UK</option>
+                <option>USA</option>
+                <option>India</option>
+                <option>China</option>
+                <option>Korea</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="width">Width (in)</label>
+              <input id="width" type="number" min="0" step="1">
+            </div>
+
+            <div class="field">
+              <label for="gsm">Weight (GSM)</label>
+              <input id="gsm" type="number" min="0" step="1">
+            </div>
+          </div>
+
+          <div class="field" style="margin-top:4px">
+            <label for="designer">Designer / mill (optional)</label>
+            <input id="designer" type="text" placeholder="e.g., Loro Piana, Ratti">
+          </div>
+
+          <div class="field">
+            <div class="label-row">
+              <label>Fabric feels like</label>
+              <span class="subtle" style="font-size:12px">
+                (for mystery / unknown content)
+              </span>
+            </div>
+            <div id="feelsLikeGroup" class="feels-grid">
+              <label><input type="checkbox" name="feelsLike" value="cotton / poplin"> cotton / poplin</label>
+              <label><input type="checkbox" name="feelsLike" value="linen"> linen</label>
+              <label><input type="checkbox" name="feelsLike" value="silk"> silk</label>
+              <label><input type="checkbox" name="feelsLike" value="chiffon"> chiffon</label>
+              <label><input type="checkbox" name="feelsLike" value="crepe"> crepe</label>
+              <label><input type="checkbox" name="feelsLike" value="satin"> satin</label>
+              <label><input type="checkbox" name="feelsLike" value="jersey knit"> jersey knit</label>
+              <label><input type="checkbox" name="feelsLike" value="denim"> denim</label>
+              <label><input type="checkbox" name="feelsLike" value="flannel / brushed cotton"> flannel / brushed cotton</label>
+              <label><input type="checkbox" name="feelsLike" value="fleece"> fleece</label>
+              <label><input type="checkbox" name="feelsLike" value="wool suiting"> wool suiting</label>
+              <label><input type="checkbox" name="feelsLike" value="tweed"> tweed</label>
+              <label><input type="checkbox" name="feelsLike" value="velvet / velour"> velvet / velour</label>
+              <label><input type="checkbox" name="feelsLike" value="lace"> lace</label>
+              <label><input type="checkbox" name="feelsLike" value="tulle"> tulle</label>
+              <label><input type="checkbox" name="feelsLike" value="organza"> organza</label>
+              <label><input type="checkbox" name="feelsLike" value="leather"> leather</label>
+              <label><input type="checkbox" name="feelsLike" value="faux leather"> faux leather</label>
+              <label><input type="checkbox" name="feelsLike" value="vinyl"> vinyl</label>
+              <label><input type="checkbox" name="feelsLike" value="suede"> suede</label>
+            </div>
+          </div>
         </div>
 
-        <!-- STEP 3 (UNCHANGED) -->
+        <!-- STEP 3 -->
         <div class="step step-3" hidden>
           <div class="field">
             <label>Preview</label>
             <div class="thumbs" id="reviewMedia"></div>
           </div>
           <div class="kv" id="reviewKv" style="margin-top:10px"></div>
+          <p class="subtle" style="margin-top:8px">
+            Review your details. You can go back to make changes.
+          </p>
 
           <div class="field" style="margin-top:10px">
             <label style="font-weight:600;display:flex;gap:8px;align-items:flex-start">
               <input id="agreeSell" type="checkbox" style="margin-top:3px">
               <span>I confirm this listing follows the
-                <a href="terms.html" target="_blank">Terms of Service</a> and the
+                <a href="terms.html" target="_blank">Terms of Service</a> and I’ve read the
                 <a href="privacy.html" target="_blank">Privacy Policy</a>.
               </span>
             </label>
@@ -353,7 +787,6 @@
       </div>
     </section>
 
-    <!-- RIGHT SIDEBAR (unchanged) -->
     <aside class="card">
       <div class="hd">Actions</div>
       <div class="bd">
@@ -367,18 +800,563 @@
     </aside>
   </div>
 </main>
-<!-- ✅ OLD CONTENT ENDS HERE -->
 
-<!-- UNIVERSAL FOOTER -->
-<div id="hm-shell-footer"></div>
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
 
+<!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="scripts/hm-shell.js"></script>
 
-<!-- PAGE JS (FULL original logic preserved) -->
 <script>
-/* your entire JS block from the original file goes here UNCHANGED */
-/* I will paste the full JS if you request it — it is long and unchanged */
+  // Hamburger / overlay
+  (function(){
+    const sheet    = document.getElementById('menuSheet');
+    const openBtn  = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const overlay  = document.getElementById('sheetOverlay');
+
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+    function openSheet(){
+      if(!sheet) return;
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden','false');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      if(openBtn) openBtn.setAttribute('aria-expanded','true');
+      lockScroll(true);
+    }
+    function closeSheet(){
+      if(!sheet) return;
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden','true');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden','true');
+      if(openBtn) openBtn.setAttribute('aria-expanded','false');
+      lockScroll(false);
+      if(openBtn) openBtn.focus();
+    }
+
+    if (openBtn && sheet && closeBtn && overlay){
+      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+      overlay.addEventListener('click', closeSheet);
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+    }
+  })();
+</script>
+
+<script>
+  const supabaseClient = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+    { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+  );
+
+  const MEDIA_BUCKET = 'listing-media';
+
+  async function ensureSession({maxWaitMs=3000} = {}){
+    let { data:{ session } } = await supabaseClient.auth.getSession();
+    if(session?.user) return session;
+    const start = Date.now();
+    while(!session?.user && Date.now() - start < maxWaitMs){
+      await new Promise(r=>setTimeout(r,120));
+      ({ data:{ session } } = await supabaseClient.auth.getSession());
+    }
+    return session;
+  }
+
+  (async function initSellPage(){
+    const headerAccountLink = document.getElementById('headerAccountLink');
+
+    const session = await ensureSession();
+    if(!session || !session.user){
+      window.location.href = "auth.html?view=login";
+      return;
+    }
+
+    const user = session.user;
+
+    if (headerAccountLink){
+      headerAccountLink.href = "account.html";
+      headerAccountLink.setAttribute("aria-label","Your account");
+      headerAccountLink.classList.add("is-logged-in");
+      headerAccountLink.classList.remove("is-logged-out");
+    }
+
+    supabaseClient.auth.onAuthStateChange((_event, newSession) => {
+      if (!newSession || !newSession.user){
+        window.location.href = "auth.html?view=login";
+      }
+    });
+
+    let step = 1;
+    const stageTitle = document.getElementById('stageTitle');
+    const backBtn    = document.getElementById('backBtn');
+    const nextBtn    = document.getElementById('nextBtn');
+    const saveDraft  = document.getElementById('saveDraftBtn');
+
+    const state = {
+      photos: [], // { file, previewUrl, storagePath, publicUrl }
+      video: null,
+      details: {}
+    };
+
+    const photoInput   = document.getElementById('photoInput');
+    const photoDrop    = document.getElementById('photoDrop');
+    const photoThumbs  = document.getElementById('photoThumbs');
+    const videoInput   = document.getElementById('videoInput');
+    const videoDrop    = document.getElementById('videoDrop');
+    const videoThumb   = document.getElementById('videoThumb');
+    const photoError   = document.getElementById('photoError');
+
+    const titleInput   = document.getElementById('title');
+    const priceInput   = document.getElementById('price');
+    const origPriceInp = document.getElementById('origPrice');
+    const yardsInput   = document.getElementById('yards');
+    const descInput    = document.getElementById('desc');
+
+    const errTitle  = document.getElementById('err_title');
+    const errPrice  = document.getElementById('err_price');
+    const errYards  = document.getElementById('err_yards');
+
+    const agreeBox    = document.getElementById('agreeSell');
+    const errAgree    = document.getElementById('err_agree');
+    const reviewMedia = document.getElementById('reviewMedia');
+    const reviewKv    = document.getElementById('reviewKv');
+
+    function setStep(newStep){
+      step = newStep;
+      document.querySelectorAll('.step').forEach((el, idx)=>{
+        el.hidden = (idx !== (step-1));
+      });
+      document.querySelectorAll('.bubble').forEach(b=>{
+        const s = Number(b.getAttribute('data-step'));
+        b.dataset.active = (s === step) ? 'true' : 'false';
+      });
+      if(step === 1) stageTitle.textContent = 'Step 1 — Photos & Video';
+      if(step === 2) stageTitle.textContent = 'Step 2 — Details';
+      if(step === 3) stageTitle.textContent = 'Step 3 — Review & Publish';
+
+      backBtn.disabled = (step === 1);
+      if(step === 1){
+        nextBtn.textContent = 'Next';
+        nextBtn.disabled = (state.photos.length === 0);
+      }else if(step === 2){
+        nextBtn.textContent = 'Next';
+        nextBtn.disabled = false;
+      }else if(step === 3){
+        nextBtn.textContent = 'Publish';
+        nextBtn.disabled = !agreeBox.checked;
+      }
+    }
+
+    function renderPhotoThumbs(){
+      photoThumbs.innerHTML = '';
+      state.photos.forEach((p, idx)=>{
+        const div = document.createElement('div');
+        div.className = 'ph';
+        const img = document.createElement('img');
+        img.src = p.previewUrl;
+        img.alt = idx === 0 ? 'Cover photo' : 'Photo ' + (idx+1);
+        div.appendChild(img);
+        if(idx === 0){
+          const badge = document.createElement('div');
+          badge.className = 'ph-label';
+          badge.textContent = 'Cover';
+          div.appendChild(badge);
+        }
+        photoThumbs.appendChild(div);
+      });
+
+      photoError.style.display = state.photos.length ? 'none' : 'block';
+      if(step === 1){
+        nextBtn.disabled = state.photos.length === 0;
+      }
+    }
+
+    function handlePhotoFiles(files){
+      const list = Array.from(files || []);
+      if(!list.length) return;
+      const remaining = Math.max(0, 8 - state.photos.length);
+      const slice = list.slice(0, remaining);
+
+      slice.forEach(file=>{
+        const reader = new FileReader();
+        reader.onload = (e)=>{
+          const previewUrl = e.target.result;
+          state.photos.push({
+            file,
+            previewUrl,
+            storagePath: null,
+            publicUrl: null
+          });
+          renderPhotoThumbs();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    photoInput.addEventListener('change', e=>{
+      handlePhotoFiles(e.target.files);
+      photoInput.value = '';
+    });
+
+    ['dragenter','dragover'].forEach(ev=>{
+      photoDrop.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        photoDrop.classList.add('drag');
+      });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      photoDrop.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        photoDrop.classList.remove('drag');
+      });
+    });
+    photoDrop.addEventListener('drop', e=>{
+      handlePhotoFiles(e.dataTransfer.files);
+    });
+
+    function renderVideo(){
+      videoThumb.innerHTML = '';
+      if(!state.video) return;
+      const div = document.createElement('div');
+      div.className = 'ph';
+      const vid = document.createElement('video');
+      vid.src = state.video.url;
+      vid.controls = true;
+      div.appendChild(vid);
+      videoThumb.appendChild(div);
+    }
+
+    function handleVideoFile(file){
+      if(!file) return;
+      if(!file.type.startsWith('video/')) return;
+      if(state.video && state.video.url){
+        URL.revokeObjectURL(state.video.url);
+      }
+      const url = URL.createObjectURL(file);
+      state.video = { file, url };
+      renderVideo();
+    }
+
+    videoInput.addEventListener('change', e=>{
+      const file = e.target.files[0];
+      handleVideoFile(file);
+      videoInput.value = '';
+    });
+
+    ['dragenter','dragover'].forEach(ev=>{
+      videoDrop.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        videoDrop.classList.add('drag');
+      });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      videoDrop.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        videoDrop.classList.remove('drag');
+      });
+    });
+    videoDrop.addEventListener('drop', e=>{
+      const file = e.dataTransfer.files[0];
+      handleVideoFile(file);
+    });
+
+    function validateStep2(){
+      let ok = true;
+
+      const title = titleInput.value.trim();
+      const price = parseFloat(priceInput.value);
+      const yards = parseFloat(yardsInput.value);
+
+      if(!title){
+        errTitle.style.display = 'block';
+        titleInput.classList.add('invalid');
+        ok = false;
+      } else {
+        errTitle.style.display = 'none';
+        titleInput.classList.remove('invalid');
+      }
+
+      if(!(price > 0)){
+        errPrice.style.display = 'block';
+        priceInput.classList.add('invalid');
+        ok = false;
+      } else {
+        errPrice.style.display = 'none';
+        priceInput.classList.remove('invalid');
+      }
+
+      if(!(yards > 0)){
+        errYards.style.display = 'block';
+        yardsInput.classList.add('invalid');
+        ok = false;
+      } else {
+        errYards.style.display = 'none';
+        yardsInput.classList.remove('invalid');
+      }
+
+      return ok;
+    }
+
+    function collectDetails(){
+      const feels = Array.from(document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]:checked'))
+        .map(cb=>cb.value);
+
+      state.details = {
+        title: titleInput.value.trim(),
+        price: priceInput.value ? parseFloat(priceInput.value) : null,
+        origPrice: origPriceInp.value ? parseFloat(origPriceInp.value) : null,
+        yards: yardsInput.value ? parseFloat(yardsInput.value) : null,
+        desc: descInput.value.trim() || null,
+        content: document.getElementById('content').value || null,
+        fabric: document.getElementById('fabric').value || null,
+        colorFamily: document.getElementById('colorFamily').value || null,
+        pattern: document.getElementById('pattern').value || null,
+        dept: document.getElementById('dept').value || null,
+        fiberType: document.getElementById('fiberType').value || null,
+        origin: document.getElementById('origin').value || null,
+        width: document.getElementById('width').value ? parseFloat(document.getElementById('width').value) : null,
+        gsm: document.getElementById('gsm').value ? parseFloat(document.getElementById('gsm').value) : null,
+        designer: document.getElementById('designer').value.trim() || null,
+        feelsLike: feels
+      };
+    }
+
+    function buildReview(){
+      reviewMedia.innerHTML = '';
+      reviewKv.innerHTML = '';
+
+      state.photos.forEach((p, idx)=>{
+        const div = document.createElement('div');
+        div.className = 'ph';
+        const img = document.createElement('img');
+        img.src = p.previewUrl;
+        img.alt = idx === 0 ? 'Cover photo' : 'Photo ' + (idx+1);
+        div.appendChild(img);
+        if(idx === 0){
+          const badge = document.createElement('div');
+          badge.className = 'ph-label';
+          badge.textContent = 'Cover';
+          div.appendChild(badge);
+        }
+        reviewMedia.appendChild(div);
+      });
+
+      if(state.video){
+        const div = document.createElement('div');
+        div.className = 'ph';
+        const vid = document.createElement('video');
+        vid.src = state.video.url;
+        vid.controls = true;
+        div.appendChild(vid);
+        reviewMedia.appendChild(div);
+      }
+
+      const addRow = (label,val)=>{
+        const k = document.createElement('div');
+        k.className = 'kv-key';
+        k.textContent = label;
+        const v = document.createElement('div');
+        v.className = 'kv-val';
+        v.textContent =
+          (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length))
+            ? '—'
+            : (Array.isArray(val) ? val.join(', ') : String(val));
+        reviewKv.appendChild(k);
+        reviewKv.appendChild(v);
+      };
+
+      const d = state.details;
+      addRow('title', d.title);
+      addRow('price', d.price !== null ? '$'+d.price : null);
+      addRow('orig price', d.origPrice !== null ? '$'+d.origPrice : null);
+      addRow('yards', d.yards);
+      addRow('description', d.desc);
+      addRow('content', d.content);
+      addRow('fabric', d.fabric);
+      addRow('color', d.colorFamily);
+      addRow('pattern', d.pattern);
+      addRow('dept', d.dept);
+      addRow('fiber type', d.fiberType);
+      addRow('origin', d.origin);
+      addRow('width', d.width ? d.width + ' in' : null);
+      addRow('gsm', d.gsm);
+      addRow('designer', d.designer);
+      addRow('feels like', d.feelsLike);
+    }
+
+    backBtn.addEventListener('click', ()=>{
+      if(step > 1){
+        setStep(step - 1);
+      }
+    });
+
+    nextBtn.addEventListener('click', async ()=>{
+      if(step === 1){
+        if(state.photos.length === 0){
+          photoError.style.display = 'block';
+          return;
+        }
+        photoError.style.display = 'none';
+        setStep(2);
+        return;
+      }
+
+      if(step === 2){
+        if(!validateStep2()) return;
+        collectDetails();
+        buildReview();
+        setStep(3);
+        return;
+      }
+
+      if(step === 3){
+        if(!agreeBox.checked){
+          errAgree.style.display = 'block';
+          return;
+        }
+        errAgree.style.display = 'none';
+        await publishListing(user);
+      }
+    });
+
+    agreeBox.addEventListener('change', ()=>{
+      if(step === 3){
+        nextBtn.disabled = !agreeBox.checked;
+        if(agreeBox.checked){
+          errAgree.style.display = 'none';
+        }
+      }
+    });
+
+    saveDraft.addEventListener('click', ()=>{
+      alert('Draft saving is not wired yet. For now, publish when you are ready.');
+    });
+
+    // Upload photos to Supabase storage and return cover URL
+    async function uploadListingPhotos(user){
+      if(!state.photos.length){
+        return { coverUrl:null, items:[] };
+      }
+
+      const bucket = supabaseClient.storage.from(MEDIA_BUCKET);
+      const uploaded = [];
+      const base = `${user.id}/${Date.now()}`;
+
+      for(let i=0;i<state.photos.length;i++){
+        const { file } = state.photos[i];
+        const name = file.name || `photo_${i}.jpg`;
+        const parts = name.split('.');
+        const ext = parts.length > 1 ? parts.pop() : 'jpg';
+        const path = `${base}_${i}.${ext}`;
+
+        const { data: uploadData, error: uploadErr } = await bucket.upload(path, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type || undefined
+        });
+        if(uploadErr){
+          console.error('Upload error', uploadErr);
+          throw uploadErr;
+        }
+
+        const { data: pubData } = bucket.getPublicUrl(path);
+        const publicUrl = pubData?.publicUrl || null;
+
+        uploaded.push({ path, publicUrl });
+
+        // keep it on the photo state too (just in case later)
+        state.photos[i].storagePath = path;
+        state.photos[i].publicUrl = publicUrl;
+      }
+
+      return {
+        coverUrl: uploaded[0]?.publicUrl || null,
+        items: uploaded
+      };
+    }
+
+    async function publishListing(user){
+      try{
+        nextBtn.disabled = true;
+        nextBtn.textContent = 'Publishing…';
+        backBtn.disabled = true;
+
+        const d = state.details;
+        const priceCents      = d.price     != null ? Math.round(d.price * 100)     : null;
+        const origPriceCents  = d.origPrice != null ? Math.round(d.origPrice * 100) : null;
+
+        // Upload photos first so we can save the cover image URL
+        const { coverUrl } = await uploadListingPhotos(user);
+
+const payload = {
+  seller_id: user.id,
+  title: d.title,
+  description: d.desc,
+  price_cents: priceCents,
+  orig_price_cents: origPriceCents,
+  yards_available: d.yards,
+  status: "active",
+  is_published: true,
+
+  // SPECS (FIXED)
+  content: d.content,
+  fabric_type: d.fabric,
+  color_family: d.colorFamily,
+  pattern: d.pattern,
+  dept: d.dept,
+  width_in: d.width,
+  weight_gsm: d.gsm,         // FIXED: listing page expects weight_gsm
+  fiber_type: d.fiberType,
+  country_of_origin: d.origin,
+  designer: d.designer,
+  feels_like: d.feelsLike?.join(", ") || null,
+
+  // IMAGES
+  image_url_1: coverUrl || null,
+};
+
+        const { error: insertErr } = await supabaseClient
+          .from('listings')
+          .insert(payload);
+
+        if(insertErr){
+          console.error(insertErr);
+          alert(
+            'Sorry, something went wrong while publishing.\n\n' +
+            (insertErr.message || 'Unknown error.')
+          );
+          nextBtn.disabled = false;
+          nextBtn.textContent = 'Publish';
+          backBtn.disabled = false;
+          return;
+        }
+
+        alert('Listing published!');
+        window.location.href = 'browse.html';
+      }catch(err){
+        console.error(err);
+        alert('Sorry, something went wrong while publishing.');
+        nextBtn.disabled = false;
+        nextBtn.textContent = 'Publish';
+        backBtn.disabled = false;
+      }
+    }
+
+    setStep(1);
+  })();
 </script>
 
 </body>
