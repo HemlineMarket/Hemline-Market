@@ -1301,21 +1301,32 @@
         // Upload photos first so we can save the cover image URL
         const { coverUrl } = await uploadListingPhotos(user);
 
-        const payload = {
-          seller_id: user.id,
-          title: d.title,
-          description: d.desc,
-          price_cents: priceCents,
-          orig_price_cents: origPriceCents,
-          yards_available: d.yards,
-          status: 'active',
-          is_published: true,
-          width_in: d.width,
-          gsm: d.gsm,
-          fiber_type: d.fiberType,
-          country_of_origin: d.origin,
-          image_url_1: coverUrl || null,
-        };
+const payload = {
+  seller_id: user.id,
+  title: d.title,
+  description: d.desc,
+  price_cents: priceCents,
+  orig_price_cents: origPriceCents,
+  yards_available: d.yards,
+  status: "active",
+  is_published: true,
+
+  // SPECS (FIXED)
+  content: d.content,
+  fabric_type: d.fabric,
+  color_family: d.colorFamily,
+  pattern: d.pattern,
+  dept: d.dept,
+  width_in: d.width,
+  weight_gsm: d.gsm,         // FIXED: listing page expects weight_gsm
+  fiber_type: d.fiberType,
+  country_of_origin: d.origin,
+  designer: d.designer,
+  feels_like: d.feelsLike?.join(", ") || null,
+
+  // IMAGES
+  image_url_1: coverUrl || null,
+};
 
         const { error: insertErr } = await supabaseClient
           .from('listings')
