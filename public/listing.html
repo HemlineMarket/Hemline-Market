@@ -1551,5 +1551,128 @@ replySpan.addEventListener("click", async ()=>{
     });
   });
 </script>
+  <script>
+(function(){
+  const FAV_KEY   = 'hm_favs';
+  const NOTIF_KEY = 'hm_notifications';
+
+  function getFavs(){
+    try{
+      const raw = localStorage.getItem(FAV_KEY);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data : [];
+    }catch(_){
+      return [];
+    }
+  }
+
+  function saveFavs(list){
+    try{
+      localStorage.setItem(FAV_KEY, JSON.stringify(list || []));
+    }catch(_){}
+  }
+
+  function getNotifs(){
+    try{
+      const raw = localStorage.getItem(NOTIF_KEY);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data : [];
+    }catch(_){
+      return [];
+    }
+  }
+
+  function saveNotifs(list){
+    try{
+      localStorage.setItem(NOTIF_KEY, JSON.stringify(list || []));
+    }catch(_){}
+  }
+
+  function parseNumber(text){
+    if(!text) return null;
+    const num = Number(String(text).replace(/[^0-9.]/g,''));
+    return Number.isFinite(num) ? num : null;
+  }
+
+  function buildFavFromPage(){
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id') || document.body.dataset.listingId || '';
+    if(!id) return null;
+
+    const titleEl  = document.querySelector('[data-listing-title]');
+    const priceEl  = document.querySelector('[data-listing-price]');
+    const yardsEl  = document.querySelector('[data-listing-yards]');
+    const widthEl  = document.querySelector('[data-listing-width]');
+    const photoImg = document.querySelector('[data-listing-photo] img, [data-listing-photo]');
+
+    const title = titleEl ? titleEl.textContent.trim() : (document.title || 'Listing');
+    const perYd = parseNumber(priceEl && priceEl.textContent);
+    const yards = parseNumber(yardsEl && yardsEl.textContent);
+    const width = parseNumber(widthEl && widthEl.textContent);
+    const photo = photoImg && photoImg.src ? photoImg.src : '';
+
+    return {
+      id: String(id),
+      title: title || 'Untitled fabric',
+      perYd: perYd,
+      yards: yards,
+      width: width,
+      photo: photo,
+      href: window.location.href
+    };
+  }
+
+  function isFav(id){
+    return getFavs().some(f => String(f.id) === String(id));
+  }
+
+  function setHeartUI(btn, active){
+    if(!btn) return;
+    btn.classList.toggle('is-favorited', !!active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.setAttribute('aria-label', active ? 'Remove from favorites' : 'Save to favorites');
+  }
+
+  const heartBtn = document.querySelector('[data-favorite-button]');
+  if(!heartBtn) return;
+
+  const fav = buildFavFromPage();
+  if(!fav || !fav.id) return;
+
+  // Initial state
+  setHeartUI(heartBtn, isFav(fav.id));
+
+  heartBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    const favs = getFavs();
+    const idx = favs.findIndex(f => String(f.id) === String(fav.id));
+    const currentlyFav = idx !== -1;
+
+    if(currentlyFav){
+      favs.splice(idx, 1);
+      saveFavs(favs);
+      setHeartUI(heartBtn, false);
+    }else{
+      favs.push(fav);
+      saveFavs(favs);
+      setHeartUI(heartBtn, true);
+
+      // Also log a local notification for the current user
+      const nowIso = new Date().toISOString();
+      const notifs = getNotifs();
+      notifs.push({
+        id: 'fav-' + fav.id + '-' + nowIso,
+        title: 'Saved to favorites',
+        meta: fav.title,
+        kind: 'Activity',
+        href: fav.href,
+        created_at: nowIso,
+        unread: true
+      });
+      saveNotifs(notifs);
+    }
+  });
+})();
+</script>
 </body>
 </html>
