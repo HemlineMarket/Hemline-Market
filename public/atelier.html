@@ -640,117 +640,191 @@
     return "HM";
   }
 
-function slugifyStoreName(raw){
-  if(!raw) return "";
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/['’]/g, "s")       // Thor's → thors
-    .replace(/[^a-z0-9]+/g,"-")  // spaces → hyphens
-    .replace(/^-+|-+$/g,"");     // trim edges
-}
+  function slugifyStoreName(raw){
+    if(!raw) return "";
+    return raw
+      .trim()
+      .toLowerCase()
+      .replace(/['’]/g,"s")       // Thor's → thors
+      .replace(/[^a-z0-9]+/g,"-") // spaces → hyphens
+      .replace(/^-+|-+$/g,"");    // trim edges
+  }
 
-  async function ensureSession(){
+  function moneyFromCents(c){
+    if(c == null) return null;
+    const v = c / 100;
+    return v.toLocaleString("en-US",{
+      style:"currency",
+      currency:"USD",
+      minimumFractionDigits:2,
+      maximumFractionDigits:2
+    });
+  }
+
+  async function ensureSession({maxWaitMs=3000} = {}){
+    // Poll a little in case auth just finished on another page
     let { data:{ session } } = await supabaseClient.auth.getSession();
-    return session?.user ? session : null;
+    if(session?.user) return session;
+    const start = Date.now();
+    while(!session?.user && Date.now() - start < maxWaitMs){
+      await new Promise(r=>setTimeout(r,120));
+      ({ data:{ session } } = await supabaseClient.auth.getSession());
+    }
+    return session || null;
   }
 
   function setHeaderForSession(session){
     const a = document.getElementById("headerAccountLink");
+    const badge = document.getElementById("headerAccountBadge");
     if(!a) return;
     if(session?.user){
       a.href = "account.html";
       a.classList.add("is-logged-in");
+      a.setAttribute("aria-label","Your account");
+      if(badge) badge.style.background = "#16a34a";
     } else {
       a.href = "auth.html?view=login";
       a.classList.remove("is-logged-in");
+      a.setAttribute("aria-label","Sign in or manage your account");
+      if(badge) badge.style.background = "#d1d5db";
     }
+  }
+
+  function showAtelierError(msg){
+    const el = document.getElementById("atelierError");
+    if(!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
   }
 
   async function loadListingsForSeller(sellerId){
     const grid  = document.getElementById("listingsGrid");
     const empty = document.getElementById("listingsEmpty");
-
-    const { data, error } = await supabaseClient
-      .from("listings")
-      .select("*")
-      .eq("seller_id", sellerId)
-      .order("created_at",{ascending:false});
-
-    if(error){ console.error(error); return; }
-
-    grid.innerHTML = "";
-
-    if(!data || !data.length){
-      empty.style.display="block";
-      grid.style.display="none";
+    if(!grid || !empty || !sellerId){
+      // No seller → nothing to show
+      empty.style.display = "block";
+      grid.style.display = "none";
       return;
     }
 
-    empty.style.display="none";
-    grid.style.display="grid";
+    try{
+      const { data, error } = await supabaseClient
+        .from("listings")
+        .select("*")
+        .eq("seller_id", sellerId)
+        .order("created_at",{ascending:false});
 
-    data.forEach(listing=>{
-      const card = document.createElement("article");
-      card.className = "atelier-card";
+      if(error){
+        console.error("Listings fetch error", error);
+        showAtelierError("We couldn’t load listings for this shop. Please refresh.");
+        empty.style.display="block";
+        grid.style.display="none";
+        return;
+      }
 
-      const photo = document.createElement("a");
-      photo.href = "listing.html?id="+listing.id;
-      photo.className = "atelier-card-photo";
+      grid.innerHTML = "";
 
-      if(listing.image_url_1){
-        const img = document.createElement("img");
-        img.src = listing.image_url_1;
-        photo.appendChild(img);
-      } else photo.textContent="Photo";
+      if(!data || !data.length){
+        empty.style.display="block";
+        grid.style.display="none";
+        return;
+      }
 
-      const body = document.createElement("div");
-      body.className="atelier-card-body";
+      empty.style.display="none";
+      grid.style.display="grid";
 
-      const t = document.createElement("a");
-      t.href="listing.html?id="+listing.id;
-      t.className="atelier-card-title";
-      t.textContent = listing.title || "Untitled listing";
+      data.forEach(listing=>{
+        const card = document.createElement("article");
+        card.className = "atelier-card";
+        card.dataset.id = listing.id;
 
-      body.appendChild(t);
+        // Photo
+        const photo = document.createElement("a");
+        photo.href = "listing.html?id="+encodeURIComponent(listing.id);
+        photo.className = "atelier-card-photo";
+        photo.setAttribute("aria-label","View listing");
 
-      card.appendChild(photo);
-      card.appendChild(body);
-      grid.appendChild(card);
-    });
+        if(listing.image_url_1){
+          const img = document.createElement("img");
+          img.src = listing.image_url_1;
+          img.alt = listing.title || "Listing photo";
+          photo.appendChild(img);
+        } else {
+          photo.textContent = "Photo";
+        }
+
+        const body = document.createElement("div");
+        body.className="atelier-card-body";
+
+        const t = document.createElement("a");
+        t.href = "listing.html?id="+encodeURIComponent(listing.id);
+        t.className = "atelier-card-title";
+        t.textContent = listing.title || "Untitled listing";
+
+        const meta = document.createElement("div");
+        meta.className = "atelier-card-meta";
+
+        const yardsSpan = document.createElement("span");
+        if(listing.yards_available != null){
+          yardsSpan.textContent = listing.yards_available + " yards";
+        } else {
+          yardsSpan.textContent = "Yardage?";
+        }
+
+        const priceSpan = document.createElement("span");
+        if(listing.price_cents != null){
+          priceSpan.textContent = moneyFromCents(Number(listing.price_cents)) + "/yard";
+        } else {
+          priceSpan.textContent = "Price?";
+        }
+
+        meta.appendChild(yardsSpan);
+        meta.appendChild(priceSpan);
+
+        const foot = document.createElement("div");
+        foot.className = "atelier-card-foot";
+
+        const statusBadge = document.createElement("span");
+        statusBadge.className = "badge-status";
+        const isPublished = listing.is_published !== false;
+        if(isPublished){
+          statusBadge.textContent = "Published";
+        } else {
+          statusBadge.textContent = "Draft";
+          statusBadge.classList.add("draft");
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "atelier-card-actions";
+
+        // NOTE: edit/delete are owner-only actions.
+        // We’ll enable them only when this is the owner’s own atelier in initAtelier.
+
+        body.appendChild(t);
+        body.appendChild(meta);
+        foot.appendChild(statusBadge);
+        foot.appendChild(actions);
+
+        body.appendChild(foot);
+
+        card.appendChild(photo);
+        card.appendChild(body);
+        grid.appendChild(card);
+      });
+    }catch(err){
+      console.error("Listings fetch exception", err);
+      showAtelierError("Unexpected error loading listings.");
+    }
   }
 
   async function initAtelier(){
-    // -------------------------------------------
-    // 1️⃣ Identify which atelier to load
-    // -------------------------------------------
     const urlParams = new URLSearchParams(window.location.search);
-    const viewedSellerId = urlParams.get("u");  // <--- new
+    const viewedSellerId = urlParams.get("u"); // seller being viewed (e.g. Fahad)
+
     const session = await ensureSession();
-    const loggedInUser = session?.user;
-    if(!loggedInUser){
-      window.location.href="auth.html?view=login";
-      return;
-    }
+    const loggedInUser = session?.user || null;
 
     setHeaderForSession(session);
-
-    // -------------------------------------------
-    // Determine target seller ID:
-    // If ?u= is present → view THAT seller's atelier
-    // If not → view your own atelier
-    // -------------------------------------------
-    const sellerId = viewedSellerId || loggedInUser.id;
-    const isOwnShop = (sellerId === loggedInUser.id);
-
-    // -------------------------------------------
-    // 2️⃣ Load profile from Supabase
-    // -------------------------------------------
-    const { data:profile, error } = await supabaseClient
-      .from("profiles")
-      .select("*")
-      .eq("id", sellerId)
-      .maybeSingle();
 
     const ownerNameEl = document.getElementById("atelierOwnerName");
     const shopNameEl  = document.getElementById("atelierShopName");
@@ -760,46 +834,93 @@ function slugifyStoreName(raw){
     const subEl       = document.getElementById("atelierSubtitle");
     const editBtn     = document.getElementById("btnEditShop");
     const shareInput  = document.getElementById("shareLinkInput");
+    const copyBtn     = document.getElementById("btnCopyLink");
+
+    // Decide which seller this page represents:
+    // 1) If ?u= is present → that user’s atelier (can be viewed logged in or out)
+    // 2) Else if logged in → your own atelier
+    // 3) Else → no seller; we’ll show a generic state
+    const sellerId = viewedSellerId || (loggedInUser ? loggedInUser.id : null);
+    const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
+
+    if(!sellerId){
+      // No seller to load – likely a logged-out visitor on /atelier.html with no ?u=
+      titleEl.textContent = "Atelier";
+      subEl.textContent = "Sign in or follow a seller link to view an Atelier.";
+      ownerNameEl.textContent = "Hemline member";
+      shopNameEl.textContent = "Store name";
+      bioEl.textContent = "";
+      avatarEl.textContent = "HM";
+      editBtn.style.display = loggedInUser ? "inline-flex" : "none";
+      if(loggedInUser){
+        editBtn.onclick = ()=> window.location.href = "account.html";
+      }
+      shareInput.value = window.location.href;
+      copyBtn.onclick = ()=> navigator.clipboard.writeText(shareInput.value);
+      await loadListingsForSeller(null);
+      return;
+    }
+
+    // Load profile for this sellerId from Supabase
+    let profile = null;
+    try{
+      const { data, error } = await supabaseClient
+        .from("profiles")
+        .select("*")
+        .eq("id", sellerId)
+        .maybeSingle();
+      if(error){
+        console.error("Profile fetch error", error);
+      } else {
+        profile = data;
+      }
+    }catch(err){
+      console.error("Profile fetch exception", err);
+    }
 
     const first = profile?.first_name || "";
     const last  = profile?.last_name  || "";
-    const shop  = profile?.store_name || (first+" "+last).trim() || "Hemline member";
+    const storeName = profile?.store_name || "";
     const bio   = profile?.bio || "";
-    const email = profile?.email || "";
+    const email = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
 
-    ownerNameEl.textContent = (first+" "+last).trim() || "Hemline member";
+    const displayName = (first + " " + last).trim() || (isOwnShop && loggedInUser?.email ? loggedInUser.email.split("@")[0] : "Hemline member");
+    const shop = storeName || displayName;
+
+    if(titleEl){
+      titleEl.textContent = "Atelier: " + shop;
+    }
+    if(subEl){
+      subEl.textContent = "Fabrics, stories, and listings from " + shop + ".";
+    }
+
+    ownerNameEl.textContent = displayName;
     shopNameEl.textContent  = "Store name: " + shop;
     bioEl.textContent       = bio;
 
     const initials = initialsFromProfile(first,last,email);
     avatarEl.textContent = initials;
 
-    titleEl.textContent = "Atelier: " + shop;
-    subEl.textContent   = "Fabrics, stories, and listings from " + shop + ".";
-
-    // -------------------------------------------
-    // 3️⃣ Share link
-    // -------------------------------------------
-    const shopSlug = slugifyStoreName(shop);
-    shareInput.value = window.location.origin + "/atelier.html?u=" + sellerId;
-
-    document.getElementById("btnCopyLink").onclick = ()=>{
+    // Share link – always encode the seller id
+    const shareUrl = window.location.origin + "/atelier.html?u=" + encodeURIComponent(sellerId);
+    shareInput.value = shareUrl;
+    copyBtn.onclick = ()=>{
       navigator.clipboard.writeText(shareInput.value);
     };
 
-    // -------------------------------------------
-    // 4️⃣ Disable editing when viewing others
-    // -------------------------------------------
+    // Edit button only visible on your own atelier
     if(!isOwnShop){
-      editBtn.style.display="none";
-    } else {
-      editBtn.onclick = ()=> window.location.href="account.html";
+      editBtn.style.display = "none";
+    }else{
+      editBtn.style.display = "inline-flex";
+      editBtn.onclick = ()=> window.location.href = "account.html";
     }
 
-    // -------------------------------------------
-    // 5️⃣ Load that seller’s listings
-    // -------------------------------------------
+    // Finally load listings for that seller
     await loadListingsForSeller(sellerId);
+
+    // If it IS own shop, we could later wire Edit/Delete per card using sellerId,
+    // but for now listings are view-only from this page.
   }
 
   initAtelier();
