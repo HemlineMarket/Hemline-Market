@@ -33,7 +33,7 @@
     .is-hidden{display:none !important;}
     .muted-small{margin:10px 2px 0;font-size:13px;color:var(--hm-muted);}
 
-    /* Hero + UI */
+    /* HERO + SEARCH */
     .hero-wrap{
       max-width:1200px;
       margin:14px auto 0;
@@ -403,8 +403,7 @@
     }
 
     @media (max-width:640px){
-      .hm-header .wrap{padding:0 8px}
-      .hm-btn-primary{padding:8px 14px}
+      .hero-wrap{padding:0 8px}
     }
   </style>
 </head>
@@ -432,9 +431,68 @@
           <option value="users">Users</option>
         </select>
         <label class="is-hidden" for="searchQ">Search query</label>
-        <input type="search" name="q" id="searchQ" placeholder="Search fabrics, shops, or styles…" aria-label="Search query"/>
+        <input type="search" name="q" id="searchQ"
+               placeholder="Search fabrics, shops, or styles…" aria-label="Search query"/>
         <button type="submit" aria-label="Search">Search</button>
       </form>
+
+      <!-- Filter tabs (placeholder for future wiring) -->
+      <div class="tab-row is-hidden" id="tabRow" aria-hidden="true">
+        <button type="button" class="tab" data-panel="pContent" aria-expanded="false">Content</button>
+        <button type="button" class="tab" data-panel="pColor"   aria-expanded="false">Color</button>
+        <button type="button" class="tab" data-panel="pPrice"   aria-expanded="false">$/yard</button>
+        <button type="button" class="tab" data-panel="pYards"   aria-expanded="false">Yards</button>
+        <button type="button" class="tab" data-panel="pMore"    aria-expanded="false">More</button>
+      </div>
+
+      <div class="panel-grid is-hidden" aria-hidden="true">
+        <div id="pContent" class="panel content-panel">
+          <div class="list">
+            <div class="check"><input id="cotton" type="checkbox"><label for="cotton">Cotton</label></div>
+            <div class="check"><input id="linen"  type="checkbox"><label for="linen">Linen</label></div>
+            <div class="check"><input id="wool"   type="checkbox"><label for="wool">Wool</label></div>
+            <div class="check"><input id="silk"   type="checkbox"><label for="silk">Silk</label></div>
+            <div class="check"><input id="rayon"  type="checkbox"><label for="rayon">Rayon/Viscose</label></div>
+          </div>
+        </div>
+        <div id="pColor" class="panel">
+          <div class="row">
+            <div class="field">
+              <label for="color">Primary color</label>
+              <select id="color">
+                <option value="">Any</option>
+                <option>Black</option><option>White</option><option>Blue</option>
+                <option>Green</option><option>Red</option><option>Yellow</option>
+                <option>Purple</option><option>Brown</option><option>Gray</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div id="pPrice" class="panel">
+          <div class="row">
+            <div class="field"><label for="pmin">$ / yd (min)</label><input id="pmin" type="number" min="0" step="1" placeholder="0"></div>
+            <div class="field"><label for="pmax">$ / yd (max)</label><input id="pmax" type="number" min="0" step="1" placeholder="100"></div>
+          </div>
+        </div>
+        <div id="pYards" class="panel">
+          <div class="row">
+            <div class="field"><label for="ymin">Yards (min)</label><input id="ymin" type="number" min="0" step="0.5" placeholder="0"></div>
+            <div class="field"><label for="ymax">Yards (max)</label><input id="ymax" type="number" min="0" step="0.5" placeholder="10"></div>
+          </div>
+        </div>
+        <div id="pMore" class="panel">
+          <div class="row">
+            <div class="field"><label for="width">Width</label><input id="width" type="number" min="0" step="1" placeholder="inches"></div>
+            <div class="field"><label for="gsm">Weight (GSM)</label><input id="gsm" type="number" min="0" step="10" placeholder="e.g., 180"></div>
+          </div>
+        </div>
+        <div id="pMore2" class="panel"></div>
+      </div>
+
+      <div class="global-actions is-hidden" aria-hidden="true">
+        <button class="btn" id="clearAll" type="button">Clear</button>
+        <button class="btn btn-primary" id="applyAll" type="button">Apply</button>
+      </div>
     </div>
   </section>
 
@@ -518,7 +576,8 @@
           e.preventDefault();
           const type = (document.getElementById('searchType') || {}).value || 'listings';
           const q    = (document.getElementById('searchQ') || {}).value || '';
-          const url  = 'browse.html?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q);
+          const url  = 'browse.html?type=' + encodeURIComponent(type) +
+                       '&q=' + encodeURIComponent(q);
           window.location.href = url;
         });
       }
