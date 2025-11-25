@@ -3,917 +3,519 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Hemline Market — Find your next fabric creation</title>
+  <title>ThreadTalk — Hemline Market</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
-  <!-- Shared styles -->
+  <!-- Shared site styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hem-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
   <style>
+    /* Optional: subtle UI for reactions/comments/edit; mobile-friendly */
+    .tt-react-row{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+    .tt-react{border:1px solid var(--border);background:#fff;border-radius:999px;padding:6px 10px;font-size:14px;cursor:pointer}
+    .tt-react span{min-width:1.2em;display:inline-block;text-align:center}
+
+    .tt-comments{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+    .tt-comment{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px}
+    .tt-comment-head{color:var(--muted);font-size:12px;margin-bottom:4px}
+    .tt-comment-new{display:flex;gap:8px}
+    .tt-comment-input{flex:1;border:1px solid var(--border);border-radius:10px;padding:8px}
+    .tt-comment-send{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px}
+
+    .tt-menu{position:relative}
+    .tt-menu-btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:4px 8px}
+    .tt-menu-pop{position:absolute;right:0;top:32px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 18px rgba(0,0,0,.08);display:grid}
+    .tt-menu-item{padding:8px 12px;background:#fff;border:none;text-align:left;cursor:pointer}
+    .tt-menu-item:hover{background:#faf7f4}
+    .tt-menu-item.danger{color:#b91c1c}
+    .tt-edit-area{width:100%;min-height:84px;border:1px solid var(--border);border-radius:10px;padding:10px}
+    .tt-edit-actions{display:flex;gap:8px;margin-top:8px}
+    .tt-edit-save,.tt-edit-cancel{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px}
+    .tt-edit-save{border-color:var(--accent);background:var(--accent);color:#fff}
+
+    /* Composer: make Category narrow, give text area the space */
+    .composer .row{display:flex;gap:10px;align-items:flex-start}
+
+    #composeCategory{
+      flex:0 0 240px;
+      max-width:260px;
+      width:auto !important;
+    }
+
+    #composeText{
+      flex:1 1 auto;
+      width:auto !important;
+      min-height:110px;
+    }
+
+    /* Mobile: stack fields full-width */
+    @media (max-width:640px){
+      .composer .row{flex-direction:column}
+      #composeCategory,
+      #composeText{width:100% !important; max-width:100%; flex:0 0 auto}
+    }
+
     :root{
-      --hm-accent:#991b1b;
-      --hm-text:#111827;
-      --hm-muted:#6b7280;
-      --hm-border:#e5e7eb;
-      --hm-bg-card:rgba(255,255,255,.96);
+      --hm-brand:#991b1b;
+      --ink:#3f2f2a;
+      --muted:#7a6e68;
+      --border:#e8e0d9;
+      --card:#ffffff;
+      --bg:#fdfbf9;
+      --accent:#2d2d2d;
     }
 
     body{
       margin:0;
-      background:url("images/homepage.jpeg") center/cover fixed no-repeat;
-      color:var(--hm-text);
+      background:
+        radial-gradient(1200px 420px at 50% -240px, rgba(153,27,27,.06) 0%, rgba(253,251,249,0) 60%),
+        linear-gradient(180deg, var(--bg) 0%, #fff 100%);
+      color:var(--ink);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
 
-    /* Utility */
-    .is-hidden{display:none !important;}
-    .muted-small{margin:10px 2px 0;font-size:13px;color:var(--hm-muted);}
-
-    /* HEADER + SHELL (matches hm-shell markup) */
-    .hm-header{
-      min-height:56px;
-      background:#fff;
-      border-bottom:1px solid var(--hm-border);
-      position:relative;
-      z-index:101;
-    }
-    .hm-header .wrap{
+    .tt-wrap{
       max-width:1200px;
-      margin:0 auto;
-      padding:0 12px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
+      margin:22px auto 44px;
+      padding:0 16px;
     }
-    .left{
+
+    /* Hero + compact composer */
+    .tt-hero{
+      border:1px solid var(--border);
+      border-radius:20px;
+      padding:18px 16px;
+      text-align:center;
+      box-shadow:0 10px 20px rgba(50,38,31,.07);
+      background:radial-gradient(120% 150% at 50% 0%, #fff 0%, rgba(153,27,27,.05) 55%, #fff 100%);
+    }
+    .tt-hero h1{
+      font-family:ui-serif,"Cormorant Garamond",Georgia,serif;
+      font-size:clamp(28px,4.2vw,44px);
+      margin:0 0 4px;
+    }
+    .tt-hero .sub{
+      color:var(--muted);
+      font-size:15px;
+      margin:6px 0 12px;
+    }
+
+    .composer{
+      max-width:780px;
+      margin:10px auto 0;
+      text-align:left;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:8px;
+      box-shadow:0 6px 14px rgba(50,38,31,.06);
+    }
+    .composer .row{display:flex;gap:8px;margin:8px}
+    .composer select{min-width:220px}
+    .composer select,
+    .composer textarea{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:10px 12px;
+      font:inherit;
+      color:var(--ink);
+      background:#fff;
+    }
+    .composer textarea{min-height:84px;resize:vertical}
+    .composer .actions{
       display:flex;
       align-items:center;
       gap:10px;
+      justify-content:space-between;
+      margin:6px 8px 4px;
     }
-    .hm-brand{
-      font-size:24px;
-      font-weight:800;
-      color:var(--hm-accent);
-      text-decoration:none;
-    }
-    .hamburger{
+    .left-actions{display:flex;gap:8px;align-items:center}
+    .right-actions{display:flex;gap:8px;align-items:center}
+
+    .icon-btn{
       display:inline-grid;
       place-items:center;
       width:36px;
       height:36px;
-      border:1px solid var(--hm-border);
       border-radius:10px;
+      border:1px solid var(--border);
       background:#fff;
-      color:#374151;
       cursor:pointer;
     }
-    .hamburger svg{width:22px;height:22px;stroke-width:2}
-    .right{
-      display:flex;
-      align-items:center;
-      gap:14px;
-    }
-    .hm-icon{
-      color:#444;
-      display:inline-grid;
-      place-items:center;
-      text-decoration:none;
-    }
-    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+    .icon-btn svg{width:20px;height:20px}
+    .icon-photo{color:#dc2626}
+    .icon-video{color:#2563eb}
 
-    /* Account icon + login badge (used inside hm-shell header) */
-    .hm-account{
-      position:relative;
-      display:inline-grid;
-      place-items:center;
-      width:26px;
-      height:26px;
+    .tt-post{
+      appearance:none;
+      border:1px solid var(--accent);
+      background:var(--accent);
+      color:#fff;
+      padding:8px 14px;
+      border-radius:10px;
+      font-weight:700;
     }
-    .hm-account svg{
-      width:26px;
-      height:26px;
-      stroke-width:2;
+    .tt-post:disabled{opacity:.5;cursor:not-allowed}
+
+    .preview-wrap{
+      display:flex;
+      gap:10px;
+      padding:0 8px 8px;
+    }
+    .preview-wrap img,
+    .preview-wrap video{
+      max-width:140px;
+      max-height:120px;
+      border-radius:10px;
+      border:1px solid var(--border);
       display:block;
     }
-    .hm-account-badge{
-      position:absolute;
-      bottom:-2px;
-      right:-2px;
-      width:10px;
-      height:10px;
-      border-radius:50%;
-      border:2px solid #fff;
-      background:#d1d5db;
-    }
-    .hm-account.is-logged-in .hm-account-badge{background:#16a34a;}
-    .hm-account.is-logged-out .hm-account-badge{background:#d1d5db;}
 
-    .hm-btn-primary{
-      background:var(--hm-accent);
-      color:#fff;
-      border:1px solid var(--hm-accent);
-      border-radius:999px;
-      padding:10px 18px;
-      font-weight:700;
+    /* Topics */
+    .topics{margin-top:22px}
+    .topics-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+      gap:16px;
+    }
+    .topic{
+      position:relative;
+      overflow:hidden;
+      background:#fff;
+      display:block;
       text-decoration:none;
-      box-shadow:0 2px 8px rgba(153,27,27,.25);
-      white-space:nowrap;
+      color:var(--ink);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:20px 18px 18px 18px;
+      box-shadow:0 10px 16px rgba(50,38,31,.06);
+      transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .topic:hover{
+      transform:translateY(-2px);
+      box-shadow:0 16px 28px rgba(50,38,31,.1);
+      border-color:#e2d7cf;
+    }
+    .topic .title{font-weight:800;letter-spacing:.2px}
+    .topic::before{
+      content:'';
+      position:absolute;
+      left:0;
+      top:0;
+      bottom:0;
+      width:4px;
+      background:var(--hm-brand);
+      opacity:.9;
+    }
+    .tile-art{
+      position:absolute;
+      right:-6px;
+      top:-6px;
+      width:84px;
+      height:84px;
+      opacity:.2;
+      pointer-events:none;
+      stroke:var(--hm-brand);
+      fill:none;
+      stroke-width:1.5;
     }
 
-    /* Slide-out sheet from hm-shell */
+    /* Feed */
+    .feed{margin-top:24px}
+    .feed h2{
+      font-size:18px;
+      margin:4px 0 12px 4px;
+      color:#5a463d;
+    }
+    .cards{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      max-width:1200px;
+      margin:0 auto;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:18px 20px;
+      box-shadow:0 12px 18px rgba(50,38,31,.07);
+    }
+    .meta{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--muted);
+      font-size:13px;
+      margin-bottom:6px;
+    }
+    .avatar{
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      border:1px solid var(--border);
+      background:#fff;
+      display:inline-grid;
+      place-items:center;
+      font-weight:700;
+      font-size:12px;
+    }
+    .title{margin:4px 0 8px;line-height:1.35}
+    .cat{
+      font-weight:800;
+      margin-right:.35rem;
+      text-decoration:none;
+      color:var(--hm-brand);
+    }
+    .preview{
+      color:#5e544d;
+      font-size:14px;
+      margin-bottom:8px;
+      white-space:pre-wrap;
+    }
+    .post-img,
+    .post-video{
+      width:100%;
+      height:auto;
+      border-radius:12px;
+      margin:8px 0;
+      border:1px solid var(--border);
+      display:block;
+      max-height:560px;
+    }
+    .actions{
+      display:flex;
+      gap:14px;
+      align-items:center;
+      color:#7e6f66;
+      font-size:13px;
+      margin-top:8px;
+    }
+
+    /* Hamburger sheet + overlay (used by hm-shell header) */
+    #sheetOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.28);
+      opacity:0;
+      visibility:hidden;
+      transition:opacity .2s ease;
+      z-index:325;
+    }
+    #sheetOverlay.show{
+      opacity:1;
+      visibility:visible;
+    }
     .sheet{
       position:fixed;
       inset:0 auto 0 0;
       width:min(84vw,340px);
       background:#fff;
-      border-right:1px solid var(--hm-border);
+      border-right:1px solid var(--border);
       transform:translateX(-100%);
       transition:transform .25s ease;
-      z-index:100;
+      z-index:350;
       display:flex;
       flex-direction:column;
     }
     .sheet.open{transform:translateX(0)}
-    .sheet header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:10px;
-      border-bottom:1px solid var(--hm-border);
-    }
-    .sheet nav{
-      display:grid;
-      padding:10px;
-    }
-    .sheet nav a{
-      padding:10px;
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      text-decoration:none;
-      color:#1f2937;
-    }
-    .sheet nav a + a{margin-top:8px}
-    .sheet .close{
-      display:inline-grid;
-      place-items:center;
-      width:30px;
-      height:30px;
-      border:1px solid var(--hm-border);
-      border-radius:8px;
-      background:#fff;
-      color:#444;
-      cursor:pointer;
-    }
 
-    /* Overlay for shell drawer */
-    #sheetOverlay{
+    /* Toast */
+    .toast{
       position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.25);
-      backdrop-filter:blur(1px);
-      display:none;
-      z-index:90;
-    }
-    #sheetOverlay.show{display:block}
-
-    /* Hero + UI */
-    .hero-wrap{
-      max-width:1200px;
-      margin:14px auto 0;
-      padding:0 12px;
-    }
-    .hero-card{
-      background:rgba(255,255,255,.94);
-      border-radius:14px;
-      box-shadow:0 6px 14px rgba(0,0,0,.10);
-      padding:12px;
-    }
-    .home-hero h1{
-      font-size:22px;
-      margin:0 0 4px;
-      font-weight:800;
-    }
-    .home-hero p{
-      margin:0 0 8px;
-      color:var(--hm-muted);
-      font-size:13px;
-    }
-
-    .cta-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      margin:8px 0 10px;
-    }
-    .cta{
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      padding:8px 12px;
-      background:#fff;
-      font-weight:700;
-      text-decoration:none;
-      color:#1f2937;
-    }
-    .cta--primary{
-      border-color:var(--hm-accent);
-      background:var(--hm-accent);
+      left:50%;
+      bottom:22px;
+      transform:translateX(-50%);
+      background:#1f2937;
       color:#fff;
-    }
-
-    .search-card{
-      display:grid;
-      grid-template-columns:120px 1fr auto;
-      gap:8px;
-      margin-bottom:10px;
-    }
-    .search-card select,
-    .search-card input{
-      padding:8px 10px;
-      border:1px solid var(--hm-border);
+      padding:10px 14px;
       border-radius:10px;
-      background:#fff;
-    }
-    .search-card button{
-      padding:8px 12px;
-      border-radius:10px;
-      border:1px solid var(--hm-accent);
-      background:var(--hm-accent);
-      color:#fff;
-      font-weight:700;
-    }
-    @media (max-width:760px){
-      .search-card{grid-template-columns:1fr;gap:6px}
-    }
-
-    .tab-row{
-      display:grid;
-      grid-template-columns:repeat(5,1fr);
-      gap:8px;
-      margin-bottom:8px;
-    }
-    .tab{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      height:36px;
-      border:1.5px solid var(--hm-border);
-      border-radius:999px;
-      background:#fff;
-      font-weight:700;
-      font-size:13px;
-      color:#374151;
-      cursor:pointer;
-      user-select:none;
-    }
-    .tab:after{
-      content:"+";
-      margin-left:6px;
-      font-weight:900;
-      color:#6b7280;
-    }
-    .tab[aria-expanded="true"]{
-      border-color:var(--hm-accent);
-      box-shadow:0 0 0 2px rgba(153,27,27,.10);
-    }
-    .tab[aria-expanded="true"]:after{content:"–"}
-
-    .panel-grid{
-      display:grid;
-      grid-template-columns:repeat(5,1fr);
-      gap:8px;
-    }
-    .panel{
-      display:none;
-      background:rgba(255,255,255,.98);
-      border:1px solid var(--hm-border);
-      border-radius:12px;
-      padding:8px;
-      min-height:54px;
-    }
-    .panel.open{display:block}
-
-    .content-panel .list{
-      max-height:160px;
-      overflow:auto;
-      padding:4px;
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      background:#fff;
-    }
-    .check{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 8px;
-      border-bottom:1px dashed #f1f5f9;
-    }
-    .check:last-child{border-bottom:0}
-    .check input{width:14px;height:14px}
-    .check label{font-size:12px;color:#374151}
-
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    .field{display:flex;flex-direction:column;gap:4px}
-    .field label{font-size:12px;color:#374151}
-    .field input,
-    .field select{
-      padding:7px 10px;
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      background:#fff;
-      font-size:13px;
-      min-width:120px;
-    }
-
-    .global-actions{
-      display:flex;
-      justify-content:flex-end;
-      gap:8px;
-      margin-top:8px;
-    }
-    .btn{
-      padding:6px 10px;
-      border-radius:10px;
-      border:1px solid var(--hm-border);
-      background:#fff;
-      color:#374151;
-      cursor:pointer;
-      font-size:13px;
-    }
-    .btn-primary{
-      border-color:var(--hm-accent);
-      background:var(--hm-accent);
-      color:#fff;
-    }
-
-    /* HOW IT WORKS card */
-    .how-it-works{
-      margin:16px auto 8px;
-      max-width:1200px;
-      padding:0 12px;
-    }
-    .hiw-shell{
-      background:rgba(255,255,255,.96);
-      border:1px solid var(--hm-border);
-      border-radius:14px;
-      box-shadow:0 6px 14px rgba(0,0,0,.06);
-      padding:14px 16px 12px;
-    }
-    .hiw-header{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      margin-bottom:8px;
-    }
-    .hiw-title{
-      font-size:15px;
-      font-weight:800;
-    }
-    .hiw-subtitle{
-      font-size:13px;
-      color:var(--hm-muted);
-    }
-    .hiw-list{
-      margin:4px 0 0;
-      padding-left:18px;
-      font-size:13px;
-    }
-    .hiw-list li{margin:2px 0;}
-    .hiw-tagline{
-      margin-top:8px;
-      font-size:13px;
-      font-weight:600;
-    }
-    @media (max-width:768px){
-      .how-it-works{padding:0 8px;margin-top:10px;}
-    }
-
-    /* Layout + New Listings grid */
-    .layout{
-      max-width:1200px;
-      margin:12px auto 0;
-      padding:0 12px;
-    }
-    .section h2{
-      margin:0 0 8px;
-      font-size:18px;
-    }
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:10px;
-    }
-    @media (max-width:900px){
-      .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-    }
-    @media (max-width:560px){
-      .grid{grid-template-columns:1fr}
-    }
-
-    /* Listing cards */
-    .listing-card{
-      background:var(--hm-bg-card);
-      border:1px solid var(--hm-border);
-      border-radius:12px;
-      overflow:hidden;
-      display:flex;
-      flex-direction:column;
-    }
-    .listing-thumb-link{
-      display:block;
-      text-decoration:none;
-      color:inherit;
-    }
-    .listing-thumb{
-      aspect-ratio:1/1;
-      background:linear-gradient(180deg,#f8fafc,#eef2f7);
-      display:grid;
-      place-items:center;
-      overflow:hidden;
-    }
-    .listing-thumb img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-    }
-    .listing-body{
-      padding:8px 10px 10px;
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-    }
-    .listing-title-row{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:6px;
-    }
-    .listing-title{
-      font-weight:700;
       font-size:14px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      text-decoration:none;
-      color:#111827;
+      box-shadow:0 6px 18px rgba(0,0,0,.18);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .2s;
     }
-    .listing-dept{
-      font-size:11px;
-      padding:2px 6px;
-      border-radius:999px;
-      background:#f3f4f6;
-      color:#4b5563;
-      flex:0 0 auto;
-      white-space:nowrap;
-    }
-    .listing-yards{
-      font-size:12px;
-      color:#4b5563;
-    }
-    .listing-cta-row{
-      margin-top:4px;
-    }
-    .listing-add-btn{
-      width:100%;
+    .toast.show{opacity:1}
+    a:focus-visible,
+    button:focus-visible{
+      outline:3px solid rgba(153,27,27,.35);
+      outline-offset:2px;
       border-radius:10px;
-      border:1px solid var(--hm-accent);
-      background:var(--hm-accent);
-      color:#fff;
-      font-weight:700;
-      font-size:13px;
-      padding:8px 10px;
-      cursor:pointer;
-    }
-    .listing-add-btn[disabled]{
-      opacity:.6;
-      cursor:not-allowed;
-    }
-    .listing-price-row{
-      margin-top:6px;
-      display:flex;
-      align-items:center;
-      gap:6px;
-      font-size:12px;
-    }
-    .listing-price-main{
-      font-weight:700;
-      color:#111827;
-    }
-    .listing-price-orig{
-      text-decoration:line-through;
-      color:#9ca3af;
-    }
-    .listing-seller-row{
-      margin-top:4px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      font-size:12px;
-      color:#6b7280;
-    }
-    .listing-seller-name{
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
     }
 
-    .below-rails{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-top:14px;
-    }
-    @media (max-width:900px){
-      .below-rails{grid-template-columns:1fr;gap:10px}
-    }
-    .panel header{
-      padding:8px 10px;
-      border-bottom:1px solid var(--hm-border);
-      font-weight:700;
-    }
-    .panel .panel-body{padding:8px 10px}
-
-    .likes-grid{
-      display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:6px;
-    }
-    .like{
-      height:40px;
-      border-radius:999px;
-      border:1px dashed var(--hm-border);
-      background:rgba(255,255,255,.9);
-    }
-
-    @media (max-width:640px){
-      .hm-header .wrap{padding:0 8px}
-      .hm-btn-primary{padding:8px 14px}
+    /* Mobile refinements */
+    @media (max-width: 640px){
+      .tt-hero{padding:14px 12px}
+      .composer{box-shadow:none}
+      #composeCategory{max-width:100%;font-size:16px}
+      #composeText{min-height:120px;font-size:16px}
+      .topics-grid{grid-template-columns:1fr}
+      .topic{padding:16px 14px}
+      .card{padding:14px 14px}
+      .actions,.reax{gap:10px}
+      .tt-post{width:100%}
     }
   </style>
 </head>
 <body>
 
-  <!-- UNIVERSAL HEADER (injected by hm-shell.js) -->
+  <!-- UNIVERSAL HEADER (hm-shell) -->
   <div id="hm-shell-header"></div>
 
-  <!-- HERO -->
-  <section class="hero-wrap">
-    <div class="hero-card home-hero">
-      <h1>Find your next fabric creation</h1>
-      <p>Buy &amp; sell your fabrics with prepaid, trackable shipping.</p>
+  <main class="tt-wrap" role="main">
+    <!-- HERO + Composer -->
+    <section class="tt-hero" aria-labelledby="tt-title">
+      <h1 id="tt-title">ThreadTalk</h1>
+      <p class="sub">Chat fabric, fit, and everything in between.</p>
 
-      <div class="cta-row" id="heroAuthCtas">
-        <a class="cta" href="auth.html?view=login">Log in</a>
-        <a class="cta" href="auth.html?view=signup">Sign up</a>
-        <a class="cta cta--primary" href="sell.html">Start selling</a>
-      </div>
+      <form class="composer" id="composer" aria-label="Create a thread">
+        <div class="row">
+          <select id="composeCategory" aria-label="Category">
+            <option value="">Choose a category (optional)—blank defaults to Loose Threads</option>
+            <option>Showcase</option>
+            <option>Tailoring</option>
+            <option>Stitch School</option>
+            <option>Fabric SOS</option>
+            <option>Before &amp; After</option>
+            <option>Pattern Hacks</option>
+            <option>Stash Confessions</option>
+            <option>Loose Threads</option>
+          </select>
+          <textarea id="composeText" placeholder="Share what you’re working on, stuck on, or proud of. Add #hashtags if you want."></textarea>
+        </div>
 
-      <form id="homeSearch" class="search-card" role="search" aria-label="Search">
-        <label class="is-hidden" for="searchType">Search type</label>
-        <select name="type" id="searchType" aria-label="Search type">
-          <option value="listings" selected>Listings</option>
-          <option value="users">Users</option>
-        </select>
-        <label class="is-hidden" for="searchQ">Search query</label>
-        <input type="search" name="q" id="searchQ" placeholder="Search fabrics, shops, or styles…" aria-label="Search query"/>
-        <button type="submit" aria-label="Search">Search</button>
+        <div class="preview-wrap" id="mediaPreview" hidden></div>
+
+        <div class="actions">
+          <div class="left-actions">
+            <label class="icon-btn" id="photoBtn" title="Add photo">
+              <input type="file" id="photoInput" accept="image/*" hidden>
+              <svg class="icon-photo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4 5h3l2-2h6l2 2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm8 3a4 4 0 1 0 .001 8.001A4 4 0 0 0 12 8z"/>
+              </svg>
+            </label>
+            <label class="icon-btn" id="videoBtn" title="Add video">
+              <input type="file" id="videoInput" accept="video/*" hidden>
+              <svg class="icon-video" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M15 10.5v-2a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-2l5 3v-9l-5 3z"/>
+              </svg>
+            </label>
+          </div>
+          <div class="right-actions">
+            <button type="submit" class="tt-post" id="postBtn">Post</button>
+          </div>
+        </div>
       </form>
+    </section>
 
-      <!-- Filter tabs (placeholder for future wiring) -->
-      <div class="tab-row is-hidden" id="tabRow" aria-hidden="true">
-        <button type="button" class="tab" data-panel="pContent" aria-expanded="false">Content</button>
-        <button type="button" class="tab" data-panel="pColor"   aria-expanded="false">Color</button>
-        <button type="button" class="tab" data-panel="pPrice"   aria-expanded="false">$/yard</button>
-        <button type="button" class="tab" data-panel="pYards"   aria-expanded="false">Yards</button>
-        <button type="button" class="tab" data-panel="pMore"    aria-expanded="false">More</button>
+    <!-- TOPICS (link to category pages) -->
+    <section class="topics" id="topics" aria-label="Popular topics">
+      <div class="topics-grid">
+        <a class="topic" href="showcase.html" aria-label="Showcase">
+          <strong class="title">Showcase</strong>
+          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M28 10c4 0 8 3 8 7s-4 7-8 7-8-3-8-7 4-7 8-7zM24 25c-2 8 16 8 14 0M28 10v-4M28 32v14M22 46h12M26 46v8M32 46v8"/>
+          </svg>
+        </a>
+
+        <a class="topic" href="tailoring.html" aria-label="Tailoring">
+          <strong class="title">Tailoring</strong>
+          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M10 46c12-10 22-10 34 0" />
+            <path d="M14 50h24M14 54h18" />
+            <circle cx="46" cy="46" r="6"/>
+          </svg>
+        </a>
+
+        <a class="topic" href="stitch-school.html" aria-label="Stitch School">
+          <strong class="title">Stitch School</strong>
+          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M18 14c20 8 28 18 28 36" />
+            <path d="M36 12l-8 40" />
+            <circle cx="36" cy="12" r="2"/>
+          </svg>
+        </a>
+
+        <a class="topic" href="fabric-sos.html" aria-label="Fabric SOS">
+          <strong class="title">Fabric SOS</strong>
+          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="14" y="14" width="28" height="18" rx="2"/>
+            <rect x="18" y="18" width="28" height="18" rx="2"/>
+          </svg>
+        </a>
+
+        <a class="topic" href="before-after.html" aria-label="Before & After">
+          <strong class="title">Before &amp; After</strong>
+          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="12" y="14" width="40" height="28" rx="2"/>
+            <path d="M32 14v28M20 20l6 6M38 34l6 6"/>
+          </svg>
+        </a>
+
+        <a class="topic" href="pattern-hacks.html" aria-label="Pattern Hacks">
+          <strong class="title">Pattern Hacks</strong>
+          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M18 40l10-10M18 20l10 10M34 30l12-8M34 30l12 8"/>
+            <path d="M46 18l2 2M50 22l2 2M46 26l2 2"/>
+          </svg>
+        </a>
+
+        <a class="topic" href="stash-confessions.html" aria-label="Stash Confessions">
+          <strong class="title">Stash Confessions</strong>
+          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M12 44h40M12 30h40M12 16h40"/>
+            <rect x="14" y="18" width="8" height="8" rx="1"/>
+            <rect x="24" y="18" width="10" height="8" rx="1"/>
+            <rect x="36" y="18" width="14" height="8" rx="1"/>
+          </svg>
+        </a>
+
+        <a class="topic" href="loose-threads.html" aria-label="Loose Threads">
+          <strong class="title">Loose Threads</strong>
+          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M16 44h14a8 8 0 0 1-8 8h-6zM18 36v8h10v-8" />
+            <rect x="38" y="36" width="6" height="12" rx="1"/>
+            <rect x="46" y="36" width="6" height="12" rx="1"/>
+          </svg>
+        </a>
       </div>
+    </section>
 
-      <div class="panel-grid is-hidden" aria-hidden="true">
-        <div id="pContent" class="panel content-panel">
-          <div class="list">
-            <div class="check"><input id="cotton" type="checkbox"><label for="cotton">Cotton</label></div>
-            <div class="check"><input id="linen"  type="checkbox"><label for="linen">Linen</label></div>
-            <div class="check"><input id="wool"   type="checkbox"><label for="wool">Wool</label></div>
-            <div class="check"><input id="silk"   type="checkbox"><label for="silk">Silk</label></div>
-            <div class="check"><input id="rayon"  type="checkbox"><label for="rayon">Rayon/Viscose</label></div>
-          </div>
-        </div>
-        <div id="pColor" class="panel">
-          <div class="row">
-            <div class="field">
-              <label for="color">Primary color</label>
-              <select id="color">
-                <option value="">Any</option>
-                <option>Black</option><option>White</option><option>Blue</option>
-                <option>Green</option><option>Red</option><option>Yellow</option>
-                <option>Purple</option><option>Brown</option><option>Gray</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div id="pPrice" class="panel">
-          <div class="row">
-            <div class="field"><label for="pmin">$ / yd (min)</label><input id="pmin" type="number" min="0" step="1" placeholder="0"></div>
-            <div class="field"><label for="pmax">$ / yd (max)</label><input id="pmax" type="number" min="0" step="1" placeholder="100"></div>
-          </div>
-        </div>
-        <div id="pYards" class="panel">
-          <div class="row">
-            <div class="field"><label for="ymin">Yards (min)</label><input id="ymin" type="number" min="0" step="0.5" placeholder="0"></div>
-            <div class="field"><label for="ymax">Yards (max)</label><input id="ymax" type="number" min="0" step="0.5" placeholder="10"></div>
-          </div>
-        </div>
-        <div id="pMore" class="panel">
-          <div class="row">
-            <div class="field"><label for="width">Width</label><input id="width" type="number" min="0" step="1" placeholder="inches"></div>
-            <div class="field"><label for="gsm">Weight (GSM)</label><input id="gsm" type="number" min="0" step="10" placeholder="e.g., 180"></div>
-          </div>
-        </div>
-        <div id="pMore2" class="panel"></div>
+    <!-- FEED -->
+    <section class="feed" id="feed" aria-labelledby="feed-title">
+      <h2 id="feed-title">Latest Threads</h2>
+      <div class="cards" id="cards" aria-live="polite"></div>
+      <div id="emptyState" style="color:#7a6e68;font-size:14px;margin:12px 4px">
+        No threads yet. Be the first to post!
       </div>
+    </section>
+  </main>
 
-      <div class="global-actions is-hidden" aria-hidden="true">
-        <button class="btn" id="clearAll" type="button">Clear</button>
-        <button class="btn btn-primary" id="applyAll" type="button">Apply</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- HOW IT WORKS SUMMARY -->
-  <section class="how-it-works" aria-labelledby="howTitle">
-    <div class="hiw-shell">
-      <div class="hiw-header">
-        <div class="hiw-title" id="howTitle">How Hemline Market works</div>
-        <div class="hiw-subtitle">
-          Hemline Market helps sewists find their next project and gives unused fabric a second life.
-        </div>
-      </div>
-      <ul class="hiw-list">
-        <li>Browse fabrics from independent sellers</li>
-        <li>List your own fabric</li>
-        <li>Hemline Market connects buyers and sellers with secure checkout and prepaid labels</li>
-      </ul>
-      <div class="hiw-tagline">Sew more. Waste less. Create freely.</div>
-    </div>
-  </section>
-
-  <!-- MAIN -->
-  <div class="layout">
-    <main class="section" aria-label="New listings">
-      <h2>New Listings</h2>
-
-      <div class="grid" id="newListingsGrid" aria-live="polite"></div>
-      <p id="newListingsEmpty" class="muted-small">
-        Newest fabrics will appear here as they’re published.
-      </p>
-
-      <div class="below-rails">
-        <section class="panel" aria-label="Favorites">
-          <header>Favorites</header>
-          <div class="panel-body">
-            <div class="likes-grid">
-              <a class="like" href="browse.html?type=listings" aria-label="Japanese Denim"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Silk Charmeuse"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="European Linen"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Italian Wool Suiting"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Cupro/Silk Satin"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Wool Crepe"></a>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel" aria-label="Recent Views">
-          <header>Recent Views</header>
-          <div class="panel-body">
-            <div class="likes-grid">
-              <a class="like" href="browse.html?type=listings" aria-label="Italian Silk Twill"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Wool Crepe"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Cotton Poplin"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Linen Canvas"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Tencel Twill"></a>
-              <a class="like" href="browse.html?type=listings" aria-label="Alpaca Bouclé"></a>
-            </div>
-          </div>
-        </section>
-      </div>
-    </main>
-  </div>
-
-  <!-- UNIVERSAL FOOTER (injected by hm-shell.js) -->
+  <!-- UNIVERSAL FOOTER (hm-shell) -->
   <div id="hm-shell-footer"></div>
 
-  <!-- Supabase JS -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">Posted</div>
+
+  <!-- Supabase + shell + ThreadTalk logic -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Shared shell (universal header/footer + menu + header session) -->
   <script src="scripts/hm-shell.js"></script>
+
+  <!-- Shared Supabase client (must load before threadtalk.js) -->
+  <script type="module" src="scripts/supabase-client.js"></script>
+
+  <!-- ThreadTalk UI + Supabase wiring -->
+  <script src="scripts/threadtalk.js"></script>
+  <script type="module" src="scripts/threadtalk.supabase.js"></script>
 
   <script>
     // Render shared header + footer
-    window.HM && window.HM.renderShell({ currentPage: "" });
-
-    (function(){
-      // Home search → browse.html?q=...&type=...
-      const form = document.getElementById('homeSearch');
-      if(form){
-        form.addEventListener('submit', function(e){
-          e.preventDefault();
-          const type = (document.getElementById('searchType') || {}).value || 'listings';
-          const q    = (document.getElementById('searchQ') || {}).value || '';
-          const url  = 'browse.html?type=' + encodeURIComponent(type) + '&q=' + encodeURIComponent(q);
-          window.location.href = url;
-        });
-      }
-
-      // Supabase client for homepage (new listings + hero CTAs)
-      let supabaseClient = null;
-      if(window.supabase){
-        supabaseClient = window.supabase.createClient(
-          "https://clkizksbvxjkoatdajgd.supabase.co",
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
-          { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
-        );
-      }
-
-      function moneyFromCents(c){
-        if(c == null) return "";
-        const v = Number(c) / 100;
-        return v.toLocaleString("en-US",{
-          style:"currency",
-          currency:"USD",
-          minimumFractionDigits:2,
-          maximumFractionDigits:2
-        });
-      }
-
-      function computeYards(row){
-        const y1 = row.yards_available;
-        const y2 = row.yardage;
-        const raw = (y1 != null ? Number(y1) : (y2 != null ? Number(y2) : null));
-        if(!Number.isFinite(raw) || raw <= 0) return null;
-        return raw;
-      }
-
-      const grid  = document.getElementById('newListingsGrid');
-      const empty = document.getElementById('newListingsEmpty');
-
-      async function loadNewListings(){
-        if(!grid || !supabaseClient) return;
-
-        try{
-          const { data:listings, error } = await supabaseClient
-            .from("listings")
-            .select("id,title,price_cents,orig_price_cents,yards_available,yardage,width_in,dept,status,is_published,seller_id,image_url_1,created_at")
-            .eq("is_published", true)
-            .order("created_at",{ ascending:false })
-            .limit(6);
-
-          if(error){
-            console.warn("New listings fetch error:", error);
-            return;
-          }
-          if(!listings || !listings.length){
-            return;
-          }
-
-          const sellerIds = [...new Set(listings.map(l=>l.seller_id).filter(Boolean))];
-
-          let profilesById = {};
-          if(sellerIds.length){
-            const { data:profiles, error:profError } = await supabaseClient
-              .from("profiles")
-              .select("id,store_name,first_name,last_name")
-              .in("id", sellerIds);
-            if(!profError && profiles){
-              profilesById = profiles.reduce((acc,p)=>{ acc[p.id] = p; return acc; },{});
-            }
-          }
-
-          grid.innerHTML = "";
-          if(empty) empty.classList.add("is-hidden");
-
-          listings.forEach(item=>{
-            const profile = item.seller_id ? profilesById[item.seller_id] : null;
-            const fullName = ((profile?.first_name || "") + " " + (profile?.last_name || "")).trim();
-            const shopName = profile?.store_name || fullName || "";
-            const sellerLabel = shopName || "Seller";
-
-            const yards = computeYards(item);
-            const priceCents = item.price_cents != null ? Number(item.price_cents) : null;
-            const perYdMoney = priceCents != null ? moneyFromCents(priceCents) : "";
-            const origPerMoney = item.orig_price_cents != null ? moneyFromCents(item.orig_price_cents) : "";
-            const totalCents = (priceCents != null && yards != null) ? priceCents * yards : null;
-            const totalMoney = totalCents != null ? moneyFromCents(totalCents) : "";
-
-            const status = (item.status || "active").toLowerCase();
-            const isSold = status === "sold";
-            const canBuy = !isSold && priceCents != null && yards != null && yards > 0;
-
-            const card = document.createElement("article");
-            card.className = "listing-card";
-
-            const href = "listing.html?id=" + encodeURIComponent(item.id);
-
-            const safeTitle = item.title || "Untitled listing";
-            const safeAlt = safeTitle.replace(/"/g,"&quot;");
-
-            card.innerHTML = `
-              <a class="listing-thumb-link" href="${href}">
-                <div class="listing-thumb" aria-hidden="true">
-                  ${item.image_url_1 ? `<img src="${item.image_url_1}" alt="${safeAlt}">` : ""}
-                </div>
-              </a>
-              <div class="listing-body">
-                <div class="listing-title-row">
-                  <a class="listing-title" href="${href}">${safeTitle}</a>
-                  ${item.dept ? `<span class="listing-dept">${item.dept}</span>` : ""}
-                </div>
-                ${yards != null ? `<div class="listing-yards">${yards} yards</div>` : ""}
-                <div class="listing-cta-row">
-                  <button type="button" class="listing-add-btn add-to-cart">
-                    ${
-                      canBuy && totalMoney && yards
-                        ? `Add to Cart — ${totalMoney} for ${yards} yards`
-                        : (isSold ? "Sold out" : "Add to Cart")
-                    }
-                  </button>
-                </div>
-                <div class="listing-price-row">
-                  ${
-                    perYdMoney
-                      ? `<span class="listing-price-main">${perYdMoney}/yard</span>`
-                      : `<span class="listing-price-main">Price coming soon</span>`
-                  }
-                  ${
-                    origPerMoney
-                      ? `<span class="listing-price-orig">${origPerMoney}/yard</span>`
-                      : ""
-                  }
-                </div>
-                <div class="listing-seller-row">
-                  <span class="listing-seller-name">${sellerLabel}</span>
-                </div>
-              </div>
-            `;
-
-            const btn = card.querySelector(".listing-add-btn");
-            if(btn){
-              const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
-              const firstImg = item.image_url_1 || "";
-
-              btn.dataset.id = item.id;
-              btn.dataset.name = safeTitle;
-              btn.dataset.amount = totalCents != null ? String(totalCents) : "0";
-              btn.dataset.price = perYdDollars ? perYdDollars.toFixed(2) : "0";
-              btn.dataset.yards = yards != null ? String(yards) : "0";
-              btn.dataset.sellerId = item.seller_id || "";
-              btn.dataset.sellerName = sellerLabel;
-              btn.dataset.photo = firstImg;
-
-              if(!canBuy){
-                btn.disabled = true;
-                btn.textContent = isSold ? "Sold out" : "Unavailable";
-              }
-            }
-
-            grid.appendChild(card);
-          });
-        }catch(err){
-          console.warn("New listings fetch exception:", err);
-        }
-      }
-
-      loadNewListings();
-
-      // Hero CTAs visibility based on session (header session handled in hm-shell)
-      const heroAuthCtas = document.getElementById('heroAuthCtas');
-      if(supabaseClient && heroAuthCtas){
-        async function syncHero(){
-          try{
-            const { data:{ session } } = await supabaseClient.auth.getSession();
-            const user = session && session.user;
-            if(user) heroAuthCtas.classList.add("is-hidden");
-            else     heroAuthCtas.classList.remove("is-hidden");
-          }catch(e){
-            console.warn("Home hero session check failed:", e);
-          }
-        }
-        syncHero();
-        supabaseClient.auth.onAuthStateChange((_event, session)=>{
-          const user = session && session.user;
-          if(user) heroAuthCtas.classList.add("is-hidden");
-          else     heroAuthCtas.classList.remove("is-hidden");
-        });
-      }
-    })();
+    window.HM && window.HM.renderShell({ currentPage: "threadtalk" });
   </script>
-
-  <!-- Cart hooks -->
-  <script src="scripts/cart.js"></script>
-  <script src="scripts/cart-hooks.js"></script>
-  <script src="assets/add-to-cart.js" defer></script>
 </body>
 </html>
