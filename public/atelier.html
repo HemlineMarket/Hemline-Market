@@ -100,10 +100,10 @@
       height:8px;
       border-radius:999px;
       border:2px solid #fff;
-      background:#d1d5db; /* logged out / unknown */
+      background:#d1d5db;
     }
     .hm-account.is-logged-in .hm-account-badge{
-      background:#16a34a; /* logged in */
+      background:#16a34a;
     }
 
     /* LEFT DRAWER */
@@ -461,7 +461,7 @@
         </svg>
       </a>
 
-      <!-- Account icon with login status (gray = logged out, green = logged in) -->
+      <!-- Account icon with login status -->
       <a class="hm-icon hm-account" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -513,16 +513,14 @@
       <div class="hm-card-body">
         <div class="listings-header-row">
           <strong style="font-size:14px;">Fabrics from this shop</strong>
-          <a class="btn btn-primary" href="sell.html">List an item</a>
+          <!-- “List an item” button removed on purpose -->
         </div>
 
-        <!-- Empty state -->
         <div class="listings-empty" id="listingsEmpty">
           No active listings yet. When this shop lists fabrics, cards will appear here with photos,
           yardage, and prices.
         </div>
 
-        <!-- Grid of cards -->
         <div class="atelier-listings-grid" id="listingsGrid" style="display:none;"></div>
       </div>
     </section>
@@ -797,7 +795,6 @@
 
         const actions = document.createElement("div");
         actions.className = "atelier-card-actions";
-        // (Owner-only edit/delete can be wired later)
 
         foot.appendChild(statusBadge);
         foot.appendChild(actions);
@@ -817,9 +814,10 @@
   }
 
   async function initAtelier(){
-    const params         = new URLSearchParams(window.location.search);
-    const shopSlugParam  = params.get("shop"); // pretty link: ?shop=aurora
-    const viewedSellerId = params.get("u");    // legacy link: ?u=<uuid>
+    const params            = new URLSearchParams(window.location.search);
+    const directSellerParam = params.get("u");      // new style ?u=<id>
+    const legacyUserParam   = params.get("user");   // old style ?user=<id>
+    const shopSlugParam     = params.get("shop");   // pretty link ?shop=aurora
 
     const session      = await ensureSession();
     const loggedInUser = session?.user || null;
@@ -839,10 +837,16 @@
     let sellerId  = null;
     let profile   = null;
 
+    // Normalize seller id from URL if present
+    let sellerIdFromUrl = directSellerParam || legacyUserParam || null;
+    if(sellerIdFromUrl && sellerIdFromUrl.startsWith("user=")){
+      // Fix weird links like ?u=?user=5679...
+      sellerIdFromUrl = sellerIdFromUrl.slice(5);
+    }
+
     try{
-      if(viewedSellerId){
-        // Explicit seller id in URL
-        sellerId = viewedSellerId;
+      if(sellerIdFromUrl){
+        sellerId = sellerIdFromUrl;
         const { data, error } = await supabaseClient
           .from("profiles")
           .select("*")
@@ -854,7 +858,7 @@
           profile = data;
         }
       }else if(shopSlugParam){
-        // Pretty link by shop slug (?shop=aurora)
+        // Pretty link by shop name (?shop=aurora)
         const normalized = shopSlugParam.replace(/-/g," ").replace(/\s+/g," ").trim();
         const { data, error } = await supabaseClient
           .from("profiles")
@@ -867,7 +871,7 @@
           sellerId = profile.id;
         }
       }else if(loggedInUser){
-        // Default to your own atelier when no query params
+        // Default: your own atelier when no query params
         sellerId = loggedInUser.id;
         const { data, error } = await supabaseClient
           .from("profiles")
@@ -960,7 +964,6 @@
       editBtn.onclick = ()=> window.location.href = "account.html";
     }
 
-    // Finally load listings for that seller
     await loadListingsForSeller(sellerId);
   }
 
