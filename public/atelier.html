@@ -757,8 +757,9 @@
 
         const body = document.createElement("div");
         body.className="atelier-card-body";
+
         const t = document.createElement("a");
-        t.href = "listing.html?id=" + encodeURIComponent(listing.id);
+        t.href = "listing.html?id="+encodeURIComponent(listing.id);
         t.className = "atelier-card-title";
         t.textContent = listing.title || "Untitled listing";
 
@@ -766,16 +767,15 @@
         meta.className = "atelier-card-meta";
 
         const yardsSpan = document.createElement("span");
-        if (listing.yards_available != null) {
+        if(listing.yards_available != null){
           yardsSpan.textContent = listing.yards_available + " yards";
         } else {
           yardsSpan.textContent = "Yardage?";
         }
 
         const priceSpan = document.createElement("span");
-        if (listing.price_cents != null) {
-          priceSpan.textContent =
-            moneyFromCents(Number(listing.price_cents)) + "/yard";
+        if(listing.price_cents != null){
+          priceSpan.textContent = moneyFromCents(Number(listing.price_cents)) + "/yard";
         } else {
           priceSpan.textContent = "Price?";
         }
@@ -789,7 +789,7 @@
         const statusBadge = document.createElement("span");
         statusBadge.className = "badge-status";
         const isPublished = listing.is_published !== false;
-        if (isPublished) {
+        if(isPublished){
           statusBadge.textContent = "Published";
         } else {
           statusBadge.textContent = "Draft";
@@ -798,6 +798,7 @@
 
         const actions = document.createElement("div");
         actions.className = "atelier-card-actions";
+        // (no edit/delete here yet – this page is view-only for now)
 
         body.appendChild(t);
         body.appendChild(meta);
@@ -809,100 +810,139 @@
         card.appendChild(body);
         grid.appendChild(card);
       });
-    } catch (err) {
+    }catch(err){
       console.error("Listings fetch exception", err);
       showAtelierError("Unexpected error loading listings.");
     }
   }
 
-  async function initAtelier() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewedSellerId = urlParams.get("u");
+  function extractSellerIdFromUParam(rawU){
+    if(!rawU) return null;
+    let decoded = rawU;
+    try{
+      decoded = decodeURIComponent(rawU);
+    }catch(e){
+      // ignore, use raw
+    }
+
+    // If it starts with ? (e.g. "%3Fuser%3Duuid")
+    if(decoded.startsWith("?")){
+      decoded = decoded.slice(1);
+    }
+
+    // If it looks like a mini query string "user=uuid"
+    const params = new URLSearchParams(decoded);
+    if(params.get("user")){
+      return params.get("user");
+    }
+
+    // If it contains "user=uuid" somewhere inside
+    const match = decoded.match(/user=([0-9a-fA-F-]{20,})/);
+    if(match) return match[1];
+
+    // Otherwise just treat the decoded value as the id
+    return decoded;
+  }
+
+  async function initAtelier(){
+    const url = new URL(window.location.href);
+    const rawU = url.searchParams.get("u");
 
     const session = await ensureSession();
     const loggedInUser = session?.user || null;
 
     setHeaderForSession(session);
 
+    const sellerIdFromParam = extractSellerIdFromUParam(rawU);
+    const sellerId = sellerIdFromParam || (loggedInUser ? loggedInUser.id : null);
+    const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
+
     const ownerNameEl = document.getElementById("atelierOwnerName");
-    const shopNameEl = document.getElementById("atelierShopName");
-    const bioEl = document.getElementById("atelierBio");
-    const avatarEl = document.getElementById("atelierAvatar");
-    const titleEl = document.getElementById("atelierTitle");
-    const subEl = document.getElementById("atelierSubtitle");
-    const editBtn = document.getElementById("btnEditShop");
-    const shareInput = document.getElementById("shareLinkInput");
-    const copyBtn = document.getElementById("btnCopyLink");
+    const shopNameEl  = document.getElementById("atelierShopName");
+    const bioEl       = document.getElementById("atelierBio");
+    const avatarEl    = document.getElementById("atelierAvatar");
+    const titleEl     = document.getElementById("atelierTitle");
+    const subEl       = document.getElementById("atelierSubtitle");
+    const editBtn     = document.getElementById("btnEditShop");
+    const shareInput  = document.getElementById("shareLinkInput");
+    const copyBtn     = document.getElementById("btnCopyLink");
 
-    const sellerId = viewedSellerId || (loggedInUser ? loggedInUser.id : null);
-    const isOwnShop =
-      !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
-
-    if (!sellerId) {
+    if(!sellerId){
+      // No seller to load – generic state
       titleEl.textContent = "Atelier";
-      subEl.textContent =
-        "Sign in or follow a seller link to view an Atelier.";
+      subEl.textContent = "Sign in or follow a seller link to view an Atelier.";
       ownerNameEl.textContent = "Hemline member";
       shopNameEl.textContent = "Store name";
       bioEl.textContent = "";
       avatarEl.textContent = "HM";
-      editBtn.style.display = loggedInUser ? "inline-flex" : "none";
-      if (loggedInUser) {
-        editBtn.onclick = () => (window.location.href = "account.html");
+
+      if(loggedInUser){
+        editBtn.style.display = "inline-flex";
+        editBtn.onclick = ()=> window.location.href = "account.html";
+      }else{
+        editBtn.style.display = "none";
       }
+
       shareInput.value = window.location.href;
-      copyBtn.onclick = () => navigator.clipboard.writeText(shareInput.value);
+      copyBtn.onclick = ()=> navigator.clipboard.writeText(shareInput.value);
+
       await loadListingsForSeller(null);
       return;
     }
 
+    // Load profile for this sellerId from Supabase (if it exists)
     let profile = null;
-    try {
+    try{
       const { data, error } = await supabaseClient
         .from("profiles")
         .select("*")
         .eq("id", sellerId)
         .maybeSingle();
-      if (!error) profile = data;
-    } catch (err) {
+      if(error){
+        console.error("Profile fetch error", error);
+      } else {
+        profile = data;
+      }
+    }catch(err){
       console.error("Profile fetch exception", err);
     }
 
     const first = profile?.first_name || "";
-    const last = profile?.last_name || "";
+    const last  = profile?.last_name  || "";
     const storeName = profile?.store_name || "";
-    const bio = profile?.bio || "";
-    const email = profile?.email || (isOwnShop ? loggedInUser?.email : "");
+    const bio   = profile?.bio || "";
+    const email = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
 
     const displayName =
       (first + " " + last).trim() ||
-      (isOwnShop && loggedInUser?.email
-        ? loggedInUser.email.split("@")[0]
-        : "Hemline member");
+      (isOwnShop && loggedInUser?.email ? loggedInUser.email.split("@")[0] : "Hemline member");
 
     const shop = storeName || displayName;
 
-    titleEl.textContent = "Atelier: " + shop;
-    subEl.textContent = "Fabrics, stories, and listings from " + shop + ".";
-    ownerNameEl.textContent = displayName;
-    shopNameEl.textContent = "Store name: " + shop;
-    bioEl.textContent = bio;
+    if(titleEl){
+      titleEl.textContent = "Atelier: " + shop;
+    }
+    if(subEl){
+      subEl.textContent = "Fabrics, stories, and listings from " + shop + ".";
+    }
 
-    const initials = initialsFromProfile(first, last, email);
+    ownerNameEl.textContent = displayName;
+    shopNameEl.textContent  = "Store name: " + shop;
+    bioEl.textContent       = bio;
+
+    const initials = initialsFromProfile(first,last,email);
     avatarEl.textContent = initials;
 
-    const shareUrl =
-      window.location.origin +
-      "/atelier.html?u=" +
-      encodeURIComponent(sellerId);
+    // Share link – normalize to plain ?u=<sellerId>
+    const shareUrl = window.location.origin + "/atelier.html?u=" + encodeURIComponent(sellerId);
     shareInput.value = shareUrl;
-    copyBtn.onclick = () => navigator.clipboard.writeText(shareUrl);
+    copyBtn.onclick = ()=> navigator.clipboard.writeText(shareInput.value);
 
-    if (!isOwnShop) {
+    if(!isOwnShop){
       editBtn.style.display = "none";
-    } else {
+    }else{
       editBtn.style.display = "inline-flex";
-      editBtn.onclick = () => (window.location.href = "account.html");
+      editBtn.onclick = ()=> window.location.href = "account.html";
     }
 
     await loadListingsForSeller(sellerId);
@@ -913,4 +953,3 @@
 
 </body>
 </html>
-       
