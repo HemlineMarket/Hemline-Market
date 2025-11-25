@@ -549,6 +549,16 @@
       transform:translateY(0);
     }
 
+    .error-msg{
+      padding:12px;
+      border-radius:10px;
+      border:1px solid #fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
+      font-size:13px;
+      margin-top:12px;
+    }
+
     /* FOOTER */
     .hm-footer{
       background:#fff;
@@ -572,16 +582,6 @@
     .copy{
       color:#6b7280;
       font-size:14px;
-    }
-
-    .error-msg{
-      padding:12px;
-      border-radius:10px;
-      border:1px solid #fecaca;
-      background:#fef2f2;
-      color:#b91c1c;
-      font-size:13px;
-      margin-top:12px;
     }
   </style>
 </head>
@@ -1122,7 +1122,6 @@
       el.style.cursor = "pointer";
       el.style.fontWeight = "700";
       el.addEventListener("click", ()=>{
-        // Atelier expects ?u=<sellerId>
         const url = "atelier.html" + (sellerId ? ("?u=" + encodeURIComponent(sellerId)) : "");
         window.location.href = url;
       });
@@ -1177,8 +1176,6 @@
     initFavoriteButton();
     initShareButton();
   }
-
-  /* Favorites */
 
   /* Favorites — shared with favorites.html + local notifications */
 
@@ -1304,23 +1301,6 @@
         });
         saveNotifs(notifs);
       }
-    };
-  }
-
-    sync();
-
-    btn.onclick = ()=>{
-      let favs = getFavorites();
-      const idx = favs.indexOf(id);
-      if(idx === -1){
-        favs.push(id);
-        showToast("Saved to favorites");
-      }else{
-        favs.splice(idx,1);
-        showToast("Removed from favorites");
-      }
-      setFavorites(favs);
-      sync();
     };
   }
 
@@ -1450,47 +1430,46 @@
         const replySpan = document.createElement("span");
         replySpan.textContent = "Reply";
         replySpan.className = "qa-link";
-        // Reply always clickable for the seller
-replySpan.addEventListener("click", async ()=>{
-  if(!isSeller){
-    showToast("Only the seller can reply.");
-    return;
-  }
-  if(row.answer_body){
-    showToast("This question already has a reply.");
-    return;
-  }
+        replySpan.addEventListener("click", async ()=>{
+          if(!isSeller){
+            showToast("Only the seller can reply.");
+            return;
+          }
+          if(row.answer_body){
+            showToast("This question already has a reply.");
+            return;
+          }
 
-  if(!currentSession || !currentSession.user){
-    window.location.href = "auth.html?view=login";
-    return;
-  }
+          if(!currentSession || !currentSession.user){
+            window.location.href = "auth.html?view=login";
+            return;
+          }
 
-  const text = window.prompt("Reply as the seller:");
-  if(!text || !text.trim()) return;
+          const text = window.prompt("Reply as the seller:");
+          if(!text || !text.trim()) return;
 
-  try{
-    const { error } = await supabaseClient
-      .from("questions")
-      .update({
-        answer_body: text.trim(),
-        answer_author_id: currentSession.user.id,
-        answered_at: new Date().toISOString()
-      })
-      .eq("id", row.id);
+          try{
+            const { error } = await supabaseClient
+              .from("questions")
+              .update({
+                answer_body: text.trim(),
+                answer_author_id: currentSession.user.id,
+                answered_at: new Date().toISOString()
+              })
+              .eq("id", row.id);
 
-    if(error){
-      console.warn("Reply error", error);
-      showToast("Could not post reply");
-    }else{
-      showToast("Reply posted");
-      await loadQuestions();
-    }
-  }catch(e){
-    console.warn("Reply exception", e);
-    showToast("Could not post reply");
-  }
-});
+            if(error){
+              console.warn("Reply error", error);
+              showToast("Could not post reply");
+            }else{
+              showToast("Reply posted");
+              await loadQuestions();
+            }
+          }catch(e){
+            console.warn("Reply exception", e);
+            showToast("Could not post reply");
+          }
+        });
         metaRow.appendChild(replySpan);
 
         const flagSpan = document.createElement("span");
@@ -1646,129 +1625,6 @@ replySpan.addEventListener("click", async ()=>{
       setupQAUI();
     });
   });
-</script>
-  <script>
-(function(){
-  const FAV_KEY   = 'hm_favs';
-  const NOTIF_KEY = 'hm_notifications';
-
-  function getFavs(){
-    try{
-      const raw = localStorage.getItem(FAV_KEY);
-      const data = raw ? JSON.parse(raw) : [];
-      return Array.isArray(data) ? data : [];
-    }catch(_){
-      return [];
-    }
-  }
-
-  function saveFavs(list){
-    try{
-      localStorage.setItem(FAV_KEY, JSON.stringify(list || []));
-    }catch(_){}
-  }
-
-  function getNotifs(){
-    try{
-      const raw = localStorage.getItem(NOTIF_KEY);
-      const data = raw ? JSON.parse(raw) : [];
-      return Array.isArray(data) ? data : [];
-    }catch(_){
-      return [];
-    }
-  }
-
-  function saveNotifs(list){
-    try{
-      localStorage.setItem(NOTIF_KEY, JSON.stringify(list || []));
-    }catch(_){}
-  }
-
-  function parseNumber(text){
-    if(!text) return null;
-    const num = Number(String(text).replace(/[^0-9.]/g,''));
-    return Number.isFinite(num) ? num : null;
-  }
-
-  function buildFavFromPage(){
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('id') || document.body.dataset.listingId || '';
-    if(!id) return null;
-
-    const titleEl  = document.querySelector('[data-listing-title]');
-    const priceEl  = document.querySelector('[data-listing-price]');
-    const yardsEl  = document.querySelector('[data-listing-yards]');
-    const widthEl  = document.querySelector('[data-listing-width]');
-    const photoImg = document.querySelector('[data-listing-photo] img, [data-listing-photo]');
-
-    const title = titleEl ? titleEl.textContent.trim() : (document.title || 'Listing');
-    const perYd = parseNumber(priceEl && priceEl.textContent);
-    const yards = parseNumber(yardsEl && yardsEl.textContent);
-    const width = parseNumber(widthEl && widthEl.textContent);
-    const photo = photoImg && photoImg.src ? photoImg.src : '';
-
-    return {
-      id: String(id),
-      title: title || 'Untitled fabric',
-      perYd: perYd,
-      yards: yards,
-      width: width,
-      photo: photo,
-      href: window.location.href
-    };
-  }
-
-  function isFav(id){
-    return getFavs().some(f => String(f.id) === String(id));
-  }
-
-  function setHeartUI(btn, active){
-    if(!btn) return;
-    btn.classList.toggle('is-favorited', !!active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    btn.setAttribute('aria-label', active ? 'Remove from favorites' : 'Save to favorites');
-  }
-
-  const heartBtn = document.querySelector('[data-favorite-button]');
-  if(!heartBtn) return;
-
-  const fav = buildFavFromPage();
-  if(!fav || !fav.id) return;
-
-  // Initial state
-  setHeartUI(heartBtn, isFav(fav.id));
-
-  heartBtn.addEventListener('click', function(e){
-    e.preventDefault();
-    const favs = getFavs();
-    const idx = favs.findIndex(f => String(f.id) === String(fav.id));
-    const currentlyFav = idx !== -1;
-
-    if(currentlyFav){
-      favs.splice(idx, 1);
-      saveFavs(favs);
-      setHeartUI(heartBtn, false);
-    }else{
-      favs.push(fav);
-      saveFavs(favs);
-      setHeartUI(heartBtn, true);
-
-      // Also log a local notification for the current user
-      const nowIso = new Date().toISOString();
-      const notifs = getNotifs();
-      notifs.push({
-        id: 'fav-' + fav.id + '-' + nowIso,
-        title: 'Saved to favorites',
-        meta: fav.title,
-        kind: 'Activity',
-        href: fav.href,
-        created_at: nowIso,
-        unread: true
-      });
-      saveNotifs(notifs);
-    }
-  });
-})();
 </script>
 </body>
 </html>
