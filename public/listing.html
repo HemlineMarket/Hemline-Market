@@ -1180,18 +1180,87 @@
 
   /* Favorites */
 
-  function getFavorites(){
+  /* Favorites — shared with favorites.html + local notifications */
+
+  const FAV_KEY   = "hm_favs";
+  const NOTIF_KEY = "hm_notifications";
+
+  function loadFavs(){
     try{
-      return JSON.parse(localStorage.getItem("hm_favorites_v1") || "[]");
+      const raw = localStorage.getItem(FAV_KEY);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data : [];
     }catch(e){
       return [];
     }
   }
 
-  function setFavorites(list){
+  function saveFavs(list){
     try{
-      localStorage.setItem("hm_favorites_v1", JSON.stringify(list));
+      localStorage.setItem(FAV_KEY, JSON.stringify(list || []));
+    }catch(e){}
+  }
+
+  function loadNotifs(){
+    try{
+      const raw = localStorage.getItem(NOTIF_KEY);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data : [];
     }catch(e){
+      return [];
+    }
+  }
+
+  function saveNotifs(list){
+    try{
+      localStorage.setItem(NOTIF_KEY, JSON.stringify(list || []));
+    }catch(e){}
+  }
+
+  function computeYardsFromListing(listing){
+    if(!listing) return null;
+    if(listing.yards_available != null) return Number(listing.yards_available);
+    if(listing.yardage != null)         return Number(listing.yardage);
+    return null;
+  }
+
+  function buildFavoriteFromListing(){
+    if(!currentListing) return null;
+
+    const yards = computeYardsFromListing(currentListing);
+    const perYd = currentListing.price_cents != null
+      ? currentListing.price_cents / 100
+      : null;
+    const width = currentListing.width_in != null
+      ? Number(currentListing.width_in)
+      : null;
+    const photo = currentListing.image_url_1 || "";
+
+    return {
+      id   : String(currentListing.id),
+      title: currentListing.title || "Untitled fabric",
+      perYd,
+      yards,
+      width,
+      photo,
+      href : window.location.href
+    };
+  }
+
+  function isFav(id){
+    return loadFavs().some(f => String(f.id) === String(id));
+  }
+
+  function setHeartUI(btn, active){
+    if(!btn) return;
+    if(active){
+      btn.classList.add("heart-active");
+      btn.setAttribute("aria-pressed","true");
+      btn.setAttribute("aria-label","Remove from favorites");
+    }else{
+      btn.classList.remove("heart-active");
+      btn.setAttribute("aria-pressed","false");
+      btn.setAttribute("aria-label","Save to favorites");
     }
   }
 
@@ -1199,17 +1268,44 @@
     const btn = document.getElementById("favoriteBtn");
     if(!btn || !currentListing) return;
 
-    const id = currentListing.id;
+    const fav = buildFavoriteFromListing();
+    if(!fav || !fav.id) return;
 
-    function sync(){
-      const favs = getFavorites();
-      const on = favs.includes(id);
-      if(on){
-        btn.classList.add("heart-active");
+    // Initial state
+    setHeartUI(btn, isFav(fav.id));
+
+    btn.onclick = ()=>{
+      const favs = loadFavs();
+      const idx = favs.findIndex(f => String(f.id) === String(fav.id));
+      const currentlyFav = idx !== -1;
+
+      if(currentlyFav){
+        favs.splice(idx, 1);
+        saveFavs(favs);
+        setHeartUI(btn, false);
+        showToast("Removed from favorites");
       }else{
-        btn.classList.remove("heart-active");
+        favs.push(fav);
+        saveFavs(favs);
+        setHeartUI(btn, true);
+        showToast("Saved to favorites");
+
+        // Also log a simple local notification for this user
+        const nowIso = new Date().toISOString();
+        const notifs = loadNotifs();
+        notifs.push({
+          id        : "fav-" + fav.id + "-" + nowIso,
+          title     : "Saved to favorites",
+          meta      : fav.title,
+          kind      : "Favorite",
+          href      : fav.href,
+          created_at: nowIso,
+          unread    : true
+        });
+        saveNotifs(notifs);
       }
-    }
+    };
+  }
 
     sync();
 
