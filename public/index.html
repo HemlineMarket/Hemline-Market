@@ -18,6 +18,7 @@
       --hm-text:#111827;
       --hm-muted:#6b7280;
       --hm-border:#e5e7eb;
+      --hm-bg-card:rgba(255,255,255,.96);
     }
     body{
       margin:0;
@@ -94,14 +95,10 @@
       height:10px;
       border-radius:50%;
       border:2px solid #fff;
-      background:#d1d5db; /* default / logged-out */
-    }
-    .hm-account.is-logged-in .hm-account-badge{
-      background:#16a34a;
-    }
-    .hm-account.is-logged-out .hm-account-badge{
       background:#d1d5db;
     }
+    .hm-account.is-logged-in .hm-account-badge{background:#16a34a;}
+    .hm-account.is-logged-out .hm-account-badge{background:#d1d5db;}
 
     .hm-btn-primary{
       background:var(--hm-accent);
@@ -368,9 +365,7 @@
       padding-left:18px;
       font-size:13px;
     }
-    .hiw-list li{
-      margin:2px 0;
-    }
+    .hiw-list li{margin:2px 0;}
     .hiw-tagline{
       margin-top:8px;
       font-size:13px;
@@ -380,7 +375,7 @@
       .how-it-works{padding:0 8px;margin-top:10px;}
     }
 
-    /* Grid */
+    /* Layout + New Listings grid */
     .layout{
       max-width:1200px;
       margin:12px auto 0;
@@ -401,62 +396,113 @@
     @media (max-width:560px){
       .grid{grid-template-columns:1fr}
     }
-    .card{
-      background:rgba(255,255,255,.96);
+
+    /* Listing cards (match Browse style, incl Add to Cart) */
+    .listing-card{
+      background:var(--hm-bg-card);
       border:1px solid var(--hm-border);
       border-radius:12px;
       overflow:hidden;
-      text-decoration:none;
-      color:#1f2937;
+      display:flex;
+      flex-direction:column;
     }
-    .thumb{
-      aspect-ratio:4/3;
+    .listing-thumb-link{
+      display:block;
+      text-decoration:none;
+      color:inherit;
+    }
+    .listing-thumb{
+      aspect-ratio:1/1;
       background:linear-gradient(180deg,#f8fafc,#eef2f7);
       display:grid;
       place-items:center;
-      color:#6b7280;
+      overflow:hidden;
     }
-    .thumb img{
+    .listing-thumb img{
       width:100%;
       height:100%;
       object-fit:cover;
       display:block;
     }
-    .info{padding:8px 10px}
-    .title{
+    .listing-body{
+      padding:8px 10px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .listing-title-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:6px;
+    }
+    .listing-title{
       font-weight:700;
+      font-size:14px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-    }
-    .meta{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      margin-top:6px;
-      font-size:14px;
-      color:#6b7280;
-    }
-    .price{
-      font-weight:800;
+      text-decoration:none;
       color:#111827;
     }
-    .seller{
+    .listing-dept{
+      font-size:11px;
+      padding:2px 6px;
+      border-radius:999px;
+      background:#f3f4f6;
+      color:#4b5563;
+      flex:0 0 auto;
+      white-space:nowrap;
+    }
+    .listing-yards{
+      font-size:12px;
+      color:#4b5563;
+    }
+    .listing-cta-row{
+      margin-top:4px;
+    }
+    .listing-add-btn{
+      width:100%;
+      border-radius:10px;
+      border:1px solid var(--hm-accent);
+      background:var(--hm-accent);
+      color:#fff;
+      font-weight:700;
+      font-size:13px;
+      padding:8px 10px;
+      cursor:pointer;
+    }
+    .listing-add-btn[disabled]{
+      opacity:.6;
+      cursor:not-allowed;
+    }
+    .listing-price-row{
+      margin-top:6px;
       display:flex;
       align-items:center;
       gap:6px;
+      font-size:12px;
     }
-    .seller .av{
-      width:20px;
-      height:20px;
-      border-radius:999px;
-      border:1px solid var(--hm-border);
-      display:grid;
-      place-items:center;
-      font-size:10px;
-      font-weight:800;
-      background:#fff;
-      color:#374151;
+    .listing-price-main{
+      font-weight:700;
+      color:#111827;
+    }
+    .listing-price-orig{
+      text-decoration:line-through;
+      color:#9ca3af;
+    }
+    .listing-seller-row{
+      margin-top:4px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      font-size:12px;
+      color:#6b7280;
+    }
+    .listing-seller-name{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .below-rails{
@@ -620,7 +666,7 @@
       <button type="submit" aria-label="Search">Search</button>
     </form>
 
-    <!-- Filter tabs + panels are visually hidden until wired to real data -->
+    <!-- Filter tabs (placeholder for future wiring) -->
     <div class="tab-row is-hidden" id="tabRow" aria-hidden="true">
       <button type="button" class="tab" data-panel="pContent" aria-expanded="false">Content</button>
       <button type="button" class="tab" data-panel="pColor"   aria-expanded="false">Color</button>
@@ -703,7 +749,6 @@
   <main class="section" aria-label="New listings">
     <h2>New Listings</h2>
 
-    <!-- Dynamic new listings grid -->
     <div class="grid" id="newListingsGrid" aria-live="polite"></div>
     <p id="newListingsEmpty" class="muted-small">
       Newest fabrics will appear here as they’re published.
@@ -758,7 +803,6 @@
 <!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- JS: Hamburger + Search routing + Supabase new listings + header session state -->
 <script>
   (function(){
     const sheet    = document.getElementById('menuSheet');
@@ -766,9 +810,7 @@
     const closeBtn = document.getElementById('closeMenu');
     const overlay  = document.getElementById('sheetOverlay');
 
-    function lockScroll(lock) {
-      document.body.style.overflow = lock ? 'hidden' : '';
-    }
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
     function openSheet(){
       if(!sheet) return;
       sheet.classList.add('open');
@@ -789,7 +831,7 @@
       if(openBtn) openBtn.focus();
     }
 
-    if (openBtn && sheet && closeBtn && overlay){
+    if(openBtn && sheet && closeBtn && overlay){
       openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
       closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
       overlay.addEventListener('click', closeSheet);
@@ -798,7 +840,7 @@
 
     // Home search → browse.html?q=...&type=...
     const form = document.getElementById('homeSearch');
-    if (form){
+    if(form){
       form.addEventListener('submit', function(e){
         e.preventDefault();
         const type = (document.getElementById('searchType') || {}).value || 'listings';
@@ -808,9 +850,9 @@
       });
     }
 
-    // ----- Supabase client (shared for header + new listings) -----
+    // Supabase client
     let supabaseClient = null;
-    if (window.supabase){
+    if(window.supabase){
       supabaseClient = window.supabase.createClient(
         "https://clkizksbvxjkoatdajgd.supabase.co",
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
@@ -829,6 +871,14 @@
       });
     }
 
+    function computeYards(row){
+      const y1 = row.yards_available;
+      const y2 = row.yardage;
+      const raw = (y1 != null ? Number(y1) : (y2 != null ? Number(y2) : null));
+      if(!Number.isFinite(raw) || raw <= 0) return null;
+      return raw;
+    }
+
     function initialsFromName(name){
       if(!name) return "HM";
       const parts = name.trim().split(/\s+/);
@@ -839,16 +889,16 @@
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
 
-    // Dynamic "New Listings" from Supabase
     const grid  = document.getElementById('newListingsGrid');
     const empty = document.getElementById('newListingsEmpty');
 
     async function loadNewListings(){
-      if (!grid || !supabaseClient) return;
+      if(!grid || !supabaseClient) return;
+
       try{
         const { data:listings, error } = await supabaseClient
           .from("listings")
-          .select("id,title,price_cents,yards_available,seller_id,is_published,created_at,image_url_1")
+          .select("id,title,price_cents,orig_price_cents,yards_available,yardage,width_in,dept,status,is_published,seller_id,image_url_1,created_at")
           .eq("is_published", true)
           .order("created_at",{ ascending:false })
           .limit(6);
@@ -861,10 +911,7 @@
           return;
         }
 
-        // Fetch seller profiles for display names
-        const sellerIds = [...new Set(
-          listings.map(l => l.seller_id).filter(Boolean)
-        )];
+        const sellerIds = [...new Set(listings.map(l=>l.seller_id).filter(Boolean))];
 
         let profilesById = {};
         if(sellerIds.length){
@@ -872,50 +919,107 @@
             .from("profiles")
             .select("id,store_name,first_name,last_name")
             .in("id", sellerIds);
-
           if(!profError && profiles){
-            profilesById = profiles.reduce((acc,p)=>{
-              acc[p.id] = p;
-              return acc;
-            },{});
+            profilesById = profiles.reduce((acc,p)=>{ acc[p.id] = p; return acc; },{});
           }
         }
 
         grid.innerHTML = "";
-        if (empty) empty.classList.add("is-hidden");
+        if(empty) empty.classList.add("is-hidden");
 
         listings.forEach(item=>{
           const profile = item.seller_id ? profilesById[item.seller_id] : null;
           const fullName = ((profile?.first_name || "") + " " + (profile?.last_name || "")).trim();
           const shopName = profile?.store_name || fullName || "";
-          const sellerLabel = shopName ? shopName : "Shop";
+          const sellerLabel = shopName || "Seller";
 
-          const initials = initialsFromName(shopName || fullName || "HM");
+          const yards = computeYards(item);
+          const priceCents = item.price_cents != null ? Number(item.price_cents) : null;
+          const perYdMoney = priceCents != null ? moneyFromCents(priceCents) : "";
+          const origPerMoney = item.orig_price_cents != null ? moneyFromCents(item.orig_price_cents) : "";
+          const totalCents = (priceCents != null && yards != null) ? priceCents * yards : null;
+          const totalMoney = totalCents != null ? moneyFromCents(totalCents) : "";
 
-          const card = document.createElement('a');
-          card.className = 'card';
-          card.href = 'listing.html?id=' + encodeURIComponent(item.id);
+          const status = (item.status || "active").toLowerCase();
+          const isSold = status === "sold";
+          const canBuy = !isSold && priceCents != null && yards != null && yards > 0;
 
-          const priceDisplay = item.price_cents != null ? (moneyFromCents(item.price_cents) + "/yard") : "";
+          const card = document.createElement("article");
+          card.className = "listing-card";
 
-          const thumbInner = item.image_url_1
-            ? `<img src="${item.image_url_1}" alt="${item.title ? item.title.replace(/"/g,"&quot;") : "Listing photo"}">`
-            : `photo`;
+          const href = "listing.html?id=" + encodeURIComponent(item.id);
+
+          const safeTitle = item.title || "Untitled listing";
+          const safeAlt = safeTitle.replace(/"/g,"&quot;");
 
           card.innerHTML = `
-            <div class="thumb" aria-hidden="true">
-              ${thumbInner}
-            </div>
-            <div class="info">
-              <div class="title">${item.title || "Untitled listing"}</div>
-              <div class="meta">
-                <span class="price">${priceDisplay}</span>
-                <span class="seller">
-                  <span class="av" aria-hidden="true">${initials}</span>${sellerLabel}
-                </span>
+            <a class="listing-thumb-link" href="${href}">
+              <div class="listing-thumb" aria-hidden="true">
+                ${
+                  item.image_url_1
+                    ? `<img src="${item.image_url_1}" alt="${safeAlt}">`
+                    : ""
+                }
+              </div>
+            </a>
+            <div class="listing-body">
+              <div class="listing-title-row">
+                <a class="listing-title" href="${href}">${safeTitle}</a>
+                ${item.dept ? `<span class="listing-dept">${item.dept}</span>` : ""}
+              </div>
+              ${yards != null ? `<div class="listing-yards">${yards} yards</div>` : ""}
+              <div class="listing-cta-row">
+                <button type="button" class="listing-add-btn add-to-cart">
+                  ${
+                    canBuy && totalMoney && yards
+                      ? `Add to Cart — ${totalMoney} for ${yards} yards`
+                      : (isSold ? "Sold out" : "Add to Cart")
+                  }
+                </button>
+              </div>
+              <div class="listing-price-row">
+                ${
+                  perYdMoney
+                    ? `<span class="listing-price-main">${perYdMoney}/yard</span>`
+                    : `<span class="listing-price-main">Price coming soon</span>`
+                }
+                ${
+                  origPerMoney
+                    ? `<span class="listing-price-orig">${origPerMoney}/yard</span>`
+                    : ""
+                }
+              </div>
+              <div class="listing-seller-row">
+                <span class="listing-seller-name">${sellerLabel}</span>
+                ${
+                  shopName
+                    ? ""
+                    : ""
+                }
               </div>
             </div>
           `;
+
+          const btn = card.querySelector(".listing-add-btn");
+          if(btn){
+            const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
+            const firstImg = item.image_url_1 || "";
+
+            btn.dataset.id = item.id;
+            btn.dataset.name = safeTitle;
+            btn.dataset.amount = totalCents != null ? String(totalCents) : "0";
+            btn.dataset.price = perYdDollars ? perYdDollars.toFixed(2) : "0";
+            btn.dataset.yards = yards != null ? String(yards) : "0";
+            btn.dataset.sellerId = item.seller_id || "";
+            btn.dataset.sellerName = sellerLabel;
+            btn.dataset.photo = firstImg;
+
+            if(!canBuy){
+              btn.disabled = true;
+              btn.textContent = isSold ? "Sold out" : "Unavailable";
+            }
+          }
+
           grid.appendChild(card);
         });
       }catch(err){
@@ -925,44 +1029,42 @@
 
     loadNewListings();
 
-    // ----- Header session state (account icon + hero CTAs) -----
+    // Header session state
     const headerAccountLink = document.getElementById('headerAccountLink');
     const heroAuthCtas      = document.getElementById('heroAuthCtas');
 
-    if (supabaseClient && headerAccountLink) {
+    if(supabaseClient && headerAccountLink){
       function applySession(session){
         const user = session && session.user;
 
-        if (headerAccountLink){
-          if (user){
-            headerAccountLink.href = "account.html";
-            headerAccountLink.setAttribute("aria-label","Your account");
-            headerAccountLink.classList.add("is-logged-in");
-            headerAccountLink.classList.remove("is-logged-out");
-          } else {
-            headerAccountLink.href = "auth.html?view=login";
-            headerAccountLink.setAttribute("aria-label","Sign in or manage your account");
-            headerAccountLink.classList.remove("is-logged-in");
-            headerAccountLink.classList.add("is-logged-out");
-          }
+        if(user){
+          headerAccountLink.href = "account.html";
+          headerAccountLink.setAttribute("aria-label","Your account");
+          headerAccountLink.classList.add("is-logged-in");
+          headerAccountLink.classList.remove("is-logged-out");
+        }else{
+          headerAccountLink.href = "auth.html?view=login";
+          headerAccountLink.setAttribute("aria-label","Sign in or manage your account");
+          headerAccountLink.classList.remove("is-logged-in");
+          headerAccountLink.classList.add("is-logged-out");
         }
 
-        if (heroAuthCtas){
-          if (user) heroAuthCtas.classList.add('is-hidden');
-          else      heroAuthCtas.classList.remove('is-hidden');
+        if(heroAuthCtas){
+          if(user) heroAuthCtas.classList.add("is-hidden");
+          else     heroAuthCtas.classList.remove("is-hidden");
         }
       }
 
-      (async () => {
-        try {
+      (async ()=>{
+        try{
           const { data:{ session } } = await supabaseClient.auth.getSession();
           applySession(session);
-        } catch (e) {
+        }catch(e){
           console.warn("Header session check failed:", e);
         }
       })();
 
-      supabaseClient.auth.onAuthStateChange((_event, session) => {
+      supabaseClient.auth.onAuthStateChange((_event, session)=>{
         applySession(session);
       });
     }
