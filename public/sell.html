@@ -34,7 +34,17 @@
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
-    img,svg,canvas,video{max-width:100%;height:auto;display:block}
+
+    /* IMPORTANT: scope media sizing to the page content only
+       so we don't blow up the header icons from the universal shell. */
+    main.sell-wrap img,
+    main.sell-wrap canvas,
+    main.sell-wrap video{
+      max-width:100%;
+      height:auto;
+      display:block;
+    }
+
     .is-hidden{display:none!important;}
 
     /* ---------- CREATE LISTING LAYOUT (page-specific only) ---------- */
@@ -420,6 +430,7 @@
                   <option>Purple</option>
                   <option>Gold</option>
                   <option>Silver</option>
+                  <option>Multi / bundled colors</option>
                 </select>
               </div>
 
@@ -477,6 +488,18 @@
               <div class="field">
                 <label for="gsm">Weight (GSM)</label>
                 <input id="gsm" type="number" min="0" step="1">
+              </div>
+            </div>
+
+            <!-- NEW: bundled colors helper -->
+            <div class="field" style="margin-top:4px">
+              <label for="colorBundle">Color breakdown (optional)</label>
+              <textarea
+                id="colorBundle"
+                placeholder="e.g., 1.5 yd Navy, 0.75 yd Ivory, 0.5 yd Rose — all same base cloth.">
+              </textarea>
+              <div class="subtle">
+                Use this when you’re bundling multiple colors of the same fabric into one listing.
               </div>
             </div>
 
@@ -636,6 +659,7 @@
       const origPriceInp = document.getElementById('origPrice');
       const yardsInput   = document.getElementById('yards');
       const descInput    = document.getElementById('desc');
+      const colorBundleInput = document.getElementById('colorBundle');
 
       const errTitle  = document.getElementById('err_title');
       const errPrice  = document.getElementById('err_price');
@@ -842,7 +866,8 @@
           width: document.getElementById('width').value ? parseFloat(document.getElementById('width').value) : null,
           gsm: document.getElementById('gsm').value ? parseFloat(document.getElementById('gsm').value) : null,
           designer: document.getElementById('designer').value.trim() || null,
-          feelsLike: feels
+          feelsLike: feels,
+          colorBundle: colorBundleInput.value.trim() || null
         };
       }
 
@@ -899,6 +924,7 @@
         addRow('content', d.content);
         addRow('fabric', d.fabric);
         addRow('color', d.colorFamily);
+        addRow('color bundle', d.colorBundle);
         addRow('pattern', d.pattern);
         addRow('dept', d.dept);
         addRow('fiber type', d.fiberType);
@@ -1008,12 +1034,20 @@
           const priceCents      = d.price     != null ? Math.round(d.price * 100)     : null;
           const origPriceCents  = d.origPrice != null ? Math.round(d.origPrice * 100) : null;
 
+          // Fold color bundle into the saved description so we don't
+          // need a new DB column.
+          let finalDesc = d.desc || null;
+          if(d.colorBundle){
+            const prefix = finalDesc ? finalDesc + "\\n\\n" : "";
+            finalDesc = prefix + "Color breakdown: " + d.colorBundle;
+          }
+
           const { coverUrl } = await uploadListingPhotos(user);
 
           const payload = {
             seller_id: user.id,
             title: d.title,
-            description: d.desc,
+            description: finalDesc,
             price_cents: priceCents,
             orig_price_cents: origPriceCents,
             yards_available: d.yards,
@@ -1042,7 +1076,7 @@
           if(insertErr){
             console.error(insertErr);
             alert(
-              'Sorry, something went wrong while publishing.\n\n' +
+              'Sorry, something went wrong while publishing.\\n\\n' +
               (insertErr.message || 'Unknown error.')
             );
             nextBtn.disabled = false;
