@@ -1,31 +1,34 @@
-<script>
-// Hemline Market shared header + footer + session logic
+// Hemline Market — Universal Header + Footer + Menu + Session Logic
 window.HM = window.HM || {};
 
-(function(){
-  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+(function () {
+  const SUPABASE_URL =
+    "https://clkizksbvxjkoatdajgd.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
-  function headerHTML(){
+  /* --------------------------------------------------------------------------
+     HEADER HTML
+  -------------------------------------------------------------------------- */
+  function headerHTML() {
     return `
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
       <button class="hamburger" id="openMenu" type="button"
-              aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
+        aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-linecap="round" stroke-linejoin="round">
+          stroke-linecap="round" stroke-linejoin="round">
           <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
           <line x1="4" y1="18" x2="20" y2="18"></line>
         </svg>
       </button>
+
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
 
     <div class="right">
-      <!-- Search → browse.html -->
       <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="11" cy="11" r="8"></circle>
@@ -33,21 +36,18 @@ window.HM = window.HM || {};
         </svg>
       </a>
 
-      <!-- ThreadTalk -->
-      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk">
+      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"></path>
         </svg>
       </a>
 
-      <!-- Favorites -->
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
         </svg>
       </a>
 
-      <!-- Notifications -->
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
@@ -55,7 +55,6 @@ window.HM = window.HM || {};
         </svg>
       </a>
 
-      <!-- Cart -->
       <a class="hm-icon" href="cart.html" aria-label="Cart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9"  cy="21" r="1"></circle>
@@ -64,10 +63,10 @@ window.HM = window.HM || {};
         </svg>
       </a>
 
-      <!-- Account icon with login status -->
-      <a class="hm-icon hm-account is-logged-out" id="headerAccountLink"
-         href="auth.html?view=login"
-         aria-label="Sign in or manage your account">
+      <a class="hm-icon hm-account is-logged-out"
+        id="headerAccountLink"
+        href="auth.html?view=login"
+        aria-label="Sign in or manage your account">
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="8" r="3.2"></circle>
@@ -82,8 +81,7 @@ window.HM = window.HM || {};
 
 <div id="sheetOverlay" aria-hidden="true"></div>
 
-<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog"
-       aria-modal="true" aria-label="Site menu">
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true">
   <header>
     <strong>Menu</strong>
     <button class="close" id="closeMenu" aria-label="Close menu">
@@ -102,13 +100,17 @@ window.HM = window.HM || {};
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
-    `;
+`;
   }
 
-  function footerHTML(currentPage){
-    function active(path){
-      return currentPage === path ? ' aria-current="page"' : '';
+  /* --------------------------------------------------------------------------
+     FOOTER HTML
+  -------------------------------------------------------------------------- */
+  function footerHTML(currentPage) {
+    function active(p) {
+      return currentPage === p ? ' aria-current="page"' : "";
     }
+
     return `
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
@@ -124,91 +126,109 @@ window.HM = window.HM || {};
 </footer>`;
   }
 
-  function wireMenu(){
-    const sheet   = document.getElementById("menuSheet");
+  /* --------------------------------------------------------------------------
+     MENU INTERACTION
+  -------------------------------------------------------------------------- */
+  function wireMenu() {
+    const sheet = document.getElementById("menuSheet");
     const openBtn = document.getElementById("openMenu");
-    const closeBtn= document.getElementById("closeMenu");
+    const closeBtn = document.getElementById("closeMenu");
     const overlay = document.getElementById("sheetOverlay");
-    if(!sheet || !openBtn || !closeBtn || !overlay) return;
 
-    function lockScroll(lock){
+    if (!sheet || !openBtn || !closeBtn || !overlay) return;
+
+    function lockScroll(lock) {
       document.body.style.overflow = lock ? "hidden" : "";
     }
-    function openSheet(){
+
+    function openSheet() {
       sheet.classList.add("open");
-      sheet.setAttribute("aria-hidden","false");
       overlay.classList.add("show");
-      overlay.setAttribute("aria-hidden","false");
-      openBtn.setAttribute("aria-expanded","true");
+      sheet.setAttribute("aria-hidden", "false");
+      overlay.setAttribute("aria-hidden", "false");
+      openBtn.setAttribute("aria-expanded", "true");
       lockScroll(true);
     }
-    function closeSheet(){
+
+    function closeSheet() {
       sheet.classList.remove("open");
-      sheet.setAttribute("aria-hidden","true");
       overlay.classList.remove("show");
-      overlay.setAttribute("aria-hidden","true");
-      openBtn.setAttribute("aria-expanded","false");
+      sheet.setAttribute("aria-hidden", "true");
+      overlay.setAttribute("aria-hidden", "true");
+      openBtn.setAttribute("aria-expanded", "false");
       lockScroll(false);
     }
 
-    openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
-    closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
-    overlay.addEventListener("click",closeSheet);
-    document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+    openBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openSheet();
+    });
+    closeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeSheet();
+    });
+    overlay.addEventListener("click", closeSheet);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeSheet();
+    });
   }
 
-  function wireSupabaseSession(){
-    if(!window.supabase || !SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  /* --------------------------------------------------------------------------
+     SUPABASE SESSION
+  -------------------------------------------------------------------------- */
+  function wireSupabaseSession() {
+    if (!window.supabase) return;
+
     const client = window.supabase.createClient(
       SUPABASE_URL,
       SUPABASE_ANON_KEY,
-      { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+      {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
+      }
     );
 
-    const link = document.getElementById("headerAccountLink");
-    if(!link) return;
+    const accountLink = document.getElementById("headerAccountLink");
+    if (!accountLink) return;
 
-    function update(session){
-      if(session && session.user){
-        link.href = "account.html";
-        link.setAttribute("aria-label","Your account");
-        link.classList.add("is-logged-in");
-        link.classList.remove("is-logged-out");
-      }else{
-        link.href = "auth.html?view=login";
-        link.setAttribute("aria-label","Sign in or manage your account");
-        link.classList.remove("is-logged-in");
-        link.classList.add("is-logged-out");
+    function apply(session) {
+      if (session && session.user) {
+        accountLink.href = "account.html";
+        accountLink.classList.add("is-logged-in");
+        accountLink.classList.remove("is-logged-out");
+      } else {
+        accountLink.href = "auth.html?view=login";
+        accountLink.classList.remove("is-logged-in");
+        accountLink.classList.add("is-logged-out");
       }
     }
 
-    client.auth.getSession().then(({data})=>{
-      update(data.session);
-    }).catch(err=>{
-      console.warn("Header session check failed:", err);
+    client.auth.getSession().then(({ data }) => {
+      apply(data.session);
     });
 
-    client.auth.onAuthStateChange((_event, session)=>{
-      update(session);
+    client.auth.onAuthStateChange((_event, session) => {
+      apply(session);
     });
   }
 
-  // Public API
-  window.HM.renderShell = function renderShell(opts){
+  /* --------------------------------------------------------------------------
+     PUBLIC API: inject header + footer and wire everything
+  -------------------------------------------------------------------------- */
+  window.HM.renderShell = function renderShell(opts) {
+    const current = opts?.currentPage || "";
+
     const headerTarget = document.getElementById("hm-shell-header");
     const footerTarget = document.getElementById("hm-shell-footer");
-    const current = opts && opts.currentPage ? opts.currentPage : "";
 
-    if(headerTarget){
-      headerTarget.innerHTML = headerHTML();
-    }
-    if(footerTarget){
-      footerTarget.innerHTML = footerHTML(current);
-    }
+    if (headerTarget) headerTarget.innerHTML = headerHTML();
+    if (footerTarget) footerTarget.innerHTML = footerHTML(current);
 
-    // Once injected, wire behaviours
+    // Now wire interactivity
     wireMenu();
     wireSupabaseSession();
   };
 })();
-</script>
