@@ -850,6 +850,7 @@
 
     let sellerId  = null;
     let profile   = null;
+    let localProfile = null;
 
     try{
       if(viewedSellerId){
@@ -866,7 +867,7 @@
           profile = data;
         }
       }else if(shopSlugParam){
-        // Pretty link by shop slug (?shop=aurora)
+        // Pretty link by shop slug (?shop=aurora) – currently matches store_name
         const normalized = shopSlugParam.replace(/-/g," ").replace(/\s+/g," ").trim();
         const { data, error } = await supabaseClient
           .from("profiles")
@@ -898,6 +899,18 @@
 
     const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
 
+    // If this is your own atelier, hydrate name/store/bio from localStorage profile
+    if(isOwnShop && loggedInUser){
+      try{
+        const rawLocal = localStorage.getItem("hm_profile_" + loggedInUser.id);
+        if(rawLocal){
+          localProfile = JSON.parse(rawLocal);
+        }
+      }catch(e){
+        console.warn("Local profile parse failed", e);
+      }
+    }
+
     if(!sellerId){
       // No seller resolved – generic state
       if(titleEl) titleEl.textContent = "Atelier";
@@ -921,11 +934,19 @@
       return;
     }
 
-    const first     = profile?.first_name || "";
-    const last      = profile?.last_name  || "";
-    const storeName = profile?.store_name || "";
-    const bio       = profile?.bio || "";
-    const email     = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
+    // Pull data from Supabase profile, then override with local profile if this is your own shop
+    let first     = profile?.first_name || "";
+    let last      = profile?.last_name  || "";
+    let storeName = profile?.store_name || "";
+    let bio       = profile?.bio || "";
+    let email     = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
+
+    if(isOwnShop && localProfile){
+      if(localProfile.firstName) first = localProfile.firstName;
+      if(localProfile.lastName)  last  = localProfile.lastName;
+      if(localProfile.storeName) storeName = localProfile.storeName;
+      if(localProfile.bio)       bio = localProfile.bio;
+    }
 
     const displayName =
       (first + " " + last).trim() ||
@@ -948,7 +969,10 @@
     avatarEl.textContent = initials;
 
     // Pretty share link – prefer ?shop=<slug>, fall back to ?u=<id>, else current URL
-    const shopSlug = slugifyStoreName(shop);
+    let shopSlug = slugifyStoreName(shop);
+    if(isOwnShop && localProfile && localProfile.storeSlug){
+      shopSlug = localProfile.storeSlug;
+    }
     const baseUrl  = window.location.origin + "/atelier.html";
 
     let shareUrl;
