@@ -1,105 +1,364 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Favorites — Hemline Market</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Favorites — Hemline Market</title>
 
-<link rel="stylesheet" href="styles/hm-modern.css"/>
-<link rel="stylesheet" href="styles/hem-header.css"/>
-<link rel="stylesheet" href="styles/hm-typography.css"/>
-<link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hem-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
-<style>
-  :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  <style>
+    :root{
+      --ink:#111827;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --accent:#991b1b;
+      --bg:#f4f4f7;
+    }
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      max-width:100%;
+      overflow-x:hidden;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
 
-  /* Header (locked) */
-  .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--border)}
-  .hm-wrap{max-width:1200px;margin:0 auto;padding:0 12px;display:flex;align-items:center;justify-content:space-between}
-  .left{display:flex;align-items:center;gap:10px}
-  .hm-brand{font-size:24px;font-weight:800;color:var(--accent);text-decoration:none}
-  .hamburger{display:inline-grid;place-items:center;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#374151}
-  .hamburger svg{width:22px;height:22px;stroke-width:2}
-  .right{display:flex;align-items:center;gap:14px}
-  .hm-icon{color:#444;display:inline-grid;place-items:center}
-  .hm-icon svg{width:26px;height:26px;stroke-width:2}
-  .hm-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:#fff;color:#334155;display:inline-grid;place-items:center;font-weight:700;font-size:12px;text-decoration:none;background-size:cover;background-position:center}
-  .hm-btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:10px 18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(153,27,27,.25)}
+    /* HEADER (match index/atelier/account) */
+    .hm-header{
+      min-height:56px;
+      background:#fff;
+      border-bottom:1px solid var(--border);
+      position:relative;
+      z-index:101;
+    }
+    .hm-header .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:0 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .hm-brand{
+      font-size:24px;
+      font-weight:800;
+      color:var(--accent);
+      text-decoration:none;
+    }
+    .hamburger{
+      display:inline-grid;
+      place-items:center;
+      width:36px;
+      height:36px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+      color:#374151;
+      cursor:pointer;
+    }
+    .hamburger svg{width:22px;height:22px;stroke-width:2}
+    .right{display:flex;align-items:center;gap:14px}
+    .hm-icon{
+      color:#444;
+      display:inline-grid;
+      place-items:center;
+    }
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
 
-  /* Sheet */
-  .sheet{position:fixed;inset:0 auto 0 0;width:min(84vw,340px);background:#fff;border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .25s ease;z-index:100;display:flex;flex-direction:column}
-  .sheet.open{transform:translateX(0)}
-  .sheet header{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border)}
-  .sheet nav{display:grid;padding:10px}
-  .sheet nav a{padding:10px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:#1f2937}
-  .sheet nav a + a{margin-top:8px}
-  .sheet .close{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:#444}
+    /* Account icon + login badge (shared) */
+    .hm-account{
+      position:relative;
+      display:inline-grid;
+      place-items:center;
+      width:26px;
+      height:26px;
+    }
+    .hm-account svg{
+      width:26px;
+      height:26px;
+      stroke-width:2;
+      display:block;
+    }
+    .hm-account-badge{
+      position:absolute;
+      bottom:-2px;
+      right:-2px;
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      border:2px solid #fff;
+      background:#d1d5db; /* default / logged-out */
+    }
+    .hm-account.is-logged-in .hm-account-badge{
+      background:#16a34a;
+    }
+    .hm-account.is-logged-out .hm-account-badge{
+      background:#d1d5db;
+    }
 
-  /* Page */
-  .wrap{max-width:1200px;margin:16px auto 28px;padding:0 12px}
-  h1{margin:0 0 6px;font-size:28px;font-weight:800}
-  .subtle{color:var(--muted);margin:0 0 12px}
+    .hm-btn-primary{
+      background:var(--accent);
+      color:#fff;
+      border:1px solid var(--accent);
+      border-radius:999px;
+      padding:10px 18px;
+      font-weight:700;
+      text-decoration:none;
+      box-shadow:0 2px 8px rgba(153,27,27,.25);
+    }
 
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  @media(max-width:1020px){.grid{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+    /* LEFT SHEET (match other pages) */
+    .sheet{
+      position:fixed;
+      inset:0 auto 0 0;
+      width:min(84vw,340px);
+      background:#fff;
+      border-right:1px solid var(--border);
+      transform:translateX(-100%);
+      transition:transform .25s ease;
+      z-index:100;
+      display:flex;
+      flex-direction:column;
+    }
+    .sheet.open{transform:translateX(0)}
+    .sheet header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px;
+      border-bottom:1px solid var(--border);
+    }
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      text-decoration:none;
+      color:#1f2937;
+    }
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{
+      display:inline-grid;
+      place-items:center;
+      width:30px;
+      height:30px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:#fff;
+      color:#444;
+      cursor:pointer;
+    }
+    #sheetOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.25);
+      backdrop-filter:blur(1px);
+      display:none;
+      z-index:90;
+    }
+    #sheetOverlay.show{display:block}
 
-  .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.06)}
-  .photo{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:linear-gradient(180deg,#f8fafc,#eef2f7)}
-  .bd{padding:10px}
-  .title{font-weight:700}
-  .meta{color:#6b7280;font-size:12px;margin-top:2px}
-  .row{display:flex;gap:8px;margin-top:8px}
-  .btn{flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .empty{border:2px dashed #e5e7eb;border-radius:12px;padding:20px;text-align:center;color:#6b7280}
-  .heart{position:absolute;top:8px;right:8px;background:#fff;border:1px solid var(--border);border-radius:999px;width:32px;height:32px;display:grid;place-items:center;cursor:pointer}
-  .rel{position:relative}
+    /* PAGE */
+    main.wrap{
+      max-width:1200px;
+      margin:16px auto 28px;
+      padding:0 12px;
+    }
+    h1{
+      margin:0 0 6px;
+      font-size:28px;
+      font-weight:800;
+    }
+    .subtle{
+      color:var(--muted);
+      margin:0 0 12px;
+      font-size:14px;
+    }
 
-  /* Footer (locked) */
-  .hm-footer{background:#fff;border-top:1px solid var(--border)}
-  .footer-wrap{max-width:1200px;margin:0 auto;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .footer-links{display:flex;gap:14px;flex-wrap:wrap}
-  .footer-links a{color:#1f2937;text-decoration:none}
-  .copy{color:#6b7280;font-size:14px}
-</style>
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+    }
+    @media(max-width:1020px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:640px){.grid{grid-template-columns:1fr}}
+
+    .card{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:0 6px 16px rgba(0,0,0,.06);
+    }
+    .rel{position:relative}
+    .photo{
+      width:100%;
+      aspect-ratio:4/3;
+      object-fit:cover;
+      display:block;
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+    }
+    .heart{
+      position:absolute;
+      top:8px;
+      right:8px;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:999px;
+      width:32px;
+      height:32px;
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      padding:0;
+    }
+    .heart svg{
+      width:18px;
+      height:18px;
+      stroke:#b91c1c;
+      fill:#b91c1c;
+    }
+    .bd{
+      padding:10px;
+    }
+    .title{
+      font-weight:700;
+      font-size:14px;
+    }
+    .meta{
+      color:#6b7280;
+      font-size:12px;
+      margin-top:2px;
+    }
+    .row{
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+    }
+    .btn{
+      flex:1;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-weight:700;
+      cursor:pointer;
+      font-size:13px;
+    }
+    .btn.primary{
+      background:var(--accent);
+      border-color:var(--accent);
+      color:#fff;
+    }
+    .empty{
+      border:2px dashed #e5e7eb;
+      border-radius:12px;
+      padding:20px;
+      text-align:center;
+      color:#6b7280;
+      font-size:14px;
+      margin-top:8px;
+    }
+
+    /* FOOTER (match index) */
+    .hm-footer{
+      background:#fff;
+      border-top:1px solid var(--border);
+      margin-top:18px;
+    }
+    .hm-footer .footer-wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:12px 16px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .hm-footer .footer-links a{
+      color:#4b5563;
+      text-decoration:none;
+    }
+    .hm-footer .footer-links a:hover{text-decoration:underline}
+    .copy{
+      color:#6b7280;
+      font-size:14px;
+    }
+  </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <header class="hm-header" role="banner">
-  <div class="hm-wrap">
+  <div class="wrap">
     <div class="left">
-      <button id="openMenu" class="hamburger" aria-label="Open menu">
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
           <line x1="4" y1="18" x2="20" y2="18"></line>
         </svg>
       </button>
       <a class="hm-brand" href="index.html">Hemline Market</a>
     </div>
+
     <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Browse & search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+      <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"></path>
+        </svg>
       </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites" aria-current="page">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
       </a>
       <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
       </a>
       <a class="hm-icon" href="cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="9"  cy="21" r="1"></circle>
+          <circle cx="18" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
       </a>
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+
+      <!-- Account icon with login status -->
+      <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
+        <span class="hm-account-badge" id="headerAccountBadge"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="8" r="3.2"></circle>
+          <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+        </svg>
+      </a>
+
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
 
-<aside class="sheet" id="menuSheet" aria-hidden="true">
+<!-- OVERLAY + SHEET -->
+<div id="sheetOverlay" aria-hidden="true"></div>
+
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
   <header>
     <strong>Menu</strong>
     <button class="close" id="closeMenu" aria-label="Close menu">
@@ -110,23 +369,27 @@
     </button>
   </header>
   <nav>
-    <a href="browse.html">Browse</a>
-    <a href="favorites.html" aria-current="page">Favorites</a>
-    <a href="orders.html">Orders</a>
     <a href="account.html">Account</a>
+    <a href="atelier.html">My Atelier</a>
     <a href="how.html">How It Works</a>
+    <a href="sell.html">Sell Fabric</a>
+    <a href="ThreadTalk.html">ThreadTalk</a>
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
 
+<!-- MAIN -->
 <main class="wrap" id="maincontent">
   <h1>Favorites</h1>
   <p class="subtle">Your saved fabrics.</p>
 
-  <div id="empty" class="empty" style="display:none">No favorites yet. Browse and tap the heart to save fabrics.</div>
+  <div id="empty" class="empty" style="display:none;">
+    No favorites yet. Browse listings and tap the heart to save fabrics.
+  </div>
   <section id="grid" class="grid" aria-live="polite"></section>
 </main>
 
+<!-- FOOTER -->
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
     <div class="copy">© 2025 Hemline Market</div>
@@ -140,74 +403,241 @@
   </div>
 </footer>
 
+<!-- Supabase (for header session state only) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 (function(){
-  // Header sheet + avatar
-  const sheet=document.getElementById("menuSheet");
-  const openBtn=document.getElementById("openMenu");
-  const closeBtn=document.getElementById("closeMenu");
-  function open(){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
-  function close(){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
-  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();open();});
-  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();close();});
-  document.addEventListener("keydown",e=>{if(e.key==="Escape") close();});
-  try{ const url=localStorage.getItem("avatarUrl"); if(url){ const a=document.getElementById("avatar"); a.textContent=''; a.style.backgroundImage="url('"+url+"')"; }}catch(e){}
+  // ----- Hamburger / overlay -----
+  const sheet    = document.getElementById('menuSheet');
+  const openBtn  = document.getElementById('openMenu');
+  const closeBtn = document.getElementById('closeMenu');
+  const overlay  = document.getElementById('sheetOverlay');
 
-  const grid=document.getElementById('grid');
-  const empty=document.getElementById('empty');
+  function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+  function openSheet(){
+    if(!sheet) return;
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden','false');
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden','false');
+    if(openBtn) openBtn.setAttribute('aria-expanded','true');
+    lockScroll(true);
+  }
+  function closeSheet(){
+    if(!sheet) return;
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden','true');
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden','true');
+    if(openBtn) openBtn.setAttribute('aria-expanded','false');
+    lockScroll(false);
+    if(openBtn) openBtn.focus();
+  }
+
+  if (openBtn && sheet && closeBtn && overlay){
+    openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+    closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+    overlay.addEventListener('click', closeSheet);
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+  }
+
+  // ----- Favorites store (shared key: hm_favs) -----
+  const STORAGE_KEY = 'hm_favs';
+  const grid  = document.getElementById('grid');
+  const empty = document.getElementById('empty');
 
   function getFavs(){
-    try{ return JSON.parse(localStorage.getItem('hm_favs')||'[]'); }catch(_){ return []; }
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(_){
+      return [];
+    }
   }
-  function setFavs(arr){
-    try{ localStorage.setItem('hm_favs', JSON.stringify(arr)); }catch(_){}
+  function setFavs(favs){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(favs || []));
+    }catch(_){}
   }
   function removeFav(id){
-    const next=getFavs().filter(x=>String(x.id)!==String(id));
-    setFavs(next); render();
+    const next = getFavs().filter(x => String(x.id) !== String(id));
+    setFavs(next);
+    renderFavorites();
   }
 
-  function render(){
-    const favs=getFavs();
-    grid.innerHTML='';
-    empty.style.display = favs.length? 'none':'block';
-    favs.forEach(it=>{
-      const card=document.createElement('article'); card.className='card';
-      const rel=document.createElement('div'); rel.className='rel';
-      const img=document.createElement('img'); img.className='photo'; img.alt=it.title||'Fabric photo'; img.src=it.photo||'';
-      const heart=document.createElement('button'); heart.className='heart'; heart.type='button'; heart.title='Remove from favorites'; heart.innerHTML='❤';
-      heart.addEventListener('click',()=>removeFav(it.id));
-      rel.append(img,heart);
+  function formatPrice(fav){
+    // tolerate both legacy and new shapes
+    if (fav.perYd != null){
+      const v = Number(fav.perYd);
+      if (!isNaN(v)) return '$' + v.toFixed(2) + '/yard';
+    }
+    if (fav.price_per_yard != null){
+      const v = Number(fav.price_per_yard);
+      if (!isNaN(v)) return '$' + v.toFixed(2) + '/yard';
+    }
+    if (fav.price_cents != null){
+      const cents = Number(fav.price_cents);
+      if (!isNaN(cents)){
+        const val = cents/100;
+        return val.toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2}) + '/yard';
+      }
+    }
+    return '';
+  }
 
-      const bd=document.createElement('div'); bd.className='bd';
-      const t=document.createElement('div'); t.className='title'; t.textContent=it.title||'Untitled fabric';
-      const m=document.createElement('div'); m.className='meta'; m.textContent=(it.perYd?`$${Number(it.perYd).toFixed(2)}/yd`:'')+(it.yards?` · ${it.yards} yd`:'')+(it.width?` · ${it.width}″`:'');
-      const row=document.createElement('div'); row.className='row';
-      const view=document.createElement('a'); view.className='btn primary'; view.href = (it.href||'listing.html?id='+encodeURIComponent(it.id||'')); view.textContent='View';
-      const rm=document.createElement('button'); rm.className='btn'; rm.type='button'; rm.textContent='Remove';
-      rm.addEventListener('click',()=>removeFav(it.id));
-      row.append(view,rm);
+  function formatMeta(fav){
+    const parts = [];
+    const price = formatPrice(fav);
+    if (price) parts.push(price);
+    const yards = fav.yards_available != null ? fav.yards_available : fav.yards;
+    if (yards != null && yards !== ''){
+      parts.push(yards + ' yd');
+    }
+    const width = fav.width_inches != null ? fav.width_inches : fav.width;
+    if (width != null && width !== ''){
+      parts.push(width + '″');
+    }
+    return parts.join(' · ');
+  }
 
-      bd.append(t,m,row);
-      card.append(rel,bd);
+  function favHref(fav){
+    if (fav.href) return fav.href;
+    if (fav.url) return fav.url;
+    if (fav.id != null) return 'listing.html?id=' + encodeURIComponent(fav.id);
+    return 'browse.html?type=listings';
+  }
+
+  function favPhoto(fav){
+    return fav.photo || fav.image_url_1 || fav.image || '';
+  }
+
+  function renderFavorites(){
+    const favs = getFavs();
+    if (!grid || !empty) return;
+
+    grid.innerHTML = '';
+    if (!favs.length){
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    favs.forEach(fav=>{
+      const card  = document.createElement('article');
+      card.className = 'card';
+
+      const rel   = document.createElement('div');
+      rel.className = 'rel';
+
+      const img   = document.createElement('img');
+      img.className = 'photo';
+      img.alt  = fav.title || 'Fabric photo';
+      const src = favPhoto(fav);
+      if (src) img.src = src;
+
+      const heart = document.createElement('button');
+      heart.type = 'button';
+      heart.className = 'heart';
+      heart.setAttribute('aria-label','Remove from favorites');
+      heart.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      `;
+      heart.addEventListener('click', ()=> removeFav(fav.id));
+
+      rel.appendChild(img);
+      rel.appendChild(heart);
+
+      const bd   = document.createElement('div');
+      bd.className = 'bd';
+
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = fav.title || 'Untitled fabric';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = formatMeta(fav);
+
+      const row  = document.createElement('div');
+      row.className = 'row';
+
+      const view = document.createElement('a');
+      view.className = 'btn primary';
+      view.href = favHref(fav);
+      view.textContent = 'View';
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', ()=> removeFav(fav.id));
+
+      row.appendChild(view);
+      row.appendChild(removeBtn);
+
+      bd.appendChild(title);
+      bd.appendChild(meta);
+      bd.appendChild(row);
+
+      card.appendChild(rel);
+      card.appendChild(bd);
       grid.appendChild(card);
     });
   }
 
-  // demo seed if empty (safe)
-  if(getFavs().length===0){
-    setFavs([{
-      id:1,
-      title:'Italian Silk Twill — Midnight',
-      perYd:68,
-      yards:1.5,
-      width:54,
-      photo:'https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=1200&auto=format&fit=crop',
-      href:'listing.html?id=1'
-    }]);
+  renderFavorites();
+
+  // ----- Header session state (auth-aware account icon) -----
+  const headerAccountLink = document.getElementById('headerAccountLink');
+
+  if (window.supabase && headerAccountLink){
+    const supabaseClient = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+      { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+    );
+
+    function applySession(session){
+      const user = session && session.user;
+      if(!headerAccountLink) return;
+
+      if(user){
+        headerAccountLink.href = "account.html";
+        headerAccountLink.setAttribute("aria-label","Your account");
+        headerAccountLink.classList.add("is-logged-in");
+        headerAccountLink.classList.remove("is-logged-out");
+      }else{
+        headerAccountLink.href = "auth.html?view=login";
+        headerAccountLink.setAttribute("aria-label","Sign in or manage your account");
+        headerAccountLink.classList.remove("is-logged-in");
+        headerAccountLink.classList.add("is-logged-out");
+      }
+    }
+
+    (async ()=>{
+      try{
+        const { data:{ session } } = await supabaseClient.auth.getSession();
+        applySession(session);
+      }catch(e){
+        console.warn("Favorites header session check failed:", e);
+      }
+    })();
+
+    supabaseClient.auth.onAuthStateChange((_event, session)=>{
+      applySession(session);
+    });
   }
-  render();
 })();
 </script>
+
+<!-- Cart hooks (if needed globally) -->
+<script src="scripts/cart.js"></script>
+<script src="scripts/cart-hooks.js"></script>
+<script src="assets/add-to-cart.js" defer></script>
 </body>
 </html>
