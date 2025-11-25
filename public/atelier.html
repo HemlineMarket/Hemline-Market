@@ -5,11 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Atelier — Hemline Market</title>
 
-  <!-- Shared styles -->
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hem-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <!-- Tell browsers not to aggressively cache this HTML -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+
+  <!-- Shared styles (cache-busted with version) -->
+  <link rel="stylesheet" href="styles/hm-modern.css?v=20251124"/>
+  <link rel="stylesheet" href="styles/hem-header.css?v=20251124"/>
+  <link rel="stylesheet" href="styles/hm-typography.css?v=20251124"/>
+  <link rel="stylesheet" href="styles/hm-footer.css?v=20251124"/>
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
   <style>
@@ -586,8 +591,8 @@
   </div>
 </footer>
 
-<!-- Supabase JS -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Supabase JS (with version query for cache-busting) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20251124"></script>
 
 <script>
   // Hamburger / overlay (same as account)
@@ -662,7 +667,6 @@
   }
 
   async function ensureSession({maxWaitMs=3000} = {}){
-    // Poll a little in case auth just finished on another page
     let { data:{ session } } = await supabaseClient.auth.getSession();
     if(session?.user) return session;
     const start = Date.now();
@@ -701,7 +705,6 @@
     const grid  = document.getElementById("listingsGrid");
     const empty = document.getElementById("listingsEmpty");
     if(!grid || !empty || !sellerId){
-      // No seller → nothing to show
       empty.style.display = "block";
       grid.style.display = "none";
       return;
@@ -738,7 +741,6 @@
         card.className = "atelier-card";
         card.dataset.id = listing.id;
 
-        // Photo
         const photo = document.createElement("a");
         photo.href = "listing.html?id="+encodeURIComponent(listing.id);
         photo.className = "atelier-card-photo";
@@ -755,9 +757,8 @@
 
         const body = document.createElement("div");
         body.className="atelier-card-body";
-
         const t = document.createElement("a");
-        t.href = "listing.html?id="+encodeURIComponent(listing.id);
+        t.href = "listing.html?id=" + encodeURIComponent(listing.id);
         t.className = "atelier-card-title";
         t.textContent = listing.title || "Untitled listing";
 
@@ -765,15 +766,16 @@
         meta.className = "atelier-card-meta";
 
         const yardsSpan = document.createElement("span");
-        if(listing.yards_available != null){
+        if (listing.yards_available != null) {
           yardsSpan.textContent = listing.yards_available + " yards";
         } else {
           yardsSpan.textContent = "Yardage?";
         }
 
         const priceSpan = document.createElement("span");
-        if(listing.price_cents != null){
-          priceSpan.textContent = moneyFromCents(Number(listing.price_cents)) + "/yard";
+        if (listing.price_cents != null) {
+          priceSpan.textContent =
+            moneyFromCents(Number(listing.price_cents)) + "/yard";
         } else {
           priceSpan.textContent = "Price?";
         }
@@ -787,7 +789,7 @@
         const statusBadge = document.createElement("span");
         statusBadge.className = "badge-status";
         const isPublished = listing.is_published !== false;
-        if(isPublished){
+        if (isPublished) {
           statusBadge.textContent = "Published";
         } else {
           statusBadge.textContent = "Draft";
@@ -797,29 +799,25 @@
         const actions = document.createElement("div");
         actions.className = "atelier-card-actions";
 
-        // NOTE: edit/delete are owner-only actions.
-        // We’ll enable them only when this is the owner’s own atelier in initAtelier.
-
         body.appendChild(t);
         body.appendChild(meta);
         foot.appendChild(statusBadge);
         foot.appendChild(actions);
-
         body.appendChild(foot);
 
         card.appendChild(photo);
         card.appendChild(body);
         grid.appendChild(card);
       });
-    }catch(err){
+    } catch (err) {
       console.error("Listings fetch exception", err);
       showAtelierError("Unexpected error loading listings.");
     }
   }
 
-  async function initAtelier(){
+  async function initAtelier() {
     const urlParams = new URLSearchParams(window.location.search);
-    const viewedSellerId = urlParams.get("u"); // seller being viewed (e.g. Fahad)
+    const viewedSellerId = urlParams.get("u");
 
     const session = await ensureSession();
     const loggedInUser = session?.user || null;
@@ -827,100 +825,87 @@
     setHeaderForSession(session);
 
     const ownerNameEl = document.getElementById("atelierOwnerName");
-    const shopNameEl  = document.getElementById("atelierShopName");
-    const bioEl       = document.getElementById("atelierBio");
-    const avatarEl    = document.getElementById("atelierAvatar");
-    const titleEl     = document.getElementById("atelierTitle");
-    const subEl       = document.getElementById("atelierSubtitle");
-    const editBtn     = document.getElementById("btnEditShop");
-    const shareInput  = document.getElementById("shareLinkInput");
-    const copyBtn     = document.getElementById("btnCopyLink");
+    const shopNameEl = document.getElementById("atelierShopName");
+    const bioEl = document.getElementById("atelierBio");
+    const avatarEl = document.getElementById("atelierAvatar");
+    const titleEl = document.getElementById("atelierTitle");
+    const subEl = document.getElementById("atelierSubtitle");
+    const editBtn = document.getElementById("btnEditShop");
+    const shareInput = document.getElementById("shareLinkInput");
+    const copyBtn = document.getElementById("btnCopyLink");
 
-    // Decide which seller this page represents:
-    // 1) If ?u= is present → that user’s atelier (can be viewed logged in or out)
-    // 2) Else if logged in → your own atelier
-    // 3) Else → no seller; we’ll show a generic state
     const sellerId = viewedSellerId || (loggedInUser ? loggedInUser.id : null);
-    const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
+    const isOwnShop =
+      !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
 
-    if(!sellerId){
-      // No seller to load – likely a logged-out visitor on /atelier.html with no ?u=
+    if (!sellerId) {
       titleEl.textContent = "Atelier";
-      subEl.textContent = "Sign in or follow a seller link to view an Atelier.";
+      subEl.textContent =
+        "Sign in or follow a seller link to view an Atelier.";
       ownerNameEl.textContent = "Hemline member";
       shopNameEl.textContent = "Store name";
       bioEl.textContent = "";
       avatarEl.textContent = "HM";
       editBtn.style.display = loggedInUser ? "inline-flex" : "none";
-      if(loggedInUser){
-        editBtn.onclick = ()=> window.location.href = "account.html";
+      if (loggedInUser) {
+        editBtn.onclick = () => (window.location.href = "account.html");
       }
       shareInput.value = window.location.href;
-      copyBtn.onclick = ()=> navigator.clipboard.writeText(shareInput.value);
+      copyBtn.onclick = () => navigator.clipboard.writeText(shareInput.value);
       await loadListingsForSeller(null);
       return;
     }
 
-    // Load profile for this sellerId from Supabase
     let profile = null;
-    try{
+    try {
       const { data, error } = await supabaseClient
         .from("profiles")
         .select("*")
         .eq("id", sellerId)
         .maybeSingle();
-      if(error){
-        console.error("Profile fetch error", error);
-      } else {
-        profile = data;
-      }
-    }catch(err){
+      if (!error) profile = data;
+    } catch (err) {
       console.error("Profile fetch exception", err);
     }
 
     const first = profile?.first_name || "";
-    const last  = profile?.last_name  || "";
+    const last = profile?.last_name || "";
     const storeName = profile?.store_name || "";
-    const bio   = profile?.bio || "";
-    const email = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
+    const bio = profile?.bio || "";
+    const email = profile?.email || (isOwnShop ? loggedInUser?.email : "");
 
-    const displayName = (first + " " + last).trim() || (isOwnShop && loggedInUser?.email ? loggedInUser.email.split("@")[0] : "Hemline member");
+    const displayName =
+      (first + " " + last).trim() ||
+      (isOwnShop && loggedInUser?.email
+        ? loggedInUser.email.split("@")[0]
+        : "Hemline member");
+
     const shop = storeName || displayName;
 
-    if(titleEl){
-      titleEl.textContent = "Atelier: " + shop;
-    }
-    if(subEl){
-      subEl.textContent = "Fabrics, stories, and listings from " + shop + ".";
-    }
-
+    titleEl.textContent = "Atelier: " + shop;
+    subEl.textContent = "Fabrics, stories, and listings from " + shop + ".";
     ownerNameEl.textContent = displayName;
-    shopNameEl.textContent  = "Store name: " + shop;
-    bioEl.textContent       = bio;
+    shopNameEl.textContent = "Store name: " + shop;
+    bioEl.textContent = bio;
 
-    const initials = initialsFromProfile(first,last,email);
+    const initials = initialsFromProfile(first, last, email);
     avatarEl.textContent = initials;
 
-    // Share link – always encode the seller id
-    const shareUrl = window.location.origin + "/atelier.html?u=" + encodeURIComponent(sellerId);
+    const shareUrl =
+      window.location.origin +
+      "/atelier.html?u=" +
+      encodeURIComponent(sellerId);
     shareInput.value = shareUrl;
-    copyBtn.onclick = ()=>{
-      navigator.clipboard.writeText(shareInput.value);
-    };
+    copyBtn.onclick = () => navigator.clipboard.writeText(shareUrl);
 
-    // Edit button only visible on your own atelier
-    if(!isOwnShop){
+    if (!isOwnShop) {
       editBtn.style.display = "none";
-    }else{
+    } else {
       editBtn.style.display = "inline-flex";
-      editBtn.onclick = ()=> window.location.href = "account.html";
+      editBtn.onclick = () => (window.location.href = "account.html");
     }
 
-    // Finally load listings for that seller
     await loadListingsForSeller(sellerId);
-
-    // If it IS own shop, we could later wire Edit/Delete per card using sellerId,
-    // but for now listings are view-only from this page.
   }
 
   initAtelier();
@@ -928,3 +913,4 @@
 
 </body>
 </html>
+       
