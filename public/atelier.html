@@ -568,8 +568,7 @@
       <div class="hm-card-header" id="ratingHeading">Shop rating</div>
       <div class="hm-card-body">
         <p class="rating-note">
-          After at least 5 completed orders with on-time shipping, the shop’s rating and metrics
-          will appear here.
+          After at least 5 completed orders, the shop’s rating will appear here.
         </p>
         <div class="rating-pill">Not yet rated</div>
       </div>
@@ -758,10 +757,10 @@
         const body = document.createElement("div");
         body.className="atelier-card-body";
 
-        const t = document.createElement("a");
-        t.href = "listing.html?id="+encodeURIComponent(listing.id);
-        t.className = "atelier-card-title";
-        t.textContent = listing.title || "Untitled listing";
+        const titleLink = document.createElement("a");
+        titleLink.href = "listing.html?id="+encodeURIComponent(listing.id);
+        titleLink.className = "atelier-card-title";
+        titleLink.textContent = listing.title || "Untitled listing";
 
         const meta = document.createElement("div");
         meta.className = "atelier-card-meta";
@@ -798,12 +797,13 @@
 
         const actions = document.createElement("div");
         actions.className = "atelier-card-actions";
-        // (no edit/delete here yet – this page is view-only for now)
+        // (Owner-only edit/delete can be wired later)
 
-        body.appendChild(t);
-        body.appendChild(meta);
         foot.appendChild(statusBadge);
         foot.appendChild(actions);
+
+        body.appendChild(titleLink);
+        body.appendChild(meta);
         body.appendChild(foot);
 
         card.appendChild(photo);
@@ -816,46 +816,15 @@
     }
   }
 
-  function extractSellerIdFromUParam(rawU){
-    if(!rawU) return null;
-    let decoded = rawU;
-    try{
-      decoded = decodeURIComponent(rawU);
-    }catch(e){
-      // ignore, use raw
-    }
-
-    // If it starts with ? (e.g. "%3Fuser%3Duuid")
-    if(decoded.startsWith("?")){
-      decoded = decoded.slice(1);
-    }
-
-    // If it looks like a mini query string "user=uuid"
-    const params = new URLSearchParams(decoded);
-    if(params.get("user")){
-      return params.get("user");
-    }
-
-    // If it contains "user=uuid" somewhere inside
-    const match = decoded.match(/user=([0-9a-fA-F-]{20,})/);
-    if(match) return match[1];
-
-    // Otherwise just treat the decoded value as the id
-    return decoded;
-  }
-
   async function initAtelier(){
-    const url = new URL(window.location.href);
-    const rawU = url.searchParams.get("u");
+    const params         = new URLSearchParams(window.location.search);
+    const shopSlugParam  = params.get("shop"); // pretty link: ?shop=aurora
+    const viewedSellerId = params.get("u");    // legacy link: ?u=<uuid>
 
-    const session = await ensureSession();
+    const session      = await ensureSession();
     const loggedInUser = session?.user || null;
 
     setHeaderForSession(session);
-
-    const sellerIdFromParam = extractSellerIdFromUParam(rawU);
-    const sellerId = sellerIdFromParam || (loggedInUser ? loggedInUser.id : null);
-    const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
 
     const ownerNameEl = document.getElementById("atelierOwnerName");
     const shopNameEl  = document.getElementById("atelierShopName");
@@ -867,14 +836,64 @@
     const shareInput  = document.getElementById("shareLinkInput");
     const copyBtn     = document.getElementById("btnCopyLink");
 
+    let sellerId  = null;
+    let profile   = null;
+
+    try{
+      if(viewedSellerId){
+        // Explicit seller id in URL
+        sellerId = viewedSellerId;
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .eq("id", sellerId)
+          .maybeSingle();
+        if(error){
+          console.error("Profile fetch error by id", error);
+        } else {
+          profile = data;
+        }
+      }else if(shopSlugParam){
+        // Pretty link by shop slug (?shop=aurora)
+        const normalized = shopSlugParam.replace(/-/g," ").replace(/\s+/g," ").trim();
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .ilike("store_name", normalized);
+        if(error){
+          console.error("Profile fetch error by shop slug", error);
+        }else if(data && data.length){
+          profile  = data[0];
+          sellerId = profile.id;
+        }
+      }else if(loggedInUser){
+        // Default to your own atelier when no query params
+        sellerId = loggedInUser.id;
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .eq("id", sellerId)
+          .maybeSingle();
+        if(error){
+          console.error("Profile fetch error for own shop", error);
+        } else {
+          profile = data;
+        }
+      }
+    }catch(err){
+      console.error("Profile fetch exception", err);
+    }
+
+    const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
+
     if(!sellerId){
-      // No seller to load – generic state
-      titleEl.textContent = "Atelier";
-      subEl.textContent = "Sign in or follow a seller link to view an Atelier.";
+      // No seller resolved – generic state
+      if(titleEl) titleEl.textContent = "Atelier";
+      if(subEl)   subEl.textContent   = "Sign in or follow a seller link to view an Atelier.";
       ownerNameEl.textContent = "Hemline member";
-      shopNameEl.textContent = "Store name";
-      bioEl.textContent = "";
-      avatarEl.textContent = "HM";
+      shopNameEl.textContent  = "Store name";
+      bioEl.textContent       = "";
+      avatarEl.textContent    = "HM";
 
       if(loggedInUser){
         editBtn.style.display = "inline-flex";
@@ -884,34 +903,17 @@
       }
 
       shareInput.value = window.location.href;
-      copyBtn.onclick = ()=> navigator.clipboard.writeText(shareInput.value);
+      copyBtn.onclick  = ()=> navigator.clipboard.writeText(shareInput.value);
 
       await loadListingsForSeller(null);
       return;
     }
 
-    // Load profile for this sellerId from Supabase (if it exists)
-    let profile = null;
-    try{
-      const { data, error } = await supabaseClient
-        .from("profiles")
-        .select("*")
-        .eq("id", sellerId)
-        .maybeSingle();
-      if(error){
-        console.error("Profile fetch error", error);
-      } else {
-        profile = data;
-      }
-    }catch(err){
-      console.error("Profile fetch exception", err);
-    }
-
-    const first = profile?.first_name || "";
-    const last  = profile?.last_name  || "";
+    const first     = profile?.first_name || "";
+    const last      = profile?.last_name  || "";
     const storeName = profile?.store_name || "";
-    const bio   = profile?.bio || "";
-    const email = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
+    const bio       = profile?.bio || "";
+    const email     = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
 
     const displayName =
       (first + " " + last).trim() ||
@@ -933,10 +935,23 @@
     const initials = initialsFromProfile(first,last,email);
     avatarEl.textContent = initials;
 
-    // Share link – normalize to plain ?u=<sellerId>
-    const shareUrl = window.location.origin + "/atelier.html?u=" + encodeURIComponent(sellerId);
+    // Pretty share link – prefer ?shop=<slug>, fall back to ?u=<id>, else current URL
+    const shopSlug = slugifyStoreName(shop);
+    const baseUrl  = window.location.origin + "/atelier.html";
+
+    let shareUrl;
+    if(shopSlug){
+      shareUrl = baseUrl + "?shop=" + encodeURIComponent(shopSlug);
+    }else if(sellerId){
+      shareUrl = baseUrl + "?u=" + encodeURIComponent(sellerId);
+    }else{
+      shareUrl = window.location.href;
+    }
+
     shareInput.value = shareUrl;
-    copyBtn.onclick = ()=> navigator.clipboard.writeText(shareInput.value);
+    copyBtn.onclick = ()=>{
+      navigator.clipboard.writeText(shareInput.value);
+    };
 
     if(!isOwnShop){
       editBtn.style.display = "none";
@@ -945,6 +960,7 @@
       editBtn.onclick = ()=> window.location.href = "account.html";
     }
 
+    // Finally load listings for that seller
     await loadListingsForSeller(sellerId);
   }
 
