@@ -1,25 +1,11 @@
-<!-- File: notifications.html -->
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- MOBILE HOTFIX -->
-  <style id="hm-mobile-hotfix">
-    html, body { max-width:100%; overflow-x:hidden; }
-    .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
-    .grid, .section, .toolbar, .header, .tabbar { max-width:100%; }
-    img, video, canvas, svg { max-width:100%; height:auto; }
-    [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
-  </style>
-
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Notifications — Hemline Market</title>
 
-  <!-- Shared site styles -->
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hem-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
   <style>
     :root{
@@ -29,20 +15,41 @@
       --hm-border:#e5e7eb;
       --hm-bg:#fafafa;
     }
-    body{
+    *{box-sizing:border-box}
+    html,body{
       margin:0;
+      max-width:100%;
+      overflow-x:hidden;
       background:var(--hm-bg);
       color:var(--hm-text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
+    img,svg,canvas,video{max-width:100%;height:auto;display:block}
 
-    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
-
-    /* Header */
-    .hm-header{min-height:56px;background:#fff;border-bottom:1px solid var(--hm-border)}
-    .hm-header .wrap{display:flex;align-items:center;justify-content:space-between}
-    .hm-brand{font-size:24px;font-weight:800;color:#991b1b;text-decoration:none}
+    /* HEADER (matches listing/index) */
+    .hm-header{
+      min-height:56px;
+      background:#fff;
+      border-bottom:1px solid var(--hm-border);
+      position:relative;
+      z-index:101;
+    }
+    .hm-header .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:0 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .left{display:flex;align-items:center;gap:10px}
+    .hm-brand{
+      font-size:24px;
+      font-weight:800;
+      color:var(--hm-accent);
+      text-decoration:none;
+    }
     .hamburger{
       display:inline-grid;
       place-items:center;
@@ -55,23 +62,43 @@
       cursor:pointer;
     }
     .hamburger svg{width:22px;height:22px;stroke-width:2}
-    .right{display:flex;align-items:center;gap:14px}
-    .hm-icon{color:#444;display:inline-grid;place-items:center}
-    .hm-icon svg{width:26px;height:26px;stroke-width:2}
-    .hm-avatar{
-      width:28px;height:28px;
-      border-radius:50%;
-      border:1px solid var(--hm-border);
-      background:#fff;
-      color:#334155;
+    .right{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .hm-icon{
+      color:#444;
       display:inline-grid;
       place-items:center;
-      font-weight:700;
-      font-size:12px;
-      text-decoration:none;
-      background-size:cover;
-      background-position:center;
     }
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+
+    .hm-account{
+      position:relative;
+      display:inline-grid;
+      place-items:center;
+      width:26px;
+      height:26px;
+    }
+    .hm-account svg{
+      width:26px;
+      height:26px;
+      stroke-width:2;
+    }
+    .hm-account-badge{
+      position:absolute;
+      bottom:-2px;
+      right:-2px;
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      border:2px solid #fff;
+      background:#d1d5db;
+    }
+    .hm-account.is-logged-in .hm-account-badge{background:#16a34a;}
+    .hm-account.is-logged-out .hm-account-badge{background:#d1d5db;}
+
     .hm-btn-primary{
       background:var(--hm-accent);
       color:#fff;
@@ -83,7 +110,7 @@
       box-shadow:0 2px 8px rgba(153,27,27,.25);
     }
 
-    /* Left sheet nav */
+    /* LEFT SHEET MENU + OVERLAY */
     .sheet{
       position:fixed;
       inset:0 auto 0 0;
@@ -96,7 +123,7 @@
       display:flex;
       flex-direction:column;
     }
-    .sheet.open{transform:translateX(0)}
+    .sheet.open{transform:translateX(0);}
     .sheet header{
       display:flex;
       align-items:center;
@@ -104,7 +131,10 @@
       padding:10px;
       border-bottom:1px solid var(--hm-border);
     }
-    .sheet nav{display:grid;padding:10px}
+    .sheet nav{
+      display:grid;
+      padding:10px;
+    }
     .sheet nav a{
       padding:10px;
       border:1px solid var(--hm-border);
@@ -112,7 +142,7 @@
       text-decoration:none;
       color:#1f2937;
     }
-    .sheet nav a + a{margin-top:8px}
+    .sheet nav a+a{margin-top:8px;}
     .sheet .close{
       display:inline-grid;
       place-items:center;
@@ -124,28 +154,54 @@
       color:#444;
       cursor:pointer;
     }
+    #sheetOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.25);
+      backdrop-filter:blur(1px);
+      display:none;
+      z-index:90;
+    }
+    #sheetOverlay.show{display:block;}
 
-    /* Notifications */
+    /* PAGE LAYOUT */
+    .wrap-main{
+      max-width:1200px;
+      margin:18px auto 28px;
+      padding:0 12px;
+    }
+
     .pagehead{
-      margin:8px 0 12px;
+      margin:4px 0 12px;
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:10px;
       flex-wrap:wrap;
     }
-    .pagehead h1{margin:0;font-size:22px}
-    .actions{display:flex;gap:8px}
+    .pagehead h1{
+      margin:0;
+      font-size:22px;
+      font-weight:800;
+    }
+    .actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
     .btn{
       padding:8px 12px;
-      border:1px solid var(--hm-border);
       border-radius:10px;
+      border:1px solid var(--hm-border);
       background:#fff;
       cursor:pointer;
       font-weight:700;
       font-size:13px;
     }
-    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn:disabled{
+      opacity:.6;
+      cursor:not-allowed;
+    }
 
     .notif-card{
       background:#fff;
@@ -161,7 +217,7 @@
       color:#374151;
       font-size:13px;
     }
-    .list{display:grid}
+    .list{display:grid;}
     .item{
       display:grid;
       grid-template-columns:auto 1fr auto;
@@ -170,7 +226,7 @@
       padding:12px;
       border-bottom:1px solid var(--hm-border);
     }
-    .item:last-child{border-bottom:0}
+    .item:last-child{border-bottom:0;}
     .dot{
       width:10px;
       height:10px;
@@ -178,21 +234,26 @@
       background:var(--hm-accent);
       opacity:.95;
     }
-    .item.read .dot{opacity:0}
-    .title{font-weight:700;font-size:14px}
-    .meta{color:var(--hm-muted);font-size:12px;margin-top:2px}
-    .tag{
-      display:inline-flex;
+    .item.read .dot{opacity:0;}
+    .title{font-weight:700;font-size:14px;}
+    .meta{
+      color:var(--hm-muted);
+      font-size:12px;
+      margin-top:2px;
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
       align-items:center;
-      justify-content:center;
-      padding:2px 8px;
+    }
+    .pill-kind{
+      font-size:11px;
       border-radius:999px;
       border:1px solid #e5e7eb;
-      font-size:11px;
-      margin-top:4px;
-      color:#4b5563;
+      padding:2px 8px;
       background:#f9fafb;
+      color:#374151;
     }
+    .when{font-size:11px;}
     .link{
       color:#1f2937;
       text-decoration:none;
@@ -201,32 +262,44 @@
       padding:6px 10px;
       background:#fff;
       font-weight:700;
-      font-size:13px;
-      white-space:nowrap;
+      font-size:12px;
     }
+    .link:hover{text-decoration:underline;}
     .empty{
       padding:14px;
       color:#6b7280;
       font-size:13px;
     }
 
-    /* Footer */
+    /* FOOTER (matches listing/index) */
     .hm-footer{
       background:#fff;
       border-top:1px solid var(--hm-border);
-      margin-top:18px;
     }
-    .hm-footer .footer-wrap{
+    .footer-wrap{
       max-width:1200px;
       margin:0 auto;
-      padding:12px 16px;
+      padding:10px 12px;
       display:flex;
-      flex-wrap:wrap;
-      gap:8px;
       align-items:center;
       justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
     }
-    .hm-footer .footer-links a{color:#4b5563}
+    .footer-links{
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .footer-links a{
+      color:#4b5563;
+      text-decoration:none;
+    }
+    .footer-links a:hover{text-decoration:underline;}
+    .copy{
+      color:#6b7280;
+      font-size:14px;
+    }
   </style>
 </head>
 <body>
@@ -235,7 +308,7 @@
 <header class="hm-header" role="banner">
   <div class="wrap">
     <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
+      <button id="openMenu" class="hamburger" type="button" aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
           <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
@@ -252,20 +325,22 @@
           <path d="M21 21l-4.3-4.3"></path>
         </svg>
       </a>
-
+      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"></path>
+        </svg>
+      </a>
       <a class="hm-icon" href="favorites.html" aria-label="Favorites">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
         </svg>
       </a>
-
       <a class="hm-icon" href="notifications.html" aria-label="Notifications" aria-current="page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
       </a>
-
       <a class="hm-icon" href="cart.html" aria-label="Cart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9"  cy="21" r="1"></circle>
@@ -274,14 +349,23 @@
         </svg>
       </a>
 
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
+      <a class="hm-icon hm-account is-logged-out" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
+        <span class="hm-account-badge" id="headerAccountBadge"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="8" r="3.2"></circle>
+          <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+        </svg>
+      </a>
+
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
 
+<div id="sheetOverlay" aria-hidden="true"></div>
+
 <!-- LEFT MENU -->
-<aside class="sheet" id="menuSheet" aria-hidden="true">
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
   <header>
     <strong>Menu</strong>
     <button class="close" id="closeMenu" aria-label="Close menu">
@@ -292,15 +376,16 @@
     </button>
   </header>
   <nav>
-    <a href="dashboard.html">Dashboard</a>
+    <a href="account.html">Account</a>
     <a href="atelier.html">My Atelier</a>
     <a href="how.html">How It Works</a>
     <a href="sell.html">Sell Fabric</a>
+    <a href="ThreadTalk.html">ThreadTalk</a>
     <a href="contact.html">Contact</a>
   </nav>
 </aside>
 
-<main class="wrap">
+<main class="wrap-main">
   <div class="pagehead">
     <h1>Notifications</h1>
     <div class="actions">
@@ -332,151 +417,227 @@
   </div>
 </footer>
 
+<!-- Hamburger / overlay script -->
 <script>
 (function(){
-  /* Menu sheet */
-  const sheet=document.getElementById("menuSheet");
-  const openBtn=document.getElementById("openMenu");
-  const closeBtn=document.getElementById("closeMenu");
-  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
-  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
-  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+  const sheet    = document.getElementById('menuSheet');
+  const openBtn  = document.getElementById('openMenu');
+  const closeBtn = document.getElementById('closeMenu');
+  const overlay  = document.getElementById('sheetOverlay');
 
-  /* Avatar from localStorage (optional) */
-  const avatar=document.getElementById("avatar");
-  try{
-    const url=localStorage.getItem("avatarUrl");
-    if(url){
-      avatar.textContent='';
-      avatar.style.backgroundImage="url('"+url+"')";
+  function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+  function openSheet(){
+    if(!sheet) return;
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden','false');
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden','false');
+    if(openBtn) openBtn.setAttribute('aria-expanded','true');
+    lockScroll(true);
+  }
+  function closeSheet(){
+    if(!sheet) return;
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden','true');
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden','true');
+    if(openBtn) openBtn.setAttribute('aria-expanded','false');
+    lockScroll(false);
+    if(openBtn) openBtn.focus();
+  }
+
+  if(openBtn && sheet && closeBtn && overlay){
+    openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+    closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+    overlay.addEventListener('click', closeSheet);
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+  }
+})();
+</script>
+
+<!-- Supabase JS for session-aware header -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const supabaseClient = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+  );
+
+  function updateHeaderForSession(session){
+    const link = document.getElementById("headerAccountLink");
+    if(!link) return;
+    if(session && session.user){
+      link.href = "account.html";
+      link.setAttribute("aria-label","Your account");
+      link.classList.add("is-logged-in");
+      link.classList.remove("is-logged-out");
+    }else{
+      link.href = "auth.html?view=login";
+      link.setAttribute("aria-label","Sign in or manage your account");
+      link.classList.remove("is-logged-in");
+      link.classList.add("is-logged-out");
     }
-  }catch(e){}
+  }
 
-  /* Notifications storage helpers */
-  const STORAGE_KEY = 'hm_notifications';
-
-  function getNotifications(){
+  (async () =>{
     try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      const { data:{ session } } = await supabaseClient.auth.getSession();
+      updateHeaderForSession(session);
+    }catch(e){
+      console.warn("Header session check failed:", e);
+    }
+    supabaseClient.auth.onAuthStateChange((_event, session)=>{
+      updateHeaderForSession(session);
+    });
+  })();
+</script>
+
+<!-- Notifications logic: reads from localStorage "hm_notifications" -->
+<script>
+(function(){
+  const NOTIF_KEY = 'hm_notifications';
+  const listToday   = document.getElementById('listToday');
+  const listEarlier = document.getElementById('listEarlier');
+
+  function getNotifs(){
+    try{
+      const raw = localStorage.getItem(NOTIF_KEY);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data : [];
     }catch(_){
       return [];
     }
   }
-
-  function saveNotifications(list){
-    try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list || []));
-    }catch(_){}
+  function saveNotifs(arr){
+    try{ localStorage.setItem(NOTIF_KEY, JSON.stringify(arr || [])); }catch(_){}
   }
 
-  function markAllRead(){
-    const list = getNotifications();
-    if(!list.length) return;
-    list.forEach(n => { n.unread = false; });
-    saveNotifications(list);
-    render();
+  function isToday(date){
+    const d = new Date(date);
+    if(!Number.isFinite(d.getTime())) return false;
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() &&
+           d.getMonth()    === now.getMonth() &&
+           d.getDate()     === now.getDate();
   }
 
-  function clearAll(){
-    saveNotifications([]);
-    render();
-  }
-
-  /* Rendering */
-  const listToday  = document.getElementById('listToday');
-  const listEarlier= document.getElementById('listEarlier');
-
-  function createItem(n){
-    const row = document.createElement('div');
-    row.className = 'item' + (n.unread ? '' : ' read');
-    row.dataset.id = n.id || '';
-
-    const href = n.href || '#';
-    const kind = n.kind || ''; // e.g. "Purchase", "Message"
-
-    row.innerHTML = `
-      <span class="dot" aria-hidden="true"></span>
-      <div>
-        <div class="title">${n.title || 'Notification'}</div>
-        <div class="meta">${n.meta || ''}</div>
-        ${kind ? `<div class="tag">${kind}</div>` : ''}
-      </div>
-      <a class="link" href="${href}">View</a>
-    `;
-
-    row.addEventListener('click', (e)=>{
-      if(e.target.tagName.toLowerCase()==='a') return;
-      row.classList.add('read');
-      const all = getNotifications();
-      const found = all.find(x => x.id === n.id);
-      if(found){
-        found.unread = false;
-        saveNotifications(all);
-      }
+  function formatWhen(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    if(!Number.isFinite(d.getTime())) return '';
+    return d.toLocaleString(undefined,{
+      month:'short',
+      day:'numeric'
     });
-
-    return row;
   }
 
-  function render(){
-    const items = getNotifications()
-      .slice()
-      .sort((a,b)=>{
-        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return db - da;
-      });
-
-    listToday.innerHTML   = '';
-    listEarlier.innerHTML = '';
-
+  function renderList(container, items, isTodayGroup){
+    container.innerHTML = '';
     if(!items.length){
-      listToday.innerHTML   = '<div class="empty">You’re all caught up.</div>';
-      listEarlier.innerHTML = '';
+      if(isTodayGroup){
+        const div = document.createElement('div');
+        div.className = 'empty';
+        div.textContent = "You’re all caught up.";
+        container.appendChild(div);
+      }
       return;
     }
 
-    const now   = new Date();
-    const today = [];
-    const earlier = [];
-
     items.forEach(n=>{
-      const t = n.created_at ? new Date(n.created_at) : null;
-      if(
-        t &&
-        t.getFullYear() === now.getFullYear() &&
-        t.getMonth() === now.getMonth() &&
-        t.getDate() === now.getDate()
-      ){
-        today.push(n);
-      } else {
-        earlier.push(n);
+      const row = document.createElement('div');
+      row.className = 'item' + (n.unread === false ? ' read' : '');
+      row.dataset.id = n.id || '';
+
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.setAttribute('aria-hidden','true');
+
+      const main = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = n.title || 'Notification';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+
+      const pill = document.createElement('span');
+      pill.className = 'pill-kind';
+      pill.textContent = n.kind || 'Activity';
+      meta.appendChild(pill);
+
+      if(n.meta){
+        const metaText = document.createElement('span');
+        metaText.textContent = n.meta;
+        meta.appendChild(metaText);
       }
+
+      const when = document.createElement('span');
+      when.className = 'when';
+      when.textContent = formatWhen(n.created_at);
+      meta.appendChild(when);
+
+      main.appendChild(title);
+      main.appendChild(meta);
+
+      let link = null;
+      if(n.href){
+        link = document.createElement('a');
+        link.className = 'link';
+        link.href = n.href;
+        link.textContent = 'View';
+      }
+
+      row.appendChild(dot);
+      row.appendChild(main);
+      if(link) row.appendChild(link);
+
+      // Clicking the row (not the link) marks read
+      row.addEventListener('click', (e)=>{
+        if(e.target.tagName.toLowerCase() === 'a') return;
+        row.classList.add('read');
+        const notifs = getNotifs();
+        const idx = notifs.findIndex(x => x.id === n.id);
+        if(idx !== -1){
+          notifs[idx].unread = false;
+          saveNotifs(notifs);
+        }
+      });
+
+      container.appendChild(row);
     });
-
-    if(today.length){
-      today.forEach(n => listToday.appendChild(createItem(n)));
-    } else {
-      listToday.innerHTML = '<div class="empty">No notifications yet today.</div>';
-    }
-
-    if(earlier.length){
-      earlier.forEach(n => listEarlier.appendChild(createItem(n)));
-    } else {
-      listEarlier.innerHTML = '<div class="empty">No earlier notifications.</div>';
-    }
   }
 
-  /* Buttons */
-  document.getElementById('markAll').addEventListener('click', markAllRead);
-  document.getElementById('clearAll').addEventListener('click', clearAll);
+  function renderAll(){
+    const all = getNotifs().sort((a,b)=>{
+      return new Date(b.created_at||0) - new Date(a.created_at||0);
+    });
 
-  render();
+    const todays  = all.filter(n => isToday(n.created_at));
+    const earlier = all.filter(n => !isToday(n.created_at));
+
+    renderList(listToday, todays, true);
+    renderList(listEarlier, earlier, false);
+  }
+
+  // Buttons
+  const markAllBtn = document.getElementById('markAll');
+  const clearAllBtn = document.getElementById('clearAll');
+
+  if(markAllBtn){
+    markAllBtn.addEventListener('click', ()=>{
+      const notifs = getNotifs().map(n => ({...n, unread:false}));
+      saveNotifs(notifs);
+      renderAll();
+    });
+  }
+  if(clearAllBtn){
+    clearAllBtn.addEventListener('click', ()=>{
+      saveNotifs([]);
+      renderAll();
+    });
+  }
+
+  renderAll();
 })();
 </script>
 </body>
