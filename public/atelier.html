@@ -11,36 +11,39 @@
 
   <!-- UNIVERSAL SHARED STYLES -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hem-header.css"/>
+  <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
+  <!-- PAGE-SPECIFIC ONLY -->
   <style>
-    /* PAGE-SPECIFIC ONLY */
     :root{
       --ink:#111827;
-      --border:#e5e7eb;
       --muted:#6b7280;
+      --border:#e5e7eb;
       --bg:#f4f4f7;
     }
+
     body{
       margin:0;
       background:var(--bg);
       color:var(--ink);
-      font-family:var(--hm-font, system-ui, sans-serif);
+      font-family:system-ui,sans-serif;
     }
+
     main.wrap{
       max-width:1200px;
       margin:20px auto 40px;
       padding:0 14px;
       display:grid;
-      grid-template-columns:2fr 1.2fr;
-      gap:18px;
+      grid-template-columns:2fr 1.1fr;
+      gap:20px;
     }
     @media(max-width:860px){
       main.wrap{ grid-template-columns:1fr; }
     }
+
     h1{
       font-size:26px;
       font-weight:800;
@@ -48,15 +51,16 @@
     }
     .sub{
       color:var(--muted);
-      margin-bottom:20px;
+      margin-bottom:16px;
       font-size:14px;
     }
 
+    /* Cards */
     .card{
       background:#fff;
-      border-radius:14px;
       border:1px solid var(--border);
-      margin-bottom:16px;
+      border-radius:14px;
+      margin-bottom:18px;
     }
     .card-hd{
       padding:12px 16px;
@@ -72,6 +76,7 @@
       font-size:14px;
     }
 
+    /* Listings grid */
     .listings-grid{
       display:grid;
       grid-template-columns:repeat(3,1fr);
@@ -81,15 +86,16 @@
     @media(max-width:1050px){
       .listings-grid{ grid-template-columns:repeat(2,1fr); }
     }
-    @media(max-width:680px){
+    @media(max-width:640px){
       .listings-grid{ grid-template-columns:1fr; }
     }
 
+    /* Listing card */
     .l-card{
       border:1px solid var(--border);
       border-radius:12px;
-      overflow:hidden;
       background:#fff;
+      overflow:hidden;
     }
     .l-photo{
       aspect-ratio:4/3;
@@ -114,18 +120,21 @@
     .l-meta{
       display:flex;
       justify-content:space-between;
-      color:#6b7280;
       font-size:12px;
+      color:#6b7280;
     }
   </style>
 </head>
+
 <body>
 
   <!-- UNIVERSAL HEADER -->
   <div id="hm-shell-header"></div>
 
+  <!-- PAGE CONTENT -->
   <main class="wrap" id="maincontent">
 
+    <!-- LEFT COLUMN -->
     <section>
       <h1 id="atelierTitle">Atelier</h1>
       <div class="sub" id="atelierSubtitle">Fabric listings from this shop.</div>
@@ -133,20 +142,23 @@
       <section class="card">
         <div class="card-hd">Listings</div>
         <div class="card-bd">
-          <div id="emptyMsg" style="padding:12px;color:#6b7280;border:1px dashed #d1d5db;border-radius:12px;">
+          <div id="emptyState"
+               style="padding:12px;border:1px dashed var(--border);border-radius:12px;color:#6b7280;">
             No listings yet.
           </div>
+
           <div class="listings-grid" id="listingsGrid" style="display:none;"></div>
         </div>
       </section>
     </section>
 
+    <!-- RIGHT COLUMN -->
     <section>
       <section class="card">
         <div class="card-hd">About this Atelier</div>
         <div class="card-bd">
-          <div id="atelierOwner"></div>
-          <div id="atelierBio" style="white-space:pre-line;margin-top:6px;"></div>
+          <div id="atelierOwner" style="font-weight:700;font-size:15px;margin-bottom:6px;">Loading…</div>
+          <div id="atelierBio" style="white-space:pre-line;"></div>
         </div>
       </section>
     </section>
@@ -156,23 +168,24 @@
   <!-- UNIVERSAL FOOTER -->
   <div id="hm-shell-footer"></div>
 
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
 
   <script>
     const supabaseClient = window.supabase.createClient(
       "https://clkizksbvxjkoatdajgd.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ..."
+      "YOUR-ANON-KEY"
     );
 
     async function initAtelier(){
-      const params = new URLSearchParams(window.location.search);
-      const sellerId = params.get("u");
+      const params    = new URLSearchParams(window.location.search);
+      const sellerId  = params.get("u");
 
       const ownerEl = document.getElementById("atelierOwner");
       const bioEl   = document.getElementById("atelierBio");
       const grid    = document.getElementById("listingsGrid");
-      const empty   = document.getElementById("emptyMsg");
+      const empty   = document.getElementById("emptyState");
 
       if(!sellerId){
         ownerEl.textContent = "Unknown shop";
@@ -180,6 +193,7 @@
         return;
       }
 
+      // Load profile
       const prof = await supabaseClient
         .from("profiles")
         .select("*")
@@ -188,59 +202,70 @@
 
       if(prof.data){
         const p = prof.data;
-        ownerEl.textContent = (p.first_name+" "+p.last_name).trim() || p.email;
+        const fullName =
+          (p.first_name + " " + p.last_name).trim() ||
+          p.email ||
+          "Shop Owner";
+
+        ownerEl.textContent = fullName;
         bioEl.textContent   = p.bio || "";
+      } else {
+        ownerEl.textContent = "Unknown shop";
+        bioEl.textContent = "";
       }
 
-      const { data: listings } = await supabaseClient
+      // Load listings
+      const { data:listings } = await supabaseClient
         .from("listings")
         .select("*")
-        .eq("seller_id", sellerId);
+        .eq("seller_id", sellerId)
+        .order("created_at", { ascending:false });
 
-      if(!listings || !listings.length){
-        empty.style.display="block";
-        grid.style.display="none";
+      if(!listings || listings.length === 0){
+        empty.style.display = "block";
+        grid.style.display  = "none";
         return;
       }
 
-      empty.style.display="none";
-      grid.style.display="grid";
-
+      empty.style.display = "none";
+      grid.style.display  = "grid";
       grid.innerHTML = "";
 
       listings.forEach(l=>{
-        const c = document.createElement("div");
-        c.className="l-card";
+        const card = document.createElement("div");
+        card.className = "l-card";
 
         const link = document.createElement("a");
-        link.href = "listing.html?id="+l.id;
-        link.className="l-photo";
+        link.className = "l-photo";
+        link.href = "listing.html?id=" + l.id;
 
         if(l.image_url_1){
           const img = document.createElement("img");
           img.src = l.image_url_1;
           link.appendChild(img);
-        }else{
-          link.textContent="Photo";
+        } else {
+          link.textContent = "Photo";
         }
 
         const body = document.createElement("div");
-        body.className="l-body";
+        body.className = "l-body";
 
         const title = document.createElement("div");
-        title.className="l-title";
-        title.textContent = l.title;
+        title.className = "l-title";
+        title.textContent = l.title || "Untitled";
 
         const meta = document.createElement("div");
-        meta.className="l-meta";
-        meta.innerHTML = `<span>${l.yards_available} yd</span><span>$${(l.price_cents/100).toFixed(2)}/yd</span>`;
+        meta.className = "l-meta";
+        meta.innerHTML =
+          `<span>${l.yards_available} yd</span>
+           <span>$${(l.price_cents/100).toFixed(2)}/yd</span>`;
 
         body.appendChild(title);
         body.appendChild(meta);
 
-        c.appendChild(link);
-        c.appendChild(body);
-        grid.appendChild(c);
+        card.appendChild(link);
+        card.appendChild(body);
+        grid.appendChild(card);
       });
     }
 
