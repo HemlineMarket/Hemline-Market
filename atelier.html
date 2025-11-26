@@ -1,114 +1,1007 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Atelier · Hemline Market</title>
-  <link rel="stylesheet" href="styles/hm-modern.css" />
-  <link rel="stylesheet" href="styles/hem-header.css" />
-  <link rel="stylesheet" href="styles/hm-profile.css" />
-  <link rel="stylesheet" href="styles/hm-typography.css" />
-  <link rel="stylesheet" href="styles/hm-footer.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Atelier — Hemline Market</title>
+
+  <!-- Tell browsers not to aggressively cache this HTML -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+
+  <!-- Shared styles (cache-busted with version) -->
+  <link rel="stylesheet" href="styles/hm-modern.css?v=20251124"/>
+  <link rel="stylesheet" href="styles/hem-header.css?v=20251124"/>
+  <link rel="stylesheet" href="styles/hm-typography.css?v=20251124"/>
+  <link rel="stylesheet" href="styles/hm-footer.css?v=20251124"/>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+
   <style>
-    :root{ --hm-border:#e5e7eb; --hm-soft:#f7f7f8; --hm-muted:#6b7280; --hm-text:#1f2937; --hm-accent:#991b1b; }
-    .wrap{max-width:900px;margin:32px auto;padding:0 16px}
-    .card{background:#fff;border:1px solid var(--hm-border);border-radius:14px;padding:16px;margin-bottom:18px}
-    .muted{color:var(--hm-muted)}
-    h1{margin-bottom:10px}
-    .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:999px;border:1px solid var(--hm-border);background:#fff;font-weight:700;text-decoration:none;color:var(--hm-text)}
-    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff}
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#f4f4f7;
+    }
+    html,body{
+      margin:0;
+      max-width:100%;
+      overflow-x:hidden;
+      background:var(--hm-bg);
+      color:var(--hm-text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    img,svg,canvas,video{max-width:100%;height:auto;display:block}
+    .is-hidden{display:none!important;}
+
+    /* HEADER (aligned with account/browse) */
+    .hm-header{
+      min-height:56px;
+      background:#fff;
+      border-bottom:1px solid var(--hm-border);
+      position:relative;
+      z-index:101;
+    }
+    .hm-header .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:0 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .hm-brand{
+      font-size:24px;
+      font-weight:800;
+      color:var(--hm-accent);
+      text-decoration:none;
+    }
+    .hamburger{
+      display:inline-grid;
+      place-items:center;
+      width:36px;
+      height:36px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      background:#fff;
+      color:#374151;
+    }
+    .hamburger svg{width:22px;height:22px;stroke-width:2}
+    .right{display:flex;align-items:center;gap:14px}
+    .hm-icon{
+      color:#444;
+      display:inline-grid;
+      place-items:center;
+    }
+    .hm-icon svg{width:26px;height:26px;stroke-width:2}
+    .hm-btn-primary{
+      background:var(--hm-accent);
+      color:#fff;
+      border:1px solid var(--hm-accent);
+      border-radius:999px;
+      padding:10px 18px;
+      font-weight:700;
+      text-decoration:none;
+      box-shadow:0 2px 8px rgba(153,27,27,.25);
+    }
+
+    /* Account icon with status dot */
+    .hm-account{
+      position:relative;
+    }
+    .hm-account-badge{
+      position:absolute;
+      bottom:2px;
+      right:2px;
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      border:2px solid #fff;
+      background:#d1d5db; /* logged out / unknown */
+    }
+    .hm-account.is-logged-in .hm-account-badge{
+      background:#16a34a; /* logged in */
+    }
+
+    /* LEFT DRAWER */
+    .sheet{
+      position:fixed;
+      inset:0 auto 0 0;
+      width:min(84vw,340px);
+      background:#fff;
+      border-right:1px solid var(--hm-border);
+      transform:translateX(-100%);
+      transition:transform .25s ease;
+      z-index:100;
+      display:flex;
+      flex-direction:column;
+    }
+    .sheet.open{transform:translateX(0)}
+    .sheet header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px;
+      border-bottom:1px solid var(--hm-border);
+    }
+    .sheet nav{display:grid;padding:10px}
+    .sheet nav a{
+      padding:10px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      text-decoration:none;
+      color:#1f2937;
+    }
+    .sheet nav a + a{margin-top:8px}
+    .sheet .close{
+      display:inline-grid;
+      place-items:center;
+      width:30px;
+      height:30px;
+      border:1px solid var(--hm-border);
+      border-radius:8px;
+      background:#fff;
+      color:#444;
+    }
+    #sheetOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.25);
+      backdrop-filter:blur(1px);
+      display:none;
+      z-index:90;
+    }
+    #sheetOverlay.show{display:block}
+
+    /* PAGE LAYOUT */
+    main.atelier-wrap{
+      max-width:1200px;
+      margin:18px auto 24px;
+      padding:0 12px;
+      display:grid;
+      grid-template-columns:minmax(0,2fr) minmax(0,1.3fr);
+      gap:18px;
+    }
+    @media(max-width:880px){
+      main.atelier-wrap{
+        grid-template-columns:1fr;
+      }
+    }
+    h1.atelier-title{
+      margin:0 0 4px;
+      font-size:26px;
+      font-weight:800;
+      letter-spacing:.03em;
+    }
+    .atelier-subtitle{
+      margin:0 0 18px;
+      color:var(--hm-muted);
+      font-size:14px;
+    }
+
+    .hm-card{
+      background:#fff;
+      border-radius:14px;
+      border:1px solid var(--hm-border);
+      box-shadow:0 6px 18px rgba(15,23,42,.06);
+      margin-bottom:16px;
+    }
+    .hm-card-header{
+      padding:10px 16px;
+      border-bottom:1px solid var(--hm-border);
+      font-size:11px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:#9ca3af;
+      font-weight:600;
+    }
+    .hm-card-body{
+      padding:16px;
+      font-size:14px;
+    }
+
+    /* LISTINGS */
+    .listings-header-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .listings-empty{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px dashed #d1d5db;
+      background:#f9fafb;
+      font-size:13px;
+      color:#6b7280;
+    }
+
+    .btn{
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .btn-primary{
+      border-color:var(--hm-accent);
+      background:var(--hm-accent);
+      color:#fff;
+      box-shadow:0 2px 10px rgba(153,27,27,.28);
+    }
+    .btn-ghost{
+      border-color:transparent;
+      background:transparent;
+      padding:4px 0;
+      font-size:12px;
+      color:#4b5563;
+    }
+    .btn-ghost.danger{
+      color:#b91c1c;
+    }
+
+    .atelier-listings-grid{
+      margin-top:14px;
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:12px;
+    }
+    @media(max-width:1050px){
+      .atelier-listings-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+    @media(max-width:640px){
+      .atelier-listings-grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+    .atelier-card{
+      border-radius:12px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .atelier-card-photo{
+      aspect-ratio:4/3;
+      background:linear-gradient(180deg,#f8fafc,#e5e7eb);
+      display:grid;
+      place-items:center;
+      color:#9ca3af;
+      font-size:12px;
+    }
+    .atelier-card-photo img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+    .atelier-card-body{
+      padding:8px 10px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      font-size:13px;
+    }
+    .atelier-card-title{
+      font-weight:700;
+      line-height:1.3;
+    }
+    .atelier-card-meta{
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
+      color:#6b7280;
+      font-size:12px;
+    }
+    .atelier-card-meta span{white-space:nowrap;}
+    .atelier-card-foot{
+      margin-top:4px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+    }
+    .badge-status{
+      font-size:11px;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid #bbf7d0;
+      background:#ecfdf3;
+      color:#166534;
+      white-space:nowrap;
+    }
+    .badge-status.draft{
+      border-color:#fee2e2;
+      background:#fef2f2;
+      color:#b91c1c;
+    }
+    .atelier-card-actions{
+      display:flex;
+      gap:8px;
+    }
+
+    /* PROFILE PANEL */
+    .profile-panel{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .profile-avatar{
+      width:40px;
+      height:40px;
+      border-radius:999px;
+      border:1px solid var(--hm-border);
+      display:grid;
+      place-items:center;
+      font-weight:700;
+      font-size:14px;
+      color:#111827;
+      background:#f9fafb;
+    }
+    .profile-main{
+      flex:1;
+      min-width:0;
+    }
+    .profile-name{
+      font-weight:700;
+      font-size:15px;
+      margin-bottom:2px;
+    }
+    .profile-shop{
+      font-size:13px;
+      color:#6b7280;
+      margin-bottom:6px;
+    }
+    .profile-bio{
+      font-size:13px;
+      margin-bottom:10px;
+      white-space:pre-line;
+    }
+
+    /* SHARE / RATING */
+    .share-input-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-top:8px;
+    }
+    .share-input-row input{
+      flex:1;
+      padding:7px 9px;
+      border-radius:999px;
+      border:1px solid var(--hm-border);
+      font-size:13px;
+      background:#f9fafb;
+    }
+    .share-note,
+    .rating-note{
+      margin-top:8px;
+      font-size:12px;
+      color:#6b7280;
+    }
+    .rating-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:6px 12px;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+      font-size:12px;
+      margin-top:10px;
+      background:#f9fafb;
+      color:#6b7280;
+    }
+
+    .error-msg{
+      margin-bottom:12px;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
+      font-size:13px;
+    }
   </style>
 </head>
 <body>
-  <!-- HEADER -->
-  <header class="hm-header" role="banner">
-    <div class="wrap" style="max-width:1200px;">
-      <div class="left">
-        <a class="hm-brand" href="index.html">Hemline<span class="dot">•</span>Market</a>
-        <nav class="hm-nav" aria-label="Primary">
-          <a href="browse.html">Browse</a>
-          <a href="about.html">About</a>
-        </nav>
+
+<!-- HEADER -->
+<header class="hm-header" role="banner">
+  <div class="wrap">
+    <div class="left">
+      <button class="hamburger" id="openMenu" type="button" aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
+      <a class="hm-brand" href="index.html">Hemline Market</a>
+    </div>
+
+    <div class="right">
+      <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk" title="ThreadTalk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </a>
+      <a class="hm-icon" href="cart.html" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="9"  cy="21" r="1"></circle>
+          <circle cx="18" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+      </a>
+
+      <!-- Account icon with login status (gray = logged out, green = logged in) -->
+      <a class="hm-icon hm-account" id="headerAccountLink" href="auth.html?view=login" aria-label="Sign in or manage your account">
+        <span class="hm-account-badge" id="headerAccountBadge"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="8" r="3.2"></circle>
+          <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+        </svg>
+      </a>
+
+      <a class="hm-btn-primary" href="sell.html">Sell</a>
+    </div>
+  </div>
+</header>
+
+<!-- OVERLAY + LEFT MENU -->
+<div id="sheetOverlay" aria-hidden="true"></div>
+
+<aside class="sheet" id="menuSheet" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Site menu">
+  <header>
+    <strong>Menu</strong>
+    <button class="close" id="closeMenu" aria-label="Close menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </header>
+  <nav>
+    <a href="account.html">Account</a>
+    <a href="atelier.html">My Atelier</a>
+    <a href="how.html">How It Works</a>
+    <a href="sell.html">Sell Fabric</a>
+    <a href="ThreadTalk.html">ThreadTalk</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</aside>
+
+<main class="atelier-wrap" id="maincontent">
+  <section>
+    <h1 class="atelier-title" id="atelierTitle">Atelier</h1>
+    <p class="atelier-subtitle" id="atelierSubtitle">
+      Browse fabrics from this studio and discover the story behind each piece.
+    </p>
+
+    <div id="atelierError" class="error-msg" style="display:none;"></div>
+
+    <!-- LISTINGS CARD -->
+    <section class="hm-card" aria-labelledby="listingsHeading">
+      <div class="hm-card-header" id="listingsHeading">Listings</div>
+      <div class="hm-card-body">
+        <div class="listings-header-row">
+          <strong style="font-size:14px;">Fabrics from this shop</strong>
+          <!-- "List an item" button removed on purpose -->
+        </div>
+
+        <!-- Empty state -->
+        <div class="listings-empty" id="listingsEmpty">
+          No active listings yet. When this shop lists fabrics, cards will appear here with photos,
+          yardage, and prices.
+        </div>
+
+        <!-- Grid of cards -->
+        <div class="atelier-listings-grid" id="listingsGrid" style="display:none;"></div>
       </div>
-      <div class="hm-search">
-        <form action="browse.html" method="get" role="search">
-          <input type="search" name="q" placeholder="Search fabrics, shops, or styles…" />
-          <button type="submit">Search</button>
-        </form>
-      </div>
-      <div class="hm-actions">
-        <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        </a>
-        <a class="hm-btn hm-btn-primary" href="seller/index.html?list=new">List Item</a>
-        <div class="hm-profile">
-          <a class="hm-avatar" href="#">?</a>
-          <nav class="hm-profile-menu">
-            <a href="account.html">Account</a>
-            <a href="atelier.html" aria-current="page">Atelier</a>
-            <a href="listings.html">Listings</a>
-            <a href="drafts.html">Drafts</a>
-            <a href="favorites.html">Favorites</a>
-            <a href="orders.html">Orders</a>
-            <a href="bundles.html">Bundles</a>
-            <a href="notifications.html">Notifications</a>
-            <a href="settings.html">Settings</a>
-            <a href="help.html">Help</a>
-            <a href="terms.html">Terms</a>
-            <a href="privacy.html">Privacy</a>
-            <a href="shipping.html">Shipping & Returns</a>
-            <a href="faq.html">FAQ</a>
-          </nav>
+    </section>
+  </section>
+
+  <section aria-label="Shop details">
+    <!-- PROFILE CARD -->
+    <section class="hm-card" aria-labelledby="profileHeading">
+      <div class="hm-card-header" id="profileHeading">About this Atelier</div>
+      <div class="hm-card-body">
+        <div class="profile-panel">
+          <div class="profile-avatar" id="atelierAvatar">HM</div>
+          <div class="profile-main">
+            <div class="profile-name" id="atelierOwnerName">Hemline member</div>
+            <div class="profile-shop" id="atelierShopName">Store name</div>
+            <div class="profile-bio" id="atelierBio"></div>
+
+            <button class="btn btn-primary" type="button" id="btnEditShop">Edit Atelier details</button>
+          </div>
         </div>
       </div>
-    </div>
-  </header>
+    </section>
 
-  <!-- CONTENT -->
-  <main class="wrap">
-    <h1>Your Atelier</h1>
-    <p class="muted">Curate and manage your fabric collection here. Placeholder only.</p>
+    <!-- SHARE CARD -->
+    <section class="hm-card" aria-labelledby="shareHeading">
+      <div class="hm-card-header" id="shareHeading">Share this Atelier</div>
+      <div class="hm-card-body">
+        <p style="margin:0 0 6px;font-size:14px;">
+          Copy a link to share this shop page with buyers.
+        </p>
+        <div class="share-input-row">
+          <input id="shareLinkInput" type="text" readonly>
+          <button class="btn" type="button" id="btnCopyLink">Copy</button>
+        </div>
+        <p class="share-note">
+          Use this link in listings, messages, or on social so buyers can come straight to this Atelier.
+        </p>
+      </div>
+    </section>
 
-    <div class="card">
-      <h2>Saved Fabrics</h2>
-      <p class="muted">No saved fabrics yet.</p>
-    </div>
+    <!-- RATING CARD -->
+    <section class="hm-card" aria-labelledby="ratingHeading">
+      <div class="hm-card-header" id="ratingHeading">Shop rating</div>
+      <div class="hm-card-body">
+        <p class="rating-note">
+          After at least 5 completed orders, the shop’s rating will appear here.
+        </p>
+        <div class="rating-pill">Not yet rated</div>
+      </div>
+    </section>
+  </section>
+</main>
 
-    <div class="card">
-      <h2>Projects</h2>
-      <p class="muted">Start new projects to pair fabrics with patterns.</p>
-      <p><a class="btn btn-primary" href="drafts.html">Start Draft</a></p>
-    </div>
-  </main>
+<!-- FOOTER -->
+<footer class="hm-footer" role="contentinfo">
+  <div class="footer-wrap">
+    <div class="copy">© 2025 Hemline Market</div>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="about.html">About</a>
+      <a href="faq.html">FAQ</a>
+      <a href="contact.html">Contact</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</footer>
 
-  <!-- FOOTER -->
-  <footer class="hm-footer" role="contentinfo">
-    <div class="footer-wrap">
-      <div class="copy">© 2025 Hemline Market</div>
-      <nav class="footer-links" aria-label="Footer">
-        <a href="about.html">About</a>
-        <a href="contact.html">Contact</a>
-        <a href="faq.html">FAQ</a>
-        <a href="privacy.html">Privacy</a>
-        <a href="terms.html">Terms</a>
-        <a href="shipping.html">Shipping & Returns</a>
-      </nav>
-    </div>
-  </footer>
+<!-- Supabase JS (with version query for cache-busting) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20251124"></script>
 
-  <!-- JS -->
-  <script>
-    (function(){
-      const profile=document.querySelector(".hm-profile");
-      if(profile){
-        document.addEventListener("click",e=>{
-          if(profile.contains(e.target)){profile.classList.toggle("open");}
-          else{profile.classList.remove("open");}
-        });
-        const avatar=profile.querySelector(".hm-avatar");
-        if(avatar){avatar.addEventListener("click",e=>e.preventDefault());}
+<script>
+  // Hamburger / overlay (same as account)
+  (function(){
+    const sheet    = document.getElementById('menuSheet');
+    const openBtn  = document.getElementById('openMenu');
+    const closeBtn = document.getElementById('closeMenu');
+    const overlay  = document.getElementById('sheetOverlay');
+
+    function lockScroll(lock){ document.body.style.overflow = lock ? 'hidden' : ''; }
+    function openSheet(){
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden','false');
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      openBtn.setAttribute('aria-expanded','true');
+      lockScroll(true);
+    }
+    function closeSheet(){
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden','true');
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden','true');
+      openBtn.setAttribute('aria-expanded','false');
+      lockScroll(false);
+      openBtn.focus();
+    }
+
+    if (openBtn && sheet && closeBtn && overlay){
+      openBtn.addEventListener('click', e=>{ e.preventDefault(); openSheet(); });
+      closeBtn.addEventListener('click', e=>{ e.preventDefault(); closeSheet(); });
+      overlay.addEventListener('click', closeSheet);
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+    }
+  })();
+</script>
+
+<script>
+  // Supabase setup
+  const supabaseClient = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+    { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+  );
+
+  function initialsFromProfile(firstName,lastName,email){
+    if(firstName && lastName) return (firstName[0]+lastName[0]).toUpperCase();
+    if(firstName) return (firstName[0]+(firstName[1]||"")).toUpperCase();
+    if(email) return email[0].toUpperCase();
+    return "HM";
+  }
+
+  function slugifyStoreName(raw){
+    if(!raw) return "";
+    return raw
+      .trim()
+      .toLowerCase()
+      .replace(/['’]/g,"s")       // Thor's → thors
+      .replace(/[^a-z0-9]+/g,"-") // spaces → hyphens
+      .replace(/^-+|-+$/g,"");    // trim edges
+  }
+
+  function moneyFromCents(c){
+    if(c == null) return null;
+    const v = c / 100;
+    return v.toLocaleString("en-US",{
+      style:"currency",
+      currency:"USD",
+      minimumFractionDigits:2,
+      maximumFractionDigits:2
+    });
+  }
+
+  async function ensureSession({maxWaitMs=3000} = {}){
+    let { data:{ session } } = await supabaseClient.auth.getSession();
+    if(session?.user) return session;
+    const start = Date.now();
+    while(!session?.user && Date.now() - start < maxWaitMs){
+      await new Promise(r=>setTimeout(r,120));
+      ({ data:{ session } } = await supabaseClient.auth.getSession());
+    }
+    return session || null;
+  }
+
+  function setHeaderForSession(session){
+    const a = document.getElementById("headerAccountLink");
+    const badge = document.getElementById("headerAccountBadge");
+    if(!a) return;
+    if(session?.user){
+      a.href = "account.html";
+      a.classList.add("is-logged-in");
+      a.setAttribute("aria-label","Your account");
+      if(badge) badge.style.background = "#16a34a";
+    } else {
+      a.href = "auth.html?view=login";
+      a.classList.remove("is-logged-in");
+      a.setAttribute("aria-label","Sign in or manage your account");
+      if(badge) badge.style.background = "#d1d5db";
+    }
+  }
+
+  function showAtelierError(msg){
+    const el = document.getElementById("atelierError");
+    if(!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+
+  async function loadListingsForSeller(sellerId){
+    const grid  = document.getElementById("listingsGrid");
+    const empty = document.getElementById("listingsEmpty");
+    if(!grid || !empty || !sellerId){
+      empty.style.display = "block";
+      grid.style.display = "none";
+      return;
+    }
+
+    try{
+      const { data, error } = await supabaseClient
+        .from("listings")
+        .select("*")
+        .eq("seller_id", sellerId)
+        .order("created_at",{ascending:false});
+
+      if(error){
+        console.error("Listings fetch error", error);
+        showAtelierError("We couldn’t load listings for this shop. Please refresh.");
+        empty.style.display="block";
+        grid.style.display="none";
+        return;
       }
-    })();
-  </script>
+
+      grid.innerHTML = "";
+
+      if(!data || !data.length){
+        empty.style.display="block";
+        grid.style.display="none";
+        return;
+      }
+
+      empty.style.display="none";
+      grid.style.display="grid";
+
+      data.forEach(listing=>{
+        const card = document.createElement("article");
+        card.className = "atelier-card";
+        card.dataset.id = listing.id;
+
+        const photo = document.createElement("a");
+        photo.href = "listing.html?id="+encodeURIComponent(listing.id);
+        photo.className = "atelier-card-photo";
+        photo.setAttribute("aria-label","View listing");
+
+        if(listing.image_url_1){
+          const img = document.createElement("img");
+          img.src = listing.image_url_1;
+          img.alt = listing.title || "Listing photo";
+          photo.appendChild(img);
+        } else {
+          photo.textContent = "Photo";
+        }
+
+        const body = document.createElement("div");
+        body.className="atelier-card-body";
+
+        const titleLink = document.createElement("a");
+        titleLink.href = "listing.html?id="+encodeURIComponent(listing.id);
+        titleLink.className = "atelier-card-title";
+        titleLink.textContent = listing.title || "Untitled listing";
+
+        const meta = document.createElement("div");
+        meta.className = "atelier-card-meta";
+
+        const yardsSpan = document.createElement("span");
+        if(listing.yards_available != null){
+          yardsSpan.textContent = listing.yards_available + " yards";
+        } else {
+          yardsSpan.textContent = "Yardage?";
+        }
+
+        const priceSpan = document.createElement("span");
+        if(listing.price_cents != null){
+          priceSpan.textContent = moneyFromCents(Number(listing.price_cents)) + "/yard";
+        } else {
+          priceSpan.textContent = "Price?";
+        }
+
+        meta.appendChild(yardsSpan);
+        meta.appendChild(priceSpan);
+
+        const foot = document.createElement("div");
+        foot.className = "atelier-card-foot";
+
+        const statusBadge = document.createElement("span");
+        statusBadge.className = "badge-status";
+        const isPublished = listing.is_published !== false;
+        if(isPublished){
+          statusBadge.textContent = "Published";
+        } else {
+          statusBadge.textContent = "Draft";
+          statusBadge.classList.add("draft");
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "atelier-card-actions";
+        // (Owner-only edit/delete can be wired later)
+
+        foot.appendChild(statusBadge);
+        foot.appendChild(actions);
+
+        body.appendChild(titleLink);
+        body.appendChild(meta);
+        body.appendChild(foot);
+
+        card.appendChild(photo);
+        card.appendChild(body);
+        grid.appendChild(card);
+      });
+    }catch(err){
+      console.error("Listings fetch exception", err);
+      showAtelierError("Unexpected error loading listings.");
+    }
+  }
+
+  async function initAtelier(){
+    const params        = new URLSearchParams(window.location.search);
+    const shopSlugParam = params.get("shop"); // pretty link: ?shop=aurora
+    let viewedSellerId  = params.get("u");    // legacy link: ?u=<uuid> or ?u=user=<uuid>
+
+    // Handle old-style links like ?u=user=5679...
+    if(viewedSellerId && viewedSellerId.startsWith("user=")){
+      viewedSellerId = viewedSellerId.slice("user=".length);
+    }
+
+    const session      = await ensureSession();
+    const loggedInUser = session?.user || null;
+
+    setHeaderForSession(session);
+
+    const ownerNameEl = document.getElementById("atelierOwnerName");
+    const shopNameEl  = document.getElementById("atelierShopName");
+    const bioEl       = document.getElementById("atelierBio");
+    const avatarEl    = document.getElementById("atelierAvatar");
+    const titleEl     = document.getElementById("atelierTitle");
+    const subEl       = document.getElementById("atelierSubtitle");
+    const editBtn     = document.getElementById("btnEditShop");
+    const shareInput  = document.getElementById("shareLinkInput");
+    const copyBtn     = document.getElementById("btnCopyLink");
+    const errorEl     = document.getElementById("atelierError");
+
+    // Clear any old error on each load
+    if(errorEl){
+      errorEl.style.display = "none";
+      errorEl.textContent = "";
+    }
+
+    let sellerId  = null;
+    let profile   = null;
+    let localProfile = null;
+
+    try{
+      if(viewedSellerId){
+        // Explicit seller id in URL
+        sellerId = viewedSellerId;
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .eq("id", sellerId)
+          .maybeSingle();
+        if(error){
+          console.error("Profile fetch error by id", error);
+        } else {
+          profile = data;
+        }
+      }else if(shopSlugParam){
+        // Pretty link by shop slug (?shop=aurora) – currently matches store_name
+        const normalized = shopSlugParam.replace(/-/g," ").replace(/\s+/g," ").trim();
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .ilike("store_name", normalized);
+        if(error){
+          console.error("Profile fetch error by shop slug", error);
+        }else if(data && data.length){
+          profile  = data[0];
+          sellerId = profile.id;
+        }
+      }else if(loggedInUser){
+        // Default to your own atelier when no query params
+        sellerId = loggedInUser.id;
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .eq("id", sellerId)
+          .maybeSingle();
+        if(error){
+          console.error("Profile fetch error for own shop", error);
+        } else {
+          profile = data;
+        }
+      }
+    }catch(err){
+      console.error("Profile fetch exception", err);
+    }
+
+    const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
+
+    // If this is your own atelier, hydrate name/store/bio from localStorage profile
+    if(isOwnShop && loggedInUser){
+      try{
+        const rawLocal = localStorage.getItem("hm_profile_" + loggedInUser.id);
+        if(rawLocal){
+          localProfile = JSON.parse(rawLocal);
+        }
+      }catch(e){
+        console.warn("Local profile parse failed", e);
+      }
+    }
+
+    if(!sellerId){
+      // No seller resolved – generic state
+      if(titleEl) titleEl.textContent = "Atelier";
+      if(subEl)   subEl.textContent   = "Sign in or follow a seller link to view an Atelier.";
+      ownerNameEl.textContent = "Hemline member";
+      shopNameEl.textContent  = "Store name";
+      bioEl.textContent       = "";
+      avatarEl.textContent    = "HM";
+
+      if(loggedInUser){
+        editBtn.style.display = "inline-flex";
+        editBtn.onclick = ()=> window.location.href = "account.html";
+      }else{
+        editBtn.style.display = "none";
+      }
+
+      shareInput.value = window.location.href;
+      copyBtn.onclick  = ()=> navigator.clipboard.writeText(shareInput.value);
+
+      await loadListingsForSeller(null);
+      return;
+    }
+
+    // Pull data from Supabase profile, then override with local profile if this is your own shop
+    let first     = profile?.first_name || "";
+    let last      = profile?.last_name  || "";
+    let storeName = profile?.store_name || "";
+    let bio       = profile?.bio || "";
+    let email     = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
+
+    if(isOwnShop && localProfile){
+      if(localProfile.firstName) first = localProfile.firstName;
+      if(localProfile.lastName)  last  = localProfile.lastName;
+      if(localProfile.storeName) storeName = localProfile.storeName;
+      if(localProfile.bio)       bio = localProfile.bio;
+    }
+
+    const displayName =
+      (first + " " + last).trim() ||
+      (isOwnShop && loggedInUser?.email ? loggedInUser.email.split("@")[0] : "Hemline member");
+
+    const shop = storeName || displayName;
+
+    if(titleEl){
+      titleEl.textContent = "Atelier: " + shop;
+    }
+    if(subEl){
+      subEl.textContent = "Fabrics, stories, and listings from " + shop + ".";
+    }
+
+    ownerNameEl.textContent = displayName;
+    shopNameEl.textContent  = "Store name: " + shop;
+    bioEl.textContent       = bio;
+
+    const initials = initialsFromProfile(first,last,email);
+    avatarEl.textContent = initials;
+
+    // Pretty share link – prefer ?shop=<slug>, fall back to ?u=<id>, else current URL
+    let shopSlug = slugifyStoreName(shop);
+    if(isOwnShop && localProfile && localProfile.storeSlug){
+      shopSlug = localProfile.storeSlug;
+    }
+    const baseUrl  = window.location.origin + "/atelier.html";
+
+    let shareUrl;
+    if(shopSlug){
+      shareUrl = baseUrl + "?shop=" + encodeURIComponent(shopSlug);
+    }else if(sellerId){
+      shareUrl = baseUrl + "?u=" + encodeURIComponent(sellerId);
+    }else{
+      shareUrl = window.location.href;
+    }
+
+    shareInput.value = shareUrl;
+    copyBtn.onclick = ()=>{
+      navigator.clipboard.writeText(shareInput.value);
+    };
+
+    if(!isOwnShop){
+      editBtn.style.display = "none";
+    }else{
+      editBtn.style.display = "inline-flex";
+      editBtn.onclick = ()=> window.location.href = "account.html";
+    }
+
+    // Finally load listings for that seller
+    await loadListingsForSeller(sellerId);
+  }
+
+  initAtelier();
+</script>
+
 </body>
 </html>
