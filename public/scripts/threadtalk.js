@@ -1,313 +1,525 @@
-// public/scripts/threadtalk.js
-// ThreadTalk client: localStorage feed only (no page-level auth UI)
-
+// scripts/threadtalk.js
 (function () {
-  if (window.__TT_THREADTALK_INITED__) return;
-  window.__TT_THREADTALK_INITED__ = true;
-
-  // We no longer do Supabase auth in this file.
-  // Universal auth/session is handled by hm-shell + supabase-client.
-  const LS_KEY = "tt_posts";
-
-  const $ = (id) => document.getElementById(id);
-
-  const cardsEl      = $("cards"),
-        emptyState   = $("emptyState"),
-        sel          = $("composeCategory"),
-        txt          = $("composeText"),
-        photoInput   = $("photoInput"),
-        videoInput   = $("videoInput"),
-        postBtn      = $("postBtn"),
-        mediaPreview = $("mediaPreview"),
-        form         = $("composer");
-
-  // Name label: try to reuse anything your shell might expose; fall back to "Afroza"
-  let displayName =
-    (window.HM && window.HM.currentUserName) ||
-    (window.HM && window.HM.profileName) ||
-    "Afroza";
-
-  const uuid = () =>
-    "p_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-
-  const nowLabel = () => "just now";
-
-  const readStore = () => {
-    try {
-      return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
-    } catch {
-      return [];
-    }
-  };
-
-  const writeStore = (p) => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(p));
-    } catch {}
-  };
-
-  let posts = readStore();
-
-  const categoryHref = (c) => {
-    const k = (c || "").toLowerCase();
-    const map = {
-      "showcase": "showcase.html",
-      "tailoring": "tailoring.html",
-      "stitch school": "stitch-school.html",
-      "fabric sos": "fabric-sos.html",
-      "before & after": "before-after.html",
-      "pattern hacks": "pattern-hacks.html",
-      "stash confessions": "stash-confessions.html",
-      "loose threads": "loose-threads.html",
-    };
-    return map[k] || "loose-threads.html";
-  };
-
-  const mediaHTML = (m) =>
-    !m
-      ? ""
-      : m.type === "image"
-      ? `<img class="post-img" src="${m.url}" alt="post image">`
-      : `<video class="post-video" controls src="${m.url}"></video>`;
-
-  const reactionBarHTML = (p) => {
-    const r = p.reactions || { like: 0, love: 0, laugh: 0, wow: 0 };
-    return `
-      <div class="tt-react-row">
-        <button class="tt-react" data-act="react" data-emoji="like" data-id="${p.id}">👍 <span>${r.like}</span></button>
-        <button class="tt-react" data-act="react" data-emoji="love" data-id="${p.id}">❤️ <span>${r.love}</span></button>
-        <button class="tt-react" data-act="react" data-emoji="laugh" data-id="${p.id}">😂 <span>${r.laugh}</span></button>
-        <button class="tt-react" data-act="react" data-emoji="wow" data-id="${p.id}">😮 <span>${r.wow}</span></button>
-      </div>`;
-  };
-
-  const menuHTML = (p) => `
-    <div class="tt-menu">
-      <button class="tt-menu-btn" data-id="${p.id}" data-act="menu" type="button">⋯</button>
-      <div class="tt-menu-pop" data-pop="${p.id}" hidden>
-        <button class="tt-menu-item" data-act="edit" data-id="${p.id}" type="button">Edit</button>
-        <button class="tt-menu-item danger" data-act="delete" data-id="${p.id}" type="button">Delete</button>
-      </div>
-    </div>`;
-
-  const commentsHTML = (p) => {
-    const c = p.comments || [];
-    const items = c
-      .map(
-        (cm) => `
-      <div class="tt-comment" data-cid="${cm.id}">
-        <div class="tt-comment-head"><strong>${cm.user}</strong> · just now</div>
-        <div class="tt-comment-body">${escapeHTML(cm.text)}</div>
-      </div>`
-      )
-      .join("");
-    return `
-      <div class="tt-comments">
-        ${items}
-        <div class="tt-comment-new">
-          <input type="text" class="tt-comment-input" placeholder="Write a comment…" data-id="${p.id}">
-          <button class="tt-comment-send" data-act="comment" data-id="${p.id}" type="button">Send</button>
-        </div>
-      </div>`;
-  };
-
-  const cardHTML = (p) => `
-    <article class="card" data-id="${p.id}">
-      <div class="meta" style="justify-content:space-between;">
-        <div style="display:flex;gap:8px;align-items:center;">
-          <span><strong>${p.user}</strong></span>
-          <span>•</span><span>${nowLabel(p.ts)}</span>
-          <span>•</span><a class="cat" href="${categoryHref(p.category)}">[${p.category}]</a>
-        </div>${menuHTML(p)}
-      </div>
-      ${mediaHTML(p.media)}
-      <div class="preview" data-role="text">${escapeHTML(p.text)}</div>
-      ${reactionBarHTML(p)}
-      ${commentsHTML(p)}
-    </article>`;
-
-  const renderAll = () => {
-    if (!cardsEl || !emptyState) return;
-    cardsEl.innerHTML = posts.map(cardHTML).join("");
-    emptyState.style.display = posts.length ? "none" : "";
-  };
-
-  // ---------- Composer (no auth gate here) ----------
-
-  const clearComposer = () => {
-    if (txt) txt.value = "";
-    if (sel) sel.value = "";
-    if (photoInput) photoInput.value = "";
-    if (videoInput) videoInput.value = "";
-    if (mediaPreview) {
-      mediaPreview.hidden = true;
-      mediaPreview.innerHTML = "";
-    }
-  };
-
-  const showPreview = (file, kind) => {
-    if (!mediaPreview) return;
-    const url = URL.createObjectURL(file);
-    mediaPreview.hidden = false;
-    mediaPreview.innerHTML =
-      kind === "image"
-        ? `<img src="${url}" alt="">`
-        : `<video src="${url}" controls></video>`;
-  };
-
-  if (photoInput)
-    photoInput.onchange = () => {
-      if (photoInput.files && photoInput.files[0]) {
-        if (videoInput) videoInput.value = "";
-        showPreview(photoInput.files[0], "image");
-      }
-    };
-
-  if (videoInput)
-    videoInput.onchange = () => {
-      if (videoInput.files && videoInput.files[0]) {
-        if (photoInput) photoInput.value = "";
-        showPreview(videoInput.files[0], "video");
-      }
-    };
-
-  function submitPost(e) {
-    if (e) e.preventDefault();
-
-    // We no longer block on currentUser; header/auth handles session separately.
-    const category = (sel && sel.value.trim()) || "Loose Threads";
-    const text = (txt && txt.value.trim()) || "";
-    if (!text) {
-      if (txt) txt.focus();
-      return;
-    }
-
-    let media = null;
-    if (photoInput && photoInput.files && photoInput.files[0]) {
-      media = { type: "image", url: URL.createObjectURL(photoInput.files[0]) };
-    } else if (videoInput && videoInput.files && videoInput.files[0]) {
-      media = { type: "video", url: URL.createObjectURL(videoInput.files[0]) };
-    }
-
-    const p = {
-      id: uuid(),
-      user: displayName || "Afroza",
-      category,
-      text,
-      media,
-      reactions: { like: 0, love: 0, laugh: 0, wow: 0 },
-      comments: [],
-      ts: Date.now(),
-    };
-
-    posts.unshift(p);
-    writeStore(posts);
-
-    if (cardsEl) cardsEl.insertAdjacentHTML("afterbegin", cardHTML(p));
-    if (emptyState) emptyState.style.display = "none";
-
-    clearComposer();
+  const supabase = window.supabase;
+  if (!supabase) {
+    console.error("Supabase client not found on window.");
+    return;
   }
 
-  if (postBtn) postBtn.onclick = submitPost;
-  if (form) form.onsubmit = submitPost;
+  // DOM elements
+  const composerForm = document.getElementById("composer");
+  const catSelect = document.getElementById("composeCategory");
+  const textArea = document.getElementById("composeText");
+  const photoInput = document.getElementById("photoInput");
+  const videoInput = document.getElementById("videoInput");
+  const previewWrap = document.getElementById("mediaPreview");
+  const cardsEl = document.getElementById("cards");
+  const emptyState = document.getElementById("emptyState");
+  const toastEl = document.getElementById("toast");
 
-  // ---------- Row Interactions ----------
-
-  const findPost = (id) => posts.find((p) => p.id === id);
-
-  const updateRow = (id) => {
-    const idx = posts.findIndex((p) => p.id === id);
-    if (idx < 0) return;
-    const el = document.querySelector(`.card[data-id="${id}"]`);
-    if (!el) return;
-    const wrap = document.createElement("div");
-    wrap.innerHTML = cardHTML(posts[idx]);
-    el.replaceWith(wrap.firstElementChild);
-    writeStore(posts);
+  // Category slugs -> labels & links
+  const CATEGORY_LABELS = {
+    "showcase": "Showcase",
+    "tailoring": "Tailoring",
+    "stitch-school": "Stitch School",
+    "fabric-sos": "Fabric SOS",
+    "before-after": "Before & After",
+    "pattern-hacks": "Pattern Hacks",
+    "stash-confessions": "Stash Confessions",
+    "loose-threads": "Loose Threads"
   };
 
-  document.addEventListener("click", (e) => {
-    const t = e.target;
+  const CATEGORY_LINKS = {
+    "showcase": "showcase.html",
+    "tailoring": "tailoring.html",
+    "stitch-school": "stitch-school.html",
+    "fabric-sos": "fabric-sos.html",
+    "before-after": "before-after.html",
+    "pattern-hacks": "pattern-hacks.html",
+    "stash-confessions": "stash-confessions.html",
+    "loose-threads": "loose-threads.html"
+  };
 
-    if (t.matches(".tt-menu-btn")) {
-      const id = t.getAttribute("data-id");
-      const pop = document.querySelector(`.tt-menu-pop[data-pop="${id}"]`);
-      if (pop) pop.hidden = !pop.hidden;
+  // Reactions we support (one per user per thread)
+  const REACTION_TYPES = [
+    { key: "heart", emoji: "❤️", label: "Love" },
+    { key: "fire",  emoji: "🔥", label: "Fire" },
+    { key: "tear",  emoji: "😭", label: "Crying" }
+  ];
+
+  // Auth + profiles
+  let currentUser = null;
+  const profileCache = new Map(); // user_id -> profile row
+
+  function showToast(msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    setTimeout(() => toastEl.classList.remove("show"), 2000);
+  }
+
+  function requireLogin() {
+    showToast("Sign in to post and react in ThreadTalk.");
+  }
+
+  function formatTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return diffMin + " min ago";
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return diffHr + " hr" + (diffHr > 1 ? "s" : "") + " ago";
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  function normalizeCategory(value) {
+    const v = (value || "").trim().toLowerCase();
+    if (!v) return "loose-threads";
+    if (CATEGORY_LABELS[v]) return v;
+    return "loose-threads";
+  }
+
+  async function loadCurrentUser() {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data || !data.user) {
+        currentUser = null;
+        // Gate composer if logged out
+        if (composerForm && textArea && catSelect) {
+          textArea.placeholder = "Sign in to post in ThreadTalk.";
+          textArea.disabled = true;
+          catSelect.disabled = true;
+          const postBtn = document.getElementById("postBtn");
+          if (postBtn) postBtn.disabled = true;
+        }
+        return;
+      }
+
+      currentUser = data.user;
+
+      // Composer enabled for logged in users
+      if (textArea && catSelect) {
+        textArea.disabled = false;
+        catSelect.disabled = false;
+        const postBtn = document.getElementById("postBtn");
+        if (postBtn) postBtn.disabled = false;
+      }
+    } catch (e) {
+      console.error("Error loading current user", e);
+      currentUser = null;
+    }
+  }
+
+  async function loadProfiles(userIds) {
+    const missing = userIds.filter(
+      (id) => id && !profileCache.has(id)
+    );
+    if (!missing.length) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, store_name, first_name, last_name")
+        .in("id", missing);
+
+      if (error) {
+        console.error("Error loading profiles", error);
+        return;
+      }
+      if (!data) return;
+
+      data.forEach((row) => {
+        profileCache.set(row.id, row);
+      });
+    } catch (e) {
+      console.error("Exception loading profiles", e);
+    }
+  }
+
+  function displayNameFor(userId) {
+    const row = profileCache.get(userId);
+    if (!row) return "Unknown member";
+
+    const storeName = (row.store_name || "").trim();
+    if (storeName) return storeName;
+
+    const first = (row.first_name || "").trim();
+    const last = (row.last_name || "").trim();
+    if (first) {
+      const initial = last ? (last[0].toUpperCase() + ".") : "";
+      return (first + (initial ? " " + initial : "")).trim();
+    }
+
+    return "Unknown member";
+  }
+
+  function categoryMeta(catSlug) {
+    const slug = normalizeCategory(catSlug);
+    return {
+      slug,
+      label: CATEGORY_LABELS[slug] || "Loose Threads",
+      href: CATEGORY_LINKS[slug] || "loose-threads.html"
+    };
+  }
+
+  function clearPreview() {
+    if (!previewWrap) return;
+    previewWrap.innerHTML = "";
+    previewWrap.hidden = true;
+  }
+
+  function showPreview(file, kind) {
+    if (!previewWrap || !file) return;
+    const url = URL.createObjectURL(file);
+    previewWrap.hidden = false;
+    previewWrap.innerHTML = "";
+    if (kind === "image") {
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = "preview image";
+      previewWrap.appendChild(img);
+    } else {
+      const vid = document.createElement("video");
+      vid.controls = true;
+      vid.src = url;
+      previewWrap.appendChild(vid);
+    }
+  }
+
+  function wireMediaInputs() {
+    if (photoInput) {
+      photoInput.addEventListener("change", function () {
+        if (this.files && this.files[0]) {
+          if (videoInput) videoInput.value = "";
+          showPreview(this.files[0], "image");
+        }
+      });
+    }
+    if (videoInput) {
+      videoInput.addEventListener("change", function () {
+        if (this.files && this.files[0]) {
+          if (photoInput) photoInput.value = "";
+          showPreview(this.files[0], "video");
+        }
+      });
+    }
+  }
+
+  async function handleComposerSubmit(evt) {
+    evt.preventDefault();
+    if (!currentUser) {
+      requireLogin();
+      return;
+    }
+    if (!textArea || !catSelect) return;
+
+    const body = (textArea.value || "").trim();
+    if (!body) {
+      textArea.focus();
       return;
     }
 
-    if (!t.closest(".tt-menu"))
-      document
-        .querySelectorAll(".tt-menu-pop")
-        .forEach((p) => (p.hidden = true));
+    const catSlug = normalizeCategory(catSelect.value);
 
-    if (t.dataset.act === "delete") {
-      const id = t.dataset.id;
-      posts = posts.filter((p) => p.id !== id);
-      writeStore(posts);
-      document.querySelector(`.card[data-id="${id}"]`)?.remove();
-      if (emptyState) emptyState.style.display = posts.length ? "none" : "";
+    // NOTE: media upload is NOT yet wired to Supabase storage.
+    // For now, we ignore attachments for persistence and only keep local preview.
+    let mediaType = null;
+    let mediaUrl = null;
+    if (photoInput && photoInput.files && photoInput.files[0]) {
+      mediaType = "image";
+      mediaUrl = null;
+    } else if (videoInput && videoInput.files && videoInput.files[0]) {
+      mediaType = "video";
+      mediaUrl = null;
     }
 
-    if (t.dataset.act === "edit") {
-      const id = t.dataset.id,
-        p = findPost(id);
-      const card = document.querySelector(`.card[data-id="${id}"]`);
-      const body = card?.querySelector('[data-role="text"]');
-      if (!body) return;
-      body.innerHTML = `
-        <textarea class="tt-edit-area">${escapeHTML(p.text)}</textarea>
-        <div class="tt-edit-actions">
-          <button class="tt-edit-save" data-act="save" data-id="${id}" type="button">Save</button>
-          <button class="tt-edit-cancel" data-act="cancel" data-id="${id}" type="button">Cancel</button>
-        </div>`;
-    }
+    try {
+      const { data, error } = await supabase
+        .from("tt_threads")
+        .insert({
+          user_id: currentUser.id,
+          category: catSlug,
+          body: body,
+          media_type: mediaType,
+          media_url: mediaUrl
+        })
+        .select("id, user_id, category, body, created_at")
+        .single();
 
-    if (t.dataset.act === "save") {
-      const id = t.dataset.id;
-      const area = document.querySelector(
-        `.card[data-id="${id}"] .tt-edit-area`
+      if (error) {
+        console.error("Error inserting thread", error);
+        showToast("Could not post. Please try again.");
+        return;
+      }
+
+      textArea.value = "";
+      if (catSelect.value === "") {
+        // keep it blank in UI if user left it blank
+      }
+      if (photoInput) photoInput.value = "";
+      if (videoInput) videoInput.value = "";
+      clearPreview();
+
+      showToast("Posted");
+      await loadFeed(); // refresh list so it appears under Latest Threads (and category pages via shared table)
+    } catch (e) {
+      console.error("Exception inserting thread", e);
+      showToast("Could not post. Please try again.");
+    }
+  }
+
+  function buildReactionCounts(rawReactions) {
+    const counts = { heart: 0, fire: 0, tear: 0 };
+    rawReactions.forEach((r) => {
+      if (r.reaction === "heart") counts.heart++;
+      else if (r.reaction === "fire") counts.fire++;
+      else if (r.reaction === "tear") counts.tear++;
+    });
+    return counts;
+  }
+
+  function renderThreadCard(thread, reactionsForThread, myReaction) {
+    const meta = categoryMeta(thread.category);
+    const name = displayNameFor(thread.user_id);
+    const timeLabel = formatTime(thread.created_at);
+
+    const counts = buildReactionCounts(reactionsForThread || []);
+
+    const card = document.createElement("article");
+    card.className = "card";
+    card.dataset.threadId = thread.id;
+
+    let html = "";
+    html += '<div class="meta">';
+    // avatar is hidden via CSS; we just keep DOM simple and not render initials at all
+    html += "<span>" + name + "</span>";
+    if (timeLabel) {
+      html += " • <span>" + timeLabel + "</span>";
+    }
+    html += "</div>";
+
+    html += '<div class="title">';
+    html +=
+      '<a class="cat" href="' +
+      meta.href +
+      '">[' +
+      meta.label +
+      "]</a>";
+    html += "</div>";
+
+    // No persisted media yet – you can add later from media_type/media_url
+    html += '<div class="preview">' + escapeHtml(thread.body) + "</div>";
+
+    // Reactions + flag
+    html += '<div class="actions">';
+    html += '<div class="tt-react-row">';
+
+    REACTION_TYPES.forEach((rt) => {
+      const isActive = myReaction === rt.key;
+      html +=
+        '<button type="button" class="tt-react" data-react="' +
+        rt.key +
+        '"' +
+        (isActive ? ' data-active="true"' : "") +
+        ">";
+      html += rt.emoji + ' <span>' + (counts[rt.key] || 0) + "</span>";
+      html += "</button>";
+    });
+
+    html += "</div>"; // .tt-react-row
+
+    html +=
+      '<button type="button" class="tt-flag-btn" style="border:1px solid var(--border);background:#fff;border-radius:999px;padding:6px 10px;font-size:13px;cursor:pointer;margin-left:auto;">Flag</button>';
+
+    html += "</div>"; // .actions
+
+    card.innerHTML = html;
+    cardsEl.appendChild(card);
+  }
+
+  function escapeHtml(str) {
+    return (str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  async function loadFeed() {
+    if (!cardsEl || !emptyState) return;
+
+    try {
+      const { data: threads, error } = await supabase
+        .from("tt_threads")
+        .select("id, user_id, category, body, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error("Error loading threads", error);
+        return;
+      }
+
+      cardsEl.innerHTML = "";
+
+      if (!threads || !threads.length) {
+        emptyState.style.display = "block";
+        return;
+      }
+
+      emptyState.style.display = "none";
+
+      // Load profiles for all authors
+      const userIds = Array.from(
+        new Set(threads.map((t) => t.user_id).filter(Boolean))
       );
-      const p = findPost(id);
-      if (!p || !area) return;
-      p.text = area.value.trim() || p.text;
-      updateRow(id);
-    }
+      await loadProfiles(userIds);
 
-    if (t.dataset.act === "cancel") updateRow(t.dataset.id);
+      // Load reactions for these threads
+      const threadIds = threads.map((t) => t.id);
+      let reactions = [];
+      if (threadIds.length) {
+        const { data: rxData, error: rxError } = await supabase
+          .from("tt_reactions")
+          .select("thread_id, user_id, reaction")
+          .in("thread_id", threadIds);
+        if (rxError) {
+          console.error("Error loading reactions", rxError);
+        } else if (rxData) {
+          reactions = rxData;
+        }
+      }
 
-    if (t.dataset.act === "react") {
-      const id = t.dataset.id,
-        key = t.dataset.emoji;
-      const p = findPost(id);
-      if (!p) return;
-      p.reactions[key] = (p.reactions[key] || 0) + 1;
-      updateRow(id);
-    }
+      // Index reactions by thread and track the current user reaction
+      const reactionsByThread = {};
+      const myReactionByThread = {};
 
-    if (t.dataset.act === "comment") {
-      const id = t.dataset.id,
-        p = findPost(id);
-      if (!p) return;
-      const input = document.querySelector(
-        `.card[data-id="${id}"] .tt-comment-input`
-      );
-      const val = (input?.value || "").trim();
-      if (!val) return;
-      p.comments.push({
-        id: uuid(),
-        user: displayName || "Afroza",
-        text: val,
-        ts: Date.now(),
+      reactions.forEach((r) => {
+        if (!reactionsByThread[r.thread_id]) {
+          reactionsByThread[r.thread_id] = [];
+        }
+        reactionsByThread[r.thread_id].push(r);
+
+        if (currentUser && r.user_id === currentUser.id) {
+          myReactionByThread[r.thread_id] = r.reaction;
+        }
       });
-      updateRow(id);
+
+      threads.forEach((thread) => {
+        renderThreadCard(
+          thread,
+          reactionsByThread[thread.id] || [],
+          myReactionByThread[thread.id] || null
+        );
+      });
+
+      wireCardEvents();
+    } catch (e) {
+      console.error("Exception loading feed", e);
     }
-  });
+  }
 
-  const escapeHTML = (s) =>
-    (s || "").replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]));
+  function wireCardEvents() {
+    if (!cardsEl) return;
 
-  // ---------- Init ----------
-  renderAll();
+    cardsEl.querySelectorAll(".tt-react").forEach((btn) => {
+      btn.addEventListener("click", async function () {
+        if (!currentUser) {
+          requireLogin();
+          return;
+        }
+
+        const card = this.closest(".card");
+        if (!card) return;
+        const threadId = card.dataset.threadId;
+        const reactionKey = this.getAttribute("data-react");
+        if (!threadId || !reactionKey) return;
+
+        // Determine current reaction for this thread in DOM
+        let currentReaction = null;
+        card.querySelectorAll(".tt-react").forEach((b) => {
+          if (b.getAttribute("data-active") === "true") {
+            currentReaction = b.getAttribute("data-react");
+          }
+        });
+
+        try {
+          if (currentReaction === reactionKey) {
+            // Clicking the same reaction removes it
+            await supabase
+              .from("tt_reactions")
+              .delete()
+              .eq("thread_id", threadId)
+              .eq("user_id", currentUser.id);
+          } else {
+            // Upsert exactly one reaction per (thread, user)
+            await supabase
+              .from("tt_reactions")
+              .upsert(
+                {
+                  thread_id: threadId,
+                  user_id: currentUser.id,
+                  reaction: reactionKey
+                },
+                { onConflict: "thread_id,user_id" }
+              );
+          }
+          await loadFeed(); // refresh counts + active state
+        } catch (e) {
+          console.error("Error toggling reaction", e);
+          showToast("Could not update reaction.");
+        }
+      });
+    });
+
+    cardsEl.querySelectorAll(".tt-flag-btn").forEach((btn) => {
+      btn.addEventListener("click", async function () {
+        if (!currentUser) {
+          requireLogin();
+          return;
+        }
+        const card = this.closest(".card");
+        if (!card) return;
+        const threadId = card.dataset.threadId;
+        if (!threadId) return;
+
+        const ok = window.confirm(
+          "Flag this post for review by the Hemline Market team?"
+        );
+        if (!ok) return;
+
+        try {
+          await supabase.from("tt_flags").insert({
+            thread_id: threadId,
+            user_id: currentUser.id,
+            reason: null
+          });
+          showToast("Flagged for review.");
+        } catch (e) {
+          console.error("Error flagging thread", e);
+          showToast("Could not flag. Please try again.");
+        }
+      });
+    });
+  }
+
+  async function init() {
+    wireMediaInputs();
+    await loadCurrentUser();
+    if (composerForm) {
+      composerForm.addEventListener("submit", handleComposerSubmit);
+    }
+    await loadFeed();
+  }
+
+  // Kick things off once DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();
