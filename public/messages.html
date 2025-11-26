@@ -21,7 +21,6 @@
       --bg:#fff;
       --accent:#991b1b;
       --bg-page:#fafafa;
-      --thread-selected:#fef2f2;
     }
 
     html,body{
@@ -37,10 +36,9 @@
     .wrap{
       max-width:1200px;
       margin:0 auto;
-      padding:0 12px;
+      padding:0 12px 16px;
     }
 
-    /* page */
     h1{
       margin:18px 0 12px;
       font-size:24px;
@@ -61,6 +59,7 @@
       overflow:hidden;
     }
 
+    /* INBOX COLUMN */
     .inbox{
       display:flex;
       flex-direction:column;
@@ -84,8 +83,8 @@
       max-height:calc(100vh - 220px);
     }
 
-    .threads-empty{
-      padding:16px;
+    .empty-state{
+      padding:16px 14px;
       font-size:13px;
       color:var(--muted);
     }
@@ -109,34 +108,44 @@
       background:#f9fafb;
     }
 
-    .thread.selected{
-      background:var(--thread-selected);
+    .thread.active{
+      background:#fef2f2;
     }
 
     .avatar{
       width:36px;
       height:36px;
       border-radius:50%;
-      background:#eee;
+      background:#e5e7eb;
       display:grid;
       place-items:center;
       font-weight:700;
       font-size:14px;
+      color:#111827;
     }
 
-    .meta{
-      font-size:12px;
-      color:var(--muted);
+    .thread-main{
+      min-width:0;
     }
 
-    .title{
+    .thread-name{
       font-weight:700;
       font-size:14px;
-      margin-bottom:2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .thread-preview{
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .pill{
-      font-size:12px;
+      font-size:11px;
       border:1px solid var(--line);
       padding:2px 8px;
       border-radius:999px;
@@ -150,10 +159,20 @@
       color:#991b1b;
     }
 
+    /* CHAT COLUMN */
     .chat{
       display:flex;
       flex-direction:column;
       height:calc(100vh - 220px);
+    }
+
+    .chat.empty .chat-header,
+    .chat.empty .chat-scroll{
+      display:none;
+    }
+
+    .chat.empty .chat-empty{
+      display:flex;
     }
 
     .chat-header{
@@ -162,11 +181,18 @@
       display:flex;
       align-items:center;
       gap:10px;
+      background:#fff;
     }
 
-    .chat-header-title{
+    .chat-header-main{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+
+    .chat-header-name{
       font-weight:700;
-      font-size:15px;
+      font-size:14px;
     }
 
     .chat-header-meta{
@@ -174,10 +200,21 @@
       color:var(--muted);
     }
 
+    .chat-empty{
+      flex:1;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      color:var(--muted);
+      font-size:14px;
+      padding:32px 24px;
+      display:none;
+    }
+
     .chat-scroll{
       flex:1;
       overflow:auto;
-      padding:12px 16px;
+      padding:14px 16px;
       display:grid;
       gap:10px;
       background:#fcfcfc;
@@ -190,6 +227,9 @@
       border-radius:12px;
       background:#fff;
       font-size:14px;
+      line-height:1.4;
+      white-space:pre-wrap;
+      word-wrap:break-word;
     }
 
     .bubble.me{
@@ -202,13 +242,6 @@
       font-size:12px;
       color:var(--muted);
       justify-self:center;
-    }
-
-    .chat-empty{
-      margin-top:40px;
-      text-align:center;
-      font-size:14px;
-      color:var(--muted);
     }
 
     .composer{
@@ -242,13 +275,11 @@
       white-space:nowrap;
     }
 
-    .composer button:disabled,
-    .composer textarea:disabled{
-      opacity:.5;
+    .composer button:disabled{
+      opacity:.6;
       cursor:default;
     }
 
-    /* mobile */
     @media (max-width:900px){
       .page{
         grid-template-columns:1fr;
@@ -277,31 +308,32 @@
       <div class="search">
         <input id="searchInput" placeholder="Search messages…"/>
       </div>
-      <div id="threadsEmpty" class="threads-empty">
-        No conversations match your search.
+      <div class="threads" id="threadsList">
+        <div class="empty-state" id="threadsEmpty">
+          No conversations yet. When you message a seller or buyer, threads will appear here.
+        </div>
       </div>
-      <div class="threads" id="threadsList"></div>
     </section>
 
     <!-- Chat -->
-    <section class="panel chat" aria-label="Conversation">
+    <section class="panel chat empty" aria-label="Conversation" id="chatPanel">
       <div class="chat-header">
         <div class="avatar" id="chatAvatar">?</div>
+        <div class="chat-header-main">
+          <div class="chat-header-name" id="chatName">Select a conversation</div>
+          <div class="chat-header-meta" id="chatMeta">Choose a thread on the left to view messages.</div>
+        </div>
+      </div>
+      <div class="chat-empty">
         <div>
-          <div class="chat-header-title" id="chatName">Select a conversation</div>
-          <div class="chat-header-meta" id="chatMeta">
-            Choose a thread on the left to view messages.
-          </div>
+          <div style="font-weight:600;margin-bottom:4px;">Select a conversation</div>
+          <div>Choose a thread on the left to view messages.</div>
         </div>
       </div>
-      <div class="chat-scroll" id="chat">
-        <div class="chat-empty" id="chatEmpty">
-          No conversation selected.
-        </div>
-      </div>
+      <div class="chat-scroll" id="chatScroll"></div>
       <div class="composer">
-        <textarea id="msg" placeholder="Write a reply…" disabled></textarea>
-        <button id="send" disabled>Send</button>
+        <textarea id="msgInput" placeholder="Write a reply…"></textarea>
+        <button id="sendBtn" disabled>Send</button>
       </div>
     </section>
   </div>
@@ -315,389 +347,441 @@
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-  // --- Supabase + messaging logic ---
-  const supabase = window.supabase.createClient(
+  // --- Supabase client (same project + anon key as other pages) ---
+  const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
     { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
-  const els = {
-    threadsList: document.getElementById("threadsList"),
-    threadsEmpty: document.getElementById("threadsEmpty"),
-    searchInput: document.getElementById("searchInput"),
-    chat: document.getElementById("chat"),
-    chatEmpty: document.getElementById("chatEmpty"),
-    chatAvatar: document.getElementById("chatAvatar"),
-    chatName: document.getElementById("chatName"),
-    chatMeta: document.getElementById("chatMeta"),
-    msgInput: document.getElementById("msg"),
-    sendBtn: document.getElementById("send")
-  };
-
-  let currentUser = null;
-  let currentThreadId = null;
-  let allThreads = [];        // raw thread rows
-  let profileById = {};       // { userId: profile }
-  let otherUserIdByThread = {}; // { threadId: otherUserId }
-
-  function initialsFromName(first, last, email){
-    if(first && last) return (first[0] + last[0]).toUpperCase();
-    if(first) return (first[0] + (first[1] || "")).toUpperCase();
-    if(email) return email[0].toUpperCase();
+  // --- Small helpers ---
+  function initialsFromName(first, last, fallback){
+    if(first && last) return (first[0]+last[0]).toUpperCase();
+    if(first) return (first[0]+(first[1]||"")).toUpperCase();
+    if(fallback) return fallback[0].toUpperCase();
     return "?";
   }
 
-  function formatRelative(ts){
-    if(!ts) return "";
-    const d = new Date(ts);
-    const now = new Date();
-    const diffMs = now - d;
-    const diffDays = diffMs / (1000*60*60*24);
-    if(diffDays < 1){
-      return "Today";
-    }else if(diffDays < 2){
-      return "Yesterday";
+  function shortTimeLabel(iso){
+    if(!iso) return "";
+    const d = new Date(iso);
+    if(Number.isNaN(d.getTime())) return "";
+    const today = new Date();
+    const sameDay = d.toDateString() === today.toDateString();
+    if(sameDay){
+      return d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
     }
+    const diffMs = today - d;
+    const diffDays = Math.floor(diffMs/86400000);
+    if(diffDays === 1) return "Yesterday";
+    if(diffDays < 7) return d.toLocaleDateString([],{weekday:"short"});
     return d.toLocaleDateString();
   }
 
+  function formatStamp(iso){
+    if(!iso) return "";
+    const d = new Date(iso);
+    if(Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString([],{
+      month:"short", day:"numeric",
+      hour:"numeric", minute:"2-digit"
+    });
+  }
+
   async function ensureSession(maxWaitMs=3000){
-    let { data:{ session } } = await supabase.auth.getSession();
+    let { data:{ session } } = await supabaseClient.auth.getSession();
     if(session?.user) return session;
     const start = Date.now();
-    while(!session?.user && Date.now() - start < maxWaitMs){
+    while(!session?.user && Date.now()-start < maxWaitMs){
       await new Promise(r=>setTimeout(r,120));
-      ({ data:{ session } } = await supabase.auth.getSession());
+      ({ data:{ session } } = await supabaseClient.auth.getSession());
     }
-    return session;
+    return session || null;
   }
 
-  async function fetchProfiles(ids){
-    const uniq = Array.from(new Set(ids.filter(Boolean)));
-    if(!uniq.length) return {};
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .in("id", uniq);
-    if(error){
-      console.error("Profile fetch error", error);
-      return {};
-    }
-    const map = {};
-    data.forEach(p => { map[p.id] = p; });
-    return map;
-  }
+  // --- DOM refs ---
+  const threadsListEl = document.getElementById("threadsList");
+  const threadsEmptyEl = document.getElementById("threadsEmpty");
+  const searchInputEl  = document.getElementById("searchInput");
 
-  function renderThreads(filterText=""){
-    const list = els.threadsList;
-    const empty = els.threadsEmpty;
-    list.innerHTML = "";
+  const chatPanelEl  = document.getElementById("chatPanel");
+  const chatAvatarEl = document.getElementById("chatAvatar");
+  const chatNameEl   = document.getElementById("chatName");
+  const chatMetaEl   = document.getElementById("chatMeta");
+  const chatScrollEl = document.getElementById("chatScroll");
+  const msgInputEl   = document.getElementById("msgInput");
+  const sendBtnEl    = document.getElementById("sendBtn");
 
-    const q = (filterText || "").trim().toLowerCase();
+  let currentUser = null;
+  let currentThreadId = null;
+  let currentOtherUserId = null;
+  let currentOtherName = "";
+  let allThreads = []; // in-memory cache for search
 
-    const filtered = allThreads.filter(t => {
-      const otherId = otherUserIdByThread[t.id];
-      const prof = profileById[otherId] || {};
-      const name = (prof.first_name || "") + " " + (prof.last_name || "");
-      const store = prof.store_name || "";
-      const preview = t.last_message_preview || "";
-      const haystack = (name + " " + store + " " + preview).toLowerCase();
-      return !q || haystack.includes(q);
-    });
-
-    if(!filtered.length){
-      empty.style.display = "block";
-      return;
-    }
-
-    empty.style.display = "none";
-
-    filtered.forEach(t => {
-      const otherId = otherUserIdByThread[t.id];
-      const prof = profileById[otherId] || {};
-      const name = ((prof.first_name || "") + " " + (prof.last_name || "")).trim() || (prof.store_name || "Hemline member");
-      const avatarInitials = initialsFromName(prof.first_name, prof.last_name, prof.email);
-      const preview = t.last_message_preview || (t.message_count ? "(No preview)" : "(No messages yet)");
-      const when = formatRelative(t.last_message_at || t.updated_at || t.created_at);
-
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "thread";
-      row.dataset.threadId = t.id;
-
-      if(t.id === currentThreadId){
-        row.classList.add("selected");
-      }
-
-      row.innerHTML = `
-        <div class="avatar">${avatarInitials}</div>
-        <div>
-          <div class="title">${name}</div>
-          <div class="meta">${preview}</div>
-        </div>
-        <div class="pill">${when || ""}</div>
-      `;
-
-      row.addEventListener("click", () => openThread(t.id));
-
-      list.appendChild(row);
-    });
-  }
-
-  function setComposerEnabled(enabled){
-    els.msgInput.disabled = !enabled;
-    els.sendBtn.disabled = !enabled;
-  }
-
-  function renderEmptyChat(){
-    els.chat.innerHTML = "";
-    const empty = document.createElement("div");
-    empty.className = "chat-empty";
-    empty.textContent = "No messages yet. Send the first message.";
-    els.chat.appendChild(empty);
-  }
-
-  async function openThread(threadId){
-    currentThreadId = threadId;
-    renderThreads(els.searchInput.value);
-
-    const otherId = otherUserIdByThread[threadId];
-    const prof = profileById[otherId] || {};
-    const name = ((prof.first_name || "") + " " + (prof.last_name || "")).trim() || (prof.store_name || "Hemline member");
-    const avatarInitials = initialsFromName(prof.first_name, prof.last_name, prof.email);
-
-    els.chatAvatar.textContent = avatarInitials;
-    els.chatName.textContent = name;
-    els.chatMeta.textContent = prof.store_name ? prof.store_name : "Updated conversation";
-
-    setComposerEnabled(true);
-    els.msgInput.placeholder = "Write a reply…";
-
-    // Load messages
-    els.chat.innerHTML = "";
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("thread_id", threadId)
-      .order("created_at", { ascending:true });
-
-    if(error){
-      console.error("Messages fetch error", error);
-      const errDiv = document.createElement("div");
-      errDiv.className = "chat-empty";
-      errDiv.textContent = "We couldn’t load messages. Please refresh.";
-      els.chat.appendChild(errDiv);
-      return;
-    }
-
-    if(!data.length){
-      renderEmptyChat();
-      return;
-    }
-
-    data.forEach(msg => {
-      const bubble = document.createElement("div");
-      bubble.className = "bubble" + (msg.sender_id === currentUser.id ? " me" : "");
-      bubble.textContent = msg.body || "";
-      els.chat.appendChild(bubble);
-    });
-
-    const last = data[data.length - 1];
-    const stamp = document.createElement("div");
-    stamp.className = "stamp";
-    stamp.textContent = new Date(last.created_at).toLocaleString();
-    els.chat.appendChild(stamp);
-
-    els.chat.scrollTop = els.chat.scrollHeight;
-  }
-
-  function getOtherUserIdForThread(thread){
-    if(!thread || !currentUser) return null;
-    if(thread.user_a === currentUser.id) return thread.user_b;
-    if(thread.user_b === currentUser.id) return thread.user_a;
-    return null;
-  }
-
-  async function ensureThreadWithUser(otherUserId){
-    if(!currentUser || !otherUserId || currentUser.id === otherUserId) return null;
-
-    // Try to find existing thread in DB
-    const { data: existing, error } = await supabase
-      .from("message_threads")
-      .select("*")
-      .or(
-        `and(user_a.eq.${currentUser.id},user_b.eq.${otherUserId}),` +
-        `and(user_a.eq.${otherUserId},user_b.eq.${currentUser.id})`
-      )
-      .maybeSingle();
-
-    if(existing){
-      return existing.id;
-    }
-
-    // Create new thread
-    const { data: created, error: insErr } = await supabase
-      .from("message_threads")
-      .insert({
-        user_a: currentUser.id,
-        user_b: otherUserId
-      })
-      .select("*")
-      .single();
-
-    if(insErr){
-      console.error("Create thread error", insErr);
-      return null;
-    }
-
-    // Push into local arrays so we don't need a full reload
-    allThreads.unshift(created);
-    otherUserIdByThread[created.id] = getOtherUserIdForThread(created);
-    return created.id;
-  }
-
-  async function loadThreads(initialThreadId){
-    const { data, error } = await supabase
-      .from("message_threads")
-      .select("*")
-      .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`)
-      .order("updated_at", { ascending:false });
-
-    if(error){
-      console.error("thread list error", error);
-      els.threadsEmpty.style.display = "block";
-      els.threadsEmpty.textContent = "We couldn’t load your conversations.";
-      return;
-    }
-
-    allThreads = data || [];
-    otherUserIdByThread = {};
-    const profileIds = [];
-
-    allThreads.forEach(t => {
-      const otherId = getOtherUserIdForThread(t);
-      otherUserIdByThread[t.id] = otherId;
-      if(otherId) profileIds.push(otherId);
-    });
-
-    profileById = await fetchProfiles(profileIds);
-
-    renderThreads();
-
-    if(initialThreadId && allThreads.some(t => t.id === initialThreadId)){
-      openThread(initialThreadId);
-    }
-  }
-
-  async function sendMessage(){
-    const text = (els.msgInput.value || "").trim();
-    if(!text || !currentThreadId || !currentUser) return;
-
-    els.msgInput.value = "";
-    els.msgInput.focus();
-
-    // Insert message
-    const { data: inserted, error } = await supabase
-      .from("messages")
-      .insert({
-        thread_id: currentThreadId,
-        sender_id: currentUser.id,
-        body: text
-      })
-      .select("*")
-      .single();
-
-    if(error){
-      console.error("send message error", error);
-      return;
-    }
-
-    // Optimistically append to UI
-    if(els.chat.querySelector(".chat-empty")){
-      els.chat.innerHTML = "";
-    }
-    const bubble = document.createElement("div");
-    bubble.className = "bubble me";
-    bubble.textContent = text;
-    els.chat.appendChild(bubble);
-
-    const stamp = document.createElement("div");
-    stamp.className = "stamp";
-    stamp.textContent = new Date(inserted.created_at).toLocaleString();
-    els.chat.appendChild(stamp);
-
-    els.chat.scrollTop = els.chat.scrollHeight;
-
-    // Update thread metadata + insert notification for the other user
-    const preview = text.slice(0, 140);
-    const otherId = otherUserIdByThread[currentThreadId];
-
-    const updates = [
-      supabase
-        .from("message_threads")
-        .update({
-          last_message_at: inserted.created_at,
-          last_message_preview: preview
-        })
-        .eq("id", currentThreadId)
-    ];
-
-    if(otherId){
-      updates.push(
-        supabase
-          .from("notifications")
-          .insert({
-            user_id: otherId,
-            kind: "message",
-            title: "New message",
-            body: preview,
-            message_thread_id: currentThreadId,
-            message_id: inserted.id
-          })
-      );
-    }
-
-    Promise.all(updates).catch(err => console.error("post-send updates error", err));
-
-    // Refresh thread list so preview + date update
-    loadThreads(currentThreadId);
-  }
-
+  // --- Load threads + optional "to" param from Atelier ---
   async function initMessagesPage(){
     const session = await ensureSession();
-    if(!session || !session.user){
+    if(!session?.user){
       window.location.href = "auth.html";
       return;
     }
     currentUser = session.user;
 
-    // URL params: ?u=<otherUserId> or ?thread=<threadId>
     const params = new URLSearchParams(window.location.search);
-    const otherUserId = params.get("u");
-    const threadParam = params.get("thread");
-    let initialThreadId = threadParam;
+    const toUserId = params.get("to") || null;
 
-    if(otherUserId && !initialThreadId){
-      initialThreadId = await ensureThreadWithUser(otherUserId);
+    // 1) If we came from an Atelier (?to=<seller_id>), make sure there is a thread.
+    let initialThreadId = null;
+    if(toUserId && toUserId !== currentUser.id){
+      initialThreadId = await getOrCreateThread(currentUser.id, toUserId);
     }
 
+    // 2) Load all threads for this user.
     await loadThreads(initialThreadId);
 
-    // Events
-    els.sendBtn.addEventListener("click", sendMessage);
-    els.msgInput.addEventListener("keydown", e => {
+    // 3) Wire UI events.
+    sendBtnEl.disabled = false;
+    sendBtnEl.addEventListener("click", handleSend);
+    msgInputEl.addEventListener("keydown", (e)=>{
       if(e.key === "Enter" && !e.shiftKey){
         e.preventDefault();
-        sendMessage();
+        handleSend();
       }
     });
 
-    els.searchInput.addEventListener("input", () => {
-      renderThreads(els.searchInput.value);
-    });
+    searchInputEl.addEventListener("input", applyThreadFilter);
   }
 
+  async function getOrCreateThread(userId, otherUserId){
+    // Look for existing thread in either direction.
+    const orFilter = `user_a.eq.${userId},user_b.eq.${userId}`;
+    const { data, error } = await supabaseClient
+      .from("message_threads")
+      .select("*")
+      .or(`and(user_a.eq.${userId},user_b.eq.${otherUserId}),and(user_a.eq.${otherUserId},user_b.eq.${userId})`)
+      .limit(1)
+      .maybeSingle();
+
+    if(error && error.code !== "PGRST116"){
+      console.error("Error checking existing thread", error);
+    }
+    if(data?.id){
+      return data.id;
+    }
+
+    // Create a new empty thread.
+    const { data:created, error:insertErr } = await supabaseClient
+      .from("message_threads")
+      .insert({
+        user_a: userId,
+        user_b: otherUserId,
+        last_message_at: null,
+        last_message_preview: null
+      })
+      .select("*")
+      .single();
+
+    if(insertErr){
+      console.error("Error creating thread", insertErr);
+      return null;
+    }
+    return created.id;
+  }
+
+  async function loadThreads(preselectThreadId){
+    const uid = currentUser.id;
+
+    const { data, error } = await supabaseClient
+      .from("message_threads")
+      .select("*")
+      .or(`user_a.eq.${uid},user_b.eq.${uid}`)
+      .order("last_message_at", { ascending:false, nullsLast:true })
+      .order("created_at", { ascending:false });
+
+    if(error){
+      console.error("Error loading threads", error);
+      threadsEmptyEl.textContent = "We couldn’t load your messages. Please refresh.";
+      return;
+    }
+
+    allThreads = data || [];
+
+    if(!allThreads.length){
+      threadsEmptyEl.style.display = "block";
+      threadsListEl.querySelectorAll(".thread").forEach(el=>el.remove());
+      makeChatEmpty();
+      return;
+    }
+
+    threadsEmptyEl.style.display = "none";
+
+    // Collect other user IDs to fetch names from profiles.
+    const otherIds = [];
+    const uidStr = String(uid);
+    allThreads.forEach(t=>{
+      const other = (t.user_a === uidStr) ? t.user_b : t.user_a;
+      if(other && !otherIds.includes(other)) otherIds.push(other);
+    });
+
+    let profilesById = {};
+    if(otherIds.length){
+      const { data:profiles, error:profileErr } = await supabaseClient
+        .from("profiles")
+        .select("id, first_name, last_name, store_name, email")
+        .in("id", otherIds);
+
+      if(profileErr){
+        console.error("Error loading profiles for threads", profileErr);
+      }else{
+        profilesById = Object.fromEntries(
+          (profiles || []).map(p=>[p.id, p])
+        );
+      }
+    }
+
+    // Render left list.
+    threadsListEl.querySelectorAll(".thread").forEach(el=>el.remove());
+
+    allThreads.forEach(thread=>{
+      const otherId = (thread.user_a === uidStr) ? thread.user_b : thread.user_a;
+      const prof = profilesById[otherId] || {};
+      const first = prof.first_name || "";
+      const last  = prof.last_name  || "";
+      const displayName =
+        (first || last) ? (first + " " + last).trim()
+        : prof.store_name || "Hemline member";
+
+      const initials = initialsFromName(first,last,displayName);
+
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "thread";
+      row.dataset.threadId = thread.id;
+      row.dataset.otherUserId = otherId || "";
+      row.dataset.otherName = displayName;
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.textContent = initials;
+
+      const main = document.createElement("div");
+      main.className = "thread-main";
+
+      const nameEl = document.createElement("div");
+      nameEl.className = "thread-name";
+      nameEl.textContent = displayName;
+
+      const previewEl = document.createElement("div");
+      previewEl.className = "thread-preview";
+      previewEl.textContent = thread.last_message_preview || "(No messages yet)";
+
+      main.appendChild(nameEl);
+      main.appendChild(previewEl);
+
+      const pill = document.createElement("div");
+      pill.className = "pill";
+      const label = shortTimeLabel(thread.last_message_at || thread.created_at);
+      pill.textContent = label || "Today";
+
+      row.appendChild(avatar);
+      row.appendChild(main);
+      row.appendChild(pill);
+
+      row.addEventListener("click", ()=> openThread(thread.id, otherId, displayName, initials));
+
+      threadsListEl.appendChild(row);
+    });
+
+    // Auto-open thread if requested.
+    if(preselectThreadId){
+      const target = allThreads.find(t=>t.id === preselectThreadId);
+      if(target){
+        const otherId = (target.user_a === uid ? target.user_b : target.user_a);
+        const prof = otherIds.length ? (await supabaseClient
+          .from("profiles")
+          .select("id, first_name, last_name, store_name, email")
+          .eq("id", otherId)
+          .maybeSingle()).data : null;
+
+        const first = prof?.first_name || "";
+        const last  = prof?.last_name  || "";
+        const displayName =
+          (first || last) ? (first + " " + last).trim()
+          : prof?.store_name || "Hemline member";
+        const initials = initialsFromName(first,last,displayName);
+
+        openThread(target.id, otherId, displayName, initials);
+      }
+    }else{
+      makeChatEmpty();
+    }
+  }
+
+  function makeChatEmpty(){
+    currentThreadId = null;
+    currentOtherUserId = null;
+    currentOtherName = "";
+    chatPanelEl.classList.add("empty");
+    chatScrollEl.innerHTML = "";
+    chatNameEl.textContent = "Select a conversation";
+    chatMetaEl.textContent = "Choose a thread on the left to view messages.";
+    chatAvatarEl.textContent = "?";
+  }
+
+  async function openThread(threadId, otherUserId, otherName, initials){
+    currentThreadId = threadId;
+    currentOtherUserId = otherUserId;
+    currentOtherName = otherName || "Hemline member";
+
+    // Highlight selected row.
+    threadsListEl.querySelectorAll(".thread").forEach(el=>{
+      el.classList.toggle("active", el.dataset.threadId === threadId);
+    });
+
+    chatPanelEl.classList.remove("empty");
+    chatAvatarEl.textContent = initials || (currentOtherName[0] || "?");
+    chatNameEl.textContent = currentOtherName;
+    chatMetaEl.textContent = "No messages yet. Send the first message.";
+
+    // Load messages.
+    const { data, error } = await supabaseClient
+      .from("messages")
+      .select("*")
+      .eq("thread_id", threadId)
+      .order("created_at", { ascending:true });
+
+    chatScrollEl.innerHTML = "";
+
+    if(error){
+      console.error("Error loading messages", error);
+      const errBubble = document.createElement("div");
+      errBubble.className = "bubble";
+      errBubble.textContent = "We couldn’t load this conversation. Please refresh.";
+      chatScrollEl.appendChild(errBubble);
+      return;
+    }
+
+    if(!data || !data.length){
+      const stamp = document.createElement("div");
+      stamp.className = "stamp";
+      stamp.textContent = "No messages yet. Send the first message.";
+      chatScrollEl.appendChild(stamp);
+      chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
+      return;
+    }
+
+    let lastStamp = "";
+    data.forEach(msg=>{
+      const mine = msg.sender_id === currentUser.id;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble" + (mine ? " me" : "");
+      bubble.textContent = msg.body || "";
+      chatScrollEl.appendChild(bubble);
+
+      const stampStr = formatStamp(msg.created_at);
+      if(stampStr && stampStr !== lastStamp){
+        const stamp = document.createElement("div");
+        stamp.className = "stamp";
+        stamp.textContent = stampStr;
+        chatScrollEl.appendChild(stamp);
+        lastStamp = stampStr;
+      }
+    });
+
+    chatMetaEl.textContent = "Last updated " + formatStamp(data[data.length-1].created_at);
+    chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
+  }
+
+  async function handleSend(){
+    const text = (msgInputEl.value || "").trim();
+    if(!text || !currentThreadId || !currentUser) return;
+
+    sendBtnEl.disabled = true;
+
+    try{
+      // Insert message.
+      const { data:inserted, error } = await supabaseClient
+        .from("messages")
+        .insert({
+          thread_id: currentThreadId,
+          sender_id: currentUser.id,
+          body: text
+        })
+        .select("*")
+        .single();
+
+      if(error){
+        console.error("Error sending message", error);
+        alert("We couldn’t send that message. Please try again.");
+        return;
+      }
+
+      // Optimistic UI.
+      const bubble = document.createElement("div");
+      bubble.className = "bubble me";
+      bubble.textContent = text;
+      chatScrollEl.appendChild(bubble);
+
+      const stamp = document.createElement("div");
+      stamp.className = "stamp";
+      stamp.textContent = formatStamp(inserted.created_at);
+      chatScrollEl.appendChild(stamp);
+
+      chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
+      msgInputEl.value = "";
+
+      // Update thread preview.
+      const preview = text.length > 140 ? text.slice(0,137) + "…" : text;
+      await supabaseClient
+        .from("message_threads")
+        .update({
+          last_message_at: inserted.created_at,
+          last_message_preview: preview
+        })
+        .eq("id", currentThreadId);
+
+      // Insert notification for the other user (simple v1).
+      if(currentOtherUserId && currentOtherUserId !== currentUser.id){
+        const title = "New message from " + (currentUser.email || "Hemline member");
+        await supabaseClient.from("notifications").insert({
+          user_id: currentOtherUserId,
+          kind: "message",
+          title,
+          body: preview,
+          message_thread_id: currentThreadId,
+          message_id: inserted.id
+        });
+      }
+
+      // Reload threads list in the background so ordering/preview update.
+      loadThreads(currentThreadId);
+    }finally{
+      sendBtnEl.disabled = false;
+    }
+  }
+
+  function applyThreadFilter(){
+    const q = (searchInputEl.value || "").toLowerCase().trim();
+    const rows = threadsListEl.querySelectorAll(".thread");
+    if(!rows.length) return;
+    let anyVisible = false;
+    rows.forEach(row=>{
+      const name = (row.dataset.otherName || "").toLowerCase();
+      const preview = (row.querySelector(".thread-preview")?.textContent || "").toLowerCase();
+      const match = !q || name.includes(q) || preview.includes(q);
+      row.style.display = match ? "grid" : "none";
+      if(match) anyVisible = true;
+    });
+    threadsEmptyEl.style.display = anyVisible ? "none" : "block";
+    if(!anyVisible){
+      threadsEmptyEl.textContent = "No conversations match your search.";
+    }else{
+      threadsEmptyEl.textContent = "No conversations yet. When you message a seller or buyer, threads will appear here.";
+    }
+  }
+
+  // Kick off page logic.
   initMessagesPage();
 </script>
 
