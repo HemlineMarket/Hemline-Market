@@ -2,97 +2,223 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Hemline — Sign in</title>
-  <style>
-    :root { --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#fafafa; --card:#ffffff; }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-    .wrap{max-width:440px;margin:8vh auto;padding:20px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
-    .head{padding:16px 20px;border-bottom:1px solid var(--line);font-weight:700}
-    .body{padding:20px;display:grid;gap:12px}
-    label{font-size:14px;color:var(--muted)}
-    input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit}
-    button{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#111827;color:#fff;cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    .note{font-size:13px;color:var(--muted)}
-    .row{display:flex;gap:10px;align-items:center;justify-content:space-between}
-    a{color:inherit}
-  </style>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Thank You — Hemline Market</title>
 
-  <!-- Env + Supabase + app helpers -->
-  <script src="/env.js"></script>
-  <script>
-    (function loadSupabase(){
-      function add(src, cb){const s=document.createElement('script');s.src=src;s.onload=cb;s.onerror=cb;document.head.appendChild(s);}
-      add("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){
-        if (!window.supabase) add("https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js", function(){});
-      });
-    })();
-  </script>
-  <script src="/app.js"></script>
+  <!-- UNIVERSAL HM CSS STACK -->
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hm-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
+
+  <style>
+    :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa}
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    /* Page layout */
+    .container{
+      max-width:1100px;
+      margin:20px auto;
+      padding:0 12px;
+      display:grid;
+      grid-template-columns:1fr 360px;
+      gap:18px;
+    }
+    @media(max-width:900px){
+      .container{grid-template-columns:1fr}
+    }
+    .card{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+    }
+    h1{margin:0 0 6px}
+    .muted{color:var(--muted)}
+
+    .ok{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .ok .dot{
+      width:22px;
+      height:22px;
+      border-radius:50%;
+      background:#16a34a;
+      display:inline-grid;
+      place-items:center;
+      color:#fff;
+    }
+    .ok .dot svg{
+      width:14px;
+      height:14px;
+      stroke-width:3;
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height:42px;
+      padding:0 16px;
+      border-radius:999px;
+      border:1px solid transparent;
+      background:var(--accent);
+      color:#fff;
+      text-decoration:none;
+      font-weight:700;
+    }
+    .btn-outline{
+      background:#fff;
+      color:var(--accent);
+      border:1px solid var(--border);
+    }
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    /* Summary */
+    .item{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .thumb{
+      width:48px;
+      height:48px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#f3f4f6;
+    }
+    .grow{flex:1}
+    .line{
+      height:1px;
+      background:var(--border);
+      margin:12px 0;
+    }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      margin:6px 0;
+    }
+    .grand{font-weight:800}
+  </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="head">Sign in</div>
-      <div class="body">
-        <div>
-          <label for="email">Email</label>
-          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required />
-        </div>
-        <button id="send">Send magic link</button>
-        <div class="note">We’ll email you a one-time sign-in link. Check your inbox (and spam).</div>
-        <div class="row">
-          <a href="/index.html">← Back home</a>
-          <a href="/listings.html">Browse listings</a>
-        </div>
-      </div>
+
+<!-- UNIVERSAL HEADER -->
+<div id="hm-shell-header"></div>
+
+<main class="container">
+  <!-- LEFT: Confirmation -->
+  <section class="card" aria-labelledby="thxTitle">
+    <div class="ok" style="margin-bottom:8px">
+      <span class="dot" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </span>
+      <strong id="thxTitle">Thank you — your order is placed!</strong>
     </div>
-  </div>
+    <div class="muted" id="orderLine">
+      Order <b id="order-id">#HM-000000</b>
+    </div>
 
-  <script>
-    (async () => {
-      // Wait for Supabase
-      let tries=0; while(!window.supabase && tries<40){ await new Promise(r=>setTimeout(r,100)); tries++; }
-      if (!window.supabase || !window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
-        hm.toast('Auth not ready.'); return;
-      }
-      const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    <p class="muted" style="margin-top:10px">
+      We emailed your receipt. You’ll get tracking updates when the sellers ship.
+    </p>
 
-      // If already signed in, bounce back to listings
-      const { data: sess } = await sb.auth.getSession();
-      if (sess?.session) {
-        hm.toast('Already signed in.'); window.location.href = '/listings.html'; return;
-      }
+    <div class="actions">
+      <a class="btn" href="orders.html">View orders</a>
+      <a class="btn-outline" href="browse.html">Continue shopping</a>
+      <a class="btn-outline" href="index.html">Back to home</a>
+    </div>
+  </section>
 
-      const btn = document.getElementById('send');
-      const email = document.getElementById('email');
+  <!-- RIGHT: Order summary -->
+  <aside class="card" aria-labelledby="sumTitle">
+    <h2 id="sumTitle" style="margin:0 0 8px">Order summary</h2>
+    <div id="items"></div>
 
-      btn.addEventListener('click', async () => {
-        const val = (email.value || '').trim();
-        if (!val) { hm.toast('Enter your email.'); email.focus(); return; }
-        btn.disabled = true;
+    <div class="line"></div>
+    <div class="row"><span>Items</span><span id="itemsTotal">$0.00</span></div>
+    <div class="row"><span>Shipping</span><span id="shippingTotal">$0.00</span></div>
+    <div class="line"></div>
+    <div class="row grand"><span>Total</span><span id="grandTotal">$0.00</span></div>
+  </aside>
+</main>
 
-        try {
-          const origin = window.location.origin || 'https://hemlinemarket.com';
-          // After clicking the magic link, Supabase will return here:
-          const redirectTo = origin + '/listings.html';
+<!-- UNIVERSAL FOOTER -->
+<div id="hm-shell-footer"></div>
 
-          const res = await sb.auth.signInWithOtp({
-            email: val,
-            options: { emailRedirectTo: redirectTo }
-          });
-          hm.guard(res, 'Couldn’t send magic link.');
-          hm.toast('Magic link sent. Check your email!');
-        } catch (err) {
-          hm.toast(hm.normalizeSupabaseError(err));
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    })();
-  </script>
+<!-- UNIVERSAL / AUTH SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scripts/hm-shell.js"></script>
+
+<!-- Page-specific JS -->
+<script>
+(function(){
+  const fmt=c=>'$'+(Math.max(0,c)/100).toFixed(2);
+
+  // 1) Order number from query (?o=HM-######)
+  const params=new URLSearchParams(location.search);
+  const orderId=params.get('o');
+  const orderIdEl=document.getElementById('order-id');
+  if(orderId && orderIdEl){ orderIdEl.textContent=orderId; }
+
+  // 2) Totals + items snapshot (if present)
+  const totals = JSON.parse(localStorage.getItem('hm_last_checkout_totals')||'null');
+  const itemsSnap = JSON.parse(localStorage.getItem('hm_last_checkout_items')||'null');
+
+  // Items list (optional snapshot; fine if absent)
+  const itemsEl=document.getElementById('items');
+  itemsEl.innerHTML='';
+  let subtotal = 0;
+
+  if(Array.isArray(itemsSnap) && itemsSnap.length){
+    itemsSnap.forEach(it=>{
+      const line=(it.amount||0)*(it.qty||1);
+      subtotal+=line;
+      const row=document.createElement('div'); 
+      row.className='item';
+      row.innerHTML =
+        '<div class="thumb" aria-hidden="true"></div>'+
+        '<div class="grow"><div>'+ (it.name||'Item') +'</div>'+
+        '<div class="muted">'+ ((it.yards ? (it.yards + " yd") : "") ) +'</div></div>'+
+        '<div>'+fmt(line)+'</div>';
+      itemsEl.appendChild(row);
+    });
+  } else if (totals) {
+    subtotal = totals.subtotal||0;
+  }
+
+  // Totals render
+  const ship = totals ? (totals.shipping||0) : 0;
+  document.getElementById('itemsTotal').textContent = fmt(subtotal);
+  document.getElementById('shippingTotal').textContent = fmt(ship);
+  document.getElementById('grandTotal').textContent = fmt(subtotal + ship);
+
+  // Clear ephemeral snapshots so refresh doesn't reuse them
+  localStorage.removeItem('hm_last_checkout_totals');
+  localStorage.removeItem('hm_last_checkout_items');
+})();
+</script>
+
+<!-- Render universal header/footer -->
+<script>
+window.HM && window.HM.renderShell({ currentPage: "checkout-thanks" });
+</script>
+
 </body>
 </html>
