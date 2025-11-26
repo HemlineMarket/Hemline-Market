@@ -1,4 +1,4 @@
-<!-- "messages.html" -->
+<!-- File: public/messages.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -21,6 +21,7 @@
       --bg:#fff;
       --accent:#991b1b;
       --bg-page:#fafafa;
+      --thread-selected:#fef2f2;
     }
 
     html,body{
@@ -84,7 +85,7 @@
     }
 
     .threads-empty{
-      padding:14px;
+      padding:16px;
       font-size:13px;
       color:var(--muted);
     }
@@ -97,14 +98,19 @@
       border-top:1px solid var(--line);
       cursor:pointer;
       background:#fff;
+      transition:background .12s ease;
     }
 
     .thread:first-child{
       border-top:0;
     }
 
-    .thread.active{
-      background:#fef2f2;
+    .thread:hover{
+      background:#f9fafb;
+    }
+
+    .thread.selected{
+      background:var(--thread-selected);
     }
 
     .avatar{
@@ -125,6 +131,8 @@
 
     .title{
       font-weight:700;
+      font-size:14px;
+      margin-bottom:2px;
     }
 
     .pill{
@@ -156,6 +164,16 @@
       gap:10px;
     }
 
+    .chat-header-title{
+      font-weight:700;
+      font-size:15px;
+    }
+
+    .chat-header-meta{
+      font-size:12px;
+      color:var(--muted);
+    }
+
     .chat-scroll{
       flex:1;
       overflow:auto;
@@ -171,6 +189,7 @@
       border:1px solid var(--line);
       border-radius:12px;
       background:#fff;
+      font-size:14px;
     }
 
     .bubble.me{
@@ -183,6 +202,13 @@
       font-size:12px;
       color:var(--muted);
       justify-self:center;
+    }
+
+    .chat-empty{
+      margin-top:40px;
+      text-align:center;
+      font-size:14px;
+      color:var(--muted);
     }
 
     .composer{
@@ -216,11 +242,13 @@
       white-space:nowrap;
     }
 
-    .composer button:disabled{
-      opacity:.4;
+    .composer button:disabled,
+    .composer textarea:disabled{
+      opacity:.5;
       cursor:default;
     }
 
+    /* mobile */
     @media (max-width:900px){
       .page{
         grid-template-columns:1fr;
@@ -249,24 +277,27 @@
       <div class="search">
         <input id="searchInput" placeholder="Search messages…"/>
       </div>
-      <div class="threads" id="threadList" aria-live="polite">
-        <div class="threads-empty" id="threadsEmpty">
-          No messages yet. When you contact a seller or buyer, conversations will appear here.
-        </div>
+      <div id="threadsEmpty" class="threads-empty">
+        No conversations match your search.
       </div>
+      <div class="threads" id="threadsList"></div>
     </section>
 
     <!-- Chat -->
     <section class="panel chat" aria-label="Conversation">
-      <div class="chat-header" id="chatHeader">
+      <div class="chat-header">
         <div class="avatar" id="chatAvatar">?</div>
         <div>
-          <div id="chatTitle" style="font-weight:700">Select a conversation</div>
-          <div class="meta" id="chatMeta">Choose a thread on the left to view messages.</div>
+          <div class="chat-header-title" id="chatName">Select a conversation</div>
+          <div class="chat-header-meta" id="chatMeta">
+            Choose a thread on the left to view messages.
+          </div>
         </div>
       </div>
       <div class="chat-scroll" id="chat">
-        <!-- messages injected here -->
+        <div class="chat-empty" id="chatEmpty">
+          No conversation selected.
+        </div>
       </div>
       <div class="composer">
         <textarea id="msg" placeholder="Write a reply…" disabled></textarea>
@@ -284,411 +315,390 @@
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-  // Supabase client
-  const supabaseClient = window.supabase.createClient(
+  // --- Supabase + messaging logic ---
+  const supabase = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+    { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
-  let currentUser = null;
-  let threadsState = [];
-  let profilesCache = {};
-  let activeThreadId = null;
+  const els = {
+    threadsList: document.getElementById("threadsList"),
+    threadsEmpty: document.getElementById("threadsEmpty"),
+    searchInput: document.getElementById("searchInput"),
+    chat: document.getElementById("chat"),
+    chatEmpty: document.getElementById("chatEmpty"),
+    chatAvatar: document.getElementById("chatAvatar"),
+    chatName: document.getElementById("chatName"),
+    chatMeta: document.getElementById("chatMeta"),
+    msgInput: document.getElementById("msg"),
+    sendBtn: document.getElementById("send")
+  };
 
-  function initialsFromProfile(p, fallbackEmail){
-    const first = p?.first_name || "";
-    const last  = p?.last_name  || "";
+  let currentUser = null;
+  let currentThreadId = null;
+  let allThreads = [];        // raw thread rows
+  let profileById = {};       // { userId: profile }
+  let otherUserIdByThread = {}; // { threadId: otherUserId }
+
+  function initialsFromName(first, last, email){
     if(first && last) return (first[0] + last[0]).toUpperCase();
     if(first) return (first[0] + (first[1] || "")).toUpperCase();
-    if(fallbackEmail) return fallbackEmail[0].toUpperCase();
-    return "HM";
+    if(email) return email[0].toUpperCase();
+    return "?";
   }
 
-  function fullNameFromProfile(p, fallbackEmail){
-    if(!p) return fallbackEmail ? fallbackEmail.split("@")[0] : "Hemline member";
-    const name = ((p.first_name || "") + " " + (p.last_name || "")).trim();
-    if(name) return name;
-    if(p.store_name) return p.store_name;
-    if(p.email) return p.email.split("@")[0];
-    return fallbackEmail ? fallbackEmail.split("@")[0] : "Hemline member";
-  }
-
-  function niceStamp(iso){
-    if(!iso) return "";
-    const d = new Date(iso);
-    if(Number.isNaN(d.getTime())) return "";
+  function formatRelative(ts){
+    if(!ts) return "";
+    const d = new Date(ts);
     const now = new Date();
-    const sameDay = d.toDateString() === now.toDateString();
-    const yest = new Date(now);
-    yest.setDate(now.getDate() - 1);
-    const sameYest = d.toDateString() === yest.toDateString();
-    if(sameDay) return "Today";
-    if(sameYest) return "Yesterday";
     const diffMs = now - d;
     const diffDays = diffMs / (1000*60*60*24);
-    if(diffDays < 7){
-      return d.toLocaleDateString(undefined,{ weekday:"short" });
+    if(diffDays < 1){
+      return "Today";
+    }else if(diffDays < 2){
+      return "Yesterday";
     }
     return d.toLocaleDateString();
   }
 
-  async function ensureSession(maxWaitMs = 3000){
-    let { data:{ session } } = await supabaseClient.auth.getSession();
+  async function ensureSession(maxWaitMs=3000){
+    let { data:{ session } } = await supabase.auth.getSession();
     if(session?.user) return session;
     const start = Date.now();
     while(!session?.user && Date.now() - start < maxWaitMs){
-      await new Promise(r => setTimeout(r,120));
-      ({ data:{ session } } = await supabaseClient.auth.getSession());
+      await new Promise(r=>setTimeout(r,120));
+      ({ data:{ session } } = await supabase.auth.getSession());
     }
-    return session || null;
+    return session;
   }
 
-  function getOtherUserId(thread){
-    if(!thread || !currentUser) return null;
-    return thread.buyer_id === currentUser.id ? thread.seller_id : thread.buyer_id;
-  }
-
-  async function loadProfilesForThreads(threads){
-    const ids = new Set();
-    threads.forEach(t=>{
-      const otherId = getOtherUserId(t);
-      if(otherId && !profilesCache[otherId]) ids.add(otherId);
-    });
-    if(!ids.size) return;
-    const { data, error } = await supabaseClient
+  async function fetchProfiles(ids){
+    const uniq = Array.from(new Set(ids.filter(Boolean)));
+    if(!uniq.length) return {};
+    const { data, error } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, store_name, email")
-      .in("id", Array.from(ids));
+      .select("*")
+      .in("id", uniq);
     if(error){
-      console.error("profiles load error", error);
-      return;
+      console.error("Profile fetch error", error);
+      return {};
     }
-    data.forEach(p=>{ profilesCache[p.id] = p; });
+    const map = {};
+    data.forEach(p => { map[p.id] = p; });
+    return map;
   }
 
-  function renderThreads(){
-    const listEl   = document.getElementById("threadList");
-    const emptyEl  = document.getElementById("threadsEmpty");
-    const searchEl = document.getElementById("searchInput");
-    if(!listEl) return;
+  function renderThreads(filterText=""){
+    const list = els.threadsList;
+    const empty = els.threadsEmpty;
+    list.innerHTML = "";
 
-    listEl.innerHTML = "";
-    if(emptyEl){
-      emptyEl.style.display = threadsState.length ? "none" : "block";
-      listEl.appendChild(emptyEl);
-    }
+    const q = (filterText || "").trim().toLowerCase();
 
-    const query = (searchEl?.value || "").toLowerCase();
-
-    const filtered = threadsState.filter(t=>{
-      const otherId = getOtherUserId(t);
-      const p = profilesCache[otherId] || {};
-      const name = fullNameFromProfile(p,"").toLowerCase();
-      const last = (t.last_message_text || "").toLowerCase();
-      if(!query) return true;
-      return name.includes(query) || last.includes(query);
+    const filtered = allThreads.filter(t => {
+      const otherId = otherUserIdByThread[t.id];
+      const prof = profileById[otherId] || {};
+      const name = (prof.first_name || "") + " " + (prof.last_name || "");
+      const store = prof.store_name || "";
+      const preview = t.last_message_preview || "";
+      const haystack = (name + " " + store + " " + preview).toLowerCase();
+      return !q || haystack.includes(q);
     });
 
-    if(!filtered.length && emptyEl){
-      emptyEl.textContent = "No conversations match your search.";
-      emptyEl.style.display = "block";
+    if(!filtered.length){
+      empty.style.display = "block";
       return;
     }
 
-    filtered.forEach(t=>{
-      const otherId = getOtherUserId(t);
-      const p = profilesCache[otherId] || {};
-      const threadEl = document.createElement("div");
-      threadEl.className = "thread" + (t.id === activeThreadId ? " active" : "");
-      threadEl.tabIndex = 0;
-      threadEl.dataset.id = t.id;
+    empty.style.display = "none";
 
-      const av = document.createElement("div");
-      av.className = "avatar";
-      av.textContent = initialsFromProfile(p, p.email || "");
+    filtered.forEach(t => {
+      const otherId = otherUserIdByThread[t.id];
+      const prof = profileById[otherId] || {};
+      const name = ((prof.first_name || "") + " " + (prof.last_name || "")).trim() || (prof.store_name || "Hemline member");
+      const avatarInitials = initialsFromName(prof.first_name, prof.last_name, prof.email);
+      const preview = t.last_message_preview || (t.message_count ? "(No preview)" : "(No messages yet)");
+      const when = formatRelative(t.last_message_at || t.updated_at || t.created_at);
 
-      const mid = document.createElement("div");
-      const title = document.createElement("div");
-      title.className = "title";
-      title.textContent = fullNameFromProfile(p, p.email || "");
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      meta.textContent = t.last_message_text || "(No messages yet)";
-      mid.appendChild(title);
-      mid.appendChild(meta);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "thread";
+      row.dataset.threadId = t.id;
 
-      const pill = document.createElement("div");
-      pill.className = "pill";
-      const stamp = niceStamp(t.last_message_at || t.created_at);
-      pill.textContent = stamp || "";
+      if(t.id === currentThreadId){
+        row.classList.add("selected");
+      }
 
-      threadEl.appendChild(av);
-      threadEl.appendChild(mid);
-      threadEl.appendChild(pill);
+      row.innerHTML = `
+        <div class="avatar">${avatarInitials}</div>
+        <div>
+          <div class="title">${name}</div>
+          <div class="meta">${preview}</div>
+        </div>
+        <div class="pill">${when || ""}</div>
+      `;
 
-      threadEl.addEventListener("click", ()=> openThread(t.id));
-      threadEl.addEventListener("keydown", e=>{
-        if(e.key==="Enter" || e.key===" "){
-          e.preventDefault();
-          openThread(t.id);
-        }
-      });
+      row.addEventListener("click", () => openThread(t.id));
 
-      listEl.appendChild(threadEl);
+      list.appendChild(row);
     });
   }
 
-  function renderChatHeader(thread){
-    const headerAvatar = document.getElementById("chatAvatar");
-    const headerTitle  = document.getElementById("chatTitle");
-    const headerMeta   = document.getElementById("chatMeta");
-    if(!headerAvatar || !headerTitle || !headerMeta) return;
-
-    if(!thread){
-      headerAvatar.textContent = "?";
-      headerTitle.textContent  = "Select a conversation";
-      headerMeta.textContent   = "Choose a thread on the left to view messages.";
-      return;
-    }
-
-    const otherId = getOtherUserId(thread);
-    const p = profilesCache[otherId] || {};
-    headerAvatar.textContent = initialsFromProfile(p, p.email || "");
-    headerTitle.textContent  = fullNameFromProfile(p, p.email || "");
-    const stamp = niceStamp(thread.last_message_at || thread.created_at);
-    headerMeta.textContent   = stamp ? ("Updated " + stamp) : "";
+  function setComposerEnabled(enabled){
+    els.msgInput.disabled = !enabled;
+    els.sendBtn.disabled = !enabled;
   }
 
-  async function loadMessages(threadId){
-    const chatEl = document.getElementById("chat");
-    const msgInput = document.getElementById("msg");
-    const sendBtn  = document.getElementById("send");
-    if(!chatEl || !threadId) return;
+  function renderEmptyChat(){
+    els.chat.innerHTML = "";
+    const empty = document.createElement("div");
+    empty.className = "chat-empty";
+    empty.textContent = "No messages yet. Send the first message.";
+    els.chat.appendChild(empty);
+  }
 
-    chatEl.innerHTML = "";
-    const { data, error } = await supabaseClient
+  async function openThread(threadId){
+    currentThreadId = threadId;
+    renderThreads(els.searchInput.value);
+
+    const otherId = otherUserIdByThread[threadId];
+    const prof = profileById[otherId] || {};
+    const name = ((prof.first_name || "") + " " + (prof.last_name || "")).trim() || (prof.store_name || "Hemline member");
+    const avatarInitials = initialsFromName(prof.first_name, prof.last_name, prof.email);
+
+    els.chatAvatar.textContent = avatarInitials;
+    els.chatName.textContent = name;
+    els.chatMeta.textContent = prof.store_name ? prof.store_name : "Updated conversation";
+
+    setComposerEnabled(true);
+    els.msgInput.placeholder = "Write a reply…";
+
+    // Load messages
+    els.chat.innerHTML = "";
+    const { data, error } = await supabase
       .from("messages")
       .select("*")
       .eq("thread_id", threadId)
-      .order("created_at",{ ascending:true });
+      .order("created_at", { ascending:true });
+
     if(error){
-      console.error("messages load error", error);
-      const err = document.createElement("div");
-      err.className = "stamp";
-      err.textContent = "We couldn’t load messages. Please refresh.";
-      chatEl.appendChild(err);
-      msgInput.disabled = true;
-      sendBtn.disabled = true;
+      console.error("Messages fetch error", error);
+      const errDiv = document.createElement("div");
+      errDiv.className = "chat-empty";
+      errDiv.textContent = "We couldn’t load messages. Please refresh.";
+      els.chat.appendChild(errDiv);
       return;
     }
 
     if(!data.length){
-      const empty = document.createElement("div");
-      empty.className = "stamp";
-      empty.textContent = "No messages yet. Send the first message.";
-      chatEl.appendChild(empty);
-    }else{
-      data.forEach(m=>{
-        const b = document.createElement("div");
-        b.className = "bubble" + (m.sender_id === currentUser.id ? " me" : "");
-        b.textContent = m.body || "";
-        chatEl.appendChild(b);
-      });
-      const stamp = document.createElement("div");
-      stamp.className = "stamp";
-      const last = data[data.length-1];
-      stamp.textContent = niceStamp(last.created_at);
-      chatEl.appendChild(stamp);
+      renderEmptyChat();
+      return;
     }
 
-    chatEl.scrollTop = chatEl.scrollHeight;
-    msgInput.disabled = false;
-    sendBtn.disabled  = false;
+    data.forEach(msg => {
+      const bubble = document.createElement("div");
+      bubble.className = "bubble" + (msg.sender_id === currentUser.id ? " me" : "");
+      bubble.textContent = msg.body || "";
+      els.chat.appendChild(bubble);
+    });
+
+    const last = data[data.length - 1];
+    const stamp = document.createElement("div");
+    stamp.className = "stamp";
+    stamp.textContent = new Date(last.created_at).toLocaleString();
+    els.chat.appendChild(stamp);
+
+    els.chat.scrollTop = els.chat.scrollHeight;
   }
 
-  async function openThread(threadId){
-    activeThreadId = threadId;
-    const thread = threadsState.find(t => t.id === threadId) || null;
+  function getOtherUserIdForThread(thread){
+    if(!thread || !currentUser) return null;
+    if(thread.user_a === currentUser.id) return thread.user_b;
+    if(thread.user_b === currentUser.id) return thread.user_a;
+    return null;
+  }
+
+  async function ensureThreadWithUser(otherUserId){
+    if(!currentUser || !otherUserId || currentUser.id === otherUserId) return null;
+
+    // Try to find existing thread in DB
+    const { data: existing, error } = await supabase
+      .from("message_threads")
+      .select("*")
+      .or(
+        `and(user_a.eq.${currentUser.id},user_b.eq.${otherUserId}),` +
+        `and(user_a.eq.${otherUserId},user_b.eq.${currentUser.id})`
+      )
+      .maybeSingle();
+
+    if(existing){
+      return existing.id;
+    }
+
+    // Create new thread
+    const { data: created, error: insErr } = await supabase
+      .from("message_threads")
+      .insert({
+        user_a: currentUser.id,
+        user_b: otherUserId
+      })
+      .select("*")
+      .single();
+
+    if(insErr){
+      console.error("Create thread error", insErr);
+      return null;
+    }
+
+    // Push into local arrays so we don't need a full reload
+    allThreads.unshift(created);
+    otherUserIdByThread[created.id] = getOtherUserIdForThread(created);
+    return created.id;
+  }
+
+  async function loadThreads(initialThreadId){
+    const { data, error } = await supabase
+      .from("message_threads")
+      .select("*")
+      .or(`user_a.eq.${currentUser.id},user_b.eq.${currentUser.id}`)
+      .order("updated_at", { ascending:false });
+
+    if(error){
+      console.error("thread list error", error);
+      els.threadsEmpty.style.display = "block";
+      els.threadsEmpty.textContent = "We couldn’t load your conversations.";
+      return;
+    }
+
+    allThreads = data || [];
+    otherUserIdByThread = {};
+    const profileIds = [];
+
+    allThreads.forEach(t => {
+      const otherId = getOtherUserIdForThread(t);
+      otherUserIdByThread[t.id] = otherId;
+      if(otherId) profileIds.push(otherId);
+    });
+
+    profileById = await fetchProfiles(profileIds);
+
     renderThreads();
-    renderChatHeader(thread);
-    await loadMessages(threadId);
+
+    if(initialThreadId && allThreads.some(t => t.id === initialThreadId)){
+      openThread(initialThreadId);
+    }
   }
 
   async function sendMessage(){
-    const input = document.getElementById("msg");
-    const chatEl = document.getElementById("chat");
-    if(!input || !chatEl || !activeThreadId || !currentUser) return;
+    const text = (els.msgInput.value || "").trim();
+    if(!text || !currentThreadId || !currentUser) return;
 
-    const text = input.value.trim();
-    if(!text) return;
+    els.msgInput.value = "";
+    els.msgInput.focus();
 
-    const body = { thread_id: activeThreadId, sender_id: currentUser.id, body: text };
-    input.value = "";
-    input.disabled = true;
-
-    const { data, error } = await supabaseClient
+    // Insert message
+    const { data: inserted, error } = await supabase
       .from("messages")
-      .insert(body)
-      .select()
+      .insert({
+        thread_id: currentThreadId,
+        sender_id: currentUser.id,
+        body: text
+      })
+      .select("*")
       .single();
 
     if(error){
       console.error("send message error", error);
-      input.disabled = false;
       return;
     }
 
-    // Optimistic append
-    const b = document.createElement("div");
-    b.className = "bubble me";
-    b.textContent = data.body || text;
-    chatEl.appendChild(b);
+    // Optimistically append to UI
+    if(els.chat.querySelector(".chat-empty")){
+      els.chat.innerHTML = "";
+    }
+    const bubble = document.createElement("div");
+    bubble.className = "bubble me";
+    bubble.textContent = text;
+    els.chat.appendChild(bubble);
+
     const stamp = document.createElement("div");
     stamp.className = "stamp";
-    stamp.textContent = niceStamp(data.created_at);
-    chatEl.appendChild(stamp);
-    chatEl.scrollTop = chatEl.scrollHeight;
+    stamp.textContent = new Date(inserted.created_at).toLocaleString();
+    els.chat.appendChild(stamp);
 
-    // Update thread metadata in state
-    const idx = threadsState.findIndex(t=>t.id === activeThreadId);
-    if(idx !== -1){
-      threadsState[idx].last_message_text = data.body || text;
-      threadsState[idx].last_message_at   = data.created_at;
-    }
-    renderThreads();
-    input.disabled = false;
+    els.chat.scrollTop = els.chat.scrollHeight;
 
-    // Persist latest meta on thread (best-effort)
-    try{
-      await supabaseClient
-        .from("threads")
+    // Update thread metadata + insert notification for the other user
+    const preview = text.slice(0, 140);
+    const otherId = otherUserIdByThread[currentThreadId];
+
+    const updates = [
+      supabase
+        .from("message_threads")
         .update({
-          last_message_text: data.body || text,
-          last_message_at: data.created_at
+          last_message_at: inserted.created_at,
+          last_message_preview: preview
         })
-        .eq("id", activeThreadId);
-    }catch(e){
-      console.warn("thread meta update failed", e);
+        .eq("id", currentThreadId)
+    ];
+
+    if(otherId){
+      updates.push(
+        supabase
+          .from("notifications")
+          .insert({
+            user_id: otherId,
+            kind: "message",
+            title: "New message",
+            body: preview,
+            message_thread_id: currentThreadId,
+            message_id: inserted.id
+          })
+      );
     }
+
+    Promise.all(updates).catch(err => console.error("post-send updates error", err));
+
+    // Refresh thread list so preview + date update
+    loadThreads(currentThreadId);
   }
 
-  async function loadThreads({ focusThreadId } = {}){
-    if(!currentUser) return;
-
-    const { data, error } = await supabaseClient
-      .from("threads")
-      .select("*")
-      .or(`buyer_id.eq.${currentUser.id},seller_id.eq.${currentUser.id}`)
-      .order("last_message_at",{ ascending:false, nullsLast:true });
-
-    if(error){
-      console.error("threads load error", error);
-      const listEl = document.getElementById("threadList");
-      const emptyEl = document.getElementById("threadsEmpty");
-      if(emptyEl){
-        emptyEl.textContent = "We couldn’t load your conversations. Please refresh.";
-        emptyEl.style.display = "block";
-      }else if(listEl){
-        listEl.textContent = "We couldn’t load your conversations.";
-      }
-      return;
-    }
-
-    threadsState = data || [];
-    await loadProfilesForThreads(threadsState);
-
-    if(!focusThreadId && threadsState.length){
-      focusThreadId = threadsState[0].id;
-    }
-    activeThreadId = focusThreadId || null;
-
-    renderThreads();
-    renderChatHeader(threadsState.find(t=>t.id === activeThreadId) || null);
-
-    if(activeThreadId){
-      await loadMessages(activeThreadId);
-    }
-  }
-
-  async function findOrCreateThreadWithSeller(sellerId){
-    if(!currentUser || !sellerId) return null;
-    if(sellerId === currentUser.id) return null;
-
-    // Look for existing thread between buyer(currentUser) and seller(sellerId)
-    const { data, error } = await supabaseClient
-      .from("threads")
-      .select("*")
-      .or(
-        `and(buyer_id.eq.${currentUser.id},seller_id.eq.${sellerId}),` +
-        `and(buyer_id.eq.${sellerId},seller_id.eq.${currentUser.id})`
-      )
-      .order("created_at",{ ascending:false })
-      .limit(1);
-
-    if(!error && data && data.length){
-      return data[0];
-    }
-
-    // Create a new thread treating current user as buyer, param as seller
-    const nowIso = new Date().toISOString();
-    const { data: created, error: insertErr } = await supabaseClient
-      .from("threads")
-      .insert({
-        buyer_id: currentUser.id,
-        seller_id: sellerId,
-        created_at: nowIso,
-        last_message_at: nowIso,
-        last_message_text: null
-      })
-      .select()
-      .single();
-
-    if(insertErr){
-      console.error("create thread error", insertErr);
-      return null;
-    }
-    return created;
-  }
-
-  document.addEventListener("DOMContentLoaded", async ()=>{
+  async function initMessagesPage(){
     const session = await ensureSession();
-    if(!session?.user){
+    if(!session || !session.user){
       window.location.href = "auth.html";
       return;
     }
     currentUser = session.user;
 
+    // URL params: ?u=<otherUserId> or ?thread=<threadId>
     const params = new URLSearchParams(window.location.search);
-    const sellerIdParam = params.get("user") || params.get("seller");
+    const otherUserId = params.get("u");
+    const threadParam = params.get("thread");
+    let initialThreadId = threadParam;
 
-    let focusThreadId = null;
-    if(sellerIdParam && sellerIdParam !== currentUser.id){
-      const t = await findOrCreateThreadWithSeller(sellerIdParam);
-      if(t) focusThreadId = t.id;
+    if(otherUserId && !initialThreadId){
+      initialThreadId = await ensureThreadWithUser(otherUserId);
     }
 
-    // Search filter
-    const searchEl = document.getElementById("searchInput");
-    if(searchEl){
-      searchEl.addEventListener("input", ()=> renderThreads());
-    }
+    await loadThreads(initialThreadId);
 
-    const sendBtn = document.getElementById("send");
-    const msgInput = document.getElementById("msg");
-    if(sendBtn){
-      sendBtn.addEventListener("click", sendMessage);
-    }
-    if(msgInput){
-      msgInput.addEventListener("keydown", e=>{
-        if(e.key === "Enter" && !e.shiftKey){
-          e.preventDefault();
-          sendMessage();
-        }
-      });
-    }
+    // Events
+    els.sendBtn.addEventListener("click", sendMessage);
+    els.msgInput.addEventListener("keydown", e => {
+      if(e.key === "Enter" && !e.shiftKey){
+        e.preventDefault();
+        sendMessage();
+      }
+    });
 
-    await loadThreads({ focusThreadId });
-  });
+    els.searchInput.addEventListener("input", () => {
+      renderThreads(els.searchInput.value);
+    });
+  }
+
+  initMessagesPage();
 </script>
 
 <script>
