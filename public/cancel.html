@@ -19,20 +19,51 @@
   <style>
     :root{--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--accent:#991b1b;--bg:#fafafa;--warn:#9a3412}
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
 
     /* Page specific */
     .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px}
     .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px}
     h1{margin:0 0 10px}
-    .warn{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid #fed7aa;background:#fff7ed;color:var(--warn);border-radius:10px}
+    .warn{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:14px;
+      border:1px solid #fed7aa;
+      background:#fff7ed;
+      color:var(--warn);
+      border-radius:10px;
+    }
     .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .btn{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 16px;border-radius:999px;border:1px solid transparent;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;cursor:pointer}
-    .btn.alt{background:#fff;color:#111827;border:1px solid var(--border)}
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height:42px;
+      padding:0 16px;
+      border-radius:999px;
+      border:1px solid transparent;
+      background:var(--accent);
+      color:#fff;
+      text-decoration:none;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .btn.alt{
+      background:#fff;
+      color:#111827;
+      border:1px solid var(--border);
+    }
     .muted{color:var(--muted);font-size:14px}
   </style>
 </head>
-
 <body>
 
 <!-- UNIVERSAL HEADER -->
@@ -42,9 +73,9 @@
   <section class="card">
     <div class="warn">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="13"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="13"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
       </svg>
       <div>
         <div style="font-weight:800">Payment canceled</div>
@@ -58,8 +89,7 @@
     </div>
 
     <p class="muted" style="margin-top:12px">
-      If you ran into trouble, reach out via
-      <a href="contact.html">Contact</a> — we’re happy to help.
+      If you ran into trouble, reach out via <a href="contact.html">Contact</a> — we’re happy to help.
     </p>
   </section>
 </main>
@@ -67,7 +97,8 @@
 <!-- UNIVERSAL FOOTER -->
 <div id="hm-shell-footer"></div>
 
-<!-- UNIVERSAL JS -->
+<!-- UNIVERSAL / AUTH SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="scripts/hm-shell.js"></script>
 
 <!-- Page-specific JS -->
@@ -76,17 +107,33 @@
 (function(){
   const retry=document.getElementById('retry');
   retry.addEventListener('click', async ()=>{
-    let cart=[]; try{ cart=JSON.parse(localStorage.getItem("hm_cart")||"[]"); }catch(_){}
-    if(!cart.length){ location.href='cart.html'; return; }
+    let cart=[];
+    try{
+      cart=JSON.parse(localStorage.getItem("hm_cart")||"[]");
+    }catch(_){}
+    if(!cart.length){
+      location.href='cart.html';
+      return;
+    }
 
-    function parsePerYd(it){ const p=parseFloat(String(it.perYd??'').replace(/[^\d.]/g,'')); return Number.isFinite(p)&&p>0?p:0; }
+    // Recompute shipping (same logic as checkout)
+    function parsePerYd(it){
+      const p=parseFloat(String(it.perYd??'').replace(/[^\d.]/g,''));
+      return Number.isFinite(p)&&p>0?p:0;
+    }
     function yardsForItem(it){
       const qty=Number(it.qty||1);
-      let y=parseFloat(String(it.yards??'').replace(/[^\d.]/g,'')); if(Number.isFinite(y)&&y>0) return y*qty;
-      const per=parsePerYd(it); if(per>0) return 1*qty;
+      let y=parseFloat(String(it.yards??'').replace(/[^\d.]/g,''));
+      if(Number.isFinite(y)&&y>0) return y*qty;
+      const per=parsePerYd(it);
+      if(per>0) return 1*qty;
       return 0;
     }
-    function tierCents(y){ if(y<3) return 500; if(y<=10) return 800; return 1500; }
+    function tierCents(y){
+      if(y<3) return 500;
+      if(y<=10) return 800;
+      return 1500;
+    }
     const sellerKey=(it)=> (it.sellerId||it.seller||it.seller_id||it.seller_name||"default");
     const yardsBySeller={};
     for(const it of cart){
@@ -102,7 +149,10 @@
         body: JSON.stringify({ cart, shipping_cents })
       });
       const data=await resp.json();
-      if(data?.url){ location.href=data.url; return; }
+      if(data?.url){
+        location.href=data.url;
+        return;
+      }
       location.href='cart.html';
     }catch(_){
       location.href='cart.html';
@@ -111,7 +161,7 @@
 })();
 </script>
 
-<!-- Render universal header/footer -->
+<!-- Render universal header/footer with session-aware shell -->
 <script>
 window.HM && window.HM.renderShell({ currentPage: "checkout-cancel" });
 </script>
