@@ -1,6 +1,11 @@
 // scripts/threadtalk.js
 (function () {
-  const supabase = window.supabase;
+  // Try all the likely places the Supabase client might live
+  const supabase =
+    (window.HM && window.HM.supabase) ||
+    window.supabaseClient ||
+    window.supabase;
+
   if (!supabase) {
     console.error("Supabase client not found on window.");
     return;
@@ -89,7 +94,6 @@
       const { data, error } = await supabase.auth.getUser();
       if (error || !data || !data.user) {
         currentUser = null;
-        // Gate composer if logged out
         if (composerForm && textArea && catSelect) {
           textArea.placeholder = "Sign in to post in ThreadTalk.";
           textArea.disabled = true;
@@ -102,7 +106,6 @@
 
       currentUser = data.user;
 
-      // Composer enabled for logged in users
       if (textArea && catSelect) {
         textArea.disabled = false;
         catSelect.disabled = false;
@@ -226,8 +229,7 @@
 
     const catSlug = normalizeCategory(catSelect.value);
 
-    // NOTE: media upload is NOT yet wired to Supabase storage.
-    // For now, we ignore attachments for persistence and only keep local preview.
+    // Media not persisted yet; preview only.
     let mediaType = null;
     let mediaUrl = null;
     if (photoInput && photoInput.files && photoInput.files[0]) {
@@ -258,15 +260,12 @@
       }
 
       textArea.value = "";
-      if (catSelect.value === "") {
-        // keep it blank in UI if user left it blank
-      }
       if (photoInput) photoInput.value = "";
       if (videoInput) videoInput.value = "";
       clearPreview();
 
       showToast("Posted");
-      await loadFeed(); // refresh list so it appears under Latest Threads (and category pages via shared table)
+      await loadFeed();
     } catch (e) {
       console.error("Exception inserting thread", e);
       showToast("Could not post. Please try again.");
@@ -283,6 +282,13 @@
     return counts;
   }
 
+  function escapeHtml(str) {
+    return (str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
   function renderThreadCard(thread, reactionsForThread, myReaction) {
     const meta = categoryMeta(thread.category);
     const name = displayNameFor(thread.user_id);
@@ -296,7 +302,6 @@
 
     let html = "";
     html += '<div class="meta">';
-    // avatar is hidden via CSS; we just keep DOM simple and not render initials at all
     html += "<span>" + name + "</span>";
     if (timeLabel) {
       html += " • <span>" + timeLabel + "</span>";
@@ -312,7 +317,6 @@
       "]</a>";
     html += "</div>";
 
-    // No persisted media yet – you can add later from media_type/media_url
     html += '<div class="preview">' + escapeHtml(thread.body) + "</div>";
 
     // Reactions + flag
@@ -340,13 +344,6 @@
 
     card.innerHTML = html;
     cardsEl.appendChild(card);
-  }
-
-  function escapeHtml(str) {
-    return (str || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
   }
 
   async function loadFeed() {
@@ -394,7 +391,6 @@
         }
       }
 
-      // Index reactions by thread and track the current user reaction
       const reactionsByThread = {};
       const myReactionByThread = {};
 
@@ -468,7 +464,7 @@
                 { onConflict: "thread_id,user_id" }
               );
           }
-          await loadFeed(); // refresh counts + active state
+          await loadFeed();
         } catch (e) {
           console.error("Error toggling reaction", e);
           showToast("Could not update reaction.");
@@ -516,7 +512,6 @@
     await loadFeed();
   }
 
-  // Kick things off once DOM is ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
