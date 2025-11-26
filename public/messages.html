@@ -347,14 +347,14 @@
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-  // --- Supabase client (same project + anon key as other pages) ---
+  // --- Supabase client ---
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
     { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
-  // --- Small helpers ---
+  // --- Helpers ---
   function initialsFromName(first, last, fallback){
     if(first && last) return (first[0]+last[0]).toUpperCase();
     if(first) return (first[0]+(first[1]||"")).toUpperCase();
@@ -416,9 +416,9 @@
   let currentThreadId = null;
   let currentOtherUserId = null;
   let currentOtherName = "";
-  let allThreads = []; // in-memory cache for search
+  let allThreads = [];
 
-  // --- Load threads + optional "to" param from Atelier ---
+  // --- Init ---
   async function initMessagesPage(){
     const session = await ensureSession();
     if(!session?.user){
@@ -428,18 +428,16 @@
     currentUser = session.user;
 
     const params = new URLSearchParams(window.location.search);
-    const toUserId = params.get("to") || null;
+    // support BOTH ?to= and existing ?user= from Atelier
+    const toUserId = params.get("to") || params.get("user") || null;
 
-    // 1) If we came from an Atelier (?to=<seller_id>), make sure there is a thread.
     let initialThreadId = null;
     if(toUserId && toUserId !== currentUser.id){
       initialThreadId = await getOrCreateThread(currentUser.id, toUserId);
     }
 
-    // 2) Load all threads for this user.
     await loadThreads(initialThreadId);
 
-    // 3) Wire UI events.
     sendBtnEl.disabled = false;
     sendBtnEl.addEventListener("click", handleSend);
     msgInputEl.addEventListener("keydown", (e)=>{
@@ -453,12 +451,14 @@
   }
 
   async function getOrCreateThread(userId, otherUserId){
-    // Look for existing thread in either direction.
-    const orFilter = `user_a.eq.${userId},user_b.eq.${userId}`;
+    // Look for existing thread in either direction
     const { data, error } = await supabaseClient
       .from("message_threads")
       .select("*")
-      .or(`and(user_a.eq.${userId},user_b.eq.${otherUserId}),and(user_a.eq.${otherUserId},user_b.eq.${userId})`)
+      .or(
+        `and(user_a.eq.${userId},user_b.eq.${otherUserId}),` +
+        `and(user_a.eq.${otherUserId},user_b.eq.${userId})`
+      )
       .limit(1)
       .maybeSingle();
 
@@ -469,7 +469,6 @@
       return data.id;
     }
 
-    // Create a new empty thread.
     const { data:created, error:insertErr } = await supabaseClient
       .from("message_threads")
       .insert({
@@ -515,7 +514,6 @@
 
     threadsEmptyEl.style.display = "none";
 
-    // Collect other user IDs to fetch names from profiles.
     const otherIds = [];
     const uidStr = String(uid);
     allThreads.forEach(t=>{
@@ -533,13 +531,10 @@
       if(profileErr){
         console.error("Error loading profiles for threads", profileErr);
       }else{
-        profilesById = Object.fromEntries(
-          (profiles || []).map(p=>[p.id, p])
-        );
+        profilesById = Object.fromEntries((profiles || []).map(p=>[p.id,p]));
       }
     }
 
-    // Render left list.
     threadsListEl.querySelectorAll(".thread").forEach(el=>el.remove());
 
     allThreads.forEach(thread=>{
@@ -592,16 +587,19 @@
       threadsListEl.appendChild(row);
     });
 
-    // Auto-open thread if requested.
     if(preselectThreadId){
       const target = allThreads.find(t=>t.id === preselectThreadId);
       if(target){
         const otherId = (target.user_a === uid ? target.user_b : target.user_a);
-        const prof = otherIds.length ? (await supabaseClient
-          .from("profiles")
-          .select("id, first_name, last_name, store_name, email")
-          .eq("id", otherId)
-          .maybeSingle()).data : null;
+        let prof = null;
+        try{
+          const { data:profData } = await supabaseClient
+            .from("profiles")
+            .select("id, first_name, last_name, store_name, email")
+            .eq("id", otherId)
+            .maybeSingle();
+          prof = profData || {};
+        }catch(e){}
 
         const first = prof?.first_name || "";
         const last  = prof?.last_name  || "";
@@ -633,7 +631,6 @@
     currentOtherUserId = otherUserId;
     currentOtherName = otherName || "Hemline member";
 
-    // Highlight selected row.
     threadsListEl.querySelectorAll(".thread").forEach(el=>{
       el.classList.toggle("active", el.dataset.threadId === threadId);
     });
@@ -643,7 +640,6 @@
     chatNameEl.textContent = currentOtherName;
     chatMetaEl.textContent = "No messages yet. Send the first message.";
 
-    // Load messages.
     const { data, error } = await supabaseClient
       .from("messages")
       .select("*")
@@ -700,7 +696,6 @@
     sendBtnEl.disabled = true;
 
     try{
-      // Insert message.
       const { data:inserted, error } = await supabaseClient
         .from("messages")
         .insert({
@@ -717,7 +712,6 @@
         return;
       }
 
-      // Optimistic UI.
       const bubble = document.createElement("div");
       bubble.className = "bubble me";
       bubble.textContent = text;
@@ -731,7 +725,6 @@
       chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
       msgInputEl.value = "";
 
-      // Update thread preview.
       const preview = text.length > 140 ? text.slice(0,137) + "…" : text;
       await supabaseClient
         .from("message_threads")
@@ -741,7 +734,6 @@
         })
         .eq("id", currentThreadId);
 
-      // Insert notification for the other user (simple v1).
       if(currentOtherUserId && currentOtherUserId !== currentUser.id){
         const title = "New message from " + (currentUser.email || "Hemline member");
         await supabaseClient.from("notifications").insert({
@@ -754,7 +746,6 @@
         });
       }
 
-      // Reload threads list in the background so ordering/preview update.
       loadThreads(currentThreadId);
     }finally{
       sendBtnEl.disabled = false;
@@ -781,7 +772,6 @@
     }
   }
 
-  // Kick off page logic.
   initMessagesPage();
 </script>
 
