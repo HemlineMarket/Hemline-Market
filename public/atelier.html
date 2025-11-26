@@ -342,6 +342,10 @@
             <div class="profile-bio" id="atelierBio"></div>
 
             <button class="btn btn-primary" type="button" id="btnEditShop">Edit Atelier details</button>
+            <!-- NEW: Message seller CTA -->
+            <button class="btn" type="button" id="btnMessageSeller" style="margin-top:8px;">
+              Message this seller
+            </button>
           </div>
         </div>
       </div>
@@ -577,6 +581,7 @@
     const shareInput  = document.getElementById("shareLinkInput");
     const copyBtn     = document.getElementById("btnCopyLink");
     const errorEl     = document.getElementById("atelierError");
+    const msgBtn      = document.getElementById("btnMessageSeller");
 
     // Clear any old error on each load
     if(errorEl){
@@ -635,18 +640,6 @@
 
     const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
 
-    // If this is your own atelier, hydrate name/store/bio from localStorage profile
-    if(isOwnShop && loggedInUser){
-      try{
-        const rawLocal = localStorage.getItem("hm_profile_" + loggedInUser.id);
-        if(rawLocal){
-          localProfile = JSON.parse(rawLocal);
-        }
-      }catch(e){
-        console.warn("Local profile parse failed", e);
-      }
-    }
-
     if(!sellerId){
       // No seller resolved – generic state
       if(titleEl) titleEl.textContent = "Atelier";
@@ -663,6 +656,11 @@
         editBtn.style.display = "none";
       }
 
+      if(msgBtn){
+        // No target seller to message
+        msgBtn.style.display = "none";
+      }
+
       if(shareInput) shareInput.value = window.location.href;
       if(copyBtn){
         copyBtn.onclick  = ()=> navigator.clipboard.writeText(shareInput.value);
@@ -670,6 +668,18 @@
 
       await loadListingsForSeller(null);
       return;
+    }
+
+    // If this is your own atelier, hydrate name/store/bio from localStorage profile
+    if(isOwnShop && loggedInUser){
+      try{
+        const rawLocal = localStorage.getItem("hm_profile_" + loggedInUser.id);
+        if(rawLocal){
+          localProfile = JSON.parse(rawLocal);
+        }
+      }catch(e){
+        console.warn("Local profile parse failed", e);
+      }
     }
 
     // Pull data from Supabase profile, then override with local profile if this is your own shop
@@ -734,6 +744,19 @@
     }else if(isOwnShop && editBtn){
       editBtn.style.display = "inline-flex";
       editBtn.onclick = ()=> window.location.href = "account.html";
+    }
+
+    // NEW: wire up "Message this seller"
+    if(msgBtn){
+      if(isOwnShop){
+        // Don’t message yourself
+        msgBtn.style.display = "none";
+      }else{
+        msgBtn.style.display = "inline-flex";
+        msgBtn.onclick = () => {
+          window.location.href = "messages.html?user=" + encodeURIComponent(sellerId);
+        };
+      }
     }
 
     // Finally load listings for that seller
