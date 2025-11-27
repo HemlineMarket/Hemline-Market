@@ -1,4 +1,6 @@
-// ThreadTalk — Supabase-backed threads, reactions, comments
+// scripts/threadtalk.js
+// ThreadTalk: threads + comments + reactions (Supabase-backed)
+
 (function () {
   const HM = window.HM || {};
   const supabase = HM.supabase;
@@ -24,6 +26,8 @@
   const postBtn = document.getElementById("postBtn");
 
   // ---------- Constants ----------
+  const STORAGE_BUCKET = "threadtalk-media"; // create this bucket in Supabase → Storage
+
   const CATEGORY_LABELS = {
     "showcase": "Showcase",
     "tailoring": "Tailoring",
@@ -65,6 +69,7 @@
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
+    injectCompactStyles();
     await refreshCurrentUser();
     wireComposer();
     wireMediaInputs();
@@ -228,12 +233,10 @@
       const catSlug = thread.category || "loose-threads";
       const catLabel = CATEGORY_LABELS[catSlug] || "Loose Threads";
       const catLink = CATEGORY_LINKS[catSlug] || "loose-threads.html";
-      const when = formatDateTime(thread.created_at);
+      const when = timeAgo(thread.created_at);
 
       const { counts, mine } = computeReactionState(thread.id);
-
       const comments = commentsByThread[thread.id] || [];
-
       const mediaHtml = renderMedia(thread);
 
       const reactionsHtml = REACTION_TYPES.map((r) => {
@@ -265,7 +268,7 @@
 
       const menuHtml = isMine
         ? `
-          <div class="tt-menu" style="margin-left:auto;">
+          <div class="tt-menu">
             <button class="tt-menu-btn" type="button" data-tt-role="menu">
               ···
             </button>
@@ -279,13 +282,12 @@
 
       card.innerHTML = `
         <div class="meta">
-          <div class="meta-main">
-            <span class="author">${escapeHtml(authorName)}</span>
-            <span>•</span>
-            <span>${when}</span>
-            <span>•</span>
-            <a class="cat" href="${catLink}">[${escapeHtml(catLabel)}]</a>
-          </div>
+          <!-- avatar intentionally hidden via CSS -->
+          <span class="author">${escapeHtml(authorName)}</span>
+          <span>•</span>
+          <span>${when}</span>
+          <span>•</span>
+          <a class="cat" href="${catLink}">[${escapeHtml(catLabel)}]</a>
           ${menuHtml}
         </div>
 
@@ -316,7 +318,7 @@
             <input class="tt-comment-input"
                    type="text"
                    maxlength="500"
-                   placeholder="Write a comment…"/>
+                   placeholder="Write a comment… (you can type emojis 😊)"/>
             <button class="tt-comment-send"
                     type="button"
                     data-tt-role="send-comment">
@@ -362,11 +364,13 @@
 
     composerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const body = (textArea.value || "").trim();
+      let body = (textArea.value || "").trim();
       let cat = (categorySelect.value || "").trim();
       if (!cat) cat = "loose-threads";
 
-      if (!body) {
+      const hasMedia = !!(photoInput?.files?.[0] || videoInput?.files?.[0]);
+
+      if (!body && !hasMedia) {
         textArea.focus();
         return;
       }
@@ -377,12 +381,17 @@
       postBtn.disabled = true;
 
       try {
+        const mediaInfo = await maybeUploadComposerMedia();
+        if (!body && hasMedia) {
+          body = "image attached"; // fallback text when post is only media
+        }
+
         const payload = {
           author_id: currentUser.id,
           category: cat,
           body: body,
-          media_url: null,
-          media_type: null
+          media_url: mediaInfo.media_url,
+          media_type: mediaInfo.media_type
         };
 
         const { data, error } = await supabase
@@ -397,7 +406,7 @@
           return;
         }
 
-        // Clear composer (attachments currently preview-only)
+        // Clear composer
         textArea.value = "";
         clearMediaPreview();
 
@@ -414,7 +423,50 @@
     });
   }
 
-  // ---------- Media preview (local only for now) ----------
+  // Upload image/video from composer to Supabase storage
+  async function maybeUploadComposerMedia() {
+    if (!currentUser) return { media_url: null, media_type: null };
+    const file = (photoInput && photoInput.files && photoInput.files[0]) ||
+                 (videoInput && videoInput.files && videoInput.files[0]);
+    if (!file) return { media_url: null, media_type: null };
+
+    const isImage = !!(photoInput && photoInput.files && photoInput.files[0]);
+    const media_type = isImage ? "image" : "video";
+
+    try {
+      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+      const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
+
+      const { data, error } = await supabase
+        .storage
+        .from(STORAGE_BUCKET)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type
+        });
+
+      if (error) {
+        console.warn("[ThreadTalk] media upload error", error);
+        showToast("Could not upload attachment.");
+        return { media_url: null, media_type: null };
+      }
+
+      const { data: pub } = supabase
+        .storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(data.path);
+
+      const url = pub?.publicUrl || null;
+      return { media_url: url, media_type };
+    } catch (err) {
+      console.error("[ThreadTalk] maybeUploadComposerMedia exception", err);
+      showToast("Could not upload attachment.");
+      return { media_url: null, media_type: null };
+    }
+  }
+
+  // ---------- Media preview (local only) ----------
   function wireMediaInputs() {
     if (!photoInput || !videoInput || !mediaPreview) return;
 
@@ -458,7 +510,7 @@
     if (videoInput) videoInput.value = "";
   }
 
-  // ---------- Card interactions (reactions / comments / menu / flag / respond) ----------
+  // ---------- Card interactions (reactions / comments / menu / flag) ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
 
@@ -467,7 +519,8 @@
       if (!target) return;
 
       const role =
-        target.dataset.ttRole || target.closest("[data-tt-role]")?.dataset.ttRole;
+        target.dataset.ttRole ||
+        target.closest("[data-tt-role]")?.dataset.ttRole;
       if (!role) return;
 
       const card = target.closest(".card");
@@ -475,14 +528,13 @@
       const threadId = Number(card.dataset.threadId);
 
       switch (role) {
-        case "react":
-          {
-            const btn = target.closest("[data-reaction]");
-            if (!btn) return;
-            const type = btn.dataset.reaction;
-            await handleReaction(threadId, type);
-          }
+        case "react": {
+          const btn = target.closest("[data-reaction]");
+          if (!btn) return;
+          const type = btn.dataset.reaction;
+          await handleReaction(threadId, type);
           break;
+        }
         case "send-comment":
           await handleSendComment(card, threadId);
           break;
@@ -499,7 +551,7 @@
           await handleFlagThread(threadId);
           break;
         case "respond":
-          focusCommentInput(card);
+          focusCommentBox(card);
           break;
         default:
           break;
@@ -507,54 +559,46 @@
     });
   }
 
-  function focusCommentInput(card) {
-    const input = card.querySelector(".tt-comment-input");
-    if (!input) return;
-    input.focus();
-    input.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  // Enforce at most ONE reaction per user per thread
   async function handleReaction(threadId, type) {
     if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
     if (!ok) return;
 
-    const existingForUser = (reactionsByThread[threadId] || []).filter(
-      (r) => r.user_id === currentUser.id
+    const already = (reactionsByThread[threadId] || []).find(
+      (r) => r.user_id === currentUser.id && r.reaction_type === type
     );
-    const isSameAsOnly =
-      existingForUser.length === 1 && existingForUser[0].reaction_type === type;
 
     try {
-      // Remove all of this user's reactions for this thread
-      const { error: delErr } = await supabase
-        .from("threadtalk_reactions")
-        .delete()
-        .match({ thread_id: threadId, user_id: currentUser.id });
-
-      if (delErr) {
-        console.warn("[ThreadTalk] reaction delete error", delErr);
-        showToast("Could not update reaction.");
-        return;
-      }
-
-      // If they clicked the same one again and it was the only one, treat as "toggle off"
-      if (!isSameAsOnly) {
-        const { error: insErr } = await supabase
+      if (already) {
+        // Remove reaction
+        const { error } = await supabase
+          .from("threadtalk_reactions")
+          .delete()
+          .match({
+            thread_id: threadId,
+            user_id: currentUser.id,
+            reaction_type: type
+          });
+        if (error) {
+          console.warn("[ThreadTalk] reaction delete error", error);
+          showToast("Could not update reaction.");
+          return;
+        }
+      } else {
+        // Add reaction
+        const { error } = await supabase
           .from("threadtalk_reactions")
           .insert({
             thread_id: threadId,
             user_id: currentUser.id,
             reaction_type: type
           });
-        if (insErr) {
-          console.warn("[ThreadTalk] reaction insert error", insErr);
+        if (error) {
+          console.warn("[ThreadTalk] reaction insert error", error);
           showToast("Could not update reaction.");
           return;
         }
       }
-
       await loadThreads(); // refresh counts + active states
     } catch (err) {
       console.error("[ThreadTalk] handleReaction exception", err);
@@ -575,11 +619,13 @@
     if (!ok) return;
 
     try {
-      const { error } = await supabase.from("threadtalk_comments").insert({
-        thread_id: threadId,
-        author_id: currentUser.id,
-        body: body
-      });
+      const { error } = await supabase
+        .from("threadtalk_comments")
+        .insert({
+          thread_id: threadId,
+          author_id: currentUser.id,
+          body: body
+        });
 
       if (error) {
         console.error("[ThreadTalk] comment insert error", error);
@@ -593,6 +639,13 @@
       console.error("[ThreadTalk] handleSendComment exception", err);
       showToast("Could not post comment.");
     }
+  }
+
+  function focusCommentBox(card) {
+    const input = card.querySelector(".tt-comment-input");
+    if (!input) return;
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+    input.focus();
   }
 
   function toggleMenu(card) {
@@ -615,7 +668,6 @@
     if (!previewEl) return;
 
     const original = thread.body;
-
     previewEl.innerHTML = `
       <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
       <div class="tt-edit-actions">
@@ -702,21 +754,25 @@
     if (!ok) return;
 
     try {
-      const { error } = await supabase.from("threadtalk_flags").insert({
-        thread_id: threadId,
-        user_id: currentUser ? currentUser.id : null
-      });
+      const { error } = await supabase
+        .from("threadtalk_flags")
+        .insert({
+          thread_id: threadId,
+          flagged_by: currentUser.id,
+          reason: "user_flag",
+          created_at: new Date().toISOString()
+        });
 
       if (error) {
-        console.warn("[ThreadTalk] flag insert error", error);
-        showToast("Could not flag post right now.");
+        console.error("[ThreadTalk] flag insert error", error);
+        showToast("Could not flag post.");
         return;
       }
 
-      showToast("Thanks—this post has been flagged.");
+      showToast("Thanks — we’ll review this.");
     } catch (err) {
       console.error("[ThreadTalk] handleFlagThread exception", err);
-      showToast("Could not flag post right now.");
+      showToast("Could not flag post.");
     }
   }
 
@@ -725,38 +781,40 @@
     const el = document.createElement("div");
     el.id = "toast";
     el.className = "toast";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.setAttribute("aria-atomic", "true");
+    el.textContent = "";
     document.body.appendChild(el);
     return el;
   }
 
-  let toastTimeout = null;
+  let toastTimer = null;
   function showToast(msg) {
     if (!toastEl) return;
     toastEl.textContent = msg;
     toastEl.classList.add("show");
-    if (toastTimeout) clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => {
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
       toastEl.classList.remove("show");
-    }, 2200);
+    }, 2600);
   }
 
   function escapeHtml(str) {
-    if (str == null) return "";
-    return String(str)
+    return String(str || "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+      .replace(/"/g, "&quot;");
   }
 
   function escapeAttr(str) {
-    return escapeHtml(str).replace(/`/g, "&#96;");
+    return escapeHtml(str).replace(/'/g, "&#39;");
   }
 
-  function timeAgo(isoString) {
-    if (!isoString) return "";
-    const then = new Date(isoString);
+  function timeAgo(iso) {
+    if (!iso) return "";
+    const then = new Date(iso);
     const now = new Date();
     const diff = (now - then) / 1000;
 
@@ -769,21 +827,34 @@
       const h = Math.round(diff / 3600);
       return `${h} hour${h === 1 ? "" : "s"} ago`;
     }
-    const d = Math.round(diff / 86400);
-    return `${d} day${d === 1 ? "" : "s"} ago`;
-  }
 
-  // Full date/time for the main thread header
-  function formatDateTime(isoString) {
-    if (!isoString) return "";
-    const d = new Date(isoString);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleString(undefined, {
+    // e.g. "Nov 26, 2025, 8:47 PM"
+    return then.toLocaleString(undefined, {
+      year: "numeric",
       month: "short",
       day: "numeric",
-      year: "numeric",
       hour: "numeric",
       minute: "2-digit"
     });
+  }
+
+  // Inject small CSS overrides to keep posts compact
+  function injectCompactStyles() {
+    const css = `
+      .card{padding:14px 16px;margin-bottom:10px;}
+      .preview{margin-bottom:6px;font-size:14px;}
+      .tt-react-row{gap:6px;flex-wrap:wrap;margin-top:4px;}
+      .tt-react{padding:4px 8px;font-size:13px;}
+      .tt-react span+span{margin-left:4px;}
+      .tt-respond-btn{margin-left:4px;}
+      .tt-comments{margin-top:6px;gap:6px;}
+      .tt-comment{padding:6px 8px;}
+      .tt-comment-input{padding:6px 8px;font-size:13px;}
+      .tt-comment-send{padding:6px 12px;font-size:13px;}
+      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:420px;}
+    `;
+    const style = document.createElement("style");
+    style.textContent = css;
+    document.head.appendChild(style);
   }
 })();
