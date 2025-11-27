@@ -27,7 +27,7 @@
   const postBtn = document.getElementById("postBtn");
 
   // ---------- Constants ----------
-  const STORAGE_BUCKET = "threadtalk-media"; // create this bucket in Supabase → Storage
+  const STORAGE_BUCKET = "threadtalk-media"; // Supabase storage bucket
 
   const CATEGORY_LABELS = {
     "showcase": "Showcase",
@@ -372,7 +372,7 @@
     composerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       let body = (textArea.value || "").trim();
-      let title = (titleInput && titleInput.value || "").trim();
+      let title = ((titleInput && titleInput.value) || "").trim();
       let cat = (categorySelect.value || "").trim();
       if (!cat) cat = "loose-threads";
 
@@ -442,8 +442,9 @@
   // Upload image/video from composer to Supabase storage
   async function maybeUploadComposerMedia() {
     if (!currentUser) return { media_url: null, media_type: null };
-    const file = (photoInput && photoInput.files && photoInput.files[0]) ||
-                 (videoInput && videoInput.files && videoInput.files[0]);
+    const file =
+      (photoInput && photoInput.files && photoInput.files[0]) ||
+      (videoInput && videoInput.files && videoInput.files[0]);
     if (!file) return { media_url: null, media_type: null };
 
     const isImage = !!(photoInput && photoInput.files && photoInput.files[0]);
@@ -451,10 +452,11 @@
 
     try {
       const ext = (file.name.split(".").pop() || "bin").toLowerCase();
-      const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
+      // unique path inside the threadtalk-media bucket
+      const uniqueId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now();
+      const path = `${currentUser.id}/thread-${uniqueId}.${ext}`;
 
-      const { data, error } = await supabase
-        .storage
+      const { data: uploadData, error } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(path, file, {
           cacheControl: "3600",
@@ -468,10 +470,9 @@
         return { media_url: null, media_type: null };
       }
 
-      const { data: pub } = supabase
-        .storage
+      const { data: pub } = supabase.storage
         .from(STORAGE_BUCKET)
-        .getPublicUrl(data.path);
+        .getPublicUrl(uploadData.path);
 
       const url = pub?.publicUrl || null;
       return { media_url: url, media_type };
@@ -862,7 +863,6 @@
       return `${h} hour${h === 1 ? "" : "s"} ago`;
     }
 
-    // e.g. "Nov 26, 2025, 8:47 PM"
     return then.toLocaleString(undefined, {
       year: "numeric",
       month: "short",
@@ -887,11 +887,13 @@
       .tt-react span+span{margin-left:4px;}
       .tt-respond-btn{margin-left:4px;}
       .tt-comments{margin-top:6px;gap:6px;}
-      .tt-comment{padding:6px 8px;}
+      .tt-comments-list{margin-left:2px;}
+      .tt-comment{padding:6px 8px;border-radius:10px;}
       .tt-comment-input{padding:6px 8px;font-size:13px;}
       .tt-comment-send{padding:6px 12px;font-size:13px;}
-      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:420px;}
+      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:420px;border-radius:12px;border:1px solid var(--border);}
       .tt-menu-btn{padding:2px 6px;font-size:14px;}
+      .tt-menu-pop{right:0;min-width:120px;}
     `;
     const style = document.createElement("style");
     style.textContent = css;
