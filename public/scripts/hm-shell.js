@@ -191,6 +191,10 @@ window.HM = window.HM || {};
       }
     );
 
+    // ⭐⭐⭐ CRITICAL FIX — ADDED ⭐⭐⭐
+    window.HM.supabase = client;
+    // ********************************
+
     const accountLink = document.getElementById("headerAccountLink");
     if (!accountLink) return;
 
@@ -216,7 +220,7 @@ window.HM = window.HM || {};
   }
 
   /* --------------------------------------------------------------------------
-     PUBLIC API: inject header + footer and wire everything
+     PUBLIC API
   -------------------------------------------------------------------------- */
   window.HM.renderShell = function renderShell(opts) {
     const current = opts?.currentPage || "";
@@ -227,7 +231,6 @@ window.HM = window.HM || {};
     if (headerTarget) headerTarget.innerHTML = headerHTML();
     if (footerTarget) footerTarget.innerHTML = footerHTML(current);
 
-    // Now wire interactivity
     wireMenu();
     wireSupabaseSession();
   };
