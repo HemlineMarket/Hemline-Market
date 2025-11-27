@@ -1,10 +1,12 @@
-// scripts/threadtalk.js
+// ThreadTalk — Supabase-backed threads, reactions, comments
 (function () {
   const HM = window.HM || {};
   const supabase = HM.supabase;
 
   if (!supabase) {
-    console.warn("[ThreadTalk] Supabase client not found on window.HM.supabase; ThreadTalk disabled.");
+    console.warn(
+      "[ThreadTalk] Supabase client not found on window.HM.supabase; ThreadTalk disabled."
+    );
     return;
   }
 
@@ -45,17 +47,17 @@
   };
 
   const REACTION_TYPES = [
-    { key: "like",  emoji: "👍" },
-    { key: "love",  emoji: "❤️" },
+    { key: "like", emoji: "👍" },
+    { key: "love", emoji: "❤️" },
     { key: "laugh", emoji: "😂" },
-    { key: "wow",   emoji: "😮" },
-    { key: "cry",   emoji: "😢" }
+    { key: "wow", emoji: "😮" },
+    { key: "cry", emoji: "😢" }
   ];
 
   // ---------- State ----------
-  let currentUser = null;     // auth user
+  let currentUser = null;     // auth.users row (id, email, etc.)
   const profilesCache = {};   // userId -> profile
-  let threads = [];           // thread rows
+  let threads = [];           // array of thread rows
   let commentsByThread = {};  // threadId -> [comments]
   let reactionsByThread = {}; // threadId -> [reactions]
 
@@ -73,19 +75,13 @@
   // ---------- Auth / Profile helpers ----------
   async function refreshCurrentUser() {
     try {
-      // 1) Prefer the session the header already knows about
-      if (HM.session && HM.session.user) {
-        currentUser = HM.session.user;
-      } else {
-        // 2) Fall back to Supabase directly
-        const { data, error } = await supabase.auth.getUser();
-        if (error) {
-          console.warn("[ThreadTalk] getUser error", error);
-          currentUser = null;
-        } else {
-          currentUser = data?.user || null;
-        }
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.warn("[ThreadTalk] getUser error", error);
+        currentUser = null;
+        return;
       }
+      currentUser = data?.user || null;
 
       if (currentUser && !profilesCache[currentUser.id]) {
         await loadProfiles([currentUser.id]);
@@ -142,7 +138,7 @@
         if (combo) return combo;
       }
     }
-    // Never fall back to auth full_name/government name.
+    // Do NOT fall back to auth full_name to avoid government names.
     return "Unknown member";
   }
 
@@ -232,11 +228,12 @@
       const catSlug = thread.category || "loose-threads";
       const catLabel = CATEGORY_LABELS[catSlug] || "Loose Threads";
       const catLink = CATEGORY_LINKS[catSlug] || "loose-threads.html";
-      const when = timeAgo(thread.created_at);
+      const when = formatDateTime(thread.created_at);
 
       const { counts, mine } = computeReactionState(thread.id);
 
       const comments = commentsByThread[thread.id] || [];
+
       const mediaHtml = renderMedia(thread);
 
       const reactionsHtml = REACTION_TYPES.map((r) => {
@@ -268,7 +265,7 @@
 
       const menuHtml = isMine
         ? `
-          <div class="tt-menu">
+          <div class="tt-menu" style="margin-left:auto;">
             <button class="tt-menu-btn" type="button" data-tt-role="menu">
               ···
             </button>
@@ -282,12 +279,13 @@
 
       card.innerHTML = `
         <div class="meta">
-          <!-- avatar intentionally hidden via CSS -->
-          <span class="author">${escapeHtml(authorName)}</span>
-          <span>•</span>
-          <span>${when}</span>
-          <span>•</span>
-          <a class="cat" href="${catLink}">[${escapeHtml(catLabel)}]</a>
+          <div class="meta-main">
+            <span class="author">${escapeHtml(authorName)}</span>
+            <span>•</span>
+            <span>${when}</span>
+            <span>•</span>
+            <a class="cat" href="${catLink}">[${escapeHtml(catLabel)}]</a>
+          </div>
           ${menuHtml}
         </div>
 
@@ -297,6 +295,11 @@
         <div class="actions">
           <div class="tt-react-row">
             ${reactionsHtml}
+            <button class="tt-react tt-respond-btn"
+                    type="button"
+                    data-tt-role="respond">
+              Respond
+            </button>
             <button class="tt-react tt-flag-btn"
                     type="button"
                     data-tt-role="flag-thread">
@@ -368,7 +371,7 @@
         return;
       }
 
-      const ok = await ensureLoggedInFor("post");
+      const ok = await ensureLoggedInFor("post in ThreadTalk");
       if (!ok) return;
 
       postBtn.disabled = true;
@@ -390,13 +393,15 @@
 
         if (error) {
           console.error("[ThreadTalk] insert error", error);
-          showToast(error.message || "Could not post. Please try again.");
+          showToast("Could not post. Please try again.");
           return;
         }
 
+        // Clear composer (attachments currently preview-only)
         textArea.value = "";
         clearMediaPreview();
 
+        // Prepend new thread and reload related data (reactions/comments)
         threads.unshift(data);
         await loadThreads();
         showToast("Posted");
@@ -453,7 +458,7 @@
     if (videoInput) videoInput.value = "";
   }
 
-  // ---------- Card interactions (reactions / comments / menu / flag) ----------
+  // ---------- Card interactions (reactions / comments / menu / flag / respond) ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
 
@@ -461,7 +466,8 @@
       const target = e.target;
       if (!target) return;
 
-      const role = target.dataset.ttRole || target.closest("[data-tt-role]")?.dataset.ttRole;
+      const role =
+        target.dataset.ttRole || target.closest("[data-tt-role]")?.dataset.ttRole;
       if (!role) return;
 
       const card = target.closest(".card");
@@ -469,13 +475,14 @@
       const threadId = Number(card.dataset.threadId);
 
       switch (role) {
-        case "react": {
-          const btn = target.closest("[data-reaction]");
-          if (!btn) return;
-          const type = btn.dataset.reaction;
-          await handleReaction(threadId, type);
+        case "react":
+          {
+            const btn = target.closest("[data-reaction]");
+            if (!btn) return;
+            const type = btn.dataset.reaction;
+            await handleReaction(threadId, type);
+          }
           break;
-        }
         case "send-comment":
           await handleSendComment(card, threadId);
           break;
@@ -491,51 +498,64 @@
         case "flag-thread":
           await handleFlagThread(threadId);
           break;
+        case "respond":
+          focusCommentInput(card);
+          break;
         default:
           break;
       }
     });
   }
 
+  function focusCommentInput(card) {
+    const input = card.querySelector(".tt-comment-input");
+    if (!input) return;
+    input.focus();
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // Enforce at most ONE reaction per user per thread
   async function handleReaction(threadId, type) {
     if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
     if (!ok) return;
 
-    const already = (reactionsByThread[threadId] || []).find(
-      (r) => r.user_id === currentUser.id && r.reaction_type === type
+    const existingForUser = (reactionsByThread[threadId] || []).filter(
+      (r) => r.user_id === currentUser.id
     );
+    const isSameAsOnly =
+      existingForUser.length === 1 && existingForUser[0].reaction_type === type;
 
     try {
-      if (already) {
-        const { error } = await supabase
-          .from("threadtalk_reactions")
-          .delete()
-          .match({
-            thread_id: threadId,
-            user_id: currentUser.id,
-            reaction_type: type
-          });
-        if (error) {
-          console.warn("[ThreadTalk] reaction delete error", error);
-          showToast("Could not update reaction.");
-          return;
-        }
-      } else {
-        const { error } = await supabase
+      // Remove all of this user's reactions for this thread
+      const { error: delErr } = await supabase
+        .from("threadtalk_reactions")
+        .delete()
+        .match({ thread_id: threadId, user_id: currentUser.id });
+
+      if (delErr) {
+        console.warn("[ThreadTalk] reaction delete error", delErr);
+        showToast("Could not update reaction.");
+        return;
+      }
+
+      // If they clicked the same one again and it was the only one, treat as "toggle off"
+      if (!isSameAsOnly) {
+        const { error: insErr } = await supabase
           .from("threadtalk_reactions")
           .insert({
             thread_id: threadId,
             user_id: currentUser.id,
             reaction_type: type
           });
-        if (error) {
-          console.warn("[ThreadTalk] reaction insert error", error);
+        if (insErr) {
+          console.warn("[ThreadTalk] reaction insert error", insErr);
           showToast("Could not update reaction.");
           return;
         }
       }
-      await loadThreads();
+
+      await loadThreads(); // refresh counts + active states
     } catch (err) {
       console.error("[ThreadTalk] handleReaction exception", err);
       showToast("Could not update reaction.");
@@ -555,17 +575,15 @@
     if (!ok) return;
 
     try {
-      const { error } = await supabase
-        .from("threadtalk_comments")
-        .insert({
-          thread_id: threadId,
-          author_id: currentUser.id,
-          body: body
-        });
+      const { error } = await supabase.from("threadtalk_comments").insert({
+        thread_id: threadId,
+        author_id: currentUser.id,
+        body: body
+      });
 
       if (error) {
         console.error("[ThreadTalk] comment insert error", error);
-        showToast(error.message || "Could not post comment.");
+        showToast("Could not post comment.");
         return;
       }
 
@@ -597,6 +615,7 @@
     if (!previewEl) return;
 
     const original = thread.body;
+
     previewEl.innerHTML = `
       <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
       <div class="tt-edit-actions">
@@ -679,25 +698,25 @@
     const okLoggedIn = await ensureLoggedInFor("flag posts");
     if (!okLoggedIn) return;
 
+    const ok = confirm("Flag this post for review?");
+    if (!ok) return;
+
     try {
-      const { error } = await supabase
-        .from("threadtalk_flags")
-        .insert({
-          thread_id: threadId,
-          flagged_by: currentUser.id,
-          status: "new"
-        });
+      const { error } = await supabase.from("threadtalk_flags").insert({
+        thread_id: threadId,
+        user_id: currentUser ? currentUser.id : null
+      });
 
       if (error) {
-        console.error("[ThreadTalk] flag insert error", error);
-        showToast("Could not flag this post.");
+        console.warn("[ThreadTalk] flag insert error", error);
+        showToast("Could not flag post right now.");
         return;
       }
 
-      showToast("Thanks — we’ll review this post.");
+      showToast("Thanks—this post has been flagged.");
     } catch (err) {
       console.error("[ThreadTalk] handleFlagThread exception", err);
-      showToast("Could not flag this post.");
+      showToast("Could not flag post right now.");
     }
   }
 
@@ -706,10 +725,6 @@
     const el = document.createElement("div");
     el.id = "toast";
     el.className = "toast";
-    el.setAttribute("role", "status");
-    el.setAttribute("aria-live", "polite");
-    el.setAttribute("aria-atomic", "true");
-    el.textContent = "";
     document.body.appendChild(el);
     return el;
   }
@@ -722,11 +737,12 @@
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => {
       toastEl.classList.remove("show");
-    }, 2400);
+    }, 2200);
   }
 
   function escapeHtml(str) {
-    return (str || "")
+    if (str == null) return "";
+    return String(str)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
@@ -735,25 +751,39 @@
   }
 
   function escapeAttr(str) {
-    return escapeHtml(str);
+    return escapeHtml(str).replace(/`/g, "&#96;");
   }
 
-  function timeAgo(iso) {
-    if (!iso) return "";
-    const then = new Date(iso);
+  function timeAgo(isoString) {
+    if (!isoString) return "";
+    const then = new Date(isoString);
     const now = new Date();
     const diff = (now - then) / 1000;
 
     if (diff < 60) return "just now";
     if (diff < 3600) {
-      const m = Math.floor(diff / 60);
+      const m = Math.round(diff / 60);
       return `${m} min${m === 1 ? "" : "s"} ago`;
     }
     if (diff < 86400) {
-      const h = Math.floor(diff / 3600);
+      const h = Math.round(diff / 3600);
       return `${h} hour${h === 1 ? "" : "s"} ago`;
     }
-    const d = Math.floor(diff / 86400);
+    const d = Math.round(diff / 86400);
     return `${d} day${d === 1 ? "" : "s"} ago`;
+  }
+
+  // Full date/time for the main thread header
+  function formatDateTime(isoString) {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
   }
 })();
