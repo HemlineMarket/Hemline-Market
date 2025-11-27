@@ -27,7 +27,7 @@
   const postBtn = document.getElementById("postBtn");
 
   // ---------- Constants ----------
-  const STORAGE_BUCKET = "threadtalk-media"; // Supabase storage bucket
+  const STORAGE_BUCKET = "threadtalk-media"; // create this bucket in Supabase → Storage
 
   const CATEGORY_LABELS = {
     "showcase": "Showcase",
@@ -60,9 +60,9 @@
   ];
 
   // ---------- State ----------
-  let currentUser = null;     // auth.users row
+  let currentUser = null;     // auth.users row (id, email, etc.)
   const profilesCache = {};   // userId -> profile
-  let threads = [];           // thread rows
+  let threads = [];           // array of thread rows
   let commentsByThread = {};  // threadId -> [comments]
   let reactionsByThread = {}; // threadId -> [reactions]
 
@@ -144,6 +144,7 @@
         if (combo) return combo;
       }
     }
+    // Do NOT fall back to auth full_name to avoid government names.
     return "Unknown member";
   }
 
@@ -243,14 +244,13 @@
       const reactionsHtml = REACTION_TYPES.map((r) => {
         const activeClass = mine[r.key] ? " tt-react-active" : "";
         const count = counts[r.key] || 0;
-        const countHtml = count ? `<span class="tt-react-count">${count}</span>` : "";
         return `
           <button class="tt-react${activeClass}"
                   data-tt-role="react"
                   data-reaction="${r.key}"
                   type="button">
             <span class="tt-react-emoji">${r.emoji}</span>
-            ${countHtml}
+            <span class="tt-react-count">${count}</span>
           </button>
         `;
       }).join("");
@@ -262,7 +262,6 @@
           <div class="tt-comment" data-comment-id="${c.id}">
             <div class="tt-comment-head">${escapeHtml(name)} • ${ts}</div>
             <div class="tt-comment-body">${escapeHtml(c.body)}</div>
-            <!-- placeholder for future per-comment reactions / reply / flag -->
           </div>
         `;
       }).join("");
@@ -305,12 +304,12 @@
         <div class="actions">
           <div class="tt-react-row">
             ${reactionsHtml}
-            <button class="tt-inline-action tt-respond-btn"
+            <button class="tt-respond-btn"
                     type="button"
                     data-tt-role="respond">
               Respond
             </button>
-            <button class="tt-inline-action tt-flag-btn"
+            <button class="tt-flag-btn"
                     type="button"
                     data-tt-role="flag-thread">
               🚩 <span>Flag</span>
@@ -398,7 +397,7 @@
       try {
         const mediaInfo = await maybeUploadComposerMedia();
         if (!body && hasMedia) {
-          body = "image attached";
+          body = "image attached"; // fallback text when post is only media
         }
 
         const payload = {
@@ -422,10 +421,12 @@
           return;
         }
 
+        // Clear composer
         textArea.value = "";
         if (titleInput) titleInput.value = "";
         clearMediaPreview();
 
+        // Prepend new thread and reload related data (reactions/comments)
         threads.unshift(data);
         await loadThreads();
         showToast("Posted");
@@ -525,7 +526,7 @@
     if (videoInput) videoInput.value = "";
   }
 
-  // ---------- Card interactions ----------
+  // ---------- Card interactions (reactions / comments / menu / flag) ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
 
@@ -586,7 +587,7 @@
 
     try {
       if (existing.length === 1 && existing[0].reaction_type === type) {
-        // Clicking same emoji again removes reaction.
+        // Clicking the same emoji again removes your reaction.
         const { error } = await supabase
           .from("threadtalk_reactions")
           .delete()
@@ -601,7 +602,7 @@
           return;
         }
       } else {
-        // Switch reaction: delete all for this thread/user, insert new.
+        // Switch reaction: delete all old ones for this thread/user, then insert the new type.
         if (existing.length) {
           const { error: delErr } = await supabase
             .from("threadtalk_reactions")
@@ -632,7 +633,7 @@
         }
       }
 
-      await loadThreads();
+      await loadThreads(); // refresh counts + active states
     } catch (err) {
       console.error("[ThreadTalk] handleReaction exception", err);
       showToast("Could not update reaction.");
@@ -861,6 +862,7 @@
       return `${h} hour${h === 1 ? "" : "s"} ago`;
     }
 
+    // e.g. "Nov 26, 2025, 8:47 PM"
     return then.toLocaleString(undefined, {
       year: "numeric",
       month: "short",
@@ -870,31 +872,120 @@
     });
   }
 
-  // Inject compact, Facebook-y styles
+  // Inject small CSS overrides to keep posts compact / “Facebook-y”
   function injectCompactStyles() {
     const css = `
-      .card{padding:12px 14px;margin-bottom:10px;}
-      .preview{margin-bottom:4px;font-size:14px;}
-      .tt-head{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
-      .tt-line1{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:14px;}
-      .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
-      .tt-line2-main{display:flex;align-items:center;gap:4px;}
-      .tt-title{font-weight:600;color:#3f2f2a;}
-      .tt-react-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;font-size:12px;}
-      .tt-react{border:none;background:transparent;padding:0 2px;display:inline-flex;align-items:center;gap:2px;cursor:pointer;}
-      .tt-react-emoji{font-size:14px;line-height:1;}
-      .tt-react-count{font-size:11px;color:#6b7280;}
-      .tt-react-active .tt-react-emoji{transform:translateY(-1px);}
-      .tt-inline-action{border:none;background:transparent;padding:0 4px;font-size:12px;cursor:pointer;color:#991b1b;}
-      .tt-inline-action span{margin-left:2px;}
-      .tt-comments{margin-top:6px;gap:4px;}
-      .tt-comment{padding:4px 0;}
-      .tt-comment-head{font-size:11px;color:#9ca3af;margin-bottom:2px;}
-      .tt-comment-body{font-size:13px;}
-      .tt-comment-input{padding:6px 8px;font-size:13px;}
-      .tt-comment-send{padding:6px 12px;font-size:13px;}
-      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:320px;width:auto;border-radius:10px;}
-      .tt-menu-btn{padding:2px 6px;font-size:14px;}
+      .card{
+        padding:10px 14px;
+        margin-bottom:8px;
+      }
+      .tt-head{
+        display:flex;
+        flex-direction:column;
+        gap:2px;
+        margin-bottom:2px;
+      }
+      .tt-line1{
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+        align-items:baseline;
+        font-size:14px;
+      }
+      .tt-line2{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        font-size:12px;
+        color:var(--muted);
+      }
+      .tt-line2-main{
+        display:flex;
+        align-items:center;
+        gap:4px;
+      }
+      .tt-title{
+        font-weight:600;
+        color:#3f2f2a;
+      }
+      .preview{
+        margin:4px 0;
+        font-size:14px;
+      }
+      .post-img,
+      .post-video{
+        margin:4px 0 2px;
+        max-height:320px;
+        width:100%;
+        object-fit:contain;
+        border-radius:10px;
+      }
+      .actions{
+        margin-top:2px;
+      }
+      .tt-react-row{
+        display:flex;
+        align-items:center;
+        gap:6px;
+        flex-wrap:wrap;
+        font-size:12px;
+      }
+      .tt-react{
+        display:inline-flex;
+        align-items:center;
+        gap:3px;
+        padding:2px 6px;
+        border-radius:999px;
+        border:1px solid var(--border);
+        background:#fff;
+        cursor:pointer;
+      }
+      .tt-react-emoji{
+        line-height:1;
+      }
+      .tt-react-count{
+        min-width:0.9em;
+        text-align:center;
+      }
+      .tt-react-active{
+        border-color:var(--hm-accent);
+        box-shadow:0 0 0 1px rgba(153,27,27,.08);
+      }
+      .tt-respond-btn,
+      .tt-flag-btn{
+        background:none;
+        border:none;
+        padding:0 4px;
+        font-size:12px;
+        color:#6b7280;
+        cursor:pointer;
+      }
+      .tt-respond-btn:hover,
+      .tt-flag-btn:hover{
+        color:#111827;
+        text-decoration:underline;
+      }
+      .tt-comments{
+        margin-top:6px;
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+      }
+      .tt-comment{
+        padding:4px 8px;
+      }
+      .tt-comment-input{
+        padding:6px 8px;
+        font-size:13px;
+      }
+      .tt-comment-send{
+        padding:6px 12px;
+        font-size:13px;
+      }
+      .tt-menu-btn{
+        padding:2px 6px;
+        font-size:14px;
+      }
     `;
     const style = document.createElement("style");
     style.textContent = css;
