@@ -174,26 +174,24 @@ window.HM = window.HM || {};
   }
 
   /* --------------------------------------------------------------------------
-     SUPABASE SESSION
+     SUPABASE SESSION  (and expose client on window.HM.supabase)
   -------------------------------------------------------------------------- */
   function wireSupabaseSession() {
     if (!window.supabase) return;
 
-    const client = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY,
-      {
+    // Re-use existing client if we already made one.
+    const client =
+      window.HM.supabase ||
+      window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: true,
         },
-      }
-    );
+      });
 
-    // ⭐⭐⭐ CRITICAL FIX — ADDED ⭐⭐⭐
+    // ***** THIS LINE IS THE IMPORTANT FIX *****
     window.HM.supabase = client;
-    // ********************************
 
     const accountLink = document.getElementById("headerAccountLink");
     if (!accountLink) return;
@@ -220,7 +218,7 @@ window.HM = window.HM || {};
   }
 
   /* --------------------------------------------------------------------------
-     PUBLIC API
+     PUBLIC API: inject header + footer and wire everything
   -------------------------------------------------------------------------- */
   window.HM.renderShell = function renderShell(opts) {
     const current = opts?.currentPage || "";
@@ -231,6 +229,7 @@ window.HM = window.HM || {};
     if (headerTarget) headerTarget.innerHTML = headerHTML();
     if (footerTarget) footerTarget.innerHTML = footerHTML(current);
 
+    // Now wire interactivity
     wireMenu();
     wireSupabaseSession();
   };
