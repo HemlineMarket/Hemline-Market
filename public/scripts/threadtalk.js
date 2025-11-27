@@ -60,9 +60,9 @@
   ];
 
   // ---------- State ----------
-  let currentUser = null;     // auth.users row (id, email, etc.)
+  let currentUser = null;     // auth.users row
   const profilesCache = {};   // userId -> profile
-  let threads = [];           // array of thread rows
+  let threads = [];           // thread rows
   let commentsByThread = {};  // threadId -> [comments]
   let reactionsByThread = {}; // threadId -> [reactions]
 
@@ -144,7 +144,6 @@
         if (combo) return combo;
       }
     }
-    // Do NOT fall back to auth full_name to avoid government names.
     return "Unknown member";
   }
 
@@ -244,13 +243,14 @@
       const reactionsHtml = REACTION_TYPES.map((r) => {
         const activeClass = mine[r.key] ? " tt-react-active" : "";
         const count = counts[r.key] || 0;
+        const countHtml = count ? `<span class="tt-react-count">${count}</span>` : "";
         return `
           <button class="tt-react${activeClass}"
                   data-tt-role="react"
                   data-reaction="${r.key}"
                   type="button">
-            <span>${r.emoji}</span>
-            <span>${count}</span>
+            <span class="tt-react-emoji">${r.emoji}</span>
+            ${countHtml}
           </button>
         `;
       }).join("");
@@ -262,6 +262,7 @@
           <div class="tt-comment" data-comment-id="${c.id}">
             <div class="tt-comment-head">${escapeHtml(name)} • ${ts}</div>
             <div class="tt-comment-body">${escapeHtml(c.body)}</div>
+            <!-- placeholder for future per-comment reactions / reply / flag -->
           </div>
         `;
       }).join("");
@@ -304,12 +305,12 @@
         <div class="actions">
           <div class="tt-react-row">
             ${reactionsHtml}
-            <button class="tt-react tt-respond-btn"
+            <button class="tt-inline-action tt-respond-btn"
                     type="button"
                     data-tt-role="respond">
               Respond
             </button>
-            <button class="tt-react tt-flag-btn"
+            <button class="tt-inline-action tt-flag-btn"
                     type="button"
                     data-tt-role="flag-thread">
               🚩 <span>Flag</span>
@@ -372,7 +373,7 @@
     composerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       let body = (textArea.value || "").trim();
-      let title = ((titleInput && titleInput.value) || "").trim();
+      let title = (titleInput && titleInput.value || "").trim();
       let cat = (categorySelect.value || "").trim();
       if (!cat) cat = "loose-threads";
 
@@ -397,7 +398,7 @@
       try {
         const mediaInfo = await maybeUploadComposerMedia();
         if (!body && hasMedia) {
-          body = "image attached"; // fallback text when post is only media
+          body = "image attached";
         }
 
         const payload = {
@@ -421,12 +422,10 @@
           return;
         }
 
-        // Clear composer
         textArea.value = "";
         if (titleInput) titleInput.value = "";
         clearMediaPreview();
 
-        // Prepend new thread and reload related data (reactions/comments)
         threads.unshift(data);
         await loadThreads();
         showToast("Posted");
@@ -442,9 +441,8 @@
   // Upload image/video from composer to Supabase storage
   async function maybeUploadComposerMedia() {
     if (!currentUser) return { media_url: null, media_type: null };
-    const file =
-      (photoInput && photoInput.files && photoInput.files[0]) ||
-      (videoInput && videoInput.files && videoInput.files[0]);
+    const file = (photoInput && photoInput.files && photoInput.files[0]) ||
+                 (videoInput && videoInput.files && videoInput.files[0]);
     if (!file) return { media_url: null, media_type: null };
 
     const isImage = !!(photoInput && photoInput.files && photoInput.files[0]);
@@ -452,11 +450,10 @@
 
     try {
       const ext = (file.name.split(".").pop() || "bin").toLowerCase();
-      // unique path inside the threadtalk-media bucket
-      const uniqueId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now();
-      const path = `${currentUser.id}/thread-${uniqueId}.${ext}`;
+      const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
 
-      const { data: uploadData, error } = await supabase.storage
+      const { data, error } = await supabase
+        .storage
         .from(STORAGE_BUCKET)
         .upload(path, file, {
           cacheControl: "3600",
@@ -470,9 +467,10 @@
         return { media_url: null, media_type: null };
       }
 
-      const { data: pub } = supabase.storage
+      const { data: pub } = supabase
+        .storage
         .from(STORAGE_BUCKET)
-        .getPublicUrl(uploadData.path);
+        .getPublicUrl(data.path);
 
       const url = pub?.publicUrl || null;
       return { media_url: url, media_type };
@@ -527,7 +525,7 @@
     if (videoInput) videoInput.value = "";
   }
 
-  // ---------- Card interactions (reactions / comments / menu / flag) ----------
+  // ---------- Card interactions ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
 
@@ -588,7 +586,7 @@
 
     try {
       if (existing.length === 1 && existing[0].reaction_type === type) {
-        // Clicking the same emoji again removes your reaction.
+        // Clicking same emoji again removes reaction.
         const { error } = await supabase
           .from("threadtalk_reactions")
           .delete()
@@ -603,7 +601,7 @@
           return;
         }
       } else {
-        // Switch reaction: delete all old ones for this thread/user, then insert the new type.
+        // Switch reaction: delete all for this thread/user, insert new.
         if (existing.length) {
           const { error: delErr } = await supabase
             .from("threadtalk_reactions")
@@ -634,7 +632,7 @@
         }
       }
 
-      await loadThreads(); // refresh counts + active states
+      await loadThreads();
     } catch (err) {
       console.error("[ThreadTalk] handleReaction exception", err);
       showToast("Could not update reaction.");
@@ -872,28 +870,31 @@
     });
   }
 
-  // Inject small CSS overrides to keep posts compact
+  // Inject compact, Facebook-y styles
   function injectCompactStyles() {
     const css = `
-      .card{padding:12px 14px;margin-bottom:8px;}
+      .card{padding:12px 14px;margin-bottom:10px;}
       .preview{margin-bottom:4px;font-size:14px;}
       .tt-head{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
       .tt-line1{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:14px;}
       .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
       .tt-line2-main{display:flex;align-items:center;gap:4px;}
       .tt-title{font-weight:600;color:#3f2f2a;}
-      .tt-react-row{gap:4px;flex-wrap:wrap;margin-top:2px;}
-      .tt-react{padding:2px 6px;font-size:12px;border-radius:999px;border:1px solid var(--border);background:#fff;}
-      .tt-react span+span{margin-left:4px;}
-      .tt-respond-btn{margin-left:4px;}
-      .tt-comments{margin-top:6px;gap:6px;}
-      .tt-comments-list{margin-left:2px;}
-      .tt-comment{padding:6px 8px;border-radius:10px;}
+      .tt-react-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;font-size:12px;}
+      .tt-react{border:none;background:transparent;padding:0 2px;display:inline-flex;align-items:center;gap:2px;cursor:pointer;}
+      .tt-react-emoji{font-size:14px;line-height:1;}
+      .tt-react-count{font-size:11px;color:#6b7280;}
+      .tt-react-active .tt-react-emoji{transform:translateY(-1px);}
+      .tt-inline-action{border:none;background:transparent;padding:0 4px;font-size:12px;cursor:pointer;color:#991b1b;}
+      .tt-inline-action span{margin-left:2px;}
+      .tt-comments{margin-top:6px;gap:4px;}
+      .tt-comment{padding:4px 0;}
+      .tt-comment-head{font-size:11px;color:#9ca3af;margin-bottom:2px;}
+      .tt-comment-body{font-size:13px;}
       .tt-comment-input{padding:6px 8px;font-size:13px;}
       .tt-comment-send{padding:6px 12px;font-size:13px;}
-      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:420px;border-radius:12px;border:1px solid var(--border);}
+      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:320px;width:auto;border-radius:10px;}
       .tt-menu-btn{padding:2px 6px;font-size:14px;}
-      .tt-menu-pop{right:0;min-width:120px;}
     `;
     const style = document.createElement("style");
     style.textContent = css;
