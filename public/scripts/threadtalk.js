@@ -26,11 +26,8 @@
   const mediaPreview = document.getElementById("mediaPreview");
   const postBtn = document.getElementById("postBtn");
 
-  // search bar will be created by JS
-  let searchInputEl = null;
-
   // ---------- Constants ----------
-  const STORAGE_BUCKET = "threadtalk-media"; // Supabase storage bucket
+  const STORAGE_BUCKET = "threadtalk-media"; // create this bucket in Supabase → Storage
 
   const CATEGORY_LABELS = {
     "showcase": "Showcase",
@@ -65,35 +62,20 @@
   // ---------- State ----------
   let currentUser = null;     // auth.users row (id, email, etc.)
   const profilesCache = {};   // userId -> profile
-  let threads = [];           // raw threads from DB
+  let threads = [];           // array of thread rows
   let commentsByThread = {};  // threadId -> [comments]
   let reactionsByThread = {}; // threadId -> [reactions]
-
-  // derived state
-  const activeCategory = detectCategoryFromPath(); // null for "all"
-  let activeSearch = ""; // lowercase search term
 
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     injectCompactStyles();
-    injectSearchBar();
     await refreshCurrentUser();
     wireComposer();
     wireMediaInputs();
     wireCardDelegates();
-    wireSearch();
     await loadThreads();
-  }
-
-  // Detect category page from URL (e.g. /showcase.html)
-  function detectCategoryFromPath() {
-    const page = (window.location.pathname.split("/").pop() || "").toLowerCase();
-    const match = Object.entries(CATEGORY_LINKS).find(
-      ([slug, file]) => file.toLowerCase() === page
-    );
-    return match ? match[0] : null; // slug or null
   }
 
   // ---------- Auth / Profile helpers ----------
@@ -162,24 +144,60 @@
         if (combo) return combo;
       }
     }
+    // Do NOT fall back to auth full_name to avoid government names.
     return "Unknown member";
+  }
+
+  // ---------- Helpers: category + search ----------
+  function getPageCategoryFilter() {
+    const path = (window.location.pathname || "").toLowerCase();
+    if (path.includes("showcase.html")) return "showcase";
+    if (path.includes("tailoring.html")) return "tailoring";
+    if (path.includes("stitch-school.html")) return "stitch-school";
+    if (path.includes("fabric-sos.html")) return "fabric-sos";
+    if (path.includes("before-after.html")) return "before-after";
+    if (path.includes("pattern-hacks.html")) return "pattern-hacks";
+    if (path.includes("stash-confessions.html")) return "stash-confessions";
+    if (path.includes("loose-threads.html")) return "loose-threads";
+    return null; // main ThreadTalk page shows all categories
+  }
+
+  function getSearchTerm() {
+    try {
+      const params = new URLSearchParams(window.location.search || "");
+      const q = (params.get("q") || "").trim();
+      return q || null;
+    } catch {
+      return null;
+    }
   }
 
   // ---------- Loading data ----------
   async function loadThreads() {
     try {
+      const pageCategory = getPageCategoryFilter();
+      const searchTerm = getSearchTerm();
+
       let query = supabase
         .from("threadtalk_threads")
         .select("id, author_id, category, title, body, media_url, media_type, created_at, is_deleted")
-        .eq("is_deleted", false)
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .eq("is_deleted", false);
 
-      if (activeCategory) {
-        query = query.eq("category", activeCategory);
+      if (pageCategory) {
+        query = query.eq("category", pageCategory);
       }
 
-      const { data: threadRows, error: threadErr } = await query;
+      if (searchTerm) {
+        // simple ilike on title or body
+        const pattern = `%${searchTerm}%`;
+        query = query.or(
+          `title.ilike.${pattern},body.ilike.${pattern}`
+        );
+      }
+
+      const { data: threadRows, error: threadErr } = await query
+        .order("created_at", { ascending: false })
+        .limit(50);
 
       if (threadErr) {
         console.error("[ThreadTalk] loadThreads error", threadErr);
@@ -246,19 +264,9 @@
   // ---------- Rendering ----------
   function renderThreads() {
     cardsEl.innerHTML = "";
+    if (emptyStateEl) emptyStateEl.style.display = threads.length ? "none" : "block";
 
-    // Apply search filter (title + body, case-insensitive)
-    const filteredThreads = threads.filter((t) => {
-      if (!activeSearch) return true;
-      const hay = ((t.title || "") + " " + (t.body || "")).toLowerCase();
-      return hay.includes(activeSearch);
-    });
-
-    if (emptyStateEl) {
-      emptyStateEl.style.display = filteredThreads.length ? "none" : "block";
-    }
-
-    filteredThreads.forEach((thread) => {
+    threads.forEach((thread) => {
       const card = document.createElement("article");
       card.className = "card";
       card.dataset.threadId = String(thread.id);
@@ -282,8 +290,8 @@
                   data-tt-role="react"
                   data-reaction="${r.key}"
                   type="button">
-            <span class="tt-react-emoji">${r.emoji}</span>
-            <span class="tt-react-count">${count}</span>
+            <span>${r.emoji}</span>
+            <span>${count}</span>
           </button>
         `;
       }).join("");
@@ -291,17 +299,36 @@
       const commentsHtml = comments.map((c) => {
         const name = displayNameForUserId(c.author_id);
         const ts = timeAgo(c.created_at);
-        const mineComment = currentUser && c.author_id === currentUser.id;
-        const deleteHtml = mineComment
-          ? `<button class="tt-comment-delete" type="button" data-tt-role="delete-comment">Delete</button>`
+        const isMine = currentUser && c.author_id === currentUser.id;
+
+        const commentMenuHtml = isMine
+          ? `
+            <div class="tt-comment-menu">
+              <button class="tt-comment-menu-btn"
+                      type="button"
+                      data-tt-role="comment-menu">
+                ···
+              </button>
+              <div class="tt-comment-menu-pop"
+                   data-tt-role="comment-menu-pop"
+                   hidden>
+                <button class="tt-comment-menu-item danger"
+                        type="button"
+                        data-tt-role="delete-comment">
+                  Delete
+                </button>
+              </div>
+            </div>
+          `
           : "";
+
         return `
           <div class="tt-comment" data-comment-id="${c.id}">
-            <div class="tt-comment-head">
-              <span class="tt-comment-author">${escapeHtml(name)}</span>
-              <span class="tt-comment-dot">•</span>
-              <span class="tt-comment-time">${ts}</span>
-              ${deleteHtml}
+            <div class="tt-comment-headline">
+              <div class="tt-comment-head">
+                ${escapeHtml(name)} • ${ts}
+              </div>
+              ${commentMenuHtml}
             </div>
             <div class="tt-comment-body">${escapeHtml(c.body)}</div>
           </div>
@@ -346,12 +373,12 @@
         <div class="actions">
           <div class="tt-react-row">
             ${reactionsHtml}
-            <button class="tt-respond-btn"
+            <button class="tt-react tt-respond-btn"
                     type="button"
                     data-tt-role="respond">
               Respond
             </button>
-            <button class="tt-flag-btn"
+            <button class="tt-react tt-flag-btn"
                     type="button"
                     data-tt-role="flag-thread">
               🚩 <span>Flag</span>
@@ -415,12 +442,8 @@
       e.preventDefault();
       let body = (textArea.value || "").trim();
       let title = (titleInput && titleInput.value || "").trim();
-      let cat = (categorySelect && categorySelect.value || "").trim();
-
-      // On category pages, default to that category.
-      if (!cat) {
-        cat = activeCategory || "loose-threads";
-      }
+      let cat = (categorySelect.value || "").trim();
+      if (!cat) cat = "loose-threads";
 
       const hasMedia = !!(photoInput?.files?.[0] || videoInput?.files?.[0]);
 
@@ -438,7 +461,7 @@
       const ok = await ensureLoggedInFor("post in ThreadTalk");
       if (!ok) return;
 
-      postBtn && (postBtn.disabled = true);
+      postBtn.disabled = true;
 
       try {
         const mediaInfo = await maybeUploadComposerMedia();
@@ -480,7 +503,7 @@
         console.error("[ThreadTalk] post exception", err);
         showToast("Could not post.");
       } finally {
-        if (postBtn) postBtn.disabled = false;
+        postBtn.disabled = false;
       }
     });
   }
@@ -572,7 +595,7 @@
     if (videoInput) videoInput.value = "";
   }
 
-  // ---------- Card interactions (reactions / comments / menu / flag) ----------
+  // ---------- Card interactions (reactions / comments / menus / flag) ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
 
@@ -586,11 +609,11 @@
       if (!role) return;
 
       const card = target.closest(".card");
-      const threadId = card ? Number(card.dataset.threadId) : null;
+      if (!card) return;
+      const threadId = Number(card.dataset.threadId);
 
       switch (role) {
         case "react": {
-          if (!threadId) return;
           const btn = target.closest("[data-reaction]");
           if (!btn) return;
           const type = btn.dataset.reaction;
@@ -598,35 +621,33 @@
           break;
         }
         case "send-comment":
-          if (!threadId) return;
           await handleSendComment(card, threadId);
           break;
         case "menu":
-          if (!card) return;
           toggleMenu(card);
           break;
         case "edit-thread":
-          if (!card || !threadId) return;
           await handleEditThread(card, threadId);
           break;
         case "delete-thread":
-          if (!threadId) return;
           await handleDeleteThread(threadId);
           break;
         case "flag-thread":
-          if (!threadId) return;
           await handleFlagThread(threadId);
           break;
         case "respond":
-          if (!card) return;
           focusCommentBox(card);
           break;
+        case "comment-menu": {
+          const commentEl = target.closest(".tt-comment");
+          if (commentEl) toggleCommentMenu(commentEl);
+          break;
+        }
         case "delete-comment": {
           const commentEl = target.closest(".tt-comment");
           if (!commentEl) return;
           const commentId = commentEl.dataset.commentId;
-          if (!commentId) return;
-          await handleDeleteComment(commentId);
+          await handleDeleteComment(threadId, commentId);
           break;
         }
         default:
@@ -735,36 +756,6 @@
     }
   }
 
-  async function handleDeleteComment(commentId) {
-    const ok = await ensureLoggedInFor("delete your comment");
-    if (!ok) return;
-
-    const confirmOk = window.confirm("Delete this comment?");
-    if (!confirmOk) return;
-
-    try {
-      const { error } = await supabase
-        .from("threadtalk_comments")
-        .update({
-          is_deleted: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", commentId)
-        .eq("author_id", currentUser.id);
-
-      if (error) {
-        console.error("[ThreadTalk] delete comment error", error);
-        showToast("Could not delete comment.");
-        return;
-      }
-
-      await loadThreads();
-    } catch (err) {
-      console.error("[ThreadTalk] handleDeleteComment exception", err);
-      showToast("Could not delete comment.");
-    }
-  }
-
   function focusCommentBox(card) {
     const input = card.querySelector(".tt-comment-input");
     if (!input) return;
@@ -774,6 +765,14 @@
 
   function toggleMenu(card) {
     const pop = card.querySelector('[data-tt-role="menu-pop"]');
+    if (!pop) return;
+    const hidden = pop.hasAttribute("hidden");
+    if (hidden) pop.removeAttribute("hidden");
+    else pop.setAttribute("hidden", "true");
+  }
+
+  function toggleCommentMenu(commentEl) {
+    const pop = commentEl.querySelector('[data-tt-role="comment-menu-pop"]');
     if (!pop) return;
     const hidden = pop.hasAttribute("hidden");
     if (hidden) pop.removeAttribute("hidden");
@@ -870,6 +869,35 @@
     }
   }
 
+  async function handleDeleteComment(threadId, commentId) {
+    if (!currentUser) {
+      showToast("Please sign in to delete your comment.");
+      return;
+    }
+
+    const ok = confirm("Delete this comment?");
+    if (!ok) return;
+
+    try {
+      const { error } = await supabase
+        .from("threadtalk_comments")
+        .update({ is_deleted: true, updated_at: new Date().toISOString() })
+        .eq("id", commentId)
+        .eq("author_id", currentUser.id);
+
+      if (error) {
+        console.error("[ThreadTalk] delete comment error", error);
+        showToast("Could not delete comment.");
+        return;
+      }
+
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleDeleteComment exception", err);
+      showToast("Could not delete comment.");
+    }
+  }
+
   async function handleFlagThread(threadId) {
     const okLoggedIn = await ensureLoggedInFor("flag posts");
     if (!okLoggedIn) return;
@@ -898,36 +926,6 @@
       console.error("[ThreadTalk] handleFlagThread exception", err);
       showToast("Could not flag post.");
     }
-  }
-
-  // ---------- Search ----------
-  function injectSearchBar() {
-    if (!cardsEl) return;
-    const wrapper = document.createElement("div");
-    wrapper.className = "tt-search-wrap";
-    wrapper.innerHTML = `
-      <input id="ttSearchInput"
-             class="tt-search-input"
-             type="search"
-             placeholder="Search ThreadTalk (titles & posts)…"
-             autocomplete="off">
-    `;
-    cardsEl.parentNode.insertBefore(wrapper, cardsEl);
-    searchInputEl = wrapper.querySelector("#ttSearchInput");
-  }
-
-  function wireSearch() {
-    if (!searchInputEl) return;
-
-    let debounceTimer = null;
-    searchInputEl.addEventListener("input", () => {
-      const value = (searchInputEl.value || "").trim().toLowerCase();
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        activeSearch = value;
-        renderThreads();
-      }, 150);
-    });
   }
 
   // ---------- Utilities ----------
@@ -982,6 +980,7 @@
       return `${h} hour${h === 1 ? "" : "s"} ago`;
     }
 
+    // e.g. "Nov 26, 2025, 8:47 PM"
     return then.toLocaleString(undefined, {
       year: "numeric",
       month: "short",
@@ -991,161 +990,34 @@
     });
   }
 
-  // Inject CSS for compact, “Apple-y” UI
+  // Inject small CSS overrides to keep posts compact
   function injectCompactStyles() {
     const css = `
-      .card{
-        padding:10px 14px;
-        margin-bottom:8px;
-      }
-      .tt-head{
-        display:flex;
-        flex-direction:column;
-        gap:2px;
-        margin-bottom:2px;
-      }
-      .tt-line1{
-        display:flex;
-        flex-wrap:wrap;
-        gap:6px;
-        align-items:baseline;
-        font-size:14px;
-      }
-      .tt-line2{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        font-size:12px;
-        color:var(--muted);
-      }
-      .tt-line2-main{
-        display:flex;
-        align-items:center;
-        gap:4px;
-      }
-      .tt-title{
-        font-weight:600;
-        color:#3f2f2a;
-      }
-      .preview{
-        margin:4px 0;
-        font-size:14px;
-      }
-      .post-img,
-      .post-video{
-        margin:4px 0 2px;
-        max-height:320px;
-        width:100%;
-        object-fit:contain;
-        border-radius:10px;
-      }
-      .actions{
-        margin-top:2px;
-      }
-      .tt-react-row{
-        display:flex;
-        align-items:center;
-        gap:6px;
-        flex-wrap:wrap;
-        font-size:12px;
-      }
-      .tt-react{
-        display:inline-flex;
-        align-items:center;
-        gap:3px;
-        padding:2px 6px;
-        border-radius:999px;
-        border:1px solid var(--border);
-        background:#fff;
-        cursor:pointer;
-      }
-      .tt-react-emoji{
-        line-height:1;
-      }
-      .tt-react-count{
-        min-width:0.9em;
-        text-align:center;
-      }
-      .tt-react-active{
-        border-color:var(--hm-accent);
-        box-shadow:0 0 0 1px rgba(153,27,27,.08);
-      }
-      .tt-respond-btn,
-      .tt-flag-btn{
-        background:none;
-        border:none;
-        padding:0 4px;
-        font-size:12px;
-        color:#6b7280;
-        cursor:pointer;
-      }
-      .tt-respond-btn:hover,
-      .tt-flag-btn:hover{
-        color:#111827;
-        text-decoration:underline;
-      }
-      .tt-comments{
-        margin-top:6px;
-        display:flex;
-        flex-direction:column;
-        gap:6px;
-      }
-      .tt-comment{
-        padding:4px 8px;
-      }
-      .tt-comment-head{
-        display:flex;
-        align-items:center;
-        gap:4px;
-        font-size:12px;
-        color:#6b7280;
-      }
-      .tt-comment-author{
-        font-weight:500;
-        color:#111827;
-      }
-      .tt-comment-delete{
-        margin-left:auto;
-        border:none;
-        background:none;
-        font-size:11px;
-        color:#b91c1c;
-        cursor:pointer;
-      }
-      .tt-comment-body{
-        font-size:13px;
-        margin-top:2px;
-      }
-      .tt-comment-input{
-        width:100%;
-        padding:6px 8px;
-        font-size:13px;
-      }
-      .tt-comment-send{
-        padding:6px 12px;
-        font-size:13px;
-      }
-      .tt-menu-btn{
-        padding:2px 6px;
-        font-size:14px;
-      }
-      .tt-search-wrap{
-        margin:8px 14px 4px;
-      }
-      .tt-search-input{
-        width:100%;
-        padding:6px 10px;
-        border-radius:999px;
-        border:1px solid var(--border);
-        font-size:13px;
-        background-color:#f9fafb;
-      }
-      .tt-search-input:focus{
-        outline:none;
-        border-color:var(--hm-accent,#991b1b);
-        box-shadow:0 0 0 1px rgba(153,27,27,.09);
-        background-color:#ffffff;
-      }
+      .card{padding:12px 14px;margin-bottom:8px;}
+      .preview{margin-bottom:4px;font-size:14px;}
+      .tt-head{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
+      .tt-line1{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:14px;}
+      .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
+      .tt-line2-main{display:flex;align-items:center;gap:4px;}
+      .tt-title{font-weight:600;color:#3f2f2a;}
+      .tt-react-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:2px;}
+      .tt-react{padding:2px 6px;font-size:12px;border-radius:999px;border:1px solid var(--border);background:#fff;}
+      .tt-react span+span{margin-left:4px;}
+      .tt-react-active{background:#fee2e2;border-color:#fecaca;}
+      .tt-respond-btn{margin-left:4px;}
+      .tt-comments{margin-top:6px;gap:6px;}
+      .tt-comment{position:relative;padding:4px 0;}
+      .tt-comment-headline{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
+      .tt-comment-head{display:flex;align-items:center;gap:4px;}
+      .tt-comment-body{margin-top:2px;font-size:13px;}
+      .tt-comment-menu-btn{border:none;background:transparent;cursor:pointer;font-size:14px;padding:2px 4px;color:var(--muted);}
+      .tt-comment-menu-pop{position:absolute;right:0;margin-top:4px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 20px rgba(15,23,42,.12);padding:4px 0;z-index:20;}
+      .tt-comment-menu-item{display:block;width:100%;padding:6px 12px;text-align:left;font-size:13px;border:none;background:#fff;cursor:pointer;}
+      .tt-comment-menu-item.danger{color:#b91c1c;}
+      .tt-comment-input{padding:6px 8px;font-size:13px;}
+      .tt-comment-send{padding:6px 12px;font-size:13px;}
+      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:420px;}
+      .tt-menu-btn{padding:2px 6px;font-size:14px;}
     `;
     const style = document.createElement("style");
     style.textContent = css;
