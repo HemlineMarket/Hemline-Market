@@ -26,8 +26,11 @@
   const mediaPreview = document.getElementById("mediaPreview");
   const postBtn = document.getElementById("postBtn");
 
+  // search bar will be created by JS
+  let searchInputEl = null;
+
   // ---------- Constants ----------
-  const STORAGE_BUCKET = "threadtalk-media"; // create this bucket in Supabase → Storage
+  const STORAGE_BUCKET = "threadtalk-media"; // Supabase storage bucket
 
   const CATEGORY_LABELS = {
     "showcase": "Showcase",
@@ -62,20 +65,35 @@
   // ---------- State ----------
   let currentUser = null;     // auth.users row (id, email, etc.)
   const profilesCache = {};   // userId -> profile
-  let threads = [];           // array of thread rows
+  let threads = [];           // raw threads from DB
   let commentsByThread = {};  // threadId -> [comments]
   let reactionsByThread = {}; // threadId -> [reactions]
+
+  // derived state
+  const activeCategory = detectCategoryFromPath(); // null for "all"
+  let activeSearch = ""; // lowercase search term
 
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     injectCompactStyles();
+    injectSearchBar();
     await refreshCurrentUser();
     wireComposer();
     wireMediaInputs();
     wireCardDelegates();
+    wireSearch();
     await loadThreads();
+  }
+
+  // Detect category page from URL (e.g. /showcase.html)
+  function detectCategoryFromPath() {
+    const page = (window.location.pathname.split("/").pop() || "").toLowerCase();
+    const match = Object.entries(CATEGORY_LINKS).find(
+      ([slug, file]) => file.toLowerCase() === page
+    );
+    return match ? match[0] : null; // slug or null
   }
 
   // ---------- Auth / Profile helpers ----------
@@ -144,19 +162,24 @@
         if (combo) return combo;
       }
     }
-    // Do NOT fall back to auth full_name to avoid government names.
     return "Unknown member";
   }
 
   // ---------- Loading data ----------
   async function loadThreads() {
     try {
-      const { data: threadRows, error: threadErr } = await supabase
+      let query = supabase
         .from("threadtalk_threads")
         .select("id, author_id, category, title, body, media_url, media_type, created_at, is_deleted")
         .eq("is_deleted", false)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
+
+      if (activeCategory) {
+        query = query.eq("category", activeCategory);
+      }
+
+      const { data: threadRows, error: threadErr } = await query;
 
       if (threadErr) {
         console.error("[ThreadTalk] loadThreads error", threadErr);
@@ -223,9 +246,19 @@
   // ---------- Rendering ----------
   function renderThreads() {
     cardsEl.innerHTML = "";
-    if (emptyStateEl) emptyStateEl.style.display = threads.length ? "none" : "block";
 
-    threads.forEach((thread) => {
+    // Apply search filter (title + body, case-insensitive)
+    const filteredThreads = threads.filter((t) => {
+      if (!activeSearch) return true;
+      const hay = ((t.title || "") + " " + (t.body || "")).toLowerCase();
+      return hay.includes(activeSearch);
+    });
+
+    if (emptyStateEl) {
+      emptyStateEl.style.display = filteredThreads.length ? "none" : "block";
+    }
+
+    filteredThreads.forEach((thread) => {
       const card = document.createElement("article");
       card.className = "card";
       card.dataset.threadId = String(thread.id);
@@ -258,9 +291,18 @@
       const commentsHtml = comments.map((c) => {
         const name = displayNameForUserId(c.author_id);
         const ts = timeAgo(c.created_at);
+        const mineComment = currentUser && c.author_id === currentUser.id;
+        const deleteHtml = mineComment
+          ? `<button class="tt-comment-delete" type="button" data-tt-role="delete-comment">Delete</button>`
+          : "";
         return `
           <div class="tt-comment" data-comment-id="${c.id}">
-            <div class="tt-comment-head">${escapeHtml(name)} • ${ts}</div>
+            <div class="tt-comment-head">
+              <span class="tt-comment-author">${escapeHtml(name)}</span>
+              <span class="tt-comment-dot">•</span>
+              <span class="tt-comment-time">${ts}</span>
+              ${deleteHtml}
+            </div>
             <div class="tt-comment-body">${escapeHtml(c.body)}</div>
           </div>
         `;
@@ -373,8 +415,12 @@
       e.preventDefault();
       let body = (textArea.value || "").trim();
       let title = (titleInput && titleInput.value || "").trim();
-      let cat = (categorySelect.value || "").trim();
-      if (!cat) cat = "loose-threads";
+      let cat = (categorySelect && categorySelect.value || "").trim();
+
+      // On category pages, default to that category.
+      if (!cat) {
+        cat = activeCategory || "loose-threads";
+      }
 
       const hasMedia = !!(photoInput?.files?.[0] || videoInput?.files?.[0]);
 
@@ -392,7 +438,7 @@
       const ok = await ensureLoggedInFor("post in ThreadTalk");
       if (!ok) return;
 
-      postBtn.disabled = true;
+      postBtn && (postBtn.disabled = true);
 
       try {
         const mediaInfo = await maybeUploadComposerMedia();
@@ -434,7 +480,7 @@
         console.error("[ThreadTalk] post exception", err);
         showToast("Could not post.");
       } finally {
-        postBtn.disabled = false;
+        if (postBtn) postBtn.disabled = false;
       }
     });
   }
@@ -540,11 +586,11 @@
       if (!role) return;
 
       const card = target.closest(".card");
-      if (!card) return;
-      const threadId = Number(card.dataset.threadId);
+      const threadId = card ? Number(card.dataset.threadId) : null;
 
       switch (role) {
         case "react": {
+          if (!threadId) return;
           const btn = target.closest("[data-reaction]");
           if (!btn) return;
           const type = btn.dataset.reaction;
@@ -552,23 +598,37 @@
           break;
         }
         case "send-comment":
+          if (!threadId) return;
           await handleSendComment(card, threadId);
           break;
         case "menu":
+          if (!card) return;
           toggleMenu(card);
           break;
         case "edit-thread":
+          if (!card || !threadId) return;
           await handleEditThread(card, threadId);
           break;
         case "delete-thread":
+          if (!threadId) return;
           await handleDeleteThread(threadId);
           break;
         case "flag-thread":
+          if (!threadId) return;
           await handleFlagThread(threadId);
           break;
         case "respond":
+          if (!card) return;
           focusCommentBox(card);
           break;
+        case "delete-comment": {
+          const commentEl = target.closest(".tt-comment");
+          if (!commentEl) return;
+          const commentId = commentEl.dataset.commentId;
+          if (!commentId) return;
+          await handleDeleteComment(commentId);
+          break;
+        }
         default:
           break;
       }
@@ -672,6 +732,36 @@
     } catch (err) {
       console.error("[ThreadTalk] handleSendComment exception", err);
       showToast("Could not post comment.");
+    }
+  }
+
+  async function handleDeleteComment(commentId) {
+    const ok = await ensureLoggedInFor("delete your comment");
+    if (!ok) return;
+
+    const confirmOk = window.confirm("Delete this comment?");
+    if (!confirmOk) return;
+
+    try {
+      const { error } = await supabase
+        .from("threadtalk_comments")
+        .update({
+          is_deleted: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", commentId)
+        .eq("author_id", currentUser.id);
+
+      if (error) {
+        console.error("[ThreadTalk] delete comment error", error);
+        showToast("Could not delete comment.");
+        return;
+      }
+
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleDeleteComment exception", err);
+      showToast("Could not delete comment.");
     }
   }
 
@@ -810,6 +900,36 @@
     }
   }
 
+  // ---------- Search ----------
+  function injectSearchBar() {
+    if (!cardsEl) return;
+    const wrapper = document.createElement("div");
+    wrapper.className = "tt-search-wrap";
+    wrapper.innerHTML = `
+      <input id="ttSearchInput"
+             class="tt-search-input"
+             type="search"
+             placeholder="Search ThreadTalk (titles & posts)…"
+             autocomplete="off">
+    `;
+    cardsEl.parentNode.insertBefore(wrapper, cardsEl);
+    searchInputEl = wrapper.querySelector("#ttSearchInput");
+  }
+
+  function wireSearch() {
+    if (!searchInputEl) return;
+
+    let debounceTimer = null;
+    searchInputEl.addEventListener("input", () => {
+      const value = (searchInputEl.value || "").trim().toLowerCase();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        activeSearch = value;
+        renderThreads();
+      }, 150);
+    });
+  }
+
   // ---------- Utilities ----------
   function makeToastElement() {
     const el = document.createElement("div");
@@ -862,7 +982,6 @@
       return `${h} hour${h === 1 ? "" : "s"} ago`;
     }
 
-    // e.g. "Nov 26, 2025, 8:47 PM"
     return then.toLocaleString(undefined, {
       year: "numeric",
       month: "short",
@@ -872,7 +991,7 @@
     });
   }
 
-  // Inject small CSS overrides to keep posts compact / “Facebook-y”
+  // Inject CSS for compact, “Apple-y” UI
   function injectCompactStyles() {
     const css = `
       .card{
@@ -974,7 +1093,31 @@
       .tt-comment{
         padding:4px 8px;
       }
+      .tt-comment-head{
+        display:flex;
+        align-items:center;
+        gap:4px;
+        font-size:12px;
+        color:#6b7280;
+      }
+      .tt-comment-author{
+        font-weight:500;
+        color:#111827;
+      }
+      .tt-comment-delete{
+        margin-left:auto;
+        border:none;
+        background:none;
+        font-size:11px;
+        color:#b91c1c;
+        cursor:pointer;
+      }
+      .tt-comment-body{
+        font-size:13px;
+        margin-top:2px;
+      }
       .tt-comment-input{
+        width:100%;
         padding:6px 8px;
         font-size:13px;
       }
@@ -985,6 +1128,23 @@
       .tt-menu-btn{
         padding:2px 6px;
         font-size:14px;
+      }
+      .tt-search-wrap{
+        margin:8px 14px 4px;
+      }
+      .tt-search-input{
+        width:100%;
+        padding:6px 10px;
+        border-radius:999px;
+        border:1px solid var(--border);
+        font-size:13px;
+        background-color:#f9fafb;
+      }
+      .tt-search-input:focus{
+        outline:none;
+        border-color:var(--hm-accent,#991b1b);
+        box-shadow:0 0 0 1px rgba(153,27,27,.09);
+        background-color:#ffffff;
       }
     `;
     const style = document.createElement("style");
