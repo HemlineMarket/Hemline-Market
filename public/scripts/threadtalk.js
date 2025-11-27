@@ -148,54 +148,13 @@
     return "Unknown member";
   }
 
-  // ---------- Helpers: category + search ----------
-  function getPageCategoryFilter() {
-    const path = (window.location.pathname || "").toLowerCase();
-    if (path.includes("showcase.html")) return "showcase";
-    if (path.includes("tailoring.html")) return "tailoring";
-    if (path.includes("stitch-school.html")) return "stitch-school";
-    if (path.includes("fabric-sos.html")) return "fabric-sos";
-    if (path.includes("before-after.html")) return "before-after";
-    if (path.includes("pattern-hacks.html")) return "pattern-hacks";
-    if (path.includes("stash-confessions.html")) return "stash-confessions";
-    if (path.includes("loose-threads.html")) return "loose-threads";
-    return null; // main ThreadTalk page shows all categories
-  }
-
-  function getSearchTerm() {
-    try {
-      const params = new URLSearchParams(window.location.search || "");
-      const q = (params.get("q") || "").trim();
-      return q || null;
-    } catch {
-      return null;
-    }
-  }
-
   // ---------- Loading data ----------
   async function loadThreads() {
     try {
-      const pageCategory = getPageCategoryFilter();
-      const searchTerm = getSearchTerm();
-
-      let query = supabase
+      const { data: threadRows, error: threadErr } = await supabase
         .from("threadtalk_threads")
         .select("id, author_id, category, title, body, media_url, media_type, created_at, is_deleted")
-        .eq("is_deleted", false);
-
-      if (pageCategory) {
-        query = query.eq("category", pageCategory);
-      }
-
-      if (searchTerm) {
-        // simple ilike on title or body
-        const pattern = `%${searchTerm}%`;
-        query = query.or(
-          `title.ilike.${pattern},body.ilike.${pattern}`
-        );
-      }
-
-      const { data: threadRows, error: threadErr } = await query
+        .eq("is_deleted", false)
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -299,37 +258,9 @@
       const commentsHtml = comments.map((c) => {
         const name = displayNameForUserId(c.author_id);
         const ts = timeAgo(c.created_at);
-        const isMine = currentUser && c.author_id === currentUser.id;
-
-        const commentMenuHtml = isMine
-          ? `
-            <div class="tt-comment-menu">
-              <button class="tt-comment-menu-btn"
-                      type="button"
-                      data-tt-role="comment-menu">
-                ···
-              </button>
-              <div class="tt-comment-menu-pop"
-                   data-tt-role="comment-menu-pop"
-                   hidden>
-                <button class="tt-comment-menu-item danger"
-                        type="button"
-                        data-tt-role="delete-comment">
-                  Delete
-                </button>
-              </div>
-            </div>
-          `
-          : "";
-
         return `
           <div class="tt-comment" data-comment-id="${c.id}">
-            <div class="tt-comment-headline">
-              <div class="tt-comment-head">
-                ${escapeHtml(name)} • ${ts}
-              </div>
-              ${commentMenuHtml}
-            </div>
+            <div class="tt-comment-head">${escapeHtml(name)} • ${ts}</div>
             <div class="tt-comment-body">${escapeHtml(c.body)}</div>
           </div>
         `;
@@ -595,7 +526,7 @@
     if (videoInput) videoInput.value = "";
   }
 
-  // ---------- Card interactions (reactions / comments / menus / flag) ----------
+  // ---------- Card interactions (reactions / comments / menu / flag) ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
 
@@ -638,18 +569,6 @@
         case "respond":
           focusCommentBox(card);
           break;
-        case "comment-menu": {
-          const commentEl = target.closest(".tt-comment");
-          if (commentEl) toggleCommentMenu(commentEl);
-          break;
-        }
-        case "delete-comment": {
-          const commentEl = target.closest(".tt-comment");
-          if (!commentEl) return;
-          const commentId = commentEl.dataset.commentId;
-          await handleDeleteComment(threadId, commentId);
-          break;
-        }
         default:
           break;
       }
@@ -771,14 +690,6 @@
     else pop.setAttribute("hidden", "true");
   }
 
-  function toggleCommentMenu(commentEl) {
-    const pop = commentEl.querySelector('[data-tt-role="comment-menu-pop"]');
-    if (!pop) return;
-    const hidden = pop.hasAttribute("hidden");
-    if (hidden) pop.removeAttribute("hidden");
-    else pop.setAttribute("hidden", "true");
-  }
-
   async function handleEditThread(card, threadId) {
     const thread = threads.find((t) => t.id === threadId);
     if (!thread) return;
@@ -866,35 +777,6 @@
     } catch (err) {
       console.error("[ThreadTalk] handleDeleteThread exception", err);
       showToast("Could not delete post.");
-    }
-  }
-
-  async function handleDeleteComment(threadId, commentId) {
-    if (!currentUser) {
-      showToast("Please sign in to delete your comment.");
-      return;
-    }
-
-    const ok = confirm("Delete this comment?");
-    if (!ok) return;
-
-    try {
-      const { error } = await supabase
-        .from("threadtalk_comments")
-        .update({ is_deleted: true, updated_at: new Date().toISOString() })
-        .eq("id", commentId)
-        .eq("author_id", currentUser.id);
-
-      if (error) {
-        console.error("[ThreadTalk] delete comment error", error);
-        showToast("Could not delete comment.");
-        return;
-      }
-
-      await loadThreads();
-    } catch (err) {
-      console.error("[ThreadTalk] handleDeleteComment exception", err);
-      showToast("Could not delete comment.");
     }
   }
 
@@ -1000,23 +882,23 @@
       .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
       .tt-line2-main{display:flex;align-items:center;gap:4px;}
       .tt-title{font-weight:600;color:#3f2f2a;}
-      .tt-react-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:2px;}
+      .tt-react-row{gap:4px;flex-wrap:wrap;margin-top:2px;}
       .tt-react{padding:2px 6px;font-size:12px;border-radius:999px;border:1px solid var(--border);background:#fff;}
       .tt-react span+span{margin-left:4px;}
-      .tt-react-active{background:#fee2e2;border-color:#fecaca;}
       .tt-respond-btn{margin-left:4px;}
       .tt-comments{margin-top:6px;gap:6px;}
-      .tt-comment{position:relative;padding:4px 0;}
-      .tt-comment-headline{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
-      .tt-comment-head{display:flex;align-items:center;gap:4px;}
-      .tt-comment-body{margin-top:2px;font-size:13px;}
-      .tt-comment-menu-btn{border:none;background:transparent;cursor:pointer;font-size:14px;padding:2px 4px;color:var(--muted);}
-      .tt-comment-menu-pop{position:absolute;right:0;margin-top:4px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 20px rgba(15,23,42,.12);padding:4px 0;z-index:20;}
-      .tt-comment-menu-item{display:block;width:100%;padding:6px 12px;text-align:left;font-size:13px;border:none;background:#fff;cursor:pointer;}
-      .tt-comment-menu-item.danger{color:#b91c1c;}
+      .tt-comment{padding:6px 8px;}
       .tt-comment-input{padding:6px 8px;font-size:13px;}
       .tt-comment-send{padding:6px 12px;font-size:13px;}
-      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:420px;}
+      .post-img,.post-video{
+        margin-top:4px;
+        margin-bottom:4px;
+        max-height:260px;
+        width:auto;
+        max-width:100%;
+        object-fit:contain;
+        border-radius:8px;
+      }
       .tt-menu-btn{padding:2px 6px;font-size:14px;}
     `;
     const style = document.createElement("style");
