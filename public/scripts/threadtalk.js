@@ -45,17 +45,17 @@
   };
 
   const REACTION_TYPES = [
-    { key: "like", emoji: "👍" },
-    { key: "love", emoji: "❤️" },
+    { key: "like",  emoji: "👍" },
+    { key: "love",  emoji: "❤️" },
     { key: "laugh", emoji: "😂" },
-    { key: "wow", emoji: "😮" },
-    { key: "cry", emoji: "😢" }
+    { key: "wow",   emoji: "😮" },
+    { key: "cry",   emoji: "😢" }
   ];
 
   // ---------- State ----------
-  let currentUser = null;     // auth.users row (id, email, etc.)
+  let currentUser = null;     // auth user
   const profilesCache = {};   // userId -> profile
-  let threads = [];           // array of thread rows
+  let threads = [];           // thread rows
   let commentsByThread = {};  // threadId -> [comments]
   let reactionsByThread = {}; // threadId -> [reactions]
 
@@ -73,13 +73,19 @@
   // ---------- Auth / Profile helpers ----------
   async function refreshCurrentUser() {
     try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        console.warn("[ThreadTalk] getUser error", error);
-        currentUser = null;
-        return;
+      // 1) Prefer the session the header already knows about
+      if (HM.session && HM.session.user) {
+        currentUser = HM.session.user;
+      } else {
+        // 2) Fall back to Supabase directly
+        const { data, error } = await supabase.auth.getUser();
+        if (error) {
+          console.warn("[ThreadTalk] getUser error", error);
+          currentUser = null;
+        } else {
+          currentUser = data?.user || null;
+        }
       }
-      currentUser = data?.user || null;
 
       if (currentUser && !profilesCache[currentUser.id]) {
         await loadProfiles([currentUser.id]);
@@ -136,7 +142,7 @@
         if (combo) return combo;
       }
     }
-    // Do NOT fall back to auth full_name to avoid government names.
+    // Never fall back to auth full_name/government name.
     return "Unknown member";
   }
 
@@ -231,7 +237,6 @@
       const { counts, mine } = computeReactionState(thread.id);
 
       const comments = commentsByThread[thread.id] || [];
-
       const mediaHtml = renderMedia(thread);
 
       const reactionsHtml = REACTION_TYPES.map((r) => {
@@ -363,7 +368,7 @@
         return;
       }
 
-      const ok = await ensureLoggedInFor("post in ThreadTalk");
+      const ok = await ensureLoggedInFor("post");
       if (!ok) return;
 
       postBtn.disabled = true;
@@ -385,15 +390,13 @@
 
         if (error) {
           console.error("[ThreadTalk] insert error", error);
-          showToast("Could not post. Please try again.");
+          showToast(error.message || "Could not post. Please try again.");
           return;
         }
 
-        // Clear composer (attachments currently preview-only)
         textArea.value = "";
         clearMediaPreview();
 
-        // Prepend new thread and reload related data (reactions/comments)
         threads.unshift(data);
         await loadThreads();
         showToast("Posted");
@@ -505,7 +508,6 @@
 
     try {
       if (already) {
-        // Remove reaction
         const { error } = await supabase
           .from("threadtalk_reactions")
           .delete()
@@ -520,7 +522,6 @@
           return;
         }
       } else {
-        // Add reaction
         const { error } = await supabase
           .from("threadtalk_reactions")
           .insert({
@@ -534,7 +535,7 @@
           return;
         }
       }
-      await loadThreads(); // refresh counts + active states
+      await loadThreads();
     } catch (err) {
       console.error("[ThreadTalk] handleReaction exception", err);
       showToast("Could not update reaction.");
@@ -564,7 +565,7 @@
 
       if (error) {
         console.error("[ThreadTalk] comment insert error", error);
-        showToast("Could not post comment.");
+        showToast(error.message || "Could not post comment.");
         return;
       }
 
@@ -741,7 +742,7 @@
     if (!iso) return "";
     const then = new Date(iso);
     const now = new Date();
-    const diff = (now - then) / 1000; // seconds
+    const diff = (now - then) / 1000;
 
     if (diff < 60) return "just now";
     if (diff < 3600) {
