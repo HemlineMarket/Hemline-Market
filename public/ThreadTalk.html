@@ -327,11 +327,14 @@
 
     /* Topics */
     .topics{margin-top:22px}
+
+    /* Force a tidy 4x4 grid on desktop */
     .topics-grid{
       display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+      grid-template-columns:repeat(4,minmax(0,1fr));
       gap:16px;
     }
+
     .topic{
       position:relative;
       overflow:hidden;
@@ -401,10 +404,18 @@
     .meta{
       display:flex;
       align-items:center;
+      justify-content:space-between;
       gap:8px;
       color:var(--muted);
       font-size:13px;
       margin-bottom:6px;
+      flex-wrap:wrap;
+    }
+    .meta-main{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:wrap;
     }
     /* Never show avatars on ThreadTalk cards */
     .avatar{
@@ -465,6 +476,10 @@
       display:inline-block;
       text-align:center;
     }
+    .tt-react-active{
+      border-color:var(--hm-accent);
+      box-shadow:0 0 0 1px rgba(153,27,27,.08);
+    }
 
     .tt-comments{
       margin-top:10px;
@@ -519,6 +534,7 @@
       border-radius:10px;
       box-shadow:0 8px 18px rgba(0,0,0,.08);
       display:grid;
+      z-index:10;
     }
     .tt-menu-item{
       padding:8px 12px;
@@ -570,6 +586,7 @@
       opacity:0;
       pointer-events:none;
       transition:opacity .2s;
+      z-index:200;
     }
     .toast.show{opacity:1}
 
@@ -578,6 +595,13 @@
       outline:3px solid rgba(153,27,27,.35);
       outline-offset:2px;
       border-radius:10px;
+    }
+
+    /* Tablet: 2 columns for topics */
+    @media (max-width:900px){
+      .topics-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
     }
 
     /* Mobile refinements */
@@ -742,30 +766,9 @@
 
   <!-- Supabase JS (same as index.html) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Shared shell: universal header/footer + menu + header session -->
+  <!-- Shared shell: universal header/footer + menu + header session + HM.supabase -->
   <script src="scripts/hm-shell.js"></script>
-
-  <!-- Make sure HM.supabase exists for ThreadTalk -->
-  <script>
-    window.HM = window.HM || {};
-    (function () {
-      const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
-      const SUPABASE_ANON_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
-
-      if (!window.HM.supabase && window.supabase) {
-        window.HM.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true
-          }
-        });
-      }
-    })();
-  </script>
-
-  <!-- ThreadTalk logic (uses window.HM.supabase) -->
+  <!-- ThreadTalk logic (Supabase threads + reactions/comments/edit) -->
   <script src="scripts/threadtalk.js"></script>
 
   <script>
