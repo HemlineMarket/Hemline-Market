@@ -27,7 +27,7 @@
   const postBtn = document.getElementById("postBtn");
 
   // ---------- Constants ----------
-  const STORAGE_BUCKET = "threadtalk-media"; // create this bucket in Supabase → Storage
+  const STORAGE_BUCKET = "threadtalk-media"; // Supabase Storage bucket
 
   const CATEGORY_LABELS = {
     "showcase": "Showcase",
@@ -60,11 +60,13 @@
   ];
 
   // ---------- State ----------
-  let currentUser = null;     // auth.users row (id, email, etc.)
-  const profilesCache = {};   // userId -> profile
-  let threads = [];           // array of thread rows
-  let commentsByThread = {};  // threadId -> [comments]
-  let reactionsByThread = {}; // threadId -> [reactions]
+  let currentUser = null;             // auth.users row (id, email, etc.)
+  const profilesCache = {};           // userId -> profile
+  let threads = [];                   // array of thread rows
+  let commentsByThread = {};          // threadId -> [comments]
+  let reactionsByThread = {};         // threadId -> [reactions]
+  let commentReactionsByComment = {}; // commentId -> [reactions]
+  let currentSearchQuery = "";        // reserved for future search UI
 
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", init);
@@ -185,15 +187,17 @@
       }
 
       commentsByThread = {};
-      (commentRows || [])
-        .filter((c) => !c.is_deleted)
-        .forEach((c) => {
-          if (!commentsByThread[c.thread_id]) commentsByThread[c.thread_id] = [];
-          commentsByThread[c.thread_id].push(c);
-          if (c.author_id) authorIds.push(c.author_id);
-        });
+      const aliveComments = (commentRows || []).filter((c) => !c.is_deleted);
 
-      // Load reactions
+      aliveComments.forEach((c) => {
+        if (!commentsByThread[c.thread_id]) commentsByThread[c.thread_id] = [];
+        commentsByThread[c.thread_id].push(c);
+        if (c.author_id) authorIds.push(c.author_id);
+      });
+
+      const commentIds = aliveComments.map((c) => c.id);
+
+      // Load thread reactions
       const { data: reactionRows, error: reactErr } = await supabase
         .from("threadtalk_reactions")
         .select("thread_id, user_id, reaction_type")
@@ -210,6 +214,27 @@
         authorIds.push(r.user_id);
       });
 
+      // Load comment reactions
+      commentReactionsByComment = {};
+      if (commentIds.length) {
+        const { data: commentReactRows, error: crErr } = await supabase
+          .from("threadtalk_comment_reactions")
+          .select("comment_id, user_id, reaction_type")
+          .in("comment_id", commentIds);
+
+        if (crErr) {
+          console.warn("[ThreadTalk] comment reactions load error", crErr);
+        } else {
+          (commentReactRows || []).forEach((r) => {
+            if (!commentReactionsByComment[r.comment_id]) {
+              commentReactionsByComment[r.comment_id] = [];
+            }
+            commentReactionsByComment[r.comment_id].push(r);
+            authorIds.push(r.user_id);
+          });
+        }
+      }
+
       // Load any missing profiles for authors/commenters/reactors
       await loadProfiles(authorIds);
 
@@ -218,6 +243,36 @@
       console.error("[ThreadTalk] loadThreads exception", err);
       showToast("Could not load threads.");
     }
+  }
+
+  // ---------- Reaction state helpers ----------
+  function computeReactionCounts(rows) {
+    const counts = { like: 0, love: 0, laugh: 0, wow: 0, cry: 0 };
+    const mine = { like: false, love: false, laugh: false, wow: false, cry: false };
+    let total = 0;
+
+    (rows || []).forEach((r) => {
+      if (counts[r.reaction_type] != null) {
+        counts[r.reaction_type] += 1;
+        total += 1;
+      }
+      if (currentUser && r.user_id === currentUser.id) {
+        mine[r.reaction_type] = true;
+      }
+    });
+
+    const hasMine = Object.values(mine).some(Boolean);
+    return { counts, mine, total, hasMine };
+  }
+
+  function getThreadReactionState(threadId) {
+    const rows = reactionsByThread[threadId] || [];
+    return computeReactionCounts(rows);
+  }
+
+  function getCommentReactionState(commentId) {
+    const rows = commentReactionsByComment[commentId] || [];
+    return computeReactionCounts(rows);
   }
 
   // ---------- Rendering ----------
@@ -237,37 +292,32 @@
       const when = timeAgo(thread.created_at);
       const title = (thread.title || "").trim();
 
-      const { counts, mine } = computeReactionState(thread.id);
+      const reactState = getThreadReactionState(thread.id);
       const comments = commentsByThread[thread.id] || [];
       const mediaHtml = renderMedia(thread);
 
-      const reactionsHtml = REACTION_TYPES.map((r) => {
-        const activeClass = mine[r.key] ? " tt-react-active" : "";
-        const count = counts[r.key] || 0;
-        return `
-          <button class="tt-react${activeClass}"
-                  data-tt-role="react"
-                  data-reaction="${r.key}"
-                  type="button">
-            <span>${r.emoji}</span>
-            <span>${count}</span>
-          </button>
-        `;
-      }).join("");
+      const likeActiveClass = reactState.hasMine ? " tt-like-active" : "";
+      const likeCountHtml =
+        reactState.total > 0 ? `<span class="tt-like-count">${reactState.total}</span>` : "";
 
-      const commentsHtml = comments.map((c) => {
-        const name = displayNameForUserId(c.author_id);
-        const ts = timeAgo(c.created_at);
-        return `
-          <div class="tt-comment" data-comment-id="${c.id}">
-            <div class="tt-comment-head">${escapeHtml(name)} • ${ts}</div>
-            <div class="tt-comment-body">${escapeHtml(c.body)}</div>
-          </div>
-        `;
-      }).join("");
+      const reactBarHtml = `
+        <div class="tt-react-bar" data-tt-role="react-bar" hidden>
+          ${REACTION_TYPES.map(
+            (r) => `
+            <button class="tt-react-pick"
+                    type="button"
+                    data-tt-role="react"
+                    data-reaction="${r.key}">
+              ${r.emoji}
+            </button>
+          `
+          ).join("")}
+        </div>
+      `;
+
+      const commentsHtml = renderComments(thread.id, comments);
 
       const isMine = currentUser && thread.author_id === currentUser.id;
-
       const menuHtml = isMine
         ? `
           <div class="tt-menu">
@@ -301,21 +351,19 @@
         <div class="preview">${escapeHtml(thread.body)}</div>
         ${mediaHtml}
 
-        <div class="actions">
-          <div class="tt-react-row">
-            ${reactionsHtml}
-            <button class="tt-react tt-respond-btn"
-                    type="button"
-                    data-tt-role="respond">
-              Respond
-            </button>
-            <button class="tt-react tt-flag-btn"
-                    type="button"
-                    data-tt-role="flag-thread">
-              🚩 <span>Flag</span>
-            </button>
-          </div>
+        <div class="tt-actions-row">
+          <button class="tt-like-btn${likeActiveClass}"
+                  type="button"
+                  data-tt-role="toggle-react-bar">
+            🙂 ${likeCountHtml}
+          </button>
+          <button class="tt-respond-link"
+                  type="button"
+                  data-tt-role="respond">
+            Reply
+          </button>
         </div>
+        ${reactBarHtml}
 
         <div class="tt-comments" data-thread="${thread.id}">
           <div class="tt-comments-list">
@@ -339,6 +387,85 @@
     });
   }
 
+  function renderComments(threadId, comments) {
+    if (!comments.length) return "";
+
+    const maxVisible = 2;
+    const pieces = [];
+
+    comments.forEach((c, idx) => {
+      const name = displayNameForUserId(c.author_id);
+      const ts = timeAgo(c.created_at);
+      const isMine = currentUser && c.author_id === currentUser.id;
+      const reactState = getCommentReactionState(c.id);
+
+      const likeActiveClass = reactState.hasMine ? " tt-like-active" : "";
+      const likeCountHtml =
+        reactState.total > 0 ? `<span class="tt-like-count">${reactState.total}</span>` : "";
+
+      const hiddenClass = idx >= maxVisible ? " tt-comment-hidden" : "";
+
+      const commentReactBar = `
+        <div class="tt-comment-react-bar" data-tt-role="comment-react-bar" hidden>
+          ${REACTION_TYPES.map(
+            (r) => `
+            <button class="tt-react-pick"
+                    type="button"
+                    data-tt-role="comment-react"
+                    data-reaction="${r.key}">
+              ${r.emoji}
+            </button>
+          `
+          ).join("")}
+        </div>
+      `;
+
+      pieces.push(`
+        <div class="tt-comment${hiddenClass}" data-comment-id="${c.id}">
+          <div class="tt-comment-head">${escapeHtml(name)} • ${ts}</div>
+          <div class="tt-comment-body">${escapeHtml(c.body)}</div>
+          <div class="tt-comment-foot">
+            <button class="tt-like-btn tt-like-sm${likeActiveClass}"
+                    type="button"
+                    data-tt-role="comment-toggle-react-bar">
+              🙂 ${likeCountHtml}
+            </button>
+            <button class="tt-comment-reply"
+                    type="button"
+                    data-tt-role="respond">
+              Reply
+            </button>
+            ${
+              isMine
+                ? `<button class="tt-comment-delete"
+                           type="button"
+                           data-tt-role="delete-comment">
+                     Delete
+                   </button>`
+                : ""
+            }
+          </div>
+          ${commentReactBar}
+        </div>
+      `);
+    });
+
+    const hiddenCount = Math.max(0, comments.length - maxVisible);
+    if (hiddenCount > 0) {
+      pieces.splice(
+        maxVisible,
+        0,
+        `<button class="tt-more-replies"
+                 type="button"
+                 data-tt-role="show-more-comments">
+           View ${hiddenCount} more repl${hiddenCount === 1 ? "y" : "ies"}
+         </button>`
+      );
+    }
+
+    return pieces.join("");
+  }
+
   function renderMedia(thread) {
     if (!thread.media_url || !thread.media_type) return "";
     if (thread.media_type === "image") {
@@ -350,21 +477,6 @@
     return "";
   }
 
-  function computeReactionState(threadId) {
-    const rows = reactionsByThread[threadId] || [];
-    const counts = { like: 0, love: 0, laugh: 0, wow: 0, cry: 0 };
-    const mine = { like: false, love: false, laugh: false, wow: false, cry: false };
-    rows.forEach((r) => {
-      if (counts[r.reaction_type] != null) {
-        counts[r.reaction_type] += 1;
-      }
-      if (currentUser && r.user_id === currentUser.id) {
-        mine[r.reaction_type] = true;
-      }
-    });
-    return { counts, mine };
-  }
-
   // ---------- Composer ----------
   function wireComposer() {
     if (!composerForm) return;
@@ -373,7 +485,7 @@
       e.preventDefault();
       let body = (textArea.value || "").trim();
       let title = (titleInput && titleInput.value || "").trim();
-      let cat = (categorySelect.value || "").trim();
+      let cat = (categorySelect && categorySelect.value || "").trim();
       if (!cat) cat = "loose-threads";
 
       const hasMedia = !!(photoInput?.files?.[0] || videoInput?.files?.[0]);
@@ -442,8 +554,9 @@
   // Upload image/video from composer to Supabase storage
   async function maybeUploadComposerMedia() {
     if (!currentUser) return { media_url: null, media_type: null };
-    const file = (photoInput && photoInput.files && photoInput.files[0]) ||
-                 (videoInput && videoInput.files && videoInput.files[0]);
+    const file =
+      (photoInput && photoInput.files && photoInput.files[0]) ||
+      (videoInput && videoInput.files && videoInput.files[0]);
     if (!file) return { media_url: null, media_type: null };
 
     const isImage = !!(photoInput && photoInput.files && photoInput.files[0]);
@@ -453,8 +566,7 @@
       const ext = (file.name.split(".").pop() || "bin").toLowerCase();
       const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
 
-      const { data, error } = await supabase
-        .storage
+      const { data, error } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(path, file, {
           cacheControl: "3600",
@@ -468,8 +580,7 @@
         return { media_url: null, media_type: null };
       }
 
-      const { data: pub } = supabase
-        .storage
+      const { data: pub } = supabase.storage
         .from(STORAGE_BUCKET)
         .getPublicUrl(data.path);
 
@@ -526,7 +637,7 @@
     if (videoInput) videoInput.value = "";
   }
 
-  // ---------- Card interactions (reactions / comments / menu / flag) ----------
+  // ---------- Card interactions (reactions / comments / menu / zoom) ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
 
@@ -534,40 +645,79 @@
       const target = e.target;
       if (!target) return;
 
+      // Image zoom
+      const img = target.closest(".post-img");
+      if (img) {
+        openLightbox(img.src);
+        return;
+      }
+
       const role =
         target.dataset.ttRole ||
         target.closest("[data-tt-role]")?.dataset.ttRole;
       if (!role) return;
 
       const card = target.closest(".card");
-      if (!card) return;
-      const threadId = Number(card.dataset.threadId);
+      const threadId = card ? Number(card.dataset.threadId) : null;
 
       switch (role) {
+        case "toggle-react-bar":
+          toggleThreadReactBar(card);
+          break;
         case "react": {
+          if (!threadId) return;
           const btn = target.closest("[data-reaction]");
           if (!btn) return;
           const type = btn.dataset.reaction;
-          await handleReaction(threadId, type);
+          await handleThreadReaction(threadId, type, card);
+          break;
+        }
+        case "comment-toggle-react-bar": {
+          const commentEl = target.closest(".tt-comment");
+          if (!commentEl) return;
+          toggleCommentReactBar(commentEl);
+          break;
+        }
+        case "comment-react": {
+          const commentEl = target.closest(".tt-comment");
+          if (!commentEl) return;
+          const commentId = Number(commentEl.dataset.commentId);
+          const btn = target.closest("[data-reaction]");
+          if (!btn) return;
+          const type = btn.dataset.reaction;
+          await handleCommentReaction(commentId, type, commentEl);
           break;
         }
         case "send-comment":
+          if (!threadId || !card) return;
           await handleSendComment(card, threadId);
           break;
         case "menu":
+          if (!card) return;
           toggleMenu(card);
           break;
         case "edit-thread":
+          if (!card || !threadId) return;
           await handleEditThread(card, threadId);
           break;
         case "delete-thread":
+          if (!threadId) return;
           await handleDeleteThread(threadId);
           break;
-        case "flag-thread":
-          await handleFlagThread(threadId);
+        case "delete-comment": {
+          const commentEl = target.closest(".tt-comment");
+          if (!commentEl) return;
+          const commentId = Number(commentEl.dataset.commentId);
+          await handleDeleteComment(commentId);
           break;
+        }
         case "respond":
+          if (!card) return;
           focusCommentBox(card);
+          break;
+        case "show-more-comments":
+          if (!card) return;
+          revealMoreComments(card, target);
           break;
         default:
           break;
@@ -575,8 +725,35 @@
     });
   }
 
-  // One reaction per user per thread.
-  async function handleReaction(threadId, type) {
+  function toggleThreadReactBar(card) {
+    if (!card) return;
+    const bar = card.querySelector('[data-tt-role="react-bar"]');
+    if (!bar) return;
+    const hidden = bar.hasAttribute("hidden");
+    if (hidden) bar.removeAttribute("hidden");
+    else bar.setAttribute("hidden", "true");
+  }
+
+  function toggleCommentReactBar(commentEl) {
+    if (!commentEl) return;
+    const bar = commentEl.querySelector('[data-tt-role="comment-react-bar"]');
+    if (!bar) return;
+    const hidden = bar.hasAttribute("hidden");
+    if (hidden) bar.removeAttribute("hidden");
+    else bar.setAttribute("hidden", "true");
+  }
+
+  function revealMoreComments(card, buttonEl) {
+    const list = card.querySelector(".tt-comments-list");
+    if (!list) return;
+    list.querySelectorAll(".tt-comment-hidden").forEach((el) => {
+      el.classList.remove("tt-comment-hidden");
+    });
+    if (buttonEl) buttonEl.remove();
+  }
+
+  // Thread reactions (one per user per thread)
+  async function handleThreadReaction(threadId, type, card) {
     if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
     if (!ok) return;
@@ -633,9 +810,81 @@
         }
       }
 
-      await loadThreads(); // refresh counts + active states
+      // Hide the picker and refresh card state
+      if (card) {
+        const bar = card.querySelector('[data-tt-role="react-bar"]');
+        if (bar) bar.setAttribute("hidden", "true");
+      }
+      await loadThreads();
     } catch (err) {
-      console.error("[ThreadTalk] handleReaction exception", err);
+      console.error("[ThreadTalk] handleThreadReaction exception", err);
+      showToast("Could not update reaction.");
+    }
+  }
+
+  // Comment reactions (one per user per comment)
+  async function handleCommentReaction(commentId, type, commentEl) {
+    if (!REACTION_TYPES.find((r) => r.key === type)) return;
+    const ok = await ensureLoggedInFor("react");
+    if (!ok) return;
+
+    const existing = (commentReactionsByComment[commentId] || []).filter(
+      (r) => r.user_id === currentUser.id
+    );
+
+    try {
+      if (existing.length === 1 && existing[0].reaction_type === type) {
+        const { error } = await supabase
+          .from("threadtalk_comment_reactions")
+          .delete()
+          .match({
+            comment_id: commentId,
+            user_id: currentUser.id,
+            reaction_type: type
+          });
+        if (error) {
+          console.warn("[ThreadTalk] comment reaction delete error", error);
+          showToast("Could not update reaction.");
+          return;
+        }
+      } else {
+        if (existing.length) {
+          const { error: delErr } = await supabase
+            .from("threadtalk_comment_reactions")
+            .delete()
+            .match({
+              comment_id: commentId,
+              user_id: currentUser.id
+            });
+          if (delErr) {
+            console.warn("[ThreadTalk] comment reaction switch delete error", delErr);
+            showToast("Could not update reaction.");
+            return;
+          }
+        }
+
+        const { error: insErr } = await supabase
+          .from("threadtalk_comment_reactions")
+          .insert({
+            comment_id: commentId,
+            user_id: currentUser.id,
+            reaction_type: type
+          });
+
+        if (insErr) {
+          console.warn("[ThreadTalk] comment reaction insert error", insErr);
+          showToast("Could not update reaction.");
+          return;
+        }
+      }
+
+      if (commentEl) {
+        const bar = commentEl.querySelector('[data-tt-role="comment-react-bar"]');
+        if (bar) bar.setAttribute("hidden", "true");
+      }
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleCommentReaction exception", err);
       showToast("Could not update reaction.");
     }
   }
@@ -780,34 +1029,86 @@
     }
   }
 
-  async function handleFlagThread(threadId) {
-    const okLoggedIn = await ensureLoggedInFor("flag posts");
-    if (!okLoggedIn) return;
+  async function handleDeleteComment(commentId) {
+    let targetComment = null;
+    let targetThreadId = null;
 
-    const ok = confirm("Flag this post for review?");
+    Object.keys(commentsByThread).forEach((tid) => {
+      const list = commentsByThread[tid] || [];
+      list.forEach((c) => {
+        if (c.id === commentId) {
+          targetComment = c;
+          targetThreadId = Number(tid);
+        }
+      });
+    });
+
+    if (!targetComment) return;
+    if (!currentUser || targetComment.author_id !== currentUser.id) {
+      showToast("You can only delete your own comments.");
+      return;
+    }
+
+    const ok = confirm("Delete this comment?");
     if (!ok) return;
 
     try {
       const { error } = await supabase
-        .from("threadtalk_flags")
-        .insert({
-          thread_id: threadId,
-          flagged_by: currentUser.id,
-          reason: "user_flag",
-          created_at: new Date().toISOString()
-        });
+        .from("threadtalk_comments")
+        .update({ is_deleted: true, updated_at: new Date().toISOString() })
+        .eq("id", commentId)
+        .eq("author_id", currentUser.id);
 
       if (error) {
-        console.error("[ThreadTalk] flag insert error", error);
-        showToast("Could not flag post.");
+        console.error("[ThreadTalk] delete comment error", error);
+        showToast("Could not delete comment.");
         return;
       }
 
-      showToast("Thanks — we’ll review this.");
+      await loadThreads();
     } catch (err) {
-      console.error("[ThreadTalk] handleFlagThread exception", err);
-      showToast("Could not flag post.");
+      console.error("[ThreadTalk] handleDeleteComment exception", err);
+      showToast("Could not delete comment.");
     }
+  }
+
+  // ---------- Lightbox (image zoom) ----------
+  let lightboxEl = null;
+  function ensureLightbox() {
+    if (lightboxEl) return lightboxEl;
+    const overlay = document.createElement("div");
+    overlay.id = "tt-lightbox";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.background = "rgba(0,0,0,0.7)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = "9999";
+    overlay.style.cursor = "zoom-out";
+    overlay.hidden = true;
+
+    const img = document.createElement("img");
+    img.style.maxWidth = "92vw";
+    img.style.maxHeight = "92vh";
+    img.style.boxShadow = "0 18px 40px rgba(0,0,0,0.45)";
+    img.style.borderRadius = "14px";
+    overlay.appendChild(img);
+
+    overlay.addEventListener("click", () => {
+      overlay.hidden = true;
+    });
+
+    document.body.appendChild(overlay);
+    lightboxEl = overlay;
+    return overlay;
+  }
+
+  function openLightbox(src) {
+    const overlay = ensureLightbox();
+    const img = overlay.querySelector("img");
+    img.src = src;
+    overlay.hidden = false;
   }
 
   // ---------- Utilities ----------
@@ -875,30 +1176,31 @@
   // Inject small CSS overrides to keep posts compact
   function injectCompactStyles() {
     const css = `
-      .card{padding:12px 14px;margin-bottom:8px;}
+      .card{padding:12px 14px;margin-bottom:10px;}
       .preview{margin-bottom:4px;font-size:14px;}
       .tt-head{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
       .tt-line1{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:14px;}
       .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
       .tt-line2-main{display:flex;align-items:center;gap:4px;}
       .tt-title{font-weight:600;color:#3f2f2a;}
-      .tt-react-row{gap:4px;flex-wrap:wrap;margin-top:2px;}
-      .tt-react{padding:2px 6px;font-size:12px;border-radius:999px;border:1px solid var(--border);background:#fff;}
-      .tt-react span+span{margin-left:4px;}
-      .tt-respond-btn{margin-left:4px;}
+      .tt-actions-row{display:flex;align-items:center;gap:12px;margin-top:4px;font-size:13px;}
+      .tt-like-btn{border:none;background:transparent;padding:0 4px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;color:var(--muted);cursor:pointer;}
+      .tt-like-sm{font-size:12px;}
+      .tt-like-active{color:#b91c1c;font-weight:600;}
+      .tt-like-count{font-size:11px;background:#fee2e2;color:#991b1b;border-radius:999px;padding:0 6px;line-height:16px;}
+      .tt-respond-link,.tt-comment-reply{border:none;background:transparent;padding:0;color:var(--muted);cursor:pointer;font-size:12px;}
+      .tt-react-bar,.tt-comment-react-bar{display:flex;gap:4px;margin-top:4px;}
+      .tt-react-pick{border:none;background:#fff;border-radius:999px;padding:2px 6px;font-size:13px;cursor:pointer;box-shadow:0 0 0 1px var(--border);}
       .tt-comments{margin-top:6px;gap:6px;}
-      .tt-comment{padding:6px 8px;}
-      .tt-comment-input{padding:6px 8px;font-size:13px;}
-      .tt-comment-send{padding:6px 12px;font-size:13px;}
-      .post-img,.post-video{
-        margin-top:4px;
-        margin-bottom:4px;
-        max-height:260px;
-        width:auto;
-        max-width:100%;
-        object-fit:contain;
-        border-radius:8px;
-      }
+      .tt-comments-list{display:flex;flex-direction:column;gap:4px;}
+      .tt-comment{padding:6px 8px;border-radius:8px;background:#fdfaf8;}
+      .tt-comment-head{font-size:12px;color:var(--muted);margin-bottom:2px;}
+      .tt-comment-body{font-size:13px;margin-bottom:2px;}
+      .tt-comment-foot{display:flex;align-items:center;gap:8px;}
+      .tt-comment-delete{border:none;background:transparent;padding:0;color:#b91c1c;font-size:11px;cursor:pointer;}
+      .tt-comment-hidden{display:none;}
+      .tt-more-replies{border:none;background:transparent;color:var(--muted);font-size:12px;padding:0 4px;margin:2px 0;cursor:pointer;}
+      .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:260px;border-radius:10px;cursor:pointer;}
       .tt-menu-btn{padding:2px 6px;font-size:14px;}
     `;
     const style = document.createElement("style");
