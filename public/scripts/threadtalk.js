@@ -19,6 +19,7 @@
 
   const composerForm = document.getElementById("composer");
   const categorySelect = document.getElementById("composeCategory");
+  const titleInput = document.getElementById("composeTitle");
   const textArea = document.getElementById("composeText");
   const photoInput = document.getElementById("photoInput");
   const videoInput = document.getElementById("videoInput");
@@ -235,6 +236,10 @@
       const catLink = CATEGORY_LINKS[catSlug] || "loose-threads.html";
       const when = timeAgo(thread.created_at);
 
+      const { title, body } = splitTitleAndBody(thread.body);
+      const displayTitle = title || "Untitled thread";
+      const displayBody = body || "";
+
       const { counts, mine } = computeReactionState(thread.id);
       const comments = commentsByThread[thread.id] || [];
       const mediaHtml = renderMedia(thread);
@@ -282,16 +287,20 @@
 
       card.innerHTML = `
         <div class="meta">
-          <!-- avatar intentionally hidden via CSS -->
-          <span class="author">${escapeHtml(authorName)}</span>
-          <span>•</span>
-          <span>${when}</span>
-          <span>•</span>
-          <a class="cat" href="${catLink}">[${escapeHtml(catLabel)}]</a>
+          <div class="meta-main">
+            <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>
+            <span class="thread-title">${escapeHtml(displayTitle)}</span>
+          </div>
           ${menuHtml}
         </div>
 
-        <div class="preview">${escapeHtml(thread.body)}</div>
+        <div class="meta-sub">
+          <span class="author">${escapeHtml(authorName)}</span>
+          <span>•</span>
+          <span>${when}</span>
+        </div>
+
+        <div class="preview">${escapeHtml(displayBody)}</div>
         ${mediaHtml}
 
         <div class="actions">
@@ -318,7 +327,7 @@
             <input class="tt-comment-input"
                    type="text"
                    maxlength="500"
-                   placeholder="Write a comment… (you can type emojis 😊)"/>
+                   placeholder="Write a comment…"/>
             <button class="tt-comment-send"
                     type="button"
                     data-tt-role="send-comment">
@@ -364,6 +373,14 @@
 
     composerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      const title = (titleInput?.value || "").trim();
+      if (!title) {
+        if (titleInput) titleInput.focus();
+        showToast("Please add a post title.");
+        return;
+      }
+
       let body = (textArea.value || "").trim();
       let cat = (categorySelect.value || "").trim();
       if (!cat) cat = "loose-threads";
@@ -382,14 +399,17 @@
 
       try {
         const mediaInfo = await maybeUploadComposerMedia();
+
         if (!body && hasMedia) {
-          body = "image attached"; // fallback text when post is only media
+          body = "image attached";
         }
+
+        const storedBody = joinTitleAndBody(title, body);
 
         const payload = {
           author_id: currentUser.id,
           category: cat,
-          body: body,
+          body: storedBody,
           media_url: mediaInfo.media_url,
           media_type: mediaInfo.media_type
         };
@@ -407,6 +427,7 @@
         }
 
         // Clear composer
+        if (titleInput) titleInput.value = "";
         textArea.value = "";
         clearMediaPreview();
 
@@ -564,41 +585,46 @@
     const ok = await ensureLoggedInFor("react");
     if (!ok) return;
 
-    const already = (reactionsByThread[threadId] || []).find(
-      (r) => r.user_id === currentUser.id && r.reaction_type === type
+    const myReactions = (reactionsByThread[threadId] || []).filter(
+      (r) => r.user_id === currentUser.id
     );
+    const alreadyOfType = myReactions.find((r) => r.reaction_type === type);
 
     try {
-      if (already) {
-        // Remove reaction
-        const { error } = await supabase
+      // Remove all of this user's reactions for this thread first
+      if (myReactions.length) {
+        const { error: delErr } = await supabase
           .from("threadtalk_reactions")
           .delete()
           .match({
             thread_id: threadId,
-            user_id: currentUser.id,
-            reaction_type: type
+            user_id: currentUser.id
           });
-        if (error) {
-          console.warn("[ThreadTalk] reaction delete error", error);
+
+        if (delErr) {
+          console.warn("[ThreadTalk] reaction delete error", delErr);
           showToast("Could not update reaction.");
           return;
         }
-      } else {
-        // Add reaction
-        const { error } = await supabase
+      }
+
+      // If they clicked a *different* emoji, add that one.
+      if (!alreadyOfType) {
+        const { error: insErr } = await supabase
           .from("threadtalk_reactions")
           .insert({
             thread_id: threadId,
             user_id: currentUser.id,
             reaction_type: type
           });
-        if (error) {
-          console.warn("[ThreadTalk] reaction insert error", error);
+
+        if (insErr) {
+          console.warn("[ThreadTalk] reaction insert error", insErr);
           showToast("Could not update reaction.");
           return;
         }
       }
+
       await loadThreads(); // refresh counts + active states
     } catch (err) {
       console.error("[ThreadTalk] handleReaction exception", err);
@@ -667,35 +693,50 @@
     const previewEl = card.querySelector(".preview");
     if (!previewEl) return;
 
-    const original = thread.body;
+    const { title, body } = splitTitleAndBody(thread.body);
+    const originalTitle = title || "";
+    const originalBody = body || "";
+
     previewEl.innerHTML = `
-      <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
+      <div class="tt-edit-block">
+        <label class="tt-edit-label">Post title</label>
+        <input class="tt-edit-title" type="text" value="${escapeAttr(originalTitle)}" maxlength="120"/>
+      </div>
+      <textarea class="tt-edit-area">${escapeHtml(originalBody)}</textarea>
       <div class="tt-edit-actions">
         <button type="button" class="tt-edit-save">Save</button>
         <button type="button" class="tt-edit-cancel">Cancel</button>
       </div>
     `;
 
+    const titleEl = previewEl.querySelector(".tt-edit-title");
     const area = previewEl.querySelector(".tt-edit-area");
     const saveBtn = previewEl.querySelector(".tt-edit-save");
     const cancelBtn = previewEl.querySelector(".tt-edit-cancel");
 
     cancelBtn.addEventListener("click", () => {
-      previewEl.textContent = original;
+      // Restore original view
+      previewEl.textContent = escapeHtml(originalBody);
+      // Force a full reload so layout returns to normal
+      loadThreads();
     });
 
     saveBtn.addEventListener("click", async () => {
-      const body = (area.value || "").trim();
-      if (!body) {
-        area.focus();
+      const newTitle = (titleEl.value || "").trim();
+      const newBody = (area.value || "").trim();
+
+      if (!newTitle) {
+        titleEl.focus();
         return;
       }
+
+      const storedBody = joinTitleAndBody(newTitle, newBody);
 
       try {
         const { error } = await supabase
           .from("threadtalk_threads")
           .update({
-            body: body,
+            body: storedBody,
             updated_at: new Date().toISOString()
           })
           .eq("id", threadId)
@@ -838,13 +879,46 @@
     });
   }
 
-  // Inject small CSS overrides to keep posts compact
+  function splitTitleAndBody(raw) {
+    const txt = String(raw || "").trim();
+    if (!txt) return { title: "", body: "" };
+
+    // If we have an explicit blank-line separator, respect it.
+    const parts = txt.split(/\n{2,}/);
+    if (parts.length > 1) {
+      return {
+        title: (parts[0] || "").trim(),
+        body: parts.slice(1).join("\n\n").trim()
+      };
+    }
+
+    // Legacy posts: no explicit title — infer a short title from the start.
+    if (txt.length <= 80) {
+      return { title: txt, body: "" };
+    }
+    const title = txt.slice(0, 80).trim();
+    const body = txt.slice(80).trim();
+    return { title, body };
+  }
+
+  function joinTitleAndBody(title, body) {
+    const t = (title || "").trim();
+    const b = (body || "").trim();
+    if (t && b) return `${t}\n\n${b}`;
+    if (t) return t;
+    return b;
+  }
+
+  // Inject small CSS overrides to keep posts compact and match new layout
   function injectCompactStyles() {
     const css = `
       .card{padding:14px 16px;margin-bottom:10px;}
+      .meta-main{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+      .thread-title{font-weight:600;}
+      .meta-sub{display:flex;gap:4px;align-items:center;font-size:12px;color:#9ca3af;margin-bottom:4px;}
       .preview{margin-bottom:6px;font-size:14px;}
       .tt-react-row{gap:6px;flex-wrap:wrap;margin-top:4px;}
-      .tt-react{padding:4px 8px;font-size:13px;}
+      .tt-react{padding:3px 8px;font-size:12px;}
       .tt-react span+span{margin-left:4px;}
       .tt-respond-btn{margin-left:4px;}
       .tt-comments{margin-top:6px;gap:6px;}
@@ -852,6 +926,9 @@
       .tt-comment-input{padding:6px 8px;font-size:13px;}
       .tt-comment-send{padding:6px 12px;font-size:13px;}
       .post-img,.post-video{margin-top:4px;margin-bottom:4px;max-height:420px;}
+      .tt-edit-block{margin-bottom:6px;}
+      .tt-edit-label{display:block;font-size:12px;color:#6b7280;margin-bottom:2px;}
+      .tt-edit-title{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:6px 8px;font:inherit;}
     `;
     const style = document.createElement("style");
     style.textContent = css;
