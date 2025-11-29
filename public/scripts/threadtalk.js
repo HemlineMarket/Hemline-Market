@@ -703,8 +703,6 @@
 
       const { data: pub } = supabase.storage
         .from(STORAGE_BUCKET)
-              const { data: pub } = supabase.storage
-        .from(STORAGE_BUCKET)
         .getPublicUrl(data.path);
 
       const url = pub?.publicUrl || null;
@@ -1270,7 +1268,8 @@
     return String(str || "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&quot;");
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   function escapeAttr(str) {
