@@ -75,7 +75,7 @@
   // ---------- State ----------
   let currentUser = null;
   const profilesCache = {}; // userId -> profile
-  let allThreads = []; // from DB
+  let allThreads = [];
   let threads = []; // filtered (search)
   let commentsByThread = {}; // threadId -> [comments]
   let reactionsByThread = {}; // threadId -> [reactions]
@@ -175,7 +175,6 @@
         )
         .eq("is_deleted", false);
 
-      // Per-page category filter for category pages
       if (THREAD_CATEGORY_FILTER) {
         query = query.eq("category", THREAD_CATEGORY_FILTER);
       }
@@ -194,7 +193,7 @@
 
       if (!allThreads.length) {
         threads = [];
-        cardsEl.innerHTML = "";
+        if (cardsEl) cardsEl.innerHTML = "";
         if (emptyStateEl) emptyStateEl.style.display = "block";
         return;
       }
@@ -294,6 +293,8 @@
 
   // ---------- Rendering ----------
   function renderThreads() {
+    if (!cardsEl) return;
+
     cardsEl.innerHTML = "";
     if (emptyStateEl) {
       emptyStateEl.style.display = threads.length ? "none" : "block";
@@ -341,114 +342,111 @@
       const isMine = currentUser && thread.author_id === currentUser.id;
 
       const menuHtml = isMine
-        ? `
-          <div class="tt-menu">
-            <button class="tt-menu-btn" type="button" data-tt-role="menu">
-              ···
-            </button>
-            <div class="tt-menu-pop" data-tt-role="menu-pop" hidden>
-              <button class="tt-menu-item" data-tt-role="edit-thread" type="button">Edit</button>
-              <button class="tt-menu-item danger" data-tt-role="delete-thread" type="button">Delete</button>
-            </div>
-          </div>
-        `
+        ? [
+            '<div class="tt-menu">',
+            '<button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>',
+            '<div class="tt-menu-pop" data-tt-role="menu-pop" hidden>',
+            '<button class="tt-menu-item" data-tt-role="edit-thread" type="button">Edit</button>',
+            '<button class="tt-menu-item danger" data-tt-role="delete-thread" type="button">Delete</button>',
+            "</div>",
+            "</div>",
+          ].join("")
         : "";
 
       const hiddenHtml = hiddenCount
-        ? `
-          <button class="tt-more-comments"
+        ? `<button class="tt-more-comments"
                   type="button"
                   data-tt-role="show-all-comments">
-            View ${hiddenCount} more repl${hiddenCount === 1 ? "y" : "ies"}…
-          </button>
-        `
+              View ${hiddenCount} more repl${
+            hiddenCount === 1 ? "y" : "ies"
+          }…
+           </button>`
         : "";
 
-      // Simple summary of reactions (e.g., 👍😂 4)
+      // Small emoji summary like FB
+      let summaryEmojis = "";
+      REACTION_TYPES.forEach((r) => {
+        if (threadCounts[r.key]) summaryEmojis += `<span>${r.emoji}</span>`;
+      });
       const reactionSummaryHtml =
         totalThreadReacts > 0
-          ? `
-        <div class="tt-react-summary">
-          ${REACTION_TYPES.map((r) =>
-            threadCounts[r.key] ? `<span>${r.emoji}</span>` : ""
-          ).join("")}
-          <span class="tt-react-summary-count">${totalThreadReacts}</span>
-        </div>
-      `
+          ? `<div class="tt-react-summary">
+               ${summaryEmojis}
+               <span class="tt-react-summary-count">${totalThreadReacts}</span>
+             </div>`
           : "";
 
-      card.innerHTML = `
-        <div class="tt-head">
-          <div class="tt-line1">
-            <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>
-            ${
-              title
-                ? `<span class="tt-title">“${escapeHtml(title)}”</span>`
-                : ""
-            }
-          </div>
-          <div class="tt-line2">
-            <div class="tt-line2-main">
-              <span class="author">${escapeHtml(authorName)}</span>
-              <span>•</span>
-              <span>${when}</span>
-            </div>
-            ${menuHtml}
-          </div>
-        </div>
+      // Reaction picker HTML
+      const pickerHtml =
+        '<div class="tt-react-picker" data-tt-role="thread-picker">' +
+        REACTION_TYPES.map(
+          (r) =>
+            `<button class="tt-react-pill"
+                      type="button"
+                      data-tt-role="thread-react"
+                      data-reaction="${r.key}">
+                <span>${r.emoji}</span>
+             </button>`
+        ).join("") +
+        "</div>";
 
-        <div class="preview">${escapeHtml(thread.body)}</div>
-        ${mediaHtml}
+      card.innerHTML =
+        `<div class="tt-head">
+           <div class="tt-line1">
+             <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>` +
+        (title
+          ? `<span class="tt-title">“${escapeHtml(title)}”</span>`
+          : "") +
+        `  </div>
+           <div class="tt-line2">
+             <div class="tt-line2-main">
+               <span class="author">${escapeHtml(authorName)}</span>
+               <span>•</span>
+               <span>${when}</span>
+             </div>
+             ${menuHtml}
+           </div>
+         </div>
 
-        ${reactionSummaryHtml}
+         <div class="preview">${escapeHtml(thread.body)}</div>
+         ${mediaHtml}
+         ${reactionSummaryHtml}
 
-        <div class="tt-actions-row">
-          <div class="tt-like-wrapper">
-            <button class="tt-like-btn tt-like-main${
-              iReactedThread ? " tt-like-active" : ""
-            }"
-                    type="button"
-                    data-tt-role="thread-like">
-              <span class="tt-like-label">Like</span>
-            </button>
-            <div class="tt-react-picker" data-tt-role="thread-picker">
-              ${REACTION_TYPES.map(
-                (r) => `
-                <button class="tt-react-pill"
-                        type="button"
-                        data-tt-role="thread-react"
-                        data-reaction="${r.key}">
-                  <span>${r.emoji}</span>
-                </button>
-              `
-              ).join("")}
-            </div>
-          </div>
-          <button class="tt-reply-link"
-                  type="button"
-                  data-tt-role="respond">
-            Reply
-          </button>
-        </div>
+         <div class="tt-actions-row">
+           <div class="tt-like-wrapper">
+             <button class="tt-like-btn tt-like-main${
+               iReactedThread ? " tt-like-active" : ""
+             }"
+                     type="button"
+                     data-tt-role="thread-like">
+               <span class="tt-like-label">Like</span>
+             </button>
+             ${pickerHtml}
+           </div>
+           <button class="tt-reply-link"
+                   type="button"
+                   data-tt-role="respond">
+             Reply
+           </button>
+         </div>
 
-        <div class="tt-comments" data-thread="${thread.id}">
-          <div class="tt-comments-list">
-            ${hiddenHtml}
-            ${commentsHtml}
-          </div>
-          <div class="tt-comment-new">
-            <input class="tt-comment-input"
-                   type="text"
-                   maxlength="500"
-                   placeholder="Write a comment…"/>
-            <button class="tt-comment-send"
-                    type="button"
-                    data-tt-role="send-comment">
-              Send
-            </button>
-          </div>
-        </div>
-      `;
+         <div class="tt-comments" data-thread="${thread.id}">
+           <div class="tt-comments-list">
+             ${hiddenHtml}
+             ${commentsHtml}
+           </div>
+           <div class="tt-comment-new">
+             <input class="tt-comment-input"
+                    type="text"
+                    maxlength="500"
+                    placeholder="Write a comment…"/>
+             <button class="tt-comment-send"
+                     type="button"
+                     data-tt-role="send-comment">
+               Send
+             </button>
+           </div>
+         </div>`;
 
       cardsEl.appendChild(card);
     });
@@ -463,16 +461,17 @@
     const myType = REACTION_TYPES.find((r) => mine[r.key])?.key || null;
     const iReactedComment = !!myType;
 
+    // summary emojis
+    let summaryEmojis = "";
+    REACTION_TYPES.forEach((r) => {
+      if (counts[r.key]) summaryEmojis += `<span>${r.emoji}</span>`;
+    });
     const summaryHtml =
       total > 0
-        ? `
-      <div class="tt-react-summary tt-react-summary-comment">
-        ${REACTION_TYPES.map((r) =>
-          counts[r.key] ? `<span>${r.emoji}</span>` : ""
-        ).join("")}
-        <span class="tt-react-summary-count">${total}</span>
-      </div>
-    `
+        ? `<div class="tt-react-summary tt-react-summary-comment">
+             ${summaryEmojis}
+             <span class="tt-react-summary-count">${total}</span>
+           </div>`
         : "";
 
     const deleteHtml =
@@ -483,53 +482,55 @@
                    data-comment-id="${c.id}">Delete</button>`
         : "";
 
-    return `
-      <div class="tt-comment" data-comment-id="${c.id}">
-        <div class="tt-comment-head-row">
-          <div class="tt-comment-meta">
-            <span class="tt-comment-author">${escapeHtml(name)}</span>
-            <span class="tt-comment-dot">•</span>
-            <span class="tt-comment-time">${ts}</span>
-          </div>
-          ${deleteHtml}
-        </div>
-        <div class="tt-comment-body">${escapeHtml(c.body)}</div>
-        ${summaryHtml}
-        <div class="tt-comment-actions">
-          <div class="tt-like-wrapper tt-like-wrapper-comment">
-            <button class="tt-like-btn tt-like-main${
-              iReactedComment ? " tt-like-active" : ""
-            }"
+    const pickerHtml =
+      '<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="' +
+      c.id +
+      '">' +
+      REACTION_TYPES.map(
+        (r) =>
+          `<button class="tt-react-pill"
                     type="button"
-                    data-tt-role="comment-like"
-                    data-comment-id="${c.id}">
-              <span class="tt-like-label">Like</span>
-            </button>
-            <div class="tt-react-picker"
-                 data-tt-role="comment-picker"
-                 data-comment-id="${c.id}">
-              ${REACTION_TYPES.map(
-                (r) => `
-                <button class="tt-react-pill"
-                        type="button"
-                        data-tt-role="comment-react"
-                        data-comment-id="${c.id}"
-                        data-reaction="${r.key}">
-                  <span>${r.emoji}</span>
-                </button>
-              `
-              ).join("")}
-            </div>
-          </div>
-          <button class="tt-reply-link"
-                  type="button"
-                  data-tt-role="respond-comment"
-                  data-comment-id="${c.id}">
-            Reply
-          </button>
-        </div>
-      </div>
-    `;
+                    data-tt-role="comment-react"
+                    data-comment-id="${c.id}"
+                    data-reaction="${r.key}">
+              <span>${r.emoji}</span>
+           </button>`
+      ).join("") +
+      "</div>";
+
+    return (
+      `<div class="tt-comment" data-comment-id="${c.id}">
+         <div class="tt-comment-head-row">
+           <div class="tt-comment-meta">
+             <span class="tt-comment-author">${escapeHtml(name)}</span>
+             <span class="tt-comment-dot">•</span>
+             <span class="tt-comment-time">${ts}</span>
+           </div>
+           ${deleteHtml}
+         </div>
+         <div class="tt-comment-body">${escapeHtml(c.body)}</div>
+         ${summaryHtml}
+         <div class="tt-comment-actions">
+           <div class="tt-like-wrapper tt-like-wrapper-comment">
+             <button class="tt-like-btn tt-like-main${
+               iReactedComment ? " tt-like-active" : ""
+             }"
+                     type="button"
+                     data-tt-role="comment-like"
+                     data-comment-id="${c.id}">
+               <span class="tt-like-label">Like</span>
+             </button>
+             ${pickerHtml}
+           </div>
+           <button class="tt-reply-link"
+                   type="button"
+                   data-tt-role="respond-comment"
+                   data-comment-id="${c.id}">
+             Reply
+           </button>
+         </div>
+       </div>`
+    );
   }
 
   function renderMedia(thread) {
@@ -742,6 +743,7 @@
 
       switch (role) {
         case "thread-like":
+          // quick Like toggle
           if (threadId != null) await handleThreadReaction(threadId, "like");
           break;
 
@@ -808,6 +810,7 @@
     });
   }
 
+  // ---------- Reactions ----------
   async function handleThreadReaction(threadId, type) {
     if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
@@ -842,10 +845,7 @@
               user_id: currentUser.id,
             });
           if (delErr) {
-            console.warn(
-              "[ThreadTalk] reaction switch delete error",
-              delErr
-            );
+            console.warn("[ThreadTalk] reaction switch delete error", delErr);
             showToast("Could not update reaction.");
             return;
           }
@@ -944,6 +944,7 @@
     }
   }
 
+  // ---------- Comments ----------
   async function handleSendComment(card, threadId) {
     const input = card.querySelector(".tt-comment-input");
     if (!input) return;
@@ -980,27 +981,17 @@
   function focusCommentBox(card) {
     const input = card.querySelector(".tt-comment-input");
     if (!input) return;
-      function focusCommentBox(card) {
-    const input = card.querySelector(".tt-comment-input");
-    if (!input) return;
     input.scrollIntoView({ behavior: "smooth", block: "center" });
     input.focus();
   }
 
+  // ---------- Menu / edit / delete ----------
   function toggleMenu(card) {
-    if (!card) return;
     const pop = card.querySelector('[data-tt-role="menu-pop"]');
     if (!pop) return;
     const hidden = pop.hasAttribute("hidden");
-    if (hidden) {
-      // close any other open menus first
-      document
-        .querySelectorAll(".tt-menu-pop:not([hidden])")
-        .forEach((el) => el.setAttribute("hidden", "true"));
-      pop.removeAttribute("hidden");
-    } else {
-      pop.setAttribute("hidden", "true");
-    }
+    if (hidden) pop.removeAttribute("hidden");
+    else pop.setAttribute("hidden", "true");
   }
 
   async function handleEditThread(card, threadId) {
@@ -1014,7 +1005,7 @@
     const previewEl = card.querySelector(".preview");
     if (!previewEl) return;
 
-    const original = thread.body || "";
+    const original = thread.body;
     previewEl.innerHTML = `
       <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
       <div class="tt-edit-actions">
@@ -1076,10 +1067,7 @@
     try {
       const { error } = await supabase
         .from("threadtalk_threads")
-        .update({
-          is_deleted: true,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ is_deleted: true, updated_at: new Date().toISOString() })
         .eq("id", threadId)
         .eq("author_id", currentUser.id);
 
@@ -1232,19 +1220,18 @@
       .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
       .tt-line2-main{display:flex;align-items:center;gap:4px;}
       .tt-title{font-weight:600;color:#3f2f2a;}
-      .post-media-wrap{margin:4px 0;max-width:480px;}
+      .post-media-wrap{margin:4px 0;max-width:460px;}
       .post-img,.post-video{width:100%;height:auto;border-radius:10px;display:block;}
       .tt-actions-row{display:flex;align-items:center;gap:12px;margin-top:4px;margin-bottom:2px;font-size:13px;}
       .tt-like-wrapper{position:relative;display:inline-flex;align-items:center;}
-      .tt-like-btn{border:none;background:none;border-radius:999px;padding:4px 10px;font-size:13px;color:#6b7280;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+      .tt-like-btn{border:none;background:none;color:#6b7280;font-size:13px;padding:4px 8px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
       .tt-like-btn.tt-like-active{color:#2563eb;font-weight:500;}
-      .tt-reply-link{border:none;background:none;color:#b91c1c;font-size:12px;cursor:pointer;padding:0;}
-      .tt-react-summary{display:flex;align-items:center;gap:2px;font-size:11px;color:#6b7280;margin-top:2px;}
-      .tt-react-summary span{display:inline-flex;align-items:center;justify-content:center;}
-      .tt-react-summary-count{margin-left:2px;}
-      .tt-react-picker{position:absolute;bottom:130%;left:0;display:flex;gap:4px;padding:4px 6px;border-radius:999px;background:#fff;box-shadow:0 10px 30px rgba(15,23,42,.18);opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .12s ease,transform .12s ease;z-index:30;}
+      .tt-react-picker{position:absolute;bottom:100%;left:0;display:flex;gap:6px;background:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:4px 6px;margin-bottom:4px;opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;}
       .tt-like-wrapper:hover .tt-react-picker{opacity:1;pointer-events:auto;transform:translateY(0);}
-      .tt-react-pill{border:none;background:none;font-size:18px;cursor:pointer;line-height:1;}
+      .tt-react-pill{border:none;background:none;font-size:18px;cursor:pointer;padding:2px;}
+      .tt-react-summary{display:inline-flex;align-items:center;gap:2px;font-size:11px;color:#6b7280;margin-top:2px;}
+      .tt-react-summary span{display:inline-flex;align-items:center;}
+      .tt-react-summary-count{margin-left:2px;}
       .tt-comments{margin-top:4px;}
       .tt-comments-list{display:flex;flex-direction:column;gap:2px;}
       .tt-comment{padding:4px 0;border-top:1px solid #f3f4f6;}
@@ -1261,24 +1248,21 @@
       .tt-menu{position:relative;}
       .tt-menu-btn{padding:2px 6px;font-size:14px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;}
       .tt-menu-pop{position:absolute;margin-top:4px;right:0;background:#fff;border-radius:8px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:4px;z-index:20;}
-      .tt-menu-pop[hidden]{display:none;}
       .tt-menu-item{display:block;width:100%;text-align:left;border:none;background:none;padding:6px 10px;font-size:13px;border-radius:6px;cursor:pointer;}
       .tt-menu-item:hover{background:#f3f4f6;}
       .tt-menu-item.danger{color:#b91c1c;}
+      .tt-react-summary-comment{margin-top:0;}
       #tt-zoom-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:60;}
       #tt-zoom-modal.show{opacity:1;pointer-events:auto;}
       .tt-zoom-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.55);}
       .tt-zoom-inner{position:relative;z-index:1;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;}
       .tt-zoom-img{max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain;background:#fff;}
       .tt-zoom-close{position:absolute;top:-32px;right:0;border:none;background:none;color:#f9fafb;font-size:24px;cursor:pointer;}
-      .tt-edit-area{width:100%;min-height:60px;font-size:14px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);resize:vertical;}
+      .tt-edit-area{width:100%;min-height:80px;border-radius:10px;border:1px solid var(--border);padding:8px;font-size:13px;}
       .tt-edit-actions{display:flex;gap:8px;margin-top:4px;}
-      .tt-edit-save,.tt-edit-cancel{padding:4px 10px;border-radius:999px;border:none;font-size:13px;cursor:pointer;}
+      .tt-edit-save,.tt-edit-cancel{border-radius:999px;border:none;padding:4px 10px;font-size:12px;cursor:pointer;}
       .tt-edit-save{background:#111827;color:#fff;}
       .tt-edit-cancel{background:#e5e7eb;color:#111827;}
-      @media (max-width:640px){
-        .post-media-wrap{max-width:100%;}
-      }
     `;
     const style = document.createElement("style");
     style.textContent = css;
