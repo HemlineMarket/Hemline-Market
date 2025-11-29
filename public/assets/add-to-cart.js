@@ -7,6 +7,9 @@
 (function(){
   const KEY = 'hm_cart';
 
+  // Capture any previous global toast (tiny bar version) so we can override it
+  const previousToast = window.toast;
+
   // --- MAGICAL HAPPY POPUP -------------------------------------------------------
 
   function createPopup(){
@@ -85,9 +88,15 @@
     return overlay;
   }
 
-  // This replaces the old tiny bottom toast.
+  // This replaces the old tiny bottom toast everywhere.
   function toast(message){
     try{
+      // If any page already created the old tiny bar (#hm_toast), hide it
+      const old = document.getElementById('hm_toast');
+      if (old) {
+        old.style.display = 'none';
+      }
+
       const overlay = createPopup();
       overlay._titleEl.textContent = 'Added to your cart';
       overlay._msgEl.textContent   = message;
@@ -100,6 +109,10 @@
       }, 2600);
     }catch(_){}
   }
+
+  // Make this the global toast so any other code calling window.toast()
+  // also shows the magical popup instead of the tiny one-liner.
+  window.toast = toast;
 
   // --- CART STORAGE HELPERS ------------------------------------------------------
 
