@@ -7,46 +7,135 @@
 (function(){
   const KEY = 'hm_cart';
 
-  // Small toast so users see feedback
+  // Small (now bigger) toast so users see feedback
   function toast(msg){
     try{
       let t = document.getElementById('hm_toast');
       if(!t){
         t = document.createElement('div');
         t.id = 'hm_toast';
-        t.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;z-index:9999;box-shadow:0 6px 16px rgba(0,0,0,.25);font:600 14px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial';
+        t.style.cssText = [
+          'position:fixed',
+          'left:50%',
+          'bottom:32px',
+          'transform:translateX(-50%)',
+          'background:#111827',
+          'color:#fff',
+          'padding:14px 18px',
+          'border-radius:14px',
+          'z-index:9999',
+          'box-shadow:0 10px 30px rgba(0,0,0,.35)',
+          'font:600 15px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial',
+          'max-width:90%',
+          'text-align:center',
+          'opacity:0',
+          'transition:opacity .2s ease'
+        ].join(';');
         document.body.appendChild(t);
       }
       t.textContent = msg;
       t.style.opacity = '1';
       clearTimeout(t._hide);
-      t._hide = setTimeout(()=>{ t.style.opacity = '0'; }, 1400);
+      t._hide = setTimeout(()=>{ t.style.opacity = '0'; }, 2200);
     }catch(_){}
   }
 
-  function readCart(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(_){return[]} }
-  function writeCart(arr){ localStorage.setItem(KEY, JSON.stringify(arr)); if(window.HM_CART_BADGE_UPDATE) window.HM_CART_BADGE_UPDATE(arr); }
+  function readCart(){
+    try{
+      return JSON.parse(localStorage.getItem(KEY) || '[]');
+    }catch(_){
+      return [];
+    }
+  }
+
+  function writeCart(arr){
+    localStorage.setItem(KEY, JSON.stringify(arr || []));
+    if (window.HM_CART_BADGE_UPDATE){
+      try{
+        window.HM_CART_BADGE_UPDATE(arr || []);
+      }catch(_){}
+    }
+  }
 
   // Helpers
-  const num = v => parseFloat(String(v ?? '').replace(/[^\d.]/g,'')) || 0;
-  const cents = d => Math.round(Number(d||0) * 100);
+  const num   = v => parseFloat(String(v ?? '').replace(/[^\d.]/g,'')) || 0;
+  const cents = d => Math.round(Number(d || 0) * 100);
 
   // Try to infer missing values from nearby DOM if not provided via data-attrs
   function inferFromDom(btn){
+    const root = btn.closest('[data-item]') || btn.closest('article') || document;
+
     // yards: look for <input name="yards"> or data-field="yards"
     let yards = 0;
-    const yardsInput = btn.closest('[data-item]')?.querySelector('input[name="yards"], [data-field="yards"]') ||
-                       document.querySelector('input[name="yards"], [data-field="yards"]');
-    if (yardsInput) yards = num(yardsInput.value || yardsInput.getAttribute('value'));
+    const yardsInput =
+      root.querySelector('input[name="yards"], [data-field="yards"]') ||
+      document.querySelector('input[name="yards"], [data-field="yards"]');
+    if (yardsInput){
+      yards = num(yardsInput.value || yardsInput.getAttribute('value'));
+    }
 
     // price per yard: look for [data-price] or text like $18.50/yd near the button
     let perYd = 0;
-    const priceEl = btn.closest('[data-item]')?.querySelector('[data-price], .price, [data-per-yd]') ||
-                    document.querySelector('[data-per-yd], [data-price], .price');
+    const priceEl =
+      root.querySelector('[data-price], .price, [data-per-yd]') ||
+      document.querySelector('[data-per-yd], [data-price], .price');
     if (priceEl){
-      perYd = num(priceEl.getAttribute('data-per-yd') || priceEl.getAttribute('data-price') || priceEl.textContent);
+      perYd = num(
+        priceEl.getAttribute('data-per-yd') ||
+        priceEl.getAttribute('data-price') ||
+        priceEl.textContent
+      );
     }
+
     return { yards, perYd };
+  }
+
+  // Infer options (size/color/etc.) from data-attrs and nearby selects/inputs
+  function inferOptions(btn){
+    const root = btn.closest('[data-item]') || btn.closest('article') || document;
+
+    let color = btn.dataset.color || '';
+    let size  = btn.dataset.size  || '';
+    let optionLabel = btn.dataset.optionLabel || btn.dataset.optionlabel || '';
+
+    if (!color){
+      const colorEl =
+        root.querySelector('[data-field="color"], select[name="color"], [name="color"]') ||
+        document.querySelector('[data-field="color"], select[name="color"], [name="color"]');
+      if (colorEl){
+        color = colorEl.value || colorEl.textContent || colorEl.getAttribute('data-value') || '';
+      }
+    }
+
+    if (!size){
+      const sizeEl =
+        root.querySelector('[data-field="size"], select[name="size"], [name="size"]') ||
+        document.querySelector('[data-field="size"], select[name="size"], [name="size"]');
+      if (sizeEl){
+        size = sizeEl.value || sizeEl.textContent || sizeEl.getAttribute('data-value') || '';
+      }
+    }
+
+    if (!optionLabel){
+      const optEl =
+        root.querySelector('[data-field="option"], [data-option-label], select[name="option"], [name="option"]') ||
+        document.querySelector('[data-field="option"], [data-option-label], select[name="option"], [name="option"]');
+      if (optEl){
+        optionLabel =
+          optEl.getAttribute('data-option-label') ||
+          optEl.getAttribute('data-label') ||
+          optEl.value ||
+          optEl.textContent ||
+          '';
+      }
+    }
+
+    const options = [];
+    if (color) options.push(color);
+    if (size)  options.push('Size ' + size);
+    if (optionLabel) options.push(optionLabel);
+
+    return { color, size, optionLabel, options };
   }
 
   function buildItemFromButton(btn){
@@ -77,14 +166,23 @@
     // amount is "unit price" in cents (your cart multiplies amount * qty)
     const amount = cents(perYd);
 
+    // Options: color/size/etc. for cart display
+    const opts = inferOptions(btn);
+
     return {
-      id, name, photo,
+      id,
+      name,
+      photo,
       qty,                 // line item quantity (usually 1)
       yards,               // yards per line (drives shipping tiers)
       perYd,               // dollars per yard (display/backup calc)
       amount,              // cents per unit (cart uses amount * qty)
-      ...(sellerId ? {sellerId} : {}),
-      ...(sellerName ? {sellerName} : {})
+      ...(sellerId ? { sellerId } : {}),
+      ...(sellerName ? { sellerName } : {}),
+      ...(opts.color ? { color: opts.color } : {}),
+      ...(opts.size ? { size: opts.size } : {}),
+      ...(opts.optionLabel ? { optionLabel: opts.optionLabel } : {}),
+      ...(opts.options && opts.options.length ? { options: opts.options } : {})
     };
   }
 
@@ -100,10 +198,10 @@
     const item = buildItemFromButton(btn);
 
     // Merge behavior: if same id + same seller, bump qty; else push new line
-    const key = (it) => `${it.id}::${it.sellerId||''}`;
+    const key = (it) => `${it.id}::${it.sellerId || ''}`;
     const idx = cart.findIndex(it => key(it) === key(item));
     if (idx >= 0){
-      cart[idx].qty = Number(cart[idx].qty||1) + Number(item.qty||1);
+      cart[idx].qty = Number(cart[idx].qty || 1) + Number(item.qty || 1);
       // If seller adds more of same fabric, optionally add yards too if your UX expects that:
       if (item.yards) cart[idx].yards = num(cart[idx].yards) + num(item.yards);
     } else {
@@ -111,7 +209,15 @@
     }
 
     writeCart(cart);
-    toast('Added to cart');
+
+    // Build a more informative toast message
+    const totalItems = cart.reduce((sum, it) => sum + (Number(it.qty) || 1), 0);
+    const baseName   = item.name || 'item';
+    const msg = totalItems === 1
+      ? `Added “${baseName}” to cart — 1 item total`
+      : `Added “${baseName}” to cart — ${totalItems} items total`;
+
+    toast(msg);
 
     // Optional: stay on page. If you prefer to go to cart, uncomment:
     // window.location.href = 'cart.html';
