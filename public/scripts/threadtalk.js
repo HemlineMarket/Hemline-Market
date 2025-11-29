@@ -1,5 +1,5 @@
 // scripts/threadtalk.js
-// ThreadTalk: threads + comments + reactions + search (Supabase-backed)
+// ThreadTalk: threads + comments + reactions + search (Supabase-backed, FB-style UI)
 
 (function () {
   const HM = window.HM || {};
@@ -175,7 +175,7 @@
         )
         .eq("is_deleted", false);
 
-      // Per-page category filter for category pages (main ThreadTalk has no filter)
+      // Per-page category filter for category pages
       if (THREAD_CATEGORY_FILTER) {
         query = query.eq("category", THREAD_CATEGORY_FILTER);
       }
@@ -320,8 +320,7 @@
       );
       const myThreadType =
         REACTION_TYPES.find((r) => threadMine[r.key])?.key || null;
-      const myThreadEmoji =
-        REACTION_TYPES.find((r) => r.key === myThreadType)?.emoji || "🙂";
+      const iReactedThread = !!myThreadType;
 
       const comments = commentsByThread[thread.id] || [];
       const mediaHtml = renderMedia(thread);
@@ -365,6 +364,19 @@
         `
         : "";
 
+      // Simple summary of reactions (e.g., 👍😂 4)
+      const reactionSummaryHtml =
+        totalThreadReacts > 0
+          ? `
+        <div class="tt-react-summary">
+          ${REACTION_TYPES.map((r) =>
+            threadCounts[r.key] ? `<span>${r.emoji}</span>` : ""
+          ).join("")}
+          <span class="tt-react-summary-count">${totalThreadReacts}</span>
+        </div>
+      `
+          : "";
+
       card.innerHTML = `
         <div class="tt-head">
           <div class="tt-line1">
@@ -388,39 +400,35 @@
         <div class="preview">${escapeHtml(thread.body)}</div>
         ${mediaHtml}
 
+        ${reactionSummaryHtml}
+
         <div class="tt-actions-row">
-          <button class="tt-like-main"
-                  type="button"
-                  data-tt-role="thread-like">
-            <span class="tt-like-emoji">${myThreadEmoji}</span>
-            <span class="tt-like-label">${
-              myThreadType ? "You reacted" : "React"
-            }</span>
-            <span class="tt-like-count">${totalThreadReacts || ""}</span>
-          </button>
+          <div class="tt-like-wrapper">
+            <button class="tt-like-btn tt-like-main${
+              iReactedThread ? " tt-like-active" : ""
+            }"
+                    type="button"
+                    data-tt-role="thread-like">
+              <span class="tt-like-label">Like</span>
+            </button>
+            <div class="tt-react-picker" data-tt-role="thread-picker">
+              ${REACTION_TYPES.map(
+                (r) => `
+                <button class="tt-react-pill"
+                        type="button"
+                        data-tt-role="thread-react"
+                        data-reaction="${r.key}">
+                  <span>${r.emoji}</span>
+                </button>
+              `
+              ).join("")}
+            </div>
+          </div>
           <button class="tt-reply-link"
                   type="button"
                   data-tt-role="respond">
             Reply
           </button>
-        </div>
-
-        <div class="tt-react-picker"
-             data-tt-role="thread-picker"
-             hidden>
-          ${REACTION_TYPES.map((r) => {
-            const active = r.key === myThreadType ? " tt-react-active" : "";
-            const count = threadCounts[r.key] || 0;
-            return `
-              <button class="tt-react-pill${active}"
-                      type="button"
-                      data-tt-role="thread-react"
-                      data-reaction="${r.key}">
-                <span>${r.emoji}</span>
-                <span class="tt-react-count">${count || ""}</span>
-              </button>
-            `;
-          }).join("")}
         </div>
 
         <div class="tt-comments" data-thread="${thread.id}">
@@ -453,8 +461,19 @@
     const { counts, mine } = computeReactionState(reactions);
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
     const myType = REACTION_TYPES.find((r) => mine[r.key])?.key || null;
-    const myEmoji =
-      REACTION_TYPES.find((r) => r.key === myType)?.emoji || "🙂";
+    const iReactedComment = !!myType;
+
+    const summaryHtml =
+      total > 0
+        ? `
+      <div class="tt-react-summary tt-react-summary-comment">
+        ${REACTION_TYPES.map((r) =>
+          counts[r.key] ? `<span>${r.emoji}</span>` : ""
+        ).join("")}
+        <span class="tt-react-summary-count">${total}</span>
+      </div>
+    `
+        : "";
 
     const deleteHtml =
       currentUser && c.author_id === currentUser.id
@@ -475,42 +494,39 @@
           ${deleteHtml}
         </div>
         <div class="tt-comment-body">${escapeHtml(c.body)}</div>
+        ${summaryHtml}
         <div class="tt-comment-actions">
-          <button class="tt-like-main tt-like-comment"
-                  type="button"
-                  data-tt-role="comment-like"
-                  data-comment-id="${c.id}">
-            <span class="tt-like-emoji">${myEmoji}</span>
-            <span class="tt-like-label">${
-              myType ? "You reacted" : "React"
-            }</span>
-            <span class="tt-like-count">${total || ""}</span>
-          </button>
+          <div class="tt-like-wrapper tt-like-wrapper-comment">
+            <button class="tt-like-btn tt-like-main${
+              iReactedComment ? " tt-like-active" : ""
+            }"
+                    type="button"
+                    data-tt-role="comment-like"
+                    data-comment-id="${c.id}">
+              <span class="tt-like-label">Like</span>
+            </button>
+            <div class="tt-react-picker"
+                 data-tt-role="comment-picker"
+                 data-comment-id="${c.id}">
+              ${REACTION_TYPES.map(
+                (r) => `
+                <button class="tt-react-pill"
+                        type="button"
+                        data-tt-role="comment-react"
+                        data-comment-id="${c.id}"
+                        data-reaction="${r.key}">
+                  <span>${r.emoji}</span>
+                </button>
+              `
+              ).join("")}
+            </div>
+          </div>
           <button class="tt-reply-link"
                   type="button"
                   data-tt-role="respond-comment"
                   data-comment-id="${c.id}">
             Reply
           </button>
-          <div class="tt-react-picker"
-               data-tt-role="comment-picker"
-               data-comment-id="${c.id}"
-               hidden>
-            ${REACTION_TYPES.map((r) => {
-              const active = mine[r.key] ? " tt-react-active" : "";
-              const count = counts[r.key] || 0;
-              return `
-                <button class="tt-react-pill${active}"
-                        type="button"
-                        data-tt-role="comment-react"
-                        data-comment-id="${c.id}"
-                        data-reaction="${r.key}">
-                  <span>${r.emoji}</span>
-                  <span class="tt-react-count">${count || ""}</span>
-                </button>
-              `;
-            }).join("")}
-          </div>
         </div>
       </div>
     `;
@@ -726,7 +742,7 @@
 
       switch (role) {
         case "thread-like":
-          toggleThreadPicker(card);
+          if (threadId != null) await handleThreadReaction(threadId, "like");
           break;
 
         case "thread-react": {
@@ -753,7 +769,7 @@
 
         case "comment-like": {
           const commentId = Number(roleEl.dataset.commentId);
-          toggleCommentPicker(card, commentId);
+          if (commentId) await handleCommentReaction(commentId, "like");
           break;
         }
 
@@ -790,26 +806,6 @@
           break;
       }
     });
-  }
-
-  function toggleThreadPicker(card) {
-    if (!card) return;
-    const picker = card.querySelector('[data-tt-role="thread-picker"]');
-    if (!picker) return;
-    const hidden = picker.hasAttribute("hidden");
-    if (hidden) picker.removeAttribute("hidden");
-    else picker.setAttribute("hidden", "true");
-  }
-
-  function toggleCommentPicker(card, commentId) {
-    if (!card || !commentId) return;
-    const picker = card.querySelector(
-      `[data-tt-role="comment-picker"][data-comment-id="${commentId}"]`
-    );
-    if (!picker) return;
-    const hidden = picker.hasAttribute("hidden");
-    if (hidden) picker.removeAttribute("hidden");
-    else picker.setAttribute("hidden", "true");
   }
 
   async function handleThreadReaction(threadId, type) {
@@ -984,16 +980,27 @@
   function focusCommentBox(card) {
     const input = card.querySelector(".tt-comment-input");
     if (!input) return;
+      function focusCommentBox(card) {
+    const input = card.querySelector(".tt-comment-input");
+    if (!input) return;
     input.scrollIntoView({ behavior: "smooth", block: "center" });
     input.focus();
   }
 
   function toggleMenu(card) {
+    if (!card) return;
     const pop = card.querySelector('[data-tt-role="menu-pop"]');
     if (!pop) return;
     const hidden = pop.hasAttribute("hidden");
-    if (hidden) pop.removeAttribute("hidden");
-    else pop.setAttribute("hidden", "true");
+    if (hidden) {
+      // close any other open menus first
+      document
+        .querySelectorAll(".tt-menu-pop:not([hidden])")
+        .forEach((el) => el.setAttribute("hidden", "true"));
+      pop.removeAttribute("hidden");
+    } else {
+      pop.setAttribute("hidden", "true");
+    }
   }
 
   async function handleEditThread(card, threadId) {
@@ -1007,7 +1014,7 @@
     const previewEl = card.querySelector(".preview");
     if (!previewEl) return;
 
-    const original = thread.body;
+    const original = thread.body || "";
     previewEl.innerHTML = `
       <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
       <div class="tt-edit-actions">
@@ -1069,7 +1076,10 @@
     try {
       const { error } = await supabase
         .from("threadtalk_threads")
-        .update({ is_deleted: true, updated_at: new Date().toISOString() })
+        .update({
+          is_deleted: true,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", threadId)
         .eq("author_id", currentUser.id);
 
@@ -1222,15 +1232,19 @@
       .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
       .tt-line2-main{display:flex;align-items:center;gap:4px;}
       .tt-title{font-weight:600;color:#3f2f2a;}
-      .post-media-wrap{margin:4px 0;max-width:460px;}
+      .post-media-wrap{margin:4px 0;max-width:480px;}
       .post-img,.post-video{width:100%;height:auto;border-radius:10px;display:block;}
-      .tt-actions-row{display:flex;align-items:center;gap:10px;margin-top:4px;margin-bottom:2px;font-size:13px;}
-      .tt-like-main{display:inline-flex;align-items:center;gap:4px;border-radius:999px;border:1px solid var(--border);padding:1px 8px;background:#fff;font-size:12px;cursor:pointer;line-height:1.2;}
-      .tt-like-count{min-width:10px;text-align:right;}
+      .tt-actions-row{display:flex;align-items:center;gap:12px;margin-top:4px;margin-bottom:2px;font-size:13px;}
+      .tt-like-wrapper{position:relative;display:inline-flex;align-items:center;}
+      .tt-like-btn{border:none;background:none;border-radius:999px;padding:4px 10px;font-size:13px;color:#6b7280;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+      .tt-like-btn.tt-like-active{color:#2563eb;font-weight:500;}
       .tt-reply-link{border:none;background:none;color:#b91c1c;font-size:12px;cursor:pointer;padding:0;}
-      .tt-react-picker{display:flex;gap:4px;margin-top:3px;}
-      .tt-react-pill{display:inline-flex;align-items:center;gap:3px;border-radius:999px;border:1px solid var(--border);background:#fff;padding:1px 6px;font-size:11px;cursor:pointer;}
-      .tt-react-pill.tt-react-active{border-color:#b91c1c;}
+      .tt-react-summary{display:flex;align-items:center;gap:2px;font-size:11px;color:#6b7280;margin-top:2px;}
+      .tt-react-summary span{display:inline-flex;align-items:center;justify-content:center;}
+      .tt-react-summary-count{margin-left:2px;}
+      .tt-react-picker{position:absolute;bottom:130%;left:0;display:flex;gap:4px;padding:4px 6px;border-radius:999px;background:#fff;box-shadow:0 10px 30px rgba(15,23,42,.18);opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .12s ease,transform .12s ease;z-index:30;}
+      .tt-like-wrapper:hover .tt-react-picker{opacity:1;pointer-events:auto;transform:translateY(0);}
+      .tt-react-pill{border:none;background:none;font-size:18px;cursor:pointer;line-height:1;}
       .tt-comments{margin-top:4px;}
       .tt-comments-list{display:flex;flex-direction:column;gap:2px;}
       .tt-comment{padding:4px 0;border-top:1px solid #f3f4f6;}
@@ -1238,7 +1252,7 @@
       .tt-comment-meta{display:flex;align-items:center;gap:4px;}
       .tt-comment-author{font-weight:500;}
       .tt-comment-body{font-size:13px;margin-bottom:2px;}
-      .tt-comment-actions{display:flex;align-items:center;gap:6px;font-size:12px;}
+      .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;}
       .tt-comment-delete{border:none;background:none;color:#b91c1c;font-size:11px;cursor:pointer;}
       .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:4px;}
       .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border);font-size:13px;}
@@ -1247,6 +1261,7 @@
       .tt-menu{position:relative;}
       .tt-menu-btn{padding:2px 6px;font-size:14px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;}
       .tt-menu-pop{position:absolute;margin-top:4px;right:0;background:#fff;border-radius:8px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:4px;z-index:20;}
+      .tt-menu-pop[hidden]{display:none;}
       .tt-menu-item{display:block;width:100%;text-align:left;border:none;background:none;padding:6px 10px;font-size:13px;border-radius:6px;cursor:pointer;}
       .tt-menu-item:hover{background:#f3f4f6;}
       .tt-menu-item.danger{color:#b91c1c;}
@@ -1256,6 +1271,14 @@
       .tt-zoom-inner{position:relative;z-index:1;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;}
       .tt-zoom-img{max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain;background:#fff;}
       .tt-zoom-close{position:absolute;top:-32px;right:0;border:none;background:none;color:#f9fafb;font-size:24px;cursor:pointer;}
+      .tt-edit-area{width:100%;min-height:60px;font-size:14px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);resize:vertical;}
+      .tt-edit-actions{display:flex;gap:8px;margin-top:4px;}
+      .tt-edit-save,.tt-edit-cancel{padding:4px 10px;border-radius:999px;border:none;font-size:13px;cursor:pointer;}
+      .tt-edit-save{background:#111827;color:#fff;}
+      .tt-edit-cancel{background:#e5e7eb;color:#111827;}
+      @media (max-width:640px){
+        .post-media-wrap{max-width:100%;}
+      }
     `;
     const style = document.createElement("style");
     style.textContent = css;
