@@ -334,10 +334,6 @@
       const threadRows = reactionsByThread[thread.id] || [];
       const { counts: threadCounts, mine: threadMine } =
         computeReactionState(threadRows);
-      const totalThreadReacts = Object.values(threadCounts).reduce(
-        (a, b) => a + b,
-        0
-      );
       const myThreadType =
         REACTION_TYPES.find((r) => threadMine[r.key])?.key || null;
       const iReactedThread = !!myThreadType;
@@ -382,18 +378,22 @@
            </button>`
         : "";
 
-      // Small emoji summary like FB
-      let summaryEmojis = "";
+      // Reaction summary: show per-emoji counts, e.g. 👍 1 😂 2
+      let chipsHtml = "";
       REACTION_TYPES.forEach((r) => {
-        if (threadCounts[r.key]) summaryEmojis += `<span>${r.emoji}</span>`;
+        const count = threadCounts[r.key];
+        if (count) {
+          chipsHtml += `<span class="tt-react-chip">
+              <span class="tt-react-emoji">${r.emoji}</span>
+              <span class="tt-react-count">${count}</span>
+            </span>`;
+        }
       });
-      const reactionSummaryHtml =
-        totalThreadReacts > 0
-          ? `<div class="tt-react-summary">
-               ${summaryEmojis}
-               <span class="tt-react-summary-count">${totalThreadReacts}</span>
-             </div>`
-          : "";
+      const reactionSummaryHtml = chipsHtml
+        ? `<div class="tt-react-summary">
+             ${chipsHtml}
+           </div>`
+        : "";
 
       // Reaction picker HTML
       const pickerHtml =
@@ -476,22 +476,25 @@
     const ts = timeAgo(c.created_at);
     const reactions = commentReactionsByComment[c.id] || [];
     const { counts, mine } = computeReactionState(reactions);
-    const total = Object.values(counts).reduce((a, b) => a + b, 0);
     const myType = REACTION_TYPES.find((r) => mine[r.key])?.key || null;
     const iReactedComment = !!myType;
 
-    // summary emojis
-    let summaryEmojis = "";
+    // Per-emoji reaction summary for comments
+    let chipsHtml = "";
     REACTION_TYPES.forEach((r) => {
-      if (counts[r.key]) summaryEmojis += `<span>${r.emoji}</span>`;
+      const count = counts[r.key];
+      if (count) {
+        chipsHtml += `<span class="tt-react-chip">
+            <span class="tt-react-emoji">${r.emoji}</span>
+            <span class="tt-react-count">${count}</span>
+          </span>`;
+      }
     });
-    const summaryHtml =
-      total > 0
-        ? `<div class="tt-react-summary tt-react-summary-comment">
-             ${summaryEmojis}
-             <span class="tt-react-summary-count">${total}</span>
-           </div>`
-        : "";
+    const summaryHtml = chipsHtml
+      ? `<div class="tt-react-summary tt-react-summary-comment">
+           ${chipsHtml}
+         </div>`
+      : "";
 
     // OWN comment: show 3-dot menu with Delete hidden inside
     const deleteHtml =
@@ -1320,9 +1323,10 @@
       .tt-react-picker{position:absolute;bottom:100%;left:0;display:flex;gap:6px;background:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:4px 6px;margin-bottom:4px;opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;}
       .tt-like-wrapper.tt-picker-open .tt-react-picker{opacity:1;pointer-events:auto;transform:translateY(0);}
       .tt-react-pill{border:none;background:none;font-size:18px;cursor:pointer;padding:2px;}
-      .tt-react-summary{display:inline-flex;align-items:center;gap:2px;font-size:11px;color:#6b7280;margin-top:2px;}
-      .tt-react-summary span{display:inline-flex;align-items:center;}
-      .tt-react-summary-count{margin-left:2px;}
+      .tt-react-summary{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#6b7280;margin-top:2px;flex-wrap:wrap;}
+      .tt-react-chip{display:inline-flex;align-items:center;gap:2px;margin-right:4px;}
+      .tt-react-emoji{font-size:14px;line-height:1;}
+      .tt-react-count{font-size:11px;line-height:1;}
       .tt-comments{margin-top:4px;}
       .tt-comments-list{display:flex;flex-direction:column;gap:2px;}
       .tt-comment{padding:4px 0;border-top:1px solid #f3f4f6;}
