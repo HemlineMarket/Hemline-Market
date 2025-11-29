@@ -93,6 +93,7 @@
     wireCardDelegates();
     wireSearch();
     wireZoomClose();
+    wireGlobalPickerClose();
     await loadThreads();
   }
 
@@ -274,7 +275,25 @@
   // ---------- Search ----------
   function wireSearch() {
     if (!searchInput) return;
+
     searchInput.addEventListener("input", applySearchFilter);
+
+    // If you add a button with id="threadSearchBtn", wire it too
+    const searchBtn = document.getElementById("threadSearchBtn");
+    if (searchBtn) {
+      searchBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        applySearchFilter();
+      });
+    }
+
+    // Enter key in search field
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        applySearchFilter();
+      }
+    });
   }
 
   function applySearchFilter() {
@@ -418,7 +437,7 @@
                iReactedThread ? " tt-like-active" : ""
              }"
                      type="button"
-                     data-tt-role="thread-like">
+                     data-tt-role="thread-like-toggle">
                <span class="tt-like-label">Like</span>
              </button>
              ${pickerHtml}
@@ -516,7 +535,7 @@
                iReactedComment ? " tt-like-active" : ""
              }"
                      type="button"
-                     data-tt-role="comment-like"
+                     data-tt-role="comment-like-toggle"
                      data-comment-id="${c.id}">
                <span class="tt-like-label">Like</span>
              </button>
@@ -726,6 +745,23 @@
     if (videoInput) videoInput.value = "";
   }
 
+  // ---------- Reaction picker helpers ----------
+  function closeAllPickers() {
+    document
+      .querySelectorAll(".tt-like-wrapper.tt-picker-open")
+      .forEach((el) => el.classList.remove("tt-picker-open"));
+  }
+
+  function wireGlobalPickerClose() {
+    document.addEventListener("click", (e) => {
+      const insidePickerOrLike =
+        e.target.closest(".tt-like-wrapper") || e.target.closest(".tt-react-picker");
+      if (!insidePickerOrLike) {
+        closeAllPickers();
+      }
+    });
+  }
+
   // ---------- Card interactions ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
@@ -742,14 +778,23 @@
       const threadId = card ? Number(card.dataset.threadId) : null;
 
       switch (role) {
-        case "thread-like":
-          // quick Like toggle
-          if (threadId != null) await handleThreadReaction(threadId, "like");
+        case "thread-like-toggle": {
+          const ok = await ensureLoggedInFor("react");
+          if (!ok) return;
+          const wrapper = roleEl.closest(".tt-like-wrapper");
+          if (!wrapper) return;
+          const isOpen = wrapper.classList.contains("tt-picker-open");
+          closeAllPickers();
+          if (!isOpen) wrapper.classList.add("tt-picker-open");
           break;
+        }
 
         case "thread-react": {
           const type = roleEl.dataset.reaction;
-          if (threadId && type) await handleThreadReaction(threadId, type);
+          if (threadId && type) {
+            closeAllPickers();
+            await handleThreadReaction(threadId, type);
+          }
           break;
         }
 
@@ -769,16 +814,24 @@
           if (threadId != null) await handleSendComment(card, threadId);
           break;
 
-        case "comment-like": {
-          const commentId = Number(roleEl.dataset.commentId);
-          if (commentId) await handleCommentReaction(commentId, "like");
+        case "comment-like-toggle": {
+          const ok = await ensureLoggedInFor("react");
+          if (!ok) return;
+          const wrapper = roleEl.closest(".tt-like-wrapper");
+          if (!wrapper) return;
+          const isOpen = wrapper.classList.contains("tt-picker-open");
+          closeAllPickers();
+          if (!isOpen) wrapper.classList.add("tt-picker-open");
           break;
         }
 
         case "comment-react": {
           const commentId = Number(roleEl.dataset.commentId);
           const type = roleEl.dataset.reaction;
-          if (commentId && type) await handleCommentReaction(commentId, type);
+          if (commentId && type) {
+            closeAllPickers();
+            await handleCommentReaction(commentId, type);
+          }
           break;
         }
 
@@ -1224,7 +1277,7 @@
       .tt-like-btn{border:none;background:none;color:#6b7280;font-size:13px;padding:4px 8px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
       .tt-like-btn.tt-like-active{color:#2563eb;font-weight:500;}
       .tt-react-picker{position:absolute;bottom:100%;left:0;display:flex;gap:6px;background:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:4px 6px;margin-bottom:4px;opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;}
-      .tt-like-wrapper:hover .tt-react-picker{opacity:1;pointer-events:auto;transform:translateY(0);}
+      .tt-like-wrapper.tt-picker-open .tt-react-picker{opacity:1;pointer-events:auto;transform:translateY(0);}
       .tt-react-pill{border:none;background:none;font-size:18px;cursor:pointer;padding:2px;}
       .tt-react-summary{display:inline-flex;align-items:center;gap:2px;font-size:11px;color:#6b7280;margin-top:2px;}
       .tt-react-summary span{display:inline-flex;align-items:center;}
