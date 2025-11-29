@@ -12,6 +12,14 @@
     return;
   }
 
+  // Optional per-page category filter: <body data-thread-category="showcase">
+  const THREAD_CATEGORY_FILTER =
+    document.body &&
+    document.body.dataset &&
+    document.body.dataset.threadCategory
+      ? document.body.dataset.threadCategory
+      : null;
+
   // ---------- DOM ----------
   const cardsEl = document.getElementById("cards");
   const emptyStateEl = document.getElementById("emptyState");
@@ -33,45 +41,45 @@
   const STORAGE_BUCKET = "threadtalk-media";
 
   const CATEGORY_LABELS = {
-    "showcase": "Showcase",
-    "tailoring": "Tailoring",
+    showcase: "Showcase",
+    tailoring: "Tailoring",
     "stitch-school": "Stitch School",
     "fabric-sos": "Fabric SOS",
     "before-after": "Before & After",
     "pattern-hacks": "Pattern Hacks",
     "stash-confessions": "Stash Confessions",
-    "loose-threads": "Loose Threads"
+    "loose-threads": "Loose Threads",
   };
 
   const CATEGORY_LINKS = {
-    "showcase": "showcase.html",
-    "tailoring": "tailoring.html",
+    showcase: "showcase.html",
+    tailoring: "tailoring.html",
     "stitch-school": "stitch-school.html",
     "fabric-sos": "fabric-sos.html",
     "before-after": "before-after.html",
     "pattern-hacks": "pattern-hacks.html",
     "stash-confessions": "stash-confessions.html",
-    "loose-threads": "loose-threads.html"
+    "loose-threads": "loose-threads.html",
   };
 
   const REACTION_TYPES = [
-    { key: "like",  emoji: "👍" },
-    { key: "love",  emoji: "❤️" },
+    { key: "like", emoji: "👍" },
+    { key: "love", emoji: "❤️" },
     { key: "laugh", emoji: "😂" },
-    { key: "wow",   emoji: "😮" },
-    { key: "cry",   emoji: "😢" }
+    { key: "wow", emoji: "😮" },
+    { key: "cry", emoji: "😢" },
   ];
 
   const MAX_VISIBLE_COMMENTS = 2; // show last 2 replies unless expanded
 
   // ---------- State ----------
   let currentUser = null;
-  const profilesCache = {};               // userId -> profile
-  let allThreads = [];                    // from DB
-  let threads = [];                       // filtered (search)
-  let commentsByThread = {};              // threadId -> [comments]
-  let reactionsByThread = {};             // threadId -> [reactions]
-  let commentReactionsByComment = {};     // commentId -> [reactions]
+  const profilesCache = {}; // userId -> profile
+  let allThreads = []; // from DB
+  let threads = []; // filtered (search)
+  let commentsByThread = {}; // threadId -> [comments]
+  let reactionsByThread = {}; // threadId -> [reactions]
+  let commentReactionsByComment = {}; // commentId -> [reactions]
   const expandedCommentsThreads = new Set(); // threads with all replies shown
 
   // ---------- Init ----------
@@ -160,12 +168,21 @@
   // ---------- Loading data ----------
   async function loadThreads() {
     try {
-      const { data: threadRows, error: threadErr } = await supabase
+      let query = supabase
         .from("threadtalk_threads")
-        .select("id, author_id, category, title, body, media_url, media_type, created_at, is_deleted")
-        .eq("is_deleted", false)
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .select(
+          "id, author_id, category, title, body, media_url, media_type, created_at, is_deleted"
+        )
+        .eq("is_deleted", false);
+
+      // Per-page category filter for category pages (main ThreadTalk has no filter)
+      if (THREAD_CATEGORY_FILTER) {
+        query = query.eq("category", THREAD_CATEGORY_FILTER);
+      }
+
+      query = query.order("created_at", { ascending: false }).limit(100);
+
+      const { data: threadRows, error: threadErr } = await query;
 
       if (threadErr) {
         console.error("[ThreadTalk] loadThreads error", threadErr);
@@ -278,7 +295,9 @@
   // ---------- Rendering ----------
   function renderThreads() {
     cardsEl.innerHTML = "";
-    if (emptyStateEl) emptyStateEl.style.display = threads.length ? "none" : "block";
+    if (emptyStateEl) {
+      emptyStateEl.style.display = threads.length ? "none" : "block";
+    }
 
     threads.forEach((thread) => {
       const card = document.createElement("article");
@@ -350,7 +369,11 @@
         <div class="tt-head">
           <div class="tt-line1">
             <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>
-            ${title ? `<span class="tt-title">“${escapeHtml(title)}”</span>` : ""}
+            ${
+              title
+                ? `<span class="tt-title">“${escapeHtml(title)}”</span>`
+                : ""
+            }
           </div>
           <div class="tt-line2">
             <div class="tt-line2-main">
@@ -370,7 +393,9 @@
                   type="button"
                   data-tt-role="thread-like">
             <span class="tt-like-emoji">${myThreadEmoji}</span>
-            <span class="tt-like-label">${myThreadType ? "You reacted" : "React"}</span>
+            <span class="tt-like-label">${
+              myThreadType ? "You reacted" : "React"
+            }</span>
             <span class="tt-like-count">${totalThreadReacts || ""}</span>
           </button>
           <button class="tt-reply-link"
@@ -456,7 +481,9 @@
                   data-tt-role="comment-like"
                   data-comment-id="${c.id}">
             <span class="tt-like-emoji">${myEmoji}</span>
-            <span class="tt-like-label">${myType ? "You reacted" : "React"}</span>
+            <span class="tt-like-label">${
+              myType ? "You reacted" : "React"
+            }</span>
             <span class="tt-like-count">${total || ""}</span>
           </button>
           <button class="tt-reply-link"
@@ -534,7 +561,7 @@
       e.preventDefault();
       let body = (textArea.value || "").trim();
       let title = ((titleInput && titleInput.value) || "").trim();
-      let cat = (categorySelect && categorySelect.value || "").trim();
+      let cat = ((categorySelect && categorySelect.value) || "").trim();
       if (!cat) cat = "loose-threads";
 
       const hasMedia = !!(photoInput?.files?.[0] || videoInput?.files?.[0]);
@@ -565,7 +592,7 @@
           title,
           body,
           media_url: mediaInfo.media_url,
-          media_type: mediaInfo.media_type
+          media_type: mediaInfo.media_type,
         };
 
         const { data, error } = await supabase
@@ -616,7 +643,7 @@
         .upload(path, file, {
           cacheControl: "3600",
           upsert: false,
-          contentType: file.type
+          contentType: file.type,
         });
 
       if (error) {
@@ -802,7 +829,7 @@
           .match({
             thread_id: threadId,
             user_id: currentUser.id,
-            reaction_type: type
+            reaction_type: type,
           });
         if (error) {
           console.warn("[ThreadTalk] reaction delete error", error);
@@ -816,7 +843,7 @@
             .delete()
             .match({
               thread_id: threadId,
-              user_id: currentUser.id
+              user_id: currentUser.id,
             });
           if (delErr) {
             console.warn(
@@ -833,7 +860,7 @@
           .insert({
             thread_id: threadId,
             user_id: currentUser.id,
-            reaction_type: type
+            reaction_type: type,
           });
 
         if (insErr) {
@@ -867,7 +894,7 @@
           .match({
             comment_id: commentId,
             user_id: currentUser.id,
-            reaction_type: type
+            reaction_type: type,
           });
         if (error) {
           console.warn(
@@ -884,7 +911,7 @@
             .delete()
             .match({
               comment_id: commentId,
-              user_id: currentUser.id
+              user_id: currentUser.id,
             });
           if (delErr) {
             console.warn(
@@ -901,7 +928,7 @@
           .insert({
             comment_id: commentId,
             user_id: currentUser.id,
-            reaction_type: type
+            reaction_type: type,
           });
 
         if (insErr) {
@@ -937,7 +964,7 @@
       const { error } = await supabase.from("threadtalk_comments").insert({
         thread_id: threadId,
         author_id: currentUser.id,
-        body
+        body,
       });
 
       if (error) {
@@ -1009,7 +1036,7 @@
           .from("threadtalk_threads")
           .update({
             body,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq("id", threadId)
           .eq("author_id", currentUser.id);
@@ -1068,7 +1095,7 @@
         .from("threadtalk_comments")
         .update({
           is_deleted: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq("id", commentId)
         .eq("author_id", currentUser.id);
@@ -1181,7 +1208,7 @@
       month: "short",
       day: "numeric",
       hour: "numeric",
-      minute: "2-digit"
+      minute: "2-digit",
     });
   }
 
@@ -1197,12 +1224,12 @@
       .tt-title{font-weight:600;color:#3f2f2a;}
       .post-media-wrap{margin:4px 0;max-width:460px;}
       .post-img,.post-video{width:100%;height:auto;border-radius:10px;display:block;}
-      .tt-actions-row{display:flex;align-items:center;gap:12px;margin-top:4px;margin-bottom:2px;font-size:13px;}
-      .tt-like-main{display:inline-flex;align-items:center;gap:4px;border-radius:999px;border:1px solid var(--border);padding:2px 8px;background:#fff;font-size:12px;cursor:pointer;}
+      .tt-actions-row{display:flex;align-items:center;gap:10px;margin-top:4px;margin-bottom:2px;font-size:13px;}
+      .tt-like-main{display:inline-flex;align-items:center;gap:4px;border-radius:999px;border:1px solid var(--border);padding:1px 8px;background:#fff;font-size:12px;cursor:pointer;line-height:1.2;}
       .tt-like-count{min-width:10px;text-align:right;}
       .tt-reply-link{border:none;background:none;color:#b91c1c;font-size:12px;cursor:pointer;padding:0;}
-      .tt-react-picker{display:flex;gap:6px;margin-top:3px;}
-      .tt-react-pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;border:1px solid var(--border);background:#fff;padding:2px 6px;font-size:12px;cursor:pointer;}
+      .tt-react-picker{display:flex;gap:4px;margin-top:3px;}
+      .tt-react-pill{display:inline-flex;align-items:center;gap:3px;border-radius:999px;border:1px solid var(--border);background:#fff;padding:1px 6px;font-size:11px;cursor:pointer;}
       .tt-react-pill.tt-react-active{border-color:#b91c1c;}
       .tt-comments{margin-top:4px;}
       .tt-comments-list{display:flex;flex-direction:column;gap:2px;}
@@ -1211,7 +1238,7 @@
       .tt-comment-meta{display:flex;align-items:center;gap:4px;}
       .tt-comment-author{font-weight:500;}
       .tt-comment-body{font-size:13px;margin-bottom:2px;}
-      .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;}
+      .tt-comment-actions{display:flex;align-items:center;gap:6px;font-size:12px;}
       .tt-comment-delete{border:none;background:none;color:#b91c1c;font-size:11px;cursor:pointer;}
       .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:4px;}
       .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border);font-size:13px;}
