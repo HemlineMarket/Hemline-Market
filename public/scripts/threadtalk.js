@@ -1054,12 +1054,8 @@
   }
 
   async function handleDeleteThread(threadId) {
-    const thread = allThreads.find((t) => t.id === threadId);
-    if (!thread) return;
-    if (!currentUser || thread.author_id !== currentUser.id) {
-      showToast("You can only delete your own posts.");
-      return;
-    }
+    const authOk = await ensureLoggedInFor("delete a post");
+    if (!authOk) return;
 
     const ok = confirm("Delete this thread?");
     if (!ok) return;
@@ -1068,8 +1064,7 @@
       const { error } = await supabase
         .from("threadtalk_threads")
         .update({ is_deleted: true, updated_at: new Date().toISOString() })
-        .eq("id", threadId)
-        .eq("author_id", currentUser.id);
+        .eq("id", threadId); // RLS enforces author_id
 
       if (error) {
         console.error("[ThreadTalk] delete thread error", error);
@@ -1085,6 +1080,9 @@
   }
 
   async function handleDeleteComment(commentId) {
+    const authOk = await ensureLoggedInFor("delete a reply");
+    if (!authOk) return;
+
     const ok = confirm("Delete this reply?");
     if (!ok) return;
 
@@ -1095,8 +1093,7 @@
           is_deleted: true,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", commentId)
-        .eq("author_id", currentUser.id);
+        .eq("id", commentId); // let RLS enforce author_id
 
       if (error) {
         console.error("[ThreadTalk] delete comment error", error);
