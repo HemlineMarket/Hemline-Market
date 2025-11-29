@@ -1,13 +1,551 @@
-      .composer .row{flex-direction:column}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>ThreadTalk — Hemline Market</title>
+
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+
+  <!-- Shared site styles (same stack as index.html) -->
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hm-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
+
+  <style>
+    :root{
+      /* header/footer expect these: */
+      --hm-accent:#991b1b;
+      --hm-text:#111827;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+      --hm-bg-card:rgba(255,255,255,.96);
+
+      /* page-specific palette (ThreadTalk) */
+      --hm-brand:#991b1b;
+      --ink:#3f2f2a;
+      --muted:#7a6e68;
+      --border:#e8e0d9;
+      --card:#ffffff;
+      --bg:#fdfbf9;
+      --accent:#2d2d2d;
+    }
+
+    html,body{
+      margin:0;
+      max-width:100%;
+      overflow-x:hidden;
+      background:
+        radial-gradient(1200px 420px at 50% -240px, rgba(153,27,27,.06) 0%, rgba(253,251,249,0) 60%),
+        linear-gradient(180deg, var(--bg) 0%, #fff 100%);
+      color:var(--ink);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    /* ------------------------------------------------------------------
+       THREADTALK PAGE LAYOUT
+    ------------------------------------------------------------------ */
+    .tt-wrap{
+      max-width:1200px;
+      margin:22px auto 44px;
+      padding:0 16px;
+    }
+
+    /* Hero + compact composer */
+    .tt-hero{
+      border:1px solid var(--border);
+      border-radius:20px;
+      padding:18px 16px;
+      text-align:left;
+      box-shadow:0 10px 20px rgba(50,38,31,.07);
+      background:radial-gradient(120% 150% at 50% 0%, #fff 0%, rgba(153,27,27,.05) 55%, #fff 100%);
+    }
+
+    .tt-hero-header{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+      margin-bottom:8px;
+    }
+    .tt-hero-left{
+      flex:1 1 260px;
+      min-width:220px;
+    }
+    .tt-hero-right{
+      flex:0 0 260px;
+      max-width:320px;
+    }
+
+    .tt-hero h1{
+      font-family:ui-serif,"Cormorant Garamond",Georgia,serif;
+      font-size:clamp(28px,4.2vw,44px);
+      margin:0 0 4px;
+    }
+    .tt-hero .sub{
+      color:var(--muted);
+      font-size:15px;
+      margin:6px 0 12px;
+    }
+
+    .tt-search{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      background:#fff;
+      border-radius:999px;
+      border:1px solid var(--border);
+      padding:6px 10px;
+      box-shadow:0 6px 12px rgba(50,38,31,.05);
+    }
+    .tt-search-label{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .tt-search-input{
+      flex:1;
+      border:none;
+      outline:none;
+      font-size:14px;
+      background:transparent;
+      color:var(--ink);
+    }
+    .tt-search-input::placeholder{
+      color:var(--muted);
+    }
+
+    .composer{
+      max-width:780px;
+      margin:10px auto 0;
+      text-align:left;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:8px;
+      box-shadow:0 6px 14px rgba(50,38,31,.06);
+    }
+    .composer .row{
+      display:flex;
+      gap:8px;
+      margin:8px;
+      align-items:flex-start;
+    }
+    .composer select,
+    .composer textarea{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:10px 12px;
+      font:inherit;
+      color:var(--ink);
+      background:#fff;
+    }
+    .composer textarea{
+      min-height:84px;
+      resize:vertical;
+    }
+    .composer .actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      justify-content:space-between;
+      margin:6px 8px 4px;
+    }
+    .left-actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .right-actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    /* Make Category narrow, text area / title wide */
+    #composeCategory{
+      flex:0 0 240px;
+      max-width:260px;
+      width:auto !important;
+    }
+    .composer-main{
+      flex:1 1 auto;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .composer-title-label{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .composer-title{
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      font:inherit;
+    }
+    #composeText{
+      flex:1 1 auto;
+      width:auto !important;
+      min-height:110px;
+    }
+
+    .icon-btn{
+      display:inline-grid;
+      place-items:center;
+      width:36px;
+      height:36px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#fff;
+      cursor:pointer;
+    }
+    .icon-btn svg{width:20px;height:20px}
+    .icon-photo{color:#dc2626}
+    .icon-video{color:#2563eb}
+
+    .tt-post{
+      appearance:none;
+      border:1px solid var(--accent);
+      background:var(--accent);
+      color:#fff;
+      padding:8px 14px;
+      border-radius:10px;
+      font-weight:700;
+    }
+    .tt-post:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+    }
+
+    .preview-wrap{
+      display:flex;
+      gap:10px;
+      padding:0 8px 8px;
+    }
+    .preview-wrap img,
+    .preview-wrap video{
+      max-width:140px;
+      max-height:120px;
+      border-radius:10px;
+      border:1px solid var(--border);
+    }
+
+    /* Topics */
+    .topics{margin-top:22px}
+
+    .topics-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:16px;
+    }
+
+    .topic{
+      position:relative;
+      overflow:hidden;
+      background:#fff;
+      display:block;
+      text-decoration:none;
+      color:var(--ink);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:20px 18px 18px 18px;
+      box-shadow:0 10px 16px rgba(50,38,31,.06);
+      transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .topic:hover{
+      transform:translateY(-2px);
+      box-shadow:0 16px 28px rgba(50,38,31,.1);
+      border-color:#e2d7cf;
+    }
+    .topic .title{
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .topic::before{
+      content:'';
+      position:absolute;
+      left:0;
+      top:0;
+      bottom:0;
+      width:4px;
+      background:var(--hm-brand);
+      opacity:.9;
+    }
+    .tile-art{
+      position:absolute;
+      right:-6px;
+      top:-6px;
+      width:84px;
+      height:84px;
+      opacity:.2;
+      pointer-events:none;
+      stroke:var(--hm-brand);
+      fill:none;
+      stroke-width:1.5;
+    }
+
+    /* Feed */
+    .feed{margin-top:24px}
+    .feed h2{
+      font-size:18px;
+      margin:4px 0 12px 4px;
+      color:#5a463d;
+    }
+    .cards{
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      max-width:1200px;
+      margin:0 auto;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:18px 20px;
+      box-shadow:0 12px 18px rgba(50,38,31,.07);
+    }
+    .meta{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      color:var(--muted);
+      font-size:13px;
+      margin-bottom:6px;
+      flex-wrap:wrap;
+    }
+    .meta-main{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    /* Never show avatars on ThreadTalk cards */
+    .avatar{
+      display:none;
+    }
+    .title{
+      margin:4px 0 8px;
+      line-height:1.35;
+    }
+    .cat{
+      font-weight:800;
+      margin-right:.35rem;
+      text-decoration:none;
+      color:var(--hm-brand);
+    }
+    .preview{
+      color:#5e544d;
+      font-size:14px;
+      margin-bottom:8px;
+      white-space:pre-wrap;
+    }
+    .post-img,
+    .post-video{
+      width:100%;
+      height:auto;
+      border-radius:12px;
+      margin:8px 0;
+      border:1px solid var(--border);
+      display:block;
+      max-height:560px;
+    }
+    .actions{
+      display:flex;
+      gap:14px;
+      align-items:center;
+      color:#7e6f66;
+      font-size:13px;
+      margin-top:8px;
+    }
+
+    /* Reactions / comments / edit */
+    .tt-react-row{
+      display:flex;
+      gap:6px;
+      margin-top:4px;
+      flex-wrap:wrap;
+    }
+    .tt-react{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:999px;
+      padding:3px 8px;
+      font-size:12px;
+      cursor:pointer;
+    }
+    .tt-react span{
+      min-width:1.2em;
+      display:inline-block;
+      text-align:center;
+    }
+    .tt-react-active{
+      border-color:var(--hm-accent);
+      box-shadow:0 0 0 1px rgba(153,27,27,.08);
+    }
+
+    .tt-comments{
+      margin-top:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .tt-comment{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:10px;
+      padding:8px;
+    }
+    .tt-comment-head{
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:4px;
+    }
+    .tt-comment-new{
+      display:flex;
+      gap:8px;
+    }
+    .tt-comment-input{
+      flex:1;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px;
+    }
+    .tt-comment-send{
+      border:1px solid var(--accent);
+      background:var(--accent);
+      color:#fff;
+      border-radius:10px;
+      padding:8px 12px;
+    }
+
+    .tt-menu{
+      position:relative;
+    }
+    .tt-menu-btn{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:8px;
+      padding:4px 8px;
+    }
+    .tt-menu-pop{
+      position:absolute;
+      right:0;
+      top:32px;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:10px;
+      box-shadow:0 8px 18px rgba(0,0,0,.08);
+      display:grid;
+      z-index:10;
+    }
+    .tt-menu-item{
+      padding:8px 12px;
+      background:#fff;
+      border:none;
+      text-align:left;
+      cursor:pointer;
+    }
+    .tt-menu-item:hover{background:#faf7f4}
+    .tt-menu-item.danger{color:#b91c1c}
+
+    .tt-edit-area{
+      width:100%;
+      min-height:84px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:10px;
+    }
+    .tt-edit-actions{
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+    }
+    .tt-edit-save,
+    .tt-edit-cancel{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:10px;
+      padding:8px 12px;
+    }
+    .tt-edit-save{
+      border-color:var(--accent);
+      background:var(--accent);
+      color:#fff;
+    }
+
+    /* Toast */
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:22px;
+      transform:translateX(-50%);
+      background:#1f2937;
+      color:#fff;
+      padding:10px 14px;
+      border-radius:10px;
+      font-size:14px;
+      box-shadow:0 6px 18px rgba(0,0,0,.18);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .2s;
+      z-index:200;
+    }
+    .toast.show{opacity:1}
+
+    .sr-only{
+      position:absolute !important;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0,0,0,0);
+      white-space:nowrap;
+      border:0;
+    }
+
+    a:focus-visible,
+    button:focus-visible{
+      outline:3px solid rgba(153,27,27,.35);
+      outline-offset:2px;
+      border-radius:10px;
+    }
+
+    /* Tablet: 2 columns for topics */
+    @media (max-width:900px){
+      .topics-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+
+    /* Mobile refinements */
+    @media (max-width:640px){
+      .tt-hero{padding:14px 12px}
+      .composer{box-shadow:none}
+      #composeCategory{max-width:100%;font-size:16px}
+      #composeText{min-height:120px;font-size:16px}
+      .topics-grid{grid-template-columns:1fr}
+      .topic{padding:16px 14px}
+      .card{padding:14px 14px}
+      .actions,.reax{gap:10px}
+      .tt-post{width:100%}
+      .composer .row{flex-direction:column;}
       #composeCategory,
       #composeText{
         width:100% !important;
         max-width:100%;
         flex:0 0 auto;
       }
-      .composer-main{
-        width:100%;
-      }
+      .composer-main{width:100%;}
     }
   </style>
 </head>
