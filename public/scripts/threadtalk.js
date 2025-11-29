@@ -493,12 +493,25 @@
            </div>`
         : "";
 
+    // OWN comment: show 3-dot menu with Delete hidden inside
     const deleteHtml =
       currentUser && c.author_id === currentUser.id
-        ? `<button class="tt-comment-delete"
-                   type="button"
-                   data-tt-role="delete-comment"
-                   data-comment-id="${c.id}">Delete</button>`
+        ? `
+          <div class="tt-menu tt-menu-comment">
+            <button class="tt-menu-btn"
+                    type="button"
+                    data-tt-role="comment-menu">···</button>
+            <div class="tt-menu-pop"
+                 data-tt-role="comment-menu-pop"
+                 hidden>
+              <button class="tt-menu-item danger"
+                      type="button"
+                      data-tt-role="delete-comment"
+                      data-comment-id="${c.id}">
+                Delete
+              </button>
+            </div>
+          </div>`
         : "";
 
     const pickerHtml =
@@ -690,6 +703,8 @@
 
       const { data: pub } = supabase.storage
         .from(STORAGE_BUCKET)
+              const { data: pub } = supabase.storage
+        .from(STORAGE_BUCKET)
         .getPublicUrl(data.path);
 
       const url = pub?.publicUrl || null;
@@ -755,9 +770,19 @@
   function wireGlobalPickerClose() {
     document.addEventListener("click", (e) => {
       const insidePickerOrLike =
-        e.target.closest(".tt-like-wrapper") || e.target.closest(".tt-react-picker");
+        e.target.closest(".tt-like-wrapper") ||
+        e.target.closest(".tt-react-picker");
       if (!insidePickerOrLike) {
         closeAllPickers();
+      }
+
+      // Close any open thread or comment menus if clicking outside them
+      const menuBtn = e.target.closest(".tt-menu-btn");
+      const menuPop = e.target.closest(".tt-menu-pop");
+      if (!menuBtn && !menuPop) {
+        document
+          .querySelectorAll(".tt-menu-pop")
+          .forEach((el) => el.setAttribute("hidden", "true"));
       }
     });
   }
@@ -832,6 +857,21 @@
             closeAllPickers();
             await handleCommentReaction(commentId, type);
           }
+          break;
+        }
+
+        case "comment-menu": {
+          // Toggle this comment's menu only
+          const pop = roleEl
+            .closest(".tt-menu")
+            ?.querySelector('[data-tt-role="comment-menu-pop"]');
+          if (!pop) return;
+          const hidden = pop.hasAttribute("hidden");
+          // Close all other comment menus
+          document
+            .querySelectorAll('[data-tt-role="comment-menu-pop"]')
+            .forEach((el) => el.setAttribute("hidden", "true"));
+          if (hidden) pop.removeAttribute("hidden");
           break;
         }
 
@@ -1043,8 +1083,11 @@
     const pop = card.querySelector('[data-tt-role="menu-pop"]');
     if (!pop) return;
     const hidden = pop.hasAttribute("hidden");
+    // close all others
+    document
+      .querySelectorAll('[data-tt-role="menu-pop"]')
+      .forEach((el) => el.setAttribute("hidden", "true"));
     if (hidden) pop.removeAttribute("hidden");
-    else pop.setAttribute("hidden", "true");
   }
 
   async function handleEditThread(card, threadId) {
@@ -1227,8 +1270,7 @@
     return String(str || "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/>/g, "&quot;");
   }
 
   function escapeAttr(str) {
@@ -1290,7 +1332,6 @@
       .tt-comment-author{font-weight:500;}
       .tt-comment-body{font-size:13px;margin-bottom:2px;}
       .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;}
-      .tt-comment-delete{border:none;background:none;color:#b91c1c;font-size:11px;cursor:pointer;}
       .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:4px;}
       .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border);font-size:13px;}
       .tt-comment-send{padding:6px 12px;font-size:13px;border-radius:999px;border:none;background:#111827;color:#fff;cursor:pointer;}
