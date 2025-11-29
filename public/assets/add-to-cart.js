@@ -7,83 +7,8 @@
 (function(){
   const KEY = 'hm_cart';
 
-  // --- CART BADGE / HEADER STATE -------------------------------------------------
+  // --- MAGICAL HAPPY POPUP -------------------------------------------------------
 
-  // If hm-shell hasn't provided its own HM_CART_BADGE_UPDATE, define a generic one.
-  if (!window.HM_CART_BADGE_UPDATE) {
-    window.HM_CART_BADGE_UPDATE = function(cart){
-      try{
-        const list = cart || [];
-        const totalItems = list.reduce((sum, it) => sum + (Number(it.qty) || 1), 0);
-
-        // Body data attribute so CSS can key off [data-cart="empty|has-items"]
-        if (typeof document !== 'undefined' && document.body) {
-          document.body.setAttribute('data-cart', totalItems > 0 ? 'has-items' : 'empty');
-        }
-
-        // Find the cart link/icon in the header
-        const cartLink =
-          document.querySelector('[data-hm-cart-link]') ||
-          document.querySelector('[data-role="cart-link"]') ||
-          document.querySelector('a[href$="cart.html"]');
-
-        if (!cartLink) return;
-
-        // Ensure a small badge element exists next to the icon/text
-        let badge = cartLink.querySelector('.hm-cart-badge');
-        if (!badge){
-          badge = document.createElement('span');
-          badge.className = 'hm-cart-badge';
-          badge.style.cssText = [
-            'display:none',
-            'margin-left:6px',
-            'min-width:18px',
-            'height:18px',
-            'border-radius:999px',
-            'background:#991b1b',
-            'color:#fff',
-            'font-size:11px',
-            'font-weight:600',
-            'padding:0 6px',
-            'box-sizing:border-box',
-            'align-items:center',
-            'justify-content:center',
-            'line-height:1',
-            'vertical-align:middle'
-          ].join(';');
-          badge.style.display = 'none';
-          badge.style.display = 'none';
-          badge.style.display = 'none';
-          badge.style.display = 'none';
-          badge.style.display = 'none';
-          badge.style.display = 'none';
-          // Make it flex when shown
-          badge.style.display = 'none'; // default hidden
-          badge.style.display = 'none';
-          cartLink.appendChild(badge);
-        }
-
-        if (totalItems > 0){
-          badge.textContent = totalItems > 9 ? '9+' : String(totalItems);
-          badge.style.display = 'inline-flex';
-        } else {
-          badge.textContent = '';
-          badge.style.display = 'none';
-        }
-
-        cartLink.setAttribute(
-          'aria-label',
-          totalItems > 0
-            ? `Cart with ${totalItems} item${totalItems === 1 ? '' : 's'}`
-            : 'Cart is empty'
-        );
-      }catch(_){}
-    };
-  }
-
-  // --- "MAGICAL HAPPY" POPUP -----------------------------------------------------
-
-  // Popup overlay: center card, dimmed background
   function createPopup(){
     let overlay = document.getElementById('hm_cart_popup');
     if (overlay) return overlay;
@@ -134,7 +59,6 @@
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    // Wiring
     const titleEl = card.querySelector('[data-role="title"]');
     const msgEl   = card.querySelector('[data-role="message"]');
     const viewBtn = card.querySelector('[data-role="view-cart"]');
@@ -161,11 +85,12 @@
     return overlay;
   }
 
+  // This replaces the old tiny bottom toast.
   function toast(message){
     try{
       const overlay = createPopup();
       overlay._titleEl.textContent = 'Added to your cart';
-      overlay._msgEl.textContent = message;
+      overlay._msgEl.textContent   = message;
       overlay.style.opacity = '1';
       overlay.style.pointerEvents = 'auto';
 
@@ -189,6 +114,7 @@
   function writeCart(arr){
     const list = arr || [];
     localStorage.setItem(KEY, JSON.stringify(list));
+    // Let the universal header decide how to show the cart state
     if (window.HM_CART_BADGE_UPDATE){
       try{ window.HM_CART_BADGE_UPDATE(list); }catch(_){}
     }
@@ -341,7 +267,6 @@
     const idx = cart.findIndex(it => key(it) === key(item));
     if (idx >= 0){
       cart[idx].qty = Number(cart[idx].qty || 1) + Number(item.qty || 1);
-      // If seller adds more of same fabric, add yards too if your UX expects that:
       if (item.yards) cart[idx].yards = num(cart[idx].yards) + num(item.yards);
     } else {
       cart.push(item);
@@ -361,11 +286,9 @@
   // Attach one delegated listener for whole document
   document.addEventListener('click', onClick, true);
 
-  // Sync badge on initial load so header immediately reflects state
+  // Ensure header reflects cart state on initial load
   try{
     const initialCart = readCart();
-    if (window.HM_CART_BADGE_UPDATE){
-      window.HM_CART_BADGE_UPDATE(initialCart);
-    }
+    writeCart(initialCart);
   }catch(_){}
 })();
