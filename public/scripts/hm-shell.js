@@ -1,4 +1,4 @@
-// Hemline Market — Universal Header + Footer + Menu + Session Logic
+// Hemline Market — Universal Header + Footer + Menu + Session + Cart Badge
 window.HM = window.HM || {};
 
 (function () {
@@ -43,7 +43,7 @@ window.HM = window.HM || {};
         </svg>
       </a>
 
-      <a class="hm-icon" href="cart.html" aria-label="Cart">
+      <a class="hm-icon" href="cart.html" aria-label="Cart" data-hm-cart-link>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9"  cy="21" r="1"></circle>
           <circle cx="18" cy="21" r="1"></circle>
@@ -217,6 +217,92 @@ window.HM = window.HM || {};
   }
 
   /* --------------------------------------------------------------------------
+     CART BADGE / CART STATE
+  -------------------------------------------------------------------------- */
+  function updateCartBadge(cart) {
+    try {
+      const list = Array.isArray(cart) ? cart : [];
+      const totalItems = list.reduce(
+        (sum, it) => sum + (Number(it.qty) || 1),
+        0
+      );
+
+      // Body-level state so CSS can style if you want
+      if (document.body) {
+        document.body.setAttribute(
+          "data-cart",
+          totalItems > 0 ? "has-items" : "empty"
+        );
+      }
+
+      const cartLink =
+        document.querySelector("[data-hm-cart-link]") ||
+        document.querySelector('a[href$="cart.html"]');
+      if (!cartLink) return;
+
+      let badge = cartLink.querySelector(".hm-cart-badge");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "hm-cart-badge";
+        badge.style.cssText = [
+          "display:none",
+          "margin-left:6px",
+          "min-width:18px",
+          "height:18px",
+          "border-radius:999px",
+          "background:#991b1b",
+          "color:#ffffff",
+          "font-size:11px",
+          "font-weight:600",
+          "padding:0 6px",
+          "box-sizing:border-box",
+          "align-items:center",
+          "justify-content:center",
+          "line-height:1",
+          "vertical-align:middle"
+        ].join(";");
+        cartLink.appendChild(badge);
+      }
+
+      if (totalItems > 0) {
+        badge.textContent = totalItems > 9 ? "9+" : String(totalItems);
+        badge.style.display = "inline-flex";
+        cartLink.classList.add("has-items");
+      } else {
+        badge.textContent = "";
+        badge.style.display = "none";
+        cartLink.classList.remove("has-items");
+      }
+
+      cartLink.setAttribute(
+        "aria-label",
+        totalItems > 0
+          ? `Cart with ${totalItems} item${totalItems === 1 ? "" : "s"}`
+          : "Cart is empty"
+      );
+    } catch (_) {
+      // fail silently
+    }
+  }
+
+  // Expose global hook used by add-to-cart.js and cart.html
+  window.HM_CART_BADGE_UPDATE = function (cart) {
+    updateCartBadge(cart || []);
+  };
+
+  function syncCartBadgeFromStorage() {
+    try {
+      const raw = localStorage.getItem("hm_cart");
+      const arr = raw ? JSON.parse(raw) : [];
+      if (window.HM_CART_BADGE_UPDATE) {
+        window.HM_CART_BADGE_UPDATE(arr);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  /* --------------------------------------------------------------------------
      PUBLIC API
   -------------------------------------------------------------------------- */
   window.HM.renderShell = function renderShell(opts) {
@@ -230,5 +316,6 @@ window.HM = window.HM || {};
 
     wireMenu();
     wireSupabaseSession();
+    syncCartBadgeFromStorage();
   };
 })();
