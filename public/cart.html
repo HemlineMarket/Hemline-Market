@@ -48,19 +48,26 @@
     .breadcrumb b{color:#111827;}
     h1{margin:0 0 8px;}
 
-    /* Status banner */
+    /* Status banner / cart state */
     .banner{
       margin:10px 0 16px;
-      padding:10px 12px;
-      border-radius:10px;
+      padding:14px 16px;
+      border-radius:12px;
       border:1px solid var(--okbd);
       background:var(--okbg);
       color:var(--ok);
       display:flex;
-      align-items:center;
+      align-items:flex-start;
       gap:10px;
+      font-size:14px;
+      line-height:1.4;
+      box-shadow:0 8px 16px rgba(0,0,0,0.03);
     }
-    .banner svg{width:18px;height:18px;}
+    .banner svg{width:20px;height:20px;flex-shrink:0;}
+    .banner-title{
+      font-weight:700;
+      margin-bottom:2px;
+    }
 
     /* GRID + CARDS */
     .grid{
@@ -196,7 +203,10 @@
         <circle cx="12" cy="12" r="10"></circle>
         <path d="M12 8v4m0 4h.01"></path>
       </svg>
-      <span id="cartBannerText"></span>
+      <div>
+        <div id="cartBannerTitle" class="banner-title"></div>
+        <div id="cartBannerText"></div>
+      </div>
     </div>
 
     <div class="grid">
@@ -222,8 +232,14 @@
               <div id="shipLines" class="ship-lines"></div>
             </div>
           </div>
-          <div class="row"><span>Tax</span><span class="muted">Calculated at checkout</span></div>
-          <div class="row" style="font-weight:800"><span>Total</span><span id="tot">$0.00</span></div>
+          <div class="row">
+            <span>Tax</span>
+            <span class="muted">Calculated at checkout</span>
+          </div>
+          <div class="row" style="font-weight:800">
+            <span>Total</span>
+            <span id="tot">$0.00</span>
+          </div>
           <button id="checkout" class="hm-btn-primary" style="width:100%;margin-top:12px">Checkout</button>
         </div>
       </aside>
@@ -245,14 +261,15 @@
     const LS      = 'hm_cart';
     const SHIP_LS = 'hm_cart_shipping';
 
-    const itemsEl     = document.getElementById('items');
-    const subEl       = document.getElementById('sub');
-    const shipEl      = document.getElementById('ship');
-    const shipLinesEl = document.getElementById('shipLines');
-    const totEl       = document.getElementById('tot');
-    const checkout    = document.getElementById('checkout');
-    const banner      = document.getElementById('cartBanner');
-    const bannerText  = document.getElementById('cartBannerText');
+    const itemsEl        = document.getElementById('items');
+    const subEl          = document.getElementById('sub');
+    const shipEl         = document.getElementById('ship');
+    const shipLinesEl    = document.getElementById('shipLines');
+    const totEl          = document.getElementById('tot');
+    const checkout       = document.getElementById('checkout');
+    const banner         = document.getElementById('cartBanner');
+    const bannerTitleEl  = document.getElementById('cartBannerTitle');
+    const bannerTextEl   = document.getElementById('cartBannerText');
 
     const fmt = c => '$' + (Math.max(0, c) / 100).toFixed(2);
 
@@ -308,6 +325,22 @@
       return { lines, total_cents };
     }
 
+    function updateBanner(cart){
+      if(!banner) return;
+      if(!cart || cart.length === 0){
+        banner.style.display = 'block';
+        bannerTitleEl.textContent = 'Your cart is empty';
+        bannerTextEl.textContent  = 'Browse Hemline Market to add fabrics and pieces to your cart.';
+      }else{
+        const totalItems = cart.reduce((sum,it)=> sum + (Number(it.qty) || 1), 0);
+        banner.style.display = 'block';
+        bannerTitleEl.textContent = 'Cart updated';
+        bannerTextEl.textContent  = totalItems === 1
+          ? 'You have 1 item in your cart. You can adjust quantities or proceed to checkout.'
+          : 'You have ' + totalItems + ' items in your cart. You can adjust quantities or proceed to checkout.';
+      }
+    }
+
     function render(){
       const cart = read();
       itemsEl.innerHTML = '';
@@ -319,18 +352,12 @@
         shipLinesEl.textContent = '';
         totEl.textContent       = fmt(0);
         checkout.disabled       = true;
-        if(banner){
-          banner.style.display = 'block';
-          bannerText.textContent = 'Your cart is empty.';
-        }
+        updateBanner(cart);
         return;
       }
 
       checkout.disabled = false;
-      if(banner){
-        banner.style.display = 'block';
-        bannerText.textContent = 'Cart has items — ready to check out.';
-      }
+      updateBanner(cart);
 
       let subtotal = 0;
 
@@ -340,6 +367,18 @@
         const per = it.perYd ? ('$' + Number(it.perYd).toFixed(2) + '/yd') : '';
         const yardsLabel = (it.yards !== undefined && it.yards !== null && it.yards !== '')
           ? (per ? ' · ' : '') + Number(it.yards) + ' yd'
+          : '';
+
+        // options (size, color, etc.) if present
+        const optionBits = [];
+        if(it.color) optionBits.push(it.color);
+        if(it.size) optionBits.push('Size ' + it.size);
+        if(it.optionLabel) optionBits.push(it.optionLabel);
+        if(Array.isArray(it.options) && it.options.length){
+          optionBits.push(it.options.join(' · '));
+        }
+        const optionsHtml = optionBits.length
+          ? '<div class="t2">' + optionBits.join(' · ') + '</div>'
           : '';
 
         const row = document.createElement('div');
@@ -353,6 +392,7 @@
           '<div>' +
             '<div class="t1">'+(it.name || 'Fabric')+'</div>' +
             '<div class="t2">'+(per + yardsLabel)+'</div>' +
+            optionsHtml +
             '<div style="margin-top:8px;display:flex;gap:10px;align-items:center">' +
               '<div class="qty">' +
                 '<button type="button" data-act="dec">−</button>' +
