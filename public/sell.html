@@ -272,8 +272,8 @@
 <div id="hm-shell-header"></div>
 
 <main class="sell-wrap" id="maincontent">
-  <h1>Create a Listing</h1>
-  <p class="subtle">Showcase your fabric in three quick steps.</p>
+  <h1 id="sellHeading">Create a Listing</h1>
+  <p class="subtle" id="sellSubcopy">Showcase your fabric in three quick steps.</p>
 
   <div class="stepper" id="stepper">
     <div class="bubble" data-step="1" data-active="true"><span class="num">1</span> Photos &amp; Video</div>
@@ -570,6 +570,9 @@
   );
 
   const MEDIA_BUCKET = 'listing-media';
+  let editingListing = null;
+  let editId = null;
+  let isEditMode = false;
 
   async function ensureSession({maxWaitMs=3000} = {}){
     let { data:{ session } } = await supabaseClient.auth.getSession();
@@ -597,6 +600,22 @@
       }
     });
 
+    try{
+      const url = new URL(window.location.href);
+      editId = url.searchParams.get("edit");
+      isEditMode = !!editId;
+    }catch(_){
+      editId = null;
+      isEditMode = false;
+    }
+
+    const sellHeading = document.getElementById("sellHeading");
+    const sellSubcopy = document.getElementById("sellSubcopy");
+    if(isEditMode){
+      if(sellHeading) sellHeading.textContent = "Edit Listing";
+      if(sellSubcopy) sellSubcopy.textContent = "Update your listing details and save your changes.";
+    }
+
     let step = 1;
     const stageTitle = document.getElementById('stageTitle');
     const backBtn    = document.getElementById('backBtn');
@@ -604,7 +623,7 @@
     const saveDraft  = document.getElementById('saveDraftBtn');
 
     const state = {
-      photos: [], // { file, previewUrl, storagePath, publicUrl }
+      photos: [], // { file, previewUrl, storagePath, publicUrl, existing? }
       video: null,
       details: {}
     };
@@ -632,6 +651,17 @@
     const reviewMedia = document.getElementById('reviewMedia');
     const reviewKv    = document.getElementById('reviewKv');
 
+    const contentSelect    = document.getElementById('content');
+    const fabricSelect     = document.getElementById('fabric');
+    const colorFamilySelect= document.getElementById('colorFamily');
+    const patternSelect    = document.getElementById('pattern');
+    const deptSelect       = document.getElementById('dept');
+    const fiberTypeSelect  = document.getElementById('fiberType');
+    const originSelect     = document.getElementById('origin');
+    const widthInput       = document.getElementById('width');
+    const gsmInput         = document.getElementById('gsm');
+    const designerInput    = document.getElementById('designer');
+
     function setStep(newStep){
       step = newStep;
       document.querySelectorAll('.step').forEach((el, idx)=>{
@@ -643,17 +673,18 @@
       });
       if(step === 1) stageTitle.textContent = 'Step 1 — Photos & Video';
       if(step === 2) stageTitle.textContent = 'Step 2 — Details';
-      if(step === 3) stageTitle.textContent = 'Step 3 — Review & Publish';
+      if(step === 3) stageTitle.textContent = isEditMode ? 'Step 3 — Review & Save' : 'Step 3 — Review & Publish';
 
       backBtn.disabled = (step === 1);
       if(step === 1){
         nextBtn.textContent = 'Next';
-        nextBtn.disabled = (state.photos.length === 0);
+        // For edit mode, allow moving forward even if we didn't add new photos.
+        nextBtn.disabled = !isEditMode && state.photos.length === 0;
       }else if(step === 2){
         nextBtn.textContent = 'Next';
         nextBtn.disabled = false;
       }else if(step === 3){
-        nextBtn.textContent = 'Publish';
+        nextBtn.textContent = isEditMode ? 'Save changes' : 'Publish';
         nextBtn.disabled = !agreeBox.checked;
       }
     }
@@ -676,9 +707,12 @@
         photoThumbs.appendChild(div);
       });
 
-      photoError.style.display = state.photos.length ? 'none' : 'block';
-      if(step === 1){
-        nextBtn.disabled = state.photos.length === 0;
+      // In create mode, photos are required. In edit mode, we don't block.
+      if(!isEditMode){
+        photoError.style.display = state.photos.length ? 'none' : 'block';
+        if(step === 1){
+          nextBtn.disabled = state.photos.length === 0;
+        }
       }
     }
 
@@ -696,7 +730,8 @@
             file,
             previewUrl,
             storagePath: null,
-            publicUrl: null
+            publicUrl: null,
+            existing: false
           });
           renderPhotoThumbs();
         };
@@ -818,16 +853,16 @@
         origPrice: origPriceInp.value ? parseFloat(origPriceInp.value) : null,
         yards: yardsInput.value ? parseFloat(yardsInput.value) : null,
         desc: descInput.value.trim() || null,
-        content: document.getElementById('content').value || null,
-        fabric: document.getElementById('fabric').value || null,
-        colorFamily: document.getElementById('colorFamily').value || null,
-        pattern: document.getElementById('pattern').value || null,
-        dept: document.getElementById('dept').value || null,
-        fiberType: document.getElementById('fiberType').value || null,
-        origin: document.getElementById('origin').value || null,
-        width: document.getElementById('width').value ? parseFloat(document.getElementById('width').value) : null,
-        gsm: document.getElementById('gsm').value ? parseFloat(document.getElementById('gsm').value) : null,
-        designer: document.getElementById('designer').value.trim() || null,
+        content: contentSelect.value || null,
+        fabric: fabricSelect.value || null,
+        colorFamily: colorFamilySelect.value || null,
+        pattern: patternSelect.value || null,
+        dept: deptSelect.value || null,
+        fiberType: fiberTypeSelect.value || null,
+        origin: originSelect.value || null,
+        width: widthInput.value ? parseFloat(widthInput.value) : null,
+        gsm:   gsmInput.value ? parseFloat(gsmInput.value)     : null,
+        designer: designerInput.value.trim() || null,
         feelsLike: feels
       };
     }
@@ -903,7 +938,7 @@
 
     nextBtn.addEventListener('click', async ()=>{
       if(step === 1){
-        if(state.photos.length === 0){
+        if(!isEditMode && state.photos.length === 0){
           photoError.style.display = 'block';
           return;
         }
@@ -943,18 +978,36 @@
       alert('Draft saving is not wired yet. For now, publish when you are ready.');
     });
 
-    // Upload photos to Supabase storage and return cover URL
     async function uploadListingPhotos(user){
-      if(!state.photos.length){
+      const bucket = supabaseClient.storage.from(MEDIA_BUCKET);
+
+      const newFiles = state.photos.filter(p=>p.file);
+      // No new uploads
+      if(!newFiles.length){
+        // Edit mode: keep existing cover if present
+        if(isEditMode && editingListing){
+          if(editingListing.image_url_1){
+            return { coverUrl: editingListing.image_url_1, items: [] };
+          }
+        }
+
+        // If we have photos from existing URLs, use first as cover
+        if(state.photos.length){
+          const first = state.photos[0];
+          const existingUrl = first.publicUrl || first.previewUrl || null;
+          return { coverUrl: existingUrl, items: [] };
+        }
+
+        // Create mode should never hit this (we block on step 1), but guard anyway
         return { coverUrl:null, items:[] };
       }
 
-      const bucket = supabaseClient.storage.from(MEDIA_BUCKET);
       const uploaded = [];
       const base = `${user.id}/${Date.now()}`;
 
-      for(let i=0;i<state.photos.length;i++){
-        const { file } = state.photos[i];
+      for(let i=0;i<newFiles.length;i++){
+        const fileObj = newFiles[i];
+        const file = fileObj.file;
         const name = file.name || `photo_${i}.jpg`;
         const parts = name.split('.');
         const ext = parts.length > 1 ? parts.pop() : 'jpg';
@@ -975,13 +1028,17 @@
 
         uploaded.push({ path, publicUrl });
 
-        // keep it on the photo state too (just in case later)
-        state.photos[i].storagePath = path;
-        state.photos[i].publicUrl = publicUrl;
+        // push back onto the state object for any future use
+        fileObj.storagePath = path;
+        fileObj.publicUrl = publicUrl;
       }
 
+      const coverUrl = uploaded[0]?.publicUrl ||
+        (isEditMode && editingListing ? editingListing.image_url_1 : null) ||
+        null;
+
       return {
-        coverUrl: uploaded[0]?.publicUrl || null,
+        coverUrl,
         items: uploaded
       };
     }
@@ -989,14 +1046,13 @@
     async function publishListing(user){
       try{
         nextBtn.disabled = true;
-        nextBtn.textContent = 'Publishing…';
+        nextBtn.textContent = isEditMode ? 'Saving…' : 'Publishing…';
         backBtn.disabled = true;
 
         const d = state.details;
         const priceCents      = d.price     != null ? Math.round(d.price * 100)     : null;
         const origPriceCents  = d.origPrice != null ? Math.round(d.origPrice * 100) : null;
 
-        // Upload photos first so we can save the cover image URL
         const { coverUrl } = await uploadListingPhotos(user);
 
         const payload = {
@@ -1023,34 +1079,154 @@
           feels_like: d.feelsLike?.join(", ") || null,
 
           // IMAGES
-          image_url_1: coverUrl || null,
+          image_url_1: coverUrl || null
         };
 
-        const { error: insertErr } = await supabaseClient
-          .from('listings')
-          .insert(payload);
+        if(isEditMode && editId){
+          const { error: updateErr } = await supabaseClient
+            .from('listings')
+            .update(payload)
+            .eq('id', editId)
+            .eq('seller_id', user.id);
 
-        if(insertErr){
-          console.error(insertErr);
-          alert(
-            'Sorry, something went wrong while publishing.\n\n' +
-            (insertErr.message || 'Unknown error.')
-          );
-          nextBtn.disabled = false;
-          nextBtn.textContent = 'Publish';
-          backBtn.disabled = false;
+          if(updateErr){
+            console.error(updateErr);
+            alert(
+              'Sorry, something went wrong while saving.\n\n' +
+              (updateErr.message || 'Unknown error.')
+            );
+            nextBtn.disabled = false;
+            nextBtn.textContent = 'Save changes';
+            backBtn.disabled = false;
+            return;
+          }
+
+          alert('Listing updated!');
+          window.location.href = 'listing.html?id=' + encodeURIComponent(editId);
+        }else{
+          const { data: insertData, error: insertErr } = await supabaseClient
+            .from('listings')
+            .insert(payload)
+            .select('id')
+            .maybeSingle();
+
+          if(insertErr){
+            console.error(insertErr);
+            alert(
+              'Sorry, something went wrong while publishing.\n\n' +
+              (insertErr.message || 'Unknown error.')
+            );
+            nextBtn.disabled = false;
+            nextBtn.textContent = 'Publish';
+            backBtn.disabled = false;
+            return;
+          }
+
+          alert('Listing published!');
+          const newId = insertData?.id;
+          if(newId){
+            window.location.href = 'listing.html?id=' + encodeURIComponent(newId);
+          }else{
+            window.location.href = 'browse.html';
+          }
+        }
+      }catch(err){
+        console.error(err);
+        alert('Sorry, something went wrong while saving your listing.');
+        nextBtn.disabled = false;
+        nextBtn.textContent = isEditMode ? 'Save changes' : 'Publish';
+        backBtn.disabled = false;
+      }
+    }
+
+    async function loadListingForEdit(){
+      if(!isEditMode || !editId) return;
+      try{
+        const { data, error } = await supabaseClient
+          .from('listings')
+          .select('*')
+          .eq('id', editId)
+          .maybeSingle();
+
+        if(error){
+          console.error('edit fetch error', error);
+          alert('We could not load that listing to edit.');
+          window.location.href = 'browse.html';
+          return;
+        }
+        if(!data){
+          alert('This listing no longer exists.');
+          window.location.href = 'browse.html';
           return;
         }
 
-        alert('Listing published!');
+        if(data.seller_id !== user.id){
+          alert('You do not have permission to edit this listing.');
+          window.location.href = 'browse.html';
+          return;
+        }
+
+        editingListing = data;
+
+        // Pre-fill core fields
+        titleInput.value = data.title || '';
+        descInput.value  = data.description || '';
+
+        if(data.price_cents != null){
+          priceInput.value = (Number(data.price_cents) / 100).toFixed(2);
+        }
+        if(data.orig_price_cents != null){
+          origPriceInp.value = (Number(data.orig_price_cents) / 100).toFixed(2);
+        }
+
+        const yards =
+          (data.yards_available != null ? Number(data.yards_available) :
+           data.yardage != null ? Number(data.yardage) : null);
+        if(yards != null && !Number.isNaN(yards)){
+          yardsInput.value = String(yards);
+        }
+
+        if(contentSelect)     contentSelect.value     = data.content || '';
+        if(fabricSelect)      fabricSelect.value      = data.fabric_type || '';
+        if(colorFamilySelect) colorFamilySelect.value = data.color_family || '';
+        if(patternSelect)     patternSelect.value     = data.pattern || '';
+        if(deptSelect)        deptSelect.value        = data.dept || '';
+        if(fiberTypeSelect)   fiberTypeSelect.value   = data.fiber_type || '';
+        if(originSelect)      originSelect.value      = data.country_of_origin || '';
+        if(widthInput && data.width_in != null) widthInput.value = String(data.width_in);
+        if(gsmInput && data.weight_gsm != null) gsmInput.value   = String(data.weight_gsm);
+        if(designerInput) designerInput.value = data.designer || '';
+
+        // Feels like checkboxes (stored as comma-separated string)
+        if(data.feels_like){
+          const selected = data.feels_like.split(',')
+            .map(s=>s.trim())
+            .filter(Boolean);
+          document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]').forEach(cb=>{
+            cb.checked = selected.includes(cb.value);
+          });
+        }
+
+        // Existing cover image → show in step 1
+        if(data.image_url_1){
+          state.photos.push({
+            file: null,
+            previewUrl: data.image_url_1,
+            storagePath: null,
+            publicUrl: data.image_url_1,
+            existing: true
+          });
+          renderPhotoThumbs();
+        }
+      }catch(e){
+        console.error('edit load exception', e);
+        alert('Unexpected error loading your listing.');
         window.location.href = 'browse.html';
-      }catch(err){
-        console.error(err);
-        alert('Sorry, something went wrong while publishing.');
-        nextBtn.disabled = false;
-        nextBtn.textContent = 'Publish';
-        backBtn.disabled = false;
       }
+    }
+
+    if(isEditMode){
+      await loadListingForEdit();
     }
 
     setStep(1);
