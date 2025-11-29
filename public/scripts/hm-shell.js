@@ -1,4 +1,4 @@
-// Hemline Market — Universal Header + Footer + Menu + Session + Cart Badge
+// Hemline Market — Universal Header + Footer + Menu + Session + Cart State
 window.HM = window.HM || {};
 
 (function () {
@@ -217,21 +217,18 @@ window.HM = window.HM || {};
   }
 
   /* --------------------------------------------------------------------------
-     CART BADGE / CART STATE
+     CART STATE (dot indicator, no number)
   -------------------------------------------------------------------------- */
-  function updateCartBadge(cart) {
+  function updateCartState(cart) {
     try {
       const list = Array.isArray(cart) ? cart : [];
-      const totalItems = list.reduce(
-        (sum, it) => sum + (Number(it.qty) || 1),
-        0
-      );
+      const hasItems = list.length > 0;
 
       // Body-level state so CSS can style if you want
       if (document.body) {
         document.body.setAttribute(
           "data-cart",
-          totalItems > 0 ? "has-items" : "empty"
+          hasItems ? "has-items" : "empty"
         );
       }
 
@@ -240,46 +237,44 @@ window.HM = window.HM || {};
         document.querySelector('a[href$="cart.html"]');
       if (!cartLink) return;
 
-      let badge = cartLink.querySelector(".hm-cart-badge");
-      if (!badge) {
-        badge = document.createElement("span");
-        badge.className = "hm-cart-badge";
-        badge.style.cssText = [
-          "display:none",
-          "margin-left:6px",
-          "min-width:18px",
-          "height:18px",
+      // remove any old numeric badge if it exists
+      const oldBadge = cartLink.querySelector(".hm-cart-badge");
+      if (oldBadge && oldBadge.parentNode) {
+        oldBadge.parentNode.removeChild(oldBadge);
+      }
+
+      let dot = cartLink.querySelector(".hm-cart-dot");
+      if (!dot) {
+        dot = document.createElement("span");
+        dot.className = "hm-cart-dot";
+        dot.style.cssText = [
+          "position:absolute",
+          "top:6px",
+          "right:6px",
+          "width:8px",
+          "height:8px",
           "border-radius:999px",
-          "background:#991b1b",
-          "color:#ffffff",
-          "font-size:11px",
-          "font-weight:600",
-          "padding:0 6px",
-          "box-sizing:border-box",
-          "align-items:center",
-          "justify-content:center",
-          "line-height:1",
-          "vertical-align:middle"
+          "background:#b91c1c",
+          "box-shadow:0 0 0 2px #fef2f2",
+          "display:none"
         ].join(";");
-        cartLink.appendChild(badge);
+        // Ensure the cartLink is positioned so the dot can anchor to it
+        const style = window.getComputedStyle(cartLink);
+        if (style.position === "static") {
+          cartLink.style.position = "relative";
+        }
+        cartLink.appendChild(dot);
       }
 
-      if (totalItems > 0) {
-        badge.textContent = totalItems > 9 ? "9+" : String(totalItems);
-        badge.style.display = "inline-flex";
+      if (hasItems) {
+        dot.style.display = "block";
         cartLink.classList.add("has-items");
+        cartLink.setAttribute("aria-label", "Cart (has items)");
       } else {
-        badge.textContent = "";
-        badge.style.display = "none";
+        dot.style.display = "none";
         cartLink.classList.remove("has-items");
+        cartLink.setAttribute("aria-label", "Cart (empty)");
       }
-
-      cartLink.setAttribute(
-        "aria-label",
-        totalItems > 0
-          ? `Cart with ${totalItems} item${totalItems === 1 ? "" : "s"}`
-          : "Cart is empty"
-      );
     } catch (_) {
       // fail silently
     }
@@ -287,10 +282,10 @@ window.HM = window.HM || {};
 
   // Expose global hook used by add-to-cart.js and cart.html
   window.HM_CART_BADGE_UPDATE = function (cart) {
-    updateCartBadge(cart || []);
+    updateCartState(cart || []);
   };
 
-  function syncCartBadgeFromStorage() {
+  function syncCartStateFromStorage() {
     try {
       const raw = localStorage.getItem("hm_cart");
       const arr = raw ? JSON.parse(raw) : [];
@@ -316,6 +311,6 @@ window.HM = window.HM || {};
 
     wireMenu();
     wireSupabaseSession();
-    syncCartBadgeFromStorage();
+    syncCartStateFromStorage();
   };
 })();
