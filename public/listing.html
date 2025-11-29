@@ -255,6 +255,28 @@
       cursor:pointer;
     }
 
+    /* OWNER ACTIONS (edit/delete) */
+    .owner-actions{
+      margin-top:10px;
+      padding-top:10px;
+      border-top:1px dashed #f0f2f4;
+      font-size:12px;
+      color:#6b7280;
+    }
+    .owner-actions-label{
+      font-weight:500;
+    }
+    .owner-actions-buttons{
+      display:flex;
+      gap:8px;
+      margin-top:6px;
+      flex-wrap:wrap;
+    }
+    .owner-actions-buttons .btn{
+      font-size:12px;
+      padding:7px 10px;
+    }
+
     .card{
       background:#fff;
       border:1px solid var(--border);
@@ -503,6 +525,15 @@
           <div id="sellerPerson">Member</div>
         </div>
       </div>
+
+      <!-- Seller-only tools: edit / delete -->
+      <div class="owner-actions" id="ownerActions" style="display:none;">
+        <div class="owner-actions-label">Seller tools (only you can see this)</div>
+        <div class="owner-actions-buttons">
+          <button type="button" class="btn" id="editListingBtn">Edit listing</button>
+          <button type="button" class="btn" id="deleteListingBtn">Delete listing</button>
+        </div>
+      </div>
     </aside>
   </div>
 
@@ -747,6 +778,73 @@
     });
   }
 
+  function showOwnerControls(listing){
+    const ownerBox = document.getElementById("ownerActions");
+    const editBtn  = document.getElementById("editListingBtn");
+    const delBtn   = document.getElementById("deleteListingBtn");
+
+    if(!ownerBox || !listing || !currentSession || !currentSession.user){
+      if(ownerBox) ownerBox.style.display = "none";
+      return;
+    }
+
+    const isOwner = listing.seller_id === currentSession.user.id;
+    if(!isOwner){
+      ownerBox.style.display = "none";
+      return;
+    }
+
+    ownerBox.style.display = "block";
+
+    if(editBtn){
+      editBtn.onclick = ()=>{
+        const id = listing.id;
+        if(!id) return;
+        const url = "sell.html?edit=" + encodeURIComponent(id);
+        window.location.href = url;
+      };
+    }
+
+    if(delBtn){
+      delBtn.onclick = async ()=>{
+        const ok = window.confirm("Delete this listing? Buyers will no longer see it.");
+        if(!ok) return;
+
+        delBtn.disabled = true;
+        const originalText = delBtn.textContent;
+        delBtn.textContent = "Deleting…";
+
+        try{
+          const { error } = await supabaseClient
+            .from("listings")
+            .update({
+              is_published: false,
+              status: "deleted"
+            })
+            .eq("id", listing.id)
+            .eq("seller_id", currentSession.user.id);
+
+          if(error){
+            console.warn("Delete listing error", error);
+            showToast("Could not delete listing");
+            delBtn.disabled = false;
+            delBtn.textContent = originalText;
+          }else{
+            showToast("Listing deleted");
+            setTimeout(()=>{
+              window.location.href = "atelier.html";
+            }, 700);
+          }
+        }catch(e){
+          console.warn("Delete listing exception", e);
+          showToast("Could not delete listing");
+          delBtn.disabled = false;
+          delBtn.textContent = originalText;
+        }
+      };
+    }
+  }
+
   function renderListing(listing, sellerProfile){
     currentListing = listing;
     const shell = document.getElementById("listingShell");
@@ -876,6 +974,7 @@
 
     initFavoriteButton();
     initShareButton();
+    showOwnerControls(listing);
   }
 
   /* Favorites — shared with favorites.html + local notifications */
@@ -1323,6 +1422,7 @@
     supabaseClient.auth.onAuthStateChange((_event, session)=>{
       currentSession = session;
       setupQAUI();
+      // If session changes (login/logout), owner controls may change on reload.
     });
   });
 </script>
