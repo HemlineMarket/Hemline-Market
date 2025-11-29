@@ -7,38 +7,176 @@
 (function(){
   const KEY = 'hm_cart';
 
-  // Small (now bigger) toast so users see feedback
-  function toast(msg){
+  // --- CART BADGE / HEADER STATE -------------------------------------------------
+
+  // If hm-shell hasn't provided its own HM_CART_BADGE_UPDATE, define a generic one.
+  if (!window.HM_CART_BADGE_UPDATE) {
+    window.HM_CART_BADGE_UPDATE = function(cart){
+      try{
+        const list = cart || [];
+        const totalItems = list.reduce((sum, it) => sum + (Number(it.qty) || 1), 0);
+
+        // Body data attribute so CSS can key off [data-cart="empty|has-items"]
+        if (typeof document !== 'undefined' && document.body) {
+          document.body.setAttribute('data-cart', totalItems > 0 ? 'has-items' : 'empty');
+        }
+
+        // Find the cart link/icon in the header
+        const cartLink =
+          document.querySelector('[data-hm-cart-link]') ||
+          document.querySelector('[data-role="cart-link"]') ||
+          document.querySelector('a[href$="cart.html"]');
+
+        if (!cartLink) return;
+
+        // Ensure a small badge element exists next to the icon/text
+        let badge = cartLink.querySelector('.hm-cart-badge');
+        if (!badge){
+          badge = document.createElement('span');
+          badge.className = 'hm-cart-badge';
+          badge.style.cssText = [
+            'display:none',
+            'margin-left:6px',
+            'min-width:18px',
+            'height:18px',
+            'border-radius:999px',
+            'background:#991b1b',
+            'color:#fff',
+            'font-size:11px',
+            'font-weight:600',
+            'padding:0 6px',
+            'box-sizing:border-box',
+            'align-items:center',
+            'justify-content:center',
+            'line-height:1',
+            'vertical-align:middle'
+          ].join(';');
+          badge.style.display = 'none';
+          badge.style.display = 'none';
+          badge.style.display = 'none';
+          badge.style.display = 'none';
+          badge.style.display = 'none';
+          badge.style.display = 'none';
+          // Make it flex when shown
+          badge.style.display = 'none'; // default hidden
+          badge.style.display = 'none';
+          cartLink.appendChild(badge);
+        }
+
+        if (totalItems > 0){
+          badge.textContent = totalItems > 9 ? '9+' : String(totalItems);
+          badge.style.display = 'inline-flex';
+        } else {
+          badge.textContent = '';
+          badge.style.display = 'none';
+        }
+
+        cartLink.setAttribute(
+          'aria-label',
+          totalItems > 0
+            ? `Cart with ${totalItems} item${totalItems === 1 ? '' : 's'}`
+            : 'Cart is empty'
+        );
+      }catch(_){}
+    };
+  }
+
+  // --- "MAGICAL HAPPY" POPUP -----------------------------------------------------
+
+  // Popup overlay: center card, dimmed background
+  function createPopup(){
+    let overlay = document.getElementById('hm_cart_popup');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'hm_cart_popup';
+    overlay.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'background:rgba(15,23,42,0.55)',
+      'z-index:9999',
+      'opacity:0',
+      'pointer-events:none',
+      'transition:opacity .18s ease-out'
+    ].join(';');
+
+    const card = document.createElement('div');
+    card.style.cssText = [
+      'background:#ffffff',
+      'border-radius:20px',
+      'padding:18px 20px 16px',
+      'max-width:340px',
+      'width:90%',
+      'box-shadow:0 22px 60px rgba(0,0,0,.38)',
+      'font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif',
+      'color:#111827'
+    ].join(';');
+
+    card.innerHTML = [
+      '<div style="display:flex;align-items:flex-start;gap:12px;">',
+        '<div style="width:28px;height:28px;border-radius:999px;background:#ecfdf5;display:flex;align-items:center;justify-content:center;border:1px solid #6ee7b7;">',
+          '<span style="font-size:16px;">✓</span>',
+        '</div>',
+        '<div style="flex:1;">',
+          '<div data-role="title" style="font-weight:700;font-size:15px;margin-bottom:2px;">Added to your cart</div>',
+          '<div data-role="message" style="font-size:13px;color:#4b5563;"></div>',
+        '</div>',
+      '</div>',
+      '<div style="display:flex;gap:8px;margin-top:14px;">',
+        '<button type="button" data-role="view-cart" style="flex:1;border-radius:999px;border:0;background:#111827;color:#fff;font-size:13px;font-weight:600;padding:8px 10px;cursor:pointer;">View cart</button>',
+        '<button type="button" data-role="keep-shopping" style="flex:1;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#374151;font-size:13px;font-weight:500;padding:8px 10px;cursor:pointer;">Keep browsing</button>',
+      '</div>'
+    ].join('');
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // Wiring
+    const titleEl = card.querySelector('[data-role="title"]');
+    const msgEl   = card.querySelector('[data-role="message"]');
+    const viewBtn = card.querySelector('[data-role="view-cart"]');
+    const keepBtn = card.querySelector('[data-role="keep-shopping"]');
+
+    function hide(){
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+    }
+
+    viewBtn.addEventListener('click', ()=>{
+      hide();
+      window.location.href = 'cart.html';
+    });
+    keepBtn.addEventListener('click', hide);
+    overlay.addEventListener('click', e=>{
+      if (e.target === overlay) hide();
+    });
+
+    overlay._titleEl = titleEl;
+    overlay._msgEl   = msgEl;
+    overlay._hide    = hide;
+
+    return overlay;
+  }
+
+  function toast(message){
     try{
-      let t = document.getElementById('hm_toast');
-      if(!t){
-        t = document.createElement('div');
-        t.id = 'hm_toast';
-        t.style.cssText = [
-          'position:fixed',
-          'left:50%',
-          'bottom:32px',
-          'transform:translateX(-50%)',
-          'background:#111827',
-          'color:#fff',
-          'padding:14px 18px',
-          'border-radius:14px',
-          'z-index:9999',
-          'box-shadow:0 10px 30px rgba(0,0,0,.35)',
-          'font:600 15px system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial',
-          'max-width:90%',
-          'text-align:center',
-          'opacity:0',
-          'transition:opacity .2s ease'
-        ].join(';');
-        document.body.appendChild(t);
-      }
-      t.textContent = msg;
-      t.style.opacity = '1';
-      clearTimeout(t._hide);
-      t._hide = setTimeout(()=>{ t.style.opacity = '0'; }, 2200);
+      const overlay = createPopup();
+      overlay._titleEl.textContent = 'Added to your cart';
+      overlay._msgEl.textContent = message;
+      overlay.style.opacity = '1';
+      overlay.style.pointerEvents = 'auto';
+
+      clearTimeout(overlay._timer);
+      overlay._timer = setTimeout(()=>{
+        overlay._hide();
+      }, 2600);
     }catch(_){}
   }
+
+  // --- CART STORAGE HELPERS ------------------------------------------------------
 
   function readCart(){
     try{
@@ -49,11 +187,10 @@
   }
 
   function writeCart(arr){
-    localStorage.setItem(KEY, JSON.stringify(arr || []));
+    const list = arr || [];
+    localStorage.setItem(KEY, JSON.stringify(list));
     if (window.HM_CART_BADGE_UPDATE){
-      try{
-        window.HM_CART_BADGE_UPDATE(arr || []);
-      }catch(_){}
+      try{ window.HM_CART_BADGE_UPDATE(list); }catch(_){}
     }
   }
 
@@ -186,6 +323,8 @@
     };
   }
 
+  // --- CLICK HANDLER -------------------------------------------------------------
+
   function onClick(e){
     const btn = e.target.closest('[data-action="add-to-cart"], .add-to-cart');
     if(!btn) return;
@@ -202,7 +341,7 @@
     const idx = cart.findIndex(it => key(it) === key(item));
     if (idx >= 0){
       cart[idx].qty = Number(cart[idx].qty || 1) + Number(item.qty || 1);
-      // If seller adds more of same fabric, optionally add yards too if your UX expects that:
+      // If seller adds more of same fabric, add yards too if your UX expects that:
       if (item.yards) cart[idx].yards = num(cart[idx].yards) + num(item.yards);
     } else {
       cart.push(item);
@@ -210,19 +349,23 @@
 
     writeCart(cart);
 
-    // Build a more informative toast message
     const totalItems = cart.reduce((sum, it) => sum + (Number(it.qty) || 1), 0);
     const baseName   = item.name || 'item';
     const msg = totalItems === 1
-      ? `Added “${baseName}” to cart — 1 item total`
-      : `Added “${baseName}” to cart — ${totalItems} items total`;
+      ? `“${baseName}” is in your cart.`
+      : `“${baseName}” is in your cart — ${totalItems} items total.`;
 
     toast(msg);
-
-    // Optional: stay on page. If you prefer to go to cart, uncomment:
-    // window.location.href = 'cart.html';
   }
 
   // Attach one delegated listener for whole document
   document.addEventListener('click', onClick, true);
+
+  // Sync badge on initial load so header immediately reflects state
+  try{
+    const initialCart = readCart();
+    if (window.HM_CART_BADGE_UPDATE){
+      window.HM_CART_BADGE_UPDATE(initialCart);
+    }
+  }catch(_){}
 })();
