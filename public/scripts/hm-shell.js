@@ -14,19 +14,7 @@ window.HM = window.HM || {};
     return `
 <header class="hm-header" role="banner">
   <div class="wrap">
-    <div class="left">
-      <button class="hamburger" id="openMenu" type="button"
-        aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6"  x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
-      </button>
-
-      <a class="hm-brand" href="index.html">Hemline Market</a>
-    </div>
+    <a class="hm-brand" href="index.html">Hemline Market</a>
 
     <div class="right">
       <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
@@ -70,9 +58,19 @@ window.HM = window.HM || {};
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="8" r="3.2"></circle>
-          <path d="M5 19c1.4-3 3.5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+          <path d="M5 19c1.4-3 5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
         </svg>
       </a>
+
+      <button class="hamburger" id="openMenu" type="button"
+        aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6"  x2="20" y2="6"></line>
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </button>
 
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
@@ -191,9 +189,8 @@ window.HM = window.HM || {};
       }
     );
 
-    // ⭐⭐⭐ CRITICAL FIX — ADDED ⭐⭐⭐
+    // expose client so account page and others can reuse it
     window.HM.supabase = client;
-    // ********************************
 
     const accountLink = document.getElementById("headerAccountLink");
     if (!accountLink) return;
