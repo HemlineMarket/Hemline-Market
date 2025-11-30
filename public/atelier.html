@@ -50,6 +50,13 @@
       font-weight:800;
       letter-spacing:.03em;
     }
+    .atelier-title a{
+      color:var(--hm-accent);
+      text-decoration:none;
+    }
+    .atelier-title a:hover{
+      text-decoration:underline;
+    }
     .atelier-subtitle{
       margin:0 0 18px;
       color:var(--hm-muted);
@@ -77,7 +84,7 @@
       font-size:14px;
     }
 
-    /* TOP STORE INFO 3-COLUMN GRID */
+    /* TOP STORE INFO 3-COLUMN GRID (DESKTOP/TABLET) */
     .atelier-store-top{
       display:grid;
       grid-template-columns:repeat(3,minmax(0,1fr));
@@ -86,14 +93,39 @@
     }
     @media(max-width:960px){
       .atelier-store-top{
-        grid-template-columns:repeat(2,minmax(0,1fr));
+        grid-template-columns:repeat(3,minmax(0,1fr));
       }
     }
-    /* keep multi-column on phones instead of one long stack */
     @media(max-width:640px){
       .atelier-store-top{
-        grid-template-columns:repeat(2,minmax(0,1fr));
+        display:none; /* hide big cards on mobile */
       }
+    }
+
+    /* MOBILE QUICK INFO */
+    .atelier-store-mobile{
+      display:none;
+      margin-bottom:16px;
+    }
+    @media(max-width:640px){
+      .atelier-store-mobile{
+        display:block;
+      }
+    }
+    .atelier-mobile-actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      align-items:flex-start;
+    }
+    @media(max-width:420px){
+      .atelier-mobile-actions{
+        grid-template-columns:1fr;
+      }
+    }
+    .atelier-mobile-rating .rating-pill{
+      margin-top:0;
+      margin-bottom:4px;
     }
 
     /* LISTINGS */
@@ -141,7 +173,7 @@
         grid-template-columns:repeat(2,minmax(0,1fr));
       }
     }
-    /* 2-column grid on phones instead of single column */
+    /* two columns on mobile */
     @media(max-width:640px){
       .atelier-listings-grid{
         grid-template-columns:repeat(2,minmax(0,1fr));
@@ -179,7 +211,6 @@
       height:100%;
       object-fit:cover;
     }
-    /* On phones: still image on top, info below */
     @media(max-width:640px){
       .atelier-card-photo{
         aspect-ratio:16/9;
@@ -341,7 +372,22 @@
 
   <div id="atelierError" class="error-msg" style="display:none;"></div>
 
-  <!-- TOP: STORE INFO IN THREE COLUMNS -->
+  <!-- MOBILE QUICK INFO (message + rating) -->
+  <section class="atelier-store-mobile" aria-label="Atelier quick info">
+    <div class="atelier-mobile-actions">
+      <button class="btn btn-primary" type="button" id="btnMessageSellerMobile">
+        Message this seller
+      </button>
+      <div class="atelier-mobile-rating">
+        <div class="rating-pill">Not yet rated</div>
+        <p class="rating-note">
+          After at least 5 completed orders, the shop’s rating will appear here.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- DESKTOP/TABLET: STORE INFO IN THREE COLUMNS -->
   <section class="atelier-store-top" aria-label="Atelier information">
     <!-- COLUMN 1: STORE / OWNER -->
     <section class="hm-card" aria-labelledby="profileHeading">
@@ -594,6 +640,7 @@
     const shareInput  = document.getElementById("shareLinkInput");
     const copyBtn     = document.getElementById("btnCopyLink");
     const msgBtn      = document.getElementById("btnMessageSeller");
+    const msgBtnMobile= document.getElementById("btnMessageSellerMobile");
 
     let sellerId = null;
     let profile = null;
@@ -640,6 +687,7 @@
       editBtn.style.display = loggedIn ? "inline-flex" : "none";
       if(editBtn.onclick) editBtn.onclick = ()=>window.location.href="account.html";
       msgBtn.style.display="none";
+      if(msgBtnMobile) msgBtnMobile.style.display="none";
       shareInput.value=window.location.href;
       copyBtn.onclick=()=>navigator.clipboard.writeText(shareInput.value);
       loadListingsForSeller(null);
@@ -682,6 +730,13 @@
       shareUrl = baseUrl + "?u=" + encodeURIComponent(sellerId);
     }
 
+    // make store name in title clickable
+    const safeName = shopDisplay
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;");
+    titleEl.innerHTML = 'Atelier: <a href="'+shareUrl+'" id="atelierStoreLink">'+safeName+'</a>';
+
     shareInput.value=shareUrl;
     copyBtn.onclick=()=>navigator.clipboard.writeText(shareInput.value);
 
@@ -689,10 +744,15 @@
       editBtn.style.display="inline-flex";
       editBtn.onclick=()=>window.location.href="account.html";
       msgBtn.style.display="none";
+      if(msgBtnMobile) msgBtnMobile.style.display="none";
     }else{
       editBtn.style.display="none";
       msgBtn.style.display="inline-flex";
       msgBtn.onclick=()=>window.location.href="messages.html?user="+sellerId;
+      if(msgBtnMobile){
+        msgBtnMobile.style.display="inline-flex";
+        msgBtnMobile.onclick=()=>window.location.href="messages.html?user="+sellerId;
+      }
     }
 
     loadListingsForSeller(sellerId);
