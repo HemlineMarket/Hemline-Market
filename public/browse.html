@@ -3,9 +3,8 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Create a Listing — Hemline Market</title>
+  <title>Browse — Hemline Market</title>
 
-  <!-- Favicon -->
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
@@ -18,289 +17,991 @@
 
   <style>
     :root{
+      /* Match universal tokens */
       --hm-accent:#991b1b;
-      --hm-border:#e5e7eb;
-      --hm-muted:#6b7280;
       --hm-text:#111827;
-      --hm-bg:#fafafa;
-      --hm-danger:#b91c1c;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+      --hm-bg-card:rgba(255,255,255,.96);
+
+      /* Browse-specific aliases */
+      --ink:#111827;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --accent:#991b1b;
+      --bg:#fafafa;
     }
+
     html,body{
       margin:0;
       max-width:100%;
       overflow-x:hidden;
-      background:var(--hm-bg);
+      background:var(--bg);
       color:var(--hm-text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
-    img,svg,canvas,video{max-width:100%;height:auto;display:block}
-    .is-hidden{display:none!important;}
 
-    /* ---------- CREATE LISTING LAYOUT ---------- */
-
-    .sell-wrap{
+    /* ===== BROWSE MAIN LAYOUT ===== */
+    .browse-wrap{
       max-width:1100px;
       margin:18px auto 28px;
       padding:0 12px;
     }
-    h1{
-      margin:0 0 12px;
-      font-size:28px;
-      font-weight:800;
+    .topbar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      margin-bottom:12px;
+      flex-wrap:wrap;
     }
-    .subtle{
-      color:var(--hm-muted);
-      margin:0 0 14px;
-      font-size:14px;
+    .topbar input[type="search"]{
+      flex:1;
+      min-width:0;
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+    }
+    .topbar button{
+      padding:9px 12px;
+      border-radius:10px;
+      border:1px solid var(--accent);
+      background:var(--accent);
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .filter-toggle{
+      border-color:var(--border);
+      background:#fff;
+      color:#111827;
     }
 
-    .stepper{
+    .layout{
       display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:8px;
-      margin-bottom:12px;
+      grid-template-columns:280px 1fr;
+      gap:14px;
     }
-    .bubble{
+    .layout.filters-hidden .filters{display:none;}
+    .layout.filters-hidden{grid-template-columns:1fr;}
+
+    @media(max-width:900px){
+      .layout{grid-template-columns:1fr;}
+      .topbar input[type="search"]{flex-basis:100%;}
+    }
+
+    /* ---------- FILTERS ---------- */
+    .filters{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px;
+      height:max-content;
+    }
+    .filters h3{margin:0 0 8px;}
+    .section{
+      border-top:1px solid var(--border);
+      padding-top:8px;
+      margin-top:8px;
+    }
+    .section:first-of-type{
+      border-top:0;
+      padding-top:0;
+      margin-top:0;
+    }
+    .title{
+      font-weight:700;
+      font-size:13px;
+      color:#374151;
+      margin:0 0 6px;
+    }
+    .listbox{
+      max-height:230px;
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:6px;
+      background:#fff;
+    }
+    .row{
       display:flex;
       align-items:center;
       gap:8px;
-      justify-content:center;
-      padding:10px;
-      border:1px solid var(--hm-border);
-      border-radius:12px;
-      background:#fff;
-      font-weight:700;
-      font-size:14px;
+      padding:6px 4px;
+      border-bottom:1px dashed #f3f4f6;
     }
-    .bubble[data-active="true"]{
-      border-color:var(--hm-accent);
-      box-shadow:0 0 0 2px rgba(153,27,27,.10);
+    .row:last-child{border-bottom:0;}
+    .row input{
+      width:14px;
+      height:14px;
     }
-    .bubble .num{
-      width:24px;
-      height:24px;
-      border-radius:999px;
+    .row label{
+      font-size:12px;
+      color:#374151;
+    }
+    .mini{
       display:grid;
-      place-items:center;
-      border:1px solid var(--hm-border);
-      background:#f9fafb;
-      font-weight:800;
-      font-size:13px;
-    }
-    .bubble[data-active="true"] .num{
-      border-color:var(--hm-accent);
-      color:#fff;
-      background:var(--hm-accent);
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns:1fr 360px;
-      gap:14px;
-    }
-    @media (max-width:980px){
-      .grid{grid-template-columns:1fr;}
-    }
-
-    .card{
-      background:#fff;
-      border:1px solid var(--hm-border);
-      border-radius:12px;
-      box-shadow:0 6px 16px rgba(0,0,0,.06);
-    }
-    .card .hd{
-      padding:12px;
-      border-bottom:1px solid var(--hm-border);
-      font-weight:800;
-      font-size:13px;
-      letter-spacing:.12em;
-      text-transform:uppercase;
-      color:#9ca3af;
-    }
-    .card .bd{
-      padding:12px;
-    }
-
-    .drop{
-      border:2px dashed #d1d5db;
-      border-radius:12px;
-      padding:18px;
-      text-align:center;
-      background:#fafafa;
-      font-size:14px;
-    }
-    .drop.drag{
-      border-color:var(--hm-accent);
-      background:#fff;
-    }
-    .thumbs{
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
+      grid-template-columns:1fr 1fr;
       gap:8px;
-      margin-top:10px;
+    }
+    .mini .field{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .mini label{
+      font-size:12px;
+      color:#374151;
+    }
+    .mini input{
+      padding:7px 10px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+      font-size:13px;
+      max-width:120px;
+    }
+    .selects{
+      display:grid;
+      gap:8px;
+    }
+    .selects select,
+    .selects input{
+      width:100%;
+      padding:8px 10px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+    }
+
+    /* COLOR BOX */
+    #colorBox{
+      --sw:22px;
+      --gap:6px;
+      display:grid;
+      grid-template-columns:repeat(5,var(--sw));
+      grid-template-rows:repeat(3,var(--sw));
+      gap:var(--gap);
+      align-content:start;
+      justify-content:start;
+      padding:6px;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:10px;
+    }
+    #colorBox .sw{
+      width:var(--sw);
+      height:var(--sw);
+      border-radius:6px;
+      border:1px solid #d1d5db;
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);
+      cursor:pointer;
+      position:relative;
+    }
+    #colorBox .sw[data-selected="true"]{
+      outline:2px solid var(--accent);
+      outline-offset:2px;
+    }
+    #colorBox .sw .tip{
+      position:absolute;
+      bottom:130%;
+      left:50%;
+      transform:translateX(-50%);
+      background:rgba(0,0,0,.85);
+      color:#fff;
+      padding:2px 5px;
+      border-radius:4px;
+      font-size:10px;
+      white-space:nowrap;
+      opacity:0;
+      pointer-events:none;
+    }
+    #colorBox .sw:hover .tip{opacity:1}
+    #colorBox .sw[data-name="Gold"]{
+      background:linear-gradient(135deg,#d4b870 0%,#f0dc97 50%,#ceb86b 100%);
+    }
+    #colorBox .sw[data-name="Silver"]{
+      background:linear-gradient(135deg,#bfc6cf 0%,#e6eaef 50%,#a9b0ba 100%);
+    }
+
+    /* ---------- RESULTS ---------- */
+    .results{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px;
+      min-height:300px;
+    }
+    .results-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:10px;
+    }
+    .browse-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:12px;
+    }
+    @media(max-width:900px){
+      .browse-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    }
+    @media(max-width:560px){
+      .browse-grid{grid-template-columns:1fr;}
+    }
+    .card{
+      display:block;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      text-decoration:none;
+      color:inherit;
+      cursor:pointer;
     }
     .ph{
       aspect-ratio:4/3;
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      background:linear-gradient(180deg,#f8fafc,#eef2f7);
       display:grid;
       place-items:center;
-      color:#9ca3af;
-      font-size:12px;
-      overflow:hidden;
-      position:relative;
+      color:#6b7280;
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
     }
-    .ph img,
-    .ph video{
+    .ph img{
       width:100%;
       height:100%;
       object-fit:cover;
-      border-radius:10px;
     }
-    .ph-label{
-      position:absolute;
-      left:6px;
-      top:4px;
-      padding:2px 6px;
-      border-radius:999px;
-      background:rgba(15,23,42,.75);
-      color:#f9fafb;
-      font-size:11px;
+    .meta{
+      padding:8px 10px 10px;
     }
-
-    .field{
+    .meta .title{
+      font-weight:800;
+      margin-bottom:2px;
+      line-height:1.2;
+    }
+    .meta .sub{
       display:flex;
-      flex-direction:column;
-      gap:6px;
-      margin-bottom:10px;
-      font-size:14px;
-    }
-    .label-row{
-      display:flex;
-      align-items:center;
-      gap:8px;
-    }
-    .field label{
-      font-size:13px;
-      color:#374151;
-      font-weight:700;
-    }
-    .req{
-      font-size:11px;
-      background:#fde8e8;
-      border:1px solid #f8b4b4;
-      color:#7f1d1d;
-      border-radius:6px;
-      padding:2px 6px;
-    }
-    .field input[type="text"],
-    .field input[type="number"],
-    .field textarea,
-    .field select{
-      padding:10px;
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      background:#fff;
-      font-size:14px;
-    }
-    .field textarea{
-      min-height:120px;
-      resize:vertical;
-    }
-    .invalid{
-      border-color:var(--hm-danger)!important;
-      box-shadow:0 0 0 3px rgba(185,28,28,.08);
-    }
-    .help-error{
-      color:var(--hm-danger);
-      font-size:12px;
-    }
-
-    .actions{
-      display:flex;
-      gap:8px;
       flex-wrap:wrap;
-    }
-    .btn{
-      padding:10px 14px;
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      background:#fff;
-      cursor:pointer;
-      font-weight:700;
-      font-size:14px;
-    }
-    .btn.primary{
-      background:var(--hm-accent);
-      border-color:var(--hm-accent);
-      color:#fff;
-      box-shadow:0 2px 8px rgba(153,27,27,.25);
-    }
-    .btn[disabled]{opacity:.5;cursor:not-allowed}
-
-    .kv{
-      display:grid;
-      grid-template-columns:120px 1fr;
-      gap:6px;
+      gap:4px 10px;
+      justify-content:space-between;
       font-size:13px;
+      color:#6b7280;
+      margin-bottom:4px;
     }
-    .kv-key{color:#6b7280}
-    .kv-val{color:#111827}
+    .meta .sub span{white-space:nowrap;}
 
-    .feels-grid{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:4px 12px;
+    .add-btn{
+      width:100%;
+      margin-top:4px;
+      padding:9px 10px;
+      border-radius:10px;
+      border:1px solid var(--accent);
+      background:var(--accent);
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    .add-btn[disabled]{
+      opacity:.6;
+      cursor:not-allowed;
+    }
+
+    .price-row{
+      margin-top:6px;
       font-size:12px;
-      color:#374151;
+      color:#4b5563;
     }
-    .feels-grid label{
-      display:flex;
-      align-items:center;
-      gap:6px;
+    .price-sale{
+      font-weight:600;
     }
-    .feels-grid input[type="checkbox"]{
-      width:13px;
-      height:13px;
+    .price-orig{
+      margin-left:6px;
+      color:#9ca3af;
+      text-decoration:line-through;
     }
   </style>
 </head>
 <body>
 
-<div id="hm-shell-header"></div>
+  <!-- UNIVERSAL HEADER (injected by hm-shell.js) -->
+  <div id="hm-shell-header"></div>
 
-<main class="sell-wrap" id="maincontent">
-  <h1 id="sellHeading">Create a Listing</h1>
-  <p class="subtle" id="sellSubcopy">Showcase your fabric in three quick steps.</p>
+  <main class="browse-wrap">
+    <div class="topbar">
+      <input id="q" type="search" placeholder="Search fabrics…"/>
+      <button id="doSearch" type="button">Search</button>
+      <button id="toggleFilters" type="button" class="filter-toggle" aria-pressed="true">Hide filters</button>
+    </div>
 
-  <div class="stepper" id="stepper">
-    <div class="bubble" data-step="1" data-active="true"><span class="num">1</span> Photos &amp; Video</div>
-    <div class="bubble" data-step="2"><span class="num">2</span> Details</div>
-    <div class="bubble" data-step="3"><span class="num">3</span> Review &amp; Publish</div>
-  </div>
+    <div class="layout" id="layout">
+      <aside class="filters">
+        <h3>Filters</h3>
 
-  <div class="grid">
-    <section class="card" id="stage">
-      <div class="hd" id="stageTitle">Step 1 — Photos &amp; Video</div>
-      <div class="bd">
+        <!-- CONTENT (KNOWN) -->
+        <section class="section">
+          <div class="title">Content</div>
+          <div class="listbox" id="contentBox"></div>
+        </section>
 
-        <!-- STEP 1 -->
-        <div class="step step-1">
-          <div class="drop" id="photoDrop">
-            <strong>Drop photos here</strong> or
-            <label class="btn" style="margin-left:6px">
-              <input id="photoInput" type="file" accept="image/*" multiple hidden>
-              choose files
-            </label>
-            <div class="subtle" style="margin-top:6px">Up to 8 photos. First photo becomes the cover.</div>
-            <div id="photoError" class="help-error" style="margin-top:6px;display:none">At least one photo is required.</div>
-            <div class="subtle" style="margin-top:8px">
-              It helps buyers to see a ruler in at least one photo. You can print a free ruler
-              <a href="ruler.svg" target="_blank">here</a>.
+        <!-- FEELS LIKE (UNKNOWN CONTENT) – dropdown -->
+        <section class="section">
+          <div class="title">
+            Fabric feels like
+            <span style="font-weight:400;font-size:11px;color:var(--muted);">
+              (for mystery / unknown content)
+            </span>
+          </div>
+          <div class="selects">
+            <select id="feelsLike">
+              <option value="">Any</option>
+              <option>cotton / poplin</option>
+              <option>linen</option>
+              <option>silk</option>
+              <option>chiffon</option>
+              <option>crepe</option>
+              <option>satin</option>
+              <option>jersey knit</option>
+              <option>denim</option>
+              <option>flannel / brushed cotton</option>
+              <option>fleece</option>
+              <option>wool suiting</option>
+              <option>tweed</option>
+              <option>velvet / velour</option>
+              <option>lace</option>
+              <option>tulle</option>
+              <option>organza</option>
+              <option>leather</option>
+              <option>faux leather</option>
+              <option>vinyl</option>
+              <option>suede</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Color Family</div>
+          <div id="colorBox"></div>
+        </section>
+
+        <section class="section">
+          <div class="title">$/yard</div>
+          <div class="mini">
+            <div class="field">
+              <label>Min</label>
+              <input id="minPrice" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>Max</label>
+              <input id="maxPrice" type="number" min="0" step="1">
             </div>
           </div>
-          <div class="thumbs" id="photoThumbs" aria-live="polite" style="margin-top:10px"></div>
+        </section>
 
-          <div class="drop" id="videoDrop
+        <section class="section">
+          <div class="title">Yards</div>
+          <div class="mini">
+            <div class="field" style="grid-column:1/-1">
+              <label>Min yards</label>
+              <input id="minYards" type="number" min="0" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Width (in)</div>
+          <div class="mini">
+            <div class="field">
+              <label>Min</label>
+              <input id="minWidth" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>Max</label>
+              <input id="maxWidth" type="number" min="0" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Weight (GSM)</div>
+          <div class="mini">
+            <div class="field">
+              <label>Min GSM</label>
+              <input id="minGsm" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>Max GSM</label>
+              <input id="maxGsm" type="number" min="0" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Department</div>
+          <div class="selects">
+            <select id="dept">
+              <option value="">Any</option>
+              <option>Fashion</option>
+              <option>Home</option>
+              <option>Quilting</option>
+              <option>Notions</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Fabric Type</div>
+          <div class="selects">
+            <select id="fabricType">
+              <option value="">Any</option>
+              <option>Canvas</option>
+              <option>Chiffon</option>
+              <option>Corduroy</option>
+              <option>Crepe</option>
+              <option>Denim</option>
+              <option>Flannel</option>
+              <option>Georgette</option>
+              <option>Jersey</option>
+              <option>Lace</option>
+              <option>Lawn</option>
+              <option>Organza</option>
+              <option>Poplin</option>
+              <option>Sateen</option>
+              <option>Satin</option>
+              <option>Tulle</option>
+              <option>Twill</option>
+              <option>Velvet</option>
+              <option>Voile</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Fiber Type</div>
+          <div class="selects">
+            <select id="fiberType">
+              <option value="">Any</option>
+              <option>Natural</option>
+              <option>Modified Natural</option>
+              <option>Synthetic</option>
+              <option>Blend</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Designer / Mill</div>
+          <div class="selects">
+            <input id="designer" placeholder="e.g., Loro Piana"/>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Country / Origin</div>
+          <div class="selects">
+            <select id="origin">
+              <option value="">Any</option>
+              <option>Italy</option>
+              <option>France</option>
+              <option>Japan</option>
+              <option>UK</option>
+              <option>USA</option>
+              <option>India</option>
+              <option>China</option>
+              <option>Korea</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Pattern</div>
+          <div class="selects">
+            <select id="pattern">
+              <option value="">Any</option>
+              <option>Solid</option>
+              <option>Printed</option>
+            </select>
+          </div>
+        </section>
+      </aside>
+
+      <section class="results">
+        <div class="results-head">
+          <h2 style="margin:0;font-size:18px">Browse</h2>
+          <div id="resultCount" style="color:#6b7280;font-size:13px">Loading…</div>
+        </div>
+        <div id="grid" class="browse-grid"></div>
+        <div id="empty" style="display:none;color:#6b7280">
+          No results yet. Listings will appear here once your marketplace is live.
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- UNIVERSAL FOOTER (injected by hm-shell.js) -->
+  <div id="hm-shell-footer"></div>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Shared shell (universal header/footer + menu + header session) -->
+  <script src="scripts/hm-shell.js"></script>
+
+  <script>
+    // Render shared header + footer
+    window.HM && window.HM.renderShell({ currentPage: "browse" });
+  </script>
+
+  <script>
+    /* Supabase client + listings */
+
+    const supabaseClient = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+    );
+
+    /* --- Filters state --- */
+
+    const CONTENTS = [
+      "Any",
+      "Acetate",
+      "Acrylic",
+      "Alpaca",
+      "Angora",
+      "Bamboo",
+      "Cashmere",
+      "Cotton",
+      "Cupro",
+      "Hemp",
+      "Leather",
+      "Linen",
+      "Lurex",
+      "Modal",
+      "Mohair",
+      "Nylon",
+      "Polyester",
+      "Rayon / Viscose",
+      "Silk",
+      "Spandex / Elastane",
+      "Tencel / Lyocell",
+      "Wool",
+      "Other Fibers"
+    ];
+
+    const COLORS = [
+      "Black","Grey","White","Cream","Brown",
+      "Pink","Red","Orange","Yellow","Green",
+      "Blue","Purple","Gold","Silver"
+    ];
+
+    const selectedContents = new Set();
+    let   selectedColor   = null;
+
+    function buildFiltersUI(){
+      const contentBox = document.getElementById("contentBox");
+      const colorBox   = document.getElementById("colorBox");
+
+      if(contentBox){
+        contentBox.innerHTML = "";
+        CONTENTS.forEach(label=>{
+          const row = document.createElement("div");
+          row.className = "row";
+          const cb  = document.createElement("input");
+          cb.type   = "checkbox";
+          cb.value  = label;
+          const lb  = document.createElement("label");
+          lb.textContent = label;
+          row.appendChild(cb);
+          row.appendChild(lb);
+          cb.addEventListener("change",()=>{
+            if(label === "Any"){
+              selectedContents.clear();
+              if(cb.checked) selectedContents.add("Any");
+              // uncheck others
+              contentBox.querySelectorAll("input[type=checkbox]").forEach(el=>{
+                if(el !== cb) el.checked = false;
+              });
+            }else{
+              selectedContents.delete("Any");
+              const anyBox = contentBox.querySelector('input[value="Any"]');
+              if(anyBox) anyBox.checked = false;
+              if(cb.checked) selectedContents.add(label); else selectedContents.delete(label);
+            }
+            runSearch();
+          });
+          contentBox.appendChild(row);
+        });
+      }
+
+      if(colorBox){
+        colorBox.innerHTML = "";
+        COLORS.forEach(name=>{
+          const sw = document.createElement("button");
+          sw.type = "button";
+          sw.className = "sw";
+          sw.dataset.name = name;
+          sw.setAttribute("aria-label", name);
+          const tip = document.createElement("span");
+          tip.className = "tip";
+          tip.textContent = name;
+          sw.appendChild(tip);
+          if(name !== "Gold" && name !== "Silver"){
+            sw.style.backgroundColor = name.toLowerCase();
+          }
+          sw.addEventListener("click", ()=>{
+            if(selectedColor === name){
+              selectedColor = null;
+              sw.dataset.selected = "false";
+            }else{
+              selectedColor = name;
+              colorBox.querySelectorAll(".sw").forEach(el=>{ el.dataset.selected = "false"; });
+              sw.dataset.selected = "true";
+            }
+            runSearch();
+          });
+          colorBox.appendChild(sw);
+        });
+      }
+    }
+
+    /* Toggle filters panel */
+    (function(){
+      const layout = document.getElementById('layout');
+      const toggle = document.getElementById('toggleFilters');
+      if(!layout || !toggle) return;
+
+      toggle.addEventListener('click', ()=>{
+        const hidden = layout.classList.toggle('filters-hidden');
+        toggle.textContent = hidden ? 'Show filters' : 'Hide filters';
+        toggle.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+      });
+    })();
+
+    /* --- Helpers --- */
+    function moneyFromCents(c){
+      if(c == null) return null;
+      const v = c / 100;
+      return v.toLocaleString("en-US",{
+        style:"currency",
+        currency:"USD",
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      });
+    }
+
+    function numeric(val){
+      const n = parseFloat(val);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    /* Fetch profiles for seller display names */
+    async function fetchProfilesForListings(listings){
+      const map = {};
+      const ids = Array.from(new Set(
+        (listings || [])
+          .map(l => l.seller_id)
+          .filter(Boolean)
+      ));
+      if(!ids.length) return map;
+
+      try{
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("id, display_name, store_name, first_name, last_name")
+          .in("id", ids);
+
+        if(error){
+          console.error("Profile fetch error", error);
+          return map;
+        }
+        (data || []).forEach(p=>{
+          map[p.id] = p;
+        });
+      }catch(e){
+        console.error("Profile fetch exception", e);
+      }
+      return map;
+    }
+
+    /* --- Main search + render --- */
+    async function runSearch(){
+      const grid       = document.getElementById("grid");
+      const emptyEl    = document.getElementById("empty");
+      const countEl    = document.getElementById("resultCount");
+      const qInput     = document.getElementById("q");
+      const minPriceEl = document.getElementById("minPrice");
+      const maxPriceEl = document.getElementById("maxPrice");
+      const minYardsEl = document.getElementById("minYards");
+      const deptEl     = document.getElementById("dept");
+      const fabricEl   = document.getElementById("fabricType");
+      const fiberEl    = document.getElementById("fiberType");
+      const patternEl  = document.getElementById("pattern");
+      const originEl   = document.getElementById("origin");
+      const designerEl = document.getElementById("designer");
+      const feelsEl    = document.getElementById("feelsLike");
+
+      if(grid) grid.innerHTML = "";
+      if(emptyEl) emptyEl.style.display = "none";
+      if(countEl) countEl.textContent = "Loading…";
+
+      let listings = [];
+      try{
+        const { data, error } = await supabaseClient
+          .from("listings")
+          .select("*")
+          .order("created_at", { ascending:false });
+
+        if(error){
+          console.error("Listings fetch error", error);
+          if(countEl) countEl.textContent = "Error loading listings";
+          return;
+        }
+        listings = data || [];
+      }catch(e){
+        console.error("Listings fetch exception", e);
+        if(countEl) countEl.textContent = "Error loading listings";
+        return;
+      }
+
+      /* Client-side filtering so we don't care about missing columns */
+      const searchTerm = (qInput?.value || "").trim().toLowerCase();
+      const minPrice   = numeric(minPriceEl?.value);
+      const maxPrice   = numeric(maxPriceEl?.value);
+      const minYards   = numeric(minYardsEl?.value);
+
+      const deptVal    = (deptEl?.value || "").trim();
+      const fabricVal  = (fabricEl?.value || "").trim();
+      const fiberVal   = (fiberEl?.value || "").trim();
+      const patternVal = (patternEl?.value || "").trim();
+      const originVal  = (originEl?.value || "").trim();
+      const designerVal= (designerEl?.value || "").trim().toLowerCase();
+      const feelsVal   = (feelsEl?.value || "").trim().toLowerCase();
+
+      // for go_live_at filtering (8pm and later) – compare to now
+      const nowIso = new Date().toISOString();
+
+      let filtered = listings.filter(l => {
+        // Only show "active" + published when those flags exist.
+        if(l.status && l.status !== "active") return false;
+        if(l.is_published === false) return false;
+
+        // go_live_at: hide anything scheduled for the future
+        if (l.go_live_at && l.go_live_at > nowIso) return false;
+
+        if(searchTerm){
+          const hay = ((l.title || "") + " " + (l.description || "")).toLowerCase();
+          if(!hay.includes(searchTerm)) return false;
+        }
+
+        if(minPrice != null && l.price_cents != null){
+          if(l.price_cents < Math.round(minPrice * 100)) return false;
+        }
+        if(maxPrice != null && l.price_cents != null){
+          if(l.price_cents > Math.round(maxPrice * 100)) return false;
+        }
+
+        if(minYards != null && l.yards_available != null){
+          if(Number(l.yards_available) < minYards) return false;
+        }
+
+        if(deptVal && l.dept && l.dept !== deptVal) return false;
+        if(fabricVal && l.fabric_type && l.fabric_type !== fabricVal) return false;
+        if(fiberVal && l.fiber_type && l.fiber_type !== fiberVal) return false;
+        if(patternVal && l.pattern && l.pattern !== patternVal) return false;
+        if(originVal && l.origin && l.origin !== originVal) return false;
+
+        if(designerVal){
+          const dName = (l.designer || "").toLowerCase();
+          if(!dName.includes(designerVal)) return false;
+        }
+
+        // content filter
+        if(selectedContents.size){
+          if(!selectedContents.has("Any")){
+            const lc = (l.content || "").toLowerCase();
+            let hit = false;
+            for(const v of selectedContents){
+              if(lc === v.toLowerCase()){ hit = true; break; }
+            }
+            if(!hit) return false;
+          }
+        }
+
+        // feels-like dropdown
+        if(feelsVal){
+          const src = l.feels_like;
+          let arr = [];
+          if(Array.isArray(src)){
+            arr = src;
+          }else if(typeof src === "string" && src.trim().length){
+            arr = src.split(",").map(s=>s.trim());
+          }
+          const lowerSet = new Set(arr.map(v=>v.toLowerCase()));
+          if(!lowerSet.has(feelsVal)) return false;
+        }
+
+        // color family
+        if(selectedColor){
+          if(!l.color_family || l.color_family !== selectedColor) return false;
+        }
+
+        return true;
+      });
+
+      const total = filtered.length;
+      if(countEl){
+        countEl.textContent = total === 1 ? "1 result" : total + " results";
+      }
+
+      if(!total){
+        if(emptyEl) emptyEl.style.display = "block";
+        return;
+      }
+
+      const profileMap = await fetchProfilesForListings(filtered);
+
+      if(grid){
+        filtered.forEach(l => {
+          const card = document.createElement("article");
+          card.className = "card";
+
+          // media
+          const ph = document.createElement("div");
+          ph.className = "ph";
+          if(l.image_url_1){
+            const img = document.createElement("img");
+            img.src = l.image_url_1;
+            img.alt = l.title || "Listing photo";
+            ph.appendChild(img);
+          }else{
+            ph.textContent = "Photo";
+          }
+          card.appendChild(ph);
+
+          // meta
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
+          const title = document.createElement("div");
+          title.className = "title";
+          title.textContent = l.title || "Untitled listing";
+          meta.appendChild(title);
+
+          const sub = document.createElement("div");
+          sub.className = "sub";
+          const yardsSpan = document.createElement("span");
+          const yardsAvail = l.yards_available != null ? Number(l.yards_available) : null;
+          yardsSpan.textContent = (yardsAvail != null ? yardsAvail : "—") + " yards";
+
+          const prof = profileMap[l.seller_id] || {};
+          const displayName = (prof.first_name && prof.last_name)
+            ? (prof.first_name + " " + prof.last_name)
+            : (prof.display_name || "");
+          const storeName = prof.store_name || displayName || "Hemline Market seller";
+
+          const sellerSpan = document.createElement("span");
+          sellerSpan.textContent = storeName;
+
+          sub.appendChild(yardsSpan);
+          sub.appendChild(sellerSpan);
+          meta.appendChild(sub);
+
+          // add to cart button + prices
+          const priceCents = l.price_cents != null ? Number(l.price_cents) : null;
+          const origPriceCents = l.orig_price_cents != null ? Number(l.orig_price_cents) : null;
+
+          const status = (l.status || "active").toLowerCase();
+          const isSold = status === "sold";
+          const canBuy = !isSold && priceCents != null && yardsAvail != null && yardsAvail > 0;
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "add-btn add-to-cart";
+
+          let totalCents = null;
+          if(priceCents != null && yardsAvail != null){
+            totalCents = Math.round(priceCents * yardsAvail);
+          }
+
+          if(canBuy && totalCents != null && yardsAvail != null){
+            const totalMoney = moneyFromCents(totalCents);
+            btn.textContent = "Add to Cart — " + totalMoney + " for " + yardsAvail + " yards";
+          }else{
+            btn.textContent = isSold ? "Sold out" : "Add to Cart";
+          }
+
+          // dataset for global cart scripts (match index.html)
+          const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
+          btn.dataset.id = l.id;
+          btn.dataset.name = l.title || "Untitled listing";
+          btn.dataset.amount = totalCents != null ? String(totalCents) : "0";
+          btn.dataset.price = perYdDollars ? perYdDollars.toFixed(2) : "0";
+          btn.dataset.yards = yardsAvail != null ? String(yardsAvail) : "0";
+          btn.dataset.sellerId = l.seller_id || "";
+          btn.dataset.sellerName = storeName;
+          btn.dataset.photo = l.image_url_1 || "";
+
+          if(!canBuy){
+            btn.disabled = true;
+          }
+
+          meta.appendChild(btn);
+
+          const priceRow = document.createElement("div");
+          priceRow.className = "price-row";
+
+          if(priceCents != null){
+            const perYard = moneyFromCents(priceCents);
+            const saleSpan = document.createElement("span");
+            saleSpan.className = "price-sale";
+            saleSpan.textContent = perYard + "/yard";
+            priceRow.appendChild(saleSpan);
+          }
+
+          if(origPriceCents != null){
+            const origPerYard = moneyFromCents(origPriceCents);
+            const origSpan = document.createElement("span");
+            origSpan.className = "price-orig";
+            origSpan.textContent = origPerYard + "/yard";
+            priceRow.appendChild(origSpan);
+          }
+
+          meta.appendChild(priceRow);
+          card.appendChild(meta);
+
+          // card click → listing page, but do NOT trigger when clicking Add to Cart
+          card.addEventListener("click", (e)=>{
+            if(e.target.closest(".add-btn")) return;
+            if(!l.id) return;
+            window.location.href = "listing.html?id=" + encodeURIComponent(l.id);
+          });
+
+          grid.appendChild(card);
+        });
+      }
+    }
+
+    /* Initial boot */
+    document.addEventListener("DOMContentLoaded", ()=>{
+      buildFiltersUI();
+
+      const searchBtn = document.getElementById("doSearch");
+      const qInput    = document.getElementById("q");
+      if(searchBtn) searchBtn.addEventListener("click", runSearch);
+      if(qInput) qInput.addEventListener("keydown", e=>{
+        if(e.key === "Enter") runSearch();
+      });
+
+      runSearch();
+    });
+  </script>
+
+  <!-- GLOBAL CART HANDLER -->
+  <script src="scripts/cart.js"></script>
+  <script src="scripts/cart-hooks.js"></script>
+  <script src="assets/add-to-cart.js" defer></script>
+
+</body>
+</html>
