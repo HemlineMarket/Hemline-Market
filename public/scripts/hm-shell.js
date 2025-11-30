@@ -96,6 +96,7 @@ window.HM = window.HM || {};
   <nav>
     <a href="account.html">Account</a>
     <a href="atelier.html">My Atelier</a>
+    <a href="messages.html">Messages</a>
     <a href="how.html">How It Works</a>
     <a href="sell.html">Sell Fabric</a>
     <a href="ThreadTalk.html">ThreadTalk</a>
