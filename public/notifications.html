@@ -175,7 +175,8 @@
   <!-- Notifications logic: reads from localStorage "hm_notifications" -->
   <script>
   (function(){
-    const NOTIF_KEY = 'hm_notifications';
+    const NOTIF_KEY   = 'hm_notifications';
+    const UNREAD_KEY  = 'hm_notifications_unread'; // numeric unread count for header/badge
     const listToday   = document.getElementById('listToday');
     const listEarlier = document.getElementById('listEarlier');
 
@@ -188,8 +189,15 @@
         return [];
       }
     }
+
     function saveNotifs(arr){
-      try{ localStorage.setItem(NOTIF_KEY, JSON.stringify(arr || [])); }catch(_){}
+      const safe = Array.isArray(arr) ? arr : [];
+      try{
+        localStorage.setItem(NOTIF_KEY, JSON.stringify(safe));
+        // Update unread count so the header can show a number
+        const unreadCount = safe.filter(n => n && n.unread !== false).length;
+        localStorage.setItem(UNREAD_KEY, String(unreadCount));
+      }catch(_){}
     }
 
     function isToday(date){
@@ -271,7 +279,8 @@
         row.appendChild(main);
         if(link) row.appendChild(link);
 
-        // Clicking the row (not the link) marks read
+        // Clicking the row (not the link) can still mark as read,
+        // but in practice they'll usually already be read when this page opens.
         row.addEventListener('click', (e)=>{
           if(e.target.tagName.toLowerCase() === 'a') return;
           row.classList.add('read');
@@ -299,14 +308,24 @@
       renderList(listEarlier, earlier, false);
     }
 
-    // Buttons
+    // Mark everything as read as soon as the notifications page is opened
+    function markAllAsRead(){
+      const current = getNotifs();
+      if(!current.length){
+        saveNotifs(current); // also ensures unread count key is 0
+        return;
+      }
+      const updated = current.map(n => ({ ...n, unread:false }));
+      saveNotifs(updated);
+    }
+
+    // Buttons (still here, but they're now just helpers if you add notifs while on-page)
     const markAllBtn = document.getElementById('markAll');
     const clearAllBtn = document.getElementById('clearAll');
 
     if(markAllBtn){
       markAllBtn.addEventListener('click', ()=>{
-        const notifs = getNotifs().map(n => ({...n, unread:false}));
-        saveNotifs(notifs);
+        markAllAsRead();
         renderAll();
       });
     }
@@ -317,6 +336,10 @@
       });
     }
 
+    // On page load:
+    // 1) Mark everything as read (so just visiting this page clears the badge)
+    // 2) Render the lists
+    markAllAsRead();
     renderAll();
   })();
   </script>
