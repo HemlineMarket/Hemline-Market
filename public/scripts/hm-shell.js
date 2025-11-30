@@ -227,11 +227,13 @@ window.HM = window.HM || {};
 
     try {
       const uid = session.user.id;
-      // We just care if ANY notifications exist for this user.
+
+      // IMPORTANT: only look for UNREAD notifications (is_read = false)
       const { data, error } = await shellSupabase
         .from("notifications")
         .select("id")
         .eq("user_id", uid)
+        .eq("is_read", false)
         .order("created_at", { ascending: false })
         .limit(1);
 
@@ -242,9 +244,9 @@ window.HM = window.HM || {};
         return;
       }
 
-      const hasNotifications = Array.isArray(data) && data.length > 0;
+      const hasUnread = Array.isArray(data) && data.length > 0;
 
-      if (hasNotifications) {
+      if (hasUnread) {
         dot.style.display = "block";
         link.setAttribute("aria-label", "Notifications (new)");
       } else {
