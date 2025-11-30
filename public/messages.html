@@ -211,27 +211,21 @@
       display:none;
     }
 
+    /* Changed to flex so gaps are tighter and stamps sit closer */
     .chat-scroll{
       flex:1;
       overflow:auto;
       padding:14px 16px;
       display:flex;
       flex-direction:column;
-      gap:6px;                 /* tight spacing bubble ↔ time */
+      gap:6px;          /* tighter vertical spacing */
       background:#fcfcfc;
     }
 
-    /* Message row: bubble + tiny time, stacked together */
-    .msg-row{
-      display:flex;
-      flex-direction:column;
-      max-width:60%;
-    }
-    .msg-row.me{
-      align-self:flex-end;
-    }
-
+    /* Smaller, cleaner bubbles */
     .bubble{
+      display:inline-block;
+      max-width:60%;
       padding:8px 10px;
       border:1px solid var(--line);
       border-radius:10px;
@@ -243,15 +237,16 @@
     }
 
     .bubble.me{
+      align-self:flex-end;
       background:#fef2f2;
       border-color:#fca5a5;
     }
 
     .stamp{
-      margin-top:2px;
       font-size:11px;
       color:var(--muted);
-      align-self:flex-end;   /* hugs the bubble */
+      align-self:center;
+      margin-top:2px;   /* keeps stamp close to nearby bubbles */
     }
 
     .composer{
@@ -660,49 +655,42 @@
 
     if(error){
       console.error("Error loading messages", error);
-      const row = document.createElement("div");
-      row.className = "msg-row";
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
-      bubble.textContent = "We couldn’t load this conversation. Please refresh.";
-      row.appendChild(bubble);
-      chatScrollEl.appendChild(row);
+      const errBubble = document.createElement("div");
+      errBubble.className = "bubble";
+      errBubble.textContent = "We couldn’t load this conversation. Please refresh.";
+      chatScrollEl.appendChild(errBubble);
       return;
     }
 
     if(!data || !data.length){
-      const row = document.createElement("div");
-      row.className = "msg-row";
       const stamp = document.createElement("div");
       stamp.className = "stamp";
       stamp.textContent = "No messages yet. Send the first message.";
-      row.appendChild(stamp);
-      chatScrollEl.appendChild(row);
+      chatScrollEl.appendChild(stamp);
       chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
       return;
     }
 
+    let lastStamp = "";
     data.forEach(msg=>{
       const mine = msg.sender_id === currentUser.id;
-
-      const row = document.createElement("div");
-      row.className = "msg-row" + (mine ? " me" : "");
 
       const bubble = document.createElement("div");
       bubble.className = "bubble" + (mine ? " me" : "");
       bubble.textContent = msg.body || "";
-      row.appendChild(bubble);
+      chatScrollEl.appendChild(bubble);
 
-      const stamp = document.createElement("div");
-      stamp.className = "stamp";
-      stamp.textContent = formatStamp(msg.created_at);
-      row.appendChild(stamp);
-
-      chatScrollEl.appendChild(row);
+      const stampStr = formatStamp(msg.created_at);
+      if(stampStr && stampStr !== lastStamp){
+        const stamp = document.createElement("div");
+        stamp.className = "stamp";
+        stamp.textContent = stampStr;
+        chatScrollEl.appendChild(stamp);
+        lastStamp = stampStr;
+      }
     });
 
-    const last = data[data.length-1];
-    chatMetaEl.textContent = "Last updated " + formatStamp(last.created_at);
+    chatMetaEl.textContent = "Last updated " + formatStamp(data[data.length-1].created_at);
     chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
   }
 
@@ -729,21 +717,16 @@
         return;
       }
 
-      // add sent bubble immediately
-      const row = document.createElement("div");
-      row.className = "msg-row me";
-
       const bubble = document.createElement("div");
       bubble.className = "bubble me";
       bubble.textContent = text;
-      row.appendChild(bubble);
+      chatScrollEl.appendChild(bubble);
 
       const stamp = document.createElement("div");
       stamp.className = "stamp";
       stamp.textContent = formatStamp(inserted.created_at);
-      row.appendChild(stamp);
+      chatScrollEl.appendChild(stamp);
 
-      chatScrollEl.appendChild(row);
       chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
       msgInputEl.value = "";
 
@@ -756,20 +739,16 @@
         })
         .eq("id", currentThreadId);
 
-      // create Supabase notification for the other user
+      // MESSAGE NOTIFICATIONS:
+      // keep it simple and match your notifications table:
+      // user_id, title, body
       if(currentOtherUserId && currentOtherUserId !== currentUser.id){
         const title = "New message from " + (currentUser.email || "Hemline member");
-        const { error:notifErr } = await supabaseClient.from("notifications").insert({
+        await supabaseClient.from("notifications").insert({
           user_id: currentOtherUserId,
-          kind: "message",
           title,
-          body: preview,
-          message_thread_id: currentThreadId,
-          message_id: inserted.id
+          body: preview
         });
-        if(notifErr){
-          console.error("Error creating notification", notifErr);
-        }
       }
 
       loadThreads(currentThreadId);
