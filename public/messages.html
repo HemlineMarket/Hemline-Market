@@ -211,42 +211,47 @@
       display:none;
     }
 
-    /* FLEX COLUMN so bubbles can be as tall as their text only */
     .chat-scroll{
       flex:1;
       overflow:auto;
       padding:14px 16px;
       display:flex;
       flex-direction:column;
-      gap:6px;
+      gap:6px;                 /* tight spacing bubble ↔ time */
       background:#fcfcfc;
     }
 
-    /* Compact bubbles hugging the text */
+    /* Message row: bubble + tiny time, stacked together */
+    .msg-row{
+      display:flex;
+      flex-direction:column;
+      max-width:60%;
+    }
+    .msg-row.me{
+      align-self:flex-end;
+    }
+
     .bubble{
-      max-width:42%;
-      padding:6px 9px;
+      padding:8px 10px;
       border:1px solid var(--line);
-      border-radius:12px;
+      border-radius:10px;
       background:#fff;
       font-size:13px;
       line-height:1.4;
       white-space:pre-wrap;
       word-wrap:break-word;
-      align-self:flex-start;
-      min-height:0 !important; /* kill any old min-height from shared CSS */
     }
 
     .bubble.me{
-      align-self:flex-end;
       background:#fef2f2;
       border-color:#fca5a5;
     }
 
     .stamp{
+      margin-top:2px;
       font-size:11px;
       color:var(--muted);
-      align-self:center;
+      align-self:flex-end;   /* hugs the bubble */
     }
 
     .composer{
@@ -359,8 +364,6 @@
     { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
-  const LAST_THREAD_KEY_PREFIX = "hm_last_thread_";
-
   // --- Helpers ---
   function initialsFromName(first, last, fallback){
     if(first && last) return (first[0]+last[0]).toUpperCase();
@@ -439,15 +442,8 @@
     const toUserId = params.get("to") || params.get("user") || null;
 
     let initialThreadId = null;
-
     if(toUserId && toUserId !== currentUser.id){
-      // direct message from Atelier/store page
       initialThreadId = await getOrCreateThread(currentUser.id, toUserId);
-    } else {
-      // fall back to last opened thread for this user
-      const key = LAST_THREAD_KEY_PREFIX + currentUser.id;
-      const saved = window.localStorage ? localStorage.getItem(key) : null;
-      if(saved) initialThreadId = saved;
     }
 
     await loadThreads(initialThreadId);
@@ -503,12 +499,11 @@
 
   async function loadThreads(preselectThreadId){
     const uid = currentUser.id;
-    const uidStr = String(uid);
 
     const { data, error } = await supabaseClient
       .from("message_threads")
       .select("*")
-      .or(`user_a.eq.${uidStr},user_b.eq.${uidStr}`)
+      .or(`user_a.eq.${uid},user_b.eq.${uid}`)
       .order("last_message_at", { ascending:false, nullsLast:true })
       .order("created_at", { ascending:false });
 
@@ -530,6 +525,7 @@
     threadsEmptyEl.style.display = "none";
 
     const otherIds = [];
+    const uidStr = String(uid);
     allThreads.forEach(t=>{
       const other = (t.user_a === uidStr) ? t.user_b : t.user_a;
       if(other && !otherIds.includes(other)) otherIds.push(other);
@@ -604,7 +600,7 @@
     if(preselectThreadId){
       const target = allThreads.find(t=>t.id === preselectThreadId);
       if(target){
-        const otherId = (target.user_a === uidStr ? target.user_b : target.user_a);
+        const otherId = (target.user_a === uid ? target.user_b : target.user_a);
         let prof = null;
         try{
           const { data:profData } = await supabaseClient
@@ -645,13 +641,6 @@
     currentOtherUserId = otherUserId;
     currentOtherName = otherName || "Hemline member";
 
-    // remember last opened thread for this user
-    try{
-      if(currentUser?.id && window.localStorage){
-        localStorage.setItem(LAST_THREAD_KEY_PREFIX + currentUser.id, threadId);
-      }
-    }catch(_){}
-
     threadsListEl.querySelectorAll(".thread").forEach(el=>{
       el.classList.toggle("active", el.dataset.threadId === threadId);
     });
@@ -671,42 +660,49 @@
 
     if(error){
       console.error("Error loading messages", error);
-      const errBubble = document.createElement("div");
-      errBubble.className = "bubble";
-      errBubble.textContent = "We couldn’t load this conversation. Please refresh.";
-      chatScrollEl.appendChild(errBubble);
+      const row = document.createElement("div");
+      row.className = "msg-row";
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = "We couldn’t load this conversation. Please refresh.";
+      row.appendChild(bubble);
+      chatScrollEl.appendChild(row);
       return;
     }
 
     if(!data || !data.length){
+      const row = document.createElement("div");
+      row.className = "msg-row";
       const stamp = document.createElement("div");
       stamp.className = "stamp";
       stamp.textContent = "No messages yet. Send the first message.";
-      chatScrollEl.appendChild(stamp);
+      row.appendChild(stamp);
+      chatScrollEl.appendChild(row);
       chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
       return;
     }
 
-    let lastStamp = "";
     data.forEach(msg=>{
       const mine = msg.sender_id === currentUser.id;
+
+      const row = document.createElement("div");
+      row.className = "msg-row" + (mine ? " me" : "");
 
       const bubble = document.createElement("div");
       bubble.className = "bubble" + (mine ? " me" : "");
       bubble.textContent = msg.body || "";
-      chatScrollEl.appendChild(bubble);
+      row.appendChild(bubble);
 
-      const stampStr = formatStamp(msg.created_at);
-      if(stampStr && stampStr !== lastStamp){
-        const stamp = document.createElement("div");
-        stamp.className = "stamp";
-        stamp.textContent = stampStr;
-        chatScrollEl.appendChild(stamp);
-        lastStamp = stampStr;
-      }
+      const stamp = document.createElement("div");
+      stamp.className = "stamp";
+      stamp.textContent = formatStamp(msg.created_at);
+      row.appendChild(stamp);
+
+      chatScrollEl.appendChild(row);
     });
 
-    chatMetaEl.textContent = "Last updated " + formatStamp(data[data.length-1].created_at);
+    const last = data[data.length-1];
+    chatMetaEl.textContent = "Last updated " + formatStamp(last.created_at);
     chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
   }
 
@@ -733,16 +729,21 @@
         return;
       }
 
+      // add sent bubble immediately
+      const row = document.createElement("div");
+      row.className = "msg-row me";
+
       const bubble = document.createElement("div");
       bubble.className = "bubble me";
       bubble.textContent = text;
-      chatScrollEl.appendChild(bubble);
+      row.appendChild(bubble);
 
       const stamp = document.createElement("div");
       stamp.className = "stamp";
       stamp.textContent = formatStamp(inserted.created_at);
-      chatScrollEl.appendChild(stamp);
+      row.appendChild(stamp);
 
+      chatScrollEl.appendChild(row);
       chatScrollEl.scrollTop = chatScrollEl.scrollHeight;
       msgInputEl.value = "";
 
@@ -755,9 +756,10 @@
         })
         .eq("id", currentThreadId);
 
+      // create Supabase notification for the other user
       if(currentOtherUserId && currentOtherUserId !== currentUser.id){
         const title = "New message from " + (currentUser.email || "Hemline member");
-        await supabaseClient.from("notifications").insert({
+        const { error:notifErr } = await supabaseClient.from("notifications").insert({
           user_id: currentOtherUserId,
           kind: "message",
           title,
@@ -765,6 +767,9 @@
           message_thread_id: currentThreadId,
           message_id: inserted.id
         });
+        if(notifErr){
+          console.error("Error creating notification", notifErr);
+        }
       }
 
       loadThreads(currentThreadId);
