@@ -88,19 +88,25 @@
     .list{display:grid;}
     .item{
       display:grid;
-      grid-template-columns:auto 1fr auto;
+      grid-template-columns:auto 1fr;
       gap:12px;
       align-items:center;
       padding:12px;
       border-bottom:1px solid var(--hm-border);
+      cursor:pointer;
     }
     .item:last-child{border-bottom:0;}
+    .item.read{cursor:default;}
+    .item:hover{
+      background:#f9fafb;
+    }
     .dot{
       width:10px;
       height:10px;
       border-radius:50%;
       background:var(--hm-accent);
       opacity:.95;
+      flex-shrink:0;
     }
     .item.read .dot{opacity:0;}
     .title{font-weight:700;font-size:14px;}
@@ -122,17 +128,6 @@
       color:#374151;
     }
     .when{font-size:11px;}
-    .link{
-      color:#1f2937;
-      text-decoration:none;
-      border:1px solid var(--hm-border);
-      border-radius:8px;
-      padding:6px 10px;
-      background:#fff;
-      font-weight:700;
-      font-size:12px;
-    }
-    .link:hover{text-decoration:underline;}
     .empty{
       padding:14px;
       color:#6b7280;
@@ -267,28 +262,22 @@
         main.appendChild(title);
         main.appendChild(meta);
 
-        let link = null;
-        if(n.href){
-          link = document.createElement('a');
-          link.className = 'link';
-          link.href = n.href;
-          link.textContent = 'View';
-        }
-
         row.appendChild(dot);
         row.appendChild(main);
-        if(link) row.appendChild(link);
 
-        // Clicking the row (not the link) can still mark as read,
-        // but in practice they'll usually already be read when this page opens.
-        row.addEventListener('click', (e)=>{
-          if(e.target.tagName.toLowerCase() === 'a') return;
-          row.classList.add('read');
+        // Clicking the row:
+        // - If there's an href, navigate there.
+        // - Also mark this notif as read in localStorage.
+        row.addEventListener('click', ()=>{
           const notifs = getNotifs();
           const idx = notifs.findIndex(x => x.id === n.id);
           if(idx !== -1){
             notifs[idx].unread = false;
             saveNotifs(notifs);
+          }
+          row.classList.add('read');
+          if(n.href){
+            window.location.href = n.href;
           }
         });
 
@@ -319,7 +308,7 @@
       saveNotifs(updated);
     }
 
-    // Buttons (still here, but they're now just helpers if you add notifs while on-page)
+    // Buttons (still here, but they're now just helpers if new notifs arrive while on-page)
     const markAllBtn = document.getElementById('markAll');
     const clearAllBtn = document.getElementById('clearAll');
 
@@ -337,7 +326,7 @@
     }
 
     // On page load:
-    // 1) Mark everything as read (so just visiting this page clears the badge)
+    // 1) Mark everything as read (visiting = "I saw these")
     // 2) Render the lists
     markAllAsRead();
     renderAll();
