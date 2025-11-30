@@ -211,7 +211,7 @@
       display:none;
     }
 
-    /* Flex so stamps stay close to messages */
+    /* Flex column so stamps sit closer to bubbles */
     .chat-scroll{
       flex:1;
       overflow:auto;
@@ -418,6 +418,8 @@
   const sendBtnEl    = document.getElementById("sendBtn");
 
   let currentUser = null;
+  let currentUserProfile = null;
+  let currentUserDisplayName = "";
   let currentThreadId = null;
   let currentOtherUserId = null;
   let currentOtherName = "";
@@ -431,6 +433,31 @@
       return;
     }
     currentUser = session.user;
+
+    // Load *your* profile so we can show your NAME in notifications
+    try{
+      const { data:me, error:meErr } = await supabaseClient
+        .from("profiles")
+        .select("first_name,last_name,store_name,email")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+
+      if(!meErr && me){
+        currentUserProfile = me;
+        const first = me.first_name || "";
+        const last  = me.last_name  || "";
+        const full  = (first || last) ? (first + " " + last).trim() : "";
+        currentUserDisplayName =
+          full ||
+          me.store_name ||
+          currentUser.email ||
+          "Hemline member";
+      } else {
+        currentUserDisplayName = currentUser.email || "Hemline member";
+      }
+    }catch(_){
+      currentUserDisplayName = currentUser.email || "Hemline member";
+    }
 
     const params = new URLSearchParams(window.location.search);
     // support BOTH ?to= and existing ?user= from Atelier
@@ -731,6 +758,7 @@
       msgInputEl.value = "";
 
       const preview = text.length > 140 ? text.slice(0,137) + "…" : text;
+
       await supabaseClient
         .from("message_threads")
         .update({
@@ -739,14 +767,27 @@
         })
         .eq("id", currentThreadId);
 
-      // MESSAGE NOTIFICATIONS
+      // MESSAGE NOTIFICATIONS:
       if(currentOtherUserId && currentOtherUserId !== currentUser.id){
-        const title = "New message from " + (currentUser.email || "Hemline member");
+        const senderLabel =
+          currentUserDisplayName ||
+          currentUser.email ||
+          "Hemline member";
+
+        const title = "New message from " + senderLabel;
+
         await supabaseClient.from("notifications").insert({
           user_id: currentOtherUserId,
-          type: "message",                 // required by your table
-          title: title || "New message",
-          body: preview || ""
+          type: "message",
+          kind: "message",
+          title,
+          body: preview,
+          message_thread_id: currentThreadId,
+          message_id: inserted.id,
+          metadata: {
+            sender_id: currentUser.id,
+            sender_name: senderLabel
+          }
         });
       }
 
