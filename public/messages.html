@@ -211,40 +211,42 @@
       display:none;
     }
 
+    /* FLEX COLUMN so bubbles can be as tall as their text only */
     .chat-scroll{
       flex:1;
       overflow:auto;
       padding:14px 16px;
-      display:grid;
-      gap:10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
       background:#fcfcfc;
     }
 
-    /* Smaller, cleaner bubbles – now no forced tall height */
+    /* Compact bubbles hugging the text */
     .bubble{
-      display:inline-block;
-      max-width:40%;
+      max-width:42%;
       padding:6px 9px;
       border:1px solid var(--line);
-      border-radius:10px;
+      border-radius:12px;
       background:#fff;
       font-size:13px;
-      line-height:1.35;
+      line-height:1.4;
       white-space:pre-wrap;
       word-wrap:break-word;
-      min-height:0;          /* important: override any old min-height */
+      align-self:flex-start;
+      min-height:0 !important; /* kill any old min-height from shared CSS */
     }
 
     .bubble.me{
-      justify-self:end;
+      align-self:flex-end;
       background:#fef2f2;
       border-color:#fca5a5;
     }
 
     .stamp{
-      font-size:12px;
+      font-size:11px;
       color:var(--muted);
-      justify-self:center;
+      align-self:center;
     }
 
     .composer{
@@ -357,6 +359,8 @@
     { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
+  const LAST_THREAD_KEY_PREFIX = "hm_last_thread_";
+
   // --- Helpers ---
   function initialsFromName(first, last, fallback){
     if(first && last) return (first[0]+last[0]).toUpperCase();
@@ -435,8 +439,15 @@
     const toUserId = params.get("to") || params.get("user") || null;
 
     let initialThreadId = null;
+
     if(toUserId && toUserId !== currentUser.id){
+      // direct message from Atelier/store page
       initialThreadId = await getOrCreateThread(currentUser.id, toUserId);
+    } else {
+      // fall back to last opened thread for this user
+      const key = LAST_THREAD_KEY_PREFIX + currentUser.id;
+      const saved = window.localStorage ? localStorage.getItem(key) : null;
+      if(saved) initialThreadId = saved;
     }
 
     await loadThreads(initialThreadId);
@@ -492,11 +503,12 @@
 
   async function loadThreads(preselectThreadId){
     const uid = currentUser.id;
+    const uidStr = String(uid);
 
     const { data, error } = await supabaseClient
       .from("message_threads")
       .select("*")
-      .or(`user_a.eq.${uid},user_b.eq.${uid}`)
+      .or(`user_a.eq.${uidStr},user_b.eq.${uidStr}`)
       .order("last_message_at", { ascending:false, nullsLast:true })
       .order("created_at", { ascending:false });
 
@@ -518,7 +530,6 @@
     threadsEmptyEl.style.display = "none";
 
     const otherIds = [];
-    const uidStr = String(uid);
     allThreads.forEach(t=>{
       const other = (t.user_a === uidStr) ? t.user_b : t.user_a;
       if(other && !otherIds.includes(other)) otherIds.push(other);
@@ -593,7 +604,7 @@
     if(preselectThreadId){
       const target = allThreads.find(t=>t.id === preselectThreadId);
       if(target){
-        const otherId = (target.user_a === uid ? target.user_b : target.user_a);
+        const otherId = (target.user_a === uidStr ? target.user_b : target.user_a);
         let prof = null;
         try{
           const { data:profData } = await supabaseClient
@@ -633,6 +644,13 @@
     currentThreadId = threadId;
     currentOtherUserId = otherUserId;
     currentOtherName = otherName || "Hemline member";
+
+    // remember last opened thread for this user
+    try{
+      if(currentUser?.id && window.localStorage){
+        localStorage.setItem(LAST_THREAD_KEY_PREFIX + currentUser.id, threadId);
+      }
+    }catch(_){}
 
     threadsListEl.querySelectorAll(".thread").forEach(el=>{
       el.classList.toggle("active", el.dataset.threadId === threadId);
