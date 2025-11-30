@@ -469,8 +469,7 @@
 
       grid.innerHTML = "";
 
-      // Only show listings where is_published is explicitly true.
-      // Anything turned into a draft (is_published = false) disappears from this page.
+      // Only show listings where is_published is explicitly true
       const visibleListings = (data || []).filter(
         listing => listing.is_published === true
       );
@@ -697,28 +696,43 @@
       if(localProfile.bio)       bio = localProfile.bio;
     }
 
-    const displayName =
+    // Full owner name for the profile card
+    const displayNameFull =
       (first + " " + last).trim() ||
       (isOwnShop && loggedInUser?.email ? loggedInUser.email.split("@")[0] : "Hemline member");
 
-    const shop = storeName || displayName;
+    // Shop display name rule:
+    // 1) If store_name is set, use it.
+    // 2) Else use "First L." if we have both.
+    // 3) Else use first name.
+    // 4) Else fall back to displayNameFull.
+    let shopDisplay;
+    if(storeName && storeName.trim()){
+      shopDisplay = storeName.trim();
+    }else if(first && last){
+      shopDisplay = first + " " + last[0].toUpperCase() + ".";
+    }else if(first){
+      shopDisplay = first;
+    }else{
+      shopDisplay = displayNameFull;
+    }
 
     if(titleEl){
-      titleEl.textContent = "Atelier: " + shop;
+      titleEl.textContent = "Atelier: " + shopDisplay;
     }
     if(subEl){
-      subEl.textContent = "Fabrics, stories, and listings from " + shop + ".";
+      subEl.textContent = "Fabrics, stories, and listings from " + shopDisplay + ".";
     }
 
-    if(ownerNameEl) ownerNameEl.textContent = displayName;
-    if(shopNameEl)  shopNameEl.textContent  = "Store name: " + shop;
+    if(ownerNameEl) ownerNameEl.textContent = displayNameFull;
+    if(shopNameEl)  shopNameEl.textContent  = "Store name: " + shopDisplay;
     if(bioEl)       bioEl.textContent       = bio;
 
     const initials = initialsFromProfile(first,last,email);
     if(avatarEl) avatarEl.textContent = initials;
 
     // Pretty share link – prefer ?shop=<slug>, fall back to ?u=<id>, else current URL
-    let shopSlug = slugifyStoreName(shop);
+    let shopSlug = slugifyStoreName(shopDisplay);
     if(isOwnShop && localProfile && localProfile.storeSlug){
       shopSlug = localProfile.storeSlug;
     }
