@@ -127,23 +127,22 @@
       color:#b91c1c;
     }
 
-    /* GRID: match browse/home feel, but smaller on phones */
     .atelier-listings-grid{
       margin-top:14px;
       display:grid;
       grid-template-columns:repeat(3,minmax(0,1fr));
       gap:12px;
+      align-items:flex-start;
     }
     @media(max-width:1050px){
       .atelier-listings-grid{
         grid-template-columns:repeat(2,minmax(0,1fr));
       }
     }
-    /* On phones, keep two smaller cards per row instead of giant full-width ones */
     @media(max-width:640px){
       .atelier-listings-grid{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-        gap:10px;
+        grid-template-columns:1fr;
+        justify-items:center; /* center the single column cards */
       }
     }
 
@@ -154,10 +153,18 @@
       overflow:hidden;
       display:flex;
       flex-direction:column;
+      max-width:360px;
+      width:100%;
+      margin:0 auto;
     }
+    @media(max-width:640px){
+      .atelier-card{
+        max-width:320px; /* keep them narrow on phones */
+      }
+    }
+
     .atelier-card-photo{
-      /* Slightly shorter than 4/3 so cards feel lighter on mobile */
-      aspect-ratio:16/11;
+      aspect-ratio:4/3;
       background:linear-gradient(180deg,#f8fafc,#e5e7eb);
       display:grid;
       place-items:center;
@@ -169,6 +176,15 @@
       height:100%;
       object-fit:cover;
     }
+
+    /* On phones: shorter, “tile-y” images so the details feel clearly below */
+    @media(max-width:640px){
+      .atelier-card-photo{
+        aspect-ratio:16/9;   /* wider vs height -> less tall */
+        max-height:210px;
+      }
+    }
+
     .atelier-card-body{
       padding:8px 10px 10px;
       display:flex;
@@ -216,10 +232,11 @@
       gap:8px;
     }
 
-    /* Extra tightening on very small phones */
-    @media(max-width:420px){
+    /* Make card text more compact on phones so it clearly reads as “below the picture” */
+    @media(max-width:640px){
       .atelier-card-body{
-        padding:6px 8px 8px;
+        padding:6px 9px 8px;
+        gap:3px;
         font-size:12px;
       }
       .atelier-card-title{
@@ -338,7 +355,7 @@
 
         <!-- Empty state -->
         <div class="listings-empty" id="listingsEmpty">
-          No active listings yet. When this shop lists fabrics, cards will appear here with photos,
+                No active listings yet. When this shop lists fabrics, cards will appear here with photos,
           yardage, and prices.
         </div>
 
@@ -361,7 +378,6 @@
             <div class="profile-bio" id="atelierBio"></div>
 
             <button class="btn btn-primary" type="button" id="btnEditShop">Edit Atelier details</button>
-            <!-- NEW: Message seller CTA -->
             <button class="btn" type="button" id="btnMessageSeller" style="margin-top:8px;">
               Message this seller
             </button>
@@ -404,11 +420,9 @@
 
 <!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Universal shell JS -->
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-  // Supabase setup + Atelier logic
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
@@ -427,15 +441,14 @@
     return raw
       .trim()
       .toLowerCase()
-      .replace(/['’]/g,"s")       // Thor's → thors
-      .replace(/[^a-z0-9]+/g,"-") // spaces → hyphens
-      .replace(/^-+|-+$/g,"");    // trim edges
+      .replace(/['’]/g,"s")
+      .replace(/[^a-z0-9]+/g,"-")
+      .replace(/^-+|-+$/g,"");
   }
 
   function moneyFromCents(c){
     if(c == null) return null;
-    const v = c / 100;
-    return v.toLocaleString("en-US",{
+    return (c / 100).toLocaleString("en-US",{
       style:"currency",
       currency:"USD",
       minimumFractionDigits:2,
@@ -461,13 +474,13 @@
     el.style.display = "block";
   }
 
-  // Show only truly "live" listings: is_published === true
   async function loadListingsForSeller(sellerId){
     const grid  = document.getElementById("listingsGrid");
     const empty = document.getElementById("listingsEmpty");
+
     if(!grid || !empty || !sellerId){
-      if(empty) empty.style.display = "block";
-      if(grid)  grid.style.display = "none";
+      empty.style.display="block";
+      grid.style.display="none";
       return;
     }
 
@@ -479,21 +492,16 @@
         .order("created_at",{ascending:false});
 
       if(error){
-        console.error("Listings fetch error", error);
-        showAtelierError("We couldn’t load listings for this shop. Please refresh.");
+        showAtelierError("We couldn’t load listings for this shop.");
         empty.style.display="block";
         grid.style.display="none";
         return;
       }
 
       grid.innerHTML = "";
+      const visible = (data||[]).filter(x=>x.is_published===true);
 
-      // Only show listings where is_published is explicitly true
-      const visibleListings = (data || []).filter(
-        listing => listing.is_published === true
-      );
-
-      if(!visibleListings.length){
+      if(!visible.length){
         empty.style.display="block";
         grid.style.display="none";
         return;
@@ -502,65 +510,56 @@
       empty.style.display="none";
       grid.style.display="grid";
 
-      visibleListings.forEach(listing=>{
+      visible.forEach(listing=>{
         const card = document.createElement("article");
         card.className = "atelier-card";
-        card.dataset.id = listing.id;
 
         const photo = document.createElement("a");
-        photo.href = "listing.html?id=" + encodeURIComponent(listing.id);
+        photo.href = "listing.html?id=" + listing.id;
         photo.className = "atelier-card-photo";
-        photo.setAttribute("aria-label","View listing");
 
         if(listing.image_url_1){
           const img = document.createElement("img");
           img.src = listing.image_url_1;
           img.alt = listing.title || "Listing photo";
           photo.appendChild(img);
-        } else {
+        }else{
           photo.textContent = "Photo";
         }
 
         const body = document.createElement("div");
-        body.className="atelier-card-body";
+        body.className = "atelier-card-body";
 
         const titleLink = document.createElement("a");
-        titleLink.href = "listing.html?id=" + encodeURIComponent(listing.id);
+        titleLink.href  = "listing.html?id=" + listing.id;
         titleLink.className = "atelier-card-title";
         titleLink.textContent = listing.title || "Untitled listing";
 
         const meta = document.createElement("div");
         meta.className = "atelier-card-meta";
 
-        const yardsSpan = document.createElement("span");
-        if(listing.yards_available != null){
-          yardsSpan.textContent = listing.yards_available + " yards";
-        } else {
-          yardsSpan.textContent = "Yardage?";
-        }
+        const yards = document.createElement("span");
+        yards.textContent = (listing.yards_available ?? "?") + " yards";
 
-        const priceSpan = document.createElement("span");
-        if(listing.price_cents != null){
-          priceSpan.textContent = moneyFromCents(Number(listing.price_cents)) + "/yard";
-        } else {
-          priceSpan.textContent = "Price?";
-        }
+        const price = document.createElement("span");
+        price.textContent = listing.price_cents != null
+          ? moneyFromCents(listing.price_cents)+"/yard"
+          : "Price?";
 
-        meta.appendChild(yardsSpan);
-        meta.appendChild(priceSpan);
+        meta.appendChild(yards);
+        meta.appendChild(price);
 
         const foot = document.createElement("div");
         foot.className = "atelier-card-foot";
 
-        const statusBadge = document.createElement("span");
-        statusBadge.className = "badge-status";
-        statusBadge.textContent = "Published";
+        const badge = document.createElement("span");
+        badge.className = "badge-status";
+        badge.textContent = "Published";
 
         const actions = document.createElement("div");
         actions.className = "atelier-card-actions";
-        // (Owner-only edit/delete can be wired later)
 
-        foot.appendChild(statusBadge);
+        foot.appendChild(badge);
         foot.appendChild(actions);
 
         body.appendChild(titleLink);
@@ -571,24 +570,23 @@
         card.appendChild(body);
         grid.appendChild(card);
       });
+
     }catch(err){
-      console.error("Listings fetch exception", err);
       showAtelierError("Unexpected error loading listings.");
     }
   }
 
   async function initAtelier(){
-    const params        = new URLSearchParams(window.location.search);
-    const shopSlugParam = params.get("shop"); // pretty link: ?shop=aurora
-    let viewedSellerId  = params.get("u");    // legacy link: ?u=<uuid> or ?u=user=<uuid>
+    const params = new URLSearchParams(window.location.search);
+    const shopSlugParam = params.get("shop");
+    let viewedSellerId  = params.get("u");
 
-    // Handle old-style links like ?u=user=5679...
     if(viewedSellerId && viewedSellerId.startsWith("user=")){
-      viewedSellerId = viewedSellerId.slice("user=".length);
+      viewedSellerId = viewedSellerId.slice(5);
     }
 
-    const session      = await ensureSession();
-    const loggedInUser = session?.user || null;
+    const session = await ensureSession();
+    const loggedIn = session?.user || null;
 
     const ownerNameEl = document.getElementById("atelierOwnerName");
     const shopNameEl  = document.getElementById("atelierShopName");
@@ -599,202 +597,109 @@
     const editBtn     = document.getElementById("btnEditShop");
     const shareInput  = document.getElementById("shareLinkInput");
     const copyBtn     = document.getElementById("btnCopyLink");
-    const errorEl     = document.getElementById("atelierError");
     const msgBtn      = document.getElementById("btnMessageSeller");
 
-    // Clear any old error on each load
-    if(errorEl){
-      errorEl.style.display = "none";
-      errorEl.textContent = "";
-    }
-
-    let sellerId  = null;
-    let profile   = null;
-    let localProfile = null;
+    let sellerId = null;
+    let profile = null;
 
     try{
       if(viewedSellerId){
-        // Explicit seller id in URL
         sellerId = viewedSellerId;
-        const { data, error } = await supabaseClient
+        const { data } = await supabaseClient
           .from("profiles")
           .select("*")
           .eq("id", sellerId)
           .maybeSingle();
-        if(error){
-          console.error("Profile fetch error by id", error);
-        } else {
-          profile = data;
-        }
+        profile = data;
       }else if(shopSlugParam){
-        // Pretty link by shop slug (?shop=aurora) – currently matches store_name
-        const normalized = shopSlugParam.replace(/-/g," ").replace(/\s+/g," ").trim();
-        const { data, error } = await supabaseClient
+        const normalized = shopSlugParam.replace(/-/g," ").trim();
+        const { data } = await supabaseClient
           .from("profiles")
           .select("*")
           .ilike("store_name", normalized);
-        if(error){
-          console.error("Profile fetch error by shop slug", error);
-        }else if(data && data.length){
-          profile  = data[0];
+        if(data && data.length){
+          profile = data[0];
           sellerId = profile.id;
         }
-      }else if(loggedInUser){
-        // Default to your own atelier when no query params
-        sellerId = loggedInUser.id;
-        const { data, error } = await supabaseClient
+      }else if(loggedIn){
+        sellerId = loggedIn.id;
+        const { data } = await supabaseClient
           .from("profiles")
           .select("*")
           .eq("id", sellerId)
           .maybeSingle();
-        if(error){
-          console.error("Profile fetch error for own shop", error);
-        } else {
-          profile = data;
-        }
+        profile = data;
       }
-    }catch(err){
-      console.error("Profile fetch exception", err);
-    }
+    }catch(_){}
 
-    const isOwnShop = !!(loggedInUser && sellerId && loggedInUser.id === sellerId);
+    const isOwn = !!(loggedIn && sellerId && loggedIn.id===sellerId);
 
     if(!sellerId){
-      // No seller resolved – generic state
-      if(titleEl) titleEl.textContent = "Atelier";
-      if(subEl)   subEl.textContent   = "Sign in or follow a seller link to view an Atelier.";
-      if(ownerNameEl) ownerNameEl.textContent = "Hemline member";
-      if(shopNameEl)  shopNameEl.textContent  = "Store name";
-      if(bioEl)       bioEl.textContent       = "";
-      if(avatarEl)    avatarEl.textContent    = "HM";
-
-      if(loggedInUser && editBtn){
-        editBtn.style.display = "inline-flex";
-        editBtn.onclick = ()=> window.location.href = "account.html";
-      }else if(editBtn){
-        editBtn.style.display = "none";
-      }
-
-      if(msgBtn){
-        // No target seller to message
-        msgBtn.style.display = "none";
-      }
-
-      if(shareInput) shareInput.value = window.location.href;
-      if(copyBtn){
-        copyBtn.onclick  = ()=> navigator.clipboard.writeText(shareInput.value);
-      }
-
-      await loadListingsForSeller(null);
+      titleEl.textContent="Atelier";
+      subEl.textContent="Sign in or follow a seller link to view an Atelier.";
+      ownerNameEl.textContent="Hemline member";
+      shopNameEl.textContent="Store name";
+      bioEl.textContent="";
+      avatarEl.textContent="HM";
+      editBtn.style.display = loggedIn ? "inline-flex" : "none";
+      if(editBtn.onclick) editBtn.onclick = ()=>window.location.href="account.html";
+      msgBtn.style.display="none";
+      shareInput.value=window.location.href;
+      copyBtn.onclick=()=>navigator.clipboard.writeText(shareInput.value);
+      loadListingsForSeller(null);
       return;
     }
 
-    // If this is your own atelier, hydrate name/store/bio from localStorage profile
-    if(isOwnShop && loggedInUser){
-      try{
-        const rawLocal = localStorage.getItem("hm_profile_" + loggedInUser.id);
-        if(rawLocal){
-          localProfile = JSON.parse(rawLocal);
-        }
-      }catch(e){
-        console.warn("Local profile parse failed", e);
-      }
-    }
+    let first = profile?.first_name || "";
+    let last  = profile?.last_name  || "";
+    let store = profile?.store_name || "";
+    let bio   = profile?.bio || "";
+    let email = profile?.email || (isOwn?loggedIn.email:"");
 
-    // Pull data from Supabase profile, then override with local profile if this is your own shop
-    let first     = profile?.first_name || "";
-    let last      = profile?.last_name  || "";
-    let storeName = profile?.store_name || "";
-    let bio       = profile?.bio || "";
-    let email     = profile?.email || (isOwnShop ? (loggedInUser?.email || "") : "");
+    const fullName = (first+" "+last).trim() || (isOwn?loggedIn.email.split("@")[0]:"Hemline member");
 
-    if(isOwnShop && localProfile){
-      if(localProfile.firstName) first = localProfile.firstName;
-      if(localProfile.lastName)  last  = localProfile.lastName;
-      if(localProfile.storeName) storeName = localProfile.storeName;
-      if(localProfile.bio)       bio = localProfile.bio;
-    }
-
-    // Full owner name for the profile card
-    const displayNameFull =
-      (first + " " + last).trim() ||
-      (isOwnShop && loggedInUser?.email ? loggedInUser.email.split("@")[0] : "Hemline member");
-
-    // Shop display name rule:
-    // 1) If store_name is set, use it.
-    // 2) Else use "First L." if we have both.
-    // 3) Else use first name.
-    // 4) Else fall back to displayNameFull.
     let shopDisplay;
-    if(storeName && storeName.trim()){
-      shopDisplay = storeName.trim();
+    if(store.trim()){
+      shopDisplay = store.trim();
     }else if(first && last){
-      shopDisplay = first + " " + last[0].toUpperCase() + ".";
+      shopDisplay = first+" "+last[0].toUpperCase()+".";
     }else if(first){
       shopDisplay = first;
     }else{
-      shopDisplay = displayNameFull;
+      shopDisplay = fullName;
     }
 
-    if(titleEl){
-      titleEl.textContent = "Atelier: " + shopDisplay;
-    }
-    if(subEl){
-      subEl.textContent = "Fabrics, stories, and listings from " + shopDisplay + ".";
-    }
+    titleEl.textContent="Atelier: "+shopDisplay;
+    subEl.textContent="Fabrics, stories, and listings from "+shopDisplay+".";
+    ownerNameEl.textContent=fullName;
+    shopNameEl.textContent="Store name: "+shopDisplay;
+    bioEl.textContent=bio;
+    avatarEl.textContent=initialsFromProfile(first,last,email);
 
-    if(ownerNameEl) ownerNameEl.textContent = displayNameFull;
-    if(shopNameEl)  shopNameEl.textContent  = "Store name: " + shopDisplay;
-    if(bioEl)       bioEl.textContent       = bio;
-
-    const initials = initialsFromProfile(first,last,email);
-    if(avatarEl) avatarEl.textContent = initials;
-
-    // Pretty share link – prefer ?shop=<slug>, fall back to ?u=<id>, else current URL
-    let shopSlug = slugifyStoreName(shopDisplay);
-    if(isOwnShop && localProfile && localProfile.storeSlug){
-      shopSlug = localProfile.storeSlug;
-    }
-    const baseUrl  = window.location.origin + "/atelier.html";
+    let slug = slugifyStoreName(shopDisplay);
+    const baseUrl = window.location.origin + "/atelier.html";
 
     let shareUrl;
-    if(shopSlug){
-      shareUrl = baseUrl + "?shop=" + encodeURIComponent(shopSlug);
-    }else if(sellerId){
-      shareUrl = baseUrl + "?u=" + encodeURIComponent(sellerId);
+    if(slug){
+      shareUrl = baseUrl + "?shop=" + encodeURIComponent(slug);
     }else{
-      shareUrl = window.location.href;
+      shareUrl = baseUrl + "?u=" + encodeURIComponent(sellerId);
     }
 
-    if(shareInput) shareInput.value = shareUrl;
-    if(copyBtn){
-      copyBtn.onclick = ()=>{
-        navigator.clipboard.writeText(shareInput.value);
-      };
+    shareInput.value=shareUrl;
+    copyBtn.onclick=()=>navigator.clipboard.writeText(shareInput.value);
+
+    if(isOwn){
+      editBtn.style.display="inline-flex";
+      editBtn.onclick=()=>window.location.href="account.html";
+      msgBtn.style.display="none";
+    }else{
+      editBtn.style.display="none";
+      msgBtn.style.display="inline-flex";
+      msgBtn.onclick=()=>window.location.href="messages.html?user="+sellerId;
     }
 
-    if(!isOwnShop && editBtn){
-      editBtn.style.display = "none";
-    }else if(isOwnShop && editBtn){
-      editBtn.style.display = "inline-flex";
-      editBtn.onclick = ()=> window.location.href = "account.html";
-    }
-
-    // "Message this seller"
-    if(msgBtn){
-      if(isOwnShop){
-        // Don’t message yourself
-        msgBtn.style.display = "none";
-      }else{
-        msgBtn.style.display = "inline-flex";
-        msgBtn.onclick = () => {
-          window.location.href = "messages.html?user=" + encodeURIComponent(sellerId);
-        };
-      }
-    }
-
-    // Finally load listings for that seller — only published ones
-    await loadListingsForSeller(sellerId);
+    loadListingsForSeller(sellerId);
   }
 
   initAtelier();
@@ -806,3 +711,4 @@
 
 </body>
 </html>
+          
