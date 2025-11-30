@@ -442,7 +442,10 @@
     el.style.display = "block";
   }
 
-  async function loadListingsForSeller(sellerId){
+  // includeDrafts:
+  // - true  => show published + drafts (for the owner managing their own shop)
+  // - false => show only "live" listings (hide drafts / deleted for visitors)
+  async function loadListingsForSeller(sellerId, { includeDrafts = false } = {}){
     const grid  = document.getElementById("listingsGrid");
     const empty = document.getElementById("listingsEmpty");
     if(!grid || !empty || !sellerId){
@@ -468,7 +471,13 @@
 
       grid.innerHTML = "";
 
-      if(!data || !data.length){
+      // Visitors only see items where is_published !== false.
+      // Owner can see drafts + published, to manage them.
+      const visibleListings = includeDrafts
+        ? (data || [])
+        : (data || []).filter(listing => listing.is_published !== false);
+
+      if(!visibleListings.length){
         empty.style.display="block";
         grid.style.display="none";
         return;
@@ -477,7 +486,7 @@
       empty.style.display="none";
       grid.style.display="grid";
 
-      data.forEach(listing=>{
+      visibleListings.forEach(listing=>{
         const card = document.createElement("article");
         card.className = "atelier-card";
         card.dataset.id = listing.id;
@@ -500,7 +509,7 @@
         body.className="atelier-card-body";
 
         const titleLink = document.createElement("a");
-        titleLink.href = "listing.html?id="+encodeURIComponent(listing.id);
+        titleLink.href = "listing.html?id"+encodeURIComponent(listing.id);
         titleLink.className = "atelier-card-title";
         titleLink.textContent = listing.title || "Untitled listing";
 
@@ -760,7 +769,7 @@
     }
 
     // Finally load listings for that seller
-    await loadListingsForSeller(sellerId);
+    await loadListingsForSeller(sellerId, { includeDrafts: isOwnShop });
   }
 
   initAtelier();
