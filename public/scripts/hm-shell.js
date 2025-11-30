@@ -1,4 +1,4 @@
-// Hemline Market — Universal Header + Footer + Menu + Session + Cart State
+// Hemline Market — Universal Header + Footer + Menu + Session + Cart + Notifications
 window.HM = window.HM || {};
 
 (function () {
@@ -6,6 +6,9 @@ window.HM = window.HM || {};
     "https://clkizksbvxjkoatdajgd.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
+
+  // shared Supabase client for header + others
+  let shellSupabase = null;
 
   /* --------------------------------------------------------------------------
      HEADER HTML
@@ -36,7 +39,8 @@ window.HM = window.HM || {};
         </svg>
       </a>
 
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
+      <a class="hm-icon hm-notifications-icon" href="notifications.html" aria-label="Notifications">
+        <span class="hm-notifications-dot" aria-hidden="true"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -58,7 +62,7 @@ window.HM = window.HM || {};
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="8" r="3.2"></circle>
-          <path d="M5 19c1.4-3 5-4.5 7-4.5s5.6 1.5 7 4.5"></path>
+          <path d="M5 19c1.4-3 4.99-4.5 7-4.5s5.6 1.5 7 4.5"></path>
         </svg>
       </a>
 
@@ -172,12 +176,92 @@ window.HM = window.HM || {};
   }
 
   /* --------------------------------------------------------------------------
+     NOTIFICATIONS BELL
+  -------------------------------------------------------------------------- */
+
+  function getNotificationsElements() {
+    const link =
+      document.querySelector(".hm-notifications-icon") ||
+      document.querySelector('a[aria-label="Notifications"]');
+    if (!link) return { link: null, dot: null };
+
+    let dot = link.querySelector(".hm-notifications-dot");
+    if (!dot) {
+      dot = document.createElement("span");
+      dot.className = "hm-notifications-dot";
+      link.appendChild(dot);
+    }
+
+    // basic styling for the dot if CSS doesn't already cover it
+    if (!dot.style.width) {
+      dot.style.position = "absolute";
+      dot.style.top = "4px";
+      dot.style.right = "4px";
+      dot.style.width = "8px";
+      dot.style.height = "8px";
+      dot.style.borderRadius = "999px";
+      dot.style.background = "#b91c1c";
+      dot.style.boxShadow = "0 0 0 2px #fef2f2";
+      dot.style.display = "none";
+    }
+
+    const computed = window.getComputedStyle(link);
+    if (computed.position === "static") {
+      link.style.position = "relative";
+    }
+
+    return { link, dot };
+  }
+
+  async function refreshNotificationsBell(session) {
+    const { link, dot } = getNotificationsElements();
+    if (!link || !dot) return;
+
+    // logged out: hide the dot
+    if (!session || !session.user || !shellSupabase) {
+      dot.style.display = "none";
+      link.setAttribute("aria-label", "Notifications");
+      return;
+    }
+
+    try {
+      const uid = session.user.id;
+      // We just care if ANY notifications exist for this user.
+      const { data, error } = await shellSupabase
+        .from("notifications")
+        .select("id")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.warn("[HM] Notifications fetch error", error);
+        dot.style.display = "none";
+        link.setAttribute("aria-label", "Notifications");
+        return;
+      }
+
+      const hasNotifications = Array.isArray(data) && data.length > 0;
+
+      if (hasNotifications) {
+        dot.style.display = "block";
+        link.setAttribute("aria-label", "Notifications (new)");
+      } else {
+        dot.style.display = "none";
+        link.setAttribute("aria-label", "Notifications");
+      }
+    } catch (err) {
+      console.warn("[HM] Notifications bell error", err);
+    }
+  }
+
+  /* --------------------------------------------------------------------------
      SUPABASE SESSION
   -------------------------------------------------------------------------- */
   function wireSupabaseSession() {
     if (!window.supabase) return;
 
-    const client = window.supabase.createClient(
+    shellSupabase = window.supabase.createClient(
       SUPABASE_URL,
       SUPABASE_ANON_KEY,
       {
@@ -190,12 +274,12 @@ window.HM = window.HM || {};
     );
 
     // expose client so account page and others can reuse it
-    window.HM.supabase = client;
+    window.HM.supabase = shellSupabase;
 
     const accountLink = document.getElementById("headerAccountLink");
     if (!accountLink) return;
 
-    function apply(session) {
+    function applyAccount(session) {
       if (session && session.user) {
         accountLink.href = "account.html";
         accountLink.classList.add("is-logged-in");
@@ -207,12 +291,17 @@ window.HM = window.HM || {};
       }
     }
 
-    client.auth.getSession().then(({ data }) => {
-      apply(data.session);
+    function handleSession(session) {
+      applyAccount(session);
+      refreshNotificationsBell(session);
+    }
+
+    shellSupabase.auth.getSession().then(({ data }) => {
+      handleSession(data.session);
     });
 
-    client.auth.onAuthStateChange((_event, session) => {
-      apply(session);
+    shellSupabase.auth.onAuthStateChange((_event, session) => {
+      handleSession(session);
     });
   }
 
