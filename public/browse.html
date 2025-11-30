@@ -240,19 +240,16 @@
       align-items:center;
       margin-bottom:10px;
     }
+
+    /* 3 aligned columns at ALL widths */
     .browse-grid{
       display:grid;
       grid-template-columns:repeat(3,minmax(0,1fr));
       gap:12px;
+      align-items:stretch;
     }
-    @media(max-width:900px){
-      .browse-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
-    }
-    @media(max-width:560px){
-      .browse-grid{grid-template-columns:1fr;}
-    }
+
     .card{
-      display:block;
       background:#fff;
       border:1px solid var(--border);
       border-radius:12px;
@@ -260,6 +257,8 @@
       text-decoration:none;
       color:inherit;
       cursor:pointer;
+      display:flex;             /* make cards equal height */
+      flex-direction:column;
     }
     .ph{
       aspect-ratio:4/3;
@@ -273,8 +272,12 @@
       height:100%;
       object-fit:cover;
     }
+
     .meta{
       padding:8px 10px 10px;
+      display:flex;
+      flex-direction:column;
+      flex:1;                   /* fill rest of card so bottoms align */
     }
     .meta .title{
       font-weight:800;
@@ -779,16 +782,10 @@
       const designerVal= (designerEl?.value || "").trim().toLowerCase();
       const feelsVal   = (feelsEl?.value || "").trim().toLowerCase();
 
-      // for go_live_at filtering (8pm and later) – compare to now
-      const nowIso = new Date().toISOString();
-
       let filtered = listings.filter(l => {
         // Only show "active" + published when those flags exist.
         if(l.status && l.status !== "active") return false;
         if(l.is_published === false) return false;
-
-        // go_live_at: hide anything scheduled for the future
-        if (l.go_live_at && l.go_live_at > nowIso) return false;
 
         if(searchTerm){
           const hay = ((l.title || "") + " " + (l.description || "")).toLowerCase();
