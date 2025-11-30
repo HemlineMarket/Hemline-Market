@@ -262,9 +262,8 @@
     @media (max-width:900px){
       .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
-    /* keep multiple columns on mobile instead of collapsing to 1 */
     @media (max-width:560px){
-      .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .grid{grid-template-columns:1fr}
     }
 
     /* Listing cards */
@@ -275,6 +274,7 @@
       overflow:hidden;
       display:flex;
       flex-direction:column;
+      height:100%;
     }
     .listing-thumb-link{
       display:block;
@@ -282,14 +282,12 @@
       color:inherit;
     }
     .listing-thumb{
-      aspect-ratio:1/1;
+      /* smaller than before: was 1/1, now 4/3 so cards feel shorter like Browse */
+      aspect-ratio:4/3;
       background:linear-gradient(180deg,#f8fafc,#eef2f7);
       display:grid;
       place-items:center;
       overflow:hidden;
-      background-size:cover;
-      background-position:center;
-      background-repeat:no-repeat;
     }
     .listing-thumb img{
       width:100%;
@@ -409,11 +407,6 @@
     @media (max-width:640px){
       .hm-header .wrap{padding:0 8px}
       .hm-btn-primary{padding:8px 14px}
-      /* smaller Add to Cart text on mobile */
-      .listing-add-btn{
-        font-size:11px;
-        padding:6px 8px;
-      }
     }
   </style>
 </head>
@@ -626,11 +619,15 @@
         if(!grid || !supabaseClient) return;
 
         try{
+          const nowIso = new Date().toISOString();
+
           const { data:listings, error } = await supabaseClient
             .from("listings")
-            .select("id,title,price_cents,orig_price_cents,yards_available,yardage,width_in,dept,status,is_published,seller_id,image_url_1,created_at")
+            .select("id,title,price_cents,orig_price_cents,yards_available,yardage,width_in,dept,status,is_published,seller_id,image_url_1,created_at,go_live_at")
             .eq("is_published", true)
-            .order("created_at",{ ascending:false });  // show all published
+            .or(`go_live_at.is.null,go_live_at.lte.${nowIso}`)
+            .order("created_at",{ ascending:false })
+            .limit(6);
 
           if(error){
             console.warn("New listings fetch error:", error);
@@ -680,16 +677,11 @@
 
             const safeTitle = item.title || "Untitled listing";
             const safeAlt = safeTitle.replace(/"/g,"&quot;");
-            const bg = item.image_url_1 ? item.image_url_1 : "";
 
             card.innerHTML = `
               <a class="listing-thumb-link" href="${href}">
-                <div
-                  class="listing-thumb"
-                  aria-hidden="true"
-                  ${bg ? `style="background-image:url('${bg.replace(/"/g,'&quot;')}');"` : ""}
-                >
-                  ${bg ? `<img src="${bg}" alt="${safeAlt}" loading="lazy">` : ""}
+                <div class="listing-thumb" aria-hidden="true">
+                  ${item.image_url_1 ? `<img src="${item.image_url_1}" alt="${safeAlt}">` : ""}
                 </div>
               </a>
               <div class="listing-body">
