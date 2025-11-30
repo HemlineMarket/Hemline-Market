@@ -166,8 +166,8 @@
       margin-top:14px;
       display:grid;
       grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:10px;
-      align-items:flex-start;
+      gap:12px;
+      align-items:stretch;
     }
     @media (max-width:900px){
       .atelier-listings-grid{
@@ -176,11 +176,16 @@
     }
     @media (max-width:560px){
       .atelier-listings-grid{
-        grid-template-columns:repeat(2,minmax(0,1fr)); /* keep 2 cols on small phones */
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+    @media (max-width:400px){
+      .atelier-listings-grid{
+        grid-template-columns:1fr;
       }
     }
 
-    /* LISTING CARDS – COPIED FROM HOMEPAGE */
+    /* LISTING CARDS – compact, square thumbnails */
     .listing-card{
       background:var(--hm-bg-card);
       border:1px solid var(--hm-border);
@@ -188,6 +193,7 @@
       overflow:hidden;
       display:flex;
       flex-direction:column;
+      height:100%;
     }
     .listing-thumb-link{
       display:block;
@@ -212,6 +218,7 @@
       display:flex;
       flex-direction:column;
       gap:4px;
+      flex:1;
     }
     .listing-title-row{
       display:flex;
@@ -254,6 +261,7 @@
       font-size:13px;
       padding:8px 10px;
       cursor:pointer;
+      white-space:nowrap;
     }
     .listing-add-btn[disabled]{
       opacity:.6;
@@ -275,7 +283,7 @@
       color:#9ca3af;
     }
     .listing-seller-row{
-      margin-top:4px;
+      margin-top:auto; /* push seller row to bottom so cards align */
       display:flex;
       align-items:center;
       justify-content:space-between;
@@ -563,15 +571,7 @@
       }
 
       grid.innerHTML = "";
-
-      // Match browse: only show active, published, and already-live listings
-      const nowIso = new Date().toISOString();
-      const visible = (data || []).filter(x => {
-        if(x.status && x.status !== "active") return false;
-        if(x.is_published === false) return false;
-        if(x.go_live_at && x.go_live_at > nowIso) return false;
-        return true;
-      });
+      const visible = (data||[]).filter(x=>x.is_published===true);
 
       if(!visible.length){
         empty.style.display="block";
