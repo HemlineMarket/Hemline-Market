@@ -563,7 +563,15 @@
       }
 
       grid.innerHTML = "";
-      const visible = (data||[]).filter(x=>x.is_published===true);
+
+      // Match browse: only show active, published, and already-live listings
+      const nowIso = new Date().toISOString();
+      const visible = (data || []).filter(x => {
+        if(x.status && x.status !== "active") return false;
+        if(x.is_published === false) return false;
+        if(x.go_live_at && x.go_live_at > nowIso) return false;
+        return true;
+      });
 
       if(!visible.length){
         empty.style.display="block";
