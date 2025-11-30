@@ -287,6 +287,9 @@
       display:grid;
       place-items:center;
       overflow:hidden;
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
     }
     .listing-thumb img{
       width:100%;
@@ -627,7 +630,7 @@
             .from("listings")
             .select("id,title,price_cents,orig_price_cents,yards_available,yardage,width_in,dept,status,is_published,seller_id,image_url_1,created_at")
             .eq("is_published", true)
-            .order("created_at",{ ascending:false });  // no limit → show all published
+            .order("created_at",{ ascending:false });  // show all published
 
           if(error){
             console.warn("New listings fetch error:", error);
@@ -677,11 +680,16 @@
 
             const safeTitle = item.title || "Untitled listing";
             const safeAlt = safeTitle.replace(/"/g,"&quot;");
+            const bg = item.image_url_1 ? item.image_url_1 : "";
 
             card.innerHTML = `
               <a class="listing-thumb-link" href="${href}">
-                <div class="listing-thumb" aria-hidden="true">
-                  ${item.image_url_1 ? `<img src="${item.image_url_1}" alt="${safeAlt}">` : ""}
+                <div
+                  class="listing-thumb"
+                  aria-hidden="true"
+                  ${bg ? `style="background-image:url('${bg.replace(/"/g,'&quot;')}');"` : ""}
+                >
+                  ${bg ? `<img src="${bg}" alt="${safeAlt}" loading="lazy">` : ""}
                 </div>
               </a>
               <div class="listing-body">
