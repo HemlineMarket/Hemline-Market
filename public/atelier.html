@@ -180,6 +180,10 @@
       }
     }
 
+    .listings-upcoming{
+      margin-top:18px;
+    }
+
     /* LISTING CARDS – COPIED FROM HOMEPAGE */
     .listing-card{
       background:var(--hm-bg-card);
@@ -448,14 +452,23 @@
         <strong style="font-size:14px;">Fabrics from this shop</strong>
       </div>
 
-      <!-- Empty state -->
+      <!-- Live listings empty state -->
       <div class="listings-empty" id="listingsEmpty">
         No active listings yet. When this shop lists fabrics, cards will appear here with photos,
         yardage, and prices.
       </div>
 
-      <!-- Grid of cards -->
+      <!-- Grid of live cards -->
       <div class="atelier-listings-grid" id="listingsGrid" style="display:none;"></div>
+
+      <!-- Owner-only upcoming block -->
+      <section id="upcomingSection" class="listings-upcoming" style="display:none;">
+        <h3 style="margin:14px 0 4px;font-size:14px;">Scheduled for release</h3>
+        <p id="upcomingNote" style="margin:0 0 8px;font-size:12px;color:#6b7280;">
+          Only you can see these listings until their release time.
+        </p>
+        <div class="atelier-listings-grid" id="upcomingGrid"></div>
+      </section>
     </div>
   </section>
 </main>
@@ -520,13 +533,16 @@
     el.style.display = "block";
   }
 
-  async function loadListingsForSeller(sellerId, sellerLabel){
+  async function loadListingsForSeller(sellerId, sellerLabel, isOwn){
     const grid  = document.getElementById("listingsGrid");
     const empty = document.getElementById("listingsEmpty");
+    const upcomingSection = document.getElementById("upcomingSection");
+    const upcomingGrid = document.getElementById("upcomingGrid");
 
     if(!grid || !empty || !sellerId){
       empty.style.display="block";
       grid.style.display="none";
+      if(upcomingSection) upcomingSection.style.display = "none";
       return;
     }
 
@@ -535,31 +551,44 @@
         .from("listings")
         .select("*")
         .eq("seller_id", sellerId)
-        .eq("is_published", true)
         .order("published_at", { ascending:false });
 
       if(error){
         showAtelierError("We couldn’t load listings for this shop.");
         empty.style.display="block";
         grid.style.display="none";
+        if(upcomingSection) upcomingSection.style.display = "none";
         return;
       }
 
       grid.innerHTML = "";
+      if(upcomingGrid) upcomingGrid.innerHTML = "";
 
-      // filter to active status only (sold/archived hidden here)
-      const visible = (data || []).filter(x => (x.status || "active") === "active");
+      const now = new Date();
 
-      if(!visible.length){
+      // Only consider active + is_published true rows
+      const rows = (data || []).filter(x =>
+        x.is_published === true &&
+        (x.status || "active") === "active"
+      );
+
+      const live = rows.filter(x =>
+        !x.published_at || new Date(x.published_at) <= now
+      );
+
+      const upcoming = isOwn
+        ? rows.filter(x => x.published_at && new Date(x.published_at) > now)
+        : [];
+
+      if(!live.length){
         empty.style.display="block";
         grid.style.display="none";
-        return;
+      }else{
+        empty.style.display="none";
+        grid.style.display="grid";
       }
 
-      empty.style.display="none";
-      grid.style.display="grid";
-
-      visible.forEach(item=>{
+      function renderCard(container, item){
         const yards = computeYards(item);
         const priceCents = item.price_cents != null ? Number(item.price_cents) : null;
         const perYdMoney = priceCents != null ? moneyFromCents(priceCents) : "";
@@ -637,11 +666,25 @@
           }
         }
 
-        grid.appendChild(card);
-      });
+        container.appendChild(card);
+      }
+
+      // Render live listings
+      live.forEach(item => renderCard(grid, item));
+
+      // Render upcoming listings for owner only
+      if(isOwn && upcoming.length && upcomingSection && upcomingGrid){
+        upcomingSection.style.display = "block";
+        upcomingGrid.innerHTML = "";
+        upcoming.forEach(item => renderCard(upcomingGrid, item));
+      }else if(upcomingSection){
+        upcomingSection.style.display = "none";
+      }
 
     }catch(err){
       showAtelierError("Unexpected error loading listings.");
+      const upcomingSection = document.getElementById("upcomingSection");
+      if(upcomingSection) upcomingSection.style.display = "none";
     }
   }
 
@@ -715,7 +758,7 @@
       if(msgBtnMobile) msgBtnMobile.style.display="none";
       shareInput.value=window.location.href;
       copyBtn.onclick=()=>navigator.clipboard.writeText(shareInput.value);
-      loadListingsForSeller(null,"");
+      loadListingsForSeller(null,"",false);
       return;
     }
 
@@ -779,7 +822,7 @@
       }
     }
 
-    loadListingsForSeller(sellerId, shopDisplay);
+    loadListingsForSeller(sellerId, shopDisplay, isOwn);
   }
 
   initAtelier();
