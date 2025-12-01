@@ -352,34 +352,37 @@
           </div>
 
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+            <!-- CONTENT: multi-select checkboxes -->
             <div class="field">
-              <label for="content">Content</label>
-              <select id="content">
-                <option value="">Select…</option>
-                <option>Not sure (content unknown)</option>
-                <option>Acetate</option>
-                <option>Acrylic</option>
-                <option>Alpaca</option>
-                <option>Angora</option>
-                <option>Bamboo</option>
-                <option>Cashmere</option>
-                <option>Cotton</option>
-                <option>Cupro</option>
-                <option>Hemp</option>
-                <option>Leather</option>
-                <option>Linen</option>
-                <option>Lurex</option>
-                <option>Modal</option>
-                <option>Mohair</option>
-                <option>Nylon</option>
-                <option>Polyester</option>
-                <option>Rayon / Viscose</option>
-                <option>Silk</option>
-                <option>Spandex / Elastane</option>
-                <option>Tencel / Lyocell</option>
-                <option>Wool</option>
-                <option>Other Fibers</option>
-              </select>
+              <div class="label-row">
+                <label>Content</label>
+                <span class="subtle" style="font-size:12px">(select all that apply)</span>
+              </div>
+              <div id="contentGroup" class="feels-grid">
+                <label><input type="checkbox" name="contentTag" value="Not sure (content unknown)"> Not sure (content unknown)</label>
+                <label><input type="checkbox" name="contentTag" value="Acetate"> Acetate</label>
+                <label><input type="checkbox" name="contentTag" value="Acrylic"> Acrylic</label>
+                <label><input type="checkbox" name="contentTag" value="Alpaca"> Alpaca</label>
+                <label><input type="checkbox" name="contentTag" value="Angora"> Angora</label>
+                <label><input type="checkbox" name="contentTag" value="Bamboo"> Bamboo</label>
+                <label><input type="checkbox" name="contentTag" value="Cashmere"> Cashmere</label>
+                <label><input type="checkbox" name="contentTag" value="Cotton"> Cotton</label>
+                <label><input type="checkbox" name="contentTag" value="Cupro"> Cupro</label>
+                <label><input type="checkbox" name="contentTag" value="Hemp"> Hemp</label>
+                <label><input type="checkbox" name="contentTag" value="Leather"> Leather</label>
+                <label><input type="checkbox" name="contentTag" value="Linen"> Linen</label>
+                <label><input type="checkbox" name="contentTag" value="Lurex"> Lurex</label>
+                <label><input type="checkbox" name="contentTag" value="Modal"> Modal</label>
+                <label><input type="checkbox" name="contentTag" value="Mohair"> Mohair</label>
+                <label><input type="checkbox" name="contentTag" value="Nylon"> Nylon</label>
+                <label><input type="checkbox" name="contentTag" value="Polyester"> Polyester</label>
+                <label><input type="checkbox" name="contentTag" value="Rayon / Viscose"> Rayon / Viscose</label>
+                <label><input type="checkbox" name="contentTag" value="Silk"> Silk</label>
+                <label><input type="checkbox" name="contentTag" value="Spandex / Elastane"> Spandex / Elastane</label>
+                <label><input type="checkbox" name="contentTag" value="Tencel / Lyocell"> Tencel / Lyocell</label>
+                <label><input type="checkbox" name="contentTag" value="Wool"> Wool</label>
+                <label><input type="checkbox" name="contentTag" value="Other Fibers"> Other Fibers</label>
+              </div>
             </div>
 
             <div class="field">
@@ -661,7 +664,6 @@
     const reviewMedia = document.getElementById('reviewMedia');
     const reviewKv    = document.getElementById('reviewKv');
 
-    const contentSelect    = document.getElementById('content');
     const fabricSelect     = document.getElementById('fabric');
     const colorFamilySelect= document.getElementById('colorFamily');
     const patternSelect    = document.getElementById('pattern');
@@ -866,13 +868,16 @@
       const feels = Array.from(document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]:checked'))
         .map(cb=>cb.value);
 
+      const contents = Array.from(document.querySelectorAll('#contentGroup input[name="contentTag"]:checked'))
+        .map(cb => cb.value);
+
       state.details = {
         title: titleInput.value.trim(),
         price: priceInput.value ? parseFloat(priceInput.value) : null,
         origPrice: origPriceInp.value ? parseFloat(origPriceInp.value) : null,
         yards: yardsInput.value ? parseFloat(yardsInput.value) : null,
         desc: descInput.value.trim() || null,
-        content: contentSelect.value || null,
+        content: contents,
         fabric: fabricSelect.value || null,
         colorFamily: colorFamilySelect.value || null,
         pattern: patternSelect.value || null,
@@ -1085,7 +1090,7 @@
           is_published: true,
 
           // SPECS
-          content: d.content,
+          content: Array.isArray(d.content) ? d.content.join(", ") : d.content,
           fabric_type: d.fabric,
           color_family: d.colorFamily,
           pattern: d.pattern,
@@ -1206,7 +1211,6 @@
           yardsInput.value = String(yards);
         }
 
-        if(contentSelect)     contentSelect.value     = data.content || '';
         if(fabricSelect)      fabricSelect.value      = data.fabric_type || '';
         if(colorFamilySelect) colorFamilySelect.value = data.color_family || '';
         if(patternSelect)     patternSelect.value     = data.pattern || '';
@@ -1219,11 +1223,21 @@
 
         // Feels like checkboxes (stored as comma-separated string)
         if(data.feels_like){
-          const selected = data.feels_like.split(',')
+          const selectedFeels = data.feels_like.split(',')
             .map(s=>s.trim())
             .filter(Boolean);
           document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]').forEach(cb=>{
-            cb.checked = selected.includes(cb.value);
+            cb.checked = selectedFeels.includes(cb.value);
+          });
+        }
+
+        // Content checkboxes (stored as comma-separated string)
+        if(data.content){
+          const selectedContent = data.content.split(',')
+            .map(s=>s.trim())
+            .filter(Boolean);
+          document.querySelectorAll('#contentGroup input[name="contentTag"]').forEach(cb=>{
+            cb.checked = selectedContent.includes(cb.value);
           });
         }
 
