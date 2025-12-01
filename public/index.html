@@ -319,25 +319,26 @@
           </p>
         </div>
       </div>
-      <div class="hero-search-row">
-        <select aria-label="Browse type">
-          <option>Listings</option>
-          <option>Ateliers</option>
+
+      <!-- SEARCH FORM -->
+      <form id="homeSearchForm" class="hero-search-row" role="search">
+        <select id="homeSearchMode" aria-label="Browse type">
+          <option value="listings">Listings</option>
+          <option value="ateliers">Ateliers</option>
         </select>
         <input
+          id="homeSearchInput"
           class="hero-search-input"
           type="search"
           placeholder="Search fabrics, shops, or styles…"
-          onclick="window.location.href='browse.html'"
         />
         <button
           class="hero-search-btn"
-          type="button"
-          onclick="window.location.href='browse.html'"
+          type="submit"
         >
           Search
         </button>
-      </div>
+      </form>
 
       <div class="how-card" aria-label="How Hemline Market works">
         <div class="how-title">How Hemline Market works</div>
@@ -443,11 +444,16 @@
 
       let listings = [];
       try{
+        const nowIso = new Date().toISOString();
+
         const { data, error } = await supabaseClient
           .from("listings")
           .select("*")
           .eq("is_published", true)
-          .order("created_at",{ ascending:false })
+          // Only show listings whose publish time has passed,
+          // but keep older rows that might have null published_at.
+          .or(`published_at.is.null,published_at.lte.${nowIso}`)
+          .order("published_at", { ascending:false })
           .limit(12);
 
         if(error){
@@ -565,7 +571,30 @@
       });
     }
 
-    document.addEventListener("DOMContentLoaded", loadHomeListings);
+    // Wire search + load listings together
+    document.addEventListener("DOMContentLoaded", () => {
+      const form = document.getElementById("homeSearchForm");
+      const modeSelect = document.getElementById("homeSearchMode");
+      const input = document.getElementById("homeSearchInput");
+
+      if(form && modeSelect && input){
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const mode = modeSelect.value || "listings";
+          const q = input.value.trim();
+
+          const params = new URLSearchParams();
+          if(q) params.set("q", q);
+          if(mode === "ateliers") params.set("mode", "ateliers");
+
+          const qs = params.toString();
+          const url = "browse.html" + (qs ? "?" + qs : "");
+          window.location.href = url;
+        });
+      }
+
+      loadHomeListings();
+    });
   </script>
 
   <!-- Cart scripts -->
