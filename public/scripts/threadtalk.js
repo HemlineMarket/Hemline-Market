@@ -358,7 +358,7 @@
           </div>
         </div>
 
-        <div class="preview">${escapeHtml(thread.body)}</div>
+        <div class="preview">${linkify(thread.body)}</div>
         ${mediaHtml}
         ${reactionSummaryHtml}
 
@@ -404,7 +404,8 @@
       cardsEl.appendChild(card);
     });
   }
-    // ---------- Render each comment ----------
+
+  // ---------- Render each comment ----------
   function renderCommentHtml(c) {
     const name = displayNameForUserId(c.author_id);
     const ts = timeAgo(c.created_at);
@@ -477,7 +478,7 @@
            ${deleteHtml}
          </div>
 
-         <div class="tt-comment-body">${escapeHtml(c.body)}</div>
+         <div class="tt-comment-body">${linkify(c.body)}</div>
          ${summaryHtml}
 
          <div class="tt-comment-actions">
@@ -838,7 +839,8 @@
       }
     });
   }
-    // ---------- Reactions ----------
+
+  // ---------- Reactions ----------
   async function handleThreadReaction(threadId, type) {
     if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
@@ -1154,16 +1156,15 @@
   // ---------- Share ----------
   async function handleShareThread(threadId) {
     const thread = allThreads.find((t) => t.id === threadId) || null;
-    const base = window.location.origin + window.location.pathname;
-    const url = `${base}?thread=${encodeURIComponent(threadId)}`;
-    const title = thread?.title || "ThreadTalk post";
-    const text = (thread?.body || "").slice(0, 200);
+
+    // Build a simple, copy-friendly URL that always points to the main ThreadTalk page.
+    const baseOrigin = window.location.origin.replace(/\/$/, "");
+    const url = `${baseOrigin}/threadtalk.html?thread=${encodeURIComponent(
+      threadId
+    )}`;
 
     try {
-      if (navigator.share) {
-        await navigator.share({ title, text, url });
-        showToast("Link shared");
-      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
         showToast("Link copied");
       } else {
@@ -1179,8 +1180,7 @@
       }
     } catch (err) {
       console.warn("[ThreadTalk] handleShareThread error", err);
-      // User probably closed the share sheet — keep the message soft.
-      showToast("Share closed.");
+      showToast("Could not copy link.");
     }
   }
 
@@ -1262,6 +1262,28 @@
 
   function escapeAttr(str) {
     return escapeHtml(str).replace(/'/g, "&#39;");
+  }
+
+  // Turn raw text into safe HTML with clickable links, keeping all original text.
+  function linkify(text) {
+    const str = String(text || "");
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    let lastIndex = 0;
+    let html = "";
+    let match;
+
+    while ((match = urlRegex.exec(str)) !== null) {
+      const url = match[0];
+      const before = str.slice(lastIndex, match.index);
+      html += escapeHtml(before);
+      html += `<a href="${escapeAttr(
+        url
+      )}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+      lastIndex = match.index + url.length;
+    }
+
+    html += escapeHtml(str.slice(lastIndex));
+    return html;
   }
 
   function timeAgo(iso) {
