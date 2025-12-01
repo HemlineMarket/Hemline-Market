@@ -80,6 +80,7 @@
   let reactionsByThread = {};
   let commentReactionsByComment = {};
   const expandedCommentsThreads = new Set();
+  let hasScrolledToAnchor = false;
 
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", init);
@@ -172,10 +173,12 @@
       const threadIds = allThreads.map((t) => t.id);
       const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
 
-      // Load comments
+      // Load comments (now includes media_url + media_type)
       const { data: commentRows } = await supabase
         .from("threadtalk_comments")
-        .select("id, thread_id, author_id, body, created_at, is_deleted")
+        .select(
+          "id, thread_id, author_id, body, media_url, media_type, created_at, is_deleted"
+        )
         .in("thread_id", threadIds);
 
       commentsByThread = {};
@@ -256,12 +259,15 @@
   function renderThreads() {
     if (!cardsEl) return;
     cardsEl.innerHTML = "";
-    if (emptyStateEl) emptyStateEl.style.display = threads.length ? "none" : "block";
+    if (emptyStateEl)
+      emptyStateEl.style.display = threads.length ? "none" : "block";
 
     threads.forEach((thread) => {
       const card = document.createElement("article");
       card.className = "card";
       card.dataset.threadId = String(thread.id);
+      // give each card a stable id for deep-linking
+      card.id = "t-" + String(thread.id);
 
       const authorName = displayNameForUserId(thread.author_id);
       const catSlug = thread.category || "loose-threads";
@@ -388,6 +394,11 @@
           </div>
 
           <div class="tt-comment-new">
+            <button class="tt-comment-attach"
+                    type="button"
+                    data-tt-role="attach-comment-photo">
+              +
+            </button>
             <input class="tt-comment-input"
                    type="text"
                    maxlength="500"
@@ -398,13 +409,17 @@
               Send
             </button>
           </div>
+          <div class="tt-comment-media-preview" hidden></div>
         </div>
       `;
 
       cardsEl.appendChild(card);
     });
+
+    maybeScrollToAnchorThread();
   }
-    // ---------- Render each comment ----------
+
+  // ---------- Render each comment ----------
   function renderCommentHtml(c) {
     const name = displayNameForUserId(c.author_id);
     const ts = timeAgo(c.created_at);
@@ -463,6 +478,8 @@
       ).join("") +
       "</div>";
 
+    const mediaHtml = renderCommentMedia(c);
+
     return `
       <div class="tt-comment"
            data-comment-id="${c.id}"
@@ -478,6 +495,7 @@
          </div>
 
          <div class="tt-comment-body">${escapeHtml(c.body)}</div>
+         ${mediaHtml}
          ${summaryHtml}
 
          <div class="tt-comment-actions">
@@ -522,6 +540,30 @@
     if (thread.media_type === "video") {
       return `
         <div class="post-media-wrap">
+          <video class="post-video" controls src="${src}"></video>
+        </div>`;
+    }
+
+    return "";
+  }
+
+  function renderCommentMedia(c) {
+    if (!c.media_url || !c.media_type) return "";
+    const src = escapeAttr(c.media_url);
+
+    if (c.media_type === "image") {
+      return `
+        <div class="tt-comment-media-wrap">
+          <img class="post-img"
+               src="${src}"
+               alt="Reply image"
+               data-tt-role="zoom-img"/>
+        </div>`;
+    }
+
+    if (c.media_type === "video") {
+      return `
+        <div class="tt-comment-media-wrap">
           <video class="post-video" controls src="${src}"></video>
         </div>`;
     }
@@ -656,6 +698,42 @@
     }
   }
 
+  async function uploadCommentMedia(file) {
+    if (!currentUser || !file) {
+      return { media_url: null, media_type: null };
+    }
+
+    try {
+      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+      const path = `${currentUser.id}/comment-${Date.now()}.${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (error) {
+        showToast("Upload failed.");
+        return { media_url: null, media_type: null };
+      }
+
+      const { data: pub } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(data.path);
+
+      return {
+        media_url: pub?.publicUrl || null,
+        media_type: "image", // attach button only allows images
+      };
+    } catch (_) {
+      showToast("Upload failed.");
+      return { media_url: null, media_type: null };
+    }
+  }
+
   // ---------- Media preview ----------
   function wireMediaInputs() {
     if (!photoInput || !videoInput || !mediaPreview) return;
@@ -698,6 +776,18 @@
     mediaPreview.innerHTML = "";
     if (photoInput) photoInput.value = "";
     if (videoInput) videoInput.value = "";
+  }
+
+  function showCommentMediaPreview(card, file) {
+    const preview = card.querySelector(".tt-comment-media-preview");
+    if (!preview || !file) return;
+    const url = URL.createObjectURL(file);
+    preview.hidden = false;
+    preview.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "Reply image preview";
+    preview.appendChild(img);
   }
 
   // ---------- Picker closing ----------
@@ -778,6 +868,10 @@
           if (threadId) await handleSendComment(card, threadId);
           break;
 
+        case "attach-comment-photo":
+          handleAttachCommentPhoto(card);
+          break;
+
         case "comment-like-toggle": {
           const ok = await ensureLoggedInFor("react");
           if (!ok) return;
@@ -837,8 +931,36 @@
           break;
       }
     });
+
+    // change handler for comment photo inputs (delegated)
+    cardsEl.addEventListener("change", (e) => {
+      const target = e.target;
+      if (target && target.matches(".tt-comment-photo-input")) {
+        const card = target.closest(".card");
+        const file = target.files && target.files[0];
+        if (card && file) {
+          showCommentMediaPreview(card, file);
+        }
+      }
+    });
   }
-    // ---------- Reactions ----------
+
+  function handleAttachCommentPhoto(card) {
+    if (!card) return;
+    let input = card.querySelector(".tt-comment-photo-input");
+    if (!input) {
+      // create one if somehow missing
+      input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.className = "tt-comment-photo-input";
+      input.hidden = true;
+      card.appendChild(input);
+    }
+    input.click();
+  }
+
+  // ---------- Reactions ----------
   async function handleThreadReaction(threadId, type) {
     if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
@@ -969,10 +1091,14 @@
   // ---------- Comments ----------
   async function handleSendComment(card, threadId) {
     const input = card.querySelector(".tt-comment-input");
+    const fileInput = card.querySelector(".tt-comment-photo-input");
+    const preview = card.querySelector(".tt-comment-media-preview");
     if (!input) return;
 
-    const body = (input.value || "").trim();
-    if (!body) {
+    const bodyRaw = (input.value || "").trim();
+    const file = fileInput && fileInput.files && fileInput.files[0];
+
+    if (!bodyRaw && !file) {
       input.focus();
       return;
     }
@@ -980,11 +1106,20 @@
     const ok = await ensureLoggedInFor("comment");
     if (!ok) return;
 
+    let media = { media_url: null, media_type: null };
+    if (file) {
+      media = await uploadCommentMedia(file);
+    }
+
+    const body = bodyRaw || (media.media_url ? "image attached" : "");
+
     try {
       const { error } = await supabase.from("threadtalk_comments").insert({
         thread_id: threadId,
         author_id: currentUser.id,
         body,
+        media_url: media.media_url,
+        media_type: media.media_type,
       });
 
       if (error) {
@@ -994,6 +1129,11 @@
       }
 
       input.value = "";
+      if (fileInput) fileInput.value = "";
+      if (preview) {
+        preview.innerHTML = "";
+        preview.hidden = true;
+      }
       await loadThreads();
     } catch (err) {
       console.error("[ThreadTalk] handleSendComment exception", err);
@@ -1153,15 +1293,17 @@
 
   // ---------- Share ----------
   async function handleShareThread(threadId) {
-    const thread = allThreads.find((t) => t.id === threadId) || null;
+    // Short, thread-specific deep link: /threadtalk.html#t-123
     const base = window.location.origin + window.location.pathname;
-    const url = `${base}?thread=${encodeURIComponent(threadId)}`;
-    const title = thread?.title || "ThreadTalk post";
-    const text = (thread?.body || "").slice(0, 200);
+    const url = `${base}#t-${encodeURIComponent(threadId)}`;
 
     try {
       if (navigator.share) {
-        await navigator.share({ title, text, url });
+        await navigator.share({
+          title: "ThreadTalk",
+          text: "Join this ThreadTalk conversation.",
+          url,
+        });
         showToast("Link shared");
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
@@ -1179,9 +1321,19 @@
       }
     } catch (err) {
       console.warn("[ThreadTalk] handleShareThread error", err);
-      // User probably closed the share sheet — keep the message soft.
-      showToast("Share closed.");
+      showToast("Share cancelled.");
     }
+  }
+
+  function maybeScrollToAnchorThread() {
+    if (hasScrolledToAnchor) return;
+    const hash = window.location.hash || "";
+    if (!hash.startsWith("#t-")) return;
+    const id = hash.slice(1); // "t-123"
+    const el = document.getElementById(id);
+    if (!el) return;
+    hasScrolledToAnchor = true;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   // ---------- Zoom modal ----------
@@ -1324,6 +1476,10 @@
       .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border);font-size:13px;}
       .tt-comment-input::placeholder{color:#9ca3af;}
       .tt-comment-send{padding:6px 12px;font-size:13px;border-radius:999px;border:none;background:#111827;color:#fff;cursor:pointer;}
+      .tt-comment-attach{border:none;background:none;font-size:16px;padding:4px;cursor:pointer;color:#6b7280;}
+      .tt-comment-media-preview{margin-top:4px;}
+      .tt-comment-media-preview img{max-width:260px;border-radius:8px;display:block;}
+      .tt-comment-media-wrap{margin:2px 0;max-width:260px;}
       .tt-more-comments{border:none;background:none;color:#6b7280;font-size:12px;padding:0;margin-bottom:2px;cursor:pointer;}
       .tt-menu{position:relative;}
       .tt-menu-btn{padding:2px 6px;font-size:14px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;}
