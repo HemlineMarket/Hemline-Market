@@ -81,6 +81,12 @@
   let commentReactionsByComment = {};
   const expandedCommentsThreads = new Set();
 
+  // NEW: thread id from URL (?thread=123)
+  const urlParams = new URLSearchParams(window.location.search || "");
+  const THREAD_URL_ID = urlParams.get("thread")
+    ? Number(urlParams.get("thread"))
+    : null;
+
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", init);
 
@@ -153,7 +159,10 @@
         )
         .eq("is_deleted", false);
 
-      if (THREAD_CATEGORY_FILTER) {
+      // If a specific thread id is requested, ignore category filter and just fetch that one.
+      if (THREAD_URL_ID) {
+        query = query.eq("id", THREAD_URL_ID);
+      } else if (THREAD_CATEGORY_FILTER) {
         query = query.eq("category", THREAD_CATEGORY_FILTER);
       }
 
@@ -244,13 +253,22 @@
 
   function applySearchFilter() {
     const q = (searchInput?.value || "").trim().toLowerCase();
-    threads = !q
+
+    // Base list: full list or filtered by search text
+    let base = !q
       ? allThreads.slice()
       : allThreads.filter((t) => {
           const title = (t.title || "").toLowerCase();
           const body = (t.body || "").toLowerCase();
           return title.includes(q) || body.includes(q);
         });
+
+    // If ?thread=123 is present, show only that one
+    if (THREAD_URL_ID) {
+      base = base.filter((t) => Number(t.id) === THREAD_URL_ID);
+    }
+
+    threads = base;
     renderThreads();
   }
 
@@ -804,8 +822,10 @@
 
       if (!inside) closeAllPickers();
 
-      const menuBtn = e.target.closest(".tt-menu-btn");
-      const menuPop = e.target.closest(".tt-menu-pop");
+      const menuBtn =
+        e.target.closest(".tt-menu-btn");
+      const menuPop =
+        e.target.closest(".tt-menu-pop");
 
       if (!menuBtn && !menuPop) {
         document
@@ -859,10 +879,8 @@
           const hidden = box.hasAttribute("hidden");
           if (hidden) {
             box.removeAttribute("hidden");
-            box.classList.add("tt-open");
           } else {
             box.setAttribute("hidden", "true");
-            box.classList.remove("tt-open");
           }
           const input = box.querySelector(".tt-comment-input");
           if (input) {
@@ -885,21 +903,21 @@
           break;
 
         case "comment-like-toggle": {
-          const ok = await ensureLoggedInFor("react");
-          if (!ok) return;
-          const wrapper = roleEl.closest(".tt-like-wrapper");
-          const isOpen = wrapper.classList.contains("tt-picker-open");
+          const ok2 = await ensureLoggedInFor("react");
+          if (!ok2) return;
+          const wrapper2 = roleEl.closest(".tt-like-wrapper");
+          const isOpen2 = wrapper2.classList.contains("tt-picker-open");
           closeAllPickers();
-          if (!isOpen) wrapper.classList.add("tt-picker-open");
+          if (!isOpen2) wrapper2.classList.add("tt-picker-open");
           break;
         }
 
         case "comment-react": {
           const commentId = Number(roleEl.dataset.commentId);
-          const type = roleEl.dataset.reaction;
-          if (commentId && type) {
+          const type2 = roleEl.dataset.reaction;
+          if (commentId && type2) {
             closeAllPickers();
-            await handleCommentReaction(commentId, type);
+            await handleCommentReaction(commentId, type2);
           }
           break;
         }
@@ -908,17 +926,17 @@
           const pop = roleEl
             .closest(".tt-menu")
             ?.querySelector('[data-tt-role="comment-menu-pop"]');
-          const hidden = pop.hasAttribute("hidden");
+          const hidden2 = pop.hasAttribute("hidden");
           document
             .querySelectorAll('[data-tt-role="comment-menu-pop"]')
             .forEach((el) => el.setAttribute("hidden", "true"));
-          if (hidden) pop.removeAttribute("hidden");
+          if (hidden2) pop.removeAttribute("hidden");
           break;
         }
 
         case "delete-comment": {
-          const commentId = Number(roleEl.dataset.commentId);
-          if (commentId) await handleDeleteComment(commentId);
+          const commentId2 = Number(roleEl.dataset.commentId);
+          if (commentId2) await handleDeleteComment(commentId2);
           break;
         }
 
@@ -1273,10 +1291,10 @@
 
   // ---------- Share ----------
   async function handleShareThread(threadId) {
-    const baseOrigin = window.location.origin.replace(/\/$/, "");
-    const url = `${baseOrigin}/threadtalk.html?thread=${encodeURIComponent(
-      threadId
-    )}`;
+    // Build link from CURRENT page path, so it works on /threadtalk, /threadtalk.html, etc.
+    const baseUrl =
+      window.location.origin + window.location.pathname.replace(/\/$/, "");
+    const url = `${baseUrl}?thread=${encodeURIComponent(threadId)}`;
 
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
