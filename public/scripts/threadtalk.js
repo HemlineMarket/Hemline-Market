@@ -175,7 +175,9 @@
       // Load comments
       const { data: commentRows } = await supabase
         .from("threadtalk_comments")
-        .select("id, thread_id, author_id, body, created_at, is_deleted")
+        .select(
+          "id, thread_id, author_id, body, media_url, media_type, created_at, is_deleted"
+        )
         .in("thread_id", threadIds);
 
       commentsByThread = {};
@@ -289,7 +291,9 @@
         commentsToRender = comments.slice(-MAX_VISIBLE_COMMENTS);
       }
 
-      const commentsHtml = commentsToRender.map(renderCommentHtml).join("");
+      const commentsHtml = commentsToRender
+        .map((c) => renderCommentHtml(thread.id, c))
+        .join("");
 
       const isMine = currentUser && thread.author_id === currentUser.id;
 
@@ -388,6 +392,10 @@
           </div>
 
           <div class="tt-comment-new">
+            <input class="tt-comment-photo"
+                   type="file"
+                   accept="image/*"
+                   data-tt-role="comment-photo"/>
             <input class="tt-comment-input"
                    type="text"
                    maxlength="500"
@@ -406,7 +414,7 @@
   }
 
   // ---------- Render each comment ----------
-  function renderCommentHtml(c) {
+  function renderCommentHtml(threadId, c) {
     const name = displayNameForUserId(c.author_id);
     const ts = timeAgo(c.created_at);
 
@@ -464,9 +472,12 @@
       ).join("") +
       "</div>";
 
+    const mediaHtml = renderCommentMedia(c);
+
     return `
       <div class="tt-comment"
            data-comment-id="${c.id}"
+           data-thread-id="${threadId}"
            data-author-name="${escapeAttr(name)}">
 
          <div class="tt-comment-head-row">
@@ -479,6 +490,7 @@
          </div>
 
          <div class="tt-comment-body">${linkify(c.body)}</div>
+         ${mediaHtml}
          ${summaryHtml}
 
          <div class="tt-comment-actions">
@@ -499,6 +511,23 @@
                    data-tt-role="respond-comment"
                    data-comment-id="${c.id}">
              Reply
+           </button>
+         </div>
+
+         <div class="tt-comment-reply-box" data-parent-comment-id="${c.id}" hidden>
+           <input class="tt-comment-photo"
+                  type="file"
+                  accept="image/*"
+                  data-tt-role="comment-photo"/>
+           <input class="tt-comment-input"
+                  type="text"
+                  maxlength="500"
+                  placeholder="Reply to ${escapeAttr(name)}…"/>
+           <button class="tt-comment-send"
+                   type="button"
+                   data-tt-role="send-comment-reply"
+                   data-comment-id="${c.id}">
+             Send
            </button>
          </div>
 
@@ -523,6 +552,30 @@
     if (thread.media_type === "video") {
       return `
         <div class="post-media-wrap">
+          <video class="post-video" controls src="${src}"></video>
+        </div>`;
+    }
+
+    return "";
+  }
+
+  function renderCommentMedia(c) {
+    if (!c.media_url || !c.media_type) return "";
+    const src = escapeAttr(c.media_url);
+
+    if (c.media_type === "image") {
+      return `
+        <div class="tt-comment-media">
+          <img class="post-img"
+               src="${src}"
+               alt="Reply image"
+               data-tt-role="zoom-img"/>
+        </div>`;
+    }
+
+    if (c.media_type === "video") {
+      return `
+        <div class="tt-comment-media">
           <video class="post-video" controls src="${src}"></video>
         </div>`;
     }
@@ -657,6 +710,40 @@
     }
   }
 
+  async function maybeUploadCommentMedia(file) {
+    if (!currentUser || !file) return { media_url: null, media_type: null };
+
+    try {
+      const ext = file.name.split(".").pop().toLowerCase();
+      const path = `${currentUser.id}/comment-${Date.now()}.${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (error) {
+        showToast("Upload failed.");
+        return { media_url: null, media_type: null };
+      }
+
+      const { data: pub } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(data.path);
+
+      return {
+        media_url: pub?.publicUrl || null,
+        media_type: "image", // replies only allow image for now
+      };
+    } catch (_) {
+      showToast("Upload failed.");
+      return { media_url: null, media_type: null };
+    }
+  }
+
   // ---------- Media preview ----------
   function wireMediaInputs() {
     if (!photoInput || !videoInput || !mediaPreview) return;
@@ -765,8 +852,21 @@
 
         case "respond-comment": {
           const commentEl = roleEl.closest(".tt-comment");
-          const mention = commentEl?.dataset.authorName || "";
-          focusCommentBox(card, mention);
+          if (!commentEl) break;
+          const box = commentEl.querySelector(".tt-comment-reply-box");
+          if (!box) break;
+          const hidden = box.hasAttribute("hidden");
+          if (hidden) {
+            box.removeAttribute("hidden");
+            box.classList.add("tt-open");
+          } else {
+            box.setAttribute("hidden", "true");
+            box.classList.remove("tt-open");
+          }
+          const input = box.querySelector(".tt-comment-input");
+          if (input) {
+            input.focus();
+          }
           break;
         }
 
@@ -776,7 +876,11 @@
           break;
 
         case "send-comment":
-          if (threadId) await handleSendComment(card, threadId);
+          if (threadId) await handleSendComment(roleEl, threadId);
+          break;
+
+        case "send-comment-reply":
+          if (threadId) await handleSendComment(roleEl, threadId);
           break;
 
         case "comment-like-toggle": {
@@ -969,24 +1073,44 @@
   }
 
   // ---------- Comments ----------
-  async function handleSendComment(card, threadId) {
-    const input = card.querySelector(".tt-comment-input");
-    if (!input) return;
+  async function handleSendComment(buttonEl, threadId) {
+    // Works for both bottom reply + inline reply boxes
+    const row =
+      buttonEl.closest(".tt-comment-new") ||
+      buttonEl.closest(".tt-comment-reply-box");
+    if (!row) return;
 
-    const body = (input.value || "").trim();
-    if (!body) {
-      input.focus();
+    const input = row.querySelector(".tt-comment-input");
+    const fileInput = row.querySelector(".tt-comment-photo");
+
+    const bodyRaw = input ? input.value || "" : "";
+    let body = bodyRaw.trim();
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+    if (!body && !file) {
+      if (input) input.focus();
       return;
     }
 
     const ok = await ensureLoggedInFor("comment");
     if (!ok) return;
 
+    let media = { media_url: null, media_type: null };
+    if (file) {
+      media = await maybeUploadCommentMedia(file);
+    }
+
+    if (!body && media.media_url) {
+      body = "image attached";
+    }
+
     try {
       const { error } = await supabase.from("threadtalk_comments").insert({
         thread_id: threadId,
         author_id: currentUser.id,
         body,
+        media_url: media.media_url,
+               media_type: media.media_type,
       });
 
       if (error) {
@@ -995,7 +1119,9 @@
         return;
       }
 
-      input.value = "";
+      if (input) input.value = "";
+      if (fileInput) fileInput.value = "";
+
       await loadThreads();
     } catch (err) {
       console.error("[ThreadTalk] handleSendComment exception", err);
@@ -1003,19 +1129,12 @@
     }
   }
 
-  function focusCommentBox(card, mentionName) {
-    const input = card.querySelector(".tt-comment-input");
+  function focusCommentBox(card) {
+    if (!card) return;
+    const input = card.querySelector(
+      '.tt-comment-new .tt-comment-input'
+    );
     if (!input) return;
-
-    if (mentionName) {
-      const firstWord = mentionName.split(" ")[0] || mentionName;
-      const mention = "@" + firstWord.replace(/[^\w.@-]/g, "");
-      if (!input.value.trim()) {
-        input.value = mention + " ";
-      } else if (!input.value.startsWith(mention)) {
-        input.value = mention + " " + input.value;
-      }
-    }
 
     input.scrollIntoView({ behavior: "smooth", block: "center" });
     input.focus();
@@ -1023,7 +1142,7 @@
 
   // ---------- Thread menus / edit / delete ----------
   function toggleMenu(card) {
-    const pop = card.querySelector('[data-tt-role="menu-pop"]');
+    const pop = card?.querySelector('[data-tt-role="menu-pop"]');
     if (!pop) return;
 
     const hidden = pop.hasAttribute("hidden");
@@ -1061,7 +1180,7 @@
     const cancelBtn = previewEl.querySelector(".tt-edit-cancel");
 
     cancelBtn.addEventListener("click", () => {
-      previewEl.textContent = original;
+      previewEl.innerHTML = linkify(original);
     });
 
     saveBtn.addEventListener("click", async () => {
@@ -1155,9 +1274,6 @@
 
   // ---------- Share ----------
   async function handleShareThread(threadId) {
-    const thread = allThreads.find((t) => t.id === threadId) || null;
-
-    // Build a simple, copy-friendly URL that always points to the main ThreadTalk page.
     const baseOrigin = window.location.origin.replace(/\/$/, "");
     const url = `${baseOrigin}/threadtalk.html?thread=${encodeURIComponent(
       threadId
@@ -1341,11 +1457,17 @@
       .tt-comment-meta{display:flex;align-items:center;gap:4px;}
       .tt-comment-author{font-weight:500;}
       .tt-comment-body{font-size:13px;margin-bottom:2px;}
+      .tt-comment-media{margin:4px 0;max-width:360px;}
+      .tt-comment-media .post-img,
+      .tt-comment-media .post-video{width:100%;height:auto;border-radius:8px;display:block;}
       .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;}
       .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:4px;}
       .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border);font-size:13px;}
       .tt-comment-input::placeholder{color:#9ca3af;}
+      .tt-comment-photo{font-size:11px;}
       .tt-comment-send{padding:6px 12px;font-size:13px;border-radius:999px;border:none;background:#111827;color:#fff;cursor:pointer;}
+      .tt-comment-reply-box{display:flex;align-items:center;gap:6px;margin-top:4px;}
+      .tt-comment-reply-box[hidden]{display:none;}
       .tt-more-comments{border:none;background:none;color:#6b7280;font-size:12px;padding:0;margin-bottom:2px;cursor:pointer;}
       .tt-menu{position:relative;}
       .tt-menu-btn{padding:2px 6px;font-size:14px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;}
@@ -1372,3 +1494,4 @@
     document.head.appendChild(style);
   }
 })();
+        
