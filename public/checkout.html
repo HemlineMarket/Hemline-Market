@@ -488,6 +488,7 @@
         zip: document.getElementById("zip")?.value?.trim() || "",
         country: "US",
       };
+
       try {
         localStorage.setItem(
           "hm_checkout_address",
@@ -530,17 +531,39 @@
           }),
         });
 
-        if (!resp.ok) throw new Error("Failed to create session");
-        const data = await resp.json();
+        const text = await resp.text();
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (_) {
+          data = { raw: text };
+        }
+
+        if (!resp.ok) {
+          console.error("Stripe create_session error", resp.status, data);
+          const msg =
+            data.error ||
+            data.message ||
+            `Could not start payment (status ${resp.status}). Please try again.`;
+          showBanner(msg, "err");
+          next.disabled = false;
+          next.textContent = old;
+          return;
+        }
+
         if (data.url) {
           window.location.href = data.url;
           return;
         }
-        throw new Error("Missing session URL");
+
+        console.error("Stripe session missing URL", data);
+        showBanner("Could not start payment (no session URL).", "err");
+        next.disabled = false;
+        next.textContent = old;
       } catch (err) {
         console.error(err);
         showBanner(
-          "Could not start payment. Please try again.",
+          "Could not start payment. Please check your connection and try again.",
           "err"
         );
         next.disabled = false;
