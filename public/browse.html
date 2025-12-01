@@ -255,7 +255,7 @@
       .browse-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
     }
 
-    /* LISTING CARDS – SAME AS ATELIER/HOMEPAGE */
+    /* LISTING / ATELIER CARDS – reuse same shell */
     .listing-card{
       background:var(--hm-bg-card);
       border:1px solid var(--hm-border);
@@ -331,6 +331,8 @@
       cursor:pointer;
       white-space:normal;    /* allow wrap on mobile */
       line-height:1.25;
+      text-align:center;
+      display:inline-block;
     }
     .listing-add-btn[disabled]{
       opacity:.6;
@@ -571,7 +573,7 @@
 
       <section class="results">
         <div class="results-head">
-          <h2 style="margin:0;font-size:18px">Browse</h2>
+          <h2 id="resultsHeading" style="margin:0;font-size:18px">Browse</h2>
           <div id="resultCount" style="color:#6b7280;font-size:13px">Loading…</div>
         </div>
         <div id="grid" class="browse-grid"></div>
@@ -596,15 +598,15 @@
   </script>
 
   <script>
-    /* Supabase client + listings */
+    /* Supabase client + listings / ateliers */
 
     const supabaseClient = window.supabase.createClient(
       "https://clkizksbvxjkoatdajgd.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
     );
 
-    // listings | ateliers (comes from ?mode=ateliers on homepage)
-    let searchMode = "listings";
+    // "listings" (default) vs "ateliers"
+    let currentMode = "listings";
 
     /* --- Filters state --- */
 
@@ -740,7 +742,7 @@
       return Number.isFinite(n) ? n : null;
     }
 
-    /* Fetch profiles for seller display names */
+    /* Fetch profiles for seller display names for listings */
     async function fetchProfilesForListings(listings){
       const map = {};
       const ids = Array.from(new Set(
@@ -769,8 +771,94 @@
       return map;
     }
 
-    /* --- Main search + render --- */
-    async function runSearch(){
+    /* --- Atelier search --- */
+    async function runAtelierSearch(){
+      const grid    = document.getElementById("grid");
+      const emptyEl = document.getElementById("empty");
+      const countEl = document.getElementById("resultCount");
+      const qInput  = document.getElementById("q");
+
+      if(grid) grid.innerHTML = "";
+      if(emptyEl) emptyEl.style.display = "none";
+      if(countEl) countEl.textContent = "Loading…";
+
+      const searchTerm = (qInput?.value || "").trim().toLowerCase();
+
+      let profiles = [];
+      try{
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("id, display_name, store_name, first_name, last_name, bio")
+          .order("store_name", { ascending:true });
+
+        if(error){
+          console.error("Atelier fetch error", error);
+          if(countEl) countEl.textContent = "Error loading ateliers";
+          return;
+        }
+        profiles = data || [];
+      }catch(e){
+        console.error("Atelier fetch exception", e);
+        if(countEl) countEl.textContent = "Error loading ateliers";
+        return;
+      }
+
+      let filtered = profiles;
+      if(searchTerm){
+        filtered = profiles.filter(p=>{
+          const store = (p.store_name || "").toLowerCase();
+          const disp  = (p.display_name || "").toLowerCase();
+          const full  = ((p.first_name || "") + " " + (p.last_name || "")).trim().toLowerCase();
+          return store.includes(searchTerm) || disp.includes(searchTerm) || full.includes(searchTerm);
+        });
+      }
+
+      const total = filtered.length;
+      if(countEl){
+        countEl.textContent = total === 1 ? "1 atelier" : total + " ateliers";
+      }
+
+      if(!total){
+        if(emptyEl){
+          emptyEl.textContent = "No ateliers match that search yet.";
+          emptyEl.style.display = "block";
+        }
+        return;
+      }
+
+      filtered.forEach(p=>{
+        const card = document.createElement("article");
+        card.className = "listing-card";
+
+        const storeName = p.store_name || p.display_name || "Atelier";
+        const ownerName = ((p.first_name || "") + " " + (p.last_name || "")).trim();
+        const href = "atelier.html?id=" + encodeURIComponent(p.id);
+
+        card.innerHTML = `
+          <a class="listing-thumb-link" href="${href}">
+            <div class="listing-thumb" aria-hidden="true">
+              <!-- placeholder atelier tile -->
+            </div>
+          </a>
+          <div class="listing-body">
+            <div class="listing-title-row">
+              <a class="listing-title" href="${href}">${storeName}</a>
+            </div>
+            ${ownerName ? `<div class="listing-yards">${ownerName}</div>` : ""}
+            ${p.bio ? `<div class="listing-price-row"><span class="listing-price-main">${p.bio}</span></div>` : ""}
+            <div class="listing-cta-row">
+              <a href="${href}" class="listing-add-btn">
+                View atelier
+              </a>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    /* --- Listing search + render --- */
+    async function runListingSearch(){
       const grid       = document.getElementById("grid");
       const emptyEl    = document.getElementById("empty");
       const countEl    = document.getElementById("resultCount");
@@ -792,15 +880,10 @@
 
       let listings = [];
       try{
-        const nowIso = new Date().toISOString();
-
-        // Only fetch rows that are published and whose publish time has passed
         const { data, error } = await supabaseClient
           .from("listings")
           .select("*")
-          .eq("is_published", true)
-          .or(`published_at.is.null,published_at.lte.${nowIso}`)
-          .order("published_at", { ascending:false });
+          .order("created_at", { ascending:false });
 
         if(error){
           console.error("Listings fetch error", error);
@@ -829,14 +912,11 @@
       const feelsVal   = (feelsEl?.value || "").trim().toLowerCase();
 
       let filtered = listings.filter(l => {
-        // Only show "active"
+        // Only show "active" + published when those flags exist.
         if(l.status && l.status !== "active") return false;
         if(l.is_published === false) return false;
 
-        // Text search:
-        // - listings mode: title/description
-        // - ateliers mode: handled later against atelier/store name
-        if(searchTerm && searchMode === "listings"){
+        if(searchTerm){
           const hay = ((l.title || "") + " " + (l.description || "")).toLowerCase();
           if(!hay.includes(searchTerm)) return false;
         }
@@ -856,7 +936,7 @@
         if(fabricVal && l.fabric_type && l.fabric_type !== fabricVal) return false;
         if(fiberVal && l.fiber_type && l.fiber_type !== fiberVal) return false;
         if(patternVal && l.pattern && l.pattern !== patternVal) return false;
-        if(originVal && l.country_of_origin && l.country_of_origin !== originVal) return false;
+        if(originVal && l.origin && l.origin !== originVal) return false;
 
         if(designerVal){
           const dName = (l.designer || "").toLowerCase();
@@ -896,22 +976,6 @@
         return true;
       });
 
-      // Fetch profiles once we know which listings we're dealing with
-      const profileMap = await fetchProfilesForListings(filtered);
-
-      // If user is in "ateliers" mode, filter by atelier/store name instead of title
-      if(searchTerm && searchMode === "ateliers"){
-        filtered = filtered.filter(l => {
-          const prof = profileMap[l.seller_id] || {};
-          const displayName = (prof.first_name && prof.last_name)
-            ? (prof.first_name + " " + prof.last_name)
-            : (prof.display_name || "");
-          const storeName = prof.store_name || displayName || "";
-          const hay = storeName.toLowerCase();
-          return hay.includes(searchTerm);
-        });
-      }
-
       const total = filtered.length;
       if(countEl){
         countEl.textContent = total === 1 ? "1 result" : total + " results";
@@ -921,6 +985,8 @@
         if(emptyEl) emptyEl.style.display = "block";
         return;
       }
+
+      const profileMap = await fetchProfilesForListings(filtered);
 
       if(grid){
         filtered.forEach(l => {
@@ -1014,26 +1080,44 @@
       }
     }
 
+    async function runSearch(){
+      if(currentMode === "ateliers"){
+        await runAtelierSearch();
+      }else{
+        await runListingSearch();
+      }
+    }
+
     /* Initial boot */
     document.addEventListener("DOMContentLoaded", ()=>{
       buildFiltersUI();
 
       const searchBtn = document.getElementById("doSearch");
       const qInput    = document.getElementById("q");
+      const layout    = document.getElementById("layout");
+      const toggle    = document.getElementById("toggleFilters");
+      const heading   = document.getElementById("resultsHeading");
 
-      // Read query params from homepage (q and mode=ateliers)
+      // Read URL params from homepage search
       const params = new URLSearchParams(window.location.search);
-      const urlQ   = params.get("q") || "";
-      const urlMode= params.get("mode");
+      const initialQ = params.get("q") || "";
+      const urlMode  = params.get("mode") === "ateliers" ? "ateliers" : "listings";
+      currentMode = urlMode;
 
-      if(qInput && urlQ){
-        qInput.value = urlQ;
-      }
-      if(urlMode === "ateliers"){
-        searchMode = "ateliers";
-        if(qInput){
-          qInput.placeholder = "Search ateliers by name…";
+      if(qInput) qInput.value = initialQ;
+
+      if(currentMode === "ateliers"){
+        if(heading) heading.textContent = "Ateliers";
+        if(qInput) qInput.placeholder = "Search ateliers by name…";
+        if(layout){
+          layout.classList.add("filters-hidden");
         }
+        if(toggle){
+          toggle.textContent = "Show filters";
+          toggle.setAttribute("aria-pressed","false");
+        }
+      }else{
+        if(heading) heading.textContent = "Browse";
       }
 
       if(searchBtn) searchBtn.addEventListener("click", runSearch);
