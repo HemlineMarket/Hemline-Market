@@ -80,7 +80,6 @@
   let reactionsByThread = {};
   let commentReactionsByComment = {};
   const expandedCommentsThreads = new Set();
-  let hasScrolledToAnchor = false;
 
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", init);
@@ -173,7 +172,7 @@
       const threadIds = allThreads.map((t) => t.id);
       const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
 
-      // Load comments (no schema change: still just body / created_at / is_deleted)
+      // Load comments
       const { data: commentRows } = await supabase
         .from("threadtalk_comments")
         .select("id, thread_id, author_id, body, created_at, is_deleted")
@@ -257,15 +256,12 @@
   function renderThreads() {
     if (!cardsEl) return;
     cardsEl.innerHTML = "";
-    if (emptyStateEl)
-      emptyStateEl.style.display = threads.length ? "none" : "block";
+    if (emptyStateEl) emptyStateEl.style.display = threads.length ? "none" : "block";
 
     threads.forEach((thread) => {
       const card = document.createElement("article");
       card.className = "card";
       card.dataset.threadId = String(thread.id);
-      // anchor for short share link
-      card.id = "t-" + String(thread.id);
 
       const authorName = displayNameForUserId(thread.author_id);
       const catSlug = thread.category || "loose-threads";
@@ -342,8 +338,6 @@
         ).join("") +
         "</div>";
 
-      const bodyHtml = renderBodyWithEmbeds(thread.body);
-
       card.innerHTML = `
         <div class="tt-head">
           <div class="tt-line1">
@@ -364,7 +358,7 @@
           </div>
         </div>
 
-        <div class="preview">${bodyHtml}</div>
+        <div class="preview">${escapeHtml(thread.body)}</div>
         ${mediaHtml}
         ${reactionSummaryHtml}
 
@@ -394,10 +388,6 @@
           </div>
 
           <div class="tt-comment-new">
-            <button class="tt-comment-attach"
-                    type="button"
-                    data-tt-role="attach-comment-photo">+
-            </button>
             <input class="tt-comment-input"
                    type="text"
                    maxlength="500"
@@ -408,20 +398,13 @@
               Send
             </button>
           </div>
-          <input type="file"
-                 class="tt-comment-photo-input"
-                 accept="image/*"
-                 hidden>
         </div>
       `;
 
       cardsEl.appendChild(card);
     });
-
-    maybeScrollToAnchorThread();
   }
-
-  // ---------- Render each comment ----------
+    // ---------- Render each comment ----------
   function renderCommentHtml(c) {
     const name = displayNameForUserId(c.author_id);
     const ts = timeAgo(c.created_at);
@@ -480,8 +463,6 @@
       ).join("") +
       "</div>";
 
-    const bodyHtml = renderBodyWithEmbeds(c.body);
-
     return `
       <div class="tt-comment"
            data-comment-id="${c.id}"
@@ -496,7 +477,7 @@
            ${deleteHtml}
          </div>
 
-         <div class="tt-comment-body">${bodyHtml}</div>
+         <div class="tt-comment-body">${escapeHtml(c.body)}</div>
          ${summaryHtml}
 
          <div class="tt-comment-actions">
@@ -548,126 +529,6 @@
     return "";
   }
 
-  // ---------- URL → embed helpers ----------
-  function renderBodyWithEmbeds(text) {
-    const raw = String(text || "");
-    if (!raw.trim()) return "";
-
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    let lastIndex = 0;
-    let html = "";
-    const embedBlocks = [];
-
-    raw.replace(urlRegex, (match, offset) => {
-      if (offset > lastIndex) {
-        html += escapeHtml(raw.slice(lastIndex, offset));
-      }
-      const { inlineHtml, embedHtml } = renderUrlToken(match);
-      html += inlineHtml;
-      if (embedHtml) embedBlocks.push(embedHtml);
-      lastIndex = offset + match.length;
-      return match;
-    });
-
-    if (lastIndex < raw.length) {
-      html += escapeHtml(raw.slice(lastIndex));
-    }
-
-    if (embedBlocks.length) {
-      html += `<div class="tt-embeds">${embedBlocks.join("")}</div>`;
-    }
-
-    return html;
-  }
-
-  function renderUrlToken(url) {
-    const safeUrl = escapeAttr(url);
-    const inlineHtml = `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(
-      url
-    )}</a>`;
-    let embedHtml = "";
-
-    // YouTube embeds
-    const ytId = extractYouTubeId(url);
-    if (ytId) {
-      const embedSrc = `https://www.youtube.com/embed/${ytId}`;
-      embedHtml = `
-        <div class="tt-embed tt-embed-youtube">
-          <iframe
-            src="${escapeAttr(embedSrc)}"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-          ></iframe>
-        </div>`;
-      return { inlineHtml, embedHtml };
-    }
-
-    // Direct image URLs
-    if (/\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(url)) {
-      embedHtml = `
-        <div class="tt-embed tt-embed-image">
-          <img src="${safeUrl}" alt="Linked image"/>
-        </div>`;
-      return { inlineHtml, embedHtml };
-    }
-
-    // Generic website preview card
-    let domain = url;
-    try {
-      const u = new URL(url);
-      domain = u.hostname;
-    } catch (_) {
-      // leave as-is
-    }
-
-    const faviconSrc =
-      "https://www.google.com/s2/favicons?sz=128&domain=" +
-      encodeURIComponent(domain);
-
-    embedHtml = `
-      <a class="tt-link-card"
-         href="${safeUrl}"
-         target="_blank"
-         rel="noopener noreferrer">
-        <div class="tt-link-thumb">
-          <img src="${escapeAttr(
-            faviconSrc
-          )}" alt="" loading="lazy" class="tt-link-favicon"/>
-        </div>
-        <div class="tt-link-meta">
-          <div class="tt-link-domain">${escapeHtml(domain)}</div>
-          <div class="tt-link-url">${escapeHtml(url)}</div>
-        </div>
-      </a>`;
-
-    return { inlineHtml, embedHtml };
-  }
-
-  function extractYouTubeId(url) {
-    try {
-      const u = new URL(url);
-      if (u.hostname === "youtu.be" && u.pathname && u.pathname.length > 1) {
-        return u.pathname.slice(1);
-      }
-      if (
-        u.hostname === "www.youtube.com" ||
-        u.hostname === "youtube.com" ||
-        u.hostname.endsWith(".youtube.com")
-      ) {
-        const v = u.searchParams.get("v");
-        if (v) return v;
-        const parts = u.pathname.split("/").filter(Boolean);
-        if (parts[0] === "shorts" || parts[0] === "embed") {
-          return parts[1] || null;
-        }
-      }
-    } catch (_) {
-      return null;
-    }
-    return null;
-  }
-
   // ---------- Reaction state helpers ----------
   function computeReactionState(rows) {
     const counts = { like: 0, love: 0, laugh: 0, wow: 0, cry: 0 };
@@ -685,7 +546,7 @@
     return { counts, mine };
   }
 
-  // ---------- Composer (new thread) ----------
+  // ---------- Composer ----------
   function wireComposer() {
     if (!composerForm) return;
 
@@ -792,39 +653,6 @@
     } catch (_) {
       showToast("Upload failed.");
       return { media_url: null, media_type: null };
-    }
-  }
-
-  async function uploadCommentMedia(file) {
-    if (!currentUser || !file) {
-      return { media_url: null };
-    }
-
-    try {
-      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
-      const path = `${currentUser.id}/comment-${Date.now()}.${ext}`;
-
-      const { data, error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: file.type,
-        });
-
-      if (error) {
-        showToast("Upload failed.");
-        return { media_url: null };
-      }
-
-      const { data: pub } = supabase.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(data.path);
-
-      return { media_url: pub?.publicUrl || null };
-    } catch (_) {
-      showToast("Upload failed.");
-      return { media_url: null };
     }
   }
 
@@ -950,10 +778,6 @@
           if (threadId) await handleSendComment(card, threadId);
           break;
 
-        case "attach-comment-photo":
-          handleAttachCommentPhoto(card);
-          break;
-
         case "comment-like-toggle": {
           const ok = await ensureLoggedInFor("react");
           if (!ok) return;
@@ -1014,15 +838,7 @@
       }
     });
   }
-
-  function handleAttachCommentPhoto(card) {
-    if (!card) return;
-    const input = card.querySelector(".tt-comment-photo-input");
-    if (!input) return;
-    input.click();
-  }
-
-  // ---------- Reactions ----------
+    // ---------- Reactions ----------
   async function handleThreadReaction(threadId, type) {
     if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
@@ -1153,13 +969,10 @@
   // ---------- Comments ----------
   async function handleSendComment(card, threadId) {
     const input = card.querySelector(".tt-comment-input");
-    const fileInput = card.querySelector(".tt-comment-photo-input");
     if (!input) return;
 
-    const bodyRaw = (input.value || "").trim();
-    const file = fileInput && fileInput.files && fileInput.files[0];
-
-    if (!bodyRaw && !file) {
+    const body = (input.value || "").trim();
+    if (!body) {
       input.focus();
       return;
     }
@@ -1167,22 +980,11 @@
     const ok = await ensureLoggedInFor("comment");
     if (!ok) return;
 
-    let finalBody = bodyRaw;
-
-    if (file) {
-      const { media_url } = await uploadCommentMedia(file);
-      if (media_url) {
-        finalBody = finalBody
-          ? `${finalBody}\n${media_url}`
-          : media_url;
-      }
-    }
-
     try {
       const { error } = await supabase.from("threadtalk_comments").insert({
         thread_id: threadId,
         author_id: currentUser.id,
-        body: finalBody,
+        body,
       });
 
       if (error) {
@@ -1192,7 +994,6 @@
       }
 
       input.value = "";
-      if (fileInput) fileInput.value = "";
       await loadThreads();
     } catch (err) {
       console.error("[ThreadTalk] handleSendComment exception", err);
@@ -1352,17 +1153,15 @@
 
   // ---------- Share ----------
   async function handleShareThread(threadId) {
-    // Short, thread-only link: /threadtalk.html#t-123
+    const thread = allThreads.find((t) => t.id === threadId) || null;
     const base = window.location.origin + window.location.pathname;
-    const url = `${base}#t-${encodeURIComponent(threadId)}`;
+    const url = `${base}?thread=${encodeURIComponent(threadId)}`;
+    const title = thread?.title || "ThreadTalk post";
+    const text = (thread?.body || "").slice(0, 200);
 
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: "ThreadTalk",
-          text: "Join this ThreadTalk conversation.",
-          url,
-        });
+        await navigator.share({ title, text, url });
         showToast("Link shared");
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
@@ -1380,19 +1179,9 @@
       }
     } catch (err) {
       console.warn("[ThreadTalk] handleShareThread error", err);
-      showToast("Share cancelled.");
+      // User probably closed the share sheet — keep the message soft.
+      showToast("Share closed.");
     }
-  }
-
-  function maybeScrollToAnchorThread() {
-    if (hasScrolledToAnchor) return;
-    const hash = window.location.hash || "";
-    if (!hash.startsWith("#t-")) return;
-    const id = hash.slice(1); // "t-123"
-    const el = document.getElementById(id);
-    if (!el) return;
-    hasScrolledToAnchor = true;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   // ---------- Zoom modal ----------
@@ -1512,7 +1301,6 @@
       .tt-title{font-weight:600;color:#3f2f2a;}
       .post-media-wrap{margin:4px 0;max-width:460px;}
       .post-img,.post-video{width:100%;height:auto;border-radius:10px;display:block;}
-
       .tt-actions-row{display:flex;align-items:center;gap:12px;margin-top:4px;margin-bottom:2px;font-size:13px;}
       .tt-like-wrapper{position:relative;display:inline-flex;align-items:center;}
       .tt-like-btn{border:none;background:none;color:#6b7280;font-size:13px;padding:4px 8px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
@@ -1520,12 +1308,10 @@
       .tt-react-picker{position:absolute;bottom:100%;left:0;display:flex;gap:6px;background:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:4px 6px;margin-bottom:4px;opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;}
       .tt-like-wrapper.tt-picker-open .tt-react-picker{opacity:1;pointer-events:auto;transform:translateY(0);}
       .tt-react-pill{border:none;background:none;font-size:18px;cursor:pointer;padding:2px;}
-
       .tt-react-summary{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#6b7280;margin-top:2px;flex-wrap:wrap;}
       .tt-react-chip{display:inline-flex;align-items:center;gap:2px;margin-right:4px;}
       .tt-react-emoji{font-size:14px;line-height:1;}
       .tt-react-count{font-size:11px;line-height:1;}
-
       .tt-comments{margin-top:4px;}
       .tt-comments-list{display:flex;flex-direction:column;gap:2px;}
       .tt-comment{padding:4px 0;border-top:1px solid #f3f4f6;}
@@ -1534,15 +1320,11 @@
       .tt-comment-author{font-weight:500;}
       .tt-comment-body{font-size:13px;margin-bottom:2px;}
       .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;}
-
       .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:4px;}
-      .tt-comment-attach{border:none;background:#f3f4f6;border-radius:999px;width:26px;height:26px;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;}
       .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border);font-size:13px;}
       .tt-comment-input::placeholder{color:#9ca3af;}
       .tt-comment-send{padding:6px 12px;font-size:13px;border-radius:999px;border:none;background:#111827;color:#fff;cursor:pointer;}
-
       .tt-more-comments{border:none;background:none;color:#6b7280;font-size:12px;padding:0;margin-bottom:2px;cursor:pointer;}
-
       .tt-menu{position:relative;}
       .tt-menu-btn{padding:2px 6px;font-size:14px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;}
       .tt-menu-pop{position:absolute;margin-top:4px;right:0;background:#fff;border-radius:8px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:4px;z-index:20;display:grid;}
@@ -1550,16 +1332,21 @@
       .tt-menu-item{display:block;width:100%;text-align:left;border:none;background:none;padding:6px 10px;font-size:13px;border-radius:6px;cursor:pointer;}
       .tt-menu-item:hover{background:#f3f4f6;}
       .tt-menu-item.danger{color:#b91c1c;}
-
       .tt-react-summary-comment{margin-top:0;}
-
-      /* Link + embed styling */
-      .tt-embeds{margin-top:6
-            
+      #tt-zoom-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:60;}
+      #tt-zoom-modal.show{opacity:1;pointer-events:auto;}
+      .tt-zoom-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.55);}
+      .tt-zoom-inner{position:relative;z-index:1;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;}
+      .tt-zoom-img{max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain;background:#fff;}
+      .tt-zoom-close{position:absolute;top:-32px;right:0;border:none;background:none;color:#f9fafb;font-size:24px;cursor:pointer;}
+      .tt-edit-area{width:100%;min-height:80px;border-radius:10px;border:1px solid var(--border);padding:8px;font-size:13px;}
+      .tt-edit-actions{display:flex;gap:8px;margin-top:4px;}
+      .tt-edit-save,.tt-edit-cancel{border-radius:999px;border:none;padding:4px 10px;font-size:12px;cursor:pointer;}
+      .tt-edit-save{background:#111827;color:#fff;}
+      .tt-edit-cancel{background:#e5e7eb;color:#111827;}
     `;
     const style = document.createElement("style");
     style.textContent = css;
     document.head.appendChild(style);
   }
-
 })();
