@@ -447,6 +447,11 @@
                    data-tt-role="respond">
              Reply
            </button>
+           <button class="tt-share-link"
+                   type="button"
+                   data-tt-role="share-thread">
+             Share
+           </button>
          </div>
 
          <div class="tt-comments" data-thread="${thread.id}">
@@ -534,7 +539,9 @@
       "</div>";
 
     return (
-      `<div class="tt-comment" data-comment-id="${c.id}">
+      `<div class="tt-comment" data-comment-id="${c.id}" data-author-name="${escapeAttr(
+        name
+      )}">
          <div class="tt-comment-head-row">
            <div class="tt-comment-meta">
              <span class="tt-comment-author">${escapeHtml(name)}</span>
@@ -825,9 +832,18 @@
         }
 
         case "respond":
-        case "respond-comment":
+          // Thread-level reply → focus comment box only
           focusCommentBox(card);
           break;
+
+        case "respond-comment": {
+          // Comment-level reply → focus comment box and @-mention that commenter
+          const commentEl = roleEl.closest(".tt-comment");
+          const mentionName =
+            commentEl?.dataset.authorName || "";
+          focusCommentBox(card, mentionName);
+          break;
+        }
 
         case "show-all-comments":
           if (threadId != null) {
@@ -892,6 +908,10 @@
 
         case "delete-thread":
           if (threadId != null) await handleDeleteThread(threadId);
+          break;
+
+        case "share-thread":
+          if (threadId != null) await handleShareThread(threadId);
           break;
 
         case "zoom-img":
@@ -1072,84 +1092,57 @@
     }
   }
 
-  function focusCommentBox(card) {
+  function focusCommentBox(card, mentionName) {
     const input = card.querySelector(".tt-comment-input");
     if (!input) return;
+
+    if (mentionName) {
+      const firstWord = mentionName.split(" ")[0] || mentionName;
+      const mention = "@" + firstWord.replace(/[^\w.@-]/g, "");
+      if (!input.value.trim()) {
+        input.value = mention + " ";
+      } else if (!input.value.startsWith(mention)) {
+        input.value = mention + " " + input.value;
+      }
+    }
+
     input.scrollIntoView({ behavior: "smooth", block: "center" });
     input.focus();
   }
 
-  // ---------- Menu / edit / delete ----------
-  function toggleMenu(card) {
-    const pop = card.querySelector('[data-tt-role="menu-pop"]');
-    if (!pop) return;
-    const hidden = pop.hasAttribute("hidden");
-    // close all others
-    document
-      .querySelectorAll('[data-tt-role="menu-pop"]')
-      .forEach((el) => el.setAttribute("hidden", "true"));
-    if (hidden) pop.removeAttribute("hidden");
-  }
+// ---------- Share ----------
+async function handleShareThread(threadId) {
+  const thread = allThreads.find((t) => t.id === threadId) || null;
+  const base = window.location.origin + window.location.pathname;
+  const url = `${base}?thread=${encodeURIComponent(threadId)}`;
+  const title = thread?.title || "ThreadTalk post";
+  const text = (thread?.body || "").slice(0, 200);
 
-  async function handleEditThread(card, threadId) {
-    const thread = allThreads.find((t) => t.id === threadId);
-    if (!thread) return;
-    if (!currentUser || thread.author_id !== currentUser.id) {
-      showToast("You can only edit your own posts.");
-      return;
-    }
-
-    const previewEl = card.querySelector(".preview");
-    if (!previewEl) return;
-
-    const original = thread.body;
-    previewEl.innerHTML = `
-      <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
-      <div class="tt-edit-actions">
-        <button type="button" class="tt-edit-save">Save</button>
-        <button type="button" class="tt-edit-cancel">Cancel</button>
-      </div>
-    `;
-
-    const area = previewEl.querySelector(".tt-edit-area");
-    const saveBtn = previewEl.querySelector(".tt-edit-save");
-    const cancelBtn = previewEl.querySelector(".tt-edit-cancel");
-
-    cancelBtn.addEventListener("click", () => {
-      previewEl.textContent = original;
-    });
-
-    saveBtn.addEventListener("click", async () => {
-      const body = (area.value || "").trim();
-      if (!body) {
-        area.focus();
-        return;
-      }
-
+  try {
+    if (navigator.share) {
+      await navigator.share({ title, text, url });
+      showToast("Link shared");
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied");
+    } else {
+      const tmp = document.createElement("input");
+      tmp.value = url;
+      document.body.appendChild(tmp);
+      tmp.select();
       try {
-        const { error } = await supabase
-          .from("threadtalk_threads")
-          .update({
-            body,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", threadId)
-          .eq("author_id", currentUser.id);
-
-        if (error) {
-          console.error("[ThreadTalk] update thread error", error);
-          showToast("Could not save edit.");
-          return;
-        }
-
-        await loadThreads();
-      } catch (err) {
-        console.error("[ThreadTalk] handleEditThread exception", err);
-        showToast("Could not save edit.");
-      }
-    });
+        document.execCommand("copy");
+      } catch (_) {}
+      document.body.removeChild(tmp);
+      showToast("Link copied");
+    }
+  } catch (err) {
+    console.warn("[ThreadTalk] handleShareThread error", err);
+    showToast("Could not share link.");
   }
+}
 
+  // ---------- Delete thread / comment ----------
   async function handleDeleteThread(threadId) {
     const authOk = await ensureLoggedInFor("delete a post");
     if (!authOk) return;
