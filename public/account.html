@@ -168,7 +168,7 @@
       box-shadow:0 2px 10px rgba(153,27,27,.28);
     }
 
-    /* Payouts */
+    /* Payouts (kept in case we re-add later) */
     .payout-row{
       display:flex;
       flex-wrap:wrap;
@@ -297,7 +297,7 @@
   <main class="account-wrap" id="maincontent">
     <h1 class="account-title">Account</h1>
     <p class="account-subtitle">
-      Manage your profile, payouts, shipping, vacation hold, and security.
+      Manage your profile, shipping, vacation hold, and security.
     </p>
 
     <!-- PROFILE CARD -->
@@ -386,30 +386,6 @@
             </p>
           </form>
         </section>
-      </div>
-    </section>
-
-    <!-- PAYOUTS -->
-    <section class="hm-card" aria-labelledby="payoutHeading">
-      <div class="hm-card-header" id="payoutHeading">Payouts</div>
-      <div class="hm-card-body">
-        <div class="payout-row">
-          <div class="payout-copy">
-            <strong>Payouts &amp; payments</strong>
-            <span>
-              Stripe powers payments and payouts for your shop. Use one secure Stripe Express account
-              to get paid for sales and pay any fees.
-            </span>
-            <p class="hint">
-              You’ll be sent to a secure Stripe page to enter your bank and tax details. Hemline Market
-              never sees your full bank information.
-            </p>
-          </div>
-          <div class="payout-side">
-            <button class="btn btn-primary" type="button" id="btnStripe">Set up Stripe Payouts</button>
-            <div class="inline-note" id="stripeNote"></div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -871,39 +847,6 @@
           "To change your password, use the reset link sent to the email address you used to sign up. " +
           "Passwords must be at least 8 characters and include at least one letter and one number or symbol."
         );
-      });
-
-      // Stripe onboarding – graceful fallback if backend not wired yet
-      const stripeBtn  = document.getElementById('btnStripe');
-      const stripeNote = document.getElementById('stripeNote');
-
-      stripeBtn.addEventListener('click', ()=>{
-        stripeBtn.disabled = true;
-        stripeNote.textContent = "Contacting Stripe…";
-        fetch("/api/stripe/connect_onboard", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            return_url: window.location.origin + "/account.html",
-            refresh_url: window.location.origin + "/account.html"
-          })
-        })
-        .then(r => {
-          if(!r.ok) throw new Error("HTTP " + r.status);
-          return r.json();
-        })
-        .then(data=>{
-          if(data && data.url){
-            window.location.href = data.url;
-          }else{
-            throw new Error("No onboarding URL returned");
-          }
-        })
-        .catch(err=>{
-          console.warn("Stripe onboarding not live yet:", err);
-          stripeNote.textContent = "Stripe payouts will start working once your backend route /api/stripe/connect_onboard is live. For now, keep your profile and address up to date.";
-          stripeBtn.disabled = false;
-        });
       });
     })();
   </script>
