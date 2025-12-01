@@ -7,9 +7,8 @@ import Stripe from 'stripe';
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-07-30.basil', // use your account default if preferred
-});
+// Use your Stripe account's default API version
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 function originFrom(req) {
   const proto = (req.headers['x-forwarded-proto'] || 'https').toString();
@@ -41,8 +40,11 @@ export default async function handler(req, res) {
 
     // Fallback success/cancel URLs from request origin
     const origin = originFrom(req);
-    const success_url = process.env.STRIPE_SUCCESS_URL || `${origin}/success.html?sid={CHECKOUT_SESSION_ID}`;
-    const cancel_url  = process.env.STRIPE_CANCEL_URL  || `${origin}/checkout.html`;
+    const success_url =
+      process.env.STRIPE_SUCCESS_URL ||
+      `${origin}/success.html?sid={CHECKOUT_SESSION_ID}`;
+    const cancel_url =
+      process.env.STRIPE_CANCEL_URL || `${origin}/checkout.html`;
 
     // One line item for the whole order (you can expand if you want)
     const session = await stripe.checkout.sessions.create({
@@ -68,7 +70,7 @@ export default async function handler(req, res) {
 
       // Store data we’ll need in the webhook to create Transfers
       metadata: {
-        sellers_json: JSON.stringify(sellers),  // { sellerId: amount_cents, ... }
+        sellers_json: JSON.stringify(sellers), // { sellerId: amount_cents, ... }
         shipping_cents: String(Number(shipping_cents || 0)),
         subtotal_cents: String(subtotal),
       },
