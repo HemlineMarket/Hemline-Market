@@ -7,12 +7,21 @@ import Stripe from 'stripe';
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
 
-// Use your account's default API version by omitting apiVersion
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// --- Stripe client ---------------------------------------------------------
+const stripeSecret = process.env.STRIPE_SECRET_KEY;
+
+if (!stripeSecret) {
+  // Throw at boot so Vercel logs a very obvious error if the key is missing
+  throw new Error('STRIPE_SECRET_KEY is not set in environment variables');
+}
+
+// Let Stripe use the account’s default API version.
+// (The previous "2025-07-30.basil" string was invalid and would cause 500s.)
+const stripe = new Stripe(stripeSecret);
 
 function originFrom(req) {
   const proto = (req.headers['x-forwarded-proto'] || 'https').toString();
-  const host  = (req.headers['x-forwarded-host']  || req.headers.host || '').toString();
+  const host = (req.headers['x-forwarded-host'] || req.headers.host || '').toString();
   return `${proto}://${host}`;
 }
 
@@ -37,6 +46,12 @@ export default async function handler(req, res) {
     }
 
     const total = subtotal + Number(shipping_cents || 0);
+
+    if (total <= 0) {
+      return res
+        .status(400)
+        .json({ error: 'Order total must be greater than zero to start payment.' });
+    }
 
     // Fallback success/cancel URLs from request origin
     const origin = originFrom(req);
@@ -75,13 +90,16 @@ export default async function handler(req, res) {
         subtotal_cents: String(subtotal),
       },
 
-      // Optional: automatic tax later
       automatic_tax: { enabled: false },
     });
 
     return res.status(200).json({ url: session.url, id: session.id });
   } catch (err) {
-    console.error('create_session error:', err);
-    return res.status(500).json({ error: 'Unable to create checkout session' });
+    console.error('create_session error:', err?.type, err?.message);
+    return res.status(500).json({
+      error: 'Unable to create checkout session',
+      // This stays mostly for debugging; the banner still shows a generic message.
+      detail: err?.message || null,
+    });
   }
 }
