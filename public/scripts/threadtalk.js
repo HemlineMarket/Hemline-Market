@@ -208,7 +208,7 @@
       const threadIds = allThreads.map((t) => t.id);
       const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
 
-      // Load comments (with optional media columns, even if we only use URL embeds for now)
+      // Load comments
       const { data: commentRows, error: commentErr } = await supabase
         .from("threadtalk_comments")
         .select(
@@ -1115,7 +1115,7 @@
     }
   }
 
-   async function handleCommentReaction(commentId, type) {
+  async function handleCommentReaction(commentId, type) {
     if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
     if (!ok) return;
@@ -1584,7 +1584,7 @@
       .tt-edit-save{background:#111827;color:#fff;}
       .tt-edit-cancel{background:#e5e7eb;color:#111827;}
 
-      /* Public-only state: hide composer + disable interactive controls */
+      /* Public-only state: hide composer + disable interactive controls for logged-out users */
       body.tt-public-only #composer{opacity:.4;pointer-events:none;}
       body.tt-public-only .tt-comment-input,
       body.tt-public-only .tt-comment-send,
