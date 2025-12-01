@@ -531,11 +531,17 @@
     }
 
     try{
+      const nowIso = new Date().toISOString();
+
       const { data, error } = await supabaseClient
         .from("listings")
         .select("*")
         .eq("seller_id", sellerId)
-        .order("created_at",{ascending:false}); // newest first
+        .eq("is_published", true)
+        // only show listings whose publish time has passed,
+        // but keep older rows that might have null published_at
+        .or(`published_at.is.null,published_at.lte.${nowIso}`)
+        .order("published_at", { ascending:false });
 
       if(error){
         showAtelierError("We couldn’t load listings for this shop.");
@@ -545,7 +551,9 @@
       }
 
       grid.innerHTML = "";
-      const visible = (data||[]).filter(x=>x.is_published===true);
+
+      // filter to active status only (sold/archived hidden here)
+      const visible = (data || []).filter(x => (x.status || "active") === "active");
 
       if(!visible.length){
         empty.style.display="block";
