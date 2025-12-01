@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
 
-// Use your account's default API version
+// Use your account's default API version by omitting apiVersion
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 function originFrom(req) {
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
 
       // Store data we’ll need in the webhook to create Transfers
       metadata: {
-        sellers_json: JSON.stringify(sellers),  // { sellerId: amount_cents, ... }
+        sellers_json: JSON.stringify(sellers), // { sellerId: amount_cents, ... }
         shipping_cents: String(Number(shipping_cents || 0)),
         subtotal_cents: String(subtotal),
       },
