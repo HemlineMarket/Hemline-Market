@@ -3,8 +3,8 @@
 
 import Stripe from "stripe";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const connectAccountId = process.env.STRIPE_CONNECT_ACCOUNT_ID || ""; // e.g. acct_123...
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;     // your live sk_live_...
+const connectAccountId = process.env.STRIPE_CONNECT_ACCOUNT_ID; // your acct_XXXX
 
 const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2024-06-20",
@@ -22,12 +22,10 @@ export default async function handler(req, res) {
   }
 
   if (!stripeSecretKey || !connectAccountId) {
-    console.error(
-      "[express-dashboard] Missing STRIPE_SECRET_KEY or STRIPE_CONNECT_ACCOUNT_ID env vars"
-    );
+    console.error("[express-dashboard] Missing required Stripe env vars");
     return res
       .status(500)
-      .json({ error: "Stripe account is not configured on the server." });
+      .json({ error: "Stripe is not fully configured on the server." });
   }
 
   try {
@@ -38,7 +36,6 @@ export default async function handler(req, res) {
     const loginLink = await stripe.accounts.createLoginLink(
       connectAccountId,
       {
-        // Where Stripe sends you back after leaving the dashboard
         redirect_url: `${origin}/account.html`,
       }
     );
@@ -46,8 +43,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: loginLink.url });
   } catch (err) {
     console.error("[express-dashboard] Error creating login link:", err);
-    return res
-      .status(500)
-      .json({ error: "Unable to create Stripe dashboard link." });
+    return res.status(500).json({
+      error: "Unable to create Stripe dashboard link.",
+    });
   }
 }
