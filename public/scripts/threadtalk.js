@@ -34,7 +34,6 @@
   const mediaPreview = document.getElementById("mediaPreview");
   const postBtn = document.getElementById("postBtn");
 
-  // ThreadTalk-only search input (optional in HTML)
   const searchInput = document.getElementById("threadSearch");
 
   // ---------- Constants ----------
@@ -70,18 +69,17 @@
     { key: "cry", emoji: "😢" },
   ];
 
-  const MAX_VISIBLE_COMMENTS = 2; // show last 2 replies unless expanded
+  const MAX_VISIBLE_COMMENTS = 2;
 
   // ---------- State ----------
   let currentUser = null;
-  const profilesCache = {}; // userId -> profile
+  const profilesCache = {};
   let allThreads = [];
-  let threads = []; // filtered (search)
-  let commentsByThread = {}; // threadId -> [comments]
-  let reactionsByThread = {}; // threadId -> [reactions]
-  let commentReactionsByComment = {}; // commentId -> [reactions]
-  const expandedCommentsThreads = new Set(); // threads with all replies shown
-  let hasScrolledToPermalink = false;
+  let threads = [];
+  let commentsByThread = {};
+  let reactionsByThread = {};
+  let commentReactionsByComment = {};
+  const expandedCommentsThreads = new Set();
 
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", init);
@@ -98,35 +96,17 @@
     await loadThreads();
   }
 
-  // ---------- Auth / Profile helpers ----------
+  // ---------- Auth ----------
   async function refreshCurrentUser() {
     try {
       const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        console.warn("[ThreadTalk] getUser error", error);
-        currentUser = null;
-        updateAuthUiForThreadTalk();
-        return;
-      }
+      if (error) return (currentUser = null);
       currentUser = data?.user || null;
-
       if (currentUser && !profilesCache[currentUser.id]) {
         await loadProfiles([currentUser.id]);
       }
-      updateAuthUiForThreadTalk();
-    } catch (err) {
-      console.error("[ThreadTalk] refreshCurrentUser threw", err);
+    } catch (_) {
       currentUser = null;
-      updateAuthUiForThreadTalk();
-    }
-  }
-
-  function updateAuthUiForThreadTalk() {
-    // Public read-only vs signed-in interactive
-    if (currentUser) {
-      document.body.classList.remove("tt-public-only");
-    } else {
-      document.body.classList.add("tt-public-only");
     }
   }
 
@@ -145,42 +125,33 @@
     if (!ids.length) return;
 
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("profiles")
         .select("id, store_name, first_name, last_name")
         .in("id", ids);
 
-      if (error) {
-        console.warn("[ThreadTalk] loadProfiles error", error);
-        return;
-      }
-      (data || []).forEach((p) => {
-        profilesCache[p.id] = p;
-      });
-    } catch (err) {
-      console.error("[ThreadTalk] loadProfiles threw", err);
-    }
+      (data || []).forEach((p) => (profilesCache[p.id] = p));
+    } catch (_) {}
   }
 
   function displayNameForUserId(userId) {
     const p = profilesCache[userId];
     if (!p) return "Unknown member";
-    if (p.store_name && p.store_name.trim()) return p.store_name.trim();
+    if (p.store_name?.trim()) return p.store_name.trim();
     const first = (p.first_name || "").trim();
     const last = (p.last_name || "").trim();
-    const lastInitial = last ? `${last[0].toUpperCase()}.` : "";
-    const combo = `${first} ${lastInitial}`.trim();
-    return combo || "Unknown member";
+    return (first + " " + (last ? last[0] + "." : "")).trim() || "Unknown member";
   }
 
-  // ---------- Loading data ----------
+  // ---------- Load threads ----------
   async function loadThreads() {
     try {
       let query = supabase
         .from("threadtalk_threads")
         .select(
           "id, author_id, category, title, body, media_url, media_type, created_at, is_deleted"
-        );
+        )
+        .eq("is_deleted", false);
 
       if (THREAD_CATEGORY_FILTER) {
         query = query.eq("category", THREAD_CATEGORY_FILTER);
@@ -188,16 +159,8 @@
 
       query = query.order("created_at", { ascending: false }).limit(100);
 
-      const { data: threadRows, error: threadErr } = await query;
-
-      if (threadErr) {
-        console.error("[ThreadTalk] loadThreads error", threadErr);
-        showToast("Could not load threads.");
-        return;
-      }
-
-      // treat NULL is_deleted as not deleted
-      allThreads = (threadRows || []).filter((t) => !t.is_deleted);
+      const { data: threadRows } = await query;
+      allThreads = threadRows || [];
 
       if (!allThreads.length) {
         threads = [];
@@ -210,16 +173,10 @@
       const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
 
       // Load comments
-      const { data: commentRows, error: commentErr } = await supabase
+      const { data: commentRows } = await supabase
         .from("threadtalk_comments")
-        .select(
-          "id, thread_id, author_id, body, media_url, media_type, created_at, is_deleted"
-        )
+        .select("id, thread_id, author_id, body, created_at, is_deleted")
         .in("thread_id", threadIds);
-
-      if (commentErr) {
-        console.warn("[ThreadTalk] comments load error", commentErr);
-      }
 
       commentsByThread = {};
       const commentIds = [];
@@ -227,7 +184,8 @@
       (commentRows || [])
         .filter((c) => !c.is_deleted)
         .forEach((c) => {
-          if (!commentsByThread[c.thread_id]) commentsByThread[c.thread_id] = [];
+          if (!commentsByThread[c.thread_id])
+            commentsByThread[c.thread_id] = [];
           commentsByThread[c.thread_id].push(c);
           commentIds.push(c.id);
           if (c.author_id) authorIds.push(c.author_id);
@@ -236,47 +194,36 @@
       // Load comment reactions
       commentReactionsByComment = {};
       if (commentIds.length) {
-        const { data: cReactRows, error: cReactErr } = await supabase
+        const { data: cReactRows } = await supabase
           .from("threadtalk_comment_reactions")
           .select("comment_id, user_id, reaction_type")
           .in("comment_id", commentIds);
 
-        if (cReactErr) {
-          console.warn("[ThreadTalk] comment reactions load error", cReactErr);
-        }
-
         (cReactRows || []).forEach((r) => {
-          if (!commentReactionsByComment[r.comment_id]) {
+          if (!commentReactionsByComment[r.comment_id])
             commentReactionsByComment[r.comment_id] = [];
-          }
           commentReactionsByComment[r.comment_id].push(r);
           authorIds.push(r.user_id);
         });
       }
 
-      // Load thread reactions
-      const { data: reactionRows, error: reactErr } = await supabase
+      // Thread reactions
+      const { data: reactionRows } = await supabase
         .from("threadtalk_reactions")
         .select("thread_id, user_id, reaction_type")
         .in("thread_id", threadIds);
 
-      if (reactErr) {
-        console.warn("[ThreadTalk] reactions load error", reactErr);
-      }
-
       reactionsByThread = {};
       (reactionRows || []).forEach((r) => {
-        if (!reactionsByThread[r.thread_id]) reactionsByThread[r.thread_id] = [];
+        if (!reactionsByThread[r.thread_id])
+          reactionsByThread[r.thread_id] = [];
         reactionsByThread[r.thread_id].push(r);
         authorIds.push(r.user_id);
       });
 
-      // Load all profiles we need
       await loadProfiles(authorIds);
-
-      applySearchFilter(); // sets threads + renders
+      applySearchFilter();
     } catch (err) {
-      console.error("[ThreadTalk] loadThreads exception", err);
       showToast("Could not load threads.");
     }
   }
@@ -284,10 +231,7 @@
   // ---------- Search ----------
   function wireSearch() {
     if (!searchInput) return;
-
     searchInput.addEventListener("input", applySearchFilter);
-
-    // Enter key in search field
     searchInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -298,33 +242,26 @@
 
   function applySearchFilter() {
     const q = (searchInput?.value || "").trim().toLowerCase();
-    if (!q) {
-      threads = allThreads.slice();
-    } else {
-      threads = allThreads.filter((t) => {
-        const title = (t.title || "").toLowerCase();
-        const body = (t.body || "").toLowerCase();
-        return title.includes(q) || body.includes(q);
-      });
-    }
+    threads = !q
+      ? allThreads.slice()
+      : allThreads.filter((t) => {
+          const title = (t.title || "").toLowerCase();
+          const body = (t.body || "").toLowerCase();
+          return title.includes(q) || body.includes(q);
+        });
     renderThreads();
   }
 
-  // ---------- Rendering (threads + comments) ----------
+  // ---------- Rendering ----------
   function renderThreads() {
     if (!cardsEl) return;
-
     cardsEl.innerHTML = "";
-    if (emptyStateEl) {
-      emptyStateEl.style.display = threads.length ? "none" : "block";
-    }
+    if (emptyStateEl) emptyStateEl.style.display = threads.length ? "none" : "block";
 
     threads.forEach((thread) => {
       const card = document.createElement("article");
       card.className = "card";
       card.dataset.threadId = String(thread.id);
-      // for hash-based deep-linking
-      card.id = "thread-" + String(thread.id);
 
       const authorName = displayNameForUserId(thread.author_id);
       const catSlug = thread.category || "loose-threads";
@@ -336,14 +273,12 @@
       const threadRows = reactionsByThread[thread.id] || [];
       const { counts: threadCounts, mine: threadMine } =
         computeReactionState(threadRows);
-      const myThreadType =
+      const myType =
         REACTION_TYPES.find((r) => threadMine[r.key])?.key || null;
-      const iReactedThread = !!myThreadType;
 
       const comments = commentsByThread[thread.id] || [];
       const mediaHtml = renderMedia(thread);
 
-      // collapsed / expanded replies
       let commentsToRender = comments;
       let hiddenCount = 0;
       if (
@@ -359,179 +294,163 @@
       const isMine = currentUser && thread.author_id === currentUser.id;
 
       const menuHtml = isMine
-        ? [
-            '<div class="tt-menu">',
-            '<button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>',
-            '<div class="tt-menu-pop" data-tt-role="menu-pop" hidden>',
-            '<button class="tt-menu-item" data-tt-role="edit-thread" type="button">Edit</button>',
-            '<button class="tt-menu-item danger" data-tt-role="delete-thread" type="button">Delete</button>',
-            "</div>",
-            "</div>",
-          ].join("")
+        ? `
+        <div class="tt-menu">
+          <button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>
+          <div class="tt-menu-pop" data-tt-role="menu-pop" hidden>
+            <button class="tt-menu-item" data-tt-role="edit-thread" type="button">Edit</button>
+            <button class="tt-menu-item danger" data-tt-role="delete-thread" type="button">Delete</button>
+          </div>
+        </div>`
         : "";
 
       const hiddenHtml = hiddenCount
-        ? `<button class="tt-more-comments"
-                  type="button"
-                  data-tt-role="show-all-comments">
-              View ${hiddenCount} more repl${
-            hiddenCount === 1 ? "y" : "ies"
-          }…
+        ? `<button class="tt-more-comments" type="button" data-tt-role="show-all-comments">
+             View ${hiddenCount} more repl${hiddenCount === 1 ? "y" : "ies"}…
            </button>`
         : "";
 
-      // Reaction summary: show per-emoji counts, e.g. 👍 1 😂 2
       let chipsHtml = "";
       REACTION_TYPES.forEach((r) => {
         const count = threadCounts[r.key];
         if (count) {
-          chipsHtml += `<span class="tt-react-chip">
+          chipsHtml += `
+            <span class="tt-react-chip">
               <span class="tt-react-emoji">${r.emoji}</span>
               <span class="tt-react-count">${count}</span>
             </span>`;
         }
       });
       const reactionSummaryHtml = chipsHtml
-        ? `<div class="tt-react-summary">
-             ${chipsHtml}
-           </div>`
+        ? `<div class="tt-react-summary">${chipsHtml}</div>`
         : "";
 
-      // Reaction picker HTML
       const pickerHtml =
         '<div class="tt-react-picker" data-tt-role="thread-picker">' +
         REACTION_TYPES.map(
           (r) =>
             `<button class="tt-react-pill"
-                      type="button"
-                      data-tt-role="thread-react"
-                      data-reaction="${r.key}">
-                <span>${r.emoji}</span>
+                type="button"
+                data-tt-role="thread-react"
+                data-reaction="${r.key}">
+              <span>${r.emoji}</span>
              </button>`
         ).join("") +
         "</div>";
 
-      const bodyHtml = renderBodyWithEmbeds(thread.body);
+      card.innerHTML = `
+        <div class="tt-head">
+          <div class="tt-line1">
+            <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>
+            ${
+              title
+                ? `<span class="tt-title">“${escapeHtml(title)}”</span>`
+                : ""
+            }
+          </div>
+          <div class="tt-line2">
+            <div class="tt-line2-main">
+              <span class="author">${escapeHtml(authorName)}</span>
+              <span>•</span>
+              <span>${when}</span>
+            </div>
+            ${menuHtml}
+          </div>
+        </div>
 
-      card.innerHTML =
-        `<div class="tt-head">
-           <div class="tt-line1">
-             <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>` +
-        (title
-          ? `<span class="tt-title">“${escapeHtml(title)}”</span>`
-          : "") +
-        `  </div>
-           <div class="tt-line2">
-             <div class="tt-line2-main">
-               <span class="author">${escapeHtml(authorName)}</span>
-               <span>•</span>
-               <span>${when}</span>
-             </div>
-             ${menuHtml}
-           </div>
-         </div>
+        <div class="preview">${escapeHtml(thread.body)}</div>
+        ${mediaHtml}
+        ${reactionSummaryHtml}
 
-         <div class="preview">${bodyHtml}</div>
-         ${mediaHtml}
-         ${reactionSummaryHtml}
+        <div class="tt-actions-row">
+          <div class="tt-like-wrapper">
+            <button class="tt-like-btn tt-like-main${
+              myType ? " tt-like-active" : ""
+            }" type="button" data-tt-role="thread-like-toggle">
+              <span class="tt-like-label">Like</span>
+            </button>
+            ${pickerHtml}
+          </div>
 
-         <div class="tt-actions-row">
-           <div class="tt-like-wrapper">
-             <button class="tt-like-btn tt-like-main${
-               iReactedThread ? " tt-like-active" : ""
-             }"
-                     type="button"
-                     data-tt-role="thread-like-toggle">
-               <span class="tt-like-label">Like</span>
-             </button>
-             ${pickerHtml}
-           </div>
-           <button class="tt-reply-link"
-                   type="button"
-                   data-tt-role="respond">
-             Reply
-           </button>
-           <button class="tt-share-link"
-                   type="button"
-                   data-tt-role="share-thread">
-             Share
-           </button>
-         </div>
+          <button class="tt-reply-link" type="button" data-tt-role="respond">
+            Reply
+          </button>
 
-         <div class="tt-comments" data-thread="${thread.id}">
-           <div class="tt-comments-list">
-             ${hiddenHtml}
-             ${commentsHtml}
-           </div>
-           <div class="tt-comment-new">
-             <input class="tt-comment-input"
-                    type="text"
-                    maxlength="500"
-                    placeholder="Reply…"/>
-             <button class="tt-comment-send"
-                     type="button"
-                     data-tt-role="send-comment">
-               Send
-             </button>
-           </div>
-         </div>`;
+          <button class="tt-share-link" type="button" data-tt-role="share-thread">
+            Share
+          </button>
+        </div>
+
+        <div class="tt-comments" data-thread="${thread.id}">
+          <div class="tt-comments-list">
+            ${hiddenHtml}
+            ${commentsHtml}
+          </div>
+
+          <div class="tt-comment-new">
+            <input class="tt-comment-input"
+                   type="text"
+                   maxlength="500"
+                   placeholder="Reply…"/>
+            <button class="tt-comment-send"
+                    type="button"
+                    data-tt-role="send-comment">
+              Send
+            </button>
+          </div>
+        </div>
+      `;
 
       cardsEl.appendChild(card);
     });
-
-    maybeScrollToPermalinkThread();
   }
-
+    // ---------- Render each comment ----------
   function renderCommentHtml(c) {
     const name = displayNameForUserId(c.author_id);
     const ts = timeAgo(c.created_at);
+
     const reactions = commentReactionsByComment[c.id] || [];
     const { counts, mine } = computeReactionState(reactions);
     const myType = REACTION_TYPES.find((r) => mine[r.key])?.key || null;
-    const iReactedComment = !!myType;
 
-    // Per-emoji reaction summary for comments
     let chipsHtml = "";
     REACTION_TYPES.forEach((r) => {
       const count = counts[r.key];
       if (count) {
-        chipsHtml += `<span class="tt-react-chip">
+        chipsHtml += `
+          <span class="tt-react-chip">
             <span class="tt-react-emoji">${r.emoji}</span>
             <span class="tt-react-count">${count}</span>
           </span>`;
       }
     });
+
     const summaryHtml = chipsHtml
-      ? `<div class="tt-react-summary tt-react-summary-comment">
-           ${chipsHtml}
-         </div>`
+      ? `<div class="tt-react-summary tt-react-summary-comment">${chipsHtml}</div>`
       : "";
 
-    // OWN comment: show 3-dot menu with Delete hidden inside
     const deleteHtml =
       currentUser && c.author_id === currentUser.id
         ? `
-          <div class="tt-menu tt-menu-comment">
-            <button class="tt-menu-btn"
-                    type="button"
-                    data-tt-role="comment-menu">···</button>
-            <div class="tt-menu-pop"
-                 data-tt-role="comment-menu-pop"
-                 hidden>
-              <button class="tt-menu-item danger"
-                      type="button"
-                      data-tt-role="delete-comment"
-                      data-comment-id="${c.id}">
-                Delete
-              </button>
-            </div>
-          </div>`
+      <div class="tt-menu tt-menu-comment">
+        <button class="tt-menu-btn"
+                type="button"
+                data-tt-role="comment-menu">···</button>
+        <div class="tt-menu-pop"
+             data-tt-role="comment-menu-pop"
+             hidden>
+          <button class="tt-menu-item danger"
+                  type="button"
+                  data-tt-role="delete-comment"
+                  data-comment-id="${c.id}">
+            Delete
+          </button>
+        </div>
+      </div>`
         : "";
 
     const pickerHtml =
-      '<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="' +
-      c.id +
-      '">' +
+      `<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="${c.id}">` +
       REACTION_TYPES.map(
         (r) =>
           `<button class="tt-react-pill"
@@ -539,17 +458,16 @@
                     data-tt-role="comment-react"
                     data-comment-id="${c.id}"
                     data-reaction="${r.key}">
-              <span>${r.emoji}</span>
-           </button>`
+            <span>${r.emoji}</span>
+          </button>`
       ).join("") +
       "</div>";
 
-    const bodyHtml = renderBodyWithEmbeds(c.body);
+    return `
+      <div class="tt-comment"
+           data-comment-id="${c.id}"
+           data-author-name="${escapeAttr(name)}">
 
-    return (
-      `<div class="tt-comment" data-comment-id="${c.id}" data-author-name="${escapeAttr(
-        name
-      )}">
          <div class="tt-comment-head-row">
            <div class="tt-comment-meta">
              <span class="tt-comment-author">${escapeHtml(name)}</span>
@@ -558,12 +476,14 @@
            </div>
            ${deleteHtml}
          </div>
-         <div class="tt-comment-body">${bodyHtml}</div>
+
+         <div class="tt-comment-body">${escapeHtml(c.body)}</div>
          ${summaryHtml}
+
          <div class="tt-comment-actions">
            <div class="tt-like-wrapper tt-like-wrapper-comment">
              <button class="tt-like-btn tt-like-main${
-               iReactedComment ? " tt-like-active" : ""
+               myType ? " tt-like-active" : ""
              }"
                      type="button"
                      data-tt-role="comment-like-toggle"
@@ -572,6 +492,7 @@
              </button>
              ${pickerHtml}
            </div>
+
            <button class="tt-reply-link"
                    type="button"
                    data-tt-role="respond-comment"
@@ -579,14 +500,15 @@
              Reply
            </button>
          </div>
-       </div>`
-    );
+
+      </div>`;
   }
 
-  // ---------- Media rendering for thread uploads ----------
+  // ---------- Media rendering ----------
   function renderMedia(thread) {
     if (!thread.media_url || !thread.media_type) return "";
     const src = escapeAttr(thread.media_url);
+
     if (thread.media_type === "image") {
       return `
         <div class="post-media-wrap">
@@ -594,141 +516,17 @@
                src="${src}"
                alt="Post image"
                data-tt-role="zoom-img"/>
-        </div>
-      `;
+        </div>`;
     }
+
     if (thread.media_type === "video") {
       return `
         <div class="post-media-wrap">
           <video class="post-video" controls src="${src}"></video>
-        </div>
-      `;
+        </div>`;
     }
+
     return "";
-  }
-
-  // ---------- URL → embed helpers (threads + comments) ----------
-  function renderBodyWithEmbeds(text) {
-    const raw = String(text || "");
-    if (!raw.trim()) return "";
-
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    let lastIndex = 0;
-    let html = "";
-    const embedBlocks = [];
-
-    raw.replace(urlRegex, (match, offset) => {
-      if (offset > lastIndex) {
-        html += escapeHtml(raw.slice(lastIndex, offset));
-      }
-      const { inlineHtml, embedHtml } = renderUrlToken(match);
-      html += inlineHtml;
-      if (embedHtml) embedBlocks.push(embedHtml);
-      lastIndex = offset + match.length;
-      return match;
-    });
-
-    if (lastIndex < raw.length) {
-      html += escapeHtml(raw.slice(lastIndex));
-    }
-
-    if (embedBlocks.length) {
-      html += `<div class="tt-embeds">${embedBlocks.join("")}</div>`;
-    }
-
-    return html;
-  }
-
-  function renderUrlToken(url) {
-    const safeUrl = escapeAttr(url);
-    const inlineHtml = `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(
-      url
-    )}</a>`;
-    let embedHtml = "";
-
-    // YouTube embeds
-    const ytId = extractYouTubeId(url);
-    if (ytId) {
-      const embedSrc = `https://www.youtube.com/embed/${ytId}`;
-      embedHtml = `
-        <div class="tt-embed tt-embed-youtube">
-          <iframe
-            src="${escapeAttr(embedSrc)}"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-          ></iframe>
-        </div>`;
-      return { inlineHtml, embedHtml };
-    }
-
-    // Direct image URLs
-    if (/\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(url)) {
-      embedHtml = `
-        <div class="tt-embed tt-embed-image">
-          <img src="${safeUrl}" alt="Linked image"/>
-        </div>`;
-      return { inlineHtml, embedHtml };
-    }
-
-    // Generic website preview card (favicon + domain)
-    let domain = url;
-    try {
-      const u = new URL(url);
-      domain = u.hostname;
-    } catch (_) {
-      // keep as-is
-    }
-    const faviconSrc =
-      "https://www.google.com/s2/favicons?sz=128&domain=" +
-      encodeURIComponent(domain);
-
-    embedHtml = `
-      <a class="tt-link-card"
-         href="${safeUrl}"
-         target="_blank"
-         rel="noopener noreferrer">
-        <div class="tt-link-thumb">
-          <img src="${escapeAttr(
-            faviconSrc
-          )}" alt="" loading="lazy" class="tt-link-favicon"/>
-        </div>
-        <div class="tt-link-meta">
-          <div class="tt-link-domain">${escapeHtml(domain)}</div>
-          <div class="tt-link-url">${escapeHtml(url)}</div>
-        </div>
-      </a>`;
-
-    return { inlineHtml, embedHtml };
-  }
-
-  function extractYouTubeId(url) {
-    try {
-      const u = new URL(url);
-      if (
-        u.hostname === "youtu.be" &&
-        u.pathname &&
-        u.pathname.length > 1
-      ) {
-        return u.pathname.slice(1);
-      }
-      if (
-        u.hostname === "www.youtube.com" ||
-        u.hostname === "youtube.com" ||
-        u.hostname.endsWith(".youtube.com")
-      ) {
-        const v = u.searchParams.get("v");
-        if (v) return v;
-        // Handle /shorts/<id> or /embed/<id>
-        const parts = u.pathname.split("/").filter(Boolean);
-        if (parts[0] === "shorts" || parts[0] === "embed") {
-          return parts[1] || null;
-        }
-      }
-    } catch (_) {
-      return null;
-    }
-    return null;
   }
 
   // ---------- Reaction state helpers ----------
@@ -737,7 +535,9 @@
     const mine = { like: false, love: false, laugh: false, wow: false, cry: false };
 
     rows.forEach((r) => {
-      if (counts[r.reaction_type] != null) counts[r.reaction_type] += 1;
+      if (counts[r.reaction_type] != null) {
+        counts[r.reaction_type] += 1;
+      }
       if (currentUser && r.user_id === currentUser.id) {
         mine[r.reaction_type] = true;
       }
@@ -746,21 +546,21 @@
     return { counts, mine };
   }
 
-  // ---------- Composer (new thread) ----------
+  // ---------- Composer ----------
   function wireComposer() {
     if (!composerForm) return;
 
     composerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
       let body = (textArea.value || "").trim();
-      let title = ((titleInput && titleInput.value) || "").trim();
-      let cat = ((categorySelect && categorySelect.value) || "").trim();
-      if (!cat) cat = "loose-threads";
+      let title = (titleInput?.value || "").trim();
+      let cat = categorySelect?.value || "loose-threads";
 
       const hasMedia = !!(photoInput?.files?.[0] || videoInput?.files?.[0]);
 
       if (!title) {
-        if (titleInput) titleInput.focus();
+        titleInput?.focus();
         showToast("Add a post title.");
         return;
       }
@@ -770,16 +570,17 @@
         return;
       }
 
-      const ok = await ensureLoggedInFor("post in ThreadTalk");
+      const ok = await ensureLoggedInFor("post");
       if (!ok) return;
 
-      if (postBtn) postBtn.disabled = true;
+      postBtn.disabled = true;
 
       try {
         const mediaInfo = await maybeUploadComposerMedia();
         if (!body && hasMedia) body = "image attached";
 
         const payload = {
+          author_id: currentUser.id,
           category: cat,
           title,
           body,
@@ -794,23 +595,21 @@
           .single();
 
         if (error) {
-          console.error("[ThreadTalk] insert error", error);
-          showToast("Could not post. Please try again.");
+          showToast("Could not post.");
           return;
         }
 
         textArea.value = "";
-        if (titleInput) titleInput.value = "";
+        titleInput.value = "";
         clearMediaPreview();
 
         allThreads.unshift(data);
         applySearchFilter();
         showToast("Posted");
       } catch (err) {
-        console.error("[ThreadTalk] post exception", err);
         showToast("Could not post.");
       } finally {
-        if (postBtn) postBtn.disabled = false;
+        postBtn.disabled = false;
       }
     });
   }
@@ -819,15 +618,15 @@
     if (!currentUser) return { media_url: null, media_type: null };
 
     const file =
-      (photoInput && photoInput.files && photoInput.files[0]) ||
-      (videoInput && videoInput.files && videoInput.files[0]);
+      photoInput?.files?.[0] ||
+      videoInput?.files?.[0];
     if (!file) return { media_url: null, media_type: null };
 
-    const isImage = !!(photoInput && photoInput.files && photoInput.files[0]);
+    const isImage = !!photoInput?.files?.[0];
     const media_type = isImage ? "image" : "video";
 
     try {
-      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+      const ext = file.name.split(".").pop().toLowerCase();
       const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
 
       const { data, error } = await supabase.storage
@@ -839,8 +638,7 @@
         });
 
       if (error) {
-        console.warn("[ThreadTalk] media upload error", error);
-        showToast("Could not upload attachment.");
+        showToast("Upload failed.");
         return { media_url: null, media_type: null };
       }
 
@@ -848,28 +646,29 @@
         .from(STORAGE_BUCKET)
         .getPublicUrl(data.path);
 
-      const url = pub?.publicUrl || null;
-      return { media_url: url, media_type };
-    } catch (err) {
-      console.error("[ThreadTalk] maybeUploadComposerMedia exception", err);
-      showToast("Could not upload attachment.");
+      return {
+        media_url: pub?.publicUrl || null,
+        media_type,
+      };
+    } catch (_) {
+      showToast("Upload failed.");
       return { media_url: null, media_type: null };
     }
   }
 
-  // ---------- Media preview for composer ----------
+  // ---------- Media preview ----------
   function wireMediaInputs() {
     if (!photoInput || !videoInput || !mediaPreview) return;
 
     photoInput.addEventListener("change", () => {
-      if (photoInput.files && photoInput.files[0]) {
+      if (photoInput.files?.[0]) {
         videoInput.value = "";
         showPreview(photoInput.files[0], "image");
       }
     });
 
     videoInput.addEventListener("change", () => {
-      if (videoInput.files && videoInput.files[0]) {
+      if (videoInput.files?.[0]) {
         photoInput.value = "";
         showPreview(videoInput.files[0], "video");
       }
@@ -878,32 +677,30 @@
 
   function showPreview(file, kind) {
     const url = URL.createObjectURL(file);
+    mediaPreview.hidden = false;
     mediaPreview.innerHTML = "";
+
     if (kind === "image") {
       const img = document.createElement("img");
       img.src = url;
-      img.alt = "Attachment preview";
-      img.className = "post-img";
+      img.alt = "Preview image";
       mediaPreview.appendChild(img);
-    } else if (kind === "video") {
-      const v = document.createElement("video");
-      v.src = url;
-      v.controls = true;
-      v.className = "post-video";
-      mediaPreview.appendChild(v);
+    } else {
+      const vid = document.createElement("video");
+      vid.controls = true;
+      vid.src = url;
+      mediaPreview.appendChild(vid);
     }
-    mediaPreview.style.display = "block";
   }
 
   function clearMediaPreview() {
-    if (!mediaPreview) return;
+    mediaPreview.hidden = true;
     mediaPreview.innerHTML = "";
-    mediaPreview.style.display = "none";
     if (photoInput) photoInput.value = "";
     if (videoInput) videoInput.value = "";
   }
 
-  // ---------- Global reaction picker ----------
+  // ---------- Picker closing ----------
   function closeAllPickers() {
     document
       .querySelectorAll(".tt-like-wrapper.tt-picker-open")
@@ -912,16 +709,24 @@
 
   function wireGlobalPickerClose() {
     document.addEventListener("click", (e) => {
-      const inPickerOrButton = e.target.closest(
-        ".tt-like-wrapper, .tt-like-btn"
-      );
-      if (!inPickerOrButton) {
-        closeAllPickers();
+      const inside =
+        e.target.closest(".tt-like-wrapper") ||
+        e.target.closest(".tt-react-picker");
+
+      if (!inside) closeAllPickers();
+
+      const menuBtn = e.target.closest(".tt-menu-btn");
+      const menuPop = e.target.closest(".tt-menu-pop");
+
+      if (!menuBtn && !menuPop) {
+        document
+          .querySelectorAll(".tt-menu-pop")
+          .forEach((el) => el.setAttribute("hidden", "true"));
       }
     });
   }
 
-  // ---------- Card-level events ----------
+  // ---------- Card interaction delegation ----------
   function wireCardDelegates() {
     if (!cardsEl) return;
 
@@ -934,131 +739,161 @@
       const threadId = card ? Number(card.dataset.threadId) : null;
 
       switch (role) {
-        case "thread-like-toggle":
-          if (threadId != null) toggleThreadPicker(card);
+        case "thread-like-toggle": {
+          const ok = await ensureLoggedInFor("react");
+          if (!ok) return;
+          const wrapper = roleEl.closest(".tt-like-wrapper");
+          const isOpen = wrapper.classList.contains("tt-picker-open");
+          closeAllPickers();
+          if (!isOpen) wrapper.classList.add("tt-picker-open");
           break;
-        case "thread-react":
-          if (threadId != null) {
-            await handleThreadReaction(card, threadId, roleEl.dataset.reaction);
+        }
+
+        case "thread-react": {
+          const type = roleEl.dataset.reaction;
+          if (threadId && type) {
+            closeAllPickers();
+            await handleThreadReaction(threadId, type);
           }
           break;
+        }
+
         case "respond":
-          if (card) focusCommentBox(card);
+          focusCommentBox(card);
           break;
+
         case "respond-comment": {
           const commentEl = roleEl.closest(".tt-comment");
-          const name = commentEl?.dataset.authorName || "";
-          focusCommentBox(card, name);
+          const mention = commentEl?.dataset.authorName || "";
+          focusCommentBox(card, mention);
           break;
         }
-        case "send-comment":
-          if (threadId != null && card) {
-            await handleSendComment(card, threadId);
-          }
-          break;
-        case "comment-like-toggle": {
-          const commentId = roleEl.dataset.commentId;
-          if (commentId) await toggleCommentPicker(card, commentId);
-          break;
-        }
-        case "comment-react": {
-          const commentId = roleEl.dataset.commentId;
-          const reaction = roleEl.dataset.reaction;
-          if (commentId && reaction) {
-            await handleCommentReaction(card, commentId, reaction);
-          }
-          break;
-        }
+
         case "show-all-comments":
-          if (threadId != null) {
-            expandedCommentsThreads.add(threadId);
-            renderThreads();
+          expandedCommentsThreads.add(threadId);
+          renderThreads();
+          break;
+
+        case "send-comment":
+          if (threadId) await handleSendComment(card, threadId);
+          break;
+
+        case "comment-like-toggle": {
+          const ok = await ensureLoggedInFor("react");
+          if (!ok) return;
+          const wrapper = roleEl.closest(".tt-like-wrapper");
+          const isOpen = wrapper.classList.contains("tt-picker-open");
+          closeAllPickers();
+          if (!isOpen) wrapper.classList.add("tt-picker-open");
+          break;
+        }
+
+        case "comment-react": {
+          const commentId = Number(roleEl.dataset.commentId);
+          const type = roleEl.dataset.reaction;
+          if (commentId && type) {
+            closeAllPickers();
+            await handleCommentReaction(commentId, type);
           }
           break;
+        }
+
+        case "comment-menu": {
+          const pop = roleEl
+            .closest(".tt-menu")
+            ?.querySelector('[data-tt-role="comment-menu-pop"]');
+          const hidden = pop.hasAttribute("hidden");
+          document
+            .querySelectorAll('[data-tt-role="comment-menu-pop"]')
+            .forEach((el) => el.setAttribute("hidden", "true"));
+          if (hidden) pop.removeAttribute("hidden");
+          break;
+        }
+
+        case "delete-comment": {
+          const commentId = Number(roleEl.dataset.commentId);
+          if (commentId) await handleDeleteComment(commentId);
+          break;
+        }
+
         case "menu":
           toggleMenu(card);
           break;
+
         case "edit-thread":
-          if (threadId != null && card) await handleEditThread(card, threadId);
+          if (threadId) await handleEditThread(card, threadId);
           break;
+
         case "delete-thread":
-          if (threadId != null) await handleDeleteThread(threadId);
+          if (threadId) await handleDeleteThread(threadId);
           break;
-        case "comment-menu": {
-          const pop = roleEl
-            .closest(".tt-menu-comment")
-            ?.querySelector('[data-tt-role="comment-menu-pop"]');
-          if (pop) {
-            const hidden = pop.hasAttribute("hidden");
-            document
-              .querySelectorAll('[data-tt-role="comment-menu-pop"]')
-              .forEach((el) => el.setAttribute("hidden", "true"));
-            if (hidden) pop.removeAttribute("hidden");
-          }
-          break;
-        }
-        case "delete-comment": {
-          const cid = roleEl.dataset.commentId;
-          if (cid) await handleDeleteComment(cid);
-          break;
-        }
+
         case "share-thread":
-          if (threadId != null) await handleShareThread(threadId);
+          if (threadId) await handleShareThread(threadId);
           break;
+
         case "zoom-img":
           openZoomModal(roleEl.getAttribute("src"));
           break;
       }
     });
-
-    // Enter in reply box sends
-    cardsEl.addEventListener("keydown", async (e) => {
-      if (e.key !== "Enter") return;
-      const input = e.target.closest(".tt-comment-input");
-      if (!input) return;
-      e.preventDefault();
-      const card = input.closest(".card");
-      const threadId = card ? Number(card.dataset.threadId) : null;
-      if (threadId != null && card) {
-        await handleSendComment(card, threadId);
-      }
-    });
   }
-
-  function toggleThreadPicker(card) {
-    if (!card) return;
-    const wrapper = card.querySelector(".tt-like-wrapper");
-    if (!wrapper) return;
-    const isOpen = wrapper.classList.contains("tt-picker-open");
-    closeAllPickers();
-    if (!isOpen) wrapper.classList.add("tt-picker-open");
-  }
-
-  async function toggleCommentPicker(card, commentId) {
-    if (!card) return;
-    const wrappers = card.querySelectorAll(
-      `.tt-like-wrapper-comment [data-comment-id="${commentId}"]`
-    );
-    let wrapper = null;
-    wrappers.forEach((btn) => {
-      const w = btn.closest(".tt-like-wrapper-comment");
-      if (w) wrapper = w;
-    });
-    if (!wrapper) return;
-    const isOpen = wrapper.classList.contains("tt-picker-open");
-    closeAllPickers();
-    if (!isOpen) wrapper.classList.add("tt-picker-open");
-  }
-
-  async function handleThreadReaction(card, threadId, reactionType) {
+    // ---------- Reactions ----------
+  async function handleThreadReaction(threadId, type) {
+    if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
     if (!ok) return;
 
+    const existing = (reactionsByThread[threadId] || []).filter(
+      (r) => r.user_id === currentUser.id
+    );
+
     try {
-      await supabase.rpc("toggle_thread_reaction", {
-        p_thread_id: threadId,
-        p_reaction_type: reactionType,
-      });
+      if (existing.length === 1 && existing[0].reaction_type === type) {
+        const { error } = await supabase
+          .from("threadtalk_reactions")
+          .delete()
+          .match({
+            thread_id: threadId,
+            user_id: currentUser.id,
+            reaction_type: type,
+          });
+        if (error) {
+          console.warn("[ThreadTalk] reaction delete error", error);
+          showToast("Could not update reaction.");
+          return;
+        }
+      } else {
+        if (existing.length) {
+          const { error: delErr } = await supabase
+            .from("threadtalk_reactions")
+            .delete()
+            .match({
+              thread_id: threadId,
+              user_id: currentUser.id,
+            });
+          if (delErr) {
+            console.warn("[ThreadTalk] reaction switch delete error", delErr);
+            showToast("Could not update reaction.");
+            return;
+          }
+        }
+
+        const { error: insErr } = await supabase
+          .from("threadtalk_reactions")
+          .insert({
+            thread_id: threadId,
+            user_id: currentUser.id,
+            reaction_type: type,
+          });
+
+        if (insErr) {
+          console.warn("[ThreadTalk] reaction insert error", insErr);
+          showToast("Could not update reaction.");
+          return;
+        }
+      }
+
       await loadThreads();
     } catch (err) {
       console.error("[ThreadTalk] handleThreadReaction exception", err);
@@ -1066,15 +901,64 @@
     }
   }
 
-  async function handleCommentReaction(card, commentId, reactionType) {
+  async function handleCommentReaction(commentId, type) {
+    if (!REACTION_TYPES.find((r) => r.key === type)) return;
     const ok = await ensureLoggedInFor("react");
     if (!ok) return;
 
+    const existing = (commentReactionsByComment[commentId] || []).filter(
+      (r) => r.user_id === currentUser.id
+    );
+
     try {
-      await supabase.rpc("toggle_comment_reaction", {
-        p_comment_id: commentId,
-        p_reaction_type: reactionType,
-      });
+      if (existing.length === 1 && existing[0].reaction_type === type) {
+        const { error } = await supabase
+          .from("threadtalk_comment_reactions")
+          .delete()
+          .match({
+            comment_id: commentId,
+            user_id: currentUser.id,
+            reaction_type: type,
+          });
+        if (error) {
+          console.warn("[ThreadTalk] comment reaction delete error", error);
+          showToast("Could not update reaction.");
+          return;
+        }
+      } else {
+        if (existing.length) {
+          const { error: delErr } = await supabase
+            .from("threadtalk_comment_reactions")
+            .delete()
+            .match({
+              comment_id: commentId,
+              user_id: currentUser.id,
+            });
+          if (delErr) {
+            console.warn(
+              "[ThreadTalk] comment reaction switch delete error",
+              delErr
+            );
+            showToast("Could not update reaction.");
+            return;
+          }
+        }
+
+        const { error: insErr } = await supabase
+          .from("threadtalk_comment_reactions")
+          .insert({
+            comment_id: commentId,
+            user_id: currentUser.id,
+            reaction_type: type,
+          });
+
+        if (insErr) {
+          console.warn("[ThreadTalk] comment reaction insert error", insErr);
+          showToast("Could not update reaction.");
+          return;
+        }
+      }
+
       await loadThreads();
     } catch (err) {
       console.error("[ThreadTalk] handleCommentReaction exception", err);
@@ -1097,15 +981,15 @@
     if (!ok) return;
 
     try {
-      // rely on RLS/defaults to set author_id = auth.uid()
       const { error } = await supabase.from("threadtalk_comments").insert({
         thread_id: threadId,
+        author_id: currentUser.id,
         body,
       });
 
       if (error) {
         console.error("[ThreadTalk] comment insert error", error);
-        showToast(error.message || "Could not post reply.");
+        showToast("Could not post reply.");
         return;
       }
 
@@ -1118,7 +1002,6 @@
   }
 
   function focusCommentBox(card, mentionName) {
-    if (!card) return;
     const input = card.querySelector(".tt-comment-input");
     if (!input) return;
 
@@ -1138,7 +1021,6 @@
 
   // ---------- Thread menus / edit / delete ----------
   function toggleMenu(card) {
-    if (!card) return;
     const pop = card.querySelector('[data-tt-role="menu-pop"]');
     if (!pop) return;
 
@@ -1177,7 +1059,7 @@
     const cancelBtn = previewEl.querySelector(".tt-edit-cancel");
 
     cancelBtn.addEventListener("click", () => {
-      previewEl.innerHTML = renderBodyWithEmbeds(original);
+      previewEl.textContent = original;
     });
 
     saveBtn.addEventListener("click", async () => {
@@ -1195,7 +1077,7 @@
             updated_at: new Date().toISOString(),
           })
           .eq("id", threadId)
-          .eq("author_id", currentUser.id); // RLS double-checks author
+          .eq("author_id", currentUser.id);
 
         if (error) {
           console.error("[ThreadTalk] update thread error", error);
@@ -1271,44 +1153,35 @@
 
   // ---------- Share ----------
   async function handleShareThread(threadId) {
-    // Deep link: ?thread=<id>#thread-<id>
+    const thread = allThreads.find((t) => t.id === threadId) || null;
     const base = window.location.origin + window.location.pathname;
-    const hash = `#thread-${threadId}`;
-    const url = `${base}?thread=${encodeURIComponent(threadId)}${hash}`;
+    const url = `${base}?thread=${encodeURIComponent(threadId)}`;
+    const title = thread?.title || "ThreadTalk post";
+    const text = (thread?.body || "").slice(0, 200);
 
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        showToast("Link shared");
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
         showToast("Link copied");
       } else {
-        // Fallback: temporary input
         const tmp = document.createElement("input");
         tmp.value = url;
         document.body.appendChild(tmp);
         tmp.select();
         try {
           document.execCommand("copy");
-        } catch (_) {
-          // ignore
-        }
+        } catch (_) {}
         document.body.removeChild(tmp);
         showToast("Link copied");
       }
     } catch (err) {
       console.warn("[ThreadTalk] handleShareThread error", err);
-      showToast("Could not copy link.");
+      // User probably closed the share sheet — keep the message soft.
+      showToast("Share closed.");
     }
-  }
-
-  function maybeScrollToPermalinkThread() {
-    if (hasScrolledToPermalink) return;
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("thread");
-    if (!id) return;
-    const el = document.getElementById("thread-" + String(id));
-    if (!el) return;
-    hasScrolledToPermalink = true;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   // ---------- Zoom modal ----------
@@ -1320,7 +1193,7 @@
       modal = document.createElement("div");
       modal.id = "tt-zoom-modal";
       modal.innerHTML = `
-               <div class="tt-zoom-backdrop" data-tt-role="close-zoom"></div>
+        <div class="tt-zoom-backdrop" data-tt-role="close-zoom"></div>
         <div class="tt-zoom-inner">
           <button class="tt-zoom-close"
                   type="button"
@@ -1460,44 +1333,20 @@
       .tt-menu-item:hover{background:#f3f4f6;}
       .tt-menu-item.danger{color:#b91c1c;}
       .tt-react-summary-comment{margin-top:0;}
-
-      .tt-embeds{margin-top:4px;display:flex;flex-direction:column;gap:6px;}
-      .tt-embed{border-radius:10px;overflow:hidden;background:#f9fafb;border:1px solid #e5e7eb;}
-      .tt-embed-youtube iframe{width:100%;height:220px;display:block;}
-      .tt-embed-image img{display:block;width:100%;height:auto;}
-
-      .tt-link-card{display:flex;align-items:center;gap:10px;padding:8px 10px;text-decoration:none;border-radius:10px;border:1px solid #e5e7eb;background:#f9fafb;}
-      .tt-link-card:hover{background:#f3f4f6;}
-      .tt-link-thumb{width:32px;height:32px;border-radius:8px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;}
-      .tt-link-favicon{width:20px;height:20px;}
-      .tt-link-meta{display:flex;flex-direction:column;gap:2px;min-width:0;}
-      .tt-link-domain{font-size:13px;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .tt-link-url{font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-
       #tt-zoom-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:60;}
       #tt-zoom-modal.show{opacity:1;pointer-events:auto;}
       .tt-zoom-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.55);}
       .tt-zoom-inner{position:relative;z-index:1;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;}
       .tt-zoom-img{max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain;background:#fff;}
       .tt-zoom-close{position:absolute;top:-32px;right:0;border:none;background:none;color:#f9fafb;font-size:24px;cursor:pointer;}
-
       .tt-edit-area{width:100%;min-height:80px;border-radius:10px;border:1px solid var(--border);padding:8px;font-size:13px;}
       .tt-edit-actions{display:flex;gap:8px;margin-top:4px;}
       .tt-edit-save,.tt-edit-cancel{border-radius:999px;border:none;padding:4px 10px;font-size:12px;cursor:pointer;}
       .tt-edit-save{background:#111827;color:#fff;}
       .tt-edit-cancel{background:#e5e7eb;color:#111827;}
-
-      /* Public-only state: hide composer + disable interactive controls for logged-out users */
-      body.tt-public-only #composer{opacity:.4;pointer-events:none;}
-      body.tt-public-only .tt-comment-input,
-      body.tt-public-only .tt-comment-send,
-      body.tt-public-only .tt-like-btn,
-      body.tt-public-only .tt-reply-link,
-      body.tt-public-only .tt-menu-btn{opacity:.5;pointer-events:none;cursor:default;}
     `;
     const style = document.createElement("style");
     style.textContent = css;
     document.head.appendChild(style);
   }
 })();
-        
