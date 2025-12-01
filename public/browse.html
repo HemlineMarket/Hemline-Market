@@ -603,6 +603,9 @@
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
     );
 
+    // listings | ateliers (comes from ?mode=ateliers on homepage)
+    let searchMode = "listings";
+
     /* --- Filters state --- */
 
     const CONTENTS = [
@@ -789,10 +792,15 @@
 
       let listings = [];
       try{
+        const nowIso = new Date().toISOString();
+
+        // Only fetch rows that are published and whose publish time has passed
         const { data, error } = await supabaseClient
           .from("listings")
           .select("*")
-          .order("created_at", { ascending:false });
+          .eq("is_published", true)
+          .or(`published_at.is.null,published_at.lte.${nowIso}`)
+          .order("published_at", { ascending:false });
 
         if(error){
           console.error("Listings fetch error", error);
@@ -821,11 +829,14 @@
       const feelsVal   = (feelsEl?.value || "").trim().toLowerCase();
 
       let filtered = listings.filter(l => {
-        // Only show "active" + published when those flags exist.
+        // Only show "active"
         if(l.status && l.status !== "active") return false;
         if(l.is_published === false) return false;
 
-        if(searchTerm){
+        // Text search:
+        // - listings mode: title/description
+        // - ateliers mode: handled later against atelier/store name
+        if(searchTerm && searchMode === "listings"){
           const hay = ((l.title || "") + " " + (l.description || "")).toLowerCase();
           if(!hay.includes(searchTerm)) return false;
         }
@@ -845,7 +856,7 @@
         if(fabricVal && l.fabric_type && l.fabric_type !== fabricVal) return false;
         if(fiberVal && l.fiber_type && l.fiber_type !== fiberVal) return false;
         if(patternVal && l.pattern && l.pattern !== patternVal) return false;
-        if(originVal && l.origin && l.origin !== originVal) return false;
+        if(originVal && l.country_of_origin && l.country_of_origin !== originVal) return false;
 
         if(designerVal){
           const dName = (l.designer || "").toLowerCase();
@@ -885,6 +896,22 @@
         return true;
       });
 
+      // Fetch profiles once we know which listings we're dealing with
+      const profileMap = await fetchProfilesForListings(filtered);
+
+      // If user is in "ateliers" mode, filter by atelier/store name instead of title
+      if(searchTerm && searchMode === "ateliers"){
+        filtered = filtered.filter(l => {
+          const prof = profileMap[l.seller_id] || {};
+          const displayName = (prof.first_name && prof.last_name)
+            ? (prof.first_name + " " + prof.last_name)
+            : (prof.display_name || "");
+          const storeName = prof.store_name || displayName || "";
+          const hay = storeName.toLowerCase();
+          return hay.includes(searchTerm);
+        });
+      }
+
       const total = filtered.length;
       if(countEl){
         countEl.textContent = total === 1 ? "1 result" : total + " results";
@@ -894,8 +921,6 @@
         if(emptyEl) emptyEl.style.display = "block";
         return;
       }
-
-      const profileMap = await fetchProfilesForListings(filtered);
 
       if(grid){
         filtered.forEach(l => {
@@ -995,9 +1020,28 @@
 
       const searchBtn = document.getElementById("doSearch");
       const qInput    = document.getElementById("q");
+
+      // Read query params from homepage (q and mode=ateliers)
+      const params = new URLSearchParams(window.location.search);
+      const urlQ   = params.get("q") || "";
+      const urlMode= params.get("mode");
+
+      if(qInput && urlQ){
+        qInput.value = urlQ;
+      }
+      if(urlMode === "ateliers"){
+        searchMode = "ateliers";
+        if(qInput){
+          qInput.placeholder = "Search ateliers by name…";
+        }
+      }
+
       if(searchBtn) searchBtn.addEventListener("click", runSearch);
       if(qInput) qInput.addEventListener("keydown", e=>{
-        if(e.key === "Enter") runSearch();
+        if(e.key === "Enter"){
+          e.preventDefault();
+          runSearch();
+        }
       });
 
       runSearch();
