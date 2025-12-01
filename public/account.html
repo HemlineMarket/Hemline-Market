@@ -190,6 +190,19 @@
       color:var(--hm-muted);
       margin-top:6px;
     }
+    .payout-side{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:6px;
+      min-width:180px;
+    }
+    .inline-note{
+      font-size:12px;
+      color:var(--hm-muted);
+      max-width:220px;
+      text-align:right;
+    }
 
     /* Address + forms */
     .address-block{
@@ -273,6 +286,8 @@
       .payout-row{flex-direction:column;align-items:flex-start;}
       .profile-row{flex-direction:row;}
       .pill-link{max-width:none;}
+      .payout-side{align-items:flex-start;}
+      .inline-note{text-align:left;}
     }
   </style>
 </head>
@@ -376,7 +391,7 @@
       </div>
     </section>
 
-    <!-- PAYOUTS (INFO-ONLY FOR NOW) -->
+    <!-- PAYOUTS (REAL STRIPE DASHBOARD BUTTON) -->
     <section class="hm-card" aria-labelledby="payoutHeading">
       <div class="hm-card-header" id="payoutHeading">Payouts</div>
       <div class="hm-card-body">
@@ -388,9 +403,15 @@
               Hemline Market doesn’t see your full bank or card details.
             </span>
             <p class="hint">
-              For this first version, payouts are managed behind the scenes in Stripe. If you ever need
-              to update your payout details, reach out to Hemline Market support and we’ll help from our Stripe dashboard.
+              Use the button on the right to open your Stripe Express dashboard. There you can update
+              bank details, tax information, and payout settings.
             </p>
+          </div>
+          <div class="payout-side">
+            <button class="btn btn-primary" type="button" id="btnStripe">
+              Manage Stripe payouts
+            </button>
+            <div class="inline-note" id="stripeNote"></div>
           </div>
         </div>
       </div>
@@ -620,8 +641,7 @@
       const profileAvatarEl      = document.getElementById('profileAvatar');
       const profileEditor        = document.getElementById('profileEditor');
       const profileForm          = document.getElementById('profileForm');
-
-      const storeNameInput       = document.getElementById('storeName');
+            const storeNameInput       = document.getElementById('storeName');
       const storeSlugPreviewEl   = document.getElementById('storeSlugPreview');
       const storeNameErrorEl     = document.getElementById('storeNameError');
 
@@ -631,14 +651,19 @@
 
       const vacationToggle       = document.getElementById('vacationToggle');
 
+      const stripeBtn            = document.getElementById('btnStripe');
+      const stripeNoteEl         = document.getElementById('stripeNote');
+
       profileEmailEl.textContent = email;
 
-      // ---- Load profile from storage ----
+      // ---- Load profile from localStorage ----
       let profile = {};
       try{
         const raw = localStorage.getItem(PROFILE_KEY);
         if(raw) profile = JSON.parse(raw) || {};
-      }catch(e){ console.warn("Profile parse failed", e); }
+      }catch(e){
+        console.warn("Profile parse failed", e);
+      }
 
       // Compute display name
       if(profile.firstName || profile.lastName){
@@ -687,12 +712,14 @@
         });
       }
 
-      // ---- Address from storage ----
+      // ---- Address from localStorage ----
       let address = {};
       try{
         const rawA = localStorage.getItem(ADDRESS_KEY);
         if(rawA) address = JSON.parse(rawA) || {};
-      }catch(e){ console.warn("Address parse failed", e); }
+      }catch(e){
+        console.warn("Address parse failed", e);
+      }
 
       // If address name is empty but we have profile name, prefill it
       if(!address.addrName && (profile.firstName || profile.lastName)){
@@ -715,12 +742,14 @@
         let line1 = address.addrLine1;
         if(address.addrLine2) line1 += "\n" + address.addrLine2;
         lines.push(line1);
+
         let cityLine = "";
         if(address.addrCity)  cityLine += address.addrCity;
         if(address.addrState) cityLine += (cityLine ? ", " : "") + address.addrState;
         if(address.addrZip)   cityLine += (cityLine ? " " : "") + address.addrZip;
         if(cityLine)          lines.push(cityLine);
         if(address.addrCountry) lines.push(address.addrCountry);
+
         addressDisplay.textContent = lines.join("\n");
       }
       renderAddress();
@@ -738,17 +767,18 @@
       try{
         const vacRaw = localStorage.getItem(VAC_KEY);
         vacationToggle.checked = vacRaw === "on";
-      }catch{}
+      }catch(e){}
 
       vacationToggle.addEventListener('change', () => {
         localStorage.setItem(VAC_KEY, vacationToggle.checked ? "on" : "off");
       });
 
-      // ---- Button handlers ----
+      // ---- Profile button handlers ----
       document.getElementById('btnEditProfile').addEventListener('click', () => {
         profileEditor.classList.remove('is-hidden');
         profileForm.firstName.focus();
       });
+
       document.getElementById('cancelProfileEdit').addEventListener('click', () => {
         profileEditor.classList.add('is-hidden');
       });
@@ -782,11 +812,10 @@
         localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
         profile = next;
 
-        // Update summary
         const displayName =
           (next.firstName || "") + (next.lastName ? (" " + next.lastName) : "");
         profileNameEl.textContent =
-          displayName || (email.split("@")[0] || "Hemline member";
+          displayName || (email.split("@")[0] || "Hemline member");
 
         const newLines = [];
         if(next.storeName) newLines.push("Store name: " + next.storeName);
@@ -817,11 +846,12 @@
         profileEditor.classList.add('is-hidden');
       });
 
-      // Address editor
+      // ---- Address editor ----
       document.getElementById('btnEditAddress').addEventListener('click', ()=>{
         addressEditor.classList.remove('is-hidden');
         addressForm.addrName.focus();
       });
+
       document.getElementById('cancelAddressEdit').addEventListener('click', ()=>{
         addressEditor.classList.add('is-hidden');
       });
@@ -843,7 +873,66 @@
         addressEditor.classList.add('is-hidden');
       });
 
-      // Logout + password
+      // ---- Stripe Express button (calls Edge Function) ----
+      function setStripeNote(msg){
+        if(!stripeNoteEl) return;
+        stripeNoteEl.textContent = msg || "";
+      }
+
+      if(stripeBtn){
+        stripeBtn.addEventListener('click', async ()=>{
+          stripeBtn.disabled = true;
+          stripeBtn.textContent = "Opening Stripe…";
+          setStripeNote("");
+
+          try{
+            const { data:{ session } } = await supabaseClient.auth.getSession();
+            const accessToken = session?.access_token;
+            if(!accessToken){
+              setStripeNote("You need to be signed in to manage payouts.");
+              stripeBtn.disabled = false;
+              stripeBtn.textContent = "Manage Stripe payouts";
+              return;
+            }
+
+            const resp = await fetch(
+              "https://clkizksbvxjkoatdajgd.supabase.co/functions/v1/onboard",
+              {
+                method:"POST",
+                headers:{
+                  "Authorization":"Bearer " + accessToken,
+                  "Content-Type":"application/json"
+                },
+                body: JSON.stringify({})
+              }
+            );
+
+            if(!resp.ok){
+              console.error("Stripe onboard error", resp.status);
+              setStripeNote("We couldn’t open Stripe right now. Please try again in a moment.");
+              stripeBtn.disabled = false;
+              stripeBtn.textContent = "Manage Stripe payouts";
+              return;
+            }
+
+            const payload = await resp.json();
+            if(payload && payload.url){
+              window.location.href = payload.url;
+            }else{
+              setStripeNote("Stripe link was missing. Please try again.");
+              stripeBtn.disabled = false;
+              stripeBtn.textContent = "Manage Stripe payouts";
+            }
+          }catch(err){
+            console.error("Stripe onboard exception", err);
+            setStripeNote("Something went wrong opening Stripe. Try again.");
+            stripeBtn.disabled = false;
+            stripeBtn.textContent = "Manage Stripe payouts";
+          }
+        });
+      }
+
+      // ---- Logout + password info ----
       document.getElementById('btnLogout').addEventListener('click', async ()=>{
         await supabaseClient.auth.signOut();
         window.location.href = "auth.html?view=login";
