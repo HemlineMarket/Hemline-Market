@@ -80,6 +80,20 @@
       gap:16px;
       align-items:flex-start;
     }
+    .profile-avatar{
+      width:64px;
+      height:64px;
+      border-radius:999px;
+      border:1px solid var(--hm-border);
+      display:grid;
+      place-items:center;
+      font-weight:800;
+      font-size:16px;
+      color:#111827;
+      background:#fff;
+      background-size:cover;
+      background-position:center;
+    }
     .profile-main{
       flex:1;
       min-width:220px;
@@ -171,22 +185,10 @@
       font-size:14px;
       margin-bottom:3px;
     }
-    .payout-side{
-      display:flex;
-      flex-direction:column;
-      align-items:flex-end;
-      gap:6px;
-      min-width:200px;
-    }
     .hint{
       font-size:12px;
       color:var(--hm-muted);
       margin-top:6px;
-    }
-    .inline-note{
-      font-size:12px;
-      color:var(--hm-muted);
-      text-align:right;
     }
 
     /* Address + forms */
@@ -269,7 +271,7 @@
     /* Small-screen tweaks */
     @media (max-width:700px){
       .payout-row{flex-direction:column;align-items:flex-start;}
-      .payout-side{align-items:flex-start;}
+      .profile-row{flex-direction:row;}
       .pill-link{max-width:none;}
     }
   </style>
@@ -290,7 +292,7 @@
       <div class="hm-card-header" id="profileHeading">Profile</div>
       <div class="hm-card-body">
         <div class="profile-row">
-          <!-- no big avatar circle -->
+          <div class="profile-avatar" id="profileAvatar">HM</div>
           <div class="profile-main">
             <div class="profile-main-name" id="profileName">Hemline member</div>
             <div class="profile-main-email" id="profileEmail">you@example.com</div>
@@ -374,7 +376,7 @@
       </div>
     </section>
 
-    <!-- PAYOUTS -->
+    <!-- PAYOUTS (INFO-ONLY FOR NOW) -->
     <section class="hm-card" aria-labelledby="payoutHeading">
       <div class="hm-card-header" id="payoutHeading">Payouts</div>
       <div class="hm-card-body">
@@ -382,17 +384,13 @@
           <div class="payout-copy">
             <strong>Payouts &amp; payments</strong>
             <span>
-              Stripe powers payments and payouts for your shop. Use one secure Stripe Express account
-              to get paid for sales and pay any fees.
+              Stripe powers payments and payouts for your shop using a secure Stripe Express account.
+              Hemline Market doesn’t see your full bank or card details.
             </span>
             <p class="hint">
-              You’ll be sent to a secure Stripe page to enter your bank and tax details. Hemline Market
-              never sees your full bank information.
+              For this first version, payouts are managed behind the scenes in Stripe. If you ever need
+              to update your payout details, reach out to Hemline Market support and we’ll help from our Stripe dashboard.
             </p>
-          </div>
-          <div class="payout-side">
-            <button class="btn btn-primary" type="button" id="btnStripe">Manage Stripe payouts</button>
-            <div class="inline-note" id="stripeNote"></div>
           </div>
         </div>
       </div>
@@ -515,7 +513,6 @@
       { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
     );
 
-    // These helpers are now only used for display name; avatar has been removed.
     function initialsFromEmail(email){
       if(!email) return "HM";
       const handle = email.split("@")[0].replace(/[\.\_\-]+/g," ").trim();
@@ -620,6 +617,7 @@
       const profileNameEl        = document.getElementById('profileName');
       const profileEmailEl       = document.getElementById('profileEmail');
       const profileExtraEl       = document.getElementById('profileExtra');
+      const profileAvatarEl      = document.getElementById('profileAvatar');
       const profileEditor        = document.getElementById('profileEditor');
       const profileForm          = document.getElementById('profileForm');
 
@@ -658,6 +656,11 @@
       if(existingSlug)      profileLines.push("Store link: hemline.market/shop/" + existingSlug);
       if(profile.bio)       profileLines.push(profile.bio);
       profileExtraEl.textContent = profileLines.join("\n");
+
+      // Avatar initials based on profile/email
+      const avatarInitials = initialsFromProfile(profile.firstName, profile.lastName, email);
+      profileAvatarEl.style.backgroundImage = "";
+      profileAvatarEl.textContent = avatarInitials;
 
       // Prefill profile form + slug preview
       if(profileForm){
@@ -783,13 +786,23 @@
         const displayName =
           (next.firstName || "") + (next.lastName ? (" " + next.lastName) : "");
         profileNameEl.textContent =
-          displayName || (email.split("@")[0] || "Hemline member");
+          displayName || (email.split("@")[0] || "Hemline member";
 
         const newLines = [];
         if(next.storeName) newLines.push("Store name: " + next.storeName);
         if(next.storeSlug) newLines.push("Store link: hemline.market/shop/" + next.storeSlug);
         if(next.bio)       newLines.push(next.bio);
         profileExtraEl.textContent = newLines.join("\n");
+
+        // Refresh initials in avatar
+        const initials = initialsFromProfile(next.firstName, next.lastName, email);
+        profileAvatarEl.style.backgroundImage = "";
+        profileAvatarEl.textContent = initials;
+
+        // Update slug preview
+        if(storeSlugPreviewEl){
+          storeSlugPreviewEl.textContent = next.storeSlug || "your-shop";
+        }
 
         // If address name is still empty, prefill from profile name
         if(!address.addrName && displayName.trim()){
@@ -841,39 +854,6 @@
           "To change your password, use the reset link sent to the email address you used to sign up. " +
           "Passwords must be at least 8 characters and include at least one letter and one number or symbol."
         );
-      });
-
-      // Stripe Express account management
-      const stripeBtn  = document.getElementById('btnStripe');
-      const stripeNote = document.getElementById('stripeNote');
-
-      stripeBtn.addEventListener('click', ()=>{
-        stripeBtn.disabled = true;
-        stripeNote.textContent = "Contacting Stripe…";
-        fetch("/api/stripe/connect_onboard", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            return_url: window.location.origin + "/account.html",
-            refresh_url: window.location.origin + "/account.html"
-          })
-        })
-        .then(r => {
-          if(!r.ok) throw new Error("HTTP " + r.status);
-          return r.json();
-        })
-        .then(data=>{
-          if(data && data.url){
-            window.location.href = data.url;
-          }else{
-            throw new Error("No onboarding URL returned");
-          }
-        })
-        .catch(err=>{
-          console.warn("Stripe onboarding not live yet:", err);
-          stripeNote.textContent = "Stripe payouts will work once /api/stripe/connect_onboard is wired to Stripe. For now, keep your profile and address up to date.";
-          stripeBtn.disabled = false;
-        });
       });
     })();
   </script>
