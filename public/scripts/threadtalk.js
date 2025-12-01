@@ -351,6 +351,11 @@
                 ? `<span class="tt-title">“${escapeHtml(title)}”</span>`
                 : ""
             }
+            <button class="tt-share-chip"
+                    type="button"
+                    data-tt-role="share-thread">
+              Share
+            </button>
           </div>
           <div class="tt-line2">
             <div class="tt-line2-main">
@@ -379,10 +384,6 @@
           <button class="tt-reply-link" type="button" data-tt-role="respond">
             Reply
           </button>
-
-          <button class="tt-share-link" type="button" data-tt-role="share-thread">
-            Share
-          </button>
         </div>
 
         <div class="tt-comments" data-thread="${thread.id}">
@@ -399,7 +400,7 @@
             <input class="tt-comment-input"
                    type="text"
                    maxlength="500"
-                   placeholder="Reply…"/>
+                   placeholder="Write a reply…"/>
             <button class="tt-comment-send"
                     type="button"
                     data-tt-role="send-comment">
@@ -1110,7 +1111,7 @@
         author_id: currentUser.id,
         body,
         media_url: media.media_url,
-               media_type: media.media_type,
+        media_type: media.media_type,
       });
 
       if (error) {
@@ -1131,9 +1132,7 @@
 
   function focusCommentBox(card) {
     if (!card) return;
-    const input = card.querySelector(
-      '.tt-comment-new .tt-comment-input'
-    );
+    const input = card.querySelector(".tt-comment-new .tt-comment-input");
     if (!input) return;
 
     input.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1430,14 +1429,17 @@
   // ---------- Styles injection ----------
   function injectCompactStyles() {
     const css = `
-      .card{padding:12px 14px;margin-bottom:8px;border-radius:14px;}
-      .preview{margin-bottom:4px;font-size:14px;}
-      .tt-head{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
-      .tt-line1{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:14px;}
+      .card{padding:12px 14px;margin-bottom:10px;border-radius:14px;background:#fff;border:1px solid #f3f4f6;}
+      .preview{margin-bottom:6px;font-size:14px;line-height:1.4;}
+      .tt-head{display:flex;flex-direction:column;gap:4px;margin-bottom:4px;}
+      .tt-line1{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;}
       .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
       .tt-line2-main{display:flex;align-items:center;gap:4px;}
-      .tt-title{font-weight:600;color:#3f2f2a;}
-      .post-media-wrap{margin:4px 0;max-width:460px;}
+      .tt-title{font-weight:600;color:#111827;}
+      .cat{font-size:12px;font-weight:600;color:#b45309;text-transform:uppercase;letter-spacing:.04em;}
+      .tt-share-chip{margin-left:auto;border:none;background:#f3f4f6;color:#374151;font-size:12px;padding:4px 10px;border-radius:999px;cursor:pointer;}
+      .tt-share-chip:hover{background:#e5e7eb;}
+      .post-media-wrap{margin:6px 0;max-width:460px;}
       .post-img,.post-video{width:100%;height:auto;border-radius:10px;display:block;}
       .tt-actions-row{display:flex;align-items:center;gap:12px;margin-top:4px;margin-bottom:2px;font-size:13px;}
       .tt-like-wrapper{position:relative;display:inline-flex;align-items:center;}
@@ -1450,9 +1452,9 @@
       .tt-react-chip{display:inline-flex;align-items:center;gap:2px;margin-right:4px;}
       .tt-react-emoji{font-size:14px;line-height:1;}
       .tt-react-count{font-size:11px;line-height:1;}
-      .tt-comments{margin-top:4px;}
-      .tt-comments-list{display:flex;flex-direction:column;gap:2px;}
-      .tt-comment{padding:4px 0;border-top:1px solid #f3f4f6;}
+      .tt-comments{margin-top:6px;}
+      .tt-comments-list{display:flex;flex-direction:column;gap:4px;}
+      .tt-comment{padding:6px 10px;border-radius:14px;background:#f9fafb;}
       .tt-comment-head-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:2px;}
       .tt-comment-meta{display:flex;align-items:center;gap:4px;}
       .tt-comment-author{font-weight:500;}
@@ -1460,13 +1462,14 @@
       .tt-comment-media{margin:4px 0;max-width:360px;}
       .tt-comment-media .post-img,
       .tt-comment-media .post-video{width:100%;height:auto;border-radius:8px;display:block;}
-      .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;}
-      .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:4px;}
-      .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border);font-size:13px;}
+      .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:2px;}
+      .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 8px;border-radius:999px;background:#f9fafb;}
+      .tt-comment-input{flex:1;padding:6px 10px;border-radius:999px;border:none;font-size:13px;background:transparent;outline:none;}
       .tt-comment-input::placeholder{color:#9ca3af;}
-      .tt-comment-photo{font-size:11px;}
+      .tt-comment-photo{font-size:11px;max-width:120px;}
+      .tt-comment-photo::file-selector-button{margin-right:4px;border-radius:999px;border:1px solid var(--border);background:#fff;padding:4px 8px;font-size:11px;cursor:pointer;}
       .tt-comment-send{padding:6px 12px;font-size:13px;border-radius:999px;border:none;background:#111827;color:#fff;cursor:pointer;}
-      .tt-comment-reply-box{display:flex;align-items:center;gap:6px;margin-top:4px;}
+      .tt-comment-reply-box{display:flex;align-items:center;gap:6px;margin-top:4px;padding:4px 8px;border-radius:999px;background:#f3f4f6;}
       .tt-comment-reply-box[hidden]{display:none;}
       .tt-more-comments{border:none;background:none;color:#6b7280;font-size:12px;padding:0;margin-bottom:2px;cursor:pointer;}
       .tt-menu{position:relative;}
@@ -1476,7 +1479,7 @@
       .tt-menu-item{display:block;width:100%;text-align:left;border:none;background:none;padding:6px 10px;font-size:13px;border-radius:6px;cursor:pointer;}
       .tt-menu-item:hover{background:#f3f4f6;}
       .tt-menu-item.danger{color:#b91c1c;}
-      .tt-react-summary-comment{margin-top:0;}
+      .tt-react-summary-comment{margin-top:2px;}
       #tt-zoom-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:60;}
       #tt-zoom-modal.show{opacity:1;pointer-events:auto;}
       .tt-zoom-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.55);}
@@ -1494,4 +1497,3 @@
     document.head.appendChild(style);
   }
 })();
-        
