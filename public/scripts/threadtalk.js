@@ -1115,70 +1115,53 @@
     }
   }
 
-async function handleCommentReaction(commentId, type) {
-  if (!REACTION_TYPES.find((r) => r.key === type)) return;
-  const ok = await ensureLoggedInFor("react");
-  if (!ok) return;
+   async function handleCommentReaction(commentId, type) {
+    if (!REACTION_TYPES.find((r) => r.key === type)) return;
+    const ok = await ensureLoggedInFor("react");
+    if (!ok) return;
 
-  const existing = (commentReactionsByComment[commentId] || []).filter(
-    (r) => r.user_id === currentUser.id
-  );
+    const existing = (commentReactionsByComment[commentId] || []).filter(
+      (r) => r.user_id === currentUser.id
+    );
 
-  try {
-    if (existing.length === 1 && existing[0].reaction_type === type) {
-      const { error } = await supabase
-        .from("threadtalk_comment_reactions")
-        .delete()
-        .match({
-          comment_id: commentId,
-          user_id: currentUser.id,
-          reaction_type: type,
-        });
-      if (error) {
-        console.warn("[ThreadTalk] comment reaction delete error", error);
-        showToast("Could not update reaction.");
-        return;
-      }
-    } else {
-      if (existing.length) {
-        const { error: delErr } = await supabase
+    try {
+      if (existing.length === 1 && existing[0].reaction_type === type) {
+        const { error } = await supabase
           .from("threadtalk_comment_reactions")
           .delete()
           .match({
             comment_id: commentId,
             user_id: currentUser.id,
+            reaction_type: type,
           });
-        if (delErr) {
+
+        if (error) {
           console.warn(
-            "[ThreadTalk] comment reaction switch delete error",
-            delErr
+            "[ThreadTalk] comment reaction delete error",
+            error
           );
           showToast("Could not update reaction.");
           return;
         }
-      }
+      } else {
+        if (existing.length) {
+          const { error: delErr } = await supabase
+            .from("threadtalk_comment_reactions")
+            .delete()
+            .match({
+              comment_id: commentId,
+              user_id: currentUser.id,
+            });
 
-      const { error: insErr } = await supabase
-        .from("threadtalk_comment_reactions")
-        .insert({
-          comment_id: commentId,
-          user_id: currentUser.id,
-          reaction_type: type,
-        });
-
-      if (insErr) {
-        console.warn("[ThreadTalk] comment reaction insert error", insErr);
-        showToast("Could not update reaction.");
-        return;
-      }
-    }
-
-    await loadThreads();
-  } catch (err) {
-    console.error("[ThreadTalk] handleCommentReaction exception", err);
-    showToast("Could not update reaction.");
-  }
-}
+          if (delErr) {
+            console.warn(
+              "[ThreadTalk] comment reaction switch delete error",
+              delErr
+            );
+            showToast("Could not update reaction.");
+            return;
+          }
+        }
 
         const { error: insErr } = await supabase
           .from("threadtalk_comment_reactions")
@@ -1189,7 +1172,10 @@ async function handleCommentReaction(commentId, type) {
           });
 
         if (insErr) {
-          console.warn("[ThreadTalk] comment reaction insert error", insErr);
+          console.warn(
+            "[ThreadTalk] comment reaction insert error",
+            insErr
+          );
           showToast("Could not update reaction.");
           return;
         }
@@ -1197,14 +1183,16 @@ async function handleCommentReaction(commentId, type) {
 
       await loadThreads();
     } catch (err) {
-      console.error("[ThreadTalk] handleCommentReaction exception", err);
+      console.error(
+        "[ThreadTalk] handleCommentReaction exception",
+        err
+      );
       showToast("Could not update reaction.");
     }
   }
 
   // ---------- Comments ----------
   async function handleSendComment(card, threadId) {
-    if (!card) return;
     const input = card.querySelector(".tt-comment-input");
     if (!input) return;
 
@@ -1214,7 +1202,7 @@ async function handleCommentReaction(commentId, type) {
       return;
     }
 
-    const ok = await ensureLoggedInFor("reply");
+    const ok = await ensureLoggedInFor("comment");
     if (!ok) return;
 
     try {
@@ -1244,14 +1232,12 @@ async function handleCommentReaction(commentId, type) {
     if (!input) return;
 
     if (mentionName) {
-      // Take first word as @name
       const firstWord = mentionName.split(" ")[0] || mentionName;
-      const handle = "@" + firstWord.replace(/[^\w.@-]/g, "");
-      const trimmed = input.value.trim();
-      if (!trimmed) {
-        input.value = handle + " ";
-      } else if (!trimmed.startsWith(handle)) {
-        input.value = handle + " " + trimmed;
+      const mention = "@" + firstWord.replace(/[^\w.@-]/g, "");
+      if (!input.value.trim()) {
+        input.value = mention + " ";
+      } else if (!input.value.startsWith(mention)) {
+        input.value = mention + " " + input.value;
       }
     }
 
@@ -1267,14 +1253,11 @@ async function handleCommentReaction(commentId, type) {
 
     const hidden = pop.hasAttribute("hidden");
 
-    // Close all menus first
     document
       .querySelectorAll('[data-tt-role="menu-pop"]')
       .forEach((el) => el.setAttribute("hidden", "true"));
 
-    if (hidden) {
-      pop.removeAttribute("hidden");
-    }
+    if (hidden) pop.removeAttribute("hidden");
   }
 
   async function handleEditThread(card, threadId) {
@@ -1321,7 +1304,7 @@ async function handleCommentReaction(commentId, type) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", threadId)
-          .eq("author_id", currentUser.id);
+          .eq("author_id", currentUser.id); // RLS double-checks author
 
         if (error) {
           console.error("[ThreadTalk] update thread error", error);
@@ -1395,45 +1378,33 @@ async function handleCommentReaction(commentId, type) {
     }
   }
 
-  // ---------- Share (short link copy) ----------
+  // ---------- Share ----------
   async function handleShareThread(threadId) {
-    const thread = allThreads.find((t) => t.id === threadId) || null;
-    const origin = (window.location && window.location.origin) || "";
-    // Extremely short, social-friendly URL: /tt?t=<id>
-    const url = origin.replace(/\/$/, "") + "/tt?t=" + encodeURIComponent(threadId);
-    const title = thread?.title || "ThreadTalk post";
-    const text = (thread?.body || "").slice(0, 200);
+    // Short, copy-only link based on current page + ?thread=<id>
+    const base = window.location.origin + window.location.pathname;
+    const url = `${base}?thread=${encodeURIComponent(threadId)}`;
 
     try {
-      // Prefer direct clipboard copy so you can paste into TikTok / IG / etc.
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
         showToast("Link copied");
-        return;
-      }
-
-      // Fallback to Web Share if available
-      if (navigator.share) {
-        await navigator.share({ title, text, url });
-        showToast("Share opened");
-        return;
-      }
-
-      // Legacy input selection fallback
-      const tmp = document.createElement("input");
-      tmp.value = url;
-      document.body.appendChild(tmp);
-      tmp.select();
-      try {
-        document.execCommand("copy");
+      } else {
+        // Fallback: temporary input
+        const tmp = document.createElement("input");
+        tmp.value = url;
+        document.body.appendChild(tmp);
+        tmp.select();
+        try {
+          document.execCommand("copy");
+        } catch (_) {
+          // ignore
+        }
+        document.body.removeChild(tmp);
         showToast("Link copied");
-      } catch (_) {
-        showToast("Could not copy link.");
       }
-      document.body.removeChild(tmp);
     } catch (err) {
       console.warn("[ThreadTalk] handleShareThread error", err);
-      showToast("Could not share.");
+      showToast("Could not copy link.");
     }
   }
 
@@ -1549,7 +1520,7 @@ async function handleCommentReaction(commentId, type) {
       .preview{margin-bottom:4px;font-size:14px;}
       .tt-head{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
       .tt-line1{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:14px;}
-      .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted,#6b7280);}
+      .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
       .tt-line2-main{display:flex;align-items:center;gap:4px;}
       .tt-title{font-weight:600;color:#3f2f2a;}
       .post-media-wrap{margin:4px 0;max-width:460px;}
@@ -1558,7 +1529,7 @@ async function handleCommentReaction(commentId, type) {
       .tt-like-wrapper{position:relative;display:inline-flex;align-items:center;}
       .tt-like-btn{border:none;background:none;color:#6b7280;font-size:13px;padding:4px 8px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
       .tt-like-btn.tt-like-active{color:#2563eb;font-weight:500;}
-      .tt-react-picker{position:absolute;bottom:100%;left:0;display:flex;gap:6px;background:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:4px 6px;margin-bottom:4px;opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;z-index:30;}
+      .tt-react-picker{position:absolute;bottom:100%;left:0;display:flex;gap:6px;background:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:4px 6px;margin-bottom:4px;opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;}
       .tt-like-wrapper.tt-picker-open .tt-react-picker{opacity:1;pointer-events:auto;transform:translateY(0);}
       .tt-react-pill{border:none;background:none;font-size:18px;cursor:pointer;padding:2px;}
       .tt-react-summary{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#6b7280;margin-top:2px;flex-wrap:wrap;}
@@ -1574,33 +1545,32 @@ async function handleCommentReaction(commentId, type) {
       .tt-comment-body{font-size:13px;margin-bottom:2px;}
       .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;}
       .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:4px;}
-      .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border,#e5e7eb);font-size:13px;}
+      .tt-comment-input{flex:1;padding:6px 8px;border-radius:999px;border:1px solid var(--border);font-size:13px;}
       .tt-comment-input::placeholder{color:#9ca3af;}
       .tt-comment-send{padding:6px 12px;font-size:13px;border-radius:999px;border:none;background:#111827;color:#fff;cursor:pointer;}
       .tt-more-comments{border:none;background:none;color:#6b7280;font-size:12px;padding:0;margin-bottom:2px;cursor:pointer;}
       .tt-menu{position:relative;}
-      .tt-menu-btn{padding:2px 6px;font-size:14px;border-radius:999px;border:1px solid var(--border,#e5e7eb);background:#fff;cursor:pointer;}
-      .tt-menu-pop{position:absolute;margin-top:4px;right:0;background:#fff;border-radius:8px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:4px;z-index:40;display:grid;}
+      .tt-menu-btn{padding:2px 6px;font-size:14px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;}
+      .tt-menu-pop{position:absolute;margin-top:4px;right:0;background:#fff;border-radius:8px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:4px;z-index:20;display:grid;}
       .tt-menu-pop[hidden]{display:none !important;}
       .tt-menu-item{display:block;width:100%;text-align:left;border:none;background:none;padding:6px 10px;font-size:13px;border-radius:6px;cursor:pointer;}
       .tt-menu-item:hover{background:#f3f4f6;}
       .tt-menu-item.danger{color:#b91c1c;}
       .tt-react-summary-comment{margin-top:0;}
 
-      /* Embeds (YouTube + link cards) */
       .tt-embeds{margin-top:4px;display:flex;flex-direction:column;gap:6px;}
-      .tt-embed{max-width:460px;}
-      .tt-embed-youtube iframe{width:100%;aspect-ratio:16/9;border-radius:10px;border:none;}
-      .tt-embed-image img{width:100%;height:auto;border-radius:10px;display:block;}
+      .tt-embed{border-radius:10px;overflow:hidden;background:#f9fafb;border:1px solid #e5e7eb;}
+      .tt-embed-youtube iframe{width:100%;height:220px;display:block;}
+      .tt-embed-image img{display:block;width:100%;height:auto;}
 
-      .tt-link-card{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;border:1px solid #e5e7eb;background:#f9fafb;text-decoration:none;color:#111827;font-size:12px;max-width:460px;}
-      .tt-link-thumb{width:28px;height:28px;border-radius:8px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;}
-      .tt-link-favicon{width:100%;height:100%;object-fit:contain;}
-      .tt-link-meta{display:flex;flex-direction:column;min-width:0;}
-      .tt-link-domain{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .tt-link-url{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#6b7280;}
+      .tt-link-card{display:flex;align-items:center;gap:10px;padding:8px 10px;text-decoration:none;border-radius:10px;border:1px solid #e5e7eb;background:#f9fafb;}
+      .tt-link-card:hover{background:#f3f4f6;}
+      .tt-link-thumb{width:32px;height:32px;border-radius:8px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;}
+      .tt-link-favicon{width:20px;height:20px;}
+      .tt-link-meta{display:flex;flex-direction:column;gap:2px;min-width:0;}
+      .tt-link-domain{font-size:13px;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .tt-link-url{font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-      /* Zoom modal */
       #tt-zoom-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:60;}
       #tt-zoom-modal.show{opacity:1;pointer-events:auto;}
       .tt-zoom-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.55);}
@@ -1608,19 +1578,19 @@ async function handleCommentReaction(commentId, type) {
       .tt-zoom-img{max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain;background:#fff;}
       .tt-zoom-close{position:absolute;top:-32px;right:0;border:none;background:none;color:#f9fafb;font-size:24px;cursor:pointer;}
 
-      .tt-edit-area{width:100%;min-height:80px;border-radius:10px;border:1px solid var(--border,#e5e7eb);padding:8px;font-size:13px;}
+      .tt-edit-area{width:100%;min-height:80px;border-radius:10px;border:1px solid var(--border);padding:8px;font-size:13px;}
       .tt-edit-actions{display:flex;gap:8px;margin-top:4px;}
       .tt-edit-save,.tt-edit-cancel{border-radius:999px;border:none;padding:4px 10px;font-size:12px;cursor:pointer;}
       .tt-edit-save{background:#111827;color:#fff;}
       .tt-edit-cancel{background:#e5e7eb;color:#111827;}
 
-      /* Public read-only: hide composer + inline reply box, keep reactions visible but guarded by auth */
-      body.tt-public-only #composer{
-        display:none;
-      }
-      body.tt-public-only .tt-comment-new{
-        display:none;
-      }
+      /* Public-only state: hide composer + disable interactive controls */
+      body.tt-public-only #composer{opacity:.4;pointer-events:none;}
+      body.tt-public-only .tt-comment-input,
+      body.tt-public-only .tt-comment-send,
+      body.tt-public-only .tt-like-btn,
+      body.tt-public-only .tt-reply-link,
+      body.tt-public-only .tt-menu-btn{opacity:.5;pointer-events:none;cursor:default;}
     `;
     const style = document.createElement("style");
     style.textContent = css;
