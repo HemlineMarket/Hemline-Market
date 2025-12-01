@@ -677,4 +677,473 @@
             }
             runSearch();
           });
-          contentBox.append
+          contentBox.appendChild(row);
+        });
+      }
+
+      if(colorBox){
+        colorBox.innerHTML = "";
+        COLORS.forEach(name=>{
+          const sw = document.createElement("button");
+          sw.type = "button";
+          sw.className = "sw";
+          sw.dataset.name = name;
+          sw.setAttribute("aria-label", name);
+          const tip = document.createElement("span");
+          tip.className = "tip";
+          tip.textContent = name;
+          sw.appendChild(tip);
+          if(name !== "Gold" && name !== "Silver"){
+            sw.style.backgroundColor = name.toLowerCase();
+          }
+          sw.addEventListener("click", ()=>{
+            if(selectedColor === name){
+              selectedColor = null;
+              sw.dataset.selected = "false";
+            }else{
+              selectedColor = name;
+              colorBox.querySelectorAll(".sw").forEach(el=>{ el.dataset.selected = "false"; });
+              sw.dataset.selected = "true";
+            }
+            runSearch();
+          });
+          colorBox.appendChild(sw);
+        });
+      }
+    }
+
+    /* Toggle filters panel */
+    (function(){
+      const layout = document.getElementById('layout');
+      const toggle = document.getElementById('toggleFilters');
+      if(!layout || !toggle) return;
+
+      toggle.addEventListener('click', ()=>{
+        const hidden = layout.classList.toggle('filters-hidden');
+        toggle.textContent = hidden ? 'Show filters' : 'Hide filters';
+        toggle.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+      });
+    })();
+
+    /* --- Helpers --- */
+    function moneyFromCents(c){
+      if(c == null) return null;
+      const v = c / 100;
+      return v.toLocaleString("en-US",{
+        style:"currency",
+        currency:"USD",
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      });
+    }
+
+    function numeric(val){
+      const n = parseFloat(val);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    /* Fetch profiles for seller display names for listings */
+    async function fetchProfilesForListings(listings){
+      const map = {};
+      const ids = Array.from(new Set(
+        (listings || [])
+          .map(l => l.seller_id)
+          .filter(Boolean)
+      ));
+      if(!ids.length) return map;
+
+      try{
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("id, display_name, store_name, first_name, last_name")
+          .in("id", ids);
+
+        if(error){
+          console.error("Profile fetch error", error);
+          return map;
+        }
+        (data || []).forEach(p=>{
+          map[p.id] = p;
+        });
+      }catch(e){
+        console.error("Profile fetch exception", e);
+      }
+      return map;
+    }
+
+    /* --- Atelier search --- */
+    async function runAtelierSearch(){
+      const grid    = document.getElementById("grid");
+      const emptyEl = document.getElementById("empty");
+      const countEl = document.getElementById("resultCount");
+      const qInput  = document.getElementById("q");
+
+      if(grid) grid.innerHTML = "";
+      if(emptyEl) emptyEl.style.display = "none";
+      if(countEl) countEl.textContent = "Loading…";
+
+      const searchTerm = (qInput?.value || "").trim().toLowerCase();
+
+      let profiles = [];
+      try{
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("id, display_name, store_name, first_name, last_name, bio")
+          .order("store_name", { ascending:true });
+
+        if(error){
+          console.error("Atelier fetch error", error);
+          if(countEl) countEl.textContent = "Error loading ateliers";
+          return;
+        }
+        profiles = data || [];
+      }catch(e){
+        console.error("Atelier fetch exception", e);
+        if(countEl) countEl.textContent = "Error loading ateliers";
+        return;
+      }
+
+      let filtered = profiles;
+      if(searchTerm){
+        filtered = profiles.filter(p=>{
+          const store = (p.store_name || "").toLowerCase();
+          const disp  = (p.display_name || "").toLowerCase();
+          const full  = ((p.first_name || "") + " " + (p.last_name || "")).trim().toLowerCase();
+          return store.includes(searchTerm) || disp.includes(searchTerm) || full.includes(searchTerm);
+        });
+      }
+
+      const total = filtered.length;
+      if(countEl){
+        countEl.textContent = total === 1 ? "1 atelier" : total + " ateliers";
+      }
+
+      if(!total){
+        if(emptyEl){
+          emptyEl.textContent = "No ateliers match that search yet.";
+          emptyEl.style.display = "block";
+        }
+        return;
+      }
+
+      filtered.forEach(p=>{
+        const card = document.createElement("article");
+        card.className = "listing-card";
+
+        const storeName = p.store_name || p.display_name || "Atelier";
+        const ownerName = ((p.first_name || "") + " " + (p.last_name || "")).trim();
+        // IMPORTANT: use ?u=<id> so atelier.html opens the correct seller,
+        // not the currently logged-in user.
+        const href = "atelier.html?u=" + encodeURIComponent(p.id);
+
+        card.innerHTML = `
+          <a class="listing-thumb-link" href="${href}">
+            <div class="listing-thumb" aria-hidden="true">
+              <!-- placeholder atelier tile -->
+            </div>
+          </a>
+          <div class="listing-body">
+            <div class="listing-title-row">
+              <a class="listing-title" href="${href}">${storeName}</a>
+            </div>
+            ${ownerName ? `<div class="listing-yards">${ownerName}</div>` : ""}
+            ${p.bio ? `<div class="listing-price-row"><span class="listing-price-main">${p.bio}</span></div>` : ""}
+            <div class="listing-cta-row">
+              <a href="${href}" class="listing-add-btn">
+                View atelier
+              </a>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    /* --- Listing search + render --- */
+    async function runListingSearch(){
+      const grid       = document.getElementById("grid");
+      const emptyEl    = document.getElementById("empty");
+      const countEl    = document.getElementById("resultCount");
+      const qInput     = document.getElementById("q");
+      const minPriceEl = document.getElementById("minPrice");
+      const maxPriceEl = document.getElementById("maxPrice");
+      const minYardsEl = document.getElementById("minYards");
+      const deptEl     = document.getElementById("dept");
+      const fabricEl   = document.getElementById("fabricType");
+      const fiberEl    = document.getElementById("fiberType");
+      const patternEl  = document.getElementById("pattern");
+      const originEl   = document.getElementById("origin");
+      const designerEl = document.getElementById("designer");
+      const feelsEl    = document.getElementById("feelsLike");
+
+      if(grid) grid.innerHTML = "";
+      if(emptyEl) emptyEl.style.display = "none";
+      if(countEl) countEl.textContent = "Loading…";
+
+      let listings = [];
+      try{
+        const nowIso = new Date().toISOString();
+
+        const { data, error } = await supabaseClient
+          .from("listings")
+          .select("*")
+          .eq("is_published", true)
+          .or(`published_at.is.null,published_at.lte.${nowIso}`)
+          .order("published_at", { ascending:false });
+
+        if(error){
+          console.error("Listings fetch error", error);
+          if(countEl) countEl.textContent = "Error loading listings";
+          return;
+        }
+        listings = data || [];
+      }catch(e){
+        console.error("Listings fetch exception", e);
+        if(countEl) countEl.textContent = "Error loading listings";
+        return;
+      }
+
+      /* Client-side filtering so we don't care about missing columns */
+      const searchTerm = (qInput?.value || "").trim().toLowerCase();
+      const minPrice   = numeric(minPriceEl?.value);
+      const maxPrice   = numeric(maxPriceEl?.value);
+      const minYards   = numeric(minYardsEl?.value);
+
+      const deptVal    = (deptEl?.value || "").trim();
+      const fabricVal  = (fabricEl?.value || "").trim();
+      const fiberVal   = (fiberEl?.value || "").trim();
+      const patternVal = (patternEl?.value || "").trim();
+      const originVal  = (originEl?.value || "").trim();
+      const designerVal= (designerEl?.value || "").trim().toLowerCase();
+      const feelsVal   = (feelsEl?.value || "").trim().toLowerCase();
+
+      let filtered = listings.filter(l => {
+        // Only show "active" (if status exists).
+        if(l.status && l.status !== "active") return false;
+        // already gated by is_published/published_at in the query,
+        // but keep this extra guard in case older rows are missing flags.
+        if(l.is_published === false) return false;
+
+        if(searchTerm){
+          const hay = ((l.title || "") + " " + (l.description || "")).toLowerCase();
+          if(!hay.includes(searchTerm)) return false;
+        }
+
+        if(minPrice != null && l.price_cents != null){
+          if(l.price_cents < Math.round(minPrice * 100)) return false;
+        }
+        if(maxPrice != null && l.price_cents != null){
+          if(l.price_cents > Math.round(maxPrice * 100)) return false;
+        }
+
+        if(minYards != null && l.yards_available != null){
+          if(Number(l.yards_available) < minYards) return false;
+        }
+
+        if(deptVal && l.dept && l.dept !== deptVal) return false;
+        if(fabricVal && l.fabric_type && l.fabric_type !== fabricVal) return false;
+        if(fiberVal && l.fiber_type && l.fiber_type !== fiberVal) return false;
+        if(patternVal && l.pattern && l.pattern !== patternVal) return false;
+        if(originVal && l.origin && l.origin !== originVal) return false;
+
+        if(designerVal){
+          const dName = (l.designer || "").toLowerCase();
+          if(!dName.includes(designerVal)) return false;
+        }
+
+        // content filter
+        if(selectedContents.size){
+          if(!selectedContents.has("Any")){
+            const lc = (l.content || "").toLowerCase();
+            let hit = false;
+            for(const v of selectedContents){
+              if(lc === v.toLowerCase()){ hit = true; break; }
+            }
+            if(!hit) return false;
+          }
+        }
+
+        // feels-like dropdown
+        if(feelsVal){
+          const src = l.feels_like;
+          let arr = [];
+          if(Array.isArray(src)){
+            arr = src;
+          }else if(typeof src === "string" && src.trim().length){
+            arr = src.split(",").map(s=>s.trim());
+          }
+          const lowerSet = new Set(arr.map(v=>v.toLowerCase()));
+          if(!lowerSet.has(feelsVal)) return false;
+        }
+
+        // color family
+        if(selectedColor){
+          if(!l.color_family || l.color_family !== selectedColor) return false;
+        }
+
+        return true;
+      });
+
+      const total = filtered.length;
+      if(countEl){
+        countEl.textContent = total === 1 ? "1 result" : total + " results";
+      }
+
+      if(!total){
+        if(emptyEl) emptyEl.style.display = "block";
+        return;
+      }
+
+      const profileMap = await fetchProfilesForListings(filtered);
+
+      if(grid){
+        filtered.forEach(l => {
+          const yardsAvail = l.yards_available != null ? Number(l.yards_available) : null;
+          const priceCents = l.price_cents != null ? Number(l.price_cents) : null;
+          const origPriceCents = l.orig_price_cents != null ? Number(l.orig_price_cents) : null;
+
+          const status = (l.status || "active").toLowerCase();
+          const isSold = status === "sold";
+          const canBuy = !isSold && priceCents != null && yardsAvail != null && yardsAvail > 0;
+
+          let totalCents = null;
+          if(priceCents != null && yardsAvail != null){
+            totalCents = Math.round(priceCents * yardsAvail);
+          }
+
+          const prof = profileMap[l.seller_id] || {};
+          const displayName = (prof.first_name && prof.last_name)
+            ? (prof.first_name + " " + prof.last_name)
+            : (prof.display_name || "");
+          const storeName = prof.store_name || displayName || "Hemline Market seller";
+
+          const href = "listing.html?id=" + encodeURIComponent(l.id);
+          const safeTitle = l.title || "Untitled listing";
+          const safeAlt = safeTitle.replace(/"/g,"&quot;");
+
+          const card = document.createElement("article");
+          card.className = "listing-card";
+
+          card.innerHTML = `
+            <a class="listing-thumb-link" href="${href}">
+              <div class="listing-thumb" aria-hidden="true">
+                ${l.image_url_1 ? `<img src="${l.image_url_1}" alt="${safeAlt}">` : ""}
+              </div>
+            </a>
+            <div class="listing-body">
+              <div class="listing-title-row">
+                <a class="listing-title" href="${href}">${safeTitle}</a>
+                ${l.dept ? `<span class="listing-dept">${l.dept}</span>` : ""}
+              </div>
+              ${yardsAvail != null ? `<div class="listing-yards">${yardsAvail} yards</div>` : ""}
+              <div class="listing-cta-row">
+                <button type="button" class="listing-add-btn add-to-cart">
+                  ${
+                    canBuy && totalCents != null && yardsAvail != null
+                      ? `Add to Cart — ${moneyFromCents(totalCents)} for ${yardsAvail} yards`
+                      : (isSold ? "Sold out" : "Add to Cart")
+                  }
+                </button>
+              </div>
+              <div class="listing-price-row">
+                ${
+                  priceCents != null
+                    ? `<span class="listing-price-main">${moneyFromCents(priceCents)}/yard</span>`
+                    : `<span class="listing-price-main">Price coming soon</span>`
+                }
+                ${
+                  origPriceCents != null
+                    ? `<span class="listing-price-orig">${moneyFromCents(origPriceCents)}/yard</span>`
+                    : ""
+                }
+              </div>
+              <div class="listing-seller-row">
+                <span class="listing-seller-name">${storeName}</span>
+              </div>
+            </div>
+          `;
+
+          const btn = card.querySelector(".listing-add-btn");
+          if(btn){
+            const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
+            const firstImg = l.image_url_1 || "";
+
+            btn.dataset.id = l.id;
+            btn.dataset.name = safeTitle;
+            btn.dataset.amount = totalCents != null ? String(totalCents) : "0";
+            btn.dataset.price = perYdDollars ? perYdDollars.toFixed(2) : "0";
+            btn.dataset.yards = yardsAvail != null ? String(yardsAvail) : "0";
+            btn.dataset.sellerId = l.seller_id || "";
+            btn.dataset.sellerName = storeName || "";
+            btn.dataset.photo = firstImg;
+
+            if(!canBuy){
+              btn.disabled = true;
+              btn.textContent = isSold ? "Sold out" : "Unavailable";
+            }
+          }
+
+          grid.appendChild(card);
+        });
+      }
+    }
+
+    async function runSearch(){
+      if(currentMode === "ateliers"){
+        await runAtelierSearch();
+      }else{
+        await runListingSearch();
+      }
+    }
+
+    /* Initial boot */
+    document.addEventListener("DOMContentLoaded", ()=>{
+      buildFiltersUI();
+
+      const searchBtn = document.getElementById("doSearch");
+      const qInput    = document.getElementById("q");
+      const layout    = document.getElementById("layout");
+      const toggle    = document.getElementById("toggleFilters");
+      const heading   = document.getElementById("resultsHeading");
+
+      // Read URL params from homepage search
+      const params = new URLSearchParams(window.location.search);
+      const initialQ = params.get("q") || "";
+      const urlMode  = params.get("mode") === "ateliers" ? "ateliers" : "listings";
+      currentMode = urlMode;
+
+      if(qInput) qInput.value = initialQ;
+
+      if(currentMode === "ateliers"){
+        if(heading) heading.textContent = "Ateliers";
+        if(qInput) qInput.placeholder = "Search ateliers by name…";
+        if(layout){
+          layout.classList.add("filters-hidden");
+        }
+        if(toggle){
+          toggle.textContent = "Show filters";
+          toggle.setAttribute("aria-pressed","false");
+        }
+      }else{
+        if(heading) heading.textContent = "Browse";
+      }
+
+      if(searchBtn) searchBtn.addEventListener("click", runSearch);
+      if(qInput) qInput.addEventListener("keydown", e=>{
+        if(e.key === "Enter"){
+          e.preventDefault();
+          runSearch();
+        }
+      });
+
+      runSearch();
+    });
+  </script>
+
+  <!-- GLOBAL CART HANDLER -->
+  <script src="scripts/cart.js"></script>
+  <script src="scripts/cart-hooks.js"></script>
+  <script src="assets/add-to-cart.js" defer></script>
+
+</body>
+</html>
