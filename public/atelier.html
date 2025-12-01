@@ -531,11 +531,16 @@
     }
 
     try{
+      const nowIso = new Date().toISOString();
+
       const { data, error } = await supabaseClient
         .from("listings")
         .select("*")
         .eq("seller_id", sellerId)
         .eq("is_published", true)
+        // only show listings whose publish time has passed,
+        // but keep older rows that might have null published_at
+        .or(`published_at.is.null,published_at.lte.${nowIso}`)
         .order("published_at", { ascending:false });
 
       if(error){
