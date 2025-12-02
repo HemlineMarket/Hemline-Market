@@ -439,33 +439,116 @@
         </div>
       `;
 
-      // NEW: attach link preview (YouTube or website card)
-      attachLinkPreview(card, thread);
+  // ---------- Link previews (YouTube + website cards) ----------
+  async function attachLinkPreview(card, thread) {
+    const body = thread.body || "";
+    const urlMatch = body.match(/https?:\/\/[^\s]+/);
+    if (!urlMatch) return;
 
-      cardsEl.appendChild(card);
-    });
+    const url = urlMatch[0];
+
+    const previewData = await fetchLinkMetadata(url);
+    if (!previewData) return;
+
+    const actionsRow = card.querySelector(".tt-actions-row");
+    if (!actionsRow) return;
+
+    const container = document.createElement("div");
+    container.className = "tt-link-preview-wrap";
+
+    if (isYoutubeUrl(url)) {
+      // Build our own embed URL so the video actually plays
+      const embedUrl = buildYoutubeEmbedUrl(url);
+      const title = previewData.title || "YouTube video";
+
+      container.innerHTML = `
+        <div class="tt-link-embed">
+          <iframe
+            src="${escapeAttr(embedUrl)}"
+            title="${escapeAttr(title)}"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy">
+          </iframe>
+        </div>
+      `;
+    } else {
+      const rawTitle = previewData.title || url;
+      const title = rawTitle.length > 120 ? rawTitle.slice(0, 117) + "…" : rawTitle;
+      let host = "";
+      try {
+        const u = new URL(url);
+        host = u.hostname.replace(/^www\./, "");
+      } catch (_) {
+        host = "";
+      }
+
+      const thumb = previewData.thumbnailUrl || previewData.thumbnail_url || null;
+
+      container.innerHTML = `
+        <a class="tt-link-card"
+           href="${escapeAttr(url)}"
+           target="_blank"
+           rel="noopener noreferrer">
+          ${
+            thumb
+              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
+                  thumb
+                )}');"></div>`
+              : ""
+          }
+          <div class="tt-link-meta">
+            <div class="tt-link-title">${escapeHtml(title)}</div>
+            ${
+              host
+                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
+                : ""
+            }
+          </div>
+        </a>
+      `;
+    }
+
+    // Insert the preview just above the Like / Reply row
+    card.insertBefore(container, actionsRow);
   }
 
-  // ---------- Render each comment ----------
-  function renderCommentHtml(threadId, c) {
-    const name = displayNameForUserId(c.author_id);
-    const ts = timeAgo(c.created_at);
+  function isYoutubeUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+      return (
+        host === "youtube.com" ||
+        host === "m.youtube.com" ||
+        host === "youtu.be"
+      );
+    } catch (_) {
+      return false;
+    }
+  }
 
-    const reactions = commentReactionsByComment[c.id] || [];
-    const { counts, mine } = computeReactionState(reactions);
-    const myType = REACTION_TYPES.find((r) => mine[r.key])?.key || null;
+  function buildYoutubeEmbedUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
 
-    let chipsHtml = "";
-    REACTION_TYPES.forEach((r) => {
-      const count = counts[r.key];
-      if (count) {
-        chipsHtml += `
-          <span class="tt-react-chip">
-            <span class="tt-react-emoji">${r.emoji}</span>
-            <span class="tt-react-count">${count}</span>
-          </span>`;
+      let id = "";
+
+      if (host === "youtu.be") {
+        // https://youtu.be/VIDEOID
+        id = u.pathname.replace("/", "");
+      } else {
+        // https://www.youtube.com/watch?v=VIDEOID
+        id = u.searchParams.get("v") || "";
       }
-    });
+
+      if (!id) return url;
+      return `https://www.youtube.com/embed/${id}`;
+    } catch (_) {
+      return url;
+    }
+  }
 
     const summaryHtml = chipsHtml
       ? `<div class="tt-react-summary tt-react-summary-comment">${chipsHtml}</div>`
