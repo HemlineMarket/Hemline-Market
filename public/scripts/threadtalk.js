@@ -392,51 +392,30 @@
           </div>
         </div>
 
-        <div class="preview">${linkify(thread.body)}</div>
-        ${mediaHtml}
-        ${reactionSummaryHtml}
+  // Turn raw text into safe HTML with clickable links, keeping all original text.
+  function linkify(text) {
+    const str = String(text || "");
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    let lastIndex = 0;
+    let html = "";
+    let match;
 
-        <div class="tt-actions-row">
-          <div class="tt-like-wrapper">
-            <button class="tt-like-btn tt-like-main${
-              myType ? " tt-like-active" : ""
-            }" type="button" data-tt-role="thread-like-toggle">
-              <span class="tt-like-label">Like</span>
-            </button>
-            ${pickerHtml}
-          </div>
+    while ((match = urlRegex.exec(str)) !== null) {
+      const url = match[0];
+      const before = str.slice(lastIndex, match.index);
 
-          <button class="tt-reply-link" type="button" data-tt-role="respond">
-            Reply
-          </button>
-        </div>
+      // Add the text that came before the URL, escaped
+      html += escapeHtml(before);
 
-        <div class="tt-comments" data-thread="${thread.id}">
-          <div class="tt-comments-list">
-            ${hiddenHtml}
-            ${commentsHtml}
-          </div>
+      // Add the clickable link
+      html += `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
 
-          <div class="tt-comment-new">
-            <input class="tt-comment-photo"
-                   type="file"
-                   accept="image/*"
-                   data-tt-role="comment-photo"/>
-            <input class="tt-comment-input"
-                   type="text"
-                   maxlength="500"
-                   placeholder="Write a reply…"/>
-            <button class="tt-comment-send"
-                    type="button"
-                    data-tt-role="send-comment">
-              Send
-            </button>
-          </div>
-        </div>
-      `;
+      lastIndex = match.index + url.length;
+    }
 
-      cardsEl.appendChild(card);
-    });
+    // Add any remaining text after the last URL
+    html += escapeHtml(str.slice(lastIndex));
+    return html;
   }
 
   // ---------- Render each comment ----------
