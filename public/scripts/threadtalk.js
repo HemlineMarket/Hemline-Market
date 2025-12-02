@@ -299,7 +299,7 @@
       const threadRows = reactionsByThread[thread.id] || [];
       const { counts: threadCounts, mine: threadMine } =
         computeReactionState(threadRows);
-      const myType =
+            const myType =
         REACTION_TYPES.find((r) => threadMine[r.key])?.key || null;
 
       const comments = commentsByThread[thread.id] || [];
@@ -1233,6 +1233,7 @@
             updated_at: new Date().toISOString(),
           })
           .eq("id", threadId)
+                    .eq("id", threadId)
           .eq("author_id", currentUser.id);
 
         if (error) {
@@ -1586,7 +1587,7 @@
         opacity:0;
         pointer-events:none;
         transform:translateY(4px);
-        transition:opacity .12s ease,transform .12s ease;
+        transition:opacity .12s ease,transform .12s.ease;
       }
       .tt-like-wrapper.tt-picker-open .tt-react-picker{
         opacity:1;
@@ -1656,7 +1657,7 @@
         background:#f9fafb;
         border:1px solid #e5e7eb;
       }
-           .tt-comment-head-row{
+      .tt-comment-head-row{
         display:flex;
         align-items:center;
         justify-content:space-between;
@@ -1830,7 +1831,7 @@
         justify-content:center;
         opacity:0;
         pointer-events:none;
-        transition:opacity .18s.ease;
+        transition:opacity .18s ease;
         z-index:60;
       }
       #tt-zoom-modal.show{
