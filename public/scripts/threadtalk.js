@@ -1462,7 +1462,7 @@
     });
   }
 
-   // ---------- Styles injection ----------
+  // ---------- Styles injection ----------
   function injectCompactStyles() {
     const css = `
       .card{
@@ -1731,7 +1731,7 @@
       .tt-comment-photo::file-selector-button{
         margin-right:4px;
         border-radius:999px;
-        border:1px solid var(--border);
+        border:1px solid #d1d5db;
         background:#fff;
         padding:4px 8px;
         font-size:11px;
@@ -1780,7 +1780,7 @@
         padding:2px 6px;
         font-size:14px;
         border-radius:999px;
-        border:1px solid var(--border);
+        border:1px solid #d1d5db;
         background:#fff;
         cursor:pointer;
       }
@@ -1868,9 +1868,6 @@
 
       .tt-edit-area{
         width:100%;
-        min-height:80
-              .tt-edit-area{
-        width:100%;
         min-height:80px;
         font-size:14px;
         padding:8px 10px;
@@ -1880,12 +1877,13 @@
         outline:none;
         resize:vertical;
       }
-      .tt-edit-savebar{
+      .tt-edit-actions{
         margin-top:6px;
         display:flex;
         gap:8px;
       }
-      .tt-edit-btn{
+      .tt-edit-save,
+      .tt-edit-cancel{
         padding:6px 12px;
         font-size:13px;
         border-radius:8px;
@@ -1902,15 +1900,15 @@
       }
 
       /* Mobile adjustments */
-      @media(max-width:640px){
+      @media (max-width:640px){
         .card{
           padding:12px;
         }
-        .tt-comment{
-          margin-left:32px;
-        }
         .tt-comments-list::before{
           left:14px;
+        }
+        .tt-comment{
+          margin-left:32px;
         }
         .tt-comment-new{
           margin-left:32px;
@@ -1924,3 +1922,5 @@
     tag.textContent = css;
     document.head.appendChild(tag);
   }
+
+})();
