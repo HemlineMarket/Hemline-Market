@@ -523,6 +523,30 @@
       border-radius:10px;
     }
 
+    /* YouTube embed styling for in-feed players */
+    .tt-embed-youtube .tt-embed-inner{
+      position:relative;
+      width:100%;
+      padding-top:56.25%; /* 16:9 */
+      border-radius:12px;
+      overflow:hidden;
+      margin-top:8px;
+      box-shadow:0 8px 18px rgba(15,23,42,.12);
+    }
+    .tt-embed-youtube iframe{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      border:0;
+    }
+    .tt-embed-youtube .tt-embed-link{
+      margin-top:4px;
+      font-size:12px;
+      color:var(--hm-muted);
+      word-break:break-all;
+    }
+
     /* Tablet: 2 columns for topics */
     @media (max-width:900px){
       .topics-grid{
@@ -729,5 +753,35 @@
 
   <!-- ThreadTalk logic (Supabase threads + reactions/comments/edit/search) -->
   <script src="scripts/threadtalk.js"></script>
+
+  <!-- Enhance post bodies: turn URLs into links + YouTube embeds -->
+  <script type="module">
+    import { renderTextWithLinksAndEmbeds } from "./scripts/threadtalk.supabase.js";
+
+    function enhanceThreadTalkBodies() {
+      const selectors = [".preview", ".tt-comment-body"];
+      selectors.forEach((sel) => {
+        document.querySelectorAll(sel).forEach((el) => {
+          if (!el || el.dataset.ttEnhanced === "1") return;
+          const raw = el.textContent || "";
+          const html = renderTextWithLinksAndEmbeds(raw);
+          el.innerHTML = html;
+          el.dataset.ttEnhanced = "1";
+        });
+      });
+    }
+
+    // Run once on load
+    enhanceThreadTalkBodies();
+
+    // Watch for new/updated cards & comments rendered by threadtalk.js
+    const cardsEl = document.getElementById("cards");
+    if (cardsEl) {
+      const observer = new MutationObserver(() => {
+        enhanceThreadTalkBodies();
+      });
+      observer.observe(cardsEl, { childList: true, subtree: true });
+    }
+  </script>
 </body>
 </html>
