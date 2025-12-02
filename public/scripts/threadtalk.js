@@ -299,7 +299,7 @@
       const threadRows = reactionsByThread[thread.id] || [];
       const { counts: threadCounts, mine: threadMine } =
         computeReactionState(threadRows);
-            const myType =
+      const myType =
         REACTION_TYPES.find((r) => threadMine[r.key])?.key || null;
 
       const comments = commentsByThread[thread.id] || [];
@@ -1233,7 +1233,6 @@
             updated_at: new Date().toISOString(),
           })
           .eq("id", threadId)
-                    .eq("id", threadId)
           .eq("author_id", currentUser.id);
 
         if (error) {
@@ -1418,7 +1417,31 @@
     return escapeHtml(str).replace(/'/g, "&#39;");
   }
 
-  // Turn raw text into safe HTML with clickable links, keeping all original text.
+  // Extract a YouTube video id from a URL (youtu.be or youtube.com/watch?v=…)
+  function getYouTubeVideoId(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+
+      if (host === "youtube.com" || host === "m.youtube.com") {
+        const v = u.searchParams.get("v");
+        return v && v.length >= 11 ? v.slice(0, 11) : null;
+      }
+
+      if (host === "youtu.be") {
+        const parts = u.pathname.split("/").filter(Boolean);
+        const id = parts[0] || "";
+        return id.length >= 11 ? id.slice(0, 11) : null;
+      }
+    } catch (_) {
+      // ignore parse errors
+    }
+    return null;
+  }
+
+  // Turn raw text into safe HTML with:
+  // - clickable links for normal URLs
+  // - a small YouTube embed for YouTube URLs
   function linkify(text) {
     const str = String(text || "");
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -1430,9 +1453,46 @@
       const url = match[0];
       const before = str.slice(lastIndex, match.index);
       html += escapeHtml(before);
-      html += `<a href="${escapeAttr(
-        url
-      )}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+
+      const videoId = getYouTubeVideoId(url);
+
+      if (videoId) {
+        html += `
+          <div class="tt-yt-wrap">
+            <iframe
+              src="https://www.youtube.com/embed/${videoId}"
+              title="YouTube video player"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+              style="
+                border:0;
+                width:100%;
+                max-width:480px;
+                height:270px;
+                display:block;
+                margin-top:8px;
+                border-radius:12px;
+                box-shadow:0 8px 18px rgba(15,23,42,.12);
+              "
+            ></iframe>
+            <div class="tt-yt-link">
+              <a href="${escapeAttr(url)}"
+                 target="_blank"
+                 rel="noopener noreferrer">
+                ${escapeHtml(url)}
+              </a>
+            </div>
+          </div>
+        `;
+      } else {
+        const label = url.length > 80 ? url.slice(0, 77) + "..." : url;
+        html += `<a href="${escapeAttr(
+          url
+        )}" target="_blank" rel="noopener noreferrer">${escapeHtml(
+          label
+        )}</a>`;
+      }
+
       lastIndex = match.index + url.length;
     }
 
@@ -1543,6 +1603,16 @@
         display:block;
       }
 
+      .tt-yt-wrap{
+        margin-top:4px;
+      }
+      .tt-yt-link{
+        margin-top:4px;
+        font-size:12px;
+        color:#6b7280;
+        word-break:break-all;
+      }
+
       .tt-actions-row{
         display:flex;
         align-items:center;
@@ -1638,7 +1708,7 @@
         gap:4px;
         padding-left:0;
       }
-      .tt-comments-list::before{
+            .tt-comments-list::before{
         content:"";
         position:absolute;
         left:18px;
