@@ -299,7 +299,7 @@
       const threadRows = reactionsByThread[thread.id] || [];
       const { counts: threadCounts, mine: threadMine } =
         computeReactionState(threadRows);
-            const myType =
+      const myType =
         REACTION_TYPES.find((r) => threadMine[r.key])?.key || null;
 
       const comments = commentsByThread[thread.id] || [];
@@ -398,7 +398,7 @@
         <div class="tt-actions-row">
           <div class="tt-like-wrapper">
             <button class="tt-like-btn tt-like-main${
-              myType ? " tt-like-active" : ""
+              myType ? "tt-like-active" : ""
             }"
                     type="button"
                     data-tt-role="thread-like-toggle">
@@ -438,6 +438,9 @@
           </div>
         </div>
       `;
+
+      // NEW: attach link preview (YouTube or website card)
+      attachLinkPreview(card, thread);
 
       cardsEl.appendChild(card);
     });
@@ -526,7 +529,7 @@
          <div class="tt-comment-actions">
            <div class="tt-like-wrapper tt-like-wrapper-comment">
              <button class="tt-like-btn tt-like-main${
-               myType ? " tt-like-active" : ""
+               myType ? "tt-like-active" : ""
              }"
                      type="button"
                      data-tt-role="comment-like-toggle"
@@ -1233,7 +1236,6 @@
             updated_at: new Date().toISOString(),
           })
           .eq("id", threadId)
-                    .eq("id", threadId)
           .eq("author_id", currentUser.id);
 
         if (error) {
@@ -1386,7 +1388,8 @@
   function makeToastElement() {
     const el = document.createElement("div");
     el.id = "toast";
-    el.className = "toast";
+    el.class
+        Name = "toast";
     el.setAttribute("role", "status");
     el.setAttribute("aria-live", "polite");
     el.setAttribute("aria-atomic", "true");
@@ -1463,6 +1466,110 @@
       hour: "numeric",
       minute: "2-digit",
     });
+  }
+
+  // ---------- Link previews (YouTube + generic sites) ----------
+  function extractFirstUrl(text) {
+    const str = String(text || "");
+    const match = str.match(/https?:\/\/[^\s]+/);
+    return match ? match[0] : null;
+  }
+
+  async function attachLinkPreview(card, thread) {
+    try {
+      const url = extractFirstUrl(thread.body || "");
+      if (!url) return;
+
+      const meta = await fetchLinkMetadata(url);
+      if (!meta) return;
+
+      const previewAnchor = card.querySelector(".preview");
+      if (!previewAnchor) return;
+
+      const container = document.createElement("div");
+      container.className = "tt-link-preview";
+
+      if (meta.type === "youtube" && meta.html) {
+        // Use YouTube's iframe, but make it fit the card
+        let iframeHtml = meta.html;
+        try {
+          iframeHtml = iframeHtml
+            .replace(/width="[^"]*"/, 'width="100%"')
+            .replace(/height="[^"]*"/, 'height="240"');
+        } catch (_) {
+          // if anything goes wrong, just use original HTML
+        }
+        container.innerHTML = iframeHtml;
+      } else if (meta.type === "link") {
+        const title = meta.title || meta.url;
+        const desc = meta.description || "";
+        const domain =
+          meta.domain ||
+          (() => {
+            try {
+              return new URL(meta.url).hostname;
+            } catch {
+              return "";
+            }
+          })();
+        const image = meta.image || "";
+
+        let inner = `<a href="${escapeAttr(
+          meta.url
+        )}" target="_blank" rel="noopener noreferrer" class="tt-link-preview-inner">`;
+
+        if (image) {
+          inner += `<div class="tt-link-preview-thumb-wrap">
+            <img src="${escapeAttr(
+              image
+            )}" alt="Preview image" class="tt-link-preview-thumb"/>
+          </div>`;
+        }
+
+        inner += `<div class="tt-link-preview-text">
+          <div class="tt-link-preview-title">${escapeHtml(title)}</div>
+          ${
+            desc
+              ? `<div class="tt-link-preview-desc">${escapeHtml(
+                  desc
+                )}</div>`
+              : ""
+          }
+          ${
+            domain
+              ? `<div class="tt-link-preview-domain">${escapeHtml(domain)}</div>`
+              : ""
+          }
+        </div>`;
+
+        inner += `</a>`;
+        container.innerHTML = inner;
+      } else {
+        return;
+      }
+
+      previewAnchor.insertAdjacentElement("afterend", container);
+    } catch (err) {
+      console.error("[ThreadTalk] attachLinkPreview error", err);
+    }
+  }
+
+  async function fetchLinkMetadata(url) {
+    try {
+      const { data, error } = await HM.supabase.functions.invoke("link-metadata", {
+        body: { url },
+      });
+
+      if (error) {
+        console.error("[Link Metadata Error]", error);
+        return null;
+      }
+
+      return data;
+    } catch (err) {
+      console.error("[Link Metadata Exception]", err);
+      return null;
+    }
   }
 
   // ---------- Styles injection ----------
@@ -1587,7 +1694,7 @@
         opacity:0;
         pointer-events:none;
         transform:translateY(4px);
-        transition:opacity .12s ease,transform .12s.ease;
+        transition:opacity .12s ease,transform .12s ease;
       }
       .tt-like-wrapper.tt-picker-open .tt-react-picker{
         opacity:1;
@@ -1902,6 +2009,53 @@
         color:#374151;
       }
 
+      .tt-link-preview{
+        margin-top:6px;
+        border-radius:12px;
+        border:1px solid #e5e7eb;
+        background:#f9fafb;
+        overflow:hidden;
+        max-width:460px;
+      }
+      .tt-link-preview-inner{
+        display:flex;
+        text-decoration:none;
+        color:inherit;
+      }
+      .tt-link-preview-thumb-wrap{
+        flex:0 0 120px;
+        max-height:120px;
+        overflow:hidden;
+      }
+      .tt-link-preview-thumb{
+        width:100%;
+        height:100%;
+        object-fit:cover;
+        display:block;
+      }
+      .tt-link-preview-text{
+        padding:8px 10px;
+        display:flex;
+        flex-direction:column;
+        gap:2px;
+      }
+      .tt-link-preview-title{
+        font-size:13px;
+        font-weight:600;
+        color:#111827;
+      }
+      .tt-link-preview-desc{
+        font-size:12px;
+        color:#4b5563;
+        max-height:3.2em;
+        overflow:hidden;
+      }
+      .tt-link-preview-domain{
+        font-size:11px;
+        color:#9ca3af;
+        margin-top:2px;
+      }
+
       /* Mobile adjustments */
       @media (max-width:640px){
         .card{
@@ -1925,5 +2079,4 @@
     tag.textContent = css;
     document.head.appendChild(tag);
   }
-
 })();
