@@ -69,8 +69,6 @@
     { key: "cry", emoji: "😢" },
   ];
 
-  const MAX_VISIBLE_COMMENTS = 2;
-
   // ---------- State ----------
   let currentUser = null;
   const profilesCache = {};
@@ -137,7 +135,9 @@
         .in("id", ids);
 
       (data || []).forEach((p) => (profilesCache[p.id] = p));
-    } catch (_) {}
+    } catch (_) {
+      // ignore
+    }
   }
 
   function displayNameForUserId(userId) {
@@ -195,8 +195,9 @@
       (commentRows || [])
         .filter((c) => !c.is_deleted)
         .forEach((c) => {
-          if (!commentsByThread[c.thread_id])
+          if (!commentsByThread[c.thread_id]) {
             commentsByThread[c.thread_id] = [];
+          }
           commentsByThread[c.thread_id].push(c);
           commentIds.push(c.id);
           if (c.author_id) authorIds.push(c.author_id);
@@ -211,8 +212,9 @@
           .in("comment_id", commentIds);
 
         (cReactRows || []).forEach((r) => {
-          if (!commentReactionsByComment[r.comment_id])
+          if (!commentReactionsByComment[r.comment_id]) {
             commentReactionsByComment[r.comment_id] = [];
+          }
           commentReactionsByComment[r.comment_id].push(r);
           authorIds.push(r.user_id);
         });
@@ -226,8 +228,9 @@
 
       reactionsByThread = {};
       (reactionRows || []).forEach((r) => {
-        if (!reactionsByThread[r.thread_id])
+        if (!reactionsByThread[r.thread_id]) {
           reactionsByThread[r.thread_id] = [];
+        }
         reactionsByThread[r.thread_id].push(r);
         authorIds.push(r.user_id);
       });
@@ -235,6 +238,7 @@
       await loadProfiles(authorIds);
       applySearchFilter();
     } catch (err) {
+      console.error("[ThreadTalk] loadThreads error", err);
       showToast("Could not load threads.");
     }
   }
@@ -276,7 +280,9 @@
   function renderThreads() {
     if (!cardsEl) return;
     cardsEl.innerHTML = "";
-    if (emptyStateEl) emptyStateEl.style.display = threads.length ? "none" : "block";
+    if (emptyStateEl) {
+      emptyStateEl.style.display = threads.length ? "none" : "block";
+    }
 
     threads.forEach((thread) => {
       const card = document.createElement("article");
@@ -299,14 +305,11 @@
       const comments = commentsByThread[thread.id] || [];
       const mediaHtml = renderMedia(thread);
 
-      let commentsToRender = comments;
-      let hiddenCount = 0;
-      if (
-        !expandedCommentsThreads.has(thread.id) &&
-        comments.length > MAX_VISIBLE_COMMENTS
-      ) {
-        hiddenCount = comments.length - MAX_VISIBLE_COMMENTS;
-        commentsToRender = comments.slice(-MAX_VISIBLE_COMMENTS);
+      // Replies collapsed by default; show only after user clicks "View replies"
+      let commentsToRender = [];
+      const isExpanded = expandedCommentsThreads.has(thread.id);
+      if (isExpanded) {
+        commentsToRender = comments;
       }
 
       const commentsHtml = commentsToRender
@@ -326,9 +329,13 @@
         </div>`
         : "";
 
-      const hiddenHtml = hiddenCount
+      const showRepliesButton = comments.length && !isExpanded;
+
+      const hiddenHtml = showRepliesButton
         ? `<button class="tt-more-comments" type="button" data-tt-role="show-all-comments">
-             View ${hiddenCount} more repl${hiddenCount === 1 ? "y" : "ies"}…
+             View all ${comments.length} repl${
+             comments.length === 1 ? "y" : "ies"
+           }…
            </button>`
         : "";
 
@@ -668,6 +675,7 @@
           .single();
 
         if (error) {
+          console.error("[ThreadTalk] thread insert error", error);
           showToast("Could not post.");
           return;
         }
@@ -677,9 +685,11 @@
         clearMediaPreview();
 
         allThreads.unshift(data);
+        // New post should show its replies immediately once people start replying
         applySearchFilter();
         showToast("Posted");
       } catch (err) {
+        console.error("[ThreadTalk] composer exception", err);
         showToast("Could not post.");
       } finally {
         postBtn.disabled = false;
@@ -711,6 +721,7 @@
         });
 
       if (error) {
+        console.error("[ThreadTalk] upload error", error);
         showToast("Upload failed.");
         return { media_url: null, media_type: null };
       }
@@ -723,7 +734,8 @@
         media_url: pub?.publicUrl || null,
         media_type,
       };
-    } catch (_) {
+    } catch (err) {
+      console.error("[ThreadTalk] upload exception", err);
       showToast("Upload failed.");
       return { media_url: null, media_type: null };
     }
@@ -745,6 +757,7 @@
         });
 
       if (error) {
+        console.error("[ThreadTalk] upload reply error", error);
         showToast("Upload failed.");
         return { media_url: null, media_type: null };
       }
@@ -757,7 +770,8 @@
         media_url: pub?.publicUrl || null,
         media_type: "image", // replies only allow image for now
       };
-    } catch (_) {
+    } catch (err) {
+      console.error("[ThreadTalk] upload reply exception", err);
       showToast("Upload failed.");
       return { media_url: null, media_type: null };
     }
@@ -822,10 +836,8 @@
 
       if (!inside) closeAllPickers();
 
-      const menuBtn =
-        e.target.closest(".tt-menu-btn");
-      const menuPop =
-        e.target.closest(".tt-menu-pop");
+      const menuBtn = e.target.closest(".tt-menu-btn");
+      const menuPop = e.target.closest(".tt-menu-pop");
 
       if (!menuBtn && !menuPop) {
         document
@@ -890,8 +902,10 @@
         }
 
         case "show-all-comments":
-          expandedCommentsThreads.add(threadId);
-          renderThreads();
+          if (threadId) {
+            expandedCommentsThreads.add(threadId);
+            renderThreads();
+          }
           break;
 
         case "send-comment":
@@ -1080,457 +1094,4 @@
         if (insErr) {
           console.warn("[ThreadTalk] comment reaction insert error", insErr);
           showToast("Could not update reaction.");
-          return;
-        }
-      }
-
-      await loadThreads();
-    } catch (err) {
-      console.error("[ThreadTalk] handleCommentReaction exception", err);
-      showToast("Could not update reaction.");
-    }
-  }
-
-  // ---------- Comments ----------
-  async function handleSendComment(buttonEl, threadId) {
-    // Works for both bottom reply + inline reply boxes
-    const row =
-      buttonEl.closest(".tt-comment-new") ||
-      buttonEl.closest(".tt-comment-reply-box");
-    if (!row) return;
-
-    const input = row.querySelector(".tt-comment-input");
-    const fileInput = row.querySelector(".tt-comment-photo");
-
-    const bodyRaw = input ? input.value || "" : "";
-    let body = bodyRaw.trim();
-    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
-
-    if (!body && !file) {
-      if (input) input.focus();
-      return;
-    }
-
-    const ok = await ensureLoggedInFor("comment");
-    if (!ok) return;
-
-    let media = { media_url: null, media_type: null };
-    if (file) {
-      media = await maybeUploadCommentMedia(file);
-    }
-
-    if (!body && media.media_url) {
-      body = "image attached";
-    }
-
-    try {
-      const { error } = await supabase.from("threadtalk_comments").insert({
-        thread_id: threadId,
-        author_id: currentUser.id,
-        body,
-        media_url: media.media_url,
-        media_type: media.media_type,
-      });
-
-      if (error) {
-        console.error("[ThreadTalk] comment insert error", error);
-        showToast("Could not post reply.");
-        return;
-      }
-
-      if (input) input.value = "";
-      if (fileInput) fileInput.value = "";
-
-      await loadThreads();
-    } catch (err) {
-      console.error("[ThreadTalk] handleSendComment exception", err);
-      showToast("Could not post reply.");
-    }
-  }
-
-  function focusCommentBox(card) {
-    if (!card) return;
-    const input = card.querySelector(".tt-comment-new .tt-comment-input");
-    if (!input) return;
-
-    input.scrollIntoView({ behavior: "smooth", block: "center" });
-    input.focus();
-  }
-
-  // ---------- Thread menus / edit / delete ----------
-  function toggleMenu(card) {
-    const pop = card?.querySelector('[data-tt-role="menu-pop"]');
-    if (!pop) return;
-
-    const hidden = pop.hasAttribute("hidden");
-
-    document
-      .querySelectorAll('[data-tt-role="menu-pop"]')
-      .forEach((el) => el.setAttribute("hidden", "true"));
-
-    if (hidden) pop.removeAttribute("hidden");
-  }
-
-  async function handleEditThread(card, threadId) {
-    const thread = allThreads.find((t) => t.id === threadId);
-    if (!thread) return;
-
-    if (!currentUser || thread.author_id !== currentUser.id) {
-      showToast("You can only edit your own posts.");
-      return;
-    }
-
-    const previewEl = card.querySelector(".preview");
-    if (!previewEl) return;
-
-    const original = thread.body || "";
-    previewEl.innerHTML = `
-      <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
-      <div class="tt-edit-actions">
-        <button type="button" class="tt-edit-save">Save</button>
-        <button type="button" class="tt-edit-cancel">Cancel</button>
-      </div>
-    `;
-
-    const area = previewEl.querySelector(".tt-edit-area");
-    const saveBtn = previewEl.querySelector(".tt-edit-save");
-    const cancelBtn = previewEl.querySelector(".tt-edit-cancel");
-
-    cancelBtn.addEventListener("click", () => {
-      previewEl.innerHTML = linkify(original);
-    });
-
-    saveBtn.addEventListener("click", async () => {
-      const body = (area.value || "").trim();
-      if (!body) {
-        area.focus();
-        return;
-      }
-
-      try {
-        const { error } = await supabase
-          .from("threadtalk_threads")
-          .update({
-            body,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", threadId)
-          .eq("author_id", currentUser.id);
-
-        if (error) {
-          console.error("[ThreadTalk] update thread error", error);
-          showToast("Could not save edit.");
-          return;
-        }
-
-        await loadThreads();
-      } catch (err) {
-        console.error("[ThreadTalk] handleEditThread exception", err);
-        showToast("Could not save edit.");
-      }
-    });
-  }
-
-  async function handleDeleteThread(threadId) {
-    const authOk = await ensureLoggedInFor("delete a post");
-    if (!authOk) return;
-
-    const ok = confirm("Delete this thread?");
-    if (!ok) return;
-
-    try {
-      const { error } = await supabase
-        .from("threadtalk_threads")
-        .update({
-          is_deleted: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", threadId); // RLS enforces author
-
-      if (error) {
-        console.error("[ThreadTalk] delete thread error", error);
-        showToast("Could not delete post.");
-        return;
-      }
-
-      await loadThreads();
-    } catch (err) {
-      console.error("[ThreadTalk] handleDeleteThread exception", err);
-      showToast("Could not delete post.");
-    }
-  }
-
-  async function handleDeleteComment(commentId) {
-    const authOk = await ensureLoggedInFor("delete a reply");
-    if (!authOk) return;
-
-    const ok = confirm("Delete this reply?");
-    if (!ok) return;
-
-    try {
-      const { error } = await supabase
-        .from("threadtalk_comments")
-        .update({
-          is_deleted: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", commentId); // RLS enforces author
-
-      if (error) {
-        console.error("[ThreadTalk] delete comment error", error);
-        showToast("Could not delete reply.");
-        return;
-      }
-
-      await loadThreads();
-    } catch (err) {
-      console.error("[ThreadTalk] handleDeleteComment exception", err);
-      showToast("Could not delete reply.");
-    }
-  }
-
-  // ---------- Share ----------
-  async function handleShareThread(threadId) {
-    // Build link from CURRENT page path, so it works on /threadtalk, /threadtalk.html, etc.
-    const baseUrl =
-      window.location.origin + window.location.pathname.replace(/\/$/, "");
-    const url = `${baseUrl}?thread=${encodeURIComponent(threadId)}`;
-
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url);
-        showToast("Link copied");
-      } else {
-        const tmp = document.createElement("input");
-        tmp.value = url;
-        document.body.appendChild(tmp);
-        tmp.select();
-        try {
-          document.execCommand("copy");
-        } catch (_) {}
-        document.body.removeChild(tmp);
-        showToast("Link copied");
-      }
-    } catch (err) {
-      console.warn("[ThreadTalk] handleShareThread error", err);
-      showToast("Could not copy link.");
-    }
-  }
-
-  // ---------- Zoom modal ----------
-  function openZoomModal(src) {
-    if (!src) return;
-
-    let modal = document.getElementById("tt-zoom-modal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "tt-zoom-modal";
-      modal.innerHTML = `
-        <div class="tt-zoom-backdrop" data-tt-role="close-zoom"></div>
-        <div class="tt-zoom-inner">
-          <button class="tt-zoom-close"
-                  type="button"
-                  data-tt-role="close-zoom">×</button>
-          <img class="tt-zoom-img"
-               src="${escapeAttr(src)}"
-               alt="Zoomed image"/>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    } else {
-      const img = modal.querySelector(".tt-zoom-img");
-      if (img) img.src = src;
-    }
-
-    modal.classList.add("show");
-  }
-
-  function closeZoomModal() {
-    const modal = document.getElementById("tt-zoom-modal");
-    if (!modal) return;
-    modal.classList.remove("show");
-  }
-
-  function wireZoomClose() {
-    document.addEventListener("click", (e) => {
-      const roleEl = e.target.closest("[data-tt-role]");
-      if (!roleEl) return;
-      if (roleEl.dataset.ttRole === "close-zoom") {
-        closeZoomModal();
-      }
-    });
-  }
-
-  // ---------- Utilities ----------
-  function makeToastElement() {
-    const el = document.createElement("div");
-    el.id = "toast";
-    el.className = "toast";
-    el.setAttribute("role", "status");
-    el.setAttribute("aria-live", "polite");
-    el.setAttribute("aria-atomic", "true");
-    el.textContent = "";
-    document.body.appendChild(el);
-    return el;
-  }
-
-  let toastTimer = null;
-  function showToast(msg) {
-    if (!toastEl) return;
-    toastEl.textContent = msg;
-    toastEl.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      toastEl.classList.remove("show");
-    }, 2600);
-  }
-
-  function escapeHtml(str) {
-    return String(str || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt/")
-      .replace(/"/g, "&quot;");
-  }
-
-  function escapeAttr(str) {
-    return escapeHtml(str).replace(/'/g, "&#39;");
-  }
-
-  // Turn raw text into safe HTML with clickable links, keeping all original text.
-  function linkify(text) {
-    const str = String(text || "");
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    let lastIndex = 0;
-    let html = "";
-    let match;
-
-    while ((match = urlRegex.exec(str)) !== null) {
-      const url = match[0];
-      const before = str.slice(lastIndex, match.index);
-      html += escapeHtml(before);
-      html += `<a href="${escapeAttr(
-        url
-      )}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
-      lastIndex = match.index + url.length;
-    }
-
-    html += escapeHtml(str.slice(lastIndex));
-    return html;
-  }
-
-  function timeAgo(iso) {
-    if (!iso) return "";
-    const then = new Date(iso);
-    const now = new Date();
-    const diff = (now - then) / 1000;
-
-    if (diff < 60) return "just now";
-    if (diff < 3600) {
-      const m = Math.round(diff / 60);
-      return `${m} min${m === 1 ? "" : "s"} ago`;
-    }
-    if (diff < 86400) {
-      const h = Math.round(diff / 3600);
-      return `${h} hour${h === 1 ? "" : "s"} ago`;
-    }
-
-    return then.toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
-
-  // ---------- Styles injection ----------
-  function injectCompactStyles() {
-    const css = `
-      .card{padding:12px 14px;margin-bottom:10px;border-radius:14px;background:#fff;border:1px solid #f3f4f6;}
-      .preview{margin-bottom:6px;font-size:14px;line-height:1.4;}
-      .tt-head{display:flex;flex-direction:column;gap:4px;margin-bottom:4px;}
-      .tt-line1{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;}
-      .tt-line2{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);}
-      .tt-line2-main{display:flex;align-items:center;gap:4px;}
-      .tt-title{font-weight:600;color:#111827;}
-      .cat{font-size:12px;font-weight:600;color:#b45309;text-transform:uppercase;letter-spacing:.04em;}
-      .tt-share-chip{margin-left:auto;border:none;background:#f3f4f6;color:#374151;font-size:12px;padding:4px 10px;border-radius:999px;cursor:pointer;}
-      .tt-share-chip:hover{background:#e5e7eb;}
-      .post-media-wrap{margin:6px 0;max-width:460px;}
-      .post-img,.post-video{width:100%;height:auto;border-radius:10px;display:block;}
-      .tt-actions-row{display:flex;align-items:center;gap:12px;margin-top:4px;margin-bottom:2px;font-size:13px;}
-      .tt-like-wrapper{position:relative;display:inline-flex;align-items:center;}
-      .tt-like-btn{border:none;background:none;color:#6b7280;font-size:13px;padding:4px 8px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
-      .tt-like-btn.tt-like-active{color:#2563eb;font-weight:500;}
-      .tt-react-picker{position:absolute;bottom:100%;left:0;display:flex;gap:6px;background:#fff;border-radius:999px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:4px 6px;margin-bottom:4px;opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .12s ease,transform .12s ease;}
-      .tt-like-wrapper.tt-picker-open .tt-react-picker{opacity:1;pointer-events:auto;transform:translateY(0);}
-      .tt-react-pill{border:none;background:none;font-size:18px;cursor:pointer;padding:2px;}
-      .tt-react-summary{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#6b7280;margin-top:2px;flex-wrap:wrap;}
-      .tt-react-chip{display:inline-flex;align-items:center;gap:2px;margin-right:4px;}
-      .tt-react-emoji{font-size:14px;line-height:1;}
-      .tt-react-count{font-size:11px;line-height:1;}
-
-      .tt-comments{margin-top:8px;padding-top:4px;}
-      .tt-comments-list{
-        display:flex;
-        flex-direction:column;
-        gap:4px;
-        position:relative;
-        margin-left:32px;
-        padding-left:10px;
-        border-left:1px solid #e5e7eb;
-      }
-      .tt-comment{
-        padding:6px 10px;
-        border-radius:14px;
-        background:#f9fafb;
-        max-width:640px;
-        margin-right:16px;
-      }
-      .tt-comment-head-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:2px;}
-      .tt-comment-meta{display:flex;align-items:center;gap:4px;}
-      .tt-comment-author{font-weight:500;}
-      .tt-comment-body{font-size:13px;margin-bottom:2px;}
-      .tt-comment-media{margin:4px 0;max-width:360px;}
-      .tt-comment-media .post-img,
-      .tt-comment-media .post-video{width:100%;height:auto;border-radius:8px;display:block;}
-      .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:2px;}
-
-      .tt-comment-new{display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 8px;border-radius:999px;background:#f9fafb;margin-left:32px;margin-right:16px;}
-      .tt-comment-input{flex:1;padding:6px 10px;border-radius:999px;border:none;font-size:13px;background:transparent;outline:none;}
-      .tt-comment-input::placeholder{color:#9ca3af;}
-      .tt-comment-photo{font-size:11px;max-width:120px;}
-      .tt-comment-photo::file-selector-button{margin-right:4px;border-radius:999px;border:1px solid var(--border);background:#fff;padding:4px 8px;font-size:11px;cursor:pointer;}
-      .tt-comment-send{padding:6px 12px;font-size:13px;border-radius:999px;border:none;background:#111827;color:#fff;cursor:pointer;}
-      .tt-comment-reply-box{display:flex;align-items:center;gap:6px;margin-top:4px;padding:4px 8px;border-radius:999px;background:#f3f4f6;}
-      .tt-comment-reply-box[hidden]{display:none;}
-      .tt-more-comments{border:none;background:none;color:#6b7280;font-size:12px;padding:0;margin-bottom:2px;cursor:pointer;}
-
-      .tt-menu{position:relative;}
-      .tt-menu-btn{padding:2px 6px;font-size:14px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;}
-      .tt-menu-pop{position:absolute;margin-top:4px;right:0;background:#fff;border-radius:8px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:4px;z-index:20;display:grid;}
-      .tt-menu-pop[hidden]{display:none !important;}
-      .tt-menu-item{display:block;width:100%;text-align:left;border:none;background:none;padding:6px 10px;font-size:13px;border-radius:6px;cursor:pointer;}
-      .tt-menu-item:hover{background:#f3f4f6;}
-      .tt-menu-item.danger{color:#b91c1c;}
-      .tt-react-summary-comment{margin-top:2px;}
-
-      #tt-zoom-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:60;}
-      #tt-zoom-modal.show{opacity:1;pointer-events:auto;}
-      .tt-zoom-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.55);}
-      .tt-zoom-inner{position:relative;z-index:1;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;}
-      .tt-zoom-img{max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain;background:#fff;}
-      .tt-zoom-close{position:absolute;top:-32px;right:0;border:none;background:none;color:#f9fafb;font-size:24px;cursor:pointer;}
-
-      .tt-edit-area{width:100%;min-height:80px;border-radius:10px;border:1px solid var(--border);padding:8px;font-size:13px;}
-      .tt-edit-actions{display:flex;gap:8px;margin-top:4px;}
-      .tt-edit-save,.tt-edit-cancel{border-radius:999px;border:none;padding:4px 10px;font-size:12px;cursor:pointer;}
-      .tt-edit-save{background:#111827;color:#fff;}
-      .tt-edit-cancel{background:#e5e7eb;color:#111827;}
-    `;
-    const style = document.createElement("style");
-    style.textContent = css;
-    document.head.appendChild(style);
-  }
-})();
+          return
