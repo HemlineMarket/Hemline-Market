@@ -79,7 +79,7 @@
   let commentReactionsByComment = {};
   const expandedCommentsThreads = new Set();
 
-  // thread id from URL (?thread=123)
+  // NEW: thread id from URL (?thread=123)
   const urlParams = new URLSearchParams(window.location.search || "");
   const THREAD_URL_ID = urlParams.get("thread")
     ? Number(urlParams.get("thread"))
@@ -299,7 +299,7 @@
       const threadRows = reactionsByThread[thread.id] || [];
       const { counts: threadCounts, mine: threadMine } =
         computeReactionState(threadRows);
-      const myType =
+            const myType =
         REACTION_TYPES.find((r) => threadMine[r.key])?.key || null;
 
       const comments = commentsByThread[thread.id] || [];
@@ -316,8 +316,18 @@
         .map((c) => renderCommentHtml(thread.id, c))
         .join("");
 
-      // NOTE: edit/delete UI removed for now (no kebab menu)
-      const menuHtml = "";
+      const isMine = currentUser && thread.author_id === currentUser.id;
+
+      const menuHtml = isMine
+        ? `
+        <div class="tt-menu">
+          <button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>
+          <div class="tt-menu-pop" data-tt-role="menu-pop" hidden>
+            <button class="tt-menu-item" data-tt-role="edit-thread" type="button">Edit</button>
+            <button class="tt-menu-item danger" data-tt-role="delete-thread" type="button">Delete</button>
+          </div>
+        </div>`
+        : "";
 
       const showRepliesButton = comments.length && !isExpanded;
 
@@ -458,8 +468,25 @@
       ? `<div class="tt-react-summary tt-react-summary-comment">${chipsHtml}</div>`
       : "";
 
-    // NOTE: comment delete UI removed for now
-    const deleteHtml = "";
+    const deleteHtml =
+      currentUser && c.author_id === currentUser.id
+        ? `
+      <div class="tt-menu tt-menu-comment">
+        <button class="tt-menu-btn"
+                type="button"
+                data-tt-role="comment-menu">···</button>
+        <div class="tt-menu-pop"
+             data-tt-role="comment-menu-pop"
+             hidden>
+          <button class="tt-menu-item danger"
+                  type="button"
+                  data-tt-role="delete-comment"
+                  data-comment-id="${c.id}">
+            Delete
+          </button>
+        </div>
+      </div>`
+        : "";
 
     const pickerHtml =
       `<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="${c.id}">` +
@@ -622,7 +649,7 @@
         return;
       }
 
-            if (!body && !hasMedia) {
+      if (!body && !hasMedia) {
         textArea.focus();
         return;
       }
@@ -811,6 +838,15 @@
         e.target.closest(".tt-react-picker");
 
       if (!inside) closeAllPickers();
+
+      const menuBtn = e.target.closest(".tt-menu-btn");
+      const menuPop = e.target.closest(".tt-menu-pop");
+
+      if (!menuBtn && !menuPop) {
+        document
+          .querySelectorAll(".tt-menu-pop")
+          .forEach((el) => el.setAttribute("hidden", "true"));
+      }
     });
   }
 
@@ -902,6 +938,36 @@
           }
           break;
         }
+
+        case "comment-menu": {
+          const pop = roleEl
+            .closest(".tt-menu")
+            ?.querySelector('[data-tt-role="comment-menu-pop"]');
+          const hidden2 = pop.hasAttribute("hidden");
+          document
+            .querySelectorAll('[data-tt-role="comment-menu-pop"]')
+            .forEach((el) => el.setAttribute("hidden", "true"));
+          if (hidden2) pop.removeAttribute("hidden");
+          break;
+        }
+
+        case "delete-comment": {
+          const commentId2 = Number(roleEl.dataset.commentId);
+          if (commentId2) await handleDeleteComment(commentId2);
+          break;
+        }
+
+        case "menu":
+          toggleMenu(card);
+          break;
+
+        case "edit-thread":
+          if (threadId) await handleEditThread(card, threadId);
+          break;
+
+        case "delete-thread":
+          if (threadId) await handleDeleteThread(threadId);
+          break;
 
         case "share-thread":
           if (threadId) await handleShareThread(threadId);
@@ -1109,6 +1175,139 @@
     input.focus();
   }
 
+  // ---------- Thread menus / edit / delete ----------
+  function toggleMenu(card) {
+    const pop = card?.querySelector('[data-tt-role="menu-pop"]');
+    if (!pop) return;
+
+    const hidden = pop.hasAttribute("hidden");
+
+    document
+      .querySelectorAll('[data-tt-role="menu-pop"]')
+      .forEach((el) => el.setAttribute("hidden", "true"));
+
+    if (hidden) pop.removeAttribute("hidden");
+  }
+
+  async function handleEditThread(card, threadId) {
+    const thread = allThreads.find((t) => t.id === threadId);
+    if (!thread) return;
+
+    if (!currentUser || thread.author_id !== currentUser.id) {
+      showToast("You can only edit your own posts.");
+      return;
+    }
+
+    const previewEl = card.querySelector(".preview");
+    if (!previewEl) return;
+
+    const original = thread.body || "";
+    previewEl.innerHTML = `
+      <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
+      <div class="tt-edit-actions">
+        <button type="button" class="tt-edit-save">Save</button>
+        <button type="button" class="tt-edit-cancel">Cancel</button>
+      </div>
+    `;
+
+    const area = previewEl.querySelector(".tt-edit-area");
+    const saveBtn = previewEl.querySelector(".tt-edit-save");
+    const cancelBtn = previewEl.querySelector(".tt-edit-cancel");
+
+    cancelBtn.addEventListener("click", () => {
+      previewEl.innerHTML = linkify(original);
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      const body = (area.value || "").trim();
+      if (!body) {
+        area.focus();
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from("threadtalk_threads")
+          .update({
+            body,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", threadId)
+                    .eq("id", threadId)
+          .eq("author_id", currentUser.id);
+
+        if (error) {
+          console.error("[ThreadTalk] update thread error", error);
+          showToast("Could not save edit.");
+          return;
+        }
+
+        await loadThreads();
+      } catch (err) {
+        console.error("[ThreadTalk] handleEditThread exception", err);
+        showToast("Could not save edit.");
+      }
+    });
+  }
+
+  async function handleDeleteThread(threadId) {
+    const authOk = await ensureLoggedInFor("delete a post");
+    if (!authOk) return;
+
+    const ok = confirm("Delete this thread?");
+    if (!ok) return;
+
+    try {
+      const { error } = await supabase
+        .from("threadtalk_threads")
+        .update({
+          is_deleted: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", threadId); // RLS enforces author
+
+      if (error) {
+        console.error("[ThreadTalk] delete thread error", error);
+        showToast("Could not delete post.");
+        return;
+      }
+
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleDeleteThread exception", err);
+      showToast("Could not delete post.");
+    }
+  }
+
+  async function handleDeleteComment(commentId) {
+    const authOk = await ensureLoggedInFor("delete a reply");
+    if (!authOk) return;
+
+    const ok = confirm("Delete this reply?");
+    if (!ok) return;
+
+    try {
+      const { error } = await supabase
+        .from("threadtalk_comments")
+        .update({
+          is_deleted: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", commentId); // RLS enforces author
+
+      if (error) {
+        console.error("[ThreadTalk] delete comment error", error);
+        showToast("Could not delete reply.");
+        return;
+      }
+
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleDeleteComment exception", err);
+      showToast("Could not delete reply.");
+    }
+  }
+
   // ---------- Share ----------
   async function handleShareThread(threadId) {
     // Build link from CURRENT page path, so it works on /threadtalk, /threadtalk.html, etc.
@@ -1219,7 +1418,7 @@
     return escapeHtml(str).replace(/'/g, "&#39;");
   }
 
-  // Turn raw text into safe HTML with simple clickable links
+  // Turn raw text into safe HTML with clickable links, keeping all original text.
   function linkify(text) {
     const str = String(text || "");
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -1231,14 +1430,9 @@
       const url = match[0];
       const before = str.slice(lastIndex, match.index);
       html += escapeHtml(before);
-
-      const label = url.length > 80 ? url.slice(0, 77) + "..." : url;
       html += `<a href="${escapeAttr(
         url
-      )}" target="_blank" rel="noopener noreferrer">${escapeHtml(
-        label
-      )}</a>`;
-
+      )}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
       lastIndex = match.index + url.length;
     }
 
@@ -1393,7 +1587,7 @@
         opacity:0;
         pointer-events:none;
         transform:translateY(4px);
-        transition:opacity .12s ease,transform .12s ease;
+        transition:opacity .12s ease,transform .12s.ease;
       }
       .tt-like-wrapper.tt-picker-open .tt-react-picker{
         opacity:1;
@@ -1447,141 +1641,186 @@
       .tt-comments-list::before{
         content:"";
         position:absolute;
-        left:8px;
-        top:0;
-        bottom:0;
-        width:1px;
-        background:rgba(209,213,219,.7);
+        left:18px;
+        top:4px;
+        bottom:8px;
+        width:2px;
+        border-radius:999px;
+        background:rgba(209,213,219,.9);
       }
+
       .tt-comment{
         position:relative;
-        padding-left:18px;
-      }
-      .tt-comment::before{
-        content:"";
-        position:absolute;
-        left:8px;
-        top:10px;
-        width:10px;
-        height:1px;
-        background:rgba(209,213,219,.7);
+        margin-left:42px;
+        padding:6px 10px 8px;
+        border-radius:16px;
+        background:#f9fafb;
+        border:1px solid #e5e7eb;
       }
       .tt-comment-head-row{
         display:flex;
         align-items:center;
         justify-content:space-between;
+        font-size:12px;
+        margin-bottom:2px;
       }
       .tt-comment-meta{
         display:flex;
         align-items:center;
         gap:4px;
-        font-size:11px;
-        color:#6b7280;
       }
       .tt-comment-author{
         font-weight:500;
         color:#111827;
       }
+      .tt-comment-time{
+        color:#9ca3af;
+      }
       .tt-comment-body{
         font-size:13px;
-        line-height:1.4;
-        color:#374151;
-        margin:2px 0 2px;
+        margin-bottom:2px;
+        color:#111827;
       }
+
       .tt-comment-media{
-        margin:2px 0 2px;
+        margin:4px 0;
         max-width:360px;
       }
+      .tt-comment-media .post-img,
+      .tt-comment-media .post-video{
+        width:100%;
+        height:auto;
+        border-radius:8px;
+        display:block;
+      }
+
       .tt-comment-actions{
         display:flex;
         align-items:center;
-        gap:10px;
-        font-size:11px;
+        gap:8px;
+        font-size:12px;
+        margin-top:2px;
         color:#6b7280;
-        margin-top:0;
       }
-      .tt-reply-link{
-        border:none;
-        background:none;
-        cursor:pointer;
-        font-size:11px;
-        color:#6b7280;
-        padding:3px 6px;
-        border-radius:999px;
-      }
-      .tt-reply-link:hover{
-        background:#f3f4f6;
-      }
-      .tt-comment-reply-box,
+
       .tt-comment-new{
         display:flex;
         align-items:center;
-        gap:4px;
-        margin-top:4px;
-      }
-      .tt-comment-new{
-        padding-left:12px;
+        gap:6px;
         margin-top:6px;
+        margin-left:42px;
+        padding:6px 8px;
+        border-radius:999px;
+        background:#f3f4f6;
+        border:1px solid #e5e7eb;
       }
       .tt-comment-input{
         flex:1;
-        border-radius:999px;
-        border:1px solid #e5e7eb;
         padding:6px 10px;
-        font-size:13px;
-      }
-      .tt-comment-input:focus{
-        outline:none;
-        border-color:#f97316;
-        box-shadow:0 0 0 1px rgba(249,115,22,.35);
-      }
-      .tt-comment-send{
-        border:none;
         border-radius:999px;
-        background:#f97316;
-        color:#fff;
-        padding:5px 10px;
-        font-size:12px;
+        border:none;
+        font-size:13px;
+        background:transparent;
+        outline:none;
+      }
+      .tt-comment-input::placeholder{
+        color:#9ca3af;
+      }
+
+      .tt-comment-photo{
+        font-size:0;
+        max-width:140px;
+      }
+      .tt-comment-photo::file-selector-button{
+        margin-right:4px;
+        border-radius:999px;
+        border:1px solid #d1d5db;
+        background:#fff;
+        padding:4px 8px;
+        font-size:11px;
         cursor:pointer;
       }
-      .tt-comment-send:disabled{
-        opacity:.6;
-        cursor:default;
+      .tt-comment-send{
+        padding:6px 12px;
+        font-size:13px;
+        border-radius:999px;
+        border:none;
+        background:#111827;
+        color:#fff;
+        cursor:pointer;
       }
-      .tt-comment-photo{
-        font-size:11px;
+
+      .tt-comment-reply-box{
+        display:flex;
+        align-items:center;
+        gap:6px;
+        margin-top:4px;
+        margin-left:24px;
+        padding:4px 8px;
+        border-radius:999px;
+        background:#f3f4f6;
+        border:1px solid #e5e7eb;
+      }
+      .tt-comment-reply-box[hidden]{
+        display:none;
       }
 
       .tt-more-comments{
-        margin-top:4px;
-        margin-left:12px;
         border:none;
         background:none;
-        color:#4b5563;
+        color:#6b7280;
         font-size:12px;
-        padding:2px 0;
+        padding:0;
+        margin:2px 0 2px 42px;
         cursor:pointer;
+        text-align:left;
       }
 
-      #toast.toast{
-        position:fixed;
-        left:50%;
-        bottom:18px;
-        transform:translateX(-50%);
-        background:#111827;
-        color:#f9fafb;
-        padding:8px 14px;
-        border-radius:999px;
-        font-size:13px;
-        opacity:0;
-        pointer-events:none;
-        transition:opacity .18s ease, transform .18s ease;
-        z-index:9999;
+      .tt-menu{
+        position:relative;
       }
-      #toast.toast.show{
-        opacity:1;
-        transform:translateX(-50%) translateY(-4px);
-        pointer-events:auto;
+      .tt-menu-btn{
+        padding:2px 6px;
+        font-size:14px;
+        border-radius:999px;
+        border:1px solid #d1d5db;
+        background:#fff;
+        cursor:pointer;
+      }
+      .tt-menu-pop{
+        position:absolute;
+        margin-top:4px;
+        right:0;
+        background:#fff;
+        border-radius:8px;
+        box-shadow:0 10px 30px rgba(15,23,42,.15);
+        padding:4px;
+        z-index:20;
+        display:grid;
+      }
+      .tt-menu-pop[hidden]{
+        display:none !important;
+      }
+      .tt-menu-item{
+        display:block;
+        width:100%;
+        text-align:left;
+        border:none;
+        background:none;
+        padding:6px 10px;
+        font-size:13px;
+        border-radius:6px;
+        cursor:pointer;
+      }
+      .tt-menu-item:hover{
+        background:#f3f4f6;
+      }
+      .tt-menu-item.danger{
+        color:#b91c1c;
+      }
+
+      .tt-react-summary-comment{
+        margin-top:2px;
       }
 
       #tt-zoom-modal{
@@ -1592,8 +1831,8 @@
         justify-content:center;
         opacity:0;
         pointer-events:none;
-        transition:opacity .16s ease;
-        z-index:9998;
+        transition:opacity .18s ease;
+        z-index:60;
       }
       #tt-zoom-modal.show{
         opacity:1;
@@ -1606,46 +1845,85 @@
       }
       .tt-zoom-inner{
         position:relative;
+        z-index:1;
         max-width:90vw;
         max-height:90vh;
-        padding:8px;
-        background:#f9fafb;
-        border-radius:18px;
-        box-shadow:0 24px 60px rgba(15,23,42,.35);
+        display:flex;
+        flex-direction:column;
       }
       .tt-zoom-img{
-        max-width:80vw;
-        max-height:80vh;
-        display:block;
+        max-width:90vw;
+        max-height:90vh;
         border-radius:12px;
+        object-fit:contain;
+        background:#fff;
       }
       .tt-zoom-close{
         position:absolute;
-        right:10px;
-        top:6px;
+        top:-32px;
+        right:0;
         border:none;
         background:none;
-        color:#374151;
-        font-size:20px;
+        color:#f9fafb;
+        font-size:24px;
         cursor:pointer;
       }
 
+      .tt-edit-area{
+        width:100%;
+        min-height:80px;
+        font-size:14px;
+        padding:8px 10px;
+        border-radius:10px;
+        border:1px solid #d1d5db;
+        background:#fff;
+        outline:none;
+        resize:vertical;
+      }
+      .tt-edit-actions{
+        margin-top:6px;
+        display:flex;
+        gap:8px;
+      }
+      .tt-edit-save,
+      .tt-edit-cancel{
+        padding:6px 12px;
+        font-size:13px;
+        border-radius:8px;
+        border:none;
+        cursor:pointer;
+      }
+      .tt-edit-save{
+        background:#111827;
+        color:#fff;
+      }
+      .tt-edit-cancel{
+        background:#e5e7eb;
+        color:#374151;
+      }
+
+      /* Mobile adjustments */
       @media (max-width:640px){
         .card{
-          border-radius:14px;
-          padding:10px 10px;
+          padding:12px;
         }
-        .tt-comment-input{
-          font-size:12px;
+        .tt-comments-list::before{
+          left:14px;
         }
-        .tt-comment-send{
-          padding:4px 8px;
-          font-size:11px;
+        .tt-comment{
+          margin-left:32px;
+        }
+        .tt-comment-new{
+          margin-left:32px;
+        }
+        .tt-more-comments{
+          margin-left:32px;
         }
       }
     `;
-    const style = document.createElement("style");
-    style.textContent = css;
-    document.head.appendChild(style);
+    const tag = document.createElement("style");
+    tag.textContent = css;
+    document.head.appendChild(tag);
   }
+
 })();
