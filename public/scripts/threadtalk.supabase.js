@@ -19,35 +19,31 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-// More robust YouTube ID parsing: handles youtu.be links and ?v=… with extra params
-function getYouTubeVideoId(urlRaw) {
-  try {
-    const u = new URL(urlRaw);
-    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+function getYouTubeVideoId(url) {
+  // Supports:
+  // https://www.youtube.com/watch?v=VIDEOID
+  // https://youtube.com/watch?v=VIDEOID
+  // https://youtu.be/VIDEOID
+  const watchMatch = url.match(
+    /https?:\/\/(?:www\.)?youtube\.com\/watch\?[^ ]*v=([a-zA-Z0-9_-]{11})/
+  );
+  if (watchMatch) return watchMatch[1];
 
-    if (host === "youtube.com" || host === "m.youtube.com") {
-      const v = u.searchParams.get("v");
-      return v && v.length >= 11 ? v.slice(0, 11) : null;
-    }
+  const shortMatch = url.match(
+    /https?:\/\/(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})/
+  );
+  if (shortMatch) return shortMatch[1];
 
-    if (host === "youtu.be") {
-      const parts = u.pathname.split("/").filter(Boolean);
-      const id = parts[0] || "";
-      return id.length >= 11 ? id.slice(0, 11) : null;
-    }
-  } catch {
-    // If URL constructor fails, fall through and return null
-  }
   return null;
 }
 
 /**
  * Turn plain text into HTML with:
  * - Normal clickable links for non-YouTube URLs
- * - Embedded, *reasonably sized* YouTube iframes when a YouTube URL is present
+ * - Embedded YouTube iframes when a YouTube URL is present
  *
- * This is used by ThreadTalk.html via a MutationObserver after threadtalk.js
- * renders the cards.
+ * Use this in your UI code like:
+ *   element.innerHTML = renderTextWithLinksAndEmbeds(post.text || "");
  */
 export function renderTextWithLinksAndEmbeds(text) {
   if (!text) return "";
@@ -62,70 +58,40 @@ export function renderTextWithLinksAndEmbeds(text) {
 
     // Even index → plain text
     if (i % 2 === 0) {
-      if (segment) html += escapeHtml(segment);
+      html += escapeHtml(segment);
       continue;
     }
 
     // Odd index → URL
     const url = segment.trim();
-    if (!url) continue;
-
     const videoId = getYouTubeVideoId(url);
 
     if (videoId) {
-      // YouTube embed: capped width, 16:9, centered; plus a small raw-link line.
+      // YouTube embed + small link under it
       html += `
-        <div class="tt-embed tt-embed-youtube" style="margin-top:8px;">
-          <div
-            class="tt-embed-inner"
-            style="
-              position:relative;
-              width:100%;
-              max-width:640px;
-              margin:0 auto;
-              padding-top:56.25%;
-              border-radius:12px;
-              overflow:hidden;
-            "
-          >
+        <div class="tt-embed tt-embed-youtube">
+          <div class="tt-embed-inner">
             <iframe
               src="https://www.youtube.com/embed/${videoId}"
               title="YouTube video player"
               frameborder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowfullscreen
-              style="
-                position:absolute;
-                inset:0;
-                width:100%;
-                height:100%;
-                border:0;
-              "
             ></iframe>
           </div>
-          <div
-            class="tt-embed-link"
-            style="
-              margin-top:4px;
-              font-size:12px;
-              color:var(--hm-muted, #6b7280);
-              word-break:break-all;
-            "
-          >
-            <a href="${url}" target="_blank" rel="noopener noreferrer">
-              ${escapeHtml(url)}
-            </a>
+          <div class="tt-embed-link">
+            <a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(
+              url
+            )}</a>
           </div>
         </div>
       `;
     } else {
-      // Non-YouTube URL → normal inline link.
+      // Non-YouTube URL → normal link
       const label = url.length > 80 ? url.slice(0, 77) + "..." : url;
-      html += `<span class="tt-inline-link">
-        <a href="${url}" target="_blank" rel="noopener noreferrer">
-          ${escapeHtml(label)}
-        </a>
-      </span>`;
+      html += `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(
+        label
+      )}</a>`;
     }
   }
 
