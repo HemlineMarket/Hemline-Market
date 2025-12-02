@@ -1343,7 +1343,7 @@
 
     let modal = document.getElementById("tt-zoom-modal");
     if (!modal) {
-      modal = document.createElement("div");
+            modal = document.createElement("div");
       modal.id = "tt-zoom-modal";
       modal.innerHTML = `
         <div class="tt-zoom-backdrop" data-tt-role="close-zoom"></div>
@@ -1657,7 +1657,8 @@
         opacity:0;
         pointer-events:none;
         transform:translateY(4px);
-        transition:opacity .12s ease,transform .12s.ease;
+        transition:opacity .12s ease,transform .12s ease;
+        z-index:20;
       }
       .tt-like-wrapper.tt-picker-open .tt-react-picker{
         opacity:1;
@@ -1680,6 +1681,10 @@
         color:#6b7280;
         margin-top:2px;
         flex-wrap:wrap;
+      }
+      .tt-react-summary-comment{
+        margin-top:0;
+        margin-left:2px;
       }
       .tt-react-chip{
         display:inline-flex;
@@ -1708,60 +1713,51 @@
         gap:4px;
         padding-left:0;
       }
-            .tt-comments-list::before{
+      .tt-comments-list::before{
         content:"";
         position:absolute;
-        left:18px;
-        top:4px;
-        bottom:8px;
+        left:10px;
+        top:0;
+        bottom:32px;
         width:2px;
-        border-radius:999px;
-        background:rgba(209,213,219,.9);
+        background:rgba(148,163,184,.45);
       }
 
       .tt-comment{
         position:relative;
-        margin-left:42px;
-        padding:6px 10px 8px;
-        border-radius:16px;
+        margin-left:18px;
+        padding:6px 8px;
+        border-radius:14px;
         background:#f9fafb;
-        border:1px solid #e5e7eb;
+        font-size:13px;
       }
       .tt-comment-head-row{
         display:flex;
-        align-items:center;
+        align-items:flex-start;
         justify-content:space-between;
-        font-size:12px;
+        gap:4px;
         margin-bottom:2px;
       }
       .tt-comment-meta{
         display:flex;
         align-items:center;
         gap:4px;
+        font-size:12px;
+        color:#6b7280;
       }
       .tt-comment-author{
         font-weight:500;
         color:#111827;
       }
-      .tt-comment-time{
-        color:#9ca3af;
-      }
       .tt-comment-body{
         font-size:13px;
+        line-height:1.4;
+        color:#374151;
         margin-bottom:2px;
-        color:#111827;
       }
-
       .tt-comment-media{
         margin:4px 0;
         max-width:360px;
-      }
-      .tt-comment-media .post-img,
-      .tt-comment-media .post-video{
-        width:100%;
-        height:auto;
-        border-radius:8px;
-        display:block;
       }
 
       .tt-comment-actions{
@@ -1770,106 +1766,88 @@
         gap:8px;
         font-size:12px;
         margin-top:2px;
+      }
+      .tt-reply-link{
+        border:none;
+        background:none;
+        padding:2px 4px;
+        margin:0;
+        font-size:12px;
         color:#6b7280;
-      }
-
-      .tt-comment-new{
-        display:flex;
-        align-items:center;
-        gap:6px;
-        margin-top:6px;
-        margin-left:42px;
-        padding:6px 8px;
-        border-radius:999px;
-        background:#f3f4f6;
-        border:1px solid #e5e7eb;
-      }
-      .tt-comment-input{
-        flex:1;
-        padding:6px 10px;
-        border-radius:999px;
-        border:none;
-        font-size:13px;
-        background:transparent;
-        outline:none;
-      }
-      .tt-comment-input::placeholder{
-        color:#9ca3af;
-      }
-
-      .tt-comment-photo{
-        font-size:0;
-        max-width:140px;
-      }
-      .tt-comment-photo::file-selector-button{
-        margin-right:4px;
-        border-radius:999px;
-        border:1px solid #d1d5db;
-        background:#fff;
-        padding:4px 8px;
-        font-size:11px;
         cursor:pointer;
       }
-      .tt-comment-send{
-        padding:6px 12px;
-        font-size:13px;
-        border-radius:999px;
-        border:none;
-        background:#111827;
-        color:#fff;
-        cursor:pointer;
+      .tt-reply-link:hover{
+        text-decoration:underline;
       }
 
       .tt-comment-reply-box{
         display:flex;
         align-items:center;
-        gap:6px;
-        margin-top:4px;
-        margin-left:24px;
-        padding:4px 8px;
-        border-radius:999px;
-        background:#f3f4f6;
-        border:1px solid #e5e7eb;
+        gap:4px;
+        margin-top:6px;
       }
-      .tt-comment-reply-box[hidden]{
-        display:none;
+      .tt-comment-new{
+        display:flex;
+        align-items:center;
+        gap:4px;
+        margin-top:6px;
+      }
+      .tt-comment-photo{
+        font-size:11px;
+      }
+      .tt-comment-input{
+        flex:1;
+        min-width:0;
+        border-radius:999px;
+        border:1px solid #e5e7eb;
+        padding:6px 10px;
+        font-size:13px;
+      }
+      .tt-comment-send{
+        border:none;
+        border-radius:999px;
+        background:#111827;
+        color:#f9fafb;
+        padding:6px 10px;
+        font-size:12px;
+        cursor:pointer;
       }
 
       .tt-more-comments{
+        margin-top:4px;
         border:none;
         background:none;
-        color:#6b7280;
+        padding:2px 0;
         font-size:12px;
-        padding:0;
-        margin:2px 0 2px 42px;
+        color:#6b7280;
         cursor:pointer;
-        text-align:left;
+      }
+      .tt-more-comments:hover{
+        text-decoration:underline;
       }
 
       .tt-menu{
         position:relative;
       }
       .tt-menu-btn{
+        border:none;
+        background:none;
         padding:2px 6px;
-        font-size:14px;
-        border-radius:999px;
-        border:1px solid #d1d5db;
-        background:#fff;
+        font-size:16px;
+        line-height:1;
         cursor:pointer;
+        color:#9ca3af;
       }
       .tt-menu-pop{
         position:absolute;
-        margin-top:4px;
         right:0;
+        top:110%;
+        min-width:120px;
         background:#fff;
-        border-radius:8px;
-        box-shadow:0 10px 30px rgba(15,23,42,.15);
-        padding:4px;
-        z-index:20;
-        display:grid;
-      }
-      .tt-menu-pop[hidden]{
-        display:none !important;
+        border-radius:10px;
+        box-shadow:0 12px 30px rgba(15,23,42,.18);
+        padding:4px 0;
+        z-index:30;
       }
       .tt-menu-item{
         display:block;
@@ -1879,7 +1857,6 @@
         background:none;
         padding:6px 10px;
         font-size:13px;
-        border-radius:6px;
         cursor:pointer;
       }
       .tt-menu-item:hover{
@@ -1889,8 +1866,25 @@
         color:#b91c1c;
       }
 
-      .tt-react-summary-comment{
-        margin-top:2px;
+      #toast.toast{
+        position:fixed;
+        left:50%;
+        bottom:18px;
+        transform:translateX(-50%);
+        padding:8px 14px;
+        border-radius:999px;
+        background:#111827;
+        color:#f9fafb;
+        font-size:13px;
+        opacity:0;
+        pointer-events:none;
+        transition:opacity .18s ease, transform .18s ease;
+        z-index:9999;
+      }
+      #toast.toast.show{
+        opacity:1;
+        pointer-events:auto;
+        transform:translateX(-50%) translateY(0);
       }
 
       #tt-zoom-modal{
@@ -1902,7 +1896,7 @@
         opacity:0;
         pointer-events:none;
         transition:opacity .18s ease;
-        z-index:60;
+        z-index:9998;
       }
       #tt-zoom-modal.show{
         opacity:1;
@@ -1911,89 +1905,82 @@
       .tt-zoom-backdrop{
         position:absolute;
         inset:0;
-        background:rgba(15,23,42,.55);
+        background:rgba(15,23,42,.5);
       }
       .tt-zoom-inner{
         position:relative;
-        z-index:1;
         max-width:90vw;
         max-height:90vh;
-        display:flex;
-        flex-direction:column;
+        padding:12px;
+        border-radius:20px;
+        background:#111827;
+        box-shadow:0 24px 60px rgba(15,23,42,.6);
       }
       .tt-zoom-img{
-        max-width:90vw;
-        max-height:90vh;
-        border-radius:12px;
-        object-fit:contain;
-        background:#fff;
+        display:block;
+        max-width:80vw;
+        max-height:80vh;
+        border-radius:16px;
       }
       .tt-zoom-close{
         position:absolute;
-        top:-32px;
-        right:0;
+        top:8px;
+        right:10px;
         border:none;
         background:none;
-        color:#f9fafb;
-        font-size:24px;
+        color:#e5e7eb;
+        font-size:22px;
         cursor:pointer;
       }
 
       .tt-edit-area{
         width:100%;
         min-height:80px;
-        font-size:14px;
-        padding:8px 10px;
         border-radius:10px;
-        border:1px solid #d1d5db;
-        background:#fff;
-        outline:none;
+        border:1px solid #e5e7eb;
+        padding:6px 8px;
+        font-size:14px;
         resize:vertical;
       }
       .tt-edit-actions{
-        margin-top:6px;
         display:flex;
         gap:8px;
+        margin-top:4px;
       }
-      .tt-edit-save,
-      .tt-edit-cancel{
-        padding:6px 12px;
-        font-size:13px;
-        border-radius:8px;
+      .tt-edit-actions button{
+        border-radius:999px;
         border:none;
+        padding:6px 12px;
+        font-size:12px;
         cursor:pointer;
       }
       .tt-edit-save{
         background:#111827;
-        color:#fff;
+        color:#f9fafb;
       }
       .tt-edit-cancel{
         background:#e5e7eb;
-        color:#374151;
+        color:#111827;
       }
 
-      /* Mobile adjustments */
       @media (max-width:640px){
         .card{
-          padding:12px;
-        }
-        .tt-comments-list::before{
-          left:14px;
+          padding:10px 10px;
+          border-radius:14px;
         }
         .tt-comment{
-          margin-left:32px;
+          margin-left:14px;
         }
-        .tt-comment-new{
-          margin-left:32px;
-        }
-        .tt-more-comments{
-          margin-left:32px;
+        .tt-comments-list::before{
+          left:8px;
         }
       }
     `;
-    const tag = document.createElement("style");
-    tag.textContent = css;
-    document.head.appendChild(tag);
-  }
 
+    const el = document.createElement("style");
+    el.type = "text/css";
+    el.appendChild(document.createTextNode(css));
+    document.head.appendChild(el);
+  }
 })();
+                                     
