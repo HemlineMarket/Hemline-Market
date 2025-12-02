@@ -398,7 +398,7 @@
         <div class="tt-actions-row">
           <div class="tt-like-wrapper">
             <button class="tt-like-btn tt-like-main${
-              myType ? "tt-like-active" : ""
+              myType ? " tt-like-active" : ""
             }"
                     type="button"
                     data-tt-role="thread-like-toggle">
@@ -439,116 +439,33 @@
         </div>
       `;
 
-  // ---------- Link previews (YouTube + website cards) ----------
-  async function attachLinkPreview(card, thread) {
-    const body = thread.body || "";
-    const urlMatch = body.match(/https?:\/\/[^\s]+/);
-    if (!urlMatch) return;
+      // Attach link preview (YouTube embed or website card)
+      attachLinkPreview(card, thread);
 
-    const url = urlMatch[0];
+      cardsEl.appendChild(card);
+    });
+  }
 
-    const previewData = await fetchLinkMetadata(url);
-    if (!previewData) return;
+  // ---------- Render each comment ----------
+  function renderCommentHtml(threadId, c) {
+    const name = displayNameForUserId(c.author_id);
+    const ts = timeAgo(c.created_at);
 
-    const actionsRow = card.querySelector(".tt-actions-row");
-    if (!actionsRow) return;
+    const reactions = commentReactionsByComment[c.id] || [];
+    const { counts, mine } = computeReactionState(reactions);
+    const myType = REACTION_TYPES.find((r) => mine[r.key])?.key || null;
 
-    const container = document.createElement("div");
-    container.className = "tt-link-preview-wrap";
-
-    if (isYoutubeUrl(url)) {
-      // Build our own embed URL so the video actually plays
-      const embedUrl = buildYoutubeEmbedUrl(url);
-      const title = previewData.title || "YouTube video";
-
-      container.innerHTML = `
-        <div class="tt-link-embed">
-          <iframe
-            src="${escapeAttr(embedUrl)}"
-            title="${escapeAttr(title)}"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-            loading="lazy">
-          </iframe>
-        </div>
-      `;
-    } else {
-      const rawTitle = previewData.title || url;
-      const title = rawTitle.length > 120 ? rawTitle.slice(0, 117) + "…" : rawTitle;
-      let host = "";
-      try {
-        const u = new URL(url);
-        host = u.hostname.replace(/^www\./, "");
-      } catch (_) {
-        host = "";
+    let chipsHtml = "";
+    REACTION_TYPES.forEach((r) => {
+      const count = counts[r.key];
+      if (count) {
+        chipsHtml += `
+          <span class="tt-react-chip">
+            <span class="tt-react-emoji">${r.emoji}</span>
+            <span class="tt-react-count">${r.count}</span>
+          </span>`;
       }
-
-      const thumb = previewData.thumbnailUrl || previewData.thumbnail_url || null;
-
-      container.innerHTML = `
-        <a class="tt-link-card"
-           href="${escapeAttr(url)}"
-           target="_blank"
-           rel="noopener noreferrer">
-          ${
-            thumb
-              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
-                  thumb
-                )}');"></div>`
-              : ""
-          }
-          <div class="tt-link-meta">
-            <div class="tt-link-title">${escapeHtml(title)}</div>
-            ${
-              host
-                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
-                : ""
-            }
-          </div>
-        </a>
-      `;
-    }
-
-    // Insert the preview just above the Like / Reply row
-    card.insertBefore(container, actionsRow);
-  }
-
-  function isYoutubeUrl(url) {
-    try {
-      const u = new URL(url);
-      const host = u.hostname.replace(/^www\./, "").toLowerCase();
-      return (
-        host === "youtube.com" ||
-        host === "m.youtube.com" ||
-        host === "youtu.be"
-      );
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function buildYoutubeEmbedUrl(url) {
-    try {
-      const u = new URL(url);
-      const host = u.hostname.replace(/^www\./, "").toLowerCase();
-
-      let id = "";
-
-      if (host === "youtu.be") {
-        // https://youtu.be/VIDEOID
-        id = u.pathname.replace("/", "");
-      } else {
-        // https://www.youtube.com/watch?v=VIDEOID
-        id = u.searchParams.get("v") || "";
-      }
-
-      if (!id) return url;
-      return `https://www.youtube.com/embed/${id}`;
-    } catch (_) {
-      return url;
-    }
-  }
+    });
 
     const summaryHtml = chipsHtml
       ? `<div class="tt-react-summary tt-react-summary-comment">${chipsHtml}</div>`
@@ -612,7 +529,7 @@
          <div class="tt-comment-actions">
            <div class="tt-like-wrapper tt-like-wrapper-comment">
              <button class="tt-like-btn tt-like-main${
-               myType ? "tt-like-active" : ""
+               myType ? " tt-like-active" : ""
              }"
                      type="button"
                      data-tt-role="comment-like-toggle"
@@ -984,9 +901,7 @@
             box.setAttribute("hidden", "true");
           }
           const input = box.querySelector(".tt-comment-input");
-          if (input) {
-            input.focus();
-          }
+          if (input) input.focus();
           break;
         }
 
@@ -1471,8 +1386,7 @@
   function makeToastElement() {
     const el = document.createElement("div");
     el.id = "toast";
-    el.class
-        Name = "toast";
+    el.className = "toast";
     el.setAttribute("role", "status");
     el.setAttribute("aria-live", "polite");
     el.setAttribute("aria-atomic", "true");
@@ -1551,97 +1465,125 @@
     });
   }
 
-  // ---------- Link previews (YouTube + generic sites) ----------
-  function extractFirstUrl(text) {
-    const str = String(text || "");
-    const match = str.match(/https?:\/\/[^\s]+/);
-    return match ? match[0] : null;
-  }
-
+  // ---------- Link previews (YouTube + website cards) ----------
   async function attachLinkPreview(card, thread) {
-    try {
-      const url = extractFirstUrl(thread.body || "");
-      if (!url) return;
+    const body = thread.body || "";
+    const urlMatch = body.match(/https?:\/\/[^\s]+/);
+    if (!urlMatch) return;
 
-      const meta = await fetchLinkMetadata(url);
-      if (!meta) return;
+    const url = urlMatch[0];
 
-      const previewAnchor = card.querySelector(".preview");
-      if (!previewAnchor) return;
+    const previewData = await fetchLinkMetadata(url);
+    if (!previewData) return;
 
-      const container = document.createElement("div");
-      container.className = "tt-link-preview";
+    const actionsRow = card.querySelector(".tt-actions-row");
+    if (!actionsRow) return;
 
-      if (meta.type === "youtube" && meta.html) {
-        // Use YouTube's iframe, but make it fit the card
-        let iframeHtml = meta.html;
-        try {
-          iframeHtml = iframeHtml
-            .replace(/width="[^"]*"/, 'width="100%"')
-            .replace(/height="[^"]*"/, 'height="240"');
-        } catch (_) {
-          // if anything goes wrong, just use original HTML
-        }
-        container.innerHTML = iframeHtml;
-      } else if (meta.type === "link") {
-        const title = meta.title || meta.url;
-        const desc = meta.description || "";
-        const domain =
-          meta.domain ||
-          (() => {
-            try {
-              return new URL(meta.url).hostname;
-            } catch {
-              return "";
-            }
-          })();
-        const image = meta.image || "";
+    const container = document.createElement("div");
+    container.className = "tt-link-preview-wrap";
 
-        let inner = `<a href="${escapeAttr(
-          meta.url
-        )}" target="_blank" rel="noopener noreferrer" class="tt-link-preview-inner">`;
+    if (isYoutubeUrl(url)) {
+      // Build our own embed URL so the video actually plays
+      const embedUrl = buildYoutubeEmbedUrl(url);
+      const title = previewData.title || "YouTube video";
 
-        if (image) {
-          inner += `<div class="tt-link-preview-thumb-wrap">
-            <img src="${escapeAttr(
-              image
-            )}" alt="Preview image" class="tt-link-preview-thumb"/>
-          </div>`;
-        }
-
-        inner += `<div class="tt-link-preview-text">
-          <div class="tt-link-preview-title">${escapeHtml(title)}</div>
-          ${
-            desc
-              ? `<div class="tt-link-preview-desc">${escapeHtml(
-                  desc
-                )}</div>`
-              : ""
-          }
-          ${
-            domain
-              ? `<div class="tt-link-preview-domain">${escapeHtml(domain)}</div>`
-              : ""
-          }
-        </div>`;
-
-        inner += `</a>`;
-        container.innerHTML = inner;
-      } else {
-        return;
+      container.innerHTML = `
+        <div class="tt-link-embed">
+          <iframe
+            src="${escapeAttr(embedUrl)}"
+            title="${escapeAttr(title)}"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy">
+          </iframe>
+        </div>
+      `;
+    } else {
+      const rawTitle = previewData.title || url;
+      const title = rawTitle.length > 120 ? rawTitle.slice(0, 117) + "…" : rawTitle;
+      let host = "";
+      try {
+        const u = new URL(url);
+        host = u.hostname.replace(/^www\./, "");
+      } catch (_) {
+        host = "";
       }
 
-      previewAnchor.insertAdjacentElement("afterend", container);
-    } catch (err) {
-      console.error("[ThreadTalk] attachLinkPreview error", err);
+      const thumb = previewData.thumbnailUrl || previewData.thumbnail_url || null;
+
+      container.innerHTML = `
+        <a class="tt-link-card"
+           href="${escapeAttr(url)}"
+           target="_blank"
+           rel="noopener noreferrer">
+          ${
+            thumb
+              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
+                  thumb
+                )}');"></div>`
+              : ""
+          }
+          <div class="tt-link-meta">
+            <div class="tt-link-title">${escapeHtml(title)}</div>
+            ${
+              host
+                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
+                : ""
+            }
+          </div>
+        </a>
+      `;
+    }
+
+    // Insert the preview just above the Like / Reply row
+    card.insertBefore(container, actionsRow);
+  }
+
+  function isYoutubeUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+      return (
+        host === "youtube.com" ||
+        host === "m.youtube.com" ||
+        host === "youtu.be"
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function buildYoutubeEmbedUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+
+      let id = "";
+
+      if (host === "youtu.be") {
+        // https://youtu.be/VIDEOID
+        id = u.pathname.replace("/", "");
+      } else {
+        // https://www.youtube.com/watch?v=VIDEOID
+        id = u.searchParams.get("v") || "";
+      }
+
+      if (!id) return url;
+      return `https://www.youtube.com/embed/${id}`;
+    } catch (_) {
+      return url;
     }
   }
 
   async function fetchLinkMetadata(url) {
     try {
-      const { data, error } = await HM.supabase.functions.invoke("link-metadata", {
-        body: { url },
-      });
+      const { data, error } = await HM.supabase.functions.invoke(
+        "link-metadata",
+        {
+          body: { url },
+        }
+      );
 
       if (error) {
         console.error("[Link Metadata Error]", error);
@@ -2092,51 +2034,48 @@
         color:#374151;
       }
 
-      .tt-link-preview{
+      .tt-link-preview-wrap{
         margin-top:6px;
+        margin-bottom:4px;
+        max-width:460px;
+      }
+      .tt-link-card{
+        display:flex;
+        gap:10px;
+        text-decoration:none;
         border-radius:12px;
         border:1px solid #e5e7eb;
         background:#f9fafb;
         overflow:hidden;
-        max-width:460px;
       }
-      .tt-link-preview-inner{
-        display:flex;
-        text-decoration:none;
-        color:inherit;
-      }
-      .tt-link-preview-thumb-wrap{
+      .tt-link-thumb{
         flex:0 0 120px;
-        max-height:120px;
-        overflow:hidden;
+        min-height:80px;
+        background-size:cover;
+        background-position:center;
+        background-repeat:no-repeat;
       }
-      .tt-link-preview-thumb{
-        width:100%;
-        height:100%;
-        object-fit:cover;
-        display:block;
-      }
-      .tt-link-preview-text{
+      .tt-link-meta{
         padding:8px 10px;
         display:flex;
         flex-direction:column;
         gap:2px;
       }
-      .tt-link-preview-title{
+      .tt-link-title{
         font-size:13px;
         font-weight:600;
         color:#111827;
       }
-      .tt-link-preview-desc{
-        font-size:12px;
-        color:#4b5563;
-        max-height:3.2em;
-        overflow:hidden;
-      }
-      .tt-link-preview-domain{
+      .tt-link-host{
         font-size:11px;
         color:#9ca3af;
-        margin-top:2px;
+      }
+      .tt-link-embed iframe{
+        width:100%;
+        max-width:460px;
+        border-radius:12px;
+        border:none;
+        aspect-ratio:16/9;
       }
 
       /* Mobile adjustments */
