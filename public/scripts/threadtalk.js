@@ -392,30 +392,55 @@
           </div>
         </div>
 
-  // Turn raw text into safe HTML with clickable links, keeping all original text.
-  function linkify(text) {
-    const str = String(text || "");
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    let lastIndex = 0;
-    let html = "";
-    let match;
+        <div class="preview">${linkify(thread.body || "")}</div>
+        ${mediaHtml}
 
-    while ((match = urlRegex.exec(str)) !== null) {
-      const url = match[0];
-      const before = str.slice(lastIndex, match.index);
+        <div class="tt-actions-row">
+          <div class="tt-like-wrapper">
+            <button class="tt-like-btn tt-like-main${
+              myType ? " tt-like-active" : ""
+            }"
+                    type="button"
+                    data-tt-role="thread-like-toggle">
+              <span class="tt-like-label">Like</span>
+            </button>
+            ${pickerHtml}
+          </div>
 
-      // Add the text that came before the URL, escaped
-      html += escapeHtml(before);
+          <button class="tt-reply-link"
+                  type="button"
+                  data-tt-role="respond">
+            Reply
+          </button>
+        </div>
 
-      // Add the clickable link
-      html += `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+        ${reactionSummaryHtml}
 
-      lastIndex = match.index + url.length;
-    }
+        <div class="tt-comments">
+          <div class="tt-comments-list">
+            ${commentsHtml}
+          </div>
+          ${hiddenHtml}
+          <div class="tt-comment-new">
+            <input class="tt-comment-photo"
+                   type="file"
+                   accept="image/*"
+                   data-tt-role="comment-photo"/>
+            <input class="tt-comment-input"
+                   type="text"
+                   maxlength="500"
+                   placeholder="Write a reply…"/>
+            <button class="tt-comment-send"
+                    type="button"
+                    data-tt-role="send-comment">
+              Send
+            </button>
+          </div>
+        </div>
+      `;
 
-    // Add any remaining text after the last URL
-    html += escapeHtml(str.slice(lastIndex));
-    return html;
+      cardsEl.appendChild(card);
+    });
   }
 
   // ---------- Render each comment ----------
@@ -664,7 +689,6 @@
         clearMediaPreview();
 
         allThreads.unshift(data);
-        // New post should show its replies immediately once people start replying
         applySearchFilter();
         showToast("Posted");
       } catch (err) {
@@ -1134,7 +1158,6 @@
       if (input) input.value = "";
       if (fileInput) fileInput.value = "";
 
-      // When a new reply is added, make sure replies for that thread are visible
       expandedCommentsThreads.add(threadId);
       await loadThreads();
     } catch (err) {
@@ -1622,7 +1645,7 @@
         bottom:8px;
         width:2px;
         border-radius:999px;
-        background:rgba(209,213,219,.9); /* neutral grey vertical line */
+        background:rgba(209,213,219,.9);
       }
 
       .tt-comment{
@@ -1630,10 +1653,10 @@
         margin-left:42px;
         padding:6px 10px 8px;
         border-radius:16px;
-        background:#f9fafb;               /* soft grey bubble */
-        border:1px solid #e5e7eb;         /* light grey border */
+        background:#f9fafb;
+        border:1px solid #e5e7eb;
       }
-      .tt-comment-head-row{
+           .tt-comment-head-row{
         display:flex;
         align-items:center;
         justify-content:space-between;
@@ -1687,7 +1710,7 @@
         margin-left:42px;
         padding:6px 8px;
         border-radius:999px;
-        background:#f3f4f6;              /* grey for composer */
+        background:#f3f4f6;
         border:1px solid #e5e7eb;
       }
       .tt-comment-input{
@@ -1734,7 +1757,7 @@
         margin-left:24px;
         padding:4px 8px;
         border-radius:999px;
-        background:#f3f4f6;              /* same tint as new-comment row */
+        background:#f3f4f6;
         border:1px solid #e5e7eb;
       }
       .tt-comment-reply-box[hidden]{
@@ -1807,7 +1830,7 @@
         justify-content:center;
         opacity:0;
         pointer-events:none;
-        transition:opacity .18s ease;
+        transition:opacity .18s.ease;
         z-index:60;
       }
       #tt-zoom-modal.show{
