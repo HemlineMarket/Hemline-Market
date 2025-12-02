@@ -79,7 +79,7 @@
   let commentReactionsByComment = {};
   const expandedCommentsThreads = new Set();
 
-  // thread id from URL (?thread=123)
+  // NEW: thread id from URL (?thread=123)
   const urlParams = new URLSearchParams(window.location.search || "");
   const THREAD_URL_ID = urlParams.get("thread")
     ? Number(urlParams.get("thread"))
@@ -181,11 +181,11 @@
       const threadIds = allThreads.map((t) => t.id);
       const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
 
-      // Load comments
+      // Load comments (include parent_comment_id for nesting)
       const { data: commentRows } = await supabase
         .from("threadtalk_comments")
         .select(
-          "id, thread_id, author_id, body, media_url, media_type, created_at, is_deleted"
+          "id, thread_id, author_id, body, media_url, media_type, created_at, is_deleted, parent_comment_id"
         )
         .in("thread_id", threadIds);
 
@@ -305,15 +305,13 @@
       const comments = commentsByThread[thread.id] || [];
       const mediaHtml = renderMedia(thread);
 
-      let commentsToRender = [];
+      // Replies collapsed by default; we only render tree when expanded.
       const isExpanded = expandedCommentsThreads.has(thread.id);
-      if (isExpanded) {
-        commentsToRender = comments;
-      }
-
-      const commentsHtml = commentsToRender
-        .map((c) => renderCommentHtml(thread.id, c))
-        .join("");
+      const commentsCount = comments.length;
+      const commentsHtml =
+        isExpanded && commentsCount
+          ? renderCommentsForThread(thread.id)
+          : "";
 
       const isMine = currentUser && thread.author_id === currentUser.id;
 
@@ -328,12 +326,12 @@
         </div>`
         : "";
 
-      const showRepliesButton = comments.length && !isExpanded;
+      const showRepliesButton = commentsCount && !isExpanded;
 
       const hiddenHtml = showRepliesButton
         ? `<button class="tt-more-comments" type="button" data-tt-role="show-all-comments">
-             View all ${comments.length} repl${
-             comments.length === 1 ? "y" : "ies"
+             View all ${commentsCount} repl${
+             commentsCount === 1 ? "y" : "ies"
            }…
            </button>`
         : "";
@@ -438,13 +436,54 @@
         </div>
       `;
 
+      // Attach link preview (YouTube embed or website card)
       attachLinkPreview(card, thread);
+
       cardsEl.appendChild(card);
     });
   }
 
+  // Build nested comment tree HTML for a thread
+  function renderCommentsForThread(threadId) {
+    const comments = commentsByThread[threadId] || [];
+    if (!comments.length) return "";
+
+    const byParent = {};
+    comments.forEach((c) => {
+      const parentId = c.parent_comment_id || null;
+      if (!byParent[parentId]) byParent[parentId] = [];
+      byParent[parentId].push(c);
+    });
+
+    // Keep replies in chronological order
+    Object.keys(byParent).forEach((key) => {
+      byParent[key].sort(
+        (a, b) => new Date(a.created_at) - new Date(b.created_at)
+      );
+    });
+
+    const topLevel = byParent[null] || [];
+
+    const pieces = topLevel.map((c) =>
+      renderCommentTree(threadId, c, byParent, null)
+    );
+    return pieces.join("");
+  }
+
+  function renderCommentTree(threadId, comment, byParent, parentAuthorName) {
+    const html = renderCommentHtml(threadId, comment, parentAuthorName);
+    const children = byParent[comment.id] || [];
+    const thisAuthor = displayNameForUserId(comment.author_id);
+    const childHtml = children
+      .map((child) =>
+        renderCommentTree(threadId, child, byParent, thisAuthor)
+      )
+      .join("");
+    return html + childHtml;
+  }
+
   // ---------- Render each comment ----------
-  function renderCommentHtml(threadId, c) {
+  function renderCommentHtml(threadId, c, parentAuthorName) {
     const name = displayNameForUserId(c.author_id);
     const ts = timeAgo(c.created_at);
 
@@ -504,8 +543,16 @@
 
     const mediaHtml = renderCommentMedia(c);
 
+    const replyingLabel = parentAuthorName
+      ? `<span class="tt-comment-replying">Replying to ${escapeHtml(
+          parentAuthorName
+        )}</span>`
+      : "";
+
+    const childClass = parentAuthorName ? " tt-comment-child" : "";
+
     return `
-      <div class="tt-comment"
+      <div class="tt-comment${childClass}"
            data-comment-id="${c.id}"
            data-thread-id="${threadId}"
            data-author-name="${escapeAttr(name)}">
@@ -519,7 +566,10 @@
            ${deleteHtml}
          </div>
 
-         <div class="tt-comment-body">${linkify(c.body)}</div>
+         <div class="tt-comment-body">
+           ${replyingLabel}
+           <span class="tt-comment-text">${linkify(c.body)}</span>
+         </div>
          ${mediaHtml}
          ${summaryHtml}
 
@@ -1108,6 +1158,7 @@
 
   // ---------- Comments ----------
   async function handleSendComment(buttonEl, threadId) {
+    // Works for both bottom reply + inline reply boxes
     const row =
       buttonEl.closest(".tt-comment-new") ||
       buttonEl.closest(".tt-comment-reply-box");
@@ -1128,6 +1179,10 @@
     const ok = await ensureLoggedInFor("comment");
     if (!ok) return;
 
+    // NEW: figure out parent_comment_id (null for thread-level comments)
+    const parentAttr = row.getAttribute("data-parent-comment-id");
+    const parent_comment_id = parentAttr ? Number(parentAttr) : null;
+
     let media = { media_url: null, media_type: null };
     if (file) {
       media = await maybeUploadCommentMedia(file);
@@ -1141,6 +1196,7 @@
       const { error } = await supabase.from("threadtalk_comments").insert({
         thread_id: threadId,
         author_id: currentUser.id,
+        parent_comment_id,
         body,
         media_url: media.media_url,
         media_type: media.media_type,
@@ -1260,7 +1316,7 @@
           is_deleted: true,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", threadId);
+        .eq("id", threadId); // RLS enforces author
 
       if (error) {
         console.error("[ThreadTalk] delete thread error", error);
@@ -1289,7 +1345,7 @@
           is_deleted: true,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", commentId);
+        .eq("id", commentId); // RLS enforces author
 
       if (error) {
         console.error("[ThreadTalk] delete comment error", error);
@@ -1306,6 +1362,7 @@
 
   // ---------- Share ----------
   async function handleShareThread(threadId) {
+    // Build link from CURRENT page path, so it works on /threadtalk, /threadtalk.html, etc.
     const baseUrl =
       window.location.origin + window.location.pathname.replace(/\/$/, "");
     const url = `${baseUrl}?thread=${encodeURIComponent(threadId)}`;
@@ -1413,13 +1470,7 @@
     return escapeHtml(str).replace(/'/g, "&#39;");
   }
 
-  function decodeHtmlEntities(str) {
-    if (!str) return "";
-    const txt = document.createElement("textarea");
-    txt.innerHTML = str;
-    return txt.value;
-  }
-
+  // Turn raw text into safe HTML with clickable links, keeping all original text.
   function linkify(text) {
     const str = String(text || "");
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -1466,112 +1517,81 @@
     });
   }
 
-  // ---------- Link previews ----------
+  // ---------- Link previews (YouTube + website cards) ----------
   async function attachLinkPreview(card, thread) {
-    try {
-      const body = thread.body || "";
-      const urlMatch = body.match(/https?:\/\/[^\s]+/);
-      if (!urlMatch) return;
+    const body = thread.body || "";
+    const urlMatch = body.match(/https?:\/\/[^\s]+/);
+    if (!urlMatch) return;
 
-      const originalUrl = urlMatch[0];
+    const url = urlMatch[0];
 
-      const previewData = await fetchLinkMetadata(originalUrl);
-      if (!previewData) return;
+    const previewData = await fetchLinkMetadata(url);
+    if (!previewData) return;
 
-      const actionsRow = card.querySelector(".tt-actions-row");
-      if (!actionsRow) return;
+    const actionsRow = card.querySelector(".tt-actions-row");
+    if (!actionsRow) return;
 
-      const container = document.createElement("div");
-      container.className = "tt-link-preview-wrap";
+    const container = document.createElement("div");
+    container.className = "tt-link-preview-wrap";
 
-      const metaUrl = previewData.url || originalUrl;
+    if (isYoutubeUrl(url)) {
+      // Build our own embed URL so the video actually plays
+      const embedUrl = buildYoutubeEmbedUrl(url);
+      const title = previewData.title || "YouTube video";
 
-      if (isYoutubeUrl(metaUrl)) {
-        // YouTube: clickable card with thumbnail + play icon, opens YouTube
-        const rawTitle = previewData.title || "YouTube video";
-        const decodedTitle = decodeHtmlEntities(rawTitle);
-        const normalizedTitle = decodedTitle.replace(/\s+/g, " ").trim();
-        const title =
-          normalizedTitle.length > 120
-            ? normalizedTitle.slice(0, 117) + "…"
-            : normalizedTitle;
-
-        const thumb =
-          previewData.image ||
-          previewData.thumbnailUrl ||
-          previewData.thumbnail_url ||
-          null;
-
-        const thumbStyle = thumb
-          ? ` style="background-image:url('${escapeAttr(thumb)}');"`
-          : "";
-
-        container.innerHTML = `
-          <a class="tt-link-card tt-link-card-youtube"
-             href="${escapeAttr(metaUrl)}"
-             target="_blank"
-             rel="noopener noreferrer">
-            <div class="tt-link-thumb tt-link-thumb-youtube"${thumbStyle}>
-              <div class="tt-link-play">&#9658;</div>
-            </div>
-            <div class="tt-link-meta">
-              <div class="tt-link-title">${escapeHtml(title)}</div>
-              <div class="tt-link-host">YouTube</div>
-            </div>
-          </a>
-        `;
-      } else {
-        // Generic website card (MoodFabrics etc.)
-        const rawTitle = previewData.title || metaUrl;
-        const decodedTitle = decodeHtmlEntities(rawTitle);
-        const normalizedTitle = decodedTitle.replace(/\s+/g, " ").trim();
-        const title =
-          normalizedTitle.length > 120
-            ? normalizedTitle.slice(0, 117) + "…"
-            : normalizedTitle;
-
-        let host = "";
-        try {
-          const u = new URL(metaUrl);
-          host = u.hostname.replace(/^www\./, "");
-        } catch (_) {
-          host = "";
-        }
-
-        const thumb =
-          previewData.image ||
-          previewData.thumbnailUrl ||
-          previewData.thumbnail_url ||
-          null;
-
-        container.innerHTML = `
-          <a class="tt-link-card"
-             href="${escapeAttr(metaUrl)}"
-             target="_blank"
-             rel="noopener noreferrer">
-            ${
-              thumb
-                ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
-                    thumb
-                  )}');"></div>`
-                : ""
-            }
-            <div class="tt-link-meta">
-              <div class="tt-link-title">${escapeHtml(title)}</div>
-              ${
-                host
-                  ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
-                  : ""
-              }
-            </div>
-          </a>
-        `;
+      container.innerHTML = `
+        <div class="tt-link-embed">
+          <iframe
+            src="${escapeAttr(embedUrl)}"
+            title="${escapeAttr(title)}"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy">
+          </iframe>
+        </div>
+      `;
+    } else {
+      const rawTitle = previewData.title || url;
+      const title =
+        rawTitle.length > 120 ? rawTitle.slice(0, 117) + "…" : rawTitle;
+      let host = "";
+      try {
+        const u = new URL(url);
+        host = u.hostname.replace(/^www\./, "");
+      } catch (_) {
+        host = "";
       }
 
-      card.insertBefore(container, actionsRow);
-    } catch (err) {
-      console.error("[ThreadTalk] attachLinkPreview error", err);
+      const thumb =
+        previewData.thumbnailUrl || previewData.thumbnail_url || null;
+
+      container.innerHTML = `
+        <a class="tt-link-card"
+           href="${escapeAttr(url)}"
+           target="_blank"
+           rel="noopener noreferrer">
+          ${
+            thumb
+              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
+                  thumb
+                )}');"></div>`
+              : ""
+          }
+          <div class="tt-link-meta">
+            <div class="tt-link-title">${escapeHtml(title)}</div>
+            ${
+              host
+                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
+                : ""
+            }
+          </div>
+        </a>
+      `;
     }
+
+    // Insert the preview just above the Like / Reply row
+    card.insertBefore(container, actionsRow);
   }
 
   function isYoutubeUrl(url) {
@@ -1585,6 +1605,28 @@
       );
     } catch (_) {
       return false;
+    }
+  }
+
+  function buildYoutubeEmbedUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+
+      let id = "";
+
+      if (host === "youtu.be") {
+        // https://youtu.be/VIDEOID
+        id = u.pathname.replace("/", "");
+      } else {
+        // https://www.youtube.com/watch?v=VIDEOID
+        id = u.searchParams.get("v") || "";
+      }
+
+      if (!id) return url;
+      return `https://www.youtube.com/embed/${id}`;
+    } catch (_) {
+      return url;
     }
   }
 
@@ -1609,7 +1651,7 @@
     }
   }
 
-  // ---------- Styles ----------
+  // ---------- Styles injection ----------
   function injectCompactStyles() {
     const css = `
       .card{
@@ -1801,6 +1843,9 @@
         background:#f9fafb;
         border:1px solid #e5e7eb;
       }
+      .tt-comment-child{
+        margin-left:62px;
+      }
       .tt-comment-head-row{
         display:flex;
         align-items:center;
@@ -1824,6 +1869,19 @@
         font-size:13px;
         margin-bottom:2px;
         color:#111827;
+        display:flex;
+        flex-wrap:wrap;
+        gap:4px;
+      }
+      .tt-comment-replying{
+        font-size:11px;
+        color:#6b7280;
+        background:#e5e7eb;
+        border-radius:999px;
+        padding:2px 6px;
+      }
+      .tt-comment-text{
+        flex:1;
       }
 
       .tt-comment-media{
@@ -2082,31 +2140,15 @@
         font-size:11px;
         color:#9ca3af;
       }
-
-      .tt-link-card-youtube{
-        background:#000;
-        color:#f9fafb;
-      }
-      .tt-link-thumb-youtube{
-        position:relative;
-        flex:0 0 160px;
-        min-height:90px;
-        background-size:cover;
-        background-position:center;
-        background-repeat:no-repeat;
-      }
-      .tt-link-play{
-        position:absolute;
-        inset:0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:28px;
-        color:#fef9c3;
-        text-shadow:0 0 6px rgba(0,0,0,.6);
+      .tt-link-embed iframe{
+        width:100%;
+        max-width:460px;
+        border-radius:12px;
+        border:none;
+        aspect-ratio:16/9;
       }
 
-      /* Mobile */
+      /* Mobile adjustments */
       @media (max-width:640px){
         .card{
           padding:12px;
@@ -2116,6 +2158,9 @@
         }
         .tt-comment{
           margin-left:32px;
+        }
+        .tt-comment-child{
+          margin-left:52px;
         }
         .tt-comment-new{
           margin-left:32px;
