@@ -438,7 +438,7 @@
     const ts = timeAgo(c.created_at);
 
     const reactions = commentReactionsByComment[c.id] || [];
-    const { counts, mine } = computeReactionState(reactions);
+       const { counts, mine } = computeReactionState(reactions);
     const myType = REACTION_TYPES.find((r) => mine[r.key])?.key || null;
 
     let chipsHtml = "";
@@ -448,6 +448,7 @@
         chipsHtml += `
           <span class="tt-react-chip">
             <span class="tt-react-emoji">${r.emoji}</span>
+            <span class="tt-react-count">${r.emoji ? count : ""}</span>
             <span class="tt-react-count">${count}</span>
           </span>`;
       }
@@ -1457,7 +1458,8 @@
       .cat{font-size:12px;font-weight:600;color:#b45309;text-transform:uppercase;letter-spacing:.04em;}
       .tt-share-chip{margin-left:auto;border:none;background:#f3f4f6;color:#374151;font-size:12px;padding:4px 10px;border-radius:999px;cursor:pointer;}
       .tt-share-chip:hover{background:#e5e7eb;}
-      .post-media-wrap{margin:6px 0;max-width:460px;}
+      /* smaller inline media so feed stays airy */
+      .post-media-wrap{margin:6px 0;max-width:320px;}
       .post-img,.post-video{width:100%;height:auto;border-radius:10px;display:block;}
       .tt-actions-row{display:flex;align-items:center;gap:12px;margin-top:4px;margin-bottom:2px;font-size:13px;}
       .tt-like-wrapper{position:relative;display:inline-flex;align-items:center;}
@@ -1477,7 +1479,8 @@
       .tt-comment-meta{display:flex;align-items:center;gap:4px;}
       .tt-comment-author{font-weight:500;}
       .tt-comment-body{font-size:13px;margin-bottom:2px;}
-      .tt-comment-media{margin:4px 0;max-width:360px;}
+      /* smaller comment media as well */
+      .tt-comment-media{margin:4px 0;max-width:240px;}
       .tt-comment-media .post-img,
       .tt-comment-media .post-video{width:100%;height:auto;border-radius:8px;display:block;}
       .tt-comment-actions{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:2px;}
