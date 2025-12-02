@@ -1462,7 +1462,7 @@
     });
   }
 
-    // ---------- Styles injection ----------
+   // ---------- Styles injection ----------
   function injectCompactStyles() {
     const css = `
       .card{
@@ -1643,7 +1643,7 @@
         bottom:8px;
         width:2px;
         border-radius:999px;
-        background:rgba(234,216,196,.9); /* warm champagne vertical line */
+        background:rgba(209,213,219,.9); /* neutral grey vertical line */
       }
 
       .tt-comment{
@@ -1651,8 +1651,8 @@
         margin-left:42px;
         padding:6px 10px 8px;
         border-radius:16px;
-        background:#f7f2ec;               /* main champagne bubble */
-        border:1px solid #e5d4c2;         /* warm border */
+        background:#f9fafb;               /* soft grey bubble */
+        border:1px solid #e5e7eb;         /* light grey border */
       }
       .tt-comment-head-row{
         display:flex;
@@ -1708,8 +1708,8 @@
         margin-left:42px;
         padding:6px 8px;
         border-radius:999px;
-        background:#fbf4ee;              /* lighter champagne for composer */
-        border:1px solid #ead8c4;
+        background:#f3f4f6;              /* grey for composer */
+        border:1px solid #e5e7eb;
       }
       .tt-comment-input{
         flex:1;
@@ -1755,8 +1755,8 @@
         margin-left:24px;
         padding:4px 8px;
         border-radius:999px;
-        background:#fbf4ee;              /* same tint as new-comment row */
-        border:1px solid #ead8c4;
+        background:#f3f4f6;              /* same tint as new-comment row */
+        border:1px solid #e5e7eb;
       }
       .tt-comment-reply-box[hidden]{
         display:none;
@@ -1868,23 +1868,28 @@
 
       .tt-edit-area{
         width:100%;
+        min-height:80
+              .tt-edit-area{
+        width:100%;
         min-height:80px;
+        font-size:14px;
+        padding:8px 10px;
         border-radius:10px;
-        border:1px solid var(--border);
-        padding:8px;
-        font-size:13px;
+        border:1px solid #d1d5db;
+        background:#fff;
+        outline:none;
+        resize:vertical;
       }
-      .tt-edit-actions{
+      .tt-edit-savebar{
+        margin-top:6px;
         display:flex;
         gap:8px;
-        margin-top:4px;
       }
-      .tt-edit-save,
-      .tt-edit-cancel{
-        border-radius:999px;
+      .tt-edit-btn{
+        padding:6px 12px;
+        font-size:13px;
+        border-radius:8px;
         border:none;
-        padding:4px 10px;
-        font-size:12px;
         cursor:pointer;
       }
       .tt-edit-save{
@@ -1893,30 +1898,29 @@
       }
       .tt-edit-cancel{
         background:#e5e7eb;
-        color:#111827;
+        color:#374151;
       }
 
-      @media (max-width:640px){
+      /* Mobile adjustments */
+      @media(max-width:640px){
         .card{
-          padding:10px 10px;
+          padding:12px;
+        }
+        .tt-comment{
+          margin-left:32px;
         }
         .tt-comments-list::before{
           left:14px;
         }
-        .tt-comment{
-          margin-left:30px;
-        }
         .tt-comment-new{
-          margin-left:30px;
+          margin-left:32px;
         }
         .tt-more-comments{
-          margin-left:30px;
+          margin-left:32px;
         }
       }
     `;
-    const style = document.createElement("style");
-    style.textContent = css;
-    document.head.appendChild(style);
+    const tag = document.createElement("style");
+    tag.textContent = css;
+    document.head.appendChild(tag);
   }
-
-})();
