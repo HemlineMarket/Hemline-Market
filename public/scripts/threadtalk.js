@@ -462,7 +462,7 @@
         chipsHtml += `
           <span class="tt-react-chip">
             <span class="tt-react-emoji">${r.emoji}</span>
-            <span class="tt-react-count">${r.count}</span>
+            <span class="tt-react-count">${count}</span>
           </span>`;
       }
     });
@@ -1418,6 +1418,14 @@
     return escapeHtml(str).replace(/'/g, "&#39;");
   }
 
+  // Decode HTML entities coming back from metadata (e.g. &#x20;)
+  function decodeHtmlEntities(str) {
+    if (!str) return "";
+    const txt = document.createElement("textarea");
+    txt.innerHTML = str;
+    return txt.value;
+  }
+
   // Turn raw text into safe HTML with clickable links, keeping all original text.
   function linkify(text) {
     const str = String(text || "");
@@ -1467,77 +1475,102 @@
 
   // ---------- Link previews (YouTube + website cards) ----------
   async function attachLinkPreview(card, thread) {
-    const body = thread.body || "";
-    const urlMatch = body.match(/https?:\/\/[^\s]+/);
-    if (!urlMatch) return;
+    try {
+      const body = thread.body || "";
+      const urlMatch = body.match(/https?:\/\/[^\s]+/);
+      if (!urlMatch) return;
 
-    const url = urlMatch[0];
+      const originalUrl = urlMatch[0];
 
-    const previewData = await fetchLinkMetadata(url);
-    if (!previewData) return;
+      const previewData = await fetchLinkMetadata(originalUrl);
+      if (!previewData) return;
 
-    const actionsRow = card.querySelector(".tt-actions-row");
-    if (!actionsRow) return;
+      const actionsRow = card.querySelector(".tt-actions-row");
+      if (!actionsRow) return;
 
-    const container = document.createElement("div");
-    container.className = "tt-link-preview-wrap";
+      const container = document.createElement("div");
+      container.className = "tt-link-preview-wrap";
 
-    if (isYoutubeUrl(url)) {
-      // Build our own embed URL so the video actually plays
-      const embedUrl = buildYoutubeEmbedUrl(url);
-      const title = previewData.title || "YouTube video";
+      const metaUrl = previewData.url || originalUrl;
 
-      container.innerHTML = `
-        <div class="tt-link-embed">
-          <iframe
-            src="${escapeAttr(embedUrl)}"
-            title="${escapeAttr(title)}"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-            loading="lazy">
-          </iframe>
-        </div>
-      `;
-    } else {
-      const rawTitle = previewData.title || url;
-      const title = rawTitle.length > 120 ? rawTitle.slice(0, 117) + "…" : rawTitle;
-      let host = "";
-      try {
-        const u = new URL(url);
-        host = u.hostname.replace(/^www\./, "");
-      } catch (_) {
-        host = "";
-      }
+      // ---------- YouTube: force clean embed ----------
+      if (isYoutubeUrl(metaUrl)) {
+        const embedUrl = buildYoutubeEmbedUrl(metaUrl);
+        const rawTitle = previewData.title || "YouTube video";
+        const cleanTitle = decodeHtmlEntities(rawTitle)
+          .replace(/\s+/g, " ")
+          .trim();
+        const title =
+          cleanTitle.length > 120
+            ? cleanTitle.slice(0, 117) + "…"
+            : cleanTitle;
 
-      const thumb = previewData.thumbnailUrl || previewData.thumbnail_url || null;
+        container.innerHTML = `
+          <div class="tt-link-embed">
+            <iframe
+              src="${escapeAttr(embedUrl)}"
+              title="${escapeAttr(title || "YouTube video")}"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen
+              loading="lazy">
+            </iframe>
+          </div>
+        `;
+      } else {
+        // ---------- Generic website card (MoodFabrics etc.) ----------
+        const rawTitle = previewData.title || metaUrl;
+        const decodedTitle = decodeHtmlEntities(rawTitle);
+        const normalizedTitle = decodedTitle.replace(/\s+/g, " ").trim();
+        const title =
+          normalizedTitle.length > 120
+            ? normalizedTitle.slice(0, 117) + "…"
+            : normalizedTitle;
 
-      container.innerHTML = `
-        <a class="tt-link-card"
-           href="${escapeAttr(url)}"
-           target="_blank"
-           rel="noopener noreferrer">
-          ${
-            thumb
-              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
-                  thumb
-                )}');"></div>`
-              : ""
-          }
-          <div class="tt-link-meta">
-            <div class="tt-link-title">${escapeHtml(title)}</div>
+        let host = "";
+        try {
+          const u = new URL(metaUrl);
+          host = u.hostname.replace(/^www\./, "");
+        } catch (_) {
+          host = "";
+        }
+
+        const thumb =
+          previewData.image ||
+          previewData.thumbnailUrl ||
+          previewData.thumbnail_url ||
+          null;
+
+        container.innerHTML = `
+          <a class="tt-link-card"
+             href="${escapeAttr(metaUrl)}"
+             target="_blank"
+             rel="noopener noreferrer">
             ${
-              host
-                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
+              thumb
+                ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
+                    thumb
+                  )}');"></div>`
                 : ""
             }
-          </div>
-        </a>
-      `;
-    }
+            <div class="tt-link-meta">
+              <div class="tt-link-title">${escapeHtml(title)}</div>
+              ${
+                host
+                  ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
+                  : ""
+              }
+            </div>
+          </a>
+        `;
+      }
 
-    // Insert the preview just above the Like / Reply row
-    card.insertBefore(container, actionsRow);
+      // Insert the preview just above the Like / Reply row
+      card.insertBefore(container, actionsRow);
+    } catch (err) {
+      console.error("[ThreadTalk] attachLinkPreview error", err);
+    }
   }
 
   function isYoutubeUrl(url) {
