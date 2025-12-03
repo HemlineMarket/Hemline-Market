@@ -185,7 +185,10 @@
       }
 
       const threadIds = allThreads.map((t) => t.id);
-      const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
+const authorIds = allThreads.map((t) => String(t.author_id)).filter(Boolean);
+
+// normalize
+allThreads = allThreads.map(t => ({ ...t, author_id: String(t.author_id) }));
 
       // Load comments (including parent_comment_id for nesting)
       const { data: commentRows, error: commentErr } = await supabase
