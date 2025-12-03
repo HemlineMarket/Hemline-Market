@@ -211,12 +211,13 @@
       window.location.href = "auth.html?view=login";
       return;
     }
+
     const userId = session.user.id;
 
     const { data, error } = await supabaseClient
       .from("notifications")
       .select("id, type, kind, title, body, href, link, created_at, is_read")
-      .eq("recipient_id", uid)
+      .eq("recipient_id", userId)  <!-- ★ FIXED ★ -->
       .order("created_at", { ascending:false })
       .limit(50);
 
@@ -291,7 +292,7 @@
       notifListEl.appendChild(li);
     });
 
-    // Mark unread as read in the background
+    // Mark unread as read
     if(unreadIds.length){
       const nowIso = new Date().toISOString();
       supabaseClient
