@@ -16,16 +16,12 @@ if (!stripeSecret) {
 }
 
 // Let Stripe use the account’s default API version.
-// (The previous "2025-07-30.basil" string was invalid and would cause 500s.)
 const stripe = new Stripe(stripeSecret);
 
+// Helper: get origin from request (for success/cancel URLs)
 function originFrom(req) {
   const proto = (req.headers["x-forwarded-proto"] || "https").toString();
-  const host = (
-    req.headers["x-forwarded-host"] ||
-    req.headers.host ||
-    ""
-  ).toString();
+  const host = (req.headers["x-forwarded-host"] || req.headers.host || "").toString();
   return `${proto}://${host}`;
 }
 
@@ -38,26 +34,45 @@ export default async function handler(req, res) {
   try {
     const { cart = [], buyer = {}, shipping_cents = 0 } = req.body || {};
 
-    // Build a compact seller summary for later Transfers (done in webhook)
-    // Expected cart item shape (minimal):
-    //   { id, name, amount, qty, sellerId, yards? }
+    // Build seller summary for later Transfers (done in webhook)
+    // Expected cart item shape (minimal): { id, listing_id?, name, amount, qty, sellerId, seller_user_id?, yards? }
     const sellers = {};
     let subtotal = 0;
 
+    // Also build a compact cart for Stripe metadata → db_orders + SOLD + seller notifications
+    const cartForMeta = [];
+
     for (const it of cart) {
-      const cents = Number(it.amount || 0) * Number(it.qty || 1);
+      const qty = Number(it.qty || 1);
+      const amount = Number(it.amount || 0); // cents
+      const cents = amount * qty;
       subtotal += cents;
-      const sid = it.sellerId || it.seller || "default";
-      sellers[sid] = (sellers[sid] || 0) + cents;
+
+      const sellerStripeAcct = it.sellerId || it.seller || "default";
+      sellers[sellerStripeAcct] = (sellers[sellerStripeAcct] || 0) + cents;
+
+      cartForMeta.push({
+        listing_id: it.listing_id ?? it.id ?? null,
+        seller_id: sellerStripeAcct,           // Stripe connected account id (for transfers)
+        seller_user_id: it.seller_user_id || null, // Supabase auth.user.id of seller (for notifications)
+        name: it.name || "Item",
+        qty,
+        amount, // cents, per unit
+        yards: it.yards ?? null,
+      });
     }
 
     const total = subtotal + Number(shipping_cents || 0);
 
     if (total <= 0) {
-      return res.status(400).json({
-        error: "Order total must be greater than zero to start payment.",
-      });
+      return res
+        .status(400)
+        .json({ error: "Order total must be greater than zero to start payment." });
     }
+
+    // 30-minute cancel window timestamp (used by future cancel/hold logic)
+    const now = new Date();
+    const cancelExpiresIso = new Date(now.getTime() + 30 * 60 * 1000).toISOString();
 
     // Fallback success/cancel URLs from request origin
     const origin = originFrom(req);
@@ -67,19 +82,7 @@ export default async function handler(req, res) {
     const cancel_url =
       process.env.STRIPE_CANCEL_URL || `${origin}/checkout.html`;
 
-    // Compact cart for metadata (used by webhook for orders + notifications)
-    const compactCart = Array.isArray(cart)
-      ? cart.map((it) => ({
-          id: it.id ?? null,
-          listing_id: it.listing_id ?? it.id ?? null,
-          name: it.name ?? null,
-          qty: Number(it.qty || 1),
-          amount: Number(it.amount || 0), // cents per unit
-          sellerId: it.sellerId || it.seller || null, // should be seller’s user id
-        }))
-      : [];
-
-    // One line item for the whole order (you can expand if you want)
+    // One line item for the whole order (you can expand later if you want)
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       success_url,
@@ -101,13 +104,18 @@ export default async function handler(req, res) {
         },
       ],
 
-      // Store data we’ll need in the webhook (orders, transfers, notifications)
+      // Store data we’ll need in the webhook for:
+      // - transfers
+      // - db_orders
+      // - marking listings SOLD
+      // - seller notifications
       metadata: {
-        sellers_json: JSON.stringify(sellers), // { sellerIdOrAcct: amount_cents, ... }
+        sellers_json: JSON.stringify(sellers),                    // { sellerStripeAcct: amount_cents, ... }
         shipping_cents: String(Number(shipping_cents || 0)),
         subtotal_cents: String(subtotal),
-        cart_json: JSON.stringify(compactCart),
-        buyer_email: buyer.email || "",
+        cart_json: JSON.stringify(cartForMeta),                   // normalized cart
+        buyer_user_id: buyer.id || buyer.user_id || "",           // optional
+        cancel_expires_at: cancelExpiresIso,                      // 30-min cancel window
       },
 
       automatic_tax: { enabled: false },
@@ -115,10 +123,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ url: session.url, id: session.id });
   } catch (err) {
-    console.error("create_session error:", err?.type, err?.message);
+    console.error("create_session error:", err?.type, err?.message || err);
     return res.status(500).json({
       error: "Unable to create checkout session",
-      // This stays mostly for debugging; the banner still shows a generic message.
       detail: err?.message || null,
     });
   }
