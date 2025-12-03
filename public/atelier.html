@@ -184,7 +184,7 @@
       margin-top:18px;
     }
 
-        /* LISTING CARDS – COPIED FROM HOMEPAGE */
+    /* LISTING CARDS – COPIED FROM HOMEPAGE */
     .listing-card{
       background:var(--hm-bg-card);
       border:1px solid var(--hm-border);
@@ -320,6 +320,7 @@
       white-space:pre-line;
     }
 
+    /* SHARE / RATING */
     .share-input-row{
       display:flex;
       align-items:center;
@@ -378,10 +379,10 @@
 
   <div id="atelierError" class="error-msg" style="display:none;"></div>
 
-  <!-- MOBILE QUICK INFO -->
-  <section class="atelier-store-mobile">
+  <!-- MOBILE QUICK INFO (message + rating) -->
+  <section class="atelier-store-mobile" aria-label="Atelier quick info">
     <div class="atelier-mobile-actions">
-      <button class="btn btn-primary" id="btnMessageSellerMobile">
+      <button class="btn btn-primary" type="button" id="btnMessageSellerMobile">
         Message this seller
       </button>
       <div class="atelier-mobile-rating">
@@ -393,10 +394,11 @@
     </div>
   </section>
 
-  <!-- DESKTOP TOP ROW -->
-  <section class="atelier-store-top">
-    <section class="hm-card">
-      <div class="hm-card-header">Store</div>
+  <!-- DESKTOP/TABLET: STORE INFO IN THREE COLUMNS -->
+  <section class="atelier-store-top" aria-label="Atelier information">
+    <!-- COLUMN 1: STORE / OWNER -->
+    <section class="hm-card" aria-labelledby="profileHeading">
+      <div class="hm-card-header" id="profileHeading">Store</div>
       <div class="hm-card-body">
         <div class="profile-panel">
           <div class="profile-main">
@@ -404,8 +406,8 @@
             <div class="profile-shop" id="atelierShopName">Store name</div>
             <div class="profile-bio" id="atelierBio"></div>
 
-            <button class="btn btn-primary" id="btnEditShop">Edit Atelier details</button>
-            <button class="btn" id="btnMessageSeller" style="margin-top:8px;">
+            <button class="btn btn-primary" type="button" id="btnEditShop">Edit Atelier details</button>
+            <button class="btn" type="button" id="btnMessageSeller" style="margin-top:8px;">
               Message this seller
             </button>
           </div>
@@ -413,49 +415,57 @@
       </div>
     </section>
 
-    <section class="hm-card">
-      <div class="hm-card-header">Link</div>
+    <!-- COLUMN 2: SHARE LINK -->
+    <section class="hm-card" aria-labelledby="shareHeading">
+      <div class="hm-card-header" id="shareHeading">Link</div>
       <div class="hm-card-body">
-        <p>Copy a link to share this shop page with buyers.</p>
+        <p style="margin:0 0 6px;font-size:14px;">
+          Copy a link to share this shop page with buyers.
+        </p>
         <div class="share-input-row">
           <input id="shareLinkInput" type="text" readonly>
-          <button class="btn" id="btnCopyLink">Copy</button>
+          <button class="btn" type="button" id="btnCopyLink">Copy</button>
         </div>
         <p class="share-note">
-          Use this link in listings, messages, or social.
+          Use this link in listings, messages, or on social so buyers can come straight to this Atelier.
         </p>
       </div>
     </section>
 
-    <section class="hm-card">
-      <div class="hm-card-header">Rating</div>
+    <!-- COLUMN 3: RATING -->
+    <section class="hm-card" aria-labelledby="ratingHeading">
+      <div class="hm-card-header" id="ratingHeading">Rating</div>
       <div class="hm-card-body">
         <p class="rating-note">
-          After 5 completed orders, rating appears here.
+          After at least 5 completed orders, the shop’s rating will appear here.
         </p>
         <div class="rating-pill">Not yet rated</div>
       </div>
     </section>
   </section>
 
-  <!-- LISTINGS -->
-  <section class="hm-card">
-    <div class="hm-card-header">Listings</div>
+  <!-- LISTINGS CARD -->
+  <section class="hm-card" aria-labelledby="listingsHeading">
+    <div class="hm-card-header" id="listingsHeading">Listings</div>
     <div class="hm-card-body">
       <div class="listings-header-row">
-        <strong>Fabrics from this shop</strong>
+        <strong style="font-size:14px;">Fabrics from this shop</strong>
       </div>
 
+      <!-- Live listings empty state -->
       <div class="listings-empty" id="listingsEmpty">
-        No active listings yet.
+        No active listings yet. When this shop lists fabrics, cards will appear here with photos,
+        yardage, and prices.
       </div>
 
+      <!-- Grid of live cards -->
       <div class="atelier-listings-grid" id="listingsGrid" style="display:none;"></div>
 
+      <!-- Owner-only upcoming block -->
       <section id="upcomingSection" class="listings-upcoming" style="display:none;">
-        <h3>Scheduled for release</h3>
-        <p id="upcomingNote" style="color:#6b7280;font-size:12px;">
-          Only you can see upcoming listings.
+        <h3 style="margin:14px 0 4px;font-size:14px;">Scheduled for release</h3>
+        <p id="upcomingNote" style="margin:0 0 8px;font-size:12px;color:#6b7280;">
+          Only you can see these listings until their release time.
         </p>
         <div class="atelier-listings-grid" id="upcomingGrid"></div>
       </section>
@@ -465,232 +475,364 @@
 
 <div id="hm-shell-footer"></div>
 
+<!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-/* ------------------------
-   FIX: handle ?user=ID
------------------------- */
-const supabaseClient = window.supabase.createClient(
-  "https://clkizksbvxjkoatdajgd.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-);
-
-function slugifyStoreName(raw){
-  if(!raw) return "";
-  return raw.trim().toLowerCase()
-    .replace(/['’]/g,"s")
-    .replace(/[^a-z0-9]+/g,"-")
-    .replace(/^-+|-+$/g,"");
-}
-
-function moneyFromCents(c){
-  if(c == null) return "";
-  const v = Number(c) / 100;
-  return v.toLocaleString("en-US",{ style:"currency", currency:"USD" });
-}
-
-function computeYards(row){
-  const y = row.yards_available ?? row.yardage;
-  return Number.isFinite(Number(y)) ? Number(y) : null;
-}
-
-async function ensureSession(){
-  const { data:{ session } } = await supabaseClient.auth.getSession();
-  return session || null;
-}
-
-function showAtelierError(msg){
-  const el = document.getElementById("atelierError");
-  el.textContent = msg;
-  el.style.display = "block";
-}
-
-/* ------------------------
-   LOAD LISTINGS
------------------------- */
-async function loadListingsForSeller(sellerId, sellerLabel, isOwn){
-  const grid  = document.getElementById("listingsGrid");
-  const empty = document.getElementById("listingsEmpty");
-  const upcomingSection = document.getElementById("upcomingSection");
-  const upcomingGrid = document.getElementById("upcomingGrid");
-
-  if(!sellerId){
-    empty.style.display="block";
-    return;
-  }
-
-  const { data, error } = await supabaseClient
-    .from("listings")
-    .select("*")
-    .eq("seller_id", sellerId)
-    .order("published_at", { ascending:false });
-
-  if(error){
-    showAtelierError("Could not load listings.");
-    return;
-  }
-
-  const now = new Date();
-  const rows = (data || []).filter(x =>
-    x.is_published === true &&
-    (x.status || "active") === "active"
+  const supabaseClient = window.supabase.createClient(
+    "https://clkizksbvxjkoatdajgd.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+    { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
   );
 
-  const live = rows.filter(x =>
-    !x.published_at || new Date(x.published_at) <= now
-  );
-  const upcoming = isOwn ? rows.filter(x =>
-    x.published_at && new Date(x.published_at) > now
-  ) : [];
-
-  if(!live.length){
-    empty.style.display="block";
-    grid.style.display="none";
-  }else{
-    empty.style.display="none";
-    grid.style.display="grid";
+  function slugifyStoreName(raw){
+    if(!raw) return "";
+    return raw
+      .trim()
+      .toLowerCase()
+      .replace(/['’]/g,"s")
+      .replace(/[^a-z0-9]+/g,"-")
+      .replace(/^-+|-+$/g,"");
   }
 
-  function renderCard(container, item){
-    const yards = computeYards(item);
-    const price = item.price_cents != null ? moneyFromCents(item.price_cents) : "";
-    const href = "listing.html?id=" + encodeURIComponent(item.id);
-
-    const card = document.createElement("article");
-    card.className = "listing-card";
-
-    card.innerHTML = `
-      <a class="listing-thumb-link" href="${href}">
-        <div class="listing-thumb">
-          ${item.image_url_1 ? `<img src="${item.image_url_1}">` : ""}
-        </div>
-      </a>
-      <div class="listing-body">
-        <div class="listing-title-row">
-          <a class="listing-title" href="${href}">${item.title || "Untitled"}</a>
-        </div>
-        ${yards ? `<div class="listing-yards">${yards} yards</div>` : ""}
-        <div class="listing-price-row">
-          <span class="listing-price-main">${price}/yard</span>
-        </div>
-        <div class="listing-seller-row">
-          <span class="listing-seller-name">${sellerLabel}</span>
-        </div>
-      </div>
-    `;
-
-    container.appendChild(card);
+  function moneyFromCents(c){
+    if(c == null) return "";
+    const v = Number(c) / 100;
+    return v.toLocaleString("en-US",{
+      style:"currency",
+      currency:"USD",
+      minimumFractionDigits:2,
+      maximumFractionDigits:2
+    });
   }
 
-  live.forEach(i => renderCard(grid, i));
-
-  if(isOwn && upcoming.length){
-    upcomingSection.style.display="block";
-    upcomingGrid.innerHTML="";
-    upcoming.forEach(i => renderCard(upcomingGrid, i));
+  function computeYards(row){
+    const y1 = row.yards_available;
+    const y2 = row.yardage;
+    const raw = (y1 != null ? Number(y1) : (y2 != null ? Number(y2) : null));
+    if(!Number.isFinite(raw) || raw <= 0) return null;
+    return raw;
   }
-}
 
-/* ------------------------
-   MAIN INIT
------------------------- */
-async function initAtelier(){
-  const params = new URLSearchParams(window.location.search);
-  let sellerId = params.get("user") || params.get("u") || null;
-  const shopSlugParam = params.get("shop");
+  async function ensureSession({maxWaitMs=3000} = {}){
+    let { data:{ session } } = await supabaseClient.auth.getSession();
+    if(session?.user) return session;
+    const start = Date.now();
+    while(!session?.user && Date.now() - start < maxWaitMs){
+      await new Promise(r=>setTimeout(r,120));
+      ({ data:{ session } } = await supabaseClient.auth.getSession());
+    }
+    return session || null;
+  }
 
-  const session = await ensureSession();
-  const loggedIn = session?.user || null;
+  function showAtelierError(msg){
+    const el = document.getElementById("atelierError");
+    if(!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+  }
 
-  if(!sellerId && shopSlugParam){
-    const normalized = shopSlugParam.replace(/-/g," ");
-    const { data } = await supabaseClient
-      .from("profiles")
-      .select("*")
-      .ilike("store_name", normalized);
-    if(data?.length){
-      sellerId = data[0].id;
+  async function loadListingsForSeller(sellerId, sellerLabel, isOwn){
+    const grid  = document.getElementById("listingsGrid");
+    const empty = document.getElementById("listingsEmpty");
+    const upcomingSection = document.getElementById("upcomingSection");
+    const upcomingGrid = document.getElementById("upcomingGrid");
+
+    if(!grid || !empty || !sellerId){
+      empty.style.display="block";
+      grid.style.display="none";
+      if(upcomingSection) upcomingSection.style.display = "none";
+      return;
+    }
+
+    try{
+      const { data, error } = await supabaseClient
+        .from("listings")
+        .select("*")
+        .eq("seller_id", sellerId)
+        .order("published_at", { ascending:false });
+
+      if(error){
+        showAtelierError("We couldn’t load listings for this shop.");
+        empty.style.display="block";
+        grid.style.display="none";
+        if(upcomingSection) upcomingSection.style.display = "none";
+        return;
+      }
+
+      grid.innerHTML = "";
+      if(upcomingGrid) upcomingGrid.innerHTML = "";
+
+      const now = new Date();
+
+      // Only consider active + is_published true rows
+      const rows = (data || []).filter(x =>
+        x.is_published === true &&
+        (x.status || "active") === "active"
+      );
+
+      const live = rows.filter(x =>
+        !x.published_at || new Date(x.published_at) <= now
+      );
+
+      const upcoming = isOwn
+        ? rows.filter(x => x.published_at && new Date(x.published_at) > now)
+        : [];
+
+      if(!live.length){
+        empty.style.display="block";
+        grid.style.display="none";
+      }else{
+        empty.style.display="none";
+        grid.style.display="grid";
+      }
+
+      function renderCard(container, item){
+        const yards = computeYards(item);
+        const priceCents = item.price_cents != null ? Number(item.price_cents) : null;
+        const perYdMoney = priceCents != null ? moneyFromCents(priceCents) : "";
+        const origPerMoney = item.orig_price_cents != null ? moneyFromCents(item.orig_price_cents) : "";
+        const totalCents = (priceCents != null && yards != null) ? priceCents * yards : null;
+        const totalMoney = totalCents != null ? moneyFromCents(totalCents) : "";
+
+        const status = (item.status || "active").toLowerCase();
+        const isSold = status === "sold";
+        const canBuy = !isSold && priceCents != null && yards != null && yards > 0;
+
+        const card = document.createElement("article");
+        card.className = "listing-card";
+
+        const href = "listing.html?id=" + encodeURIComponent(item.id);
+        const safeTitle = item.title || "Untitled listing";
+        const safeAlt = safeTitle.replace(/"/g,"&quot;");
+
+        card.innerHTML = `
+          <a class="listing-thumb-link" href="${href}">
+            <div class="listing-thumb" aria-hidden="true">
+              ${item.image_url_1 ? `<img src="${item.image_url_1}" alt="${safeAlt}">` : ""}
+            </div>
+          </a>
+          <div class="listing-body">
+            <div class="listing-title-row">
+              <a class="listing-title" href="${href}">${safeTitle}</a>
+              ${item.dept ? `<span class="listing-dept">${item.dept}</span>` : ""}
+            </div>
+            ${yards != null ? `<div class="listing-yards">${yards} yards</div>` : ""}
+            <div class="listing-cta-row">
+              <button type="button" class="listing-add-btn add-to-cart">
+                ${
+                  canBuy && totalMoney && yards
+                    ? `Add to Cart — ${totalMoney} for ${yards} yards`
+                    : (isSold ? "Sold out" : "Add to Cart")
+                }
+              </button>
+            </div>
+            <div class="listing-price-row">
+              ${
+                perYdMoney
+                  ? `<span class="listing-price-main">${perYdMoney}/yard</span>`
+                  : `<span class="listing-price-main">Price coming soon</span>`
+              }
+              ${
+                origPerMoney
+                  ? `<span class="listing-price-orig">${origPerMoney}/yard</span>`
+                  : ""
+              }
+            </div>
+            <div class="listing-seller-row">
+              <span class="listing-seller-name">${sellerLabel || ""}</span>
+            </div>
+          </div>
+        `;
+
+        const btn = card.querySelector(".listing-add-btn");
+        if(btn){
+          const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
+          const firstImg = item.image_url_1 || "";
+
+          btn.dataset.id = item.id;
+          btn.dataset.name = safeTitle;
+          btn.dataset.amount = totalCents != null ? String(totalCents) : "0";
+          btn.dataset.price = perYdDollars ? perYdDollars.toFixed(2) : "0";
+          btn.dataset.yards = yards != null ? String(yards) : "0";
+          btn.dataset.sellerId = item.seller_id || "";
+          btn.dataset.sellerName = sellerLabel || "";
+          btn.dataset.photo = firstImg;
+
+          if(!canBuy){
+            btn.disabled = true;
+            btn.textContent = isSold ? "Sold out" : "Unavailable";
+          }
+        }
+
+        container.appendChild(card);
+      }
+
+      // Render live listings
+      live.forEach(item => renderCard(grid, item));
+
+      // Render upcoming listings for owner only
+      if(isOwn && upcoming.length && upcomingSection && upcomingGrid){
+        upcomingSection.style.display = "block";
+        upcomingGrid.innerHTML = "";
+        upcoming.forEach(item => renderCard(upcomingGrid, item));
+      }else if(upcomingSection){
+        upcomingSection.style.display = "none";
+      }
+
+    }catch(err){
+      showAtelierError("Unexpected error loading listings.");
+      const upcomingSection = document.getElementById("upcomingSection");
+      if(upcomingSection) upcomingSection.style.display = "none";
     }
   }
 
-  if(!sellerId && loggedIn){
-    sellerId = loggedIn.id;
+  async function initAtelier(){
+    const params = new URLSearchParams(window.location.search);
+    const shopSlugParam = params.get("shop");
+    let viewedSellerId  = params.get("u");
+
+    if(viewedSellerId && viewedSellerId.startsWith("user=")){
+      viewedSellerId = viewedSellerId.slice(5);
+    }
+
+    const session = await ensureSession();
+    const loggedIn = session?.user || null;
+
+    const ownerNameEl = document.getElementById("atelierOwnerName");
+    const shopNameEl  = document.getElementById("atelierShopName");
+    const bioEl       = document.getElementById("atelierBio");
+    const titleEl     = document.getElementById("atelierTitle");
+    const subEl       = document.getElementById("atelierSubtitle");
+    const editBtn     = document.getElementById("btnEditShop");
+    const shareInput  = document.getElementById("shareLinkInput");
+    const copyBtn     = document.getElementById("btnCopyLink");
+    const msgBtn      = document.getElementById("btnMessageSeller");
+    const msgBtnMobile= document.getElementById("btnMessageSellerMobile");
+
+    let sellerId = null;
+    let profile = null;
+
+    try{
+      if(viewedSellerId){
+        sellerId = viewedSellerId;
+        const { data } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .eq("id", sellerId)
+          .maybeSingle();
+        profile = data;
+      }else if(shopSlugParam){
+        const normalized = shopSlugParam.replace(/-/g," ").trim();
+        const { data } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .ilike("store_name", normalized);
+        if(data && data.length){
+          profile = data[0];
+          sellerId = profile.id;
+        }
+      }else if(loggedIn){
+        sellerId = loggedIn.id;
+        const { data } = await supabaseClient
+          .from("profiles")
+          .select("*")
+          .eq("id", sellerId)
+          .maybeSingle();
+        profile = data;
+      }
+    }catch(_){}
+
+    const isOwn = !!(loggedIn && sellerId && loggedIn.id===sellerId);
+
+    if(!sellerId){
+      titleEl.textContent="Atelier";
+      subEl.textContent="Sign in or follow a seller link to view an Atelier.";
+      ownerNameEl.textContent="Hemline member";
+      shopNameEl.textContent="Store name";
+      bioEl.textContent="";
+      editBtn.style.display = loggedIn ? "inline-flex" : "none";
+      if(editBtn.onclick) editBtn.onclick = ()=>window.location.href="account.html";
+      msgBtn.style.display="none";
+      if(msgBtnMobile) msgBtnMobile.style.display="none";
+      shareInput.value=window.location.href;
+      copyBtn.onclick=()=>navigator.clipboard.writeText(shareInput.value);
+      loadListingsForSeller(null,"",false);
+      return;
+    }
+
+    let first = profile?.first_name || "";
+    let last  = profile?.last_name  || "";
+    let store = profile?.store_name || "";
+    let bio   = profile?.bio || "";
+    let email = profile?.email || (isOwn?loggedIn.email:"");
+
+    const fullName = (first+" "+last).trim() || (isOwn?loggedIn.email.split("@")[0]:"Hemline member");
+
+    let shopDisplay;
+    if(store.trim()){
+      shopDisplay = store.trim();
+    }else if(first && last){
+      shopDisplay = first+" "+last[0].toUpperCase()+".";
+    }else if(first){
+      shopDisplay = first;
+    }else{
+      shopDisplay = fullName;
+    }
+
+    titleEl.textContent="Atelier: "+shopDisplay;
+    subEl.textContent="Fabrics, stories, and listings from "+shopDisplay+".";
+    ownerNameEl.textContent=fullName;
+    shopNameEl.textContent="Store name: "+shopDisplay;
+    bioEl.textContent=bio;
+
+    let slug = slugifyStoreName(shopDisplay);
+    const baseUrl = window.location.origin + "/atelier.html";
+
+    let shareUrl;
+    if(slug){
+      shareUrl = baseUrl + "?shop=" + encodeURIComponent(slug);
+    }else{
+      shareUrl = baseUrl + "?u=" + encodeURIComponent(sellerId);
+    }
+
+    // make store name in title clickable
+    const safeName = shopDisplay
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;");
+    titleEl.innerHTML = 'Atelier: <a href="'+shareUrl+'" id="atelierStoreLink">'+safeName+'</a>';
+
+    shareInput.value=shareUrl;
+    copyBtn.onclick=()=>navigator.clipboard.writeText(shareInput.value);
+
+    if(isOwn){
+      editBtn.style.display="inline-flex";
+      editBtn.onclick=()=>window.location.href="account.html";
+      msgBtn.style.display="none";
+      if(msgBtnMobile) msgBtnMobile.style.display="none";
+    }else{
+      editBtn.style.display="none";
+      msgBtn.style.display="inline-flex";
+      msgBtn.onclick=()=>window.location.href="messages.html?user="+sellerId;
+      if(msgBtnMobile){
+        msgBtnMobile.style.display="inline-flex";
+        msgBtnMobile.onclick=()=>window.location.href="messages.html?user="+sellerId;
+      }
+    }
+
+    loadListingsForSeller(sellerId, shopDisplay, isOwn);
   }
 
-  const ownerNameEl = document.getElementById("atelierOwnerName");
-  const shopNameEl  = document.getElementById("atelierShopName");
-  const bioEl       = document.getElementById("atelierBio");
-  const titleEl     = document.getElementById("atelierTitle");
-  const subEl       = document.getElementById("atelierSubtitle");
-  const editBtn     = document.getElementById("btnEditShop");
-  const msgBtn      = document.getElementById("btnMessageSeller");
-  const msgBtnMobile= document.getElementById("btnMessageSellerMobile");
-  const shareInput  = document.getElementById("shareLinkInput");
-  const copyBtn     = document.getElementById("btnCopyLink");
-
-  if(!sellerId){
-    titleEl.textContent = "Atelier";
-    subEl.textContent = "Sign in or follow a seller link.";
-    ownerNameEl.textContent = "Hemline member";
-    return;
-  }
-
-  const { data: profile } = await supabaseClient
-    .from("profiles")
-    .select("*")
-    .eq("id", sellerId)
-    .maybeSingle();
-
-  const first = profile?.first_name || "";
-  const last  = profile?.last_name  || "";
-  const store = profile?.store_name || "";
-  const bio   = profile?.bio || "";
-
-  const fullName = (first+" "+last).trim() || "Hemline member";
-  const shopDisplay = store.trim() || first || fullName;
-
-  ownerNameEl.textContent = fullName;
-  shopNameEl.textContent  = "Store name: " + shopDisplay;
-  bioEl.textContent       = bio;
-
-  const slug = slugifyStoreName(shopDisplay);
-  const baseUrl = window.location.origin + "/atelier.html";
-
-  const shareUrl = slug
-    ? baseUrl + "?shop=" + encodeURIComponent(slug)
-    : baseUrl + "?user=" + encodeURIComponent(sellerId);
-
-  titleEl.innerHTML = 'Atelier: <a href="'+shareUrl+'">'+shopDisplay+'</a>';
-  subEl.textContent = "Fabrics, stories, and listings from " + shopDisplay + ".";
-
-  shareInput.value = shareUrl;
-  copyBtn.onclick = () => navigator.clipboard.writeText(shareUrl);
-
-  const isOwn = !!(loggedIn && loggedIn.id === sellerId);
-
-  if(isOwn){
-    editBtn.style.display="inline-flex";
-    msgBtn.style.display="none";
-    msgBtnMobile.style.display="none";
-  } else {
-    editBtn.style.display="none";
-    msgBtn.style.display="inline-flex";
-    msgBtn.onclick = () => window.location.href = "messages.html?user=" + sellerId;
-    msgBtnMobile.onclick = () => window.location.href = "messages.html?user=" + sellerId;
-  }
-
-  loadListingsForSeller(sellerId, shopDisplay, isOwn);
-}
-
-initAtelier();
+  initAtelier();
 </script>
 
 <script>
   window.HM && window.HM.renderShell({ currentPage: "atelier" });
 </script>
 
+<!-- Cart hooks so Add to Cart works here too -->
 <script src="scripts/cart.js"></script>
 <script src="scripts/cart-hooks.js"></script>
 <script src="assets/add-to-cart.js" defer></script>
