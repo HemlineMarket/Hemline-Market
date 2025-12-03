@@ -57,7 +57,7 @@
     .hero{
       width:100%;
       aspect-ratio:4/3;
-      object-fit:contain;            /* prevent zoom/crop */
+      object-fit:contain;
       display:block;
       background:#f3f4f6;
     }
@@ -240,7 +240,6 @@
     .seller-lines strong{
       display:block;
     }
-    /* Make store name big + linky */
     #sellerStore{
       font-size:18px;
       font-weight:800;
@@ -248,7 +247,6 @@
       cursor:pointer;
       text-decoration:underline;
     }
-    /* Slightly smaller for person name, but still clickable */
     #sellerPerson{
       font-size:14px;
       color:#374151;
@@ -303,7 +301,7 @@
       padding:3px 7px;
     }
 
-    /* Q&A / Comments (Poshmark-style) */
+    /* Q&A / Comments */
     .qa-header{
       display:flex;
       align-items:center;
@@ -577,7 +575,6 @@
 
 <!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <!-- Universal shell -->
 <script src="scripts/hm-shell.js"></script>
 
@@ -601,7 +598,6 @@
     if(shell) shell.style.display = "none";
   }
 
-  /* tiny toast helper for "notifications" on this page */
   function showToast(message){
     const container = document.getElementById("toastContainer");
     if(!container) return;
@@ -977,8 +973,7 @@
     showOwnerControls(listing);
   }
 
-  /* Favorites — shared with favorites.html + local notifications */
-
+  /* Favorites — local + bell */
   const FAV_KEY   = "hm_favs";
   const NOTIF_KEY = "hm_notifications";
 
@@ -1068,7 +1063,6 @@
     const fav = buildFavoriteFromListing();
     if(!fav || !fav.id) return;
 
-    // Initial state
     setHeartUI(btn, isFav(fav.id));
 
     btn.onclick = ()=>{
@@ -1087,7 +1081,6 @@
         setHeartUI(btn, true);
         showToast("Saved to favorites");
 
-        // Also log a simple local notification for this user
         const nowIso = new Date().toISOString();
         const notifs = loadNotifs();
         notifs.push({
@@ -1104,7 +1097,6 @@
     };
   }
 
-  /* Share button: copy link first, then fallbacks */
   function initShareButton(){
     const btn = document.getElementById("shareBtn");
     if(!btn) return;
@@ -1138,7 +1130,7 @@
     };
   }
 
-  /* Q&A / Comments */
+  /* Q&A / Comments with Supabase notifications */
 
   function formatShortDate(iso){
     if(!iso) return "";
@@ -1227,82 +1219,81 @@
         dateSpan.textContent = formatShortDate(row.created_at);
         metaRow.appendChild(dateSpan);
 
-const replySpan = document.createElement("span");
-replySpan.textContent = "Reply";
-replySpan.className = "qa-link";
-replySpan.addEventListener("click", async ()=>{
-  if(!isSeller){
-    showToast("Only the seller can reply.");
-    return;
-  }
-  if(row.answer_body){
-    showToast("This question already has a reply.");
-    return;
-  }
+        const replySpan = document.createElement("span");
+        replySpan.textContent = "Reply";
+        replySpan.className = "qa-link";
+        replySpan.addEventListener("click", async ()=>{
+          if(!isSeller){
+            showToast("Only the seller can reply.");
+            return;
+          }
+          if(row.answer_body){
+            showToast("This question already has a reply.");
+            return;
+          }
 
-  if(!currentSession || !currentSession.user){
-    window.location.href = "auth.html?view=login";
-    return;
-  }
+          if(!currentSession || !currentSession.user){
+            window.location.href = "auth.html?view=login";
+            return;
+          }
 
-  const text = window.prompt("Reply as the seller:");
-  const replyBody = text && text.trim();
-  if(!replyBody) return;
+          const text = window.prompt("Reply as the seller:");
+          const replyBody = text && text.trim();
+          if(!replyBody) return;
 
-  try{
-    const { error } = await supabaseClient
-      .from("questions")
-      .update({
-        answer_body: replyBody,
-        answer_author_id: currentSession.user.id,
-        answered_at: new Date().toISOString()
-      })
-      .eq("id", row.id);
+          try{
+            const { error } = await supabaseClient
+              .from("questions")
+              .update({
+                answer_body: replyBody,
+                answer_author_id: currentSession.user.id,
+                answered_at: new Date().toISOString()
+              })
+              .eq("id", row.id);
 
-    if(error){
-      console.warn("Reply error", error);
-      showToast("Could not post reply");
-    }else{
-      showToast("Reply posted");
+            if(error){
+              console.warn("Reply error", error);
+              showToast("Could not post reply");
+            }else{
+              showToast("Reply posted");
 
-      // 🔔 Notify the original commenter that the seller replied
-      const sellerId = currentListing?.seller_id;
-      const questionAuthorId = row.author_id;
-      if(
-        questionAuthorId &&
-        sellerId &&
-        questionAuthorId !== sellerId
-      ){
-        const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
-        const preview = replyBody.length > 140
-          ? replyBody.slice(0,137) + "…"
-          : replyBody;
+              const sellerId = currentListing?.seller_id;
+              const questionAuthorId = row.author_id;
+              if(
+                questionAuthorId &&
+                sellerId &&
+                questionAuthorId !== sellerId
+              ){
+                const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
+                const preview = replyBody.length > 140
+                  ? replyBody.slice(0,137) + "…"
+                  : replyBody;
 
-        try{
-          await supabaseClient.from("notifications").insert({
-            user_id: questionAuthorId,
-            type: "listing_comment_reply",
-            kind: "comment_reply",
-            title: "Seller replied to your comment",
-            body: preview,
-            href: listingUrl,
-            link: listingUrl,
-            listing_id: listingId,
-            question_id: row.id
-          });
-        }catch(notifErr){
-          console.warn("Notification insert failed (comment reply)", notifErr);
-        }
-      }
+                try{
+                  await supabaseClient.from("notifications").insert({
+                    user_id: questionAuthorId,
+                    type: "listing_comment_reply",
+                    kind: "comment_reply",
+                    title: "Seller replied to your comment",
+                    body: preview,
+                    href: listingUrl,
+                    link: listingUrl,
+                    listing_id: listingId,
+                    question_id: row.id
+                  });
+                }catch(notifErr){
+                  console.warn("Notification insert failed (comment reply)", notifErr);
+                }
+              }
 
-      await loadQuestions();
-    }
-  }catch(e){
-    console.warn("Reply exception", e);
-    showToast("Could not post reply");
-  }
-});
-metaRow.appendChild(replySpan);
+              await loadQuestions();
+            }
+          }catch(e){
+            console.warn("Reply exception", e);
+            showToast("Could not post reply");
+          }
+        });
+        metaRow.appendChild(replySpan);
 
         const flagSpan = document.createElement("span");
         flagSpan.textContent = "Flag";
@@ -1355,108 +1346,106 @@ metaRow.appendChild(replySpan);
     }
   }
 
-function setupQAUI(){
-  const signedOut = document.getElementById("qaSignedOut");
-  const composer  = document.getElementById("qaComposer");
-  const signInBtn = document.getElementById("qaSignInBtn");
-  const submitBtn = document.getElementById("qaSubmitBtn");
-  const note      = document.getElementById("qaNote");
+  function setupQAUI(){
+    const signedOut = document.getElementById("qaSignedOut");
+    const composer  = document.getElementById("qaComposer");
+    const signInBtn = document.getElementById("qaSignInBtn");
+    const submitBtn = document.getElementById("qaSubmitBtn");
+    const note      = document.getElementById("qaNote");
 
-  const loggedIn = !!(currentSession && currentSession.user);
+    const loggedIn = !!(currentSession && currentSession.user);
 
-  if(loggedIn){
-    if(signedOut) signedOut.style.display = "none";
-    if(composer)  composer.style.display  = "block";
-  }else{
-    if(signedOut) signedOut.style.display = "flex";
-    if(composer)  composer.style.display  = "none";
-  }
+    if(loggedIn){
+      if(signedOut) signedOut.style.display = "none";
+      if(composer)  composer.style.display  = "block";
+    }else{
+      if(signedOut) signedOut.style.display = "flex";
+      if(composer)  composer.style.display  = "none";
+    }
 
-  if(signInBtn){
-    signInBtn.onclick = ()=>{
-      window.location.href = "auth.html?view=login";
-    };
-  }
-
-  if(submitBtn){
-    submitBtn.onclick = async ()=>{
-      const input = document.getElementById("qaBody");
-      if(!input) return;
-
-      const body = input.value.trim();
-      if(!body){
-        if(note) note.textContent = "Please write a comment first.";
-        return;
-      }
-
-      if(!currentSession || !currentSession.user){
+    if(signInBtn){
+      signInBtn.onclick = ()=>{
         window.location.href = "auth.html?view=login";
-        return;
-      }
+      };
+    }
 
-      submitBtn.disabled = true;
-      if(note) note.textContent = "Posting…";
+    if(submitBtn){
+      submitBtn.onclick = async ()=>{
+        const input = document.getElementById("qaBody");
+        if(!input) return;
 
-      const authorId = currentSession.user.id;
-
-      try{
-        const { data: inserted, error } = await supabaseClient
-          .from("questions")
-          .insert({
-            listing_id: listingId,
-            author_id: authorId,
-            body
-          })
-          .select("id, created_at")
-          .single();
-
-        if(error){
-          console.warn("Q&A insert error", error);
-          if(note) note.textContent = "We couldn’t post your comment. Please try again.";
-        }else{
-          input.value = "";
-          if(note) note.textContent = "";
-          showToast("Comment posted");
-
-          // 🔔 Notify the seller that someone commented on their listing
-          const sellerId = currentListing?.seller_id;
-          if(
-            sellerId &&
-            sellerId !== authorId
-          ){
-            const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
-            const preview = body.length > 140
-              ? body.slice(0,137) + "…"
-              : body;
-
-            try{
-              await supabaseClient.from("notifications").insert({
-                user_id: sellerId,
-                type: "listing_comment",
-                kind: "comment",
-                title: "New comment on your listing",
-                body: preview,
-                href: listingUrl,
-                link: listingUrl,
-                listing_id: listingId,
-                question_id: inserted?.id || null
-              });
-            }catch(notifErr){
-              console.warn("Notification insert failed (listing comment)", notifErr);
-            }
-          }
-
-          await loadQuestions();
+        const body = input.value.trim();
+        if(!body){
+          if(note) note.textContent = "Please write a comment first.";
+          return;
         }
-      }catch(e){
-        console.warn("Q&A insert exception", e);
-        if(note) note.textContent = "We couldn’t post your comment. Please try again.";
-      }finally{
-        submitBtn.disabled = false;
-      }
-    };
-  }
-}
+
+        if(!currentSession || !currentSession.user){
+          window.location.href = "auth.html?view=login";
+          return;
+        }
+
+        submitBtn.disabled = true;
+        if(note) note.textContent = "Posting…";
+
+        const authorId = currentSession.user.id;
+
+        try{
+          const { data: inserted, error } = await supabaseClient
+            .from("questions")
+            .insert({
+              listing_id: listingId,
+              author_id: authorId,
+              body
+            })
+            .select("id, created_at")
+            .single();
+
+          if(error){
+            console.warn("Q&A insert error", error);
+            if(note) note.textContent = "We couldn’t post your comment. Please try again.";
+          }else{
+            input.value = "";
+            if(note) note.textContent = "";
+            showToast("Comment posted");
+
+            const sellerId = currentListing?.seller_id;
+            if(
+              sellerId &&
+              sellerId !== authorId
+            ){
+              const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
+              const preview = body.length > 140
+                ? body.slice(0,137) + "…"
+                : body;
+
+              try{
+                await supabaseClient.from("notifications").insert({
+                  user_id: sellerId,
+                  type: "listing_comment",
+                  kind: "comment",
+                  title: "New comment on your listing",
+                  body: preview,
+                  href: listingUrl,
+                  link: listingUrl,
+                  listing_id: listingId,
+                  question_id: inserted?.id || null
+                });
+              }catch(notifErr){
+                console.warn("Notification insert failed (listing comment)", notifErr);
+              }
+            }
+
+            await loadQuestions();
+          }
+        }catch(e){
+          console.warn("Q&A insert exception", e);
+          if(note) note.textContent = "We couldn’t post your comment. Please try again.";
+        }finally{
+          submitBtn.disabled = false;
+        }
+      };
+    }
   }
 
   function getListingIdFromUrl(){
@@ -1489,12 +1478,9 @@ function setupQAUI(){
     supabaseClient.auth.onAuthStateChange((_event, session)=>{
       currentSession = session;
       setupQAUI();
-      // If session changes (login/logout), owner controls may change on reload.
     });
   });
 </script>
-
-<script src="scripts/listing-comments.js"></script>
 
 <script>
   window.HM && window.HM.renderShell({ currentPage: "listing" });
