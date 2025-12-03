@@ -302,7 +302,20 @@
   );
   const grand = itemsTotal + Number(preview.ship||0);
   document.getElementById("tot").textContent = fmt(grand);
-
+// --- SAVE SIMPLE ORDER SNAPSHOT FOR orders.html ---
+try {
+  const firstItem = cart[0] || {};
+  const snapshot = {
+    orderId: orderId,
+    title: firstItem.name || "Order",
+    when: new Date().toLocaleDateString(),
+    status: "Paid",
+    total: fmt(grand),
+    photo: firstItem.photo || firstItem.image_url_1 || ""
+  };
+  localStorage.setItem("hm.lastOrder", JSON.stringify(snapshot));
+} catch(_) {}
+// ---------------------------------------------------
   // 3) Persist order (best-effort; ignore if endpoint not present)
   const savedKey = "hm_order_saved_" + orderId;
   if(!localStorage.getItem(savedKey)){
