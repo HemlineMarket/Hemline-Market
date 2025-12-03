@@ -1,85 +1,76 @@
 // File: /api/stripe/webhook.js
-// Stripe → Hemline Market order workflow
-//
-// Handles:
-// ✔ Order created
-// ✔ Seller notifications
-// ✔ Buyer notifications
-// ✔ Listing marked sold
-// ✔ Order inserted into DB
-// ✔ Shipping label notification (if available later)
-// ✔ Cancellation window logic
+// Verifies Stripe signatures, creates Transfers to connected sellers,
+// sends buyer confirmation emails, and sends notifications to buyer & seller.
 //
 // ENV REQUIRED:
 // STRIPE_SECRET_KEY
 // STRIPE_WEBHOOK_SECRET
+// SITE_URL
 // SUPABASE_URL
 // SUPABASE_SERVICE_ROLE_KEY
-// SITE_URL
+//
+// NOTE: Notifications are sent by calling your /api/notify endpoint.
 
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
 import fetch from "node-fetch";
 
+// Stripe requires RAW body for signature verification
 export const config = { api: { bodyParser: false } };
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
+// Stripe client
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
+});
 
+// Read raw body
 function buffer(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    req.on("data", (c) =>
+      chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c))
+    );
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }
 
-function site() {
-  return (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+// Base site URL
+function siteBase() {
+  return (process.env.SITE_URL || "").replace(/\/$/, "");
 }
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
-
-async function notify({ user_id, kind, title, body, href }) {
+// Helper: call our notification API
+async function notify(payload) {
   try {
-    await fetch(`${site()}/api/notify`, {
+    const res = await fetch(`${siteBase()}/api/notify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id, kind, title, body, href })
+      body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      console.error("[webhook] notify() failed:", res.status);
+    }
   } catch (err) {
-    console.error("[notify webhook error]", err);
+    console.error("[webhook] notify() error:", err?.message || err);
   }
 }
 
-async function markListingSold(listingId) {
-  if (!listingId) return;
-  const { error } = await supabase
-    .from("listings")
-    .update({ status: "sold", sold_at: new Date().toISOString() })
-    .eq("id", listingId);
-
-  if (error) console.error("[mark sold error]", error);
-}
-
-async function createOrder({ orderId, buyerId, sellerId, listingId, amount }) {
-  const { error } = await supabase.from("orders").insert([
-    {
-      id: orderId,
-      buyer_id: buyerId,
-      seller_id: sellerId,
-      listing_id: listingId,
-      amount_cents: amount,
-      status: "paid",
-      created_at: new Date().toISOString()
+// Helper: call our send-order-confirmation endpoint
+async function sendOrderEmail({ to, orderId, items }) {
+  if (!to) return;
+  try {
+    const res = await fetch(`${siteBase()}/api/send-order-confirmation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, orderId, items }),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      console.error("[webhook] email failed:", res.status, t);
     }
-  ]);
-
-  if (error) console.error("[order insert error]", error);
+  } catch (err) {
+    console.error("[webhook] email error:", err?.message || err);
+  }
 }
 
 export default async function handler(req, res) {
@@ -88,139 +79,242 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
+  // Verify signature
   let event;
   try {
     const buf = await buffer(req);
-    const signature = req.headers["stripe-signature"];
-    event = stripe.webhooks.constructEvent(buf, signature, process.env.STRIPE_WEBHOOK_SECRET);
+    const sig = req.headers["stripe-signature"];
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) {
+      return res.status(500).json({
+        error: "Missing STRIPE_WEBHOOK_SECRET",
+      });
+    }
+    event = stripe.webhooks.constructEvent(buf, sig, secret);
   } catch (err) {
-    console.error("⚠️  Stripe signature error:", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error("⚠ Stripe signature error:", err?.message || err);
+    return res
+      .status(400)
+      .send(`Webhook Error: ${err?.message || "invalid signature"}`);
   }
 
-  // Immediately acknowledge (Stripe retries otherwise)
+  // ACK immediately
   res.status(200).json({ received: true });
 
-  // ----------------------------------------
-  // EVENT HANDLING
-  // ----------------------------------------
+  // Post-ACK background processing
   try {
     switch (event.type) {
+      /* ---------------------------------------------------------
+         1) CHECKOUT COMPLETED
+      --------------------------------------------------------- */
       case "checkout.session.completed": {
         const session = event.data.object;
-        const buyerEmail = session.customer_details?.email || session.customer_email;
-        const buyerId = session.metadata?.buyer_id;
-        const listingId = session.metadata?.listing_id;
-        const sellerId = session.metadata?.seller_user_id;
-        const listingName = session.metadata?.listing_name || "Fabric";
 
-        // Insert order in DB
-        await createOrder({
+        const buyerEmail =
+          session.customer_details?.email ||
+          session.customer_email ||
+          null;
+
+        // Get line items for the receipt email
+        let items = [];
+        try {
+          const li = await stripe.checkout.sessions.listLineItems(
+            session.id,
+            { limit: 20 }
+          );
+          items =
+            li.data?.map((x) => ({
+              name:
+                x.description ||
+                x.price?.nickname ||
+                "Item",
+              qty: x.quantity || 1,
+            })) || [];
+        } catch (_) {
+          items = [];
+        }
+
+        // Send order email
+        await sendOrderEmail({
+          to: buyerEmail,
           orderId: session.id,
-          buyerId,
-          sellerId,
-          listingId,
-          amount: session.amount_total
+          items,
         });
 
-        // Mark listing sold
-        await markListingSold(listingId);
+        // Determine sellers for transfers
+        let sellersJSON = {};
+        try {
+          sellersJSON = JSON.parse(
+            session.metadata?.sellers_json || "{}"
+          );
+        } catch {
+          sellersJSON = {};
+        }
 
-        // Notify: seller (item sold)
+        const sellerAccounts = Object.keys(sellersJSON);
+        if (!sellerAccounts.length) {
+          console.log("[webhook] no sellers_json found");
+          break;
+        }
+
+        // Retrieve payment intent to pull charge ID
+        const piId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id;
+
+        if (!piId) {
+          console.warn(
+            "[webhook] missing payment_intent on session"
+          );
+          break;
+        }
+
+        const pi = await stripe.paymentIntents.retrieve(
+          piId,
+          { expand: ["latest_charge"] }
+        );
+
+        const chargeId =
+          typeof pi.latest_charge === "string"
+            ? pi.latest_charge
+            : pi.latest_charge?.id;
+
+        if (!chargeId) {
+          console.warn(
+            "[webhook] missing latest_charge; no transfers"
+          );
+          break;
+        }
+
+        // Create transfers to each seller
+        for (const acctId of sellerAccounts) {
+          const amount = Math.max(
+            0,
+            Number(sellersJSON[acctId] || 0)
+          );
+          if (!amount) continue;
+
+          try {
+            const tr = await stripe.transfers.create({
+              amount,
+              currency: "usd",
+              destination: acctId,
+              source_transaction: chargeId,
+              metadata: {
+                checkout_session: session.id,
+                subtotal_cents:
+                  session.amount_subtotal || "",
+                shipping_cents:
+                  session.metadata?.shipping_cents ||
+                  "",
+              },
+            });
+            console.log(
+              "[webhook] transfer.created",
+              tr.id
+            );
+          } catch (err) {
+            console.error(
+              `[webhook] transfer error (${acctId}):`,
+              err?.message || err
+            );
+          }
+        }
+
+        /* -------------------------------------------------------
+           2) NOTIFICATIONS: Buyer + Seller
+        ------------------------------------------------------- */
+
+        // Listing name (fallback)
+        const listingName =
+          session.metadata?.listing_name ||
+          "Your fabric";
+
+        const buyerId = session.metadata?.buyer_id || null;
+        const sellerId = session.metadata?.seller_id || null;
+        const listingId = session.metadata?.listing_id || null;
+
+        // Notify Seller: “Item Sold”
         if (sellerId) {
           await notify({
             user_id: sellerId,
             kind: "sale",
             title: "Your item sold!",
             body: `${listingName} has been purchased.`,
-            href: `${site()}/orders.html`
+            href: `${siteBase()}/orders.html`,
+          });
+
+          // 30-minute “do not ship yet”
+          await notify({
+            user_id: sellerId,
+            kind: "warning",
+            title: "Do NOT ship yet",
+            body: "The buyer has a 30-minute cancellation window. Do not ship until it closes.",
+            href: `${siteBase()}/orders.html`,
           });
         }
 
-        // Notify: buyer (order received)
+        // Notify Buyer: “Order confirmed”
         if (buyerId) {
           await notify({
             user_id: buyerId,
             kind: "order",
             title: "Order confirmed",
             body: `Your purchase of ${listingName} is confirmed.`,
-            href: `${site()}/orders.html`
+            href: `${siteBase()}/orders.html`,
           });
-        }
 
-        break;
-      }
-
-      case "charge.refunded": {
-        const charge = event.data.object;
-        const buyerId = charge.metadata?.buyer_id;
-        const listingName = charge.metadata?.listing_name || "Fabric";
-
-        if (buyerId) {
+          // Buyer cancellation window
           await notify({
             user_id: buyerId,
-            kind: "order_cancel",
-            title: "Order refunded",
-            body: `Your order for ${listingName} has been refunded.`,
-            href: `${site()}/orders.html`
+            kind: "warning",
+            title: "You may cancel for 30 minutes",
+            body: "You have 30 minutes to cancel this order from your Orders page.",
+            href: `${siteBase()}/orders.html`,
           });
         }
+
         break;
       }
 
-      case "payout.paid": {
-        const payout = event.data.object;
-        const sellerId = payout.metadata?.seller_user_id;
-        if (sellerId) {
-          await notify({
-            user_id: sellerId,
-            kind: "payout",
-            title: "Payout sent",
-            body: `A payout of $${(payout.amount / 100).toFixed(2)} was deposited.`,
-            href: `${site()}/account.html`
-          });
-        }
+      /* ---------------------------------------------------------
+         3) PAYOUT EVENTS (optional logs)
+      --------------------------------------------------------- */
+      case "payout.paid":
+      case "payout.failed":
+      case "payout.created": {
+        const p = event.data.object;
+        console.log(`[stripe] ${event.type}`, {
+          id: p.id,
+          status: p.status,
+          amount: p.amount,
+        });
         break;
       }
 
-      case "payout.failed": {
-        const payout = event.data.object;
-        const sellerId = payout.metadata?.seller_user_id;
-
-        if (sellerId) {
-          await notify({
-            user_id: sellerId,
-            kind: "payout",
-            title: "Payout failed",
-            body: `Your payout could not be processed. Check your Stripe account.`,
-            href: `${site()}/account.html`
-          });
-        }
+      /* ---------------------------------------------------------
+         4) CONNECT ACCOUNT STATUS EVENTS
+      --------------------------------------------------------- */
+      case "account.updated":
+      case "account.application.authorized":
+      case "account.application.deauthorized": {
+        const acct = event.data.object;
+        console.log(`[stripe] ${event.type}`, {
+          account: acct?.id || event.account,
+          charges_enabled: acct?.charges_enabled,
+          payouts_enabled: acct?.payouts_enabled,
+        });
         break;
       }
 
-      // Shipping label ready (once your Shippo webhook is hooked in)
-      case "shipping.label.created": {
-        const obj = event.data.object;
-        const buyer = obj.metadata?.buyer_user_id;
-
-        if (buyer) {
-          await notify({
-            user_id: buyer,
-            kind: "shipping",
-            title: "Shipping label ready",
-            body: "Your order is being prepared for shipment.",
-            href: `${site()}/orders.html`
-          });
-        }
-        break;
-      }
-
+      /* ---------------------------------------------------------
+         5) OTHER EVENTS
+      --------------------------------------------------------- */
       default:
-        console.log("[Unhandled Stripe event]", event.type);
-        break;
+        console.log("[stripe] unhandled event:", event.type);
     }
   } catch (err) {
-    console.error("Webhook handler error:", err);
+    console.error("Webhook post-processing error:", err);
   }
 }
