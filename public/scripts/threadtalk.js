@@ -79,7 +79,7 @@
   let commentReactionsByComment = {};
   const expandedCommentsThreads = new Set();
 
-  // NEW: thread id from URL (?thread=123)
+  // thread id from URL (?thread=123)
   const urlParams = new URLSearchParams(window.location.search || "");
   const THREAD_URL_ID = urlParams.get("thread")
     ? Number(urlParams.get("thread"))
@@ -181,7 +181,7 @@
       const threadIds = allThreads.map((t) => t.id);
       const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
 
-      // Load comments (include parent_comment_id for nesting)
+      // Load comments (including parent_comment_id for nesting)
       const { data: commentRows } = await supabase
         .from("threadtalk_comments")
         .select(
@@ -276,6 +276,52 @@
     renderThreads();
   }
 
+  // ---------- Comment tree helpers ----------
+  function buildCommentTree(comments) {
+    if (!comments || !comments.length) return [];
+
+    const byId = {};
+    comments.forEach((c) => {
+      c.children = [];
+      byId[c.id] = c;
+    });
+
+    const roots = [];
+    comments.forEach((c) => {
+      if (c.parent_comment_id && byId[c.parent_comment_id]) {
+        byId[c.parent_comment_id].children.push(c);
+      } else {
+        roots.push(c);
+      }
+    });
+
+    const sortByCreated = (arr) => {
+      arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      arr.forEach((c) => c.children && sortByCreated(c.children));
+    };
+    sortByCreated(roots);
+
+    return roots;
+  }
+
+  function renderCommentTree(threadId, nodes, depth) {
+    if (!nodes || !nodes.length) return "";
+    return nodes
+      .map((c) => {
+        const selfHtml = renderCommentHtml(threadId, c, depth);
+        const childrenHtml =
+          c.children && c.children.length
+            ? `<div class="tt-comment-children">${renderCommentTree(
+                threadId,
+                c.children,
+                depth + 1
+              )}</div>`
+            : "";
+        return selfHtml + childrenHtml;
+      })
+      .join("");
+  }
+
   // ---------- Rendering ----------
   function renderThreads() {
     if (!cardsEl) return;
@@ -305,13 +351,10 @@
       const comments = commentsByThread[thread.id] || [];
       const mediaHtml = renderMedia(thread);
 
-      // Replies collapsed by default; we only render tree when expanded.
+      // Replies collapsed by default; expand only after click
       const isExpanded = expandedCommentsThreads.has(thread.id);
-      const commentsCount = comments.length;
-      const commentsHtml =
-        isExpanded && commentsCount
-          ? renderCommentsForThread(thread.id)
-          : "";
+      const commentTree = isExpanded ? buildCommentTree(comments) : [];
+      const commentsHtml = renderCommentTree(thread.id, commentTree, 0);
 
       const isMine = currentUser && thread.author_id === currentUser.id;
 
@@ -326,12 +369,12 @@
         </div>`
         : "";
 
-      const showRepliesButton = commentsCount && !isExpanded;
+      const showRepliesButton = comments.length && !isExpanded;
 
       const hiddenHtml = showRepliesButton
         ? `<button class="tt-more-comments" type="button" data-tt-role="show-all-comments">
-             View all ${commentsCount} repl${
-             commentsCount === 1 ? "y" : "ies"
+             View all ${comments.length} repl${
+             comments.length === 1 ? "y" : "ies"
            }…
            </button>`
         : "";
@@ -436,54 +479,16 @@
         </div>
       `;
 
-      // Attach link preview (YouTube embed or website card)
+      // Link preview card (YouTube + normal sites) – no iframe
       attachLinkPreview(card, thread);
 
       cardsEl.appendChild(card);
     });
   }
 
-  // Build nested comment tree HTML for a thread
-  function renderCommentsForThread(threadId) {
-    const comments = commentsByThread[threadId] || [];
-    if (!comments.length) return "";
-
-    const byParent = {};
-    comments.forEach((c) => {
-      const parentId = c.parent_comment_id || null;
-      if (!byParent[parentId]) byParent[parentId] = [];
-      byParent[parentId].push(c);
-    });
-
-    // Keep replies in chronological order
-    Object.keys(byParent).forEach((key) => {
-      byParent[key].sort(
-        (a, b) => new Date(a.created_at) - new Date(b.created_at)
-      );
-    });
-
-    const topLevel = byParent[null] || [];
-
-    const pieces = topLevel.map((c) =>
-      renderCommentTree(threadId, c, byParent, null)
-    );
-    return pieces.join("");
-  }
-
-  function renderCommentTree(threadId, comment, byParent, parentAuthorName) {
-    const html = renderCommentHtml(threadId, comment, parentAuthorName);
-    const children = byParent[comment.id] || [];
-    const thisAuthor = displayNameForUserId(comment.author_id);
-    const childHtml = children
-      .map((child) =>
-        renderCommentTree(threadId, child, byParent, thisAuthor)
-      )
-      .join("");
-    return html + childHtml;
-  }
-
   // ---------- Render each comment ----------
-  function renderCommentHtml(threadId, c, parentAuthorName) {
+  function renderCommentHtml(threadId, c, depth) {
+    const d = depth || 0;
     const name = displayNameForUserId(c.author_id);
     const ts = timeAgo(c.created_at);
 
@@ -543,19 +548,13 @@
 
     const mediaHtml = renderCommentMedia(c);
 
-    const replyingLabel = parentAuthorName
-      ? `<span class="tt-comment-replying">Replying to ${escapeHtml(
-          parentAuthorName
-        )}</span>`
-      : "";
-
-    const childClass = parentAuthorName ? " tt-comment-child" : "";
-
     return `
-      <div class="tt-comment${childClass}"
-           data-comment-id="${c.id}"
+      <div class="tt-comment${
+        d > 0 ? " tt-comment-child" : ""
+      }" data-comment-id="${c.id}"
            data-thread-id="${threadId}"
-           data-author-name="${escapeAttr(name)}">
+           data-author-name="${escapeAttr(name)}"
+           data-depth="${d}">
 
          <div class="tt-comment-head-row">
            <div class="tt-comment-meta">
@@ -566,10 +565,7 @@
            ${deleteHtml}
          </div>
 
-         <div class="tt-comment-body">
-           ${replyingLabel}
-           <span class="tt-comment-text">${linkify(c.body)}</span>
-         </div>
+         <div class="tt-comment-body">${linkify(c.body)}</div>
          ${mediaHtml}
          ${summaryHtml}
 
@@ -594,7 +590,9 @@
            </button>
          </div>
 
-         <div class="tt-comment-reply-box" data-parent-comment-id="${c.id}" hidden>
+         <div class="tt-comment-reply-box"
+              data-parent-comment-id="${c.id}"
+              hidden>
            <input class="tt-comment-photo"
                   type="file"
                   accept="image/*"
@@ -995,7 +993,7 @@
           document
             .querySelectorAll('[data-tt-role="comment-menu-pop"]')
             .forEach((el) => el.setAttribute("hidden", "true"));
-          if (hidden2) pop.removeAttribute("hidden");
+          if (hidden2 && pop) pop.removeAttribute("hidden");
           break;
         }
 
@@ -1179,9 +1177,13 @@
     const ok = await ensureLoggedInFor("comment");
     if (!ok) return;
 
-    // NEW: figure out parent_comment_id (null for thread-level comments)
-    const parentAttr = row.getAttribute("data-parent-comment-id");
-    const parent_comment_id = parentAttr ? Number(parentAttr) : null;
+    // If we're inside a reply box, capture the parent_comment_id
+    let parentCommentId = null;
+    const replyBox = row.closest(".tt-comment-reply-box");
+    if (replyBox && replyBox.dataset.parentCommentId) {
+      const parsed = Number(replyBox.dataset.parentCommentId);
+      parentCommentId = Number.isFinite(parsed) ? parsed : null;
+    }
 
     let media = { media_url: null, media_type: null };
     if (file) {
@@ -1196,10 +1198,10 @@
       const { error } = await supabase.from("threadtalk_comments").insert({
         thread_id: threadId,
         author_id: currentUser.id,
-        parent_comment_id,
         body,
         media_url: media.media_url,
         media_type: media.media_type,
+        parent_comment_id: parentCommentId,
       });
 
       if (error) {
@@ -1517,7 +1519,7 @@
     });
   }
 
-  // ---------- Link previews (YouTube + website cards) ----------
+  // ---------- Link previews (YouTube + website cards, no iframes) ----------
   async function attachLinkPreview(card, thread) {
     const body = thread.body || "";
     const urlMatch = body.match(/https?:\/\/[^\s]+/);
@@ -1525,8 +1527,41 @@
 
     const url = urlMatch[0];
 
-    const previewData = await fetchLinkMetadata(url);
-    if (!previewData) return;
+    let previewData = null;
+    try {
+      previewData = await fetchLinkMetadata(url);
+    } catch (_) {
+      previewData = null;
+    }
+
+    const rawTitle =
+      (previewData && (previewData.title || previewData.ogTitle)) || url;
+    let title = rawTitle || url;
+    if (title.length > 120) title = title.slice(0, 117) + "…";
+
+    let host = "";
+    try {
+      const u = new URL(url);
+      host = u.hostname.replace(/^www\./, "");
+    } catch (_) {
+      host = "";
+    }
+
+    let thumb =
+      (previewData &&
+        (previewData.thumbnailUrl ||
+          previewData.thumbnail_url ||
+          previewData.image ||
+          previewData["og:image"])) ||
+      null;
+
+    // Fallback to YouTube thumbnail if needed
+    if (!thumb && isYoutubeUrl(url)) {
+      const vid = extractYoutubeId(url);
+      if (vid) {
+        thumb = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+      }
+    }
 
     const actionsRow = card.querySelector(".tt-actions-row");
     if (!actionsRow) return;
@@ -1534,61 +1569,28 @@
     const container = document.createElement("div");
     container.className = "tt-link-preview-wrap";
 
-    if (isYoutubeUrl(url)) {
-      // Build our own embed URL so the video actually plays
-      const embedUrl = buildYoutubeEmbedUrl(url);
-      const title = previewData.title || "YouTube video";
-
-      container.innerHTML = `
-        <div class="tt-link-embed">
-          <iframe
-            src="${escapeAttr(embedUrl)}"
-            title="${escapeAttr(title)}"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-            loading="lazy">
-          </iframe>
-        </div>
-      `;
-    } else {
-      const rawTitle = previewData.title || url;
-      const title =
-        rawTitle.length > 120 ? rawTitle.slice(0, 117) + "…" : rawTitle;
-      let host = "";
-      try {
-        const u = new URL(url);
-        host = u.hostname.replace(/^www\./, "");
-      } catch (_) {
-        host = "";
-      }
-
-      const thumb =
-        previewData.thumbnailUrl || previewData.thumbnail_url || null;
-
-      container.innerHTML = `
-        <a class="tt-link-card"
-           href="${escapeAttr(url)}"
-           target="_blank"
-           rel="noopener noreferrer">
+    container.innerHTML = `
+      <a class="tt-link-card"
+         href="${escapeAttr(url)}"
+         target="_blank"
+         rel="noopener noreferrer">
+        ${
+          thumb
+            ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
+                thumb
+              )}');"></div>`
+            : ""
+        }
+        <div class="tt-link-meta">
+          <div class="tt-link-title">${escapeHtml(title)}</div>
           ${
-            thumb
-              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
-                  thumb
-                )}');"></div>`
+            host
+              ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
               : ""
           }
-          <div class="tt-link-meta">
-            <div class="tt-link-title">${escapeHtml(title)}</div>
-            ${
-              host
-                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
-                : ""
-            }
-          </div>
-        </a>
-      `;
-    }
+        </div>
+      </a>
+    `;
 
     // Insert the preview just above the Like / Reply row
     card.insertBefore(container, actionsRow);
@@ -1608,25 +1610,22 @@
     }
   }
 
-  function buildYoutubeEmbedUrl(url) {
+  function extractYoutubeId(url) {
     try {
       const u = new URL(url);
       const host = u.hostname.replace(/^www\./, "").toLowerCase();
 
-      let id = "";
-
       if (host === "youtu.be") {
-        // https://youtu.be/VIDEOID
-        id = u.pathname.replace("/", "");
-      } else {
-        // https://www.youtube.com/watch?v=VIDEOID
-        id = u.searchParams.get("v") || "";
+        return u.pathname.replace("/", "");
       }
 
-      if (!id) return url;
-      return `https://www.youtube.com/embed/${id}`;
+      if (host === "youtube.com" || host === "m.youtube.com") {
+        return u.searchParams.get("v") || "";
+      }
+
+      return "";
     } catch (_) {
-      return url;
+      return "";
     }
   }
 
@@ -1667,6 +1666,10 @@
         font-size:14px;
         line-height:1.4;
         color:#4b5563;
+      }
+      .preview a{
+        color:#1d4ed8;
+        text-decoration:underline;
       }
       .tt-head{
         display:flex;
@@ -1815,21 +1818,19 @@
       .tt-comments{
         margin-top:6px;
         position:relative;
-        padding-left:4px;
       }
       .tt-comments-list{
         position:relative;
         display:flex;
         flex-direction:column;
-        gap:4px;
-        padding-left:0;
+        gap:6px;
       }
       .tt-comments-list::before{
         content:"";
         position:absolute;
-        left:18px;
+        left:32px;
         top:4px;
-        bottom:8px;
+        bottom:10px;
         width:2px;
         border-radius:999px;
         background:rgba(209,213,219,.9);
@@ -1837,15 +1838,26 @@
 
       .tt-comment{
         position:relative;
-        margin-left:42px;
         padding:6px 10px 8px;
         border-radius:16px;
         background:#f9fafb;
         border:1px solid #e5e7eb;
+        margin-left:44px; /* depth 0 */
       }
-      .tt-comment-child{
-        margin-left:62px;
+      .tt-comment[data-depth="1"]{
+        margin-left:76px; /* reply to a comment */
       }
+      .tt-comment[data-depth="2"]{
+        margin-left:104px;
+      }
+      .tt-comment[data-depth="3"]{
+        margin-left:120px;
+      }
+
+      .tt-comment-children{
+        margin-top:4px;
+      }
+
       .tt-comment-head-row{
         display:flex;
         align-items:center;
@@ -1869,19 +1881,10 @@
         font-size:13px;
         margin-bottom:2px;
         color:#111827;
-        display:flex;
-        flex-wrap:wrap;
-        gap:4px;
       }
-      .tt-comment-replying{
-        font-size:11px;
-        color:#6b7280;
-        background:#e5e7eb;
-        border-radius:999px;
-        padding:2px 6px;
-      }
-      .tt-comment-text{
-        flex:1;
+      .tt-comment-body a{
+        color:#1d4ed8;
+        text-decoration:underline;
       }
 
       .tt-comment-media{
@@ -1909,8 +1912,8 @@
         display:flex;
         align-items:center;
         gap:6px;
-        margin-top:6px;
-        margin-left:42px;
+        margin-top:8px;
+        margin-left:44px;
         padding:6px 8px;
         border-radius:999px;
         background:#f3f4f6;
@@ -1973,7 +1976,7 @@
         color:#6b7280;
         font-size:12px;
         padding:0;
-        margin:2px 0 2px 42px;
+        margin:4px 0 2px 44px;
         cursor:pointer;
         text-align:left;
       }
@@ -2108,6 +2111,7 @@
         margin-top:6px;
         margin-bottom:4px;
         max-width:460px;
+        width:100%;
       }
       .tt-link-card{
         display:flex;
@@ -2117,6 +2121,7 @@
         border:1px solid #e5e7eb;
         background:#f9fafb;
         overflow:hidden;
+        width:100%;
       }
       .tt-link-thumb{
         flex:0 0 120px;
@@ -2140,13 +2145,6 @@
         font-size:11px;
         color:#9ca3af;
       }
-      .tt-link-embed iframe{
-        width:100%;
-        max-width:460px;
-        border-radius:12px;
-        border:none;
-        aspect-ratio:16/9;
-      }
 
       /* Mobile adjustments */
       @media (max-width:640px){
@@ -2154,19 +2152,25 @@
           padding:12px;
         }
         .tt-comments-list::before{
-          left:14px;
+          left:26px;
         }
         .tt-comment{
-          margin-left:32px;
+          margin-left:36px;
         }
-        .tt-comment-child{
-          margin-left:52px;
+        .tt-comment[data-depth="1"]{
+          margin-left:72px;
+        }
+        .tt-comment[data-depth="2"]{
+          margin-left:98px;
         }
         .tt-comment-new{
-          margin-left:32px;
+          margin-left:36px;
         }
         .tt-more-comments{
-          margin-left:32px;
+          margin-left:36px;
+        }
+        .tt-link-preview-wrap{
+          max-width:100%;
         }
       }
     `;
