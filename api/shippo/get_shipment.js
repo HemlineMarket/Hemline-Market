@@ -10,7 +10,7 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // Enforce per-IP rate limit
+  // Per-IP rate limit
   if (!rateLimit(req, res)) return;
 
   if (req.method !== "GET") {
@@ -20,8 +20,13 @@ export default async function handler(req, res) {
 
   try {
     const orderId = (req.query.orderId || "").trim();
-    if (!orderId) return res.status(400).json({ error: "Missing orderId" });
+    if (!orderId) {
+      return res.status(400).json({ error: "Missing orderId" });
+    }
 
+    // -------------------------------------------------------------------
+    // Fetch latest shipment row
+    // -------------------------------------------------------------------
     const { data, error } = await supabaseAdmin
       .from("db_shipments")
       .select("*")
@@ -31,15 +36,33 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (error) {
-      console.error("get_shipment db error:", error);
+      console.error("[get_shipment] Supabase error:", error);
       return res.status(500).json({ error: "Database error" });
     }
 
-    if (!data) return res.status(404).json({ error: "Not found" });
+    if (!data) {
+      return res.status(404).json({ error: "Shipment not found" });
+    }
 
-    return res.status(200).json(data);
+    // -------------------------------------------------------------------
+    // Clean and send response
+    // -------------------------------------------------------------------
+    return res.status(200).json({
+      order_id: data.order_id,
+      tracking_number: data.tracking_number,
+      tracking_url: data.tracking_url,
+      label_url: data.label_url,
+      shippo_transaction_id: data.shippo_transaction_id,
+      carrier: data.carrier,
+      service: data.service,
+      status: data.status,
+      amount_cents: data.amount_cents,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      raw: data.raw || null,
+    });
   } catch (err) {
-    console.error("get_shipment error:", err);
+    console.error("[get_shipment] Unhandled error:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
