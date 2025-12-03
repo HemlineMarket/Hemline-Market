@@ -1355,99 +1355,107 @@ metaRow.appendChild(replySpan);
     }
   }
 
-  function setupQAUI(){
-    const signedOut = document.getElementById("qaSignedOut");
-    const composer  = document.getElementById("qaComposer");
-    const signInBtn = document.getElementById("qaSignInBtn");
-    const submitBtn = document.getElementById("qaSubmitBtn");
-    const note      = document.getElementById("qaNote");
+function setupQAUI(){
+  const signedOut = document.getElementById("qaSignedOut");
+  const composer  = document.getElementById("qaComposer");
+  const signInBtn = document.getElementById("qaSignInBtn");
+  const submitBtn = document.getElementById("qaSubmitBtn");
+  const note      = document.getElementById("qaNote");
 
-    const loggedIn = !!(currentSession && currentSession.user);
+  const loggedIn = !!(currentSession && currentSession.user);
 
-    if(loggedIn){
-      if(signedOut) signedOut.style.display = "none";
-      if(composer)  composer.style.display  = "block";
-    }else{
-      if(signedOut) signedOut.style.display = "flex";
-      if(composer)  composer.style.display  = "none";
-    }
+  if(loggedIn){
+    if(signedOut) signedOut.style.display = "none";
+    if(composer)  composer.style.display  = "block";
+  }else{
+    if(signedOut) signedOut.style.display = "flex";
+    if(composer)  composer.style.display  = "none";
+  }
 
-    if(signInBtn){
-      signInBtn.onclick = ()=>{
-        window.location.href = "auth.html?view=login";
-      };
-    }
-
-if(submitBtn){
-  submitBtn.onclick = async ()=>{
-    const input = document.getElementById("qaBody");
-    if(!input) return;
-    const body = input.value.trim();
-    if(!body){
-      if(note) note.textContent = "Please write a comment first.";
-      return;
-    }
-
-    if(!currentSession || !currentSession.user){
+  if(signInBtn){
+    signInBtn.onclick = ()=>{
       window.location.href = "auth.html?view=login";
-      return;
-    }
+    };
+  }
 
-    submitBtn.disabled = true;
-    if(note) note.textContent = "Posting…";
+  if(submitBtn){
+    submitBtn.onclick = async ()=>{
+      const input = document.getElementById("qaBody");
+      if(!input) return;
 
-    try{
-      const { data: inserted, error } = await supabaseClient
-        .from("questions")
-        .insert({
-          listing_id: listingId,
-          author_id: currentSession.user.id,
-          body
-        })
-        .select("*")
-        .single();
-
-      if(error){
-        console.warn("Q&A insert error", error);
-        if(note) note.textContent = "We couldn’t post your comment. Please try again.";
-      }else{
-        input.value = "";
-        if(note) note.textContent = "";
-        showToast("Comment posted");
-
-        // 🔔 Notify the seller that someone commented on their listing
-        const sellerId = currentListing?.seller_id;
-        if(sellerId && sellerId !== currentSession.user.id){
-          const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
-          const preview =
-            body.length > 140 ? body.slice(0,137) + "…" : body;
-
-          try{
-            await supabaseClient.from("notifications").insert({
-              user_id: sellerId,
-              type: "listing_comment",
-              kind: "new_comment",
-              title: "New comment on your listing",
-              body: preview,
-              href: listingUrl,
-              link: listingUrl,
-              listing_id: listingId,
-              question_id: inserted.id
-            });
-          }catch(notifErr){
-            console.warn("Notification insert failed (new comment)", notifErr);
-          }
-        }
-
-        await loadQuestions();
+      const body = input.value.trim();
+      if(!body){
+        if(note) note.textContent = "Please write a comment first.";
+        return;
       }
-    }catch(e){
-      console.warn("Q&A insert exception", e);
-      if(note) note.textContent = "We couldn’t post your comment. Please try again.";
-    }finally{
-      submitBtn.disabled = false;
-    }
-  };
+
+      if(!currentSession || !currentSession.user){
+        window.location.href = "auth.html?view=login";
+        return;
+      }
+
+      submitBtn.disabled = true;
+      if(note) note.textContent = "Posting…";
+
+      const authorId = currentSession.user.id;
+
+      try{
+        const { data: inserted, error } = await supabaseClient
+          .from("questions")
+          .insert({
+            listing_id: listingId,
+            author_id: authorId,
+            body
+          })
+          .select("id, created_at")
+          .single();
+
+        if(error){
+          console.warn("Q&A insert error", error);
+          if(note) note.textContent = "We couldn’t post your comment. Please try again.";
+        }else{
+          input.value = "";
+          if(note) note.textContent = "";
+          showToast("Comment posted");
+
+          // 🔔 Notify the seller that someone commented on their listing
+          const sellerId = currentListing?.seller_id;
+          if(
+            sellerId &&
+            sellerId !== authorId
+          ){
+            const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
+            const preview = body.length > 140
+              ? body.slice(0,137) + "…"
+              : body;
+
+            try{
+              await supabaseClient.from("notifications").insert({
+                user_id: sellerId,
+                type: "listing_comment",
+                kind: "comment",
+                title: "New comment on your listing",
+                body: preview,
+                href: listingUrl,
+                link: listingUrl,
+                listing_id: listingId,
+                question_id: inserted?.id || null
+              });
+            }catch(notifErr){
+              console.warn("Notification insert failed (listing comment)", notifErr);
+            }
+          }
+
+          await loadQuestions();
+        }
+      }catch(e){
+        console.warn("Q&A insert exception", e);
+        if(note) note.textContent = "We couldn’t post your comment. Please try again.";
+      }finally{
+        submitBtn.disabled = false;
+      }
+    };
+  }
 }
   }
 
