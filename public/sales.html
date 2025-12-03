@@ -19,94 +19,75 @@
       --hm-text:#111827;
       --hm-bg:#f4f4f7;
     }
-
-    body{
+    html,body{
       margin:0;
       background:var(--hm-bg);
-      color:var(--hm-text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      -webkit-font-smoothing:antialiased;
     }
-
     main{
       max-width:1100px;
-      margin:18px auto 40px;
+      margin:20px auto;
       padding:0 12px;
     }
-
     h1{
       font-size:26px;
       font-weight:800;
-      margin:0 0 6px;
+      margin-bottom:4px;
     }
-
-    .subtitle{
+    .sub{
       font-size:14px;
       color:var(--hm-muted);
-      margin-bottom:20px;
+      margin-bottom:18px;
     }
-
-    .order-list{
-      display:flex;
-      flex-direction:column;
-      gap:14px;
-    }
-
     .order-card{
       background:#fff;
       border:1px solid var(--hm-border);
-      border-radius:14px;
+      border-radius:12px;
+      box-shadow:0 4px 14px rgba(0,0,0,.05);
       padding:16px;
-      box-shadow:0 6px 18px rgba(15,23,42,.06);
-    }
-
-    .order-header{
+      margin-bottom:14px;
       font-size:14px;
-      font-weight:700;
-      margin-bottom:6px;
     }
-
+    .order-top{
+      display:flex;
+      justify-content:space-between;
+      margin-bottom:8px;
+      font-weight:600;
+    }
     .order-meta{
       font-size:13px;
       color:var(--hm-muted);
+      line-height:1.4;
       margin-bottom:10px;
     }
-
-    .order-actions{
-      display:flex;
-      gap:8px;
-    }
-
-    .btn{
-      padding:8px 12px;
-      border-radius:999px;
-      border:1px solid var(--hm-border);
-      background:#fff;
-      font-size:13px;
-      font-weight:600;
-      cursor:pointer;
-      text-decoration:none;
-      display:inline-block;
-    }
-
     .empty{
       text-align:center;
       color:var(--hm-muted);
+      font-size:15px;
       margin-top:40px;
-      font-size:14px;
+    }
+    a.btn{
+      display:inline-block;
+      padding:6px 12px;
+      border-radius:8px;
+      border:1px solid var(--hm-border);
+      text-decoration:none;
+      font-size:13px;
+      font-weight:600;
+      background:#fff;
     }
   </style>
 </head>
-<body>
 
+<body>
   <div id="hm-shell-header"></div>
 
-  <main>
+  <main id="maincontent">
     <h1>Sales</h1>
-    <p class="subtitle">Manage orders for fabric you've sold.</p>
+    <p class="sub">Orders buyers purchased from your shop.</p>
 
-    <div id="salesList" class="order-list"></div>
-    <p id="emptyState" class="empty" style="display:none;">No sales yet.</p>
+    <div id="ordersList"></div>
+    <p class="empty" id="emptyState" style="display:none;">You have no sales yet.</p>
   </main>
 
   <div id="hm-shell-footer"></div>
@@ -118,32 +99,21 @@
     const supabase = window.HM.supabase;
 
     async function loadSales(){
-      const sessionRes = await supabase.auth.getSession();
-      const user = sessionRes?.data?.session?.user;
-      if(!user){
-        document.getElementById("emptyState").innerText = "Sign in to view your sales.";
-        document.getElementById("emptyState").style.display = "block";
+      const { data:{ session } } = await supabase.auth.getSession();
+      if(!session || !session.user){
+        window.location.href = "auth.html?view=login";
         return;
       }
 
-      let { data, error } = await supabase
+      const uid = session.user.id;
+
+      const { data, error } = await supabase
         .from("orders")
-        .select(`
-          id,
-          listing_id,
-          buyer_id,
-          status,
-          created_at,
-          listings (
-            title,
-            price,
-            cover_url
-          )
-        `)
-        .eq("seller_id", user.id)
+        .select("*")
+        .eq("seller_id", uid)
         .order("created_at", { ascending:false });
 
-      const list = document.getElementById("salesList");
+      const list = document.getElementById("ordersList");
       const empty = document.getElementById("emptyState");
 
       if(error || !data || data.length === 0){
@@ -152,40 +122,33 @@
       }
 
       empty.style.display = "none";
-
       list.innerHTML = "";
 
-      data.forEach(order => {
-        const li = document.createElement("div");
-        li.className = "order-card";
+      data.forEach(o=>{
+        const div = document.createElement("div");
+        div.className = "order-card";
 
-        const listing = order.listings || {};
-        const title = listing.title || "Untitled";
-        const price = listing.price ? `$${listing.price}` : "";
-        const date = new Date(order.created_at).toLocaleDateString();
+        div.innerHTML = `
+          <div class="order-top">
+            <span>Order</span>
+            <span>${o.created_at ? new Date(o.created_at).toLocaleDateString() : ""}</span>
+          </div>
 
-        li.innerHTML = `
-          <div class="order-header">${title}</div>
           <div class="order-meta">
-            ${price} · ${date}<br>
-            Status: ${order.status || "Processing"}
+            Listing ID: ${o.listing_id || "—"}<br>
+            Buyer email: ${o.buyer_email || "—"}<br>
+            Stripe Payment: ${o.stripe_payment_intent || "—"}
           </div>
 
-          <div class="order-actions">
-            <a class="btn" href="listing.html?id=${order.listing_id}">View listing</a>
-            <a class="btn" href="order.html?id=${order.id}">Order details</a>
-          </div>
+          <a class="btn" href="messages.html">Message buyer</a>
         `;
 
-        list.appendChild(li);
+        list.appendChild(div);
       });
     }
 
     loadSales();
-  </script>
-
-  <script>
-    window.HM && window.HM.renderShell({ currentPage:"sales" });
+    window.HM.renderShell({ currentPage:"sales" });
   </script>
 </body>
 </html>
