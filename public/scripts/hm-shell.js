@@ -7,6 +7,7 @@ window.HM = window.HM || {};
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
+  // shared Supabase client for header + others
   let shellSupabase = null;
 
   /* --------------------------------------------------------------------------
@@ -58,6 +59,7 @@ window.HM = window.HM || {};
         id="headerAccountLink"
         href="auth.html?view=login"
         aria-label="Sign in or manage your account">
+        <span class="hm-account-badge" id="headerAccountBadge"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="8" r="3.2"></circle>
           <path d="M5 19c1.4-3 4.99-4.5 7-4.5s5.6 1.5 7 4.5"></path>
@@ -111,6 +113,7 @@ window.HM = window.HM || {};
     function active(p) {
       return currentPage === p ? ' aria-current="page"' : "";
     }
+
     return `
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
@@ -134,6 +137,7 @@ window.HM = window.HM || {};
     const openBtn = document.getElementById("openMenu");
     const closeBtn = document.getElementById("closeMenu");
     const overlay = document.getElementById("sheetOverlay");
+
     if (!sheet || !openBtn || !closeBtn || !overlay) return;
 
     function lockScroll(lock) {
@@ -158,8 +162,14 @@ window.HM = window.HM || {};
       lockScroll(false);
     }
 
-    openBtn.addEventListener("click", openSheet);
-    closeBtn.addEventListener("click", closeSheet);
+    openBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openSheet();
+    });
+    closeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeSheet();
+    });
     overlay.addEventListener("click", closeSheet);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeSheet();
@@ -167,8 +177,9 @@ window.HM = window.HM || {};
   }
 
   /* --------------------------------------------------------------------------
-     NOTIFICATIONS
+     NOTIFICATIONS BELL
   -------------------------------------------------------------------------- */
+
   function getNotificationsElements() {
     const link =
       document.querySelector(".hm-notifications-icon") ||
@@ -182,7 +193,24 @@ window.HM = window.HM || {};
       link.appendChild(dot);
     }
 
-    dot.style.display = dot.style.display || "none";
+    // basic styling for the dot if CSS doesn't already cover it
+    if (!dot.style.width) {
+      dot.style.position = "absolute";
+      dot.style.top = "4px";
+      dot.style.right = "4px";
+      dot.style.width = "8px";
+      dot.style.height = "8px";
+      dot.style.borderRadius = "999px";
+      dot.style.background = "#b91c1c";
+      dot.style.boxShadow = "0 0 0 2px #fef2f2";
+      dot.style.display = "none";
+    }
+
+    const computed = window.getComputedStyle(link);
+    if (computed.position === "static") {
+      link.style.position = "relative";
+    }
+
     return { link, dot };
   }
 
@@ -190,50 +218,49 @@ window.HM = window.HM || {};
     const { link, dot } = getNotificationsElements();
     if (!link || !dot) return;
 
+    // logged out: hide the dot
     if (!session || !session.user || !shellSupabase) {
       dot.style.display = "none";
+      link.setAttribute("aria-label", "Notifications");
       return;
     }
 
     try {
       const uid = session.user.id;
 
+      // IMPORTANT: only look for UNREAD notifications (is_read = false)
       const { data, error } = await shellSupabase
         .from("notifications")
         .select("id")
         .eq("recipient_id", uid)
         .eq("is_read", false)
+        .order("created_at", { ascending: false })
         .limit(1);
 
       if (error) {
+        console.warn("[HM] Notifications fetch error", error);
         dot.style.display = "none";
+        link.setAttribute("aria-label", "Notifications");
         return;
       }
 
-      dot.style.display = data?.length ? "block" : "none";
-    } catch (_) {
-      dot.style.display = "none";
+      const hasUnread = Array.isArray(data) && data.length > 0;
+
+      if (hasUnread) {
+        dot.style.display = "block";
+        link.setAttribute("aria-label", "Notifications (new)");
+      } else {
+        dot.style.display = "none";
+        link.setAttribute("aria-label", "Notifications");
+      }
+    } catch (err) {
+      console.warn("[HM] Notifications bell error", err);
     }
   }
 
   /* --------------------------------------------------------------------------
-     SESSION (FIXED)
+     SUPABASE SESSION
   -------------------------------------------------------------------------- */
-  function applyAccount(session) {
-    const link = document.getElementById("headerAccountLink");
-    if (!link) return;
-
-        if (session && session.user) {
-      link.href = "account.html";
-      link.classList.add("is-logged-in");
-      link.classList.remove("is-logged-out");
-    } else {
-      link.href = "auth.html?view=login";
-      link.classList.remove("is-logged-in");
-      link.classList.add("is-logged-out");
-    }
-  }
-
   function wireSupabaseSession() {
     if (!window.supabase) return;
 
@@ -249,7 +276,23 @@ window.HM = window.HM || {};
       }
     );
 
+    // expose client so account page and others can reuse it
     window.HM.supabase = shellSupabase;
+
+    const accountLink = document.getElementById("headerAccountLink");
+    if (!accountLink) return;
+
+    function applyAccount(session) {
+      if (session && session.user) {
+        accountLink.href = "account.html";
+        accountLink.classList.add("is-logged-in");
+        accountLink.classList.remove("is-logged-out");
+      } else {
+        accountLink.href = "auth.html?view=login";
+        accountLink.classList.remove("is-logged-in");
+        accountLink.classList.add("is-logged-out");
+      }
+    }
 
     function handleSession(session) {
       applyAccount(session);
@@ -260,41 +303,76 @@ window.HM = window.HM || {};
       handleSession(data.session);
     });
 
-    shellSupabase.auth.onAuthStateChange((_evt, session) => {
+    shellSupabase.auth.onAuthStateChange((_event, session) => {
       handleSession(session);
     });
   }
 
   /* --------------------------------------------------------------------------
-     CART INDICATOR
+     CART STATE (dot indicator, no number)
   -------------------------------------------------------------------------- */
   function updateCartState(cart) {
     try {
-      const hasItems = Array.isArray(cart) && cart.length > 0;
+      const list = Array.isArray(cart) ? cart : [];
+      const hasItems = list.length > 0;
 
-      const cartLink = document.querySelector("[data-hm-cart-link]");
+      // Body-level state so CSS can style if you want
+      if (document.body) {
+        document.body.setAttribute(
+          "data-cart",
+          hasItems ? "has-items" : "empty"
+        );
+      }
+
+      const cartLink =
+        document.querySelector("[data-hm-cart-link]") ||
+        document.querySelector('a[href$="cart.html"]');
       if (!cartLink) return;
+
+      // remove any old numeric badge if it exists
+      const oldBadge = cartLink.querySelector(".hm-cart-badge");
+      if (oldBadge && oldBadge.parentNode) {
+        oldBadge.parentNode.removeChild(oldBadge);
+      }
 
       let dot = cartLink.querySelector(".hm-cart-dot");
       if (!dot) {
         dot = document.createElement("span");
         dot.className = "hm-cart-dot";
-        dot.style.position = "absolute";
-        dot.style.top = "6px";
-        dot.style.right = "6px";
-        dot.style.width = "8px";
-        dot.style.height = "8px";
-        dot.style.borderRadius = "999px";
-        dot.style.background = "#b91c1c";
-        dot.style.display = "none";
-        cartLink.style.position = "relative";
+        dot.style.cssText = [
+          "position:absolute",
+          "top:6px",
+          "right:6px",
+          "width:8px",
+          "height:8px",
+          "border-radius:999px",
+          "background:#b91c1c",
+          "box-shadow:0 0 0 2px #fef2f2",
+          "display:none"
+        ].join(";");
+        // Ensure the cartLink is positioned so the dot can anchor to it
+        const style = window.getComputedStyle(cartLink);
+        if (style.position === "static") {
+          cartLink.style.position = "relative";
+        }
         cartLink.appendChild(dot);
       }
 
-      dot.style.display = hasItems ? "block" : "none";
-    } catch (_) {}
+      if (hasItems) {
+        dot.style.display = "block";
+        cartLink.classList.add("has-items");
+        cartLink.setAttribute("aria-label", "Cart (has items)");
+      } else {
+        dot.style.display = "none";
+        cartLink.classList.remove("has-items");
+        cartLink.setAttribute("aria-label", "Cart (empty)");
+      }
+    } catch (_) {
+      // fail silently
+    }
   }
 
+  // Expose global hook used by add-to-cart.js and cart.html
   window.HM_CART_BADGE_UPDATE = function (cart) {
     updateCartState(cart || []);
   };
@@ -302,22 +380,26 @@ window.HM = window.HM || {};
   function syncCartStateFromStorage() {
     try {
       const raw = localStorage.getItem("hm_cart");
-      const items = raw ? JSON.parse(raw) : [];
-      window.HM_CART_BADGE_UPDATE(items);
-    } catch (_) {}
+      const arr = raw ? JSON.parse(raw) : [];
+      if (window.HM_CART_BADGE_UPDATE) {
+        window.HM_CART_BADGE_UPDATE(arr);
+      }
+    } catch (_) {
+      // ignore
+    }
   }
 
   /* --------------------------------------------------------------------------
      PUBLIC API
   -------------------------------------------------------------------------- */
-  window.HM.renderShell = function (opts) {
-    const currentPage = opts?.currentPage || "";
+  window.HM.renderShell = function renderShell(opts) {
+    const current = opts?.currentPage || "";
 
     const headerTarget = document.getElementById("hm-shell-header");
     const footerTarget = document.getElementById("hm-shell-footer");
 
     if (headerTarget) headerTarget.innerHTML = headerHTML();
-    if (footerTarget) footerTarget.innerHTML = footerHTML(currentPage);
+    if (footerTarget) footerTarget.innerHTML = footerHTML(current);
 
     wireMenu();
     wireSupabaseSession();
