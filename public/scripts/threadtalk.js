@@ -683,7 +683,7 @@
     if (!currentUser || !recipientId || recipientId === currentUser.id) return;
 
     try {
-      const { error } = await supabase.from("thread_notifications").insert({
+      const { error } = await supabase.from("notifications").insert({
         recipient_id: recipientId,
         actor_id: currentUser.id,
         thread_id: threadId,
