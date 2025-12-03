@@ -1,9 +1,11 @@
 // File: /api/shippo/purchase_label.js
-// Buys a Shippo label for a chosen rate and saves it to db_shipments.
-// Use when the client has already created a shipment and picked a rate.
+// Buys a Shippo label for a specific rate and stores it in db_shipments.
 //
-// POST body:
-//   { orderId: string, rateId: string }
+// Expected POST body:
+//   {
+//     orderId: string,          // your internal order id
+//     rateObjectId: string      // Shippo rate.object_id chosen by the user
+//   }
 //
 // Env required:
 //   SHIPPO_API_KEY
@@ -12,15 +14,15 @@
 
 import fetch from "node-fetch";
 import supabaseAdmin from "../_supabaseAdmin";
-import { rateLimit } from "./_rateLimit";
-import { logError } from "../_logger";
+import { rateLimit } from "../_rateLimit";
+import { logError, logInfo } from "../_logger";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "1mb" } },
 };
 
 export default async function handler(req, res) {
-  // Optional rate limit
+  // Simple per-IP rate limit
   if (!rateLimit(req, res)) return;
 
   if (req.method !== "POST") {
@@ -29,10 +31,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { orderId, rateId } = req.body || {};
+    const { orderId, rateObjectId } = req.body || {};
 
-    if (!orderId || !rateId) {
-      return res.status(400).json({ error: "Missing orderId or rateId" });
+    if (!orderId || !rateObjectId) {
+      return res
+        .status(400)
+        .json({ error: "Missing orderId or rateObjectId" });
     }
 
     const apiKey = process.env.SHIPPO_API_KEY;
@@ -40,9 +44,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Missing SHIPPO_API_KEY" });
     }
 
-    // -------------------------------------------------------------------
-    // 1) Purchase the label (transaction)
-    // -------------------------------------------------------------------
+    // 1) Buy the label for the chosen rate
     const txRes = await fetch("https://api.goshippo.com/transactions/", {
       method: "POST",
       headers: {
@@ -50,7 +52,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        rate: rateId,
+        rate: rateObjectId,
         label_file_type: "PDF",
         async: false,
         metadata: `order:${orderId}`,
@@ -63,7 +65,7 @@ export default async function handler(req, res) {
       await logError(
         "/api/shippo/purchase_label",
         "Label purchase not successful",
-        { orderId, rateId, tx }
+        { orderId, rateObjectId, tx }
       );
       return res.status(502).json({
         error: "Label purchase not successful",
@@ -71,9 +73,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // -------------------------------------------------------------------
-    // 2) Persist to Supabase (server-side; bypasses RLS)
-    // -------------------------------------------------------------------
+    // 2) Persist to Supabase
     try {
       const payload = {
         order_id: orderId,
@@ -90,30 +90,34 @@ export default async function handler(req, res) {
         raw: tx,
       };
 
-      // Replace any previous shipment row for this order
+      // Remove any existing shipment row for this order so we don't have duplicates
       await supabaseAdmin.from("db_shipments").delete().eq("order_id", orderId);
-      const { error: insertError } = await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from("db_shipments")
         .insert(payload);
 
-      if (insertError) {
+      if (error) {
         await logError(
           "/api/shippo/purchase_label",
           "db_shipments insert error",
-          insertError
+          { error, payload }
+        );
+      } else {
+        await logInfo(
+          "/api/shippo/purchase_label",
+          "db_shipments upserted",
+          { orderId, tracking_number: tx.tracking_number }
         );
       }
     } catch (dbErr) {
       await logError(
         "/api/shippo/purchase_label",
-        "db_shipments persistence error",
-        dbErr
+        "Unhandled DB error",
+        { message: dbErr?.message || dbErr }
       );
     }
 
-    // -------------------------------------------------------------------
-    // 3) Return summary to client
-    // -------------------------------------------------------------------
+    // 3) Return what the frontend needs
     return res.status(200).json({
       orderId,
       tracking_number: tx.tracking_number,
@@ -122,7 +126,6 @@ export default async function handler(req, res) {
       carrier: tx.rate?.provider || null,
       service: tx.rate?.servicelevel?.name || null,
       rate: tx.rate || null,
-      status: "LABEL_PURCHASED",
     });
   } catch (err) {
     await logError("/api/shippo/purchase_label", "Unhandled error", {
