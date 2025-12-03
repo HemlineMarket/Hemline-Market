@@ -71,8 +71,8 @@ window.HM = window.HM || {};
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-linecap="round" stroke-linejoin="round">
           <line x1="4" y1="6"  x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
+          <line x1="4" y1="12" x2="20" x2="12"></line>
+          <line x1="4" y1="18" x2="20" x2="18"></line>
         </svg>
       </button>
 
@@ -228,11 +228,11 @@ window.HM = window.HM || {};
     try {
       const uid = session.user.id;
 
-      // IMPORTANT: only look for UNREAD notifications (is_read = false)
+      // ↓↓↓ FIXED: use recipient_id for ALL notification types
       const { data, error } = await shellSupabase
         .from("notifications")
         .select("id")
-        .eq("user_id", uid)
+        .eq("recipient_id", uid)
         .eq("is_read", false)
         .order("created_at", { ascending: false })
         .limit(1);
