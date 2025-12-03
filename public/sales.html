@@ -80,6 +80,70 @@
       gap:12px;
     }
 
+    .row-main{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .row-title{
+      font-weight:600;
+    }
+
+    .row-meta{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .row-actions{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:6px;
+      text-align:right;
+    }
+
+    .price{
+      font-weight:600;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:3px 8px;
+      border-radius:999px;
+      font-size:11px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      color:#374151;
+      white-space:nowrap;
+    }
+
+    .status-pill.pending{
+      border-color:#fed7aa;
+      background:#fff7ed;
+      color:#9a3412;
+    }
+
+    .status-pill.shipped{
+      border-color:#bfdbfe;
+      background:#eff6ff;
+      color:#1d4ed8;
+    }
+
+    .status-pill.delivered{
+      border-color:#bbf7d0;
+      background:#ecfdf5;
+      color:#166534;
+    }
+
+    .status-pill.canceled{
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
+    }
+
     .empty{
       background:#fff;
       border:1px dashed var(--hm-border);
@@ -109,6 +173,19 @@
       border-color:var(--hm-accent);
       font-weight:600;
     }
+
+    @media (max-width:640px){
+      .row{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+      .row-actions{
+        width:100%;
+        flex-direction:row;
+        justify-content:space-between;
+        align-items:center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -126,7 +203,9 @@
   </div>
 
   <div id="salesList" class="list">
-    <div class="empty">No sales yet. When you sell, orders will appear here with shipping labels.</div>
+    <div class="empty" id="salesEmpty">
+      No sales yet. When you sell, orders will appear here with shipping labels.
+    </div>
   </div>
 </main>
 
@@ -138,21 +217,141 @@
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-  const supabase = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-  );
+  // Reuse the shared Supabase client from hm-shell when possible
+  const SUPABASE_URL =
+    "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
-  async function guard(){
-    const { data:{ session } } = await supabase.auth.getSession();
-    if(!session?.user){
+  const supabaseClient =
+    (window.HM && window.HM.supabase) ||
+    window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+
+  const salesListEl  = document.getElementById("salesList");
+  const salesEmptyEl = document.getElementById("salesEmpty");
+
+  function fmtMoney(cents){
+    const n = Math.max(0, Number(cents || 0));
+    return "$" + (n / 100).toFixed(2);
+  }
+
+  function statusClass(status){
+    const s = String(status || "").toUpperCase();
+    if (s === "PENDING" || s === "PAID") return "pending";
+    if (s === "SHIPPED") return "shipped";
+    if (s === "DELIVERED") return "delivered";
+    if (s === "CANCELED" || s === "CANCELLED") return "canceled";
+    return "";
+  }
+
+  function statusLabel(status){
+    const s = String(status || "").toUpperCase();
+    if (s === "PAID") return "Paid — ready to ship";
+    if (s === "PENDING") return "Pending";
+    if (s === "SHIPPED") return "Shipped";
+    if (s === "DELIVERED") return "Delivered";
+    if (s === "CANCELED" || s === "CANCELLED") return "Canceled";
+    return status || "Order";
+  }
+
+  function renderSales(orders){
+    salesListEl.innerHTML = "";
+    if (!orders || !orders.length){
+      salesEmptyEl.style.display = "block";
+      salesListEl.appendChild(salesEmptyEl);
+      return;
+    }
+
+    salesEmptyEl.style.display = "none";
+
+    orders.forEach(order => {
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const main = document.createElement("div");
+      main.className = "row-main";
+
+      const title = document.createElement("div");
+      title.className = "row-title";
+      title.textContent = order.listing_title || "Order " + (order.order_id || order.id);
+
+      const meta = document.createElement("div");
+      meta.className = "row-meta";
+      const created = order.created_at
+        ? new Date(order.created_at).toLocaleString()
+        : "";
+      meta.textContent = [
+        created && ("Placed " + created),
+        order.buyer_email && ("Buyer: " + order.buyer_email)
+      ].filter(Boolean).join(" • ");
+
+      main.appendChild(title);
+      main.appendChild(meta);
+
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+
+      const price = document.createElement("div");
+      price.className = "price";
+      price.textContent = fmtMoney(order.total_cents || order.total_amount_cents);
+
+      const status = document.createElement("div");
+      status.className = "status-pill " + statusClass(order.status);
+      status.textContent = statusLabel(order.status);
+
+      actions.appendChild(price);
+      actions.appendChild(status);
+
+      // Optional: link to order detail / label page when you add it
+      // const btn = document.createElement("a");
+      // btn.href = "order.html?id=" + encodeURIComponent(order.id);
+      // btn.className = "btn";
+      // btn.textContent = "View & ship";
+      // actions.appendChild(btn);
+
+      row.appendChild(main);
+      row.appendChild(actions);
+
+      salesListEl.appendChild(row);
+    });
+  }
+
+  async function guardAndLoad(){
+    const { data:{ session } } = await supabaseClient.auth.getSession();
+    if (!session?.user){
       window.location.href = "auth.html";
       return;
     }
-    // Future: load user's sales into #salesList
+
+    // Best-effort fetch of seller orders; if the view/table/endpoints
+    // aren’t ready yet, this will just leave the empty state.
+    try{
+      const { data, error } = await supabaseClient
+        .from("seller_orders_view") // or swap to your final view/table name
+        .select("*")
+        .order("created_at", { ascending:false })
+        .limit(50);
+
+      if (error){
+        console.warn("[sales] load error", error);
+        renderSales([]);
+        return;
+      }
+
+      renderSales(data || []);
+    }catch(err){
+      console.warn("[sales] unexpected error", err);
+      renderSales([]);
+    }
   }
 
-  guard();
+  guardAndLoad();
 </script>
 
 <script>
