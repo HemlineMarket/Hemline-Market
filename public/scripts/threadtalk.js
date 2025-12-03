@@ -181,7 +181,7 @@
       const threadIds = allThreads.map((t) => t.id);
       const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
 
-      // Load comments (including parent_comment_id for nesting)
+      // Load comments (include parent_comment_id for nesting)
       const { data: commentRows } = await supabase
         .from("threadtalk_comments")
         .select(
@@ -276,53 +276,6 @@
     renderThreads();
   }
 
-  // ---------- Comment tree helpers ----------
-  function buildCommentTree(comments) {
-    if (!comments || !comments.length) return [];
-
-    const byId = {};
-    comments.forEach((c) => {
-      c.children = [];
-      byId[c.id] = c;
-    });
-
-    const roots = [];
-    comments.forEach((c) => {
-      if (c.parent_comment_id && byId[c.parent_comment_id]) {
-        byId[c.parent_comment_id].children.push(c);
-      } else {
-        roots.push(c);
-      }
-    });
-
-    // Sort children by created_at ascending
-    const sortByCreated = (arr) => {
-      arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      arr.forEach((c) => c.children && sortByCreated(c.children));
-    };
-    sortByCreated(roots);
-
-    return roots;
-  }
-
-  function renderCommentTree(threadId, nodes, depth) {
-    if (!nodes || !nodes.length) return "";
-    return nodes
-      .map((c) => {
-        const selfHtml = renderCommentHtml(threadId, c, depth);
-        const childrenHtml =
-          c.children && c.children.length
-            ? `<div class="tt-comment-children">${renderCommentTree(
-                threadId,
-                c.children,
-                depth + 1
-              )}</div>`
-            : "";
-        return selfHtml + childrenHtml;
-      })
-      .join("");
-  }
-
   // ---------- Rendering ----------
   function renderThreads() {
     if (!cardsEl) return;
@@ -352,10 +305,13 @@
       const comments = commentsByThread[thread.id] || [];
       const mediaHtml = renderMedia(thread);
 
-      // Replies collapsed by default; expand only after click
+      // Replies collapsed by default; we only render tree when expanded.
       const isExpanded = expandedCommentsThreads.has(thread.id);
-      const commentTree = isExpanded ? buildCommentTree(comments) : [];
-      const commentsHtml = renderCommentTree(thread.id, commentTree, 0);
+      const commentsCount = comments.length;
+      const commentsHtml =
+        isExpanded && commentsCount
+          ? renderCommentsForThread(thread.id)
+          : "";
 
       const isMine = currentUser && thread.author_id === currentUser.id;
 
@@ -370,12 +326,12 @@
         </div>`
         : "";
 
-      const showRepliesButton = comments.length && !isExpanded;
+      const showRepliesButton = commentsCount && !isExpanded;
 
       const hiddenHtml = showRepliesButton
         ? `<button class="tt-more-comments" type="button" data-tt-role="show-all-comments">
-             View all ${comments.length} repl${
-             comments.length === 1 ? "y" : "ies"
+             View all ${commentsCount} repl${
+             commentsCount === 1 ? "y" : "ies"
            }…
            </button>`
         : "";
@@ -487,9 +443,47 @@
     });
   }
 
+  // Build nested comment tree HTML for a thread
+  function renderCommentsForThread(threadId) {
+    const comments = commentsByThread[threadId] || [];
+    if (!comments.length) return "";
+
+    const byParent = {};
+    comments.forEach((c) => {
+      const parentId = c.parent_comment_id || null;
+      if (!byParent[parentId]) byParent[parentId] = [];
+      byParent[parentId].push(c);
+    });
+
+    // Keep replies in chronological order
+    Object.keys(byParent).forEach((key) => {
+      byParent[key].sort(
+        (a, b) => new Date(a.created_at) - new Date(b.created_at)
+      );
+    });
+
+    const topLevel = byParent[null] || [];
+
+    const pieces = topLevel.map((c) =>
+      renderCommentTree(threadId, c, byParent, null)
+    );
+    return pieces.join("");
+  }
+
+  function renderCommentTree(threadId, comment, byParent, parentAuthorName) {
+    const html = renderCommentHtml(threadId, comment, parentAuthorName);
+    const children = byParent[comment.id] || [];
+    const thisAuthor = displayNameForUserId(comment.author_id);
+    const childHtml = children
+      .map((child) =>
+        renderCommentTree(threadId, child, byParent, thisAuthor)
+      )
+      .join("");
+    return html + childHtml;
+  }
+
   // ---------- Render each comment ----------
-  function renderCommentHtml(threadId, c, depth) {
-    const d = depth || 0;
+  function renderCommentHtml(threadId, c, parentAuthorName) {
     const name = displayNameForUserId(c.author_id);
     const ts = timeAgo(c.created_at);
 
@@ -549,13 +543,19 @@
 
     const mediaHtml = renderCommentMedia(c);
 
+    const replyingLabel = parentAuthorName
+      ? `<span class="tt-comment-replying">Replying to ${escapeHtml(
+          parentAuthorName
+        )}</span>`
+      : "";
+
+    const childClass = parentAuthorName ? " tt-comment-child" : "";
+
     return `
-      <div class="tt-comment${
-        d > 0 ? " tt-comment-child" : ""
-      }" data-comment-id="${c.id}"
+      <div class="tt-comment${childClass}"
+           data-comment-id="${c.id}"
            data-thread-id="${threadId}"
-           data-author-name="${escapeAttr(name)}"
-           data-depth="${d}">
+           data-author-name="${escapeAttr(name)}">
 
          <div class="tt-comment-head-row">
            <div class="tt-comment-meta">
@@ -566,7 +566,10 @@
            ${deleteHtml}
          </div>
 
-         <div class="tt-comment-body">${linkify(c.body)}</div>
+         <div class="tt-comment-body">
+           ${replyingLabel}
+           <span class="tt-comment-text">${linkify(c.body)}</span>
+         </div>
          ${mediaHtml}
          ${summaryHtml}
 
@@ -591,9 +594,7 @@
            </button>
          </div>
 
-         <div class="tt-comment-reply-box"
-              data-parent-comment-id="${c.id}"
-              hidden>
+         <div class="tt-comment-reply-box" data-parent-comment-id="${c.id}" hidden>
            <input class="tt-comment-photo"
                   type="file"
                   accept="image/*"
@@ -994,7 +995,7 @@
           document
             .querySelectorAll('[data-tt-role="comment-menu-pop"]')
             .forEach((el) => el.setAttribute("hidden", "true"));
-          if (hidden2 && pop) pop.removeAttribute("hidden");
+          if (hidden2) pop.removeAttribute("hidden");
           break;
         }
 
@@ -1178,13 +1179,9 @@
     const ok = await ensureLoggedInFor("comment");
     if (!ok) return;
 
-    // If we're inside a reply box, capture the parent_comment_id
-    let parentCommentId = null;
-    const replyBox = row.closest(".tt-comment-reply-box");
-    if (replyBox && replyBox.dataset.parentCommentId) {
-      const parsed = Number(replyBox.dataset.parentCommentId);
-      parentCommentId = Number.isFinite(parsed) ? parsed : null;
-    }
+    // NEW: figure out parent_comment_id (null for thread-level comments)
+    const parentAttr = row.getAttribute("data-parent-comment-id");
+    const parent_comment_id = parentAttr ? Number(parentAttr) : null;
 
     let media = { media_url: null, media_type: null };
     if (file) {
@@ -1199,10 +1196,10 @@
       const { error } = await supabase.from("threadtalk_comments").insert({
         thread_id: threadId,
         author_id: currentUser.id,
+        parent_comment_id,
         body,
         media_url: media.media_url,
         media_type: media.media_type,
-        parent_comment_id: parentCommentId,
       });
 
       if (error) {
@@ -1556,7 +1553,8 @@
       `;
     } else {
       const rawTitle = previewData.title || url;
-      const title = rawTitle.length > 120 ? rawTitle.slice(0, 117) + "…" : rawTitle;
+      const title =
+        rawTitle.length > 120 ? rawTitle.slice(0, 117) + "…" : rawTitle;
       let host = "";
       try {
         const u = new URL(url);
@@ -1565,7 +1563,8 @@
         host = "";
       }
 
-      const thumb = previewData.thumbnailUrl || previewData.thumbnail_url || null;
+      const thumb =
+        previewData.thumbnailUrl || previewData.thumbnail_url || null;
 
       container.innerHTML = `
         <a class="tt-link-card"
@@ -1838,26 +1837,15 @@
 
       .tt-comment{
         position:relative;
+        margin-left:42px;
         padding:6px 10px 8px;
         border-radius:16px;
         background:#f9fafb;
         border:1px solid #e5e7eb;
-        margin-left:42px; /* base */
       }
-      .tt-comment[data-depth="1"]{
+      .tt-comment-child{
         margin-left:62px;
       }
-      .tt-comment[data-depth="2"]{
-        margin-left:78px;
-      }
-      .tt-comment[data-depth="3"]{
-        margin-left:94px;
-      }
-
-      .tt-comment-children{
-        margin-top:4px;
-      }
-
       .tt-comment-head-row{
         display:flex;
         align-items:center;
@@ -1881,6 +1869,19 @@
         font-size:13px;
         margin-bottom:2px;
         color:#111827;
+        display:flex;
+        flex-wrap:wrap;
+        gap:4px;
+      }
+      .tt-comment-replying{
+        font-size:11px;
+        color:#6b7280;
+        background:#e5e7eb;
+        border-radius:999px;
+        padding:2px 6px;
+      }
+      .tt-comment-text{
+        flex:1;
       }
 
       .tt-comment-media{
@@ -2107,7 +2108,6 @@
         margin-top:6px;
         margin-bottom:4px;
         max-width:460px;
-        width:100%;
       }
       .tt-link-card{
         display:flex;
@@ -2117,7 +2117,6 @@
         border:1px solid #e5e7eb;
         background:#f9fafb;
         overflow:hidden;
-        width:100%;
       }
       .tt-link-thumb{
         flex:0 0 120px;
@@ -2160,21 +2159,14 @@
         .tt-comment{
           margin-left:32px;
         }
-        .tt-comment[data-depth="1"]{
-          margin-left:50px;
-        }
-        .tt-comment[data-depth="2"]{
-          margin-left:66px;
+        .tt-comment-child{
+          margin-left:52px;
         }
         .tt-comment-new{
           margin-left:32px;
         }
         .tt-more-comments{
           margin-left:32px;
-        }
-        .tt-link-preview-wrap,
-        .tt-link-embed iframe{
-          max-width:100%;
         }
       }
     `;
