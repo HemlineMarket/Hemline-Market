@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Order — Hemline Market</title>
+
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hm-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+
+  <style>
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#f4f4f7;
+    }
+    html,body{
+      margin:0;
+      background:var(--hm-bg);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      color:var(--hm-text);
+    }
+    main{
+      max-width:900px;
+      margin:20px auto 32px;
+      padding:0 12px;
+    }
+    h1{
+      font-size:26px;
+      font-weight:800;
+      margin-bottom:4px;
+    }
+    .sub{
+      font-size:14px;
+      color:var(--hm-muted);
+      margin-bottom:18px;
+    }
+    .order-card{
+      background:#fff;
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      box-shadow:0 4px 14px rgba(0,0,0,.05);
+      padding:16px 16px 18px;
+      font-size:14px;
+      margin-bottom:16px;
+    }
+    .order-top{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:8px;
+      font-weight:600;
+    }
+    .order-meta{
+      font-size:13px;
+      color:var(--hm-muted);
+      line-height:1.4;
+      margin-bottom:10px;
+    }
+    .order-meta strong{
+      color:var(--hm-text);
+      font-weight:600;
+    }
+    .row{
+      margin-bottom:4px;
+    }
+    .bad{
+      color:#b91c1c;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid var(--hm-border);
+      background:#f9fafb;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color:#4b5563;
+    }
+    .pill-seller{
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
+    }
+
+    .label-block{
+      margin-top:12px;
+      padding-top:10px;
+      border-top:1px dashed var(--hm-border);
+    }
+    .label-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      margin-bottom:4px;
+    }
+    #cancelWindowMessage{
+      font-size:13px;
+      color:var(--hm-muted);
+    }
+
+    button.btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px 14px;
+      border-radius:999px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    button.btn-primary{
+      background:var(--hm-accent);
+      border-color:var(--hm-accent);
+      color:#fff;
+    }
+    button.btn[disabled]{
+      opacity:.6;
+      cursor:not-allowed;
+    }
+
+    .links-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:10px;
+      font-size:13px;
+    }
+    .links-row a{
+      text-decoration:none;
+      color:var(--hm-accent);
+    }
+    .error-msg{
+      padding:12px;
+      border-radius:10px;
+      border:1px solid #fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
+      font-size:13px;
+      margin-top:12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="hm-shell-header"></div>
+
+  <main id="maincontent">
+    <h1>Order details</h1>
+    <p class="sub">View this order and create the shipping label when the 30-minute cancel window is over.</p>
+
+    <div id="orderError" class="error-msg" style="display:none;"></div>
+
+    <section id="orderCard" class="order-card" style="display:none;">
+      <div class="order-top">
+        <span id="orderTitle">Order</span>
+        <span id="orderDate"></span>
+      </div>
+
+      <div class="order-meta">
+        <div class="row">
+          <strong>Status:</strong>
+          <span id="orderStatus"></span>
+        </div>
+        <div class="row">
+          <strong>Amount:</strong>
+          <span id="orderAmount"></span>
+        </div>
+        <div class="row">
+          <strong>Listing:</strong>
+          <span id="orderListingId"></span>
+        </div>
+        <div class="row">
+          <strong>Buyer:</strong>
+          <span id="orderBuyer"></span>
+        </div>
+        <div class="row">
+          <strong>Seller:</strong>
+          <span id="orderSeller"></span>
+          <span id="sellerPill" class="pill pill-seller" style="display:none;">You are the seller</span>
+          <span id="buyerPill" class="pill" style="display:none;">You are the buyer</span>
+        </div>
+        <div class="row">
+          <strong>Stripe payment:</strong>
+          <span id="orderStripeIntent"></span>
+        </div>
+      </div>
+
+      <!-- Label area (seller only) -->
+      <div id="labelBlock" class="label-block" style="display:none;">
+        <div class="label-row">
+          <button
+            id="createLabelBtn"
+            class="btn btn-primary"
+            type="button"
+            data-stripe-session-id=""
+          >
+            Create shipping label
+          </button>
+          <span class="pill pill-seller">Seller tool</span>
+        </div>
+        <p id="cancelWindowMessage"></p>
+      </div>
+
+      <div class="links-row">
+        <a href="purchases.html" id="backLink">Back to purchases</a>
+        <a href="messages.html" id="messagesLink">Open messages</a>
+        <a href="listing.html" id="listingLink">View listing</a>
+      </div>
+    </section>
+  </main>
+
+  <div id="hm-shell-footer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/hm-shell.js"></script>
+  <script src="scripts/order-label-guard.js"></script>
+
+  <script>
+    const supabase = window.HM && window.HM.supabase;
+
+    function moneyFromCents(c){
+      if(c == null) return "—";
+      const v = c / 100;
+      return v.toLocaleString("en-US",{
+        style:"currency",
+        currency:"USD",
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      });
+    }
+
+    function getOrderIdFromUrl(){
+      try{
+        const url = new URL(window.location.href);
+        return url.searchParams.get("id");
+      }catch(e){
+        return null;
+      }
+    }
+
+    function showError(msg){
+      const box = document.getElementById("orderError");
+      const card = document.getElementById("orderCard");
+      if(box){
+        box.textContent = msg;
+        box.style.display = "block";
+      }
+      if(card){
+        card.style.display = "none";
+      }
+    }
+
+    async function loadOrder(){
+      if(!supabase){
+        showError("Supabase client not available.");
+        return;
+      }
+
+      const { data:{ session } } = await supabase.auth.getSession();
+      if(!session || !session.user){
+        window.location.href = "auth.html?view=login";
+        return;
+      }
+
+      const userId = session.user.id;
+      const orderId = getOrderIdFromUrl();
+      if(!orderId){
+        showError("No order specified.");
+        return;
+      }
+
+      const { data: order, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if(error){
+        console.error("Order load error", error);
+        showError("We couldn’t load this order.");
+        return;
+      }
+      if(!order){
+        showError("This order does not exist.");
+        return;
+      }
+
+      // Only buyer or seller can view
+      if(order.buyer_id !== userId && order.seller_id !== userId){
+        showError("You do not have access to this order.");
+        return;
+      }
+
+      const card = document.getElementById("orderCard");
+      if(card) card.style.display = "block";
+
+      const titleEl   = document.getElementById("orderTitle");
+      const dateEl    = document.getElementById("orderDate");
+      const statusEl  = document.getElementById("orderStatus");
+      const amountEl  = document.getElementById("orderAmount");
+      const listingEl = document.getElementById("orderListingId");
+      const buyerEl   = document.getElementById("orderBuyer");
+      const sellerEl  = document.getElementById("orderSeller");
+      const stripeEl  = document.getElementById("orderStripeIntent");
+
+      if(titleEl)  titleEl.textContent = "Order " + order.id;
+      if(dateEl)   dateEl.textContent = order.created_at
+        ? new Date(order.created_at).toLocaleString()
+        : "";
+
+      if(statusEl){
+        const s = (order.status || "paid").toLowerCase();
+        statusEl.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+      }
+
+      if(amountEl){
+        amountEl.textContent = moneyFromCents(order.amount_cents || order.total_cents || null);
+      }
+
+      if(listingEl){
+        listingEl.textContent = order.listing_id || "—";
+      }
+
+      if(buyerEl){
+        buyerEl.textContent = order.buyer_id || "—";
+      }
+      if(sellerEl){
+        sellerEl.textContent = order.seller_id || "—";
+      }
+
+      if(stripeEl){
+        stripeEl.textContent = order.stripe_payment_intent || "—";
+      }
+
+      // You are buyer / seller pills
+      const sellerPill = document.getElementById("sellerPill");
+      const buyerPill  = document.getElementById("buyerPill");
+      if(order.seller_id === userId && sellerPill){
+        sellerPill.style.display = "inline-flex";
+      }
+      if(order.buyer_id === userId && buyerPill){
+        buyerPill.style.display = "inline-flex";
+      }
+
+      // Label block is only for seller
+      const labelBlock = document.getElementById("labelBlock");
+      const createLabelBtn = document.getElementById("createLabelBtn");
+      const listingLink = document.getElementById("listingLink");
+
+      if(order.seller_id === userId && labelBlock && createLabelBtn){
+        labelBlock.style.display = "block";
+        // Stripe Checkout session id column name is assumed to be stripe_session_id
+        const sid = order.stripe_session_id || "";
+        if(sid){
+          createLabelBtn.setAttribute("data-stripe-session-id", sid);
+        }else{
+          // no session id: we can't guard precisely, so leave message to be cautious
+          createLabelBtn.removeAttribute("data-stripe-session-id");
+        }
+      }
+
+      // Links
+      if(listingLink && order.listing_id){
+        listingLink.href = "listing.html?id=" + encodeURIComponent(order.listing_id);
+      }
+      const messagesLink = document.getElementById("messagesLink");
+      if(messagesLink){
+        // Could later include thread or partner param; for now, generic messages page
+        messagesLink.href = "messages.html";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", async ()=>{
+      await loadOrder();
+      if(window.HM && typeof window.HM.renderShell === "function"){
+        window.HM.renderShell({ currentPage:"purchases" });
+      }
+    });
+  </script>
+</body>
+</html>
