@@ -149,28 +149,14 @@
     return (first + " " + (last ? last[0] + "." : "")).trim() || "Unknown member";
   }
 
-  // ---------- Load threads ----------
+    // ---------- Load threads ----------
   async function loadThreads() {
     try {
       let query = supabase
         .from("threadtalk_threads")
-       .select(`
-  id,
-  author_id,
-  category,
-  title,
-  body,
-  media_url,
-  media_type,
-  created_at,
-  is_deleted,
-  profiles:author_id (
-    id,
-    store_name,
-    first_name,
-    last_name
-  )
-`)
+        .select(
+          "id, author_id, category, title, body, media_url, media_type, created_at, is_deleted"
+        )
         .eq("is_deleted", false);
 
       // If a specific thread id is requested, ignore category filter and just fetch that one.
@@ -256,7 +242,6 @@
       showToast("Could not load threads.");
     }
   }
-
   // ---------- Search ----------
   function wireSearch() {
     if (!searchInput) return;
