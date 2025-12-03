@@ -395,8 +395,8 @@
       const hiddenHtml = showRepliesButton
         ? `<button class="tt-more-comments" type="button" data-tt-role="show-all-comments">
              View all ${comments.length} repl${
-             comments.length === 1 ? "y" : "ies"
-           }…
+               comments.length === 1 ? "y" : "ies"
+             }…
            </button>`
         : "";
 
@@ -428,6 +428,16 @@
         ).join("") +
         "</div>";
 
+      // author link → Atelier
+      const authorHtml = thread.author_id
+        ? `<a class="author tt-author-link"
+               href="atelier.html?user=${encodeURIComponent(
+                 thread.author_id
+               )}">
+             ${escapeHtml(authorName)}
+           </a>`
+        : `<span class="author">${escapeHtml(authorName)}</span>`;
+
       card.innerHTML = `
         <div class="tt-head">
           <div class="tt-line1">
@@ -445,7 +455,7 @@
           </div>
           <div class="tt-line2">
             <div class="tt-line2-main">
-              <span class="author">${escapeHtml(authorName)}</span>
+              ${authorHtml}
               <span>•</span>
               <span>${when}</span>
             </div>
@@ -569,6 +579,14 @@
 
     const mediaHtml = renderCommentMedia(c);
 
+    // author link → Atelier for comments
+    const authorHtml = c.author_id
+      ? `<a class="tt-comment-author tt-author-link"
+             href="atelier.html?user=${encodeURIComponent(
+               c.author_id
+             )}">${escapeHtml(name)}</a>`
+      : `<span class="tt-comment-author">${escapeHtml(name)}</span>`;
+
     return `
       <div class="tt-comment${
         d > 0 ? " tt-comment-child" : ""
@@ -579,7 +597,7 @@
 
          <div class="tt-comment-head-row">
            <div class="tt-comment-meta">
-             <span class="tt-comment-author">${escapeHtml(name)}</span>
+             ${authorHtml}
              <span class="tt-comment-dot">•</span>
              <span class="tt-comment-time">${ts}</span>
            </div>
@@ -1703,7 +1721,7 @@
       null;
 
     // Fallback to YouTube thumbnail if needed
-    if (!thumb && isYoutubeUrl(url)) {
+       if (!thumb && isYoutubeUrl(url)) {
       const vid = extractYoutubeId(url);
       if (vid) {
         thumb = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
@@ -1797,7 +1815,7 @@
     }
   }
 
-    // ---------- Styles injection ----------
+  // ---------- Styles injection ----------
   function injectCompactStyles() {
     const css = `
       .card{
@@ -2026,6 +2044,15 @@
       .tt-comment-time{
         color:#9ca3af;
       }
+
+      .tt-author-link{
+        color:inherit;
+        text-decoration:none;
+      }
+      .tt-author-link:hover{
+        text-decoration:underline;
+      }
+
       .tt-comment-body{
         font-size:13px;
         margin-bottom:2px;
