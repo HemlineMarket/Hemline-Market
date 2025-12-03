@@ -149,7 +149,7 @@
     return (first + " " + (last ? last[0] + "." : "")).trim() || "Unknown member";
   }
 
-    // ---------- Load threads ----------
+  // ---------- Load threads ----------
   async function loadThreads() {
     try {
       let query = supabase
@@ -168,7 +168,13 @@
 
       query = query.order("created_at", { ascending: false }).limit(100);
 
-      const { data: threadRows } = await query;
+      const { data: threadRows, error: threadErr } = await query;
+      if (threadErr) {
+        console.error("[ThreadTalk] loadThreads threads error", threadErr);
+        showToast("Could not load threads.");
+        return;
+      }
+
       allThreads = threadRows || [];
 
       if (!allThreads.length) {
@@ -182,12 +188,16 @@
       const authorIds = allThreads.map((t) => t.author_id).filter(Boolean);
 
       // Load comments (including parent_comment_id for nesting)
-      const { data: commentRows } = await supabase
+      const { data: commentRows, error: commentErr } = await supabase
         .from("threadtalk_comments")
         .select(
           "id, thread_id, author_id, body, media_url, media_type, created_at, is_deleted, parent_comment_id"
         )
         .in("thread_id", threadIds);
+
+      if (commentErr) {
+        console.error("[ThreadTalk] loadThreads comments error", commentErr);
+      }
 
       commentsByThread = {};
       const commentIds = [];
@@ -206,10 +216,17 @@
       // Load comment reactions
       commentReactionsByComment = {};
       if (commentIds.length) {
-        const { data: cReactRows } = await supabase
+        const { data: cReactRows, error: cReactErr } = await supabase
           .from("threadtalk_comment_reactions")
           .select("comment_id, user_id, reaction_type")
           .in("comment_id", commentIds);
+
+        if (cReactErr) {
+          console.error(
+            "[ThreadTalk] loadThreads comment reactions error",
+            cReactErr
+          );
+        }
 
         (cReactRows || []).forEach((r) => {
           if (!commentReactionsByComment[r.comment_id]) {
@@ -221,10 +238,14 @@
       }
 
       // Thread reactions
-      const { data: reactionRows } = await supabase
+      const { data: reactionRows, error: reactErr } = await supabase
         .from("threadtalk_reactions")
         .select("thread_id, user_id, reaction_type")
         .in("thread_id", threadIds);
+
+      if (reactErr) {
+        console.error("[ThreadTalk] loadThreads thread reactions error", reactErr);
+      }
 
       reactionsByThread = {};
       (reactionRows || []).forEach((r) => {
@@ -242,6 +263,7 @@
       showToast("Could not load threads.");
     }
   }
+
   // ---------- Search ----------
   function wireSearch() {
     if (!searchInput) return;
@@ -677,30 +699,36 @@
     return { counts, mine };
   }
 
-// ---------- Notifications ----------
-async function createThreadNotification({ recipientId, threadId, commentId, type, message }) {
-  if (!currentUser || !recipientId || recipientId === currentUser.id) return;
+  // ---------- Notifications helper ----------
+  async function createThreadNotification({
+    recipientId,
+    threadId,
+    commentId,
+    type,
+    message,
+  }) {
+    if (!currentUser || !recipientId || recipientId === currentUser.id) return;
 
-  try {
-    const { error } = await supabase.from("notifications").insert({
-      user_id: recipientId,       // recipient
-      actor_id: currentUser.id,   // sender
-      thread_id: threadId,
-      comment_id: commentId,
-      type: type,
-      title: type,                // simple label
-      body: message,              // readable text
-      link: `/threadtalk.html?thread=${threadId}`, // helps notifications.js
-      metadata: { thread_id: threadId, comment_id: commentId }
-    });
+    try {
+      const { error } = await supabase.from("notifications").insert({
+        user_id: recipientId, // recipient
+        actor_id: currentUser.id, // sender
+        thread_id: threadId,
+        comment_id: commentId,
+        type,
+        title: type,
+        body: message,
+        link: `/threadtalk.html?thread=${threadId}`,
+        metadata: { thread_id: threadId, comment_id: commentId },
+      });
 
-    if (error) {
-      console.warn("[ThreadTalk] notification insert error", error);
+      if (error) {
+        console.warn("[ThreadTalk] notification insert error", error);
+      }
+    } catch (err) {
+      console.warn("[ThreadTalk] notification exception", err);
     }
-  } catch (err) {
-    console.warn("[ThreadTalk] notification exception", err);
   }
-}
 
   // ---------- Composer ----------
   function wireComposer() {
@@ -756,7 +784,7 @@ async function createThreadNotification({ recipientId, threadId, commentId, type
           return;
         }
 
-        // No notification here: it’s the author’s own thread.
+        // No notification here: it's the author's own thread.
 
         textArea.value = "";
         titleInput.value = "";
@@ -778,8 +806,7 @@ async function createThreadNotification({ recipientId, threadId, commentId, type
     if (!currentUser) return { media_url: null, media_type: null };
 
     const file =
-      photoInput?.files?.[0] ||
-      videoInput?.files?.[0];
+      photoInput?.files?.[0] || videoInput?.files?.[0];
     if (!file) return { media_url: null, media_type: null };
 
     const isImage = !!photoInput?.files?.[0];
@@ -1107,20 +1134,26 @@ async function createThreadNotification({ recipientId, threadId, commentId, type
           return;
         }
 
-// Notify thread author
-const thread = allThreads.find((t) => t.id === threadId);
-if (thread && thread.author_id && thread.author_id !== currentUser.id) {
-  const actorName = displayNameForUserId(currentUser.id);
-  const titleText = thread.title || "";
+        // Notify thread author about reaction
+        const thread = allThreads.find((t) => t.id === threadId);
+        if (
+          thread &&
+          thread.author_id &&
+          currentUser &&
+          thread.author_id !== currentUser.id
+        ) {
+          const actorName = displayNameForUserId(currentUser.id);
+          const titleText = thread.title || "";
 
-  await createThreadNotification({
-    recipientId: thread.author_id,
-    threadId,
-    commentId: null,
-    type: "thread_reaction",
-    message: `${actorName} reacted to your thread "${titleText}"`
-  });
-}
+          await createThreadNotification({
+            recipientId: thread.author_id,
+            threadId,
+            commentId: null,
+            type: "thread_reaction",
+            message: `${actorName} reacted to your thread "${titleText}"`,
+          });
+        }
+      }
 
       await loadThreads();
     } catch (err) {
@@ -1186,36 +1219,38 @@ if (thread && thread.author_id && thread.author_id !== currentUser.id) {
           return;
         }
 
-        /// Notify comment author about the reaction
-let targetComment = null;
-let parentThread = null;
+        // Notify comment author about reaction
+        let targetComment = null;
+        let parentThread = null;
 
-for (const [tid, list] of Object.entries(commentsByThread)) {
-  const found = list.find((c) => c.id === commentId);
-  if (found) {
-    targetComment = found;
-    parentThread = allThreads.find((t) => t.id === Number(tid));
-    break;
-  }
-}
+        for (const [tid, list] of Object.entries(commentsByThread)) {
+          const found = list.find((c) => c.id === commentId);
+          if (found) {
+            targetComment = found;
+            parentThread = allThreads.find((t) => t.id === Number(tid));
+            break;
+          }
+        }
 
-if (
-  targetComment &&
-  parentThread &&
-  targetComment.author_id &&
-  targetComment.author_id !== currentUser.id
-) {
-  const actorName = displayNameForUserId(currentUser.id);
-  const titleText = parentThread.title || "";
+        if (
+          targetComment &&
+          parentThread &&
+          targetComment.author_id &&
+          currentUser &&
+          targetComment.author_id !== currentUser.id
+        ) {
+          const actorName = displayNameForUserId(currentUser.id);
+          const titleText = parentThread.title || "";
 
-  await createThreadNotification({
-    recipientId: targetComment.author_id,
-    threadId: parentThread.id,
-    commentId: commentId,
-    type: "comment_reaction",
-    message: `${actorName} reacted to your comment on "${titleText}"`
-  });
-}
+          await createThreadNotification({
+            recipientId: targetComment.author_id,
+            threadId: parentThread.id,
+            commentId,
+            type: "comment_reaction",
+            message: `${actorName} reacted to your comment on "${titleText}"`,
+          });
+        }
+      }
 
       await loadThreads();
     } catch (err) {
@@ -1224,57 +1259,41 @@ if (
     }
   }
 
-// Send notifications:
-const thread = allThreads.find((t) => t.id === threadId);
-if (thread) {
-  const actorName = displayNameForUserId(currentUser.id);
-  const titleText = thread.title || "";
-
-  // Replying to someone else's comment
-  if (parentCommentId) {
-    const list = commentsByThread[threadId] || [];
-    const parent = list.find((c) => c.id === parentCommentId);
-
-    if (
-      parent &&
-      parent.author_id &&
-      parent.author_id !== currentUser.id
-    ) {
-      await createThreadNotification({
-        recipientId: parent.author_id,
-        threadId,
-        commentId: parentCommentId,
-        type: "comment_reply",
-        message: `${actorName} replied to your comment on "${titleText}"`
-      });
-    }
-  }
-  // Top-level comment on thread → notify thread owner
-  else if (
-    thread.author_id &&
-    thread.author_id !== currentUser.id
-  ) {
-    await createThreadNotification({
-      recipientId: thread.author_id,
-      threadId,
-      commentId: null,
-      type: "thread_comment",
-      message: `${actorName} commented on your thread "${titleText}"`
-    });
-  }
-}
+  // ---------- Send / reply to comments ----------
+  async function handleSendComment(row, threadId) {
+    if (!threadId) return;
 
     const ok = await ensureLoggedInFor("comment");
     if (!ok) return;
 
-    // If we're inside a reply box, capture the parent_comment_id
+    // Figure out which input + file input we are using
+    let container =
+      row.closest(".tt-comment-reply-box") ||
+      row.closest(".tt-comment-new");
+    if (!container) return;
+
+    const input = container.querySelector(".tt-comment-input");
+    const fileInput = container.querySelector(".tt-comment-photo");
+
+    let body = (input?.value || "").trim();
+    const file = fileInput?.files?.[0] || null;
+
+    if (!body && !file) {
+      if (input) input.focus();
+      return;
+    }
+
+    // parent_comment_id for nested replies
     let parentCommentId = null;
     const replyBox = row.closest(".tt-comment-reply-box");
     if (replyBox && replyBox.dataset.parentCommentId) {
       const parsed = Number(replyBox.dataset.parentCommentId);
-      parentCommentId = Number.isFinite(parsed) ? parsed : null;
+      if (Number.isFinite(parsed)) {
+        parentCommentId = parsed;
+      }
     }
 
+    // Optional media upload
     let media = { media_url: null, media_type: null };
     if (file) {
       media = await maybeUploadCommentMedia(file);
@@ -1300,16 +1319,21 @@ if (thread) {
         return;
       }
 
-      // Send notifications:
+      // ---- Notifications for comments ----
       const thread = allThreads.find((t) => t.id === threadId);
-      if (thread) {
+      if (thread && currentUser) {
         const actorName = displayNameForUserId(currentUser.id);
         const title = thread.title || "";
 
         if (parentCommentId) {
           const list = commentsByThread[threadId] || [];
           const parent = list.find((c) => c.id === parentCommentId);
-          if (parent && parent.author_id) {
+
+          if (
+            parent &&
+            parent.author_id &&
+            parent.author_id !== currentUser.id
+          ) {
             await createThreadNotification({
               recipientId: parent.author_id,
               threadId,
@@ -1318,7 +1342,10 @@ if (thread) {
               message: `${actorName} replied to your comment on "${title}"`,
             });
           }
-        } else if (thread.author_id) {
+        } else if (
+          thread.author_id &&
+          thread.author_id !== currentUser.id
+        ) {
           await createThreadNotification({
             recipientId: thread.author_id,
             threadId,
@@ -1329,6 +1356,7 @@ if (thread) {
         }
       }
 
+      // Clear UI
       if (input) input.value = "";
       if (fileInput) fileInput.value = "";
 
@@ -1468,7 +1496,7 @@ if (thread) {
         })
         .eq("id", commentId); // RLS enforces author
 
-            if (error) {
+      if (error) {
         console.error("[ThreadTalk] delete comment error", error);
         showToast("Could not delete reply.");
         return;
@@ -1769,7 +1797,7 @@ if (thread) {
     }
   }
 
-  // ---------- Styles injection ----------
+    // ---------- Styles injection ----------
   function injectCompactStyles() {
     const css = `
       .card{
