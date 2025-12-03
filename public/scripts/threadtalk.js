@@ -213,7 +213,8 @@ allThreads = allThreads.map(t => ({ ...t, author_id: String(t.author_id) }));
           }
           commentsByThread[c.thread_id].push(c);
           commentIds.push(c.id);
-          if (c.author_id) authorIds.push(c.author_id);
+          if (c.author_id) authorIds.push(String(c.author_id));
+c.author_id = String(c.author_id);
         });
 
       // Load comment reactions
