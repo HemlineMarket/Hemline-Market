@@ -154,9 +154,23 @@
     try {
       let query = supabase
         .from("threadtalk_threads")
-        .select(
-          "id, author_id, category, title, body, media_url, media_type, created_at, is_deleted"
-        )
+       .select(`
+  id,
+  author_id,
+  category,
+  title,
+  body,
+  media_url,
+  media_type,
+  created_at,
+  is_deleted,
+  profiles:author_id (
+    id,
+    store_name,
+    first_name,
+    last_name
+  )
+`)
         .eq("is_deleted", false);
 
       // If a specific thread id is requested, ignore category filter and just fetch that one.
