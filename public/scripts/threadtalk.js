@@ -1463,7 +1463,7 @@
   function escapeHtml(str) {
     return String(str || "")
       .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
+      .replace(/<//g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
   }
@@ -1783,7 +1783,7 @@
         pointer-events:auto;
         transform:translateY(0);
       }
-      .tt-react-pill{
+            .tt-react-pill{
         border:none;
         background:none;
         font-size:18px;
@@ -1818,19 +1818,21 @@
       .tt-comments{
         margin-top:6px;
         position:relative;
+        padding-left:4px;
       }
       .tt-comments-list{
         position:relative;
         display:flex;
         flex-direction:column;
-        gap:6px;
+        gap:4px;
+        padding-left:0;
       }
       .tt-comments-list::before{
         content:"";
         position:absolute;
-        left:32px;
+        left:18px;
         top:4px;
-        bottom:10px;
+        bottom:8px;
         width:2px;
         border-radius:999px;
         background:rgba(209,213,219,.9);
@@ -1842,16 +1844,16 @@
         border-radius:16px;
         background:#f9fafb;
         border:1px solid #e5e7eb;
-        margin-left:44px; /* depth 0 */
+        margin-left:42px; /* depth 0 baseline */
       }
       .tt-comment[data-depth="1"]{
-        margin-left:76px; /* reply to a comment */
+        margin-left:62px;
       }
       .tt-comment[data-depth="2"]{
-        margin-left:104px;
+        margin-left:78px;
       }
       .tt-comment[data-depth="3"]{
-        margin-left:120px;
+        margin-left:94px;
       }
 
       .tt-comment-children{
@@ -1912,8 +1914,8 @@
         display:flex;
         align-items:center;
         gap:6px;
-        margin-top:8px;
-        margin-left:44px;
+        margin-top:6px;
+        margin-left:42px;
         padding:6px 8px;
         border-radius:999px;
         background:#f3f4f6;
@@ -1976,7 +1978,7 @@
         color:#6b7280;
         font-size:12px;
         padding:0;
-        margin:4px 0 2px 44px;
+        margin:2px 0 2px 42px;
         cursor:pointer;
         text-align:left;
       }
@@ -2152,22 +2154,22 @@
           padding:12px;
         }
         .tt-comments-list::before{
-          left:26px;
+          left:14px;
         }
         .tt-comment{
-          margin-left:36px;
+          margin-left:32px;
         }
         .tt-comment[data-depth="1"]{
-          margin-left:72px;
+          margin-left:50px;
         }
         .tt-comment[data-depth="2"]{
-          margin-left:98px;
+          margin-left:66px;
         }
         .tt-comment-new{
-          margin-left:36px;
+          margin-left:32px;
         }
         .tt-more-comments{
-          margin-left:36px;
+          margin-left:32px;
         }
         .tt-link-preview-wrap{
           max-width:100%;
