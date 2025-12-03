@@ -19,10 +19,11 @@
       --hm-text:#111827;
       --hm-bg:#f4f4f7;
     }
-    html,body{
+    html, body{
       margin:0;
       background:var(--hm-bg);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      color:var(--hm-text);
     }
     main{
       max-width:1100px;
@@ -75,6 +76,7 @@
       font-size:13px;
       font-weight:600;
       background:#fff;
+      color:var(--hm-accent);
     }
   </style>
 </head>
@@ -128,13 +130,15 @@
         const div = document.createElement("div");
         div.className = "order-card";
 
+        const dateStr = o.created_at
+          ? new Date(o.created_at).toLocaleDateString()
+          : "";
+
         div.innerHTML = `
           <div class="order-top">
-  <a href="order.html?id=${o.id}" style="text-decoration:none;color:var(--hm-text);font-weight:700;">
-    Order ${o.id}
-  </a>
-  <span>${o.created_at ? new Date(o.created_at).toLocaleDateString() : ""}</span>
-</div>
+            <span>Order</span>
+            <span>${dateStr}</span>
+          </div>
 
           <div class="order-meta">
             Listing ID: ${o.listing_id || "—"}<br>
@@ -142,7 +146,10 @@
             Stripe Payment: ${o.stripe_payment_intent || "—"}
           </div>
 
-          <a class="btn" href="messages.html">Message buyer</a>
+          <a class="btn"
+             href="messages.html?user=${encodeURIComponent(o.buyer_id)}&order=${encodeURIComponent(o.id)}">
+            Message buyer
+          </a>
         `;
 
         list.appendChild(div);
