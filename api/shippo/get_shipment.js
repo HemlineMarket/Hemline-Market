@@ -2,15 +2,16 @@
 // Returns the latest shipment row for a given orderId from db_shipments
 // Requires env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
-import { rateLimit } from "./_rateLimit";
 import supabaseAdmin from "../_supabaseAdmin";
+import { rateLimit } from "../_rateLimit";
+import { logError } from "../_logger";
 
 export const config = {
   api: { bodyParser: false },
 };
 
 export default async function handler(req, res) {
-  // Per-IP rate limit
+  // Enforce per-IP rate limit
   if (!rateLimit(req, res)) return;
 
   if (req.method !== "GET") {
@@ -19,14 +20,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const orderId = (req.query.orderId || "").trim();
+    const rawOrderId = req.query.orderId;
+    const orderId =
+      typeof rawOrderId === "string" ? rawOrderId.trim() : Array.isArray(rawOrderId) ? rawOrderId[0].trim() : "";
+
     if (!orderId) {
       return res.status(400).json({ error: "Missing orderId" });
     }
 
-    // -------------------------------------------------------------------
-    // Fetch latest shipment row
-    // -------------------------------------------------------------------
     const { data, error } = await supabaseAdmin
       .from("db_shipments")
       .select("*")
@@ -36,33 +37,22 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (error) {
-      console.error("[get_shipment] Supabase error:", error);
+      await logError("/api/shippo/get_shipment", "db_shipments select error", {
+        error,
+        orderId,
+      });
       return res.status(500).json({ error: "Database error" });
     }
 
     if (!data) {
-      return res.status(404).json({ error: "Shipment not found" });
+      return res.status(404).json({ error: "Not found" });
     }
 
-    // -------------------------------------------------------------------
-    // Clean and send response
-    // -------------------------------------------------------------------
-    return res.status(200).json({
-      order_id: data.order_id,
-      tracking_number: data.tracking_number,
-      tracking_url: data.tracking_url,
-      label_url: data.label_url,
-      shippo_transaction_id: data.shippo_transaction_id,
-      carrier: data.carrier,
-      service: data.service,
-      status: data.status,
-      amount_cents: data.amount_cents,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-      raw: data.raw || null,
-    });
+    return res.status(200).json(data);
   } catch (err) {
-    console.error("[get_shipment] Unhandled error:", err);
+    await logError("/api/shippo/get_shipment", "Unhandled error", {
+      message: err?.message || err,
+    });
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
