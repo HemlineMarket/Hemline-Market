@@ -1065,7 +1065,7 @@
 
     setHeartUI(btn, isFav(fav.id));
 
-    btn.onclick = ()=>{
+    btn.onclick = async ()=>{
       const favs = loadFavs();
       const idx = favs.findIndex(f => String(f.id) === String(fav.id));
       const currentlyFav = idx !== -1;
@@ -1081,6 +1081,7 @@
         setHeartUI(btn, true);
         showToast("Saved to favorites");
 
+        // Local bell notifications (for the viewer)
         const nowIso = new Date().toISOString();
         const notifs = loadNotifs();
         notifs.push({
@@ -1093,6 +1094,27 @@
           unread    : true
         });
         saveNotifs(notifs);
+
+        // Supabase notification to the seller
+        try{
+          const buyerId  = currentSession && currentSession.user && currentSession.user.id;
+          const sellerId = currentListing && currentListing.seller_id;
+          if(buyerId && sellerId && buyerId !== sellerId){
+            const listingUrl = `listing.html?id=${encodeURIComponent(currentListing.id)}`;
+            await supabaseClient.from("notifications").insert({
+              user_id   : sellerId,
+              type      : "listing_favorited",
+              kind      : "favorite",
+              title     : "Someone saved your listing",
+              body      : fav.title || "A buyer saved your listing.",
+              href      : listingUrl,
+              link      : listingUrl,
+              listing_id: currentListing.id
+            });
+          }
+        }catch(e){
+          console.warn("Favorite notification insert failed", e);
+        }
       }
     };
   }
