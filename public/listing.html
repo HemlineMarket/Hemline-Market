@@ -1246,14 +1246,14 @@ replySpan.addEventListener("click", async ()=>{
   }
 
   const text = window.prompt("Reply as the seller:");
-  if(!text || !text.trim()) return;
-  const replyText = text.trim();
+  const replyBody = text && text.trim();
+  if(!replyBody) return;
 
   try{
     const { error } = await supabaseClient
       .from("questions")
       .update({
-        answer_body: replyText,
+        answer_body: replyBody,
         answer_author_id: currentSession.user.id,
         answered_at: new Date().toISOString()
       })
@@ -1263,18 +1263,26 @@ replySpan.addEventListener("click", async ()=>{
       console.warn("Reply error", error);
       showToast("Could not post reply");
     }else{
+      showToast("Reply posted");
+
       // 🔔 Notify the original commenter that the seller replied
-      const commenterId = row.author_id;
-      if(commenterId && commenterId !== currentSession.user.id){
+      const sellerId = currentListing?.seller_id;
+      const questionAuthorId = row.author_id;
+      if(
+        questionAuthorId &&
+        sellerId &&
+        questionAuthorId !== sellerId
+      ){
         const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
-        const preview =
-          replyText.length > 140 ? replyText.slice(0,137) + "…" : replyText;
+        const preview = replyBody.length > 140
+          ? replyBody.slice(0,137) + "…"
+          : replyBody;
 
         try{
           await supabaseClient.from("notifications").insert({
-            user_id: commenterId,
-            type: "listing_comment",
-            kind: "seller_reply",
+            user_id: questionAuthorId,
+            type: "listing_comment_reply",
+            kind: "comment_reply",
             title: "Seller replied to your comment",
             body: preview,
             href: listingUrl,
@@ -1283,11 +1291,10 @@ replySpan.addEventListener("click", async ()=>{
             question_id: row.id
           });
         }catch(notifErr){
-          console.warn("Notification insert failed (seller reply)", notifErr);
+          console.warn("Notification insert failed (comment reply)", notifErr);
         }
       }
 
-      showToast("Reply posted");
       await loadQuestions();
     }
   }catch(e){
