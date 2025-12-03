@@ -1,11 +1,23 @@
 // File: /api/shippo/create_label.js
-// Creates a shipping label via Shippo and saves record to db_shipments.
+// Creates a shipping label via Shippo for a given order
+// Persists the label + tracking to Supabase (db_shipments)
+// Also nudges buyer + seller via notifications.
+// Env required:
+//   SHIPPO_API_KEY
+//   SUPABASE_URL
+//   SUPABASE_SERVICE_ROLE_KEY
 
-import { rateLimit } from "./_rateLimit";
+import fetch from "node-fetch";
 import supabaseAdmin from "../_supabaseAdmin";
+import { logError } from "../_logger";
+import { rateLimit } from "../_rateLimit";
+
+export const config = {
+  api: { bodyParser: { sizeLimit: "1mb" } },
+};
 
 export default async function handler(req, res) {
-  // Enforce rate limit
+  // Basic rate-limit
   if (!rateLimit(req, res)) return;
 
   if (req.method !== "POST") {
@@ -19,51 +31,228 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Call Shippo API
-    const shippoRes = await fetch("https://api.goshippo.com/transactions", {
+    const apiKey = process.env.SHIPPO_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Missing SHIPPO_API_KEY" });
+    }
+
+    // -----------------------------------------------------------------------
+    // 1) Create shipment in Shippo
+    // -----------------------------------------------------------------------
+    const shipmentRes = await fetch("https://api.goshippo.com/shipments/", {
       method: "POST",
       headers: {
-        Authorization: `ShippoToken ${process.env.SHIPPO_API_KEY}`,
+        Authorization: `ShippoToken ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        shipment: {
-          address_from,
-          address_to,
-          parcels: [parcel],
-        },
+        address_from,
+        address_to,
+        parcels: [parcel],
         async: false,
+        metadata: `order:${orderId}`,
       }),
     });
 
-    const data = await shippoRes.json();
-    if (!shippoRes.ok) {
-      console.error("Shippo error:", data);
-      return res.status(400).json({ error: "Shippo API error", details: data });
+    const shipment = await shipmentRes.json();
+
+    if (
+      !shipmentRes.ok ||
+      !shipment?.rates ||
+      !Array.isArray(shipment.rates) ||
+      shipment.rates.length === 0
+    ) {
+      await logError(
+        "/api/shippo/create_label",
+        "No shipping rates found or Shippo error",
+        { status: shipmentRes.status, body: shipment }
+      );
+      return res.status(400).json({
+        error: "No shipping rates found",
+        details: shipment,
+      });
     }
 
-    // Save to db_shipments
-    const { error } = await supabaseAdmin.from("db_shipments").insert([
+    // -----------------------------------------------------------------------
+    // 2) Pick the cheapest rate
+    // -----------------------------------------------------------------------
+    const rate = shipment.rates
+      .slice()
+      .sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0];
+
+    // -----------------------------------------------------------------------
+    // 3) Buy the label (Shippo transaction)
+    // -----------------------------------------------------------------------
+    const transactionRes = await fetch(
+      "https://api.goshippo.com/transactions/",
       {
-        order_id: orderId,
-        shippo_transaction_id: data.object_id,
-        status: data.status || "CREATED",
-        label_url: data.label_url || null,
-        tracking_number: data.tracking_number || null,
-        tracking_url: data.tracking_url_provider || null,
-        carrier: data.rate?.provider || null,
-        service: data.rate?.servicelevel?.name || null,
-        raw: data,
-      },
-    ]);
+        method: "POST",
+        headers: {
+          Authorization: `ShippoToken ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rate: rate.object_id,
+          label_file_type: "PDF",
+          async: false,
+          metadata: `order:${orderId}`,
+        }),
+      }
+    );
 
-    if (error) {
-      console.error("Supabase insert error:", error);
+    const tx = await transactionRes.json();
+
+    if (!transactionRes.ok || tx.status !== "SUCCESS") {
+      await logError(
+        "/api/shippo/create_label",
+        "Label purchase not successful",
+        { status: transactionRes.status, body: tx }
+      );
+      return res.status(502).json({
+        error: "Label purchase not successful",
+        details: tx,
+      });
     }
 
-    return res.status(200).json(data);
+    const trackingNumber = tx.tracking_number || null;
+    const trackingUrl =
+      tx.tracking_url_provider || tx.tracking_url || null;
+    const carrier = tx.rate?.provider || null;
+    const service = tx.rate?.servicelevel?.name || null;
+    const amountCents = tx.rate?.amount
+      ? Math.round(parseFloat(tx.rate.amount) * 100)
+      : null;
+
+    // -----------------------------------------------------------------------
+    // 4) Persist shipment in db_shipments (one row per order)
+    // -----------------------------------------------------------------------
+    try {
+      const payload = {
+        order_id: orderId,
+        shippo_transaction_id: tx.object_id || null,
+        label_url: tx.label_url || null,
+        tracking_number: trackingNumber,
+        tracking_url: trackingUrl,
+        carrier,
+        service,
+        amount_cents: amountCents,
+        status: "LABEL_PURCHASED",
+        raw: tx,
+      };
+
+      // Keep only the latest label per order
+      await supabaseAdmin.from("db_shipments").delete().eq("order_id", orderId);
+      await supabaseAdmin.from("db_shipments").insert(payload);
+    } catch (dbErr) {
+      await logError(
+        "/api/shippo/create_label",
+        "db_shipments insert error",
+        dbErr
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    // 5) Try to update orders table + create notifications
+    //    (all best-effort; failures are logged but do not break response)
+    // -----------------------------------------------------------------------
+    let orderRow = null;
+    try {
+      const { data: order, error: orderErr } = await supabaseAdmin
+        .from("orders")
+        .select("id, buyer_id, seller_id, short_id, created_at")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (!orderErr && order) {
+        orderRow = order;
+
+        // Soft update of order with tracking info; ignore if columns don't exist
+        await supabaseAdmin
+          .from("orders")
+          .update({
+            shipping_status: "LABEL_PURCHASED",
+            tracking_number: trackingNumber,
+            tracking_url: trackingUrl,
+            shipping_carrier: carrier,
+            shipping_service: service,
+            label_url: tx.label_url || null,
+          })
+          .eq("id", orderId);
+      }
+    } catch (orderErr) {
+      await logError(
+        "/api/shippo/create_label",
+        "orders update error",
+        orderErr
+      );
+    }
+
+    // Notifications – only if we could load an order row
+    try {
+      if (orderRow) {
+        const { buyer_id, seller_id, short_id } = orderRow;
+        const humanId = short_id || orderId;
+        const href = `/orders.html`;
+
+        const notifs = [];
+
+        if (buyer_id) {
+          notifs.push({
+            user_id: buyer_id,
+            type: "order",
+            kind: "shipment_buyer",
+            title: "Your order is getting ready to ship",
+            body: `A shipping label was created for order ${humanId}. If this order is less than 30 minutes old, you still have a short window to cancel before it becomes final.`,
+            href,
+            link: href,
+          });
+        }
+
+        if (seller_id) {
+          notifs.push({
+            user_id: seller_id,
+            type: "order",
+            kind: "shipment_seller",
+            title: "Shipping label created",
+            body: `You generated a shipping label for order ${humanId}. If the order is under 30 minutes old, wait for the cancel window to pass before dropping it off.`,
+            href,
+            link: href,
+          });
+        }
+
+        if (notifs.length) {
+          await supabaseAdmin.from("notifications").insert(
+            notifs.map((n) => ({
+              ...n,
+              is_read: false,
+            }))
+          );
+        }
+      }
+    } catch (notifErr) {
+      await logError(
+        "/api/shippo/create_label",
+        "notifications insert error",
+        notifErr
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    // 6) Return response to client
+    // -----------------------------------------------------------------------
+    return res.status(200).json({
+      orderId,
+      tracking_number: trackingNumber,
+      tracking_url: trackingUrl,
+      label_url: tx.label_url || null,
+      carrier,
+      service,
+      rate: tx.rate || null,
+    });
   } catch (err) {
-    console.error("create_label error:", err);
+    await logError("/api/shippo/create_label", "Unhandled error", {
+      message: err?.message || err,
+    });
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
