@@ -182,7 +182,6 @@ window.HM = window.HM || {};
       link.appendChild(dot);
     }
 
-    // minimal inline fallback
     dot.style.display = dot.style.display || "none";
     return { link, dot };
   }
@@ -218,8 +217,23 @@ window.HM = window.HM || {};
   }
 
   /* --------------------------------------------------------------------------
-     SESSION
+     SESSION (FIXED)
   -------------------------------------------------------------------------- */
+  function applyAccount(session) {
+    const link = document.getElementById("headerAccountLink");
+    if (!link) return;
+
+        if (session && session.user) {
+      link.href = "account.html";
+      link.classList.add("is-logged-in");
+      link.classList.remove("is-logged-out");
+    } else {
+      link.href = "auth.html?view=login";
+      link.classList.remove("is-logged-in");
+      link.classList.add("is-logged-out");
+    }
+  }
+
   function wireSupabaseSession() {
     if (!window.supabase) return;
 
@@ -236,20 +250,6 @@ window.HM = window.HM || {};
     );
 
     window.HM.supabase = shellSupabase;
-
-    const accountLink = document.getElementById("headerAccountLink");
-
-    function applyAccount(session) {
-      if (session && session.user) {
-        accountLink.href = "account.html";
-        accountLink.classList.add("is-logged-in");
-        accountLink.classList.remove("is-logged-out");
-      } else {
-        accountLink.href = "auth.html?view=login";
-        accountLink.classList.remove("is-logged-in");
-        accountLink.classList.add("is-logged-out");
-      }
-    }
 
     function handleSession(session) {
       applyAccount(session);
