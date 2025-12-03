@@ -678,6 +678,28 @@
     return { counts, mine };
   }
 
+  // ---------- Notifications ----------
+  async function createThreadNotification({ recipientId, threadId, commentId, type, message }) {
+    if (!currentUser || !recipientId || recipientId === currentUser.id) return;
+
+    try {
+      const { error } = await supabase.from("thread_notifications").insert({
+        recipient_id: recipientId,
+        actor_id: currentUser.id,
+        thread_id: threadId,
+        comment_id: commentId,
+        type,
+        message,
+      });
+
+      if (error) {
+        console.warn("[ThreadTalk] notification insert error", error);
+      }
+    } catch (err) {
+      console.warn("[ThreadTalk] notification exception", err);
+    }
+  }
+
   // ---------- Composer ----------
   function wireComposer() {
     if (!composerForm) return;
@@ -731,6 +753,8 @@
           showToast("Could not post.");
           return;
         }
+
+        // No notification here: it’s the author’s own thread.
 
         textArea.value = "";
         titleInput.value = "";
@@ -1080,6 +1104,20 @@
           showToast("Could not update reaction.");
           return;
         }
+
+        // Notify thread author about the reaction
+        const thread = allThreads.find((t) => t.id === threadId);
+        if (thread && thread.author_id) {
+          const actorName = displayNameForUserId(currentUser.id);
+          const title = thread.title || "";
+          await createThreadNotification({
+            recipientId: thread.author_id,
+            threadId,
+            commentId: null,
+            type: "reaction",
+            message: `${actorName} reacted to your thread "${title}"`,
+          });
+        }
       }
 
       await loadThreads();
@@ -1145,6 +1183,29 @@
           showToast("Could not update reaction.");
           return;
         }
+
+        // Notify comment author about the reaction
+        let targetComment = null;
+        let parentThread = null;
+        for (const [tid, list] of Object.entries(commentsByThread)) {
+          const found = list.find((c) => c.id === commentId);
+          if (found) {
+            targetComment = found;
+            parentThread = allThreads.find((t) => t.id === Number(tid));
+            break;
+          }
+        }
+        if (targetComment && parentThread && targetComment.author_id) {
+          const actorName = displayNameForUserId(currentUser.id);
+          const title = parentThread.title || "";
+          await createThreadNotification({
+            recipientId: targetComment.author_id,
+            threadId: parentThread.id,
+            commentId,
+            type: "reaction",
+            message: `${actorName} reacted to your comment on "${title}"`,
+          });
+        }
       }
 
       await loadThreads();
@@ -1208,6 +1269,35 @@
         console.error("[ThreadTalk] comment insert error", error);
         showToast("Could not post reply.");
         return;
+      }
+
+      // Send notifications:
+      const thread = allThreads.find((t) => t.id === threadId);
+      if (thread) {
+        const actorName = displayNameForUserId(currentUser.id);
+        const title = thread.title || "";
+
+        if (parentCommentId) {
+          const list = commentsByThread[threadId] || [];
+          const parent = list.find((c) => c.id === parentCommentId);
+          if (parent && parent.author_id) {
+            await createThreadNotification({
+              recipientId: parent.author_id,
+              threadId,
+              commentId: parentCommentId,
+              type: "comment_reply",
+              message: `${actorName} replied to your comment on "${title}"`,
+            });
+          }
+        } else if (thread.author_id) {
+          await createThreadNotification({
+            recipientId: thread.author_id,
+            threadId,
+            commentId: null,
+            type: "thread_comment",
+            message: `${actorName} commented on your thread "${title}"`,
+          });
+        }
       }
 
       if (input) input.value = "";
@@ -1349,7 +1439,7 @@
         })
         .eq("id", commentId); // RLS enforces author
 
-      if (error) {
+            if (error) {
         console.error("[ThreadTalk] delete comment error", error);
         showToast("Could not delete reply.");
         return;
@@ -1460,13 +1550,13 @@
     }, 2600);
   }
 
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
 
   function escapeAttr(str) {
     return escapeHtml(str).replace(/'/g, "&#39;");
@@ -1783,7 +1873,7 @@ function escapeHtml(str) {
         pointer-events:auto;
         transform:translateY(0);
       }
-            .tt-react-pill{
+      .tt-react-pill{
         border:none;
         background:none;
         font-size:18px;
