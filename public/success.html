@@ -24,6 +24,8 @@
       --accent:#991b1b;
       --bg:#fafafa;
       --ok:#065f46;
+      --danger:#b91c1c;
+      --danger-soft:#fef2f2;
     }
     *{box-sizing:border-box}
     body{
@@ -81,11 +83,20 @@
       text-decoration:none;
       font-weight:700;
       cursor:pointer;
+      font-size:14px;
     }
     .btn.alt{
       background:#fff;
       color:#111827;
       border:1px solid var(--border);
+    }
+    .btn.danger{
+      background:var(--danger);
+      border-color:var(--danger);
+    }
+    .btn[disabled]{
+      opacity:.55;
+      cursor:default;
     }
 
     .muted{color:var(--muted)}
@@ -123,6 +134,37 @@
     #afterMsg{
       margin-top:12px;
     }
+
+    .cancel-box{
+      margin-top:14px;
+      padding:12px 14px;
+      border-radius:10px;
+      border:1px solid var(--danger-soft);
+      background:var(--danger-soft);
+      color:#7f1d1d;
+      font-size:13px;
+    }
+    .cancel-top{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:10px;
+      margin-bottom:6px;
+    }
+    .cancel-title{
+      font-weight:700;
+    }
+    .cancel-timer{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid rgba(248,113,113,.6);
+      background:#fee2e2;
+      font-size:12px;
+    }
+    .cancel-note{
+      font-size:12px;
+    }
   </style>
 </head>
 <body>
@@ -142,6 +184,28 @@
           Thanks! Your order was received. Order
           <span class="mono" id="orderId">—</span>.
         </div>
+      </div>
+    </div>
+
+    <!-- 30-minute cancel window -->
+    <div class="cancel-box" id="cancelBox">
+      <div class="cancel-top">
+        <div>
+          <div class="cancel-title">You have 30 minutes to cancel this order.</div>
+          <div class="small">
+            After this window closes, the sale is final and the seller may ship.
+          </div>
+        </div>
+        <div class="cancel-timer" id="cancelCountdown">30:00</div>
+      </div>
+      <div class="row" style="margin-top:4px">
+        <button class="btn danger" id="cancelBtn" type="button">
+          Cancel this order
+        </button>
+      </div>
+      <div class="cancel-note" id="cancelStatus">
+        Sellers are instructed <strong>not to ship within the first 30 minutes</strong>
+        so you can change your mind if needed.
       </div>
     </div>
 
@@ -191,7 +255,7 @@
 
 <!-- Page-specific JS -->
 <script>
-/* Success logic: render totals, persist order, send email, clear cart */
+/* Success logic: render totals, persist order, send email, clear cart, allow 30-min cancel */
 (async function(){
   const fmt = c => "$" + (Math.max(0, Number(c||0))/100).toFixed(2);
   const qs = new URLSearchParams(location.search);
@@ -294,6 +358,84 @@
     localStorage.removeItem("hm_cart");
     localStorage.removeItem("hm_checkout_preview");
   }catch(_){}
+
+  // 6) 30-minute cancel window
+  const cancelBox   = document.getElementById("cancelBox");
+  const cancelBtn   = document.getElementById("cancelBtn");
+  const countdownEl = document.getElementById("cancelCountdown");
+  const statusEl    = document.getElementById("cancelStatus");
+
+  if(cancelBox && cancelBtn && countdownEl){
+    const key = "hm_cancel_until_" + orderId;
+    const now = Date.now();
+    let cancelUntil = 0;
+
+    const fromQsMs = Number(fromQS("cancel_until_ms") || "");
+    if(Number.isFinite(fromQsMs) && fromQsMs > now){
+      cancelUntil = fromQsMs;
+    }else{
+      const stored = Number(localStorage.getItem(key) || "");
+      if(Number.isFinite(stored) && stored > now){
+        cancelUntil = stored;
+      }else{
+        cancelUntil = now + 30*60*1000; // 30 minutes
+        try{ localStorage.setItem(key, String(cancelUntil)); }catch(_){}
+      }
+    }
+
+    function formatRemaining(ms){
+      if(ms <= 0) return "00:00";
+      const totalSec = Math.floor(ms/1000);
+      const m = Math.floor(totalSec/60);
+      const s = totalSec % 60;
+      const mm = String(m).padStart(2,"0");
+      const ss = String(s).padStart(2,"0");
+      return mm + ":" + ss;
+    }
+
+    function updateCountdown(){
+      const now = Date.now();
+      const remaining = cancelUntil - now;
+      countdownEl.textContent = formatRemaining(remaining);
+      if(remaining <= 0){
+        cancelBtn.disabled = true;
+        statusEl.textContent =
+          "The 30-minute cancellation window has ended. The seller may now prepare your shipment.";
+        clearInterval(timerId);
+      }
+    }
+
+    const timerId = setInterval(updateCountdown, 1000);
+    updateCountdown();
+
+    cancelBtn.addEventListener("click", async () => {
+      if(cancelBtn.disabled) return;
+      cancelBtn.disabled = true;
+      statusEl.textContent = "Submitting your cancellation…";
+
+      try{
+        const resp = await fetch("/api/orders/cancel", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ order_id: orderId })
+        });
+        if(resp.ok){
+          statusEl.textContent =
+            "This order has been requested for cancellation. You’ll see the status update in your Orders and via email.";
+          countdownEl.textContent = "00:00";
+          try{ localStorage.setItem(key, String(Date.now())); }catch(_){}
+        }else{
+          cancelBtn.disabled = false;
+          statusEl.textContent =
+            "We couldn’t cancel automatically. Please refresh and check Orders, or contact support.";
+        }
+      }catch(_){
+        cancelBtn.disabled = false;
+        statusEl.textContent =
+          "We couldn’t reach the server. Please try again, or contact support.";
+      }
+    });
+  }
 })();
 </script>
 
