@@ -1371,50 +1371,77 @@ metaRow.appendChild(replySpan);
       };
     }
 
-    if(submitBtn){
-      submitBtn.onclick = async ()=>{
-        const input = document.getElementById("qaBody");
-        if(!input) return;
-        const body = input.value.trim();
-        if(!body){
-          if(note) note.textContent = "Please write a comment first.";
-          return;
-        }
-
-        if(!currentSession || !currentSession.user){
-          window.location.href = "auth.html?view=login";
-          return;
-        }
-
-        submitBtn.disabled = true;
-        if(note) note.textContent = "Posting…";
-
-        try{
-          const { error } = await supabaseClient
-            .from("questions")
-            .insert({
-              listing_id: listingId,
-              author_id: currentSession.user.id,
-              body
-            });
-
-          if(error){
-            console.warn("Q&A insert error", error);
-            if(note) note.textContent = "We couldn’t post your comment. Please try again.";
-          }else{
-            input.value = "";
-            if(note) note.textContent = "";
-            showToast("Comment posted");
-            await loadQuestions();
-          }
-        }catch(e){
-          console.warn("Q&A insert exception", e);
-          if(note) note.textContent = "We couldn’t post your comment. Please try again.";
-        }finally{
-          submitBtn.disabled = false;
-        }
-      };
+if(submitBtn){
+  submitBtn.onclick = async ()=>{
+    const input = document.getElementById("qaBody");
+    if(!input) return;
+    const body = input.value.trim();
+    if(!body){
+      if(note) note.textContent = "Please write a comment first.";
+      return;
     }
+
+    if(!currentSession || !currentSession.user){
+      window.location.href = "auth.html?view=login";
+      return;
+    }
+
+    submitBtn.disabled = true;
+    if(note) note.textContent = "Posting…";
+
+    try{
+      const { data: inserted, error } = await supabaseClient
+        .from("questions")
+        .insert({
+          listing_id: listingId,
+          author_id: currentSession.user.id,
+          body
+        })
+        .select("*")
+        .single();
+
+      if(error){
+        console.warn("Q&A insert error", error);
+        if(note) note.textContent = "We couldn’t post your comment. Please try again.";
+      }else{
+        input.value = "";
+        if(note) note.textContent = "";
+        showToast("Comment posted");
+
+        // 🔔 Notify the seller that someone commented on their listing
+        const sellerId = currentListing?.seller_id;
+        if(sellerId && sellerId !== currentSession.user.id){
+          const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
+          const preview =
+            body.length > 140 ? body.slice(0,137) + "…" : body;
+
+          try{
+            await supabaseClient.from("notifications").insert({
+              user_id: sellerId,
+              type: "listing_comment",
+              kind: "new_comment",
+              title: "New comment on your listing",
+              body: preview,
+              href: listingUrl,
+              link: listingUrl,
+              listing_id: listingId,
+              question_id: inserted.id
+            });
+          }catch(notifErr){
+            console.warn("Notification insert failed (new comment)", notifErr);
+          }
+        }
+
+        await loadQuestions();
+      }
+    }catch(e){
+      console.warn("Q&A insert exception", e);
+      if(note) note.textContent = "We couldn’t post your comment. Please try again.";
+    }finally{
+      submitBtn.disabled = false;
+    }
+  };
+}
   }
 
   function getListingIdFromUrl(){
