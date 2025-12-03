@@ -80,6 +80,70 @@
       gap:12px;
     }
 
+    .row-main{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .row-title{
+      font-weight:600;
+    }
+
+    .row-meta{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .row-actions{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:6px;
+      text-align:right;
+    }
+
+    .price{
+      font-weight:600;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:3px 8px;
+      border-radius:999px;
+      font-size:11px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      color:#374151;
+      white-space:nowrap;
+    }
+
+    .status-pill.pending{
+      border-color:#fed7aa;
+      background:#fff7ed;
+      color:#9a3412;
+    }
+
+    .status-pill.shipped{
+      border-color:#bfdbfe;
+      background:#eff6ff;
+      color:#1d4ed8;
+    }
+
+    .status-pill.delivered{
+      border-color:#bbf7d0;
+      background:#ecfdf5;
+      color:#166534;
+    }
+
+    .status-pill.canceled{
+      border-color:#fecaca;
+      background:#fef2f2;
+      color:#b91c1c;
+    }
+
     .empty{
       background:#fff;
       border:1px dashed var(--hm-border);
@@ -109,6 +173,19 @@
       border-color:var(--hm-accent);
       font-weight:600;
     }
+
+    @media (max-width:640px){
+      .row{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+      .row-actions{
+        width:100%;
+        flex-direction:row;
+        justify-content:space-between;
+        align-items:center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -126,7 +203,9 @@
   </div>
 
   <div id="purchaseList" class="list">
-    <div class="empty">No purchases yet. When you buy, they’ll show up here.</div>
+    <div class="empty" id="purchaseEmpty">
+      No purchases yet. When you buy, they’ll show up here.
+    </div>
   </div>
 </main>
 
@@ -138,21 +217,147 @@
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-  const supabase = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-  );
+  const SUPABASE_URL =
+    "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
-  async function guard(){
-    const { data: { session } } = await supabase.auth.getSession();
+  const supabaseClient =
+    (window.HM && window.HM.supabase) ||
+    window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+
+  const purchaseListEl  = document.getElementById("purchaseList");
+  const purchaseEmptyEl = document.getElementById("purchaseEmpty");
+
+  function fmtMoney(cents){
+    const n = Math.max(0, Number(cents || 0));
+    return "$" + (n / 100).toFixed(2);
+  }
+
+  function statusClass(status){
+    const s = String(status || "").toUpperCase();
+    if (s === "PENDING" || s === "PAID") return "pending";
+    if (s === "SHIPPED") return "shipped";
+    if (s === "DELIVERED") return "delivered";
+    if (s === "CANCELED" || s === "CANCELLED") return "canceled";
+    return "";
+  }
+
+  function statusLabel(status){
+    const s = String(status || "").toUpperCase();
+    if (s === "PAID") return "Paid";
+    if (s === "PENDING") return "Pending";
+    if (s === "SHIPPED") return "Shipped";
+    if (s === "DELIVERED") return "Delivered";
+    if (s === "CANCELED" || s === "CANCELLED") return "Canceled";
+    return status || "Order";
+  }
+
+  function renderPurchases(orders){
+    purchaseListEl.innerHTML = "";
+    if (!orders || !orders.length){
+      purchaseEmptyEl.style.display = "block";
+      purchaseListEl.appendChild(purchaseEmptyEl);
+      return;
+    }
+
+    purchaseEmptyEl.style.display = "none";
+
+    orders.forEach(order => {
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const main = document.createElement("div");
+      main.className = "row-main";
+
+      const title = document.createElement("div");
+      title.className = "row-title";
+      title.textContent = order.listing_title || "Order " + (order.order_id || order.id);
+
+      const meta = document.createElement("div");
+      meta.className = "row-meta";
+      const created = order.created_at
+        ? new Date(order.created_at).toLocaleString()
+        : "";
+      const trackingSnippet = order.tracking_number
+        ? ("Tracking: " + order.tracking_number)
+        : "";
+      meta.textContent = [
+        created && ("Placed " + created),
+        order.seller_name && ("Seller: " + order.seller_name),
+        trackingSnippet
+      ].filter(Boolean).join(" • ");
+
+      main.appendChild(title);
+      main.appendChild(meta);
+
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+
+      const price = document.createElement("div");
+      price.className = "price";
+      price.textContent = fmtMoney(order.total_cents || order.total_amount_cents);
+
+      const status = document.createElement("div");
+      status.className = "status-pill " + statusClass(order.status);
+      status.textContent = statusLabel(order.status);
+
+      actions.appendChild(price);
+      actions.appendChild(status);
+
+      if (order.tracking_url){
+        const trackLink = document.createElement("a");
+        trackLink.href = order.tracking_url;
+        trackLink.target = "_blank";
+        trackLink.rel = "noopener noreferrer";
+        trackLink.className = "btn";
+        trackLink.textContent = "Track package";
+        actions.appendChild(trackLink);
+      }
+
+      row.appendChild(main);
+      row.appendChild(actions);
+
+      purchaseListEl.appendChild(row);
+    });
+  }
+
+  async function guardAndLoad(){
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session?.user){
       window.location.href = "auth.html";
       return;
     }
-    // Page-specific data loading for purchases will go here later.
+
+    // Fetch orders where the user is the buyer.
+    // Replace "buyer_orders_view" with your final view/table name.
+    try{
+      const { data, error } = await supabaseClient
+        .from("buyer_orders_view")
+        .select("*")
+        .order("created_at", { ascending:false })
+        .limit(50);
+
+      if (error){
+        console.warn("[purchases] load error", error);
+        renderPurchases([]);
+        return;
+      }
+
+      renderPurchases(data || []);
+    }catch(err){
+      console.warn("[purchases] unexpected error", err);
+      renderPurchases([]);
+    }
   }
 
-  guard();
+  guardAndLoad();
 </script>
 
 <script>
