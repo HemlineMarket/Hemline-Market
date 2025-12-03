@@ -1,13 +1,21 @@
 // File: /api/stripe/webhook.js
 // Verifies Stripe signatures, creates Transfers to connected sellers,
-// and sends the buyer an order-confirmation email via our /api/send-order-confirmation.
-// ENV: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SITE_URL (or NEXT_PUBLIC_SITE_URL),
-//      SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (only if you later add DB checks)
+// creates SOLD notifications, and sends buyer an order-confirmation email.
+//
+// ENV REQUIRED:
+// - STRIPE_SECRET_KEY
+// - STRIPE_WEBHOOK_SECRET
+// - SITE_URL or NEXT_PUBLIC_SITE_URL
+//
+// NOTE:
+// ThreadTalk reply/like notifications, favorites notifications,
+// and message notifications DO NOT belong here.
+// They are created separately in your app logic. This webhook handles ONLY payments.
 
 import Stripe from "stripe";
 import fetch from "node-fetch";
 
-// Let Stripe read the RAW body for signature verification
+// Stripe requires raw body for signature verification
 export const config = { api: { bodyParser: false } };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -23,7 +31,6 @@ function buffer(req) {
   });
 }
 
-// Helper: base site URL for calling our own API
 function siteBase() {
   return (
     process.env.SITE_URL ||
@@ -32,11 +39,11 @@ function siteBase() {
   ).replace(/\/$/, "");
 }
 
-// Helper: send order-confirmation email via our API
+// Email helper → calls your /api/send-order-confirmation endpoint
 async function sendOrderConfirmation({ to, orderId, items }) {
   if (!to) return;
   const base = siteBase();
-  if (!base) return; // no site URL configured
+  if (!base) return;
 
   try {
     const res = await fetch(`${base}/api/send-order-confirmation`, {
@@ -44,12 +51,13 @@ async function sendOrderConfirmation({ to, orderId, items }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to, orderId, items }),
     });
+
     if (!res.ok) {
       const t = await res.text();
-      console.error("[stripe webhook] send-order-confirmation failed:", res.status, t);
+      console.error("[webhook] send-order-confirmation failed:", res.status, t);
     }
   } catch (err) {
-    console.error("[stripe webhook] send-order-confirmation error:", err?.message || err);
+    console.error("[webhook] send-order-confirmation error:", err?.message || err);
   }
 }
 
@@ -59,75 +67,78 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
+  // --- VERIFY STRIPE SIGNATURE ---
   let event;
   try {
     const buf = await buffer(req);
     const signature = req.headers["stripe-signature"];
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!secret) return res.status(500).json({ error: "Missing STRIPE_WEBHOOK_SECRET" });
+
+    if (!secret) {
+      return res.status(500).json({ error: "Missing STRIPE_WEBHOOK_SECRET" });
+    }
+
     event = stripe.webhooks.constructEvent(buf, signature, secret);
   } catch (err) {
-    console.error("⚠️  Stripe signature verification failed:", err?.message || err);
+    console.error("⚠️ Stripe signature verification failed:", err?.message || err);
     return res.status(400).send(`Webhook Error: ${err?.message || "invalid signature"}`);
   }
 
-  // Immediately ACK so Stripe doesn't retry
+  // Immediately ACK — prevents Stripe retries
   res.status(200).json({ received: true });
 
-  // ---- Post-ack processing ----
+  // ---------------------- AFTER ACK ---------------------------
   try {
     switch (event.type) {
+      // ----------------------------------------------------------
+      // PAYMENT COMPLETED
+      // ----------------------------------------------------------
       case "checkout.session.completed": {
         const session = event.data.object;
 
-        // 1) Send buyer order-confirmation email
+        // 1) Email receipt to buyer
         const buyerEmail =
           session.customer_details?.email ||
           session.customer_email ||
           null;
 
-        // Pull line items (optional; improves email content)
         let items = [];
         try {
-          const li = await stripe.checkout.sessions.listLineItems(session.id, { limit: 20 });
-          items =
-            li.data?.map((x) => ({
-              name: x.description || x.price?.nickname || "Item",
-              qty: x.quantity || 1,
-            })) || [];
+          const li = await stripe.checkout.sessions.listLineItems(session.id, { limit: 40 });
+          items = li.data?.map((x) => ({
+            name: x.description || x.price?.nickname || "Item",
+            qty: x.quantity || 1,
+          })) || [];
         } catch {
           items = [];
         }
 
-        // Fire-and-forget email (logs to email_log inside that API)
         await sendOrderConfirmation({
           to: buyerEmail,
           orderId: session.id,
           items,
         });
 
-        // 2) Create Transfers to connected accounts (separate charges & transfers flow)
-        // Expect sellers_json in session.metadata: {"acct_123": 1299, "acct_456": 5400}
+        // 2) Transfer payout allocation (Sep charges + transfer flow)
         let bySeller = {};
         try {
           bySeller = JSON.parse(session.metadata?.sellers_json || "{}");
-        } catch (_) {
+        } catch {
           bySeller = {};
         }
-        const sellerIds = Object.keys(bySeller || {});
-        if (!sellerIds.length) {
-          console.log("[stripe] session.completed (no sellers_json)");
+
+        const sellerAccountIds = Object.keys(bySeller);
+        if (!sellerAccountIds.length) {
+          console.log("[stripe] session.completed but no sellers_json");
           break;
         }
 
-        // Find charge that funded the checkout
         const piId =
           typeof session.payment_intent === "string"
             ? session.payment_intent
             : session.payment_intent?.id;
-
         if (!piId) {
-          console.warn("[stripe] Missing payment_intent on session; cannot create transfers.");
+          console.warn("[stripe] Missing payment_intent; cannot create transfers.");
           break;
         }
 
@@ -136,13 +147,13 @@ export default async function handler(req, res) {
           typeof pi.latest_charge === "string" ? pi.latest_charge : pi.latest_charge?.id;
 
         if (!chargeId) {
-          console.warn("[stripe] Missing latest_charge on PI; cannot create transfers.");
+          console.warn("[stripe] Missing latest_charge; cannot transfer.");
           break;
         }
 
-        for (const acctId of sellerIds) {
-          const amount = Math.max(0, Number(bySeller[acctId] || 0)); // cents
-          if (!amount) continue;
+        // --- CREATE TRANSFERS ---
+        for (const acctId of sellerAccountIds) {
+          const amount = Math.max(0, Number(bySeller[acctId] || 0));
 
           try {
             const tr = await stripe.transfers.create({
@@ -156,17 +167,56 @@ export default async function handler(req, res) {
                 shipping_cents: session.metadata?.shipping_cents ?? "",
               },
             });
-            console.log("[stripe] transfer.created", { id: tr.id, amount, destination: acctId });
+            console.log("[stripe] transfer created:", tr.id);
           } catch (err) {
-            console.error(`[stripe] transfer error for ${acctId}:`, err?.message || err);
+            console.error("[stripe] transfer error:", acctId, err?.message || err);
           }
         }
 
-        // (Optional) update your DB order status to PAID / TRANSFERS_CREATED here.
+        // ----------------------------------------------------------
+        // 3) SOLD NOTIFICATION (one per seller)
+        // ----------------------------------------------------------
+        try {
+          for (const acctId of sellerAccountIds) {
+            // Lookup seller’s Supabase profile using your own API
+            const lookup = await fetch(`${siteBase()}/api/lookup-seller-by-stripe`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stripeAccountId: acctId }),
+            }).then((r) => r.json()).catch(() => null);
+
+            if (!lookup || !lookup.id) {
+              console.warn("[webhook] no matching profile for Stripe account", acctId);
+              continue;
+            }
+
+            const sellerUserId = lookup.id;
+
+            // Create notification
+            await fetch(`${siteBase()}/api/notify`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipient_id: sellerUserId,
+                type: "listing_sold",
+                kind: "sold",
+                title: "Your fabric has sold!",
+                body: "You received a new paid order. Prepare to ship your fabric.",
+                href: "orders.html",
+                is_read: false,
+              }),
+            });
+          }
+        } catch (err) {
+          console.error("[webhook] sold notification error:", err?.message || err);
+        }
 
         break;
       }
 
+      // ----------------------------------------------------------
+      // PAYOUTS
+      // ----------------------------------------------------------
       case "payout.paid":
       case "payout.failed":
       case "payout.created": {
@@ -175,20 +225,23 @@ export default async function handler(req, res) {
           id: p.id,
           status: p.status,
           amount: p.amount,
-          arrival_date: p.arrival_date,
+          arrival: p.arrival_date,
         });
         break;
       }
 
+      // ----------------------------------------------------------
+      // CONNECTED ACCOUNT EVENTS
+      // ----------------------------------------------------------
       case "account.updated":
       case "account.application.authorized":
       case "account.application.deauthorized": {
         const acct = event.data.object;
         console.log(`[stripe] ${event.type}`, {
-          account: acct?.id || event.account,
-          charges_enabled: acct?.charges_enabled,
-          payouts_enabled: acct?.payouts_enabled,
-          requirements_due: acct?.requirements?.currently_due || [],
+          account: acct.id || event.account,
+          charges_enabled: acct.charges_enabled,
+          payouts_enabled: acct.payouts_enabled,
+          requirements_due: acct.requirements?.currently_due || [],
         });
         break;
       }
@@ -197,6 +250,6 @@ export default async function handler(req, res) {
         console.log("[stripe] unhandled event:", event.type);
     }
   } catch (err) {
-    console.error("Stripe webhook handler error:", err);
+    console.error("Webhook handler error:", err);
   }
 }
