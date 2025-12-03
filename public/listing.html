@@ -1227,50 +1227,75 @@
         dateSpan.textContent = formatShortDate(row.created_at);
         metaRow.appendChild(dateSpan);
 
-        const replySpan = document.createElement("span");
-        replySpan.textContent = "Reply";
-        replySpan.className = "qa-link";
-        replySpan.addEventListener("click", async ()=>{
-          if(!isSeller){
-            showToast("Only the seller can reply.");
-            return;
-          }
-          if(row.answer_body){
-            showToast("This question already has a reply.");
-            return;
-          }
+const replySpan = document.createElement("span");
+replySpan.textContent = "Reply";
+replySpan.className = "qa-link";
+replySpan.addEventListener("click", async ()=>{
+  if(!isSeller){
+    showToast("Only the seller can reply.");
+    return;
+  }
+  if(row.answer_body){
+    showToast("This question already has a reply.");
+    return;
+  }
 
-          if(!currentSession || !currentSession.user){
-            window.location.href = "auth.html?view=login";
-            return;
-          }
+  if(!currentSession || !currentSession.user){
+    window.location.href = "auth.html?view=login";
+    return;
+  }
 
-          const text = window.prompt("Reply as the seller:");
-          if(!text || !text.trim()) return;
+  const text = window.prompt("Reply as the seller:");
+  if(!text || !text.trim()) return;
+  const replyText = text.trim();
 
-          try{
-            const { error } = await supabaseClient
-              .from("questions")
-              .update({
-                answer_body: text.trim(),
-                answer_author_id: currentSession.user.id,
-                answered_at: new Date().toISOString()
-              })
-              .eq("id", row.id);
+  try{
+    const { error } = await supabaseClient
+      .from("questions")
+      .update({
+        answer_body: replyText,
+        answer_author_id: currentSession.user.id,
+        answered_at: new Date().toISOString()
+      })
+      .eq("id", row.id);
 
-            if(error){
-              console.warn("Reply error", error);
-              showToast("Could not post reply");
-            }else{
-              showToast("Reply posted");
-              await loadQuestions();
-            }
-          }catch(e){
-            console.warn("Reply exception", e);
-            showToast("Could not post reply");
-          }
-        });
-        metaRow.appendChild(replySpan);
+    if(error){
+      console.warn("Reply error", error);
+      showToast("Could not post reply");
+    }else{
+      // 🔔 Notify the original commenter that the seller replied
+      const commenterId = row.author_id;
+      if(commenterId && commenterId !== currentSession.user.id){
+        const listingUrl = `listing.html?id=${encodeURIComponent(listingId)}`;
+        const preview =
+          replyText.length > 140 ? replyText.slice(0,137) + "…" : replyText;
+
+        try{
+          await supabaseClient.from("notifications").insert({
+            user_id: commenterId,
+            type: "listing_comment",
+            kind: "seller_reply",
+            title: "Seller replied to your comment",
+            body: preview,
+            href: listingUrl,
+            link: listingUrl,
+            listing_id: listingId,
+            question_id: row.id
+          });
+        }catch(notifErr){
+          console.warn("Notification insert failed (seller reply)", notifErr);
+        }
+      }
+
+      showToast("Reply posted");
+      await loadQuestions();
+    }
+  }catch(e){
+    console.warn("Reply exception", e);
+    showToast("Could not post reply");
+  }
+});
+metaRow.appendChild(replySpan);
 
         const flagSpan = document.createElement("span");
         flagSpan.textContent = "Flag";
