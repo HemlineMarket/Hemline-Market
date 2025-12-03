@@ -185,10 +185,10 @@
       }
 
       const threadIds = allThreads.map((t) => t.id);
-const authorIds = allThreads.map((t) => String(t.author_id)).filter(Boolean);
+      const authorIds = allThreads.map((t) => String(t.author_id)).filter(Boolean);
 
-// normalize
-allThreads = allThreads.map(t => ({ ...t, author_id: String(t.author_id) }));
+      // normalize
+      allThreads = allThreads.map((t) => ({ ...t, author_id: String(t.author_id) }));
 
       // Load comments (including parent_comment_id for nesting)
       const { data: commentRows, error: commentErr } = await supabase
@@ -214,7 +214,7 @@ allThreads = allThreads.map(t => ({ ...t, author_id: String(t.author_id) }));
           commentsByThread[c.thread_id].push(c);
           commentIds.push(c.id);
           if (c.author_id) authorIds.push(String(c.author_id));
-c.author_id = String(c.author_id);
+          c.author_id = String(c.author_id);
         });
 
       // Load comment reactions
@@ -432,10 +432,10 @@ c.author_id = String(c.author_id);
         ).join("") +
         "</div>";
 
-      // author link → Atelier
+      // author link → Atelier (using ?u= to match existing atelier.html)
       const authorHtml = thread.author_id
         ? `<a class="author tt-author-link"
-               href="atelier.html?user=${encodeURIComponent(
+               href="atelier.html?u=${encodeURIComponent(
                  thread.author_id
                )}">
              ${escapeHtml(authorName)}
@@ -583,10 +583,10 @@ c.author_id = String(c.author_id);
 
     const mediaHtml = renderCommentMedia(c);
 
-    // author link → Atelier for comments
+    // author link → Atelier for comments (using ?u=)
     const authorHtml = c.author_id
       ? `<a class="tt-comment-author tt-author-link"
-             href="atelier.html?user=${encodeURIComponent(
+             href="atelier.html?u=${encodeURIComponent(
                c.author_id
              )}">${escapeHtml(name)}</a>`
       : `<span class="tt-comment-author">${escapeHtml(name)}</span>`;
@@ -954,7 +954,7 @@ c.author_id = String(c.author_id);
       .forEach((el) => el.classList.remove("tt-picker-open"));
   }
 
-  function wireGlobalPickerClose() {
+    function wireGlobalPickerClose() {
     document.addEventListener("click", (e) => {
       const inside =
         e.target.closest(".tt-like-wrapper") ||
@@ -1725,7 +1725,7 @@ c.author_id = String(c.author_id);
       null;
 
     // Fallback to YouTube thumbnail if needed
-       if (!thumb && isYoutubeUrl(url)) {
+    if (!thumb && isYoutubeUrl(url)) {
       const vid = extractYoutubeId(url);
       if (vid) {
         thumb = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
