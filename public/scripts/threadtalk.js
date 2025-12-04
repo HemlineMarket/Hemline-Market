@@ -166,7 +166,7 @@
         query = query.eq("category", THREAD_CATEGORY_FILTER);
       }
 
-      query = query.order("created_at", { ascending: false }).limit(100);
+            query = query.order("created_at", { ascending: false }).limit(100);
 
       const { data: threadRows, error: threadErr } = await query;
       if (threadErr) {
@@ -734,13 +734,13 @@
     try {
       const { error } = await supabase.from("notifications").insert({
         user_id: recipientId, // recipient
-        actor_id: currentUser.id, // sender
+        actor_id: currentUser.id, // sender (existing schema)
         thread_id: threadId,
         comment_id: commentId,
         type,
         title: type,
         body: message,
-        link: `/threadtalk.html?thread=${threadId}`,
+        link: `/ThreadTalk.html?thread=${threadId}`,
         metadata: { thread_id: threadId, comment_id: commentId },
       });
 
@@ -1550,7 +1550,7 @@
 
   // ---------- Share ----------
   async function handleShareThread(threadId) {
-    // Build link from CURRENT page path, so it works on /threadtalk, /threadtalk.html, etc.
+    // Build link from CURRENT page path, so it works on /ThreadTalk, /ThreadTalk.html, etc.
     const baseUrl =
       window.location.origin + window.location.pathname.replace(/\/$/, "");
     const url = `${baseUrl}?thread=${encodeURIComponent(threadId)}`;
@@ -2066,7 +2066,7 @@
         color:#9ca3af;
       }
 
-            .tt-author-link{
+      .tt-author-link{
         color:inherit;
         text-decoration:none;
       }
