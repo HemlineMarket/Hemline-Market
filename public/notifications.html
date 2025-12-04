@@ -140,7 +140,6 @@
 </head>
 <body>
 
-<!-- UNIVERSAL HEADER -->
 <div id="hm-shell-header"></div>
 
 <main class="wrap" id="maincontent">
@@ -154,15 +153,12 @@
   </section>
 </main>
 
-<!-- UNIVERSAL FOOTER -->
 <div id="hm-shell-footer"></div>
 
-<!-- JS STACK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-  // Same project as messages
   const supabaseClient = window.supabase.createClient(
     "https://clkizksbvxjkoatdajgd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
@@ -222,13 +218,12 @@
 
     const { data, error } = await supabaseClient
       .from("notifications")
-      .select("id, type, kind, title, body, href, link, created_at, is_read")
+      .select("id, type, kind, title, body, href, link, created_at, read_at")
       .eq("user_id", userId)
       .order("created_at", { ascending:false })
       .limit(50);
 
     if(error){
-      console.error("Error loading notifications", error);
       notifEmptyEl.textContent = "We couldn’t load notifications. Please refresh.";
       return;
     }
@@ -253,7 +248,7 @@
 
       const title = document.createElement("div");
       title.className = "notif-title";
-      const isUnread = n.is_read !== true;
+      const isUnread = !n.read_at;
       if(isUnread){
         title.classList.add("unread");
         unreadIds.push(n.id);
@@ -298,16 +293,12 @@
       notifListEl.appendChild(li);
     });
 
-    // Mark unread as read
     if(unreadIds.length){
       const nowIso = new Date().toISOString();
       supabaseClient
         .from("notifications")
-        .update({ is_read:true, read_at:nowIso, seen_at:nowIso })
-        .in("id", unreadIds)
-        .then(({ error }) => {
-          if(error) console.warn("Error marking notifications read", error);
-        });
+        .update({ read_at:nowIso })
+        .in("id", unreadIds);
     }
   }
 
