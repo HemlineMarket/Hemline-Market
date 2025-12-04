@@ -69,6 +69,17 @@
       margin-bottom:10px;
     }
 
+    .order-items{
+      font-size:13px;
+      margin-bottom:10px;
+    }
+
+    .order-total{
+      font-size:14px;
+      font-weight:600;
+      margin-bottom:8px;
+    }
+
     a.btn{
       display:inline-block;
       padding:6px 12px;
@@ -108,7 +119,8 @@
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    const supabase = window.HM.supabase;
+    const HM = window.HM || {};
+    const supabase = HM.supabase;
 
     async function loadPurchases(){
       const { data:{ session } } = await supabase.auth.getSession();
@@ -117,62 +129,77 @@
         return;
       }
 
-      const uid = session.user.id;
+      const user = session.user;
+      const email = user.email;
 
       const { data, error } = await supabase
-        .from("orders")
+        .from("db_orders")
         .select("*")
-        .eq("buyer_id", uid)
+        .eq("buyer_email", email)
         .order("created_at", { ascending:false });
 
-      const list = document.getElementById("ordersList");
+      const list  = document.getElementById("ordersList");
       const empty = document.getElementById("emptyState");
 
       if(error || !data || data.length === 0){
         empty.style.display = "block";
+        list.innerHTML = "";
         return;
       }
 
       empty.style.display = "none";
       list.innerHTML = "";
 
-      data.forEach(o=>{
+      data.forEach(o => {
         const div = document.createElement("div");
         div.className = "order-card";
 
-        const dateStr = o.created_at
-          ? new Date(o.created_at).toLocaleDateString()
+        const created = o.created_at ? new Date(o.created_at) : null;
+        const dateStr = created
+          ? created.toLocaleDateString(undefined,{
+              year:"numeric",
+              month:"short",
+              day:"numeric"
+            })
           : "";
+
+        // items is a JSON array from db_orders
+        const items = Array.isArray(o.items) ? o.items : [];
+        const itemLines = items.map(it => {
+          const qty = it.qty || 1;
+          const name = it.name || "Item";
+          return `${qty} × ${name}`;
+        });
+
+        const totalDollars = (Number(o.total_cents || 0) / 100).toFixed(2);
 
         div.innerHTML = `
           <div class="order-top">
-            <span>Order</span>
+            <span>Order ${o.stripe_session_id || ""}</span>
             <span>${dateStr}</span>
           </div>
 
-          <div class="order-meta">
-            Listing ID: ${o.listing_id || "—"}<br>
-            Seller email: ${o.seller_email || "—"}<br>
-            Stripe Payment: ${o.stripe_payment_intent || "—"}
+          <div class="order-total">
+            Total: $${totalDollars}
           </div>
 
-          <a class="btn"
-             href="order.html?id=${encodeURIComponent(o.id)}">
-            View order
-          </a>
+          <div class="order-items">
+            ${itemLines.length ? itemLines.join("<br>") : "No line items recorded."}
+          </div>
 
-          <a class="btn"
-             href="messages.html?user=${encodeURIComponent(o.seller_id)}&order=${encodeURIComponent(o.id)}">
-            Message seller
-          </a>
+          <div class="order-meta">
+            Status: ${o.status || "PAID"}
+          </div>
         `;
 
         list.appendChild(div);
       });
     }
 
-    loadPurchases();
-    window.HM.renderShell({ currentPage:"purchases" });
+    window.addEventListener("DOMContentLoaded", () => {
+      loadPurchases();
+      window.HM.renderShell({ currentPage:"purchases" });
+    });
   </script>
 </body>
 </html>
