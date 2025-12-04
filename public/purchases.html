@@ -66,12 +66,16 @@
       font-size:13px;
       color:var(--hm-muted);
       line-height:1.4;
-      margin-bottom:10px;
+      margin-bottom:8px;
     }
 
     .order-items{
       font-size:13px;
       margin-bottom:10px;
+    }
+
+    .order-items div{
+      margin-bottom:2px;
     }
 
     .order-items span.name{
@@ -124,29 +128,67 @@
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    const supabase = window.HM.supabase;
+    const HM = window.HM || {};
+    const supabase = HM.supabase;
+
+    if (!supabase) {
+      console.error("Supabase client not found on window.HM.supabase");
+    }
+
+    async function ensureSession(maxWaitMs = 3000){
+      let { data:{ session } } = await supabase.auth.getSession();
+      if (session?.user) return session;
+
+      const start = Date.now();
+      while (!session?.user && Date.now() - start < maxWaitMs){
+        await new Promise(r => setTimeout(r, 120));
+        ({ data:{ session } } = await supabase.auth.getSession());
+      }
+      return session || null;
+    }
+
+    function formatMoney(cents){
+      const n = Number(cents || 0)/100;
+      return n.toLocaleString(undefined,{ style:"currency", currency:"USD" });
+    }
+
+    function formatDate(iso){
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      return d.toLocaleDateString(undefined,{
+        month:"short",
+        day:"numeric",
+        year:"numeric"
+      });
+    }
 
     async function loadPurchases(){
-      const { data:{ session } } = await supabase.auth.getSession();
-      if(!session || !session.user){
+      const list  = document.getElementById("ordersList");
+      const empty = document.getElementById("emptyState");
+
+      const session = await ensureSession();
+      if (!session || !session.user){
         window.location.href = "auth.html?view=login";
         return;
       }
 
-      const user  = session.user;
-      const email = (user.email || "").toLowerCase();
+      const email = session.user.email || "";
 
-      // Purchases live in db_orders, matched by buyer_email
       const { data, error } = await supabase
         .from("db_orders")
-        .select("id, stripe_session_id, buyer_email, total_cents, shipping_cents, items, status, created_at")
+        .select("id,stripe_session_id,buyer_email,total_cents,shipping_cents,status,created_at,items")
         .eq("buyer_email", email)
-        .order("created_at", { ascending:false });
+        .order("created_at",{ ascending:false });
 
-      const list  = document.getElementById("ordersList");
-      const empty = document.getElementById("emptyState");
+      if (error){
+        console.error("loadPurchases error:", error);
+        empty.style.display = "block";
+        empty.textContent = "We couldn’t load your purchases. Please refresh.";
+        return;
+      }
 
-      if(error || !data || data.length === 0){
+      if (!data || !data.length){
         empty.style.display = "block";
         list.innerHTML = "";
         return;
@@ -155,52 +197,90 @@
       empty.style.display = "none";
       list.innerHTML = "";
 
+      const now = Date.now();
+
       data.forEach(o => {
-        const div = document.createElement("div");
-        div.className = "order-card";
+        const card = document.createElement("div");
+        card.className = "order-card";
 
-        const dateStr = o.created_at
-          ? new Date(o.created_at).toLocaleDateString()
-          : "";
+        const createdMs = o.created_at ? new Date(o.created_at).getTime() : null;
+        const minutesSince =
+          createdMs && Number.isFinite(createdMs)
+            ? (now - createdMs) / 60000
+            : null;
 
-        const statusLabel = (o.status || "PAID").toUpperCase();
+        const withinCancel = minutesSince !== null && minutesSince < 30;
+        const status = o.status || "PAID";
 
-        const itemsHtml = Array.isArray(o.items)
-          ? o.items.map(it =>
-              `<div><span class="name">${it.name}</span> — qty ${it.qty}</div>`
-            ).join("")
-          : "";
+        const items = Array.isArray(o.items) ? o.items : [];
+        const first = items[0] || {};
+        const listingId = first.listing_id || null;
+        const sellerUserId = first.seller_user_id || null;
 
-        const totalDollars    = ((o.total_cents    || 0) / 100).toFixed(2);
-        const shippingDollars = ((o.shipping_cents || 0) / 100).toFixed(2);
+        const itemsHtml = items.length
+          ? items
+              .map(it => {
+                const name = it.name || "Item";
+                const qty  = Number(it.qty || 1);
+                const amt  = Number(it.amount_cents || 0);
+                return `<div><span class="name">${name}</span> × ${qty} · ${formatMoney(amt)}</div>`;
+              })
+              .join("")
+          : `<div><span class="name">Order</span></div>`;
 
-        div.innerHTML = `
+        card.innerHTML = `
           <div class="order-top">
-            <span>Purchase ${o.stripe_session_id || ""}</span>
-            <span>${dateStr}</span>
+            <span>Order #${o.id.slice(0,8)}</span>
+            <span>${formatDate(o.created_at)}</span>
           </div>
 
           <div class="order-status">
-            Status: ${statusLabel}
-          </div>
-
-          <div class="order-items">
-            ${itemsHtml || "<div>No item details available.</div>"}
+            Status: ${status}${withinCancel && status === "PAID"
+              ? " · You can cancel within 30 minutes of purchase."
+              : ""}
           </div>
 
           <div class="order-meta">
-            Total: $${totalDollars}<br>
-            Shipping: $${shippingDollars}
+            Total: ${formatMoney(o.total_cents)}<br>
+            Shipping: ${formatMoney(o.shipping_cents)}
           </div>
+
+          <div class="order-items">
+            ${itemsHtml}
+          </div>
+
+          <div class="order-actions"></div>
         `;
 
-        list.appendChild(div);
+        const actionsDiv = card.querySelector(".order-actions");
+
+        if (listingId){
+          const viewListing = document.createElement("a");
+          viewListing.className = "btn";
+          viewListing.href = `listing.html?id=${encodeURIComponent(listingId)}`;
+          viewListing.textContent = "View listing";
+          actionsDiv.appendChild(viewListing);
+        }
+
+        if (sellerUserId){
+          const msgBtn = document.createElement("a");
+          msgBtn.className = "btn";
+          msgBtn.href =
+            `messages.html?user=${encodeURIComponent(sellerUserId)}` +
+            `&order=${encodeURIComponent(o.id)}`;
+          msgBtn.textContent = "Message seller";
+          actionsDiv.appendChild(msgBtn);
+        }
+
+        list.appendChild(card);
       });
     }
 
     window.addEventListener("DOMContentLoaded", () => {
       loadPurchases();
-      window.HM.renderShell({ currentPage:"purchases" });
+      if (window.HM && window.HM.renderShell){
+        window.HM.renderShell({ currentPage:"purchases" });
+      }
     });
   </script>
 </body>
