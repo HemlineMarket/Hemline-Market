@@ -1,10 +1,5 @@
 // File: public/scripts/listing-comments.js
 // Creates a notification for the seller when someone comments on their listing.
-// Expects the comment form to contain:
-//   <form id="listingCommentForm" data-listing-id="..." data-seller-id="...">
-//      <textarea id="commentText"></textarea>
-//      <button id="commentSubmitBtn">Send</button>
-//   </form>
 
 (function () {
   const HM = window.HM || {};
@@ -49,7 +44,6 @@
 
     btn.disabled = true;
 
-    // Insert comment → your real comments table if exists
     try {
       await supabase.from("listing_comments").insert({
         listing_id: listingId,
@@ -57,32 +51,27 @@
         body
       });
     } catch (err) {
-      console.warn("[listing-comments] Error inserting comment:", err);
       btn.disabled = false;
       return;
     }
 
-    // Insert notification (only if not self-comment)
     if (user.id !== sellerId) {
       try {
         await supabase.from("notifications").insert({
           user_id: sellerId,
           actor_id: user.id,
           type: "listing_comment",
-          kind: "listing_comment",
           title: "New comment on your listing",
           body,
+          listing_id: listingId,
           href: `listing.html?id=${listingId}`,
           link: `listing.html?id=${listingId}`,
-          listing_id: listingId,
+          read_at: null,
           metadata: { listing_id: listingId }
         });
-      } catch (err) {
-        console.warn("[listing-comments] Notification error:", err);
-      }
+      } catch (err) {}
     }
 
-    // Clear input
     textEl.value = "";
     btn.disabled = false;
   }
