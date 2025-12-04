@@ -2,8 +2,7 @@
 window.HM = window.HM || {};
 
 (function () {
-  const SUPABASE_URL =
-    "https://clkizksbvxjkoatdajgd.supabase.co";
+  const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
@@ -238,34 +237,46 @@ window.HM = window.HM || {};
   }
 
   function wireSupabaseSession() {
-    if (!window.supabase) return;
-
-    shellSupabase = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY,
-      {
+    // Prefer a shared client if one already exists (e.g., from scripts/supabase-client.js)
+    if (window.HM && window.HM.supabase) {
+      shellSupabase = window.HM.supabase;
+    } else if (window.supabase) {
+      shellSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: true,
         },
-      }
-    );
-
-    window.HM.supabase = shellSupabase;
+      });
+      window.HM.supabase = shellSupabase;
+    } else {
+      return;
+    }
 
     const accountLink = document.getElementById("headerAccountLink");
-    if (!accountLink) return;
+    const accountBadge = document.getElementById("headerAccountBadge");
 
     function applyAccount(session) {
       if (session && session.user) {
         accountLink.href = "account.html";
         accountLink.classList.add("is-logged-in");
         accountLink.classList.remove("is-logged-out");
+
+        // Show a small dot when logged in
+        if (accountBadge) {
+          accountBadge.style.display = "inline-block";
+          accountBadge.style.width = "8px";
+          accountBadge.style.height = "8px";
+          accountBadge.style.borderRadius = "999px";
+          accountBadge.style.backgroundColor = "#15803d";
+        }
       } else {
         accountLink.href = "auth.html?view=login";
         accountLink.classList.remove("is-logged-in");
         accountLink.classList.add("is-logged-out");
+        if (accountBadge) {
+          accountBadge.style.display = "none";
+        }
       }
     }
 
@@ -273,6 +284,7 @@ window.HM = window.HM || {};
       applyAccount(session);
       refreshNotificationsBell(session);
     }
+
     shellSupabase.auth.getSession().then(({ data }) => {
       handleSession(data.session);
     });
