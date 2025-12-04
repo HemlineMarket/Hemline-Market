@@ -66,6 +66,7 @@
           listing_id: listingId,
           href: `listing.html?id=${listingId}`,
           link: `listing.html?id=${listingId}`,
+          is_read: false,
           read_at: null,
           metadata: { listing_id: listingId }
         });
