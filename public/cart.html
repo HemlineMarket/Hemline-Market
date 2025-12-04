@@ -267,12 +267,6 @@
       }
     };
 
-    // Each listing is a single cut: no qty multiplier
-    const lineAmount = it => Number(it.price_total || it.amount || 0);
-
-    // shipping tiers in cents based on total yards per seller
-    const tierCents = yards => (yards < 3 ? 500 : (yards <= 10 ? 800 : 1500));
-
     // yards per item = stored yards, falling back to 1 if missing
     function itemYardsTotal(it){
       if(it.yards !== undefined && it.yards !== null && it.yards !== ''){
@@ -281,6 +275,20 @@
       }
       return 1;
     }
+
+    // Prefer explicit total; otherwise treat amount as per-yard price and multiply by yards
+    const lineAmount = it => {
+      const explicit = Number(it.price_total || 0);
+      if (explicit > 0) return explicit;
+
+      const base  = Number(it.amount || 0);
+      const yards = itemYardsTotal(it);
+      if (yards > 0) return base * yards;
+      return base;
+    };
+
+    // shipping tiers in cents based on total yards per seller
+    const tierCents = yards => (yards < 3 ? 500 : (yards <= 10 ? 800 : 1500));
 
     function calcShipping(cart){
       const groups = {}; // sellerId -> { name, yards }
