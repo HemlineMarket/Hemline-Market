@@ -81,18 +81,7 @@
       align-items:flex-start;
     }
     .profile-avatar{
-      width:64px;
-      height:64px;
-      border-radius:999px;
-      border:1px solid var(--hm-border);
-      display:grid;
-      place-items:center;
-      font-weight:800;
-      font-size:16px;
-      color:#111827;
-      background:#fff;
-      background-size:cover;
-      background-position:center;
+      display:none; /* hide avatar on account page */
     }
     .profile-main{
       flex:1;
@@ -520,19 +509,13 @@
   <!-- Universal footer placeholder -->
   <div id="hm-shell-footer"></div>
 
-  <!-- Supabase (for header + account logic) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Shell + account logic -->
+  <script type="module">
+    import { supabase as supabaseClient } from "./scripts/supabase-client.js";
+    import "./scripts/hm-shell.js";
 
-  <!-- Universal shell JS -->
-  <script src="scripts/hm-shell.js"></script>
-
-  <!-- Account page logic -->
-  <script>
-    const supabaseClient = window.supabase.createClient(
-      "https://clkizksbvxjkoatdajgd.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
-      { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
-    );
+    // Render universal header/footer shell with current page highlighted
+    window.HM && window.HM.renderShell({ currentPage: "account" });
 
     function initialsFromEmail(email){
       if(!email) return "HM";
@@ -620,7 +603,6 @@
     (async function initAccount(){
       const session = await ensureSession();
       if(!session || !session.user){
-        // Not logged in: go to login view
         window.location.href = "auth.html?view=login";
         return;
       }
@@ -641,7 +623,7 @@
       const profileAvatarEl      = document.getElementById('profileAvatar');
       const profileEditor        = document.getElementById('profileEditor');
       const profileForm          = document.getElementById('profileForm');
-            const storeNameInput       = document.getElementById('storeName');
+      const storeNameInput       = document.getElementById('storeName');
       const storeSlugPreviewEl   = document.getElementById('storeSlugPreview');
       const storeNameErrorEl     = document.getElementById('storeNameError');
 
@@ -682,7 +664,7 @@
       if(profile.bio)       profileLines.push(profile.bio);
       profileExtraEl.textContent = profileLines.join("\n");
 
-      // Avatar initials based on profile/email
+      // Avatar initials (still computed, even though avatar is hidden via CSS)
       const avatarInitials = initialsFromProfile(profile.firstName, profile.lastName, email);
       profileAvatarEl.style.backgroundImage = "";
       profileAvatarEl.textContent = avatarInitials;
@@ -823,7 +805,7 @@
         if(next.bio)       newLines.push(next.bio);
         profileExtraEl.textContent = newLines.join("\n");
 
-        // Refresh initials in avatar
+        // Refresh initials in avatar (still hidden visually)
         const initials = initialsFromProfile(next.firstName, next.lastName, email);
         profileAvatarEl.style.backgroundImage = "";
         profileAvatarEl.textContent = initials;
@@ -945,11 +927,6 @@
         );
       });
     })();
-  </script>
-
-  <!-- Render universal header/footer shell with current page highlighted -->
-  <script>
-    window.HM && window.HM.renderShell({ currentPage: "account" });
   </script>
 </body>
 </html>
