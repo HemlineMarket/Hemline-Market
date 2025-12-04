@@ -74,10 +74,15 @@
       margin-bottom:10px;
     }
 
-    .order-total{
-      font-size:14px;
+    .order-items span.name{
       font-weight:600;
-      margin-bottom:8px;
+    }
+
+    .order-status{
+      font-size:12px;
+      font-weight:600;
+      color:var(--hm-accent);
+      margin-bottom:6px;
     }
 
     a.btn{
@@ -115,91 +120,84 @@
 
   <div id="hm-shell-footer"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="scripts/hm-shell.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js
+  "></script>
+<script src="scripts/hm-shell.js"></script>
 
-  <script>
-    const HM = window.HM || {};
-    const supabase = HM.supabase;
+<script>
+  const supabase = window.HM.supabase;
 
-    async function loadPurchases(){
-      const { data:{ session } } = await supabase.auth.getSession();
-      if(!session || !session.user){
-        window.location.href = "auth.html?view=login";
-        return;
-      }
-
-      const user = session.user;
-      const email = user.email;
-
-      const { data, error } = await supabase
-        .from("db_orders")
-        .select("*")
-        .eq("buyer_email", email)
-        .order("created_at", { ascending:false });
-
-      const list  = document.getElementById("ordersList");
-      const empty = document.getElementById("emptyState");
-
-      if(error || !data || data.length === 0){
-        empty.style.display = "block";
-        list.innerHTML = "";
-        return;
-      }
-
-      empty.style.display = "none";
-      list.innerHTML = "";
-
-      data.forEach(o => {
-        const div = document.createElement("div");
-        div.className = "order-card";
-
-        const created = o.created_at ? new Date(o.created_at) : null;
-        const dateStr = created
-          ? created.toLocaleDateString(undefined,{
-              year:"numeric",
-              month:"short",
-              day:"numeric"
-            })
-          : "";
-
-        // items is a JSON array from db_orders
-        const items = Array.isArray(o.items) ? o.items : [];
-        const itemLines = items.map(it => {
-          const qty = it.qty || 1;
-          const name = it.name || "Item";
-          return `${qty} × ${name}`;
-        });
-
-        const totalDollars = (Number(o.total_cents || 0) / 100).toFixed(2);
-
-        div.innerHTML = `
-          <div class="order-top">
-            <span>Order ${o.stripe_session_id || ""}</span>
-            <span>${dateStr}</span>
-          </div>
-
-          <div class="order-total">
-            Total: $${totalDollars}
-          </div>
-
-          <div class="order-items">
-            ${itemLines.length ? itemLines.join("<br>") : "No line items recorded."}
-          </div>
-
-          <div class="order-meta">
-            Status: ${o.status || "PAID"}
-          </div>
-        `;
-
-        list.appendChild(div);
-      });
+  async function loadPurchases(){
+    // Ensure logged in
+    const { data:{ session } } = await supabase.auth.getSession();
+    if(!session || !session.user){
+      window.location.href = "auth.html?view=login";
+      return;
     }
 
-    window.addEventListener("DOMContentLoaded", () => {
-      loadPurchases();
-      window.HM.renderShell({ currentPage:"purchases" });
+    const uid = session.user.id;
+
+    // Pull from db_orders instead of orders
+    const { data, error } = await supabase
+      .from("db_orders")
+      .select("*")
+      .order("created_at", { ascending:false });
+
+    const list = document.getElementById("ordersList");
+    const empty = document.getElementById("emptyState");
+
+    if(error || !data || data.length === 0){
+      empty.style.display = "block";
+      return;
+    }
+
+    empty.style.display = "none";
+    list.innerHTML = "";
+
+    data.forEach(o=>{
+      const dateStr = o.created_at
+        ? new Date(o.created_at).toLocaleDateString()
+        : "";
+
+      // Build items list
+      const itemsHtml = Array.isArray(o.items)
+        ? o.items.map(it =>
+            `<div><span class="name">${it.name}</span> — qty ${it.qty}</div>`
+          ).join("")
+        : "";
+
+      const div = document.createElement("div");
+      div.className = "order-card";
+
+      div.innerHTML = `
+        <div class="order-top">
+          <span>Order ${o.stripe_session_id || ""}</span>
+          <span>${dateStr}</span>
+        </div>
+
+        <div class="order-status">PAID</div>
+
+        <div class="order-items">
+          ${itemsHtml}
+        </div>
+
+        <div class="order-meta">
+          Total: $${((o.total_cents || 0)/100).toFixed(2)}
+        </div>
+
+        <a class="btn"
+           href="order.html?id=${encodeURIComponent(o.stripe_session_id)}">
+          View order
+        </a>
+      `;
+
+      list.appendChild(div);
     });
-  </script>
+  }
+
+  loadPurchases();
+  window.HM.renderShell({ currentPage:"purchases" });
+</script>
+
 </body>
 </html>
