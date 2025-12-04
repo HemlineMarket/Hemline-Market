@@ -54,6 +54,7 @@
       listing_id: order.listing_id,
       href: `purchases.html`,
       link: `purchases.html`,
+      is_read: false,
       read_at: null,
       metadata: {
         listing_id: order.listing_id,
