@@ -166,7 +166,7 @@
         query = query.eq("category", THREAD_CATEGORY_FILTER);
       }
 
-            query = query.order("created_at", { ascending: false }).limit(100);
+      query = query.order("created_at", { ascending: false }).limit(100);
 
       const { data: threadRows, error: threadErr } = await query;
       if (threadErr) {
@@ -732,16 +732,19 @@
     if (!currentUser || !recipientId || recipientId === currentUser.id) return;
 
     try {
+      const href = `/ThreadTalk.html?thread=${threadId}`;
+
       const { error } = await supabase.from("notifications").insert({
-        user_id: recipientId, // recipient
-        actor_id: currentUser.id, // sender (existing schema)
+        user_id: recipientId,          // recipient
+        actor_id: currentUser.id,      // actor / sender
+        type,                          // "thread_reaction", "comment_reply", etc.
+        kind: "threadtalk",            // used by notifications.html as pill label
+        title: message,                // main line in notifications list
+        body: message,                 // secondary line (same text for now)
+        href,                          // notifications.html prefers href / link
+        link: href,
         thread_id: threadId,
         comment_id: commentId,
-        type,
-        title: type,
-        body: message,
-        link: `/ThreadTalk.html?thread=${threadId}`,
-        metadata: { thread_id: threadId, comment_id: commentId },
       });
 
       if (error) {
