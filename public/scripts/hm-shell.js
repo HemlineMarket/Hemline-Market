@@ -7,12 +7,8 @@ window.HM = window.HM || {};
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
-  // shared Supabase client for header + others
   let shellSupabase = null;
 
-  /* --------------------------------------------------------------------------
-     HEADER HTML
-  -------------------------------------------------------------------------- */
   function headerHTML() {
     return `
 <header class="hm-header" role="banner">
@@ -49,7 +45,7 @@ window.HM = window.HM || {};
 
       <a class="hm-icon" href="cart.html" aria-label="Cart" data-hm-cart-link>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="9"  cy="21" r="1"></circle>
+          <circle cx="9" cy="21" r="1"></circle>
           <circle cx="18" cy="21" r="1"></circle>
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
@@ -106,9 +102,6 @@ window.HM = window.HM || {};
 `;
   }
 
-  /* --------------------------------------------------------------------------
-     FOOTER HTML
-  -------------------------------------------------------------------------- */
   function footerHTML(currentPage) {
     function active(p) {
       return currentPage === p ? ' aria-current="page"' : "";
@@ -129,9 +122,6 @@ window.HM = window.HM || {};
 </footer>`;
   }
 
-  /* --------------------------------------------------------------------------
-     MENU INTERACTION
-  -------------------------------------------------------------------------- */
   function wireMenu() {
     const sheet = document.getElementById("menuSheet");
     const openBtn = document.getElementById("openMenu");
@@ -176,10 +166,6 @@ window.HM = window.HM || {};
     });
   }
 
-  /* --------------------------------------------------------------------------
-     NOTIFICATIONS BELL
-  -------------------------------------------------------------------------- */
-
   function getNotificationsElements() {
     const link =
       document.querySelector(".hm-notifications-icon") ||
@@ -193,7 +179,6 @@ window.HM = window.HM || {};
       link.appendChild(dot);
     }
 
-    // basic styling for the dot if CSS doesn't already cover it
     if (!dot.style.width) {
       dot.style.position = "absolute";
       dot.style.top = "4px";
@@ -218,7 +203,6 @@ window.HM = window.HM || {};
     const { link, dot } = getNotificationsElements();
     if (!link || !dot) return;
 
-    // logged out: hide the dot
     if (!session || !session.user || !shellSupabase) {
       dot.style.display = "none";
       link.setAttribute("aria-label", "Notifications");
@@ -228,17 +212,14 @@ window.HM = window.HM || {};
     try {
       const uid = session.user.id;
 
-      // IMPORTANT: only look for UNREAD notifications (is_read = false)
       const { data, error } = await shellSupabase
         .from("notifications")
         .select("id")
-        .eq("recipient_id", uid)
-        .eq("is_read", false)
-        .order("created_at", { ascending: false })
+        .eq("user_id", uid)
+        .is("read_at", null)
         .limit(1);
 
       if (error) {
-        console.warn("[HM] Notifications fetch error", error);
         dot.style.display = "none";
         link.setAttribute("aria-label", "Notifications");
         return;
@@ -253,14 +234,9 @@ window.HM = window.HM || {};
         dot.style.display = "none";
         link.setAttribute("aria-label", "Notifications");
       }
-    } catch (err) {
-      console.warn("[HM] Notifications bell error", err);
-    }
+    } catch (_) {}
   }
 
-  /* --------------------------------------------------------------------------
-     SUPABASE SESSION
-  -------------------------------------------------------------------------- */
   function wireSupabaseSession() {
     if (!window.supabase) return;
 
@@ -276,7 +252,6 @@ window.HM = window.HM || {};
       }
     );
 
-    // expose client so account page and others can reuse it
     window.HM.supabase = shellSupabase;
 
     const accountLink = document.getElementById("headerAccountLink");
@@ -298,7 +273,6 @@ window.HM = window.HM || {};
       applyAccount(session);
       refreshNotificationsBell(session);
     }
-
     shellSupabase.auth.getSession().then(({ data }) => {
       handleSession(data.session);
     });
@@ -308,15 +282,14 @@ window.HM = window.HM || {};
     });
   }
 
-  /* --------------------------------------------------------------------------
-     CART STATE (dot indicator, no number)
-  -------------------------------------------------------------------------- */
+  // ------------------------------------------------------------
+  // CART STATE
+  // ------------------------------------------------------------
   function updateCartState(cart) {
     try {
       const list = Array.isArray(cart) ? cart : [];
       const hasItems = list.length > 0;
 
-      // Body-level state so CSS can style if you want
       if (document.body) {
         document.body.setAttribute(
           "data-cart",
@@ -329,7 +302,6 @@ window.HM = window.HM || {};
         document.querySelector('a[href$="cart.html"]');
       if (!cartLink) return;
 
-      // remove any old numeric badge if it exists
       const oldBadge = cartLink.querySelector(".hm-cart-badge");
       if (oldBadge && oldBadge.parentNode) {
         oldBadge.parentNode.removeChild(oldBadge);
@@ -350,7 +322,6 @@ window.HM = window.HM || {};
           "box-shadow:0 0 0 2px #fef2f2",
           "display:none"
         ].join(";");
-        // Ensure the cartLink is positioned so the dot can anchor to it
         const style = window.getComputedStyle(cartLink);
         if (style.position === "static") {
           cartLink.style.position = "relative";
@@ -367,12 +338,9 @@ window.HM = window.HM || {};
         cartLink.classList.remove("has-items");
         cartLink.setAttribute("aria-label", "Cart (empty)");
       }
-    } catch (_) {
-      // fail silently
-    }
+    } catch (_) {}
   }
 
-  // Expose global hook used by add-to-cart.js and cart.html
   window.HM_CART_BADGE_UPDATE = function (cart) {
     updateCartState(cart || []);
   };
@@ -384,14 +352,12 @@ window.HM = window.HM || {};
       if (window.HM_CART_BADGE_UPDATE) {
         window.HM_CART_BADGE_UPDATE(arr);
       }
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) {}
   }
 
-  /* --------------------------------------------------------------------------
-     PUBLIC API
-  -------------------------------------------------------------------------- */
+  // ------------------------------------------------------------
+  // PUBLIC API
+  // ------------------------------------------------------------
   window.HM.renderShell = function renderShell(opts) {
     const current = opts?.currentPage || "";
 
