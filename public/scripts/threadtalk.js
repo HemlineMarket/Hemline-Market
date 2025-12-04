@@ -954,7 +954,7 @@
       .forEach((el) => el.classList.remove("tt-picker-open"));
   }
 
-    function wireGlobalPickerClose() {
+  function wireGlobalPickerClose() {
     document.addEventListener("click", (e) => {
       const inside =
         e.target.closest(".tt-like-wrapper") ||
@@ -1351,6 +1351,7 @@
           const list = commentsByThread[threadId] || [];
           const parent = list.find((c) => c.id === parentCommentId);
 
+          // Notify parent comment author
           if (
             parent &&
             parent.author_id &&
@@ -1364,10 +1365,26 @@
               message: `${actorName} replied to your comment on "${title}"`,
             });
           }
+
+          // ALSO notify thread author (if different from actor and parent)
+          if (
+            thread.author_id &&
+            thread.author_id !== currentUser.id &&
+            (!parent || thread.author_id !== parent.author_id)
+          ) {
+            await createThreadNotification({
+              recipientId: thread.author_id,
+              threadId,
+              commentId: parentCommentId,
+              type: "thread_comment",
+              message: `${actorName} replied to a comment on your thread "${title}"`,
+            });
+          }
         } else if (
           thread.author_id &&
           thread.author_id !== currentUser.id
         ) {
+          // Top-level comment → only thread author
           await createThreadNotification({
             recipientId: thread.author_id,
             threadId,
@@ -1945,7 +1962,7 @@
         opacity:0;
         pointer-events:none;
         transform:translateY(4px);
-        transition:opacity .12s ease,transform .12s ease;
+        transition:opacity .12s.ease,transform .12s ease;
       }
       .tt-like-wrapper.tt-picker-open .tt-react-picker{
         opacity:1;
@@ -2049,7 +2066,7 @@
         color:#9ca3af;
       }
 
-      .tt-author-link{
+            .tt-author-link{
         color:inherit;
         text-decoration:none;
       }
