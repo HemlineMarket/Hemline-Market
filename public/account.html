@@ -80,8 +80,9 @@
       gap:16px;
       align-items:flex-start;
     }
+    /* Hide avatar on account page */
     .profile-avatar{
-      display:none; /* hide avatar on account page */
+      display:none;
     }
     .profile-main{
       flex:1;
@@ -509,13 +510,19 @@
   <!-- Universal footer placeholder -->
   <div id="hm-shell-footer"></div>
 
-  <!-- Shell + account logic -->
-  <script type="module">
-    import { supabase as supabaseClient } from "./scripts/supabase-client.js";
-    import "./scripts/hm-shell.js";
+  <!-- Supabase (for header + account logic) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    // Render universal header/footer shell with current page highlighted
-    window.HM && window.HM.renderShell({ currentPage: "account" });
+  <!-- Universal shell JS -->
+  <script src="scripts/hm-shell.js"></script>
+
+  <!-- Account page logic -->
+  <script>
+    const supabaseClient = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+      { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+    );
 
     function initialsFromEmail(email){
       if(!email) return "HM";
@@ -603,6 +610,7 @@
     (async function initAccount(){
       const session = await ensureSession();
       if(!session || !session.user){
+        // Not logged in: go to login view
         window.location.href = "auth.html?view=login";
         return;
       }
@@ -664,7 +672,7 @@
       if(profile.bio)       profileLines.push(profile.bio);
       profileExtraEl.textContent = profileLines.join("\n");
 
-      // Avatar initials (still computed, even though avatar is hidden via CSS)
+      // Avatar initials based on profile/email (still computed even if hidden)
       const avatarInitials = initialsFromProfile(profile.firstName, profile.lastName, email);
       profileAvatarEl.style.backgroundImage = "";
       profileAvatarEl.textContent = avatarInitials;
@@ -927,6 +935,11 @@
         );
       });
     })();
+  </script>
+
+  <!-- Render universal header/footer shell with current page highlighted -->
+  <script>
+    window.HM && window.HM.renderShell({ currentPage: "account" });
   </script>
 </body>
 </html>
