@@ -10,17 +10,28 @@ import Stripe from "stripe";
 import fetch from "node-fetch";
 import supabaseAdmin from "../_supabaseAdmin";
 
-// Let Stripe read the RAW body for signature verification
+// Let Stripe read the RAW body for signature verification (Next.js-style config)
 export const config = { api: { bodyParser: false } };
 
-const stripeSecret = process.env.STRIPE_SECRET_KEY;
-if (!stripeSecret) {
-  throw new Error("STRIPE_SECRET_KEY is not set");
+// ---- Stripe client (safe init so module load never throws) ----
+const stripeSecret = process.env.STRIPE_SECRET_KEY || "";
+let stripe = null;
+
+try {
+  if (!stripeSecret) {
+    console.error(
+      "[stripe webhook] STRIPE_SECRET_KEY is not set in environment variables"
+    );
+  } else {
+    stripe = new Stripe(stripeSecret, {
+      apiVersion: "2023-10-16",
+    });
+  }
+} catch (err) {
+  console.error("[stripe webhook] Failed to initialize Stripe client:", err);
 }
 
-const stripe = new Stripe(stripeSecret, {
-  apiVersion: "2023-10-16",
-});
+// ---- Helpers ----
 
 function buffer(req) {
   return new Promise((resolve, reject) => {
@@ -78,10 +89,18 @@ function safeJsonParse(val, fallback) {
   }
 }
 
+// ---- Main handler ----
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method Not Allowed" });
+  }
+
+  if (!stripe) {
+    console.error(
+      "[stripe webhook] Stripe client not initialized (missing or invalid STRIPE_SECRET_KEY)"
+    );
+    return res.status(500).json({ error: "Stripe not configured" });
   }
 
   let event;
@@ -89,9 +108,14 @@ export default async function handler(req, res) {
     const buf = await buffer(req);
     const signature = req.headers["stripe-signature"];
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
+
     if (!secret) {
+      console.error(
+        "[stripe webhook] STRIPE_WEBHOOK_SECRET is not set in environment variables"
+      );
       return res.status(500).json({ error: "Missing STRIPE_WEBHOOK_SECRET" });
     }
+
     event = stripe.webhooks.constructEvent(buf, signature, secret);
   } catch (err) {
     console.error(
