@@ -1,74 +1,59 @@
 // scripts/threadtalk-notifications.js
 // Standalone notification logic for ThreadTalk
-// This file hooks into your existing ThreadTalk without modifying threadtalk.js
 
 (function () {
   const HM = window.HM || {};
   const supabase = HM.supabase;
 
-  if (!supabase) {
-    console.warn("[Notifications] Supabase missing — notifications disabled.");
-    return;
-  }
+  if (!supabase) return;
 
-  // ------------------------------------------------------------
-  // Helper: Insert a notification row
-  // ------------------------------------------------------------
-  async function createThreadNotification({
+  async function createNotification({
     recipientId,
     actorId,
+    type,
     threadId = null,
     commentId = null,
     reactionId = null,
-    type,
-    message,
+    message
   }) {
     if (!recipientId || !actorId || recipientId === actorId) return;
 
-    const { error } = await supabase.from("thread_notifications").insert([
-      {
-        recipient_id: recipientId,
-        actor_id: actorId,
-        thread_id: threadId,
-        comment_id: commentId,
-        reaction_id: reactionId,
-        type,
-        message,
-      },
-    ]);
-
-    if (error) {
-      console.warn("[Notifications] Insert failed:", error.message);
-    }
+    await supabase.from("notifications").insert({
+      user_id: recipientId,
+      actor_id: actorId,
+      type,
+      title: message,
+      body: message,
+      thread_id: threadId,
+      comment_id: commentId,
+      reaction_id: reactionId,
+      read_at: null,
+      metadata: { thread_id: threadId, comment_id: commentId }
+    });
   }
 
-  // ------------------------------------------------------------
-  // Hook into global ThreadTalk events
-  // ------------------------------------------------------------
   document.addEventListener("threadtalk:comment-created", async (e) => {
     const { user, thread, comment, parentComment, profile } = e.detail;
 
     const displayName = profile?.display_name || "Someone";
 
     if (!comment.parent_comment_id) {
-      // New top-level comment → notify the thread author
-      await createThreadNotification({
+      await createNotification({
         recipientId: thread.author_id,
         actorId: user.id,
+        type: "thread_comment",
         threadId: thread.id,
         commentId: comment.id,
-        type: "thread_comment",
-        message: `${displayName} commented on your thread "${thread.title}".`,
+        message: `${displayName} commented on your thread: ${thread.title}`
       });
     } else {
-      // Reply → notify parent comment author
-      await createThreadNotification({
+      await createNotification({
         recipientId: parentComment.author_id,
         actorId: user.id,
+        type: "comment_reply",
         threadId: thread.id,
         commentId: comment.id,
-        type: "comment_reply",
-        message: `${displayName} replied to your comment on "${thread.title}".`,
+        message: `${displayName} replied to your comment on: ${thread.title}`
       });
     }
   });
@@ -79,14 +64,14 @@
     const displayName = profile?.display_name || "Someone";
     const targetAuthor = comment ? comment.author_id : thread.author_id;
 
-    await createThreadNotification({
+    await createNotification({
       recipientId: targetAuthor,
       actorId: user.id,
+      type: "reaction",
       threadId: thread.id,
       commentId: comment ? comment.id : null,
       reactionId: reaction.id,
-      type: "reaction",
-      message: `${displayName} reacted to your ${comment ? "comment" : "thread"}.`,
+      message: `${displayName} reacted to your ${comment ? "comment" : "thread"}`
     });
   });
 })();
