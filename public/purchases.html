@@ -177,7 +177,7 @@
 
       const { data, error } = await supabase
         .from("orders")
-        .select("id,stripe_session_id,buyer_id,seller_id,listing_id,listing_title,amount_total,currency,status,created_at")
+        .select("id,buyer_id,seller_id,listing_id,listing_snapshot,amount_total_cents,amount_total,currency,status,created_at")
         .eq("buyer_id", buyerId)
         .order("created_at",{ ascending:false });
 
@@ -210,9 +210,17 @@
             : null;
 
         const withinCancel = minutesSince !== null && minutesSince < 30;
-        const status = o.status || "completed";
+        const status = (o.status || "paid").toUpperCase();
 
-        const listingTitle = o.listing_title || "Order";
+        const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
+        const first = snapshot[0] || {};
+        const listingTitle = first.title || first.name || "Order";
+
+        const amountCents = Number(
+          o.amount_total_cents ??
+          o.amount_total ??
+          0
+        );
 
         card.innerHTML = `
           <div class="order-top">
@@ -221,13 +229,13 @@
           </div>
 
           <div class="order-status">
-            Status: ${status.toUpperCase()}${withinCancel && status === "completed"
+            Status: ${status}${withinCancel && status === "PAID"
               ? " · You can cancel within 30 minutes of purchase."
               : ""}
           </div>
 
           <div class="order-meta">
-            Total: ${formatMoney(o.amount_total)} ${o.currency || "USD"}
+            Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
           </div>
 
           <div class="order-items">
