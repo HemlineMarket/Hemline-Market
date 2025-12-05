@@ -128,25 +128,6 @@
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    const HM = window.HM || {};
-    const supabase = HM.supabase;
-
-    if (!supabase) {
-      console.error("Supabase client not found on window.HM.supabase");
-    }
-
-    async function ensureSession(maxWaitMs = 3000){
-      let { data:{ session } } = await supabase.auth.getSession();
-      if (session?.user) return session;
-
-      const start = Date.now();
-      while (!session?.user && Date.now() - start < maxWaitMs){
-        await new Promise(r => setTimeout(r, 120));
-        ({ data:{ session } } = await supabase.auth.getSession());
-      }
-      return session || null;
-    }
-
     function formatMoney(cents){
       const n = Number(cents || 0)/100;
       return n.toLocaleString(undefined,{ style:"currency", currency:"USD" });
@@ -163,122 +144,147 @@
       });
     }
 
-    async function loadPurchases(){
-      const list  = document.getElementById("ordersList");
-      const empty = document.getElementById("emptyState");
-
-      const session = await ensureSession();
-      if (!session || !session.user){
-        window.location.href = "auth.html?view=login";
-        return;
+    async function waitForSupabase(maxMs = 4000){
+      const start = Date.now();
+      while ((!window.HM || !window.HM.supabase) && Date.now() - start < maxMs){
+        await new Promise(r => setTimeout(r, 50));
       }
-
-      const buyerId = session.user.id;
-      const buyerEmail = session.user.email || "";
-
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id,buyer_id,seller_id,listing_id,listing_snapshot,amount_total_cents,amount_total,currency,status,created_at")
-        .or(`buyer_id.eq.${buyerId},buyer_email.eq.${buyerEmail}`)
-        .order("created_at",{ ascending:false });
-
-      if (error){
-        console.error("loadPurchases error:", error);
-        empty.style.display = "block";
-        empty.textContent = "We couldn’t load your purchases. Please refresh.";
-        return;
-      }
-
-      if (!data || !data.length){
-        empty.style.display = "block";
-        list.innerHTML = "";
-        return;
-      }
-
-      empty.style.display = "none";
-      list.innerHTML = "";
-
-      const now = Date.now();
-
-      data.forEach(o => {
-        const card = document.createElement("div");
-        card.className = "order-card";
-
-        const createdMs = o.created_at ? new Date(o.created_at).getTime() : null;
-        const minutesSince =
-          createdMs && Number.isFinite(createdMs)
-            ? (now - createdMs) / 60000
-            : null;
-
-        const statusRaw = o.status || "paid";
-        const status = statusRaw.toUpperCase();
-        const cancellable =
-          minutesSince !== null &&
-          minutesSince < 30 &&
-          ["PAID","COMPLETED"].includes(status);
-
-        const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
-        const first = snapshot[0] || {};
-        const listingTitle = first.title || first.name || "Order";
-
-        const amountCents = Number(
-          o.amount_total_cents ??
-          o.amount_total ??
-          0
-        );
-
-        card.innerHTML = `
-          <div class="order-top">
-            <span>Order #${String(o.id).slice(0,8)}</span>
-            <span>${formatDate(o.created_at)}</span>
-          </div>
-
-          <div class="order-status">
-            Status: ${status}${cancellable
-              ? " · You can cancel within 30 minutes of purchase."
-              : ""}
-          </div>
-
-          <div class="order-meta">
-            Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
-          </div>
-
-          <div class="order-items">
-            <div><span class="name">${listingTitle}</span></div>
-          </div>
-
-          <div class="order-actions"></div>
-        `;
-
-        const actionsDiv = card.querySelector(".order-actions");
-
-        if (o.listing_id){
-          const viewListing = document.createElement("a");
-          viewListing.className = "btn";
-          viewListing.href = `listing.html?id=${encodeURIComponent(o.listing_id)}`;
-          viewListing.textContent = "View listing";
-          actionsDiv.appendChild(viewListing);
-        }
-
-        if (o.seller_id){
-          const msgBtn = document.createElement("a");
-          msgBtn.className = "btn";
-          msgBtn.href =
-            `messages.html?user=${encodeURIComponent(o.seller_id)}` +
-            `&order=${encodeURIComponent(o.id)}`;
-          msgBtn.textContent = "Message seller";
-          actionsDiv.appendChild(msgBtn);
-        }
-
-        list.appendChild(card);
-      });
+      return window.HM && window.HM.supabase ? window.HM.supabase : null;
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      loadPurchases();
-      if (window.HM && window.HM.renderShell){
-        window.HM.renderShell({ currentPage:"purchases" });
-      }
+      (async () => {
+        const supabase = await waitForSupabase();
+        if (!supabase){
+          console.error("Supabase client not initialized");
+          return;
+        }
+
+        async function ensureSession(maxWaitMs = 3000){
+          let { data:{ session } } = await supabase.auth.getSession();
+          if (session?.user) return session;
+
+          const start = Date.now();
+          while (!session?.user && Date.now() - start < maxWaitMs){
+            await new Promise(r => setTimeout(r, 120));
+            ({ data:{ session } } = await supabase.auth.getSession());
+          }
+          return session || null;
+        }
+
+        async function loadPurchases(){
+          const list  = document.getElementById("ordersList");
+          const empty = document.getElementById("emptyState");
+
+          const session = await ensureSession();
+          if (!session || !session.user){
+            window.location.href = "auth.html?view=login";
+            return;
+          }
+
+          const { data, error } = await supabase
+            .from("orders")
+            .select("id,buyer_id,buyer_email,seller_id,listing_id,listing_snapshot,amount_total_cents,amount_total,currency,status,created_at")
+            .order("created_at",{ ascending:false });
+
+          if (error){
+            console.error("loadPurchases error:", error);
+            empty.style.display = "block";
+            empty.textContent = "We couldn’t load your purchases. Please refresh.";
+            return;
+          }
+
+          if (!data || !data.length){
+            empty.style.display = "block";
+            list.innerHTML = "";
+            return;
+          }
+
+          empty.style.display = "none";
+          list.innerHTML = "";
+
+          const now = Date.now();
+
+          data.forEach(o => {
+            const card = document.createElement("div");
+            card.className = "order-card";
+
+            const createdMs = o.created_at ? new Date(o.created_at).getTime() : null;
+            const minutesSince =
+              createdMs && Number.isFinite(createdMs)
+                ? (now - createdMs) / 60000
+                : null;
+
+            const statusRaw = o.status || "paid";
+            const status = statusRaw.toUpperCase();
+            const cancellable =
+              minutesSince !== null &&
+              minutesSince < 30 &&
+              ["PAID","COMPLETED"].includes(status);
+
+            const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
+            const first = snapshot[0] || {};
+            const listingTitle = first.title || first.name || "Order";
+
+            const amountCents = Number(
+              o.amount_total_cents ??
+              o.amount_total ??
+              0
+            );
+
+            card.innerHTML = `
+              <div class="order-top">
+                <span>Order #${String(o.id).slice(0,8)}</span>
+                <span>${formatDate(o.created_at)}</span>
+              </div>
+
+              <div class="order-status">
+                Status: ${status}${cancellable
+                  ? " · You can cancel within 30 minutes of purchase."
+                  : ""}
+              </div>
+
+              <div class="order-meta">
+                Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
+              </div>
+
+              <div class="order-items">
+                <div><span class="name">${listingTitle}</span></div>
+              </div>
+
+              <div class="order-actions"></div>
+            `;
+
+            const actionsDiv = card.querySelector(".order-actions");
+
+            if (o.listing_id){
+              const viewListing = document.createElement("a");
+              viewListing.className = "btn";
+              viewListing.href = `listing.html?id=${encodeURIComponent(o.listing_id)}`;
+              viewListing.textContent = "View listing";
+              actionsDiv.appendChild(viewListing);
+            }
+
+            if (o.seller_id){
+              const msgBtn = document.createElement("a");
+              msgBtn.className = "btn";
+              msgBtn.href =
+                `messages.html?user=${encodeURIComponent(o.seller_id)}` +
+                `&order=${encodeURIComponent(o.id)}`;
+              msgBtn.textContent = "Message seller";
+              actionsDiv.appendChild(msgBtn);
+            }
+
+            list.appendChild(card);
+          });
+        }
+
+        await loadPurchases();
+
+        if (window.HM && window.HM.renderShell){
+          window.HM.renderShell({ currentPage:"purchases" });
+        }
+      })();
     });
   </script>
 </body>
