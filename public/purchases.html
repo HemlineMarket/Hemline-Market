@@ -177,14 +177,13 @@
           return;
         }
 
-        const buyerId = session.user.id;
-
-        // FIXED: using the real table name: orders
+        // TEMP: show ALL rows from orders so we can see what's there
         const { data, error } = await supabase
           .from("orders")
-          .select("*")
-          .eq("buyer_id", buyerId)
-          .order("created_at", { ascending:false });
+          .select("*");
+
+        console.log("[Purchases] raw orders:", data);
+        window.lastOrders = data;
 
         if (error){
           console.error("loadPurchases error:", error);
@@ -202,13 +201,19 @@
         empty.style.display = "none";
         list.innerHTML = "";
 
-        data.forEach(o => {
+        const rows = [...data];
+
+        rows.forEach(o => {
           const card = document.createElement("div");
           card.className = "order-card";
 
-          const listingTitle = o.listing_title || "Order";
+          const status = String(o.status || "paid").toUpperCase();
+          const listingTitle =
+            o.listing_title ||
+            o.listing_name ||
+            "Order";
+
           const amountCents = Number(o.amount_total_cents || 0);
-          const status = (o.status || "paid").toUpperCase();
 
           card.innerHTML = `
             <div class="order-top">
