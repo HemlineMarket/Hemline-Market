@@ -1,6 +1,6 @@
 // File: /api/stripe/webhook.js
-// Verifies Stripe signatures, creates Transfers to connected sellers,
-// writes db_orders, marks listings SOLD when possible,
+// Verifies Stripe signatures, writes to orders table,
+// marks listings SOLD when possible,
 // sends the buyer an order-confirmation email via /api/send-order-confirmation,
 // and inserts notifications for buyer + seller.
 //
@@ -52,42 +52,52 @@ function safeMeta(session) {
 
 /**
  * Insert notifications for buyer + seller when an order is created.
- * Assumes notifications table has:
+ * notifications table:
  *   user_id, actor_id, type, kind, title, body, href, link, created_at (default), read_at (nullable)
  */
-async function insertOrderNotifications({ buyerId, sellerId, listingId, listingTitle }) {
-  // If any critical piece is missing, bail quietly.
-  if (!buyerId || !sellerId || !listingId) return;
+async function insertOrderNotifications({
+  buyerId,
+  sellerId,
+  listingId,
+  listingTitle,
+}) {
+  if (!buyerId && !sellerId) return;
 
   const safeTitle = listingTitle || "your listing";
+  const sellerHref = `/listing.html?id=${encodeURIComponent(
+    listingId || ""
+  )}`;
+  const buyerHref = `/purchases.html`;
 
-  const sellerHref = `/listing.html?id=${encodeURIComponent(listingId)}`;
-  const buyerHref = `/orders.html`;
+  const rows = [];
 
-  const rows = [
-    {
-      // Seller: "Your item has sold"
+  if (sellerId) {
+    rows.push({
       user_id: sellerId,
-      actor_id: buyerId,
+      actor_id: buyerId || sellerId,
       type: "order_sale",
       kind: "order",
       title: `Your item sold: “${safeTitle}”`,
       body: `Your item “${safeTitle}” was purchased.`,
       href: sellerHref,
       link: sellerHref,
-    },
-    {
-      // Buyer: "Your order is confirmed"
+    });
+  }
+
+  if (buyerId) {
+    rows.push({
       user_id: buyerId,
-      actor_id: sellerId,
+      actor_id: sellerId || buyerId,
       type: "order_purchase",
       kind: "order",
       title: `Order confirmed: “${safeTitle}”`,
       body: `Your order for “${safeTitle}” is confirmed.`,
       href: buyerHref,
       link: buyerHref,
-    },
-  ];
+    });
+  }
+
+  if (!rows.length) return;
 
   try {
     const { error } = await supabaseAdmin.from("notifications").insert(rows);
@@ -107,7 +117,10 @@ async function markListingSold(listingId) {
   try {
     const { error } = await supabaseAdmin
       .from("listings")
-      .update({ status: "SOLD", updated_at: new Date().toISOString() })
+      .update({
+        status: "SOLD",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", listingId)
       .is("deleted_at", null);
 
@@ -120,55 +133,104 @@ async function markListingSold(listingId) {
 }
 
 /**
- * Create or update an order row in db_orders.
- * Assumes db_orders has at least:
- *   stripe_session_id (unique), buyer_id, seller_id, listing_id, amount_total, currency, status
+ * Create or update an order row in the orders table.
+ * orders table columns (expected):
+ *   id, stripe_event_id, stripe_payment_intent, stripe_checkout,
+ *   buyer_email, buyer_id, seller_id, listing_id, listing_snapshot (jsonb),
+ *   total_cents, status, created_at, updated_at
  */
-async function upsertOrderFromSession(session) {
+async function upsertOrderIntoOrders(event, session) {
   const meta = safeMeta(session);
 
-  const listingId = meta.listing_id || meta.listingId || null;
-  const listingTitle = meta.listing_title || meta.listingTitle || "";
-  const buyerId = meta.buyer_id || meta.buyerId || null;
-  const sellerId = meta.seller_id || meta.sellerId || null;
+  // Cart from metadata
+  let cart = [];
+  try {
+    if (meta.cart_json) {
+      cart = JSON.parse(meta.cart_json);
+    }
+  } catch (_) {
+    cart = [];
+  }
 
-  const amountTotal = session.amount_total || 0;
-  const currency = session.currency || "usd";
-  const stripeSessionId = session.id;
-  const stripePaymentIntent = session.payment_intent || null;
+  const firstItem = Array.isArray(cart) && cart.length ? cart[0] : {};
+  const listingId =
+    firstItem.listing_id || meta.listing_id || meta.listingId || null;
 
-  const orderPayload = {
-    stripe_session_id: stripeSessionId,
-    stripe_payment_intent: stripePaymentIntent,
+  const listingTitle =
+    firstItem.name || meta.listing_title || meta.listingTitle || "";
+
+  const buyerId =
+    meta.buyer_user_id || meta.buyer_id || meta.buyerId || null;
+
+  const sellerUserId =
+    firstItem.seller_user_id || meta.seller_user_id || meta.sellerId || null;
+
+  const totalCents = session.amount_total || 0;
+  const buyerEmail =
+    session.customer_details?.email || session.customer_email || null;
+
+  const nowIso = new Date().toISOString();
+
+  const basePayload = {
+    stripe_event_id: event.id,
+    stripe_payment_intent: session.payment_intent || null,
+    stripe_checkout: session.id,
+    buyer_email: buyerEmail,
     buyer_id: buyerId,
-    seller_id: sellerId,
+    seller_id: sellerUserId,
     listing_id: listingId,
-    listing_title: listingTitle || null,
-    amount_total: amountTotal,
-    currency,
-    status: "completed",
-    updated_at: new Date().toISOString(),
+    listing_snapshot: cart,
+    total_cents: totalCents,
+    status: "PAID",
+    updated_at: nowIso,
   };
 
   try {
-    // upsert by stripe_session_id if you have a unique constraint on that
-    const { data: rows, error } = await supabaseAdmin
-      .from("db_orders")
-      .upsert(orderPayload, {
-        onConflict: "stripe_session_id",
-      })
-      .select()
-      .limit(1)
+    // See if an order already exists for this checkout session
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from("orders")
+      .select("id")
+      .eq("stripe_checkout", session.id)
       .maybeSingle();
 
-    if (error) {
-      console.error("[webhook] upsertOrderFromSession error", error);
+    if (fetchErr) {
+      console.error("[webhook] upsertOrderIntoOrders fetch error", fetchErr);
       return null;
     }
 
-    return rows || null;
+    if (existing?.id) {
+      const { data, error } = await supabaseAdmin
+        .from("orders")
+        .update(basePayload)
+        .eq("id", existing.id)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.error("[webhook] upsertOrderIntoOrders update error", error);
+        return null;
+      }
+      return data || null;
+    } else {
+      const payload = {
+        ...basePayload,
+        created_at: nowIso,
+      };
+
+      const { data, error } = await supabaseAdmin
+        .from("orders")
+        .insert(payload)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.error("[webhook] upsertOrderIntoOrders insert error", error);
+        return null;
+      }
+      return data || null;
+    }
   } catch (err) {
-    console.error("[webhook] upsertOrderFromSession exception", err);
+    console.error("[webhook] upsertOrderIntoOrders exception", err);
     return null;
   }
 }
@@ -235,12 +297,19 @@ export default async function handler(req, res) {
       case "checkout.session.completed": {
         const session = event.data.object;
 
-        // 1) Write / update db_orders
-        const orderRow = await upsertOrderFromSession(session);
+        // 1) Write / update orders
+        const orderRow = await upsertOrderIntoOrders(event, session);
 
         // 2) Mark listing SOLD (best-effort)
         const meta = safeMeta(session);
-        const listingId = meta.listing_id || meta.listingId || null;
+
+        let listingId = null;
+        if (orderRow?.listing_id) {
+          listingId = orderRow.listing_id;
+        } else if (meta.listing_id || meta.listingId) {
+          listingId = meta.listing_id || meta.listingId;
+        }
+
         if (listingId) {
           await markListingSold(listingId);
         }
@@ -249,9 +318,33 @@ export default async function handler(req, res) {
         await sendOrderEmail({ stripeSessionId: session.id });
 
         // 4) Notifications for buyer + seller (best-effort)
-        const buyerId = meta.buyer_id || meta.buyerId || null;
-        const sellerId = meta.seller_id || meta.sellerId || null;
-        const listingTitle = meta.listing_title || meta.listingTitle || "";
+        const cart =
+          (orderRow && orderRow.listing_snapshot) ||
+          (() => {
+            try {
+              return meta.cart_json ? JSON.parse(meta.cart_json) : [];
+            } catch {
+              return [];
+            }
+          })();
+
+        const firstItem = Array.isArray(cart) && cart.length ? cart[0] : {};
+        const listingTitle =
+          firstItem.name || meta.listing_title || meta.listingTitle || "";
+
+        const buyerId =
+          orderRow?.buyer_id ||
+          meta.buyer_user_id ||
+          meta.buyer_id ||
+          meta.buyerId ||
+          null;
+
+        const sellerId =
+          orderRow?.seller_id ||
+          firstItem.seller_user_id ||
+          meta.seller_user_id ||
+          meta.sellerId ||
+          null;
 
         await insertOrderNotifications({
           buyerId,
@@ -263,17 +356,11 @@ export default async function handler(req, res) {
         break;
       }
 
-      // You can expand here for other event types as needed:
-      // - payment_intent.succeeded
-      // - charge.refunded
-      // etc.
       default: {
-        // For now we just log unhandled events.
         console.log(`[webhook] Unhandled event type: ${event.type}`);
       }
     }
 
-    // Acknowledge to Stripe that we processed the event.
     res.json({ received: true });
   } catch (err) {
     console.error("[webhook] handler exception", err);
