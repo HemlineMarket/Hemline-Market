@@ -1,5 +1,5 @@
 // File: /api/orders/cancel.js
-// Marks an order as CANCEL_REQUESTED (within 30 minutes)
+// Marks a db_orders row as CANCEL_REQUESTED (within 30 minutes)
 // and notifies buyer + seller via the notifications table.
 //
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -21,38 +21,77 @@ export default async function handler(req, res) {
 
   try {
     const { order_id } = req.body || {};
-    const orderId = (order_id || "").trim();
+    const raw = (order_id || "").trim();
 
-    if (!orderId) {
+    if (!raw) {
       return res.status(400).json({ error: "Missing order_id" });
     }
 
-    // 1) Look up the order
-    const { data: order, error: fetchErr } = await supabaseAdmin
-      .from("orders")
-      .select(
-        `
-          id,
-          order_id,
-          status,
-          created_at,
-          buyer_id,
-          seller_id,
-          buyer_email,
-          total_cents
-        `
-      )
-      .eq("order_id", orderId)
-      .maybeSingle();
+    // 1) Look up the order from db_orders.
+    // We first try by primary id; if that fails we fall back to stripe_session_id.
+    let order = null;
+    let fetchErr = null;
+
+    {
+      const { data, error } = await supabaseAdmin
+        .from("db_orders")
+        .select(
+          `
+            id,
+            stripe_session_id,
+            stripe_payment_intent,
+            status,
+            created_at,
+            buyer_id,
+            seller_id,
+            listing_id,
+            listing_title,
+            amount_total,
+            currency
+          `
+        )
+        .eq("id", raw)
+        .maybeSingle();
+
+      order = data || null;
+      fetchErr = error || null;
+    }
+
+    if (!order && !fetchErr) {
+      const { data, error } = await supabaseAdmin
+        .from("db_orders")
+        .select(
+          `
+            id,
+            stripe_session_id,
+            stripe_payment_intent,
+            status,
+            created_at,
+            buyer_id,
+            seller_id,
+            listing_id,
+            listing_title,
+            amount_total,
+            currency
+          `
+        )
+        .eq("stripe_session_id", raw)
+        .maybeSingle();
+
+      order = data || null;
+      fetchErr = error || null;
+    }
 
     if (fetchErr) {
-      await logError("/api/orders/cancel", "orders fetch error", fetchErr);
+      await logError("/api/orders/cancel", "db_orders fetch error", fetchErr);
       return res.status(500).json({ error: "Database error" });
     }
 
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
+
+    const orderId = order.id;
 
     // 2) Check whether we’re still inside the 30-minute window
     const createdAtMs = order.created_at
@@ -89,7 +128,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // If you mark "SHIPPED" or similar, block automatic cancel.
     if (currentStatus === "SHIPPED") {
       return res.status(400).json({
         error: "This order is already marked as shipped.",
@@ -101,22 +139,23 @@ export default async function handler(req, res) {
     const nowIso = new Date().toISOString();
 
     const { error: updateErr } = await supabaseAdmin
-      .from("orders")
+      .from("db_orders")
       .update({
         status: "CANCEL_REQUESTED",
         cancel_requested_at: nowIso,
         updated_at: nowIso,
       })
-      .eq("id", order.id);
+      .eq("id", orderId);
 
     if (updateErr) {
-      await logError("/api/orders/cancel", "orders update error", updateErr);
+      await logError("/api/orders/cancel", "db_orders update error", updateErr);
       return res.status(500).json({ error: "Failed to update order" });
     }
 
     // 5) Insert notifications for buyer + seller (best-effort)
     const notifs = [];
-    const href = `/orders.html?order=${encodeURIComponent(orderId)}`;
+    const href = `/purchases.html?order=${encodeURIComponent(orderId)}`;
+    const listingTitle = order.listing_title || "your order";
 
     if (order.buyer_id) {
       notifs.push({
@@ -124,7 +163,7 @@ export default async function handler(req, res) {
         type: "order",
         kind: "order",
         title: "We’re processing your cancellation request",
-        body: `You asked to cancel order ${orderId}. We’ve notified the seller. They are instructed not to ship within the first 30 minutes.`,
+        body: `You asked to cancel ${listingTitle}. We’ve notified the seller. They are instructed not to ship within the first 30 minutes.`,
         href,
         is_read: false,
         created_at: nowIso,
@@ -137,7 +176,7 @@ export default async function handler(req, res) {
         type: "order",
         kind: "order",
         title: "Buyer requested to cancel an order",
-        body: `The buyer requested to cancel order ${orderId}. Do not ship this order within the first 30 minutes after purchase while the cancellation is processed.`,
+        body: `The buyer requested to cancel ${listingTitle}. Do not ship this order within the first 30 minutes after purchase while the cancellation is processed.`,
         href,
         is_read: false,
         created_at: nowIso,
