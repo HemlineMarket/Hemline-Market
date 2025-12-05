@@ -174,11 +174,12 @@
       }
 
       const buyerId = session.user.id;
+      const buyerEmail = session.user.email || "";
 
       const { data, error } = await supabase
         .from("orders")
         .select("id,buyer_id,seller_id,listing_id,listing_snapshot,amount_total_cents,amount_total,currency,status,created_at")
-        .eq("buyer_id", buyerId)
+        .or(`buyer_id.eq.${buyerId},buyer_email.eq.${buyerEmail}`)
         .order("created_at",{ ascending:false });
 
       if (error){
@@ -209,8 +210,12 @@
             ? (now - createdMs) / 60000
             : null;
 
-        const withinCancel = minutesSince !== null && minutesSince < 30;
-        const status = (o.status || "paid").toUpperCase();
+        const statusRaw = o.status || "paid";
+        const status = statusRaw.toUpperCase();
+        const cancellable =
+          minutesSince !== null &&
+          minutesSince < 30 &&
+          ["PAID","COMPLETED"].includes(status);
 
         const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
         const first = snapshot[0] || {};
@@ -229,7 +234,7 @@
           </div>
 
           <div class="order-status">
-            Status: ${status}${withinCancel && status === "PAID"
+            Status: ${status}${cancellable
               ? " · You can cancel within 30 minutes of purchase."
               : ""}
           </div>
