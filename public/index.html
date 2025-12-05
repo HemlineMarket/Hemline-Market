@@ -598,8 +598,8 @@
             </div>
           </div>
           <div class="how-image" aria-hidden="true">
-            <!-- IMPORTANT: place a real file at public/images/how-fabrics.jpg -->
-            <img src="images/how-fabrics.jpg" alt="Stack of folded fabrics in warm neutral tones">
+            <!-- NOTE: file lives at public/images/fabric.png -->
+            <img src="images/fabric.png" alt="Stack of folded fabrics in warm neutral tones">
           </div>
         </div>
       </div>
@@ -693,7 +693,7 @@
 
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Shell (header/footer) -->
+  <!-- Shell (header/footer, shared Supabase client) -->
   <script src="scripts/hm-shell.js"></script>
 
   <script>
@@ -702,11 +702,13 @@
   </script>
 
   <script>
-    // Supabase client for homepage listings
-    const supabaseClient = window.supabase.createClient(
-      "https://clkizksbvxjkoatdajgd.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-    );
+    // Use the shared Supabase client that already works on other pages
+    const HM = window.HM || {};
+    const supabaseClient = HM.supabase;
+
+    if (!supabaseClient) {
+      console.warn("[Home] Supabase client not found on window.HM.supabase; listings disabled for now.");
+    }
 
     function moneyFromCents(c){
       if(c == null) return "";
@@ -763,6 +765,11 @@
       if(grid) grid.innerHTML = "";
       if(empty) empty.style.display = "none";
       if(count) count.textContent = "Loading…";
+
+      if (!supabaseClient) {
+        if (count) count.textContent = "Listings coming soon";
+        return;
+      }
 
       let listings = [];
       try{
