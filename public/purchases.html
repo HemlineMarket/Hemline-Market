@@ -182,7 +182,7 @@
         const buyerId = session.user.id;
 
         const { data, error } = await supabase
-          .from("orders")
+          .from("db_orders")  // ✅ match the table your webhook writes to
           .select("id,buyer_id,buyer_email,seller_id,listing_id,listing_snapshot,amount_total_cents,amount_total,currency,status,created_at")
           .eq("buyer_id", buyerId)
           .order("created_at",{ ascending:false });
@@ -222,9 +222,23 @@
             minutesSince < 30 &&
             ["PAID","COMPLETED"].includes(status);
 
-          const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
-          const first = snapshot[0] || {};
-          const listingTitle = first.title || first.name || "Order";
+          // Handle listing_snapshot whether it's an array or a single object
+          let listingTitle = "Order";
+          let snapshotItem = null;
+
+          if (Array.isArray(o.listing_snapshot) && o.listing_snapshot.length){
+            snapshotItem = o.listing_snapshot[0];
+          } else if (o.listing_snapshot && typeof o.listing_snapshot === "object"){
+            snapshotItem = o.listing_snapshot;
+          }
+
+          if (snapshotItem){
+            listingTitle =
+              snapshotItem.title ||
+              snapshotItem.name ||
+              snapshotItem.description ||
+              "Order";
+          }
 
           const amountCents = Number(
             o.amount_total_cents ??
