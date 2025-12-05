@@ -173,12 +173,12 @@
         return;
       }
 
-      const email = session.user.email || "";
+      const buyerId = session.user.id;
 
       const { data, error } = await supabase
         .from("db_orders")
-        .select("id,stripe_session_id,buyer_email,total_cents,shipping_cents,status,created_at,items")
-        .eq("buyer_email", email)
+        .select("id,stripe_session_id,buyer_id,seller_id,listing_id,listing_title,amount_total,currency,status,created_at")
+        .eq("buyer_id", buyerId)
         .order("created_at",{ ascending:false });
 
       if (error){
@@ -210,43 +210,28 @@
             : null;
 
         const withinCancel = minutesSince !== null && minutesSince < 30;
-        const status = o.status || "PAID";
+        const status = o.status || "completed";
 
-        const items = Array.isArray(o.items) ? o.items : [];
-        const first = items[0] || {};
-        const listingId = first.listing_id || null;
-        const sellerUserId = first.seller_user_id || null;
-
-        const itemsHtml = items.length
-          ? items
-              .map(it => {
-                const name = it.name || "Item";
-                const qty  = Number(it.qty || 1);
-                const amt  = Number(it.amount_cents || 0);
-                return `<div><span class="name">${name}</span> × ${qty} · ${formatMoney(amt)}</div>`;
-              })
-              .join("")
-          : `<div><span class="name">Order</span></div>`;
+        const listingTitle = o.listing_title || "Order";
 
         card.innerHTML = `
           <div class="order-top">
-            <span>Order #${o.id.slice(0,8)}</span>
+            <span>Order #${String(o.id).slice(0,8)}</span>
             <span>${formatDate(o.created_at)}</span>
           </div>
 
           <div class="order-status">
-            Status: ${status}${withinCancel && status === "PAID"
+            Status: ${status.toUpperCase()}${withinCancel && status === "completed"
               ? " · You can cancel within 30 minutes of purchase."
               : ""}
           </div>
 
           <div class="order-meta">
-            Total: ${formatMoney(o.total_cents)}<br>
-            Shipping: ${formatMoney(o.shipping_cents)}
+            Total: ${formatMoney(o.amount_total)} ${o.currency || "USD"}
           </div>
 
           <div class="order-items">
-            ${itemsHtml}
+            <div><span class="name">${listingTitle}</span></div>
           </div>
 
           <div class="order-actions"></div>
@@ -254,19 +239,19 @@
 
         const actionsDiv = card.querySelector(".order-actions");
 
-        if (listingId){
+        if (o.listing_id){
           const viewListing = document.createElement("a");
           viewListing.className = "btn";
-          viewListing.href = `listing.html?id=${encodeURIComponent(listingId)}`;
+          viewListing.href = `listing.html?id=${encodeURIComponent(o.listing_id)}`;
           viewListing.textContent = "View listing";
           actionsDiv.appendChild(viewListing);
         }
 
-        if (sellerUserId){
+        if (o.seller_id){
           const msgBtn = document.createElement("a");
           msgBtn.className = "btn";
           msgBtn.href =
-            `messages.html?user=${encodeURIComponent(sellerUserId)}` +
+            `messages.html?user=${encodeURIComponent(o.seller_id)}` +
             `&order=${encodeURIComponent(o.id)}`;
           msgBtn.textContent = "Message seller";
           actionsDiv.appendChild(msgBtn);
