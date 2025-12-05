@@ -181,11 +181,11 @@
 
         const buyerId = session.user.id;
 
+        // Minimal, schema-agnostic query: let db_orders define the columns
         const { data, error } = await supabase
-          .from("db_orders")  // ✅ match the table your webhook writes to
-          .select("id,buyer_id,buyer_email,seller_id,listing_id,listing_snapshot,amount_total_cents,amount_total,currency,status,created_at")
-          .eq("buyer_id", buyerId)
-          .order("created_at",{ ascending:false });
+          .from("db_orders")
+          .select("*")
+          .eq("buyer_id", buyerId);
 
         if (error){
           console.error("loadPurchases error:", error);
@@ -205,7 +205,14 @@
 
         const now = Date.now();
 
-        data.forEach(o => {
+        // Sort newest first *if* created_at exists; otherwise this is a no-op
+        const rows = [...data].sort((a, b) => {
+          const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return tb - ta;
+        });
+
+        rows.forEach(o => {
           const card = document.createElement("div");
           card.className = "order-card";
 
@@ -216,7 +223,7 @@
               : null;
 
           const statusRaw = o.status || "paid";
-          const status = statusRaw.toUpperCase();
+          const status = String(statusRaw).toUpperCase();
           const cancellable =
             minutesSince !== null &&
             minutesSince < 30 &&
@@ -296,6 +303,5 @@
       loadPurchases();
     });
   </script>
-  <script src="scripts/purchases.js"></script>
 </body>
 </html>
