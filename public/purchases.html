@@ -179,13 +179,13 @@
           return;
         }
 
-        const buyerId = session.user.id;
-
-        // Minimal, schema-agnostic query: let db_orders define the columns
+        // We won't filter by buyer yet; we want to see *everything*
         const { data, error } = await supabase
           .from("db_orders")
-          .select("*")
-          .eq("buyer_id", buyerId);
+          .select("*");
+
+        console.log("[Purchases] raw db_orders:", data);
+        window.lastPurchases = data; // so you can inspect in console
 
         if (error){
           console.error("loadPurchases error:", error);
@@ -205,7 +205,7 @@
 
         const now = Date.now();
 
-        // Sort newest first *if* created_at exists; otherwise this is a no-op
+        // Sort newest first if created_at exists
         const rows = [...data].sort((a, b) => {
           const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
           const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
