@@ -112,7 +112,6 @@
 </head>
 
 <body>
-  <!-- UNIVERSAL HEADER -->
   <div id="hm-shell-header"></div>
 
   <main id="maincontent">
@@ -123,7 +122,6 @@
     <p class="empty" id="emptyState" style="display:none;">You have no purchases yet.</p>
   </main>
 
-  <!-- UNIVERSAL FOOTER -->
   <div id="hm-shell-footer"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -179,13 +177,14 @@
           return;
         }
 
-        // We won't filter by buyer yet; we want to see *everything*
-        const { data, error } = await supabase
-          .from("db_orders")
-          .select("*");
+        const buyerId = session.user.id;
 
-        console.log("[Purchases] raw db_orders:", data);
-        window.lastPurchases = data; // so you can inspect in console
+        // FIXED: using the real table name: orders
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("buyer_id", buyerId)
+          .order("created_at", { ascending:false });
 
         if (error){
           console.error("loadPurchases error:", error);
@@ -203,55 +202,13 @@
         empty.style.display = "none";
         list.innerHTML = "";
 
-        const now = Date.now();
-
-        // Sort newest first if created_at exists
-        const rows = [...data].sort((a, b) => {
-          const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return tb - ta;
-        });
-
-        rows.forEach(o => {
+        data.forEach(o => {
           const card = document.createElement("div");
           card.className = "order-card";
 
-          const createdMs = o.created_at ? new Date(o.created_at).getTime() : null;
-          const minutesSince =
-            createdMs && Number.isFinite(createdMs)
-              ? (now - createdMs) / 60000
-              : null;
-
-          const statusRaw = o.status || "paid";
-          const status = String(statusRaw).toUpperCase();
-          const cancellable =
-            minutesSince !== null &&
-            minutesSince < 30 &&
-            ["PAID","COMPLETED"].includes(status);
-
-          // Handle listing_snapshot whether it's an array or a single object
-          let listingTitle = "Order";
-          let snapshotItem = null;
-
-          if (Array.isArray(o.listing_snapshot) && o.listing_snapshot.length){
-            snapshotItem = o.listing_snapshot[0];
-          } else if (o.listing_snapshot && typeof o.listing_snapshot === "object"){
-            snapshotItem = o.listing_snapshot;
-          }
-
-          if (snapshotItem){
-            listingTitle =
-              snapshotItem.title ||
-              snapshotItem.name ||
-              snapshotItem.description ||
-              "Order";
-          }
-
-          const amountCents = Number(
-            o.amount_total_cents ??
-            o.amount_total ??
-            0
-          );
+          const listingTitle = o.listing_title || "Order";
+          const amountCents = Number(o.amount_total_cents || 0);
+          const status = (o.status || "paid").toUpperCase();
 
           card.innerHTML = `
             <div class="order-top">
@@ -259,11 +216,7 @@
               <span>${formatDate(o.created_at)}</span>
             </div>
 
-            <div class="order-status">
-              Status: ${status}${cancellable
-                ? " · You can cancel within 30 minutes of purchase."
-                : ""}
-            </div>
+            <div class="order-status">Status: ${status}</div>
 
             <div class="order-meta">
               Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
