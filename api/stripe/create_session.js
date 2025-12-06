@@ -5,7 +5,7 @@
 // Optional: STRIPE_SUCCESS_URL, STRIPE_CANCEL_URL (fallbacks to request origin)
 
 import Stripe from "stripe";
-import supabaseAdmin from "./_supabaseAdmin";
+import supabaseAdmin from "../_supabaseAdmin";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
 
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
 
       // Metadata used by webhook → creates sale in db, marks listing sold, etc.
       metadata: {
-        sellers_json: JSON.stringify(sellers),        
+        sellers_json: JSON.stringify(sellers),
         shipping_cents: String(Number(shipping_cents || 0)),
         subtotal_cents: String(subtotal),
         cart_json: JSON.stringify(cartForMeta),
