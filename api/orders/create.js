@@ -1,5 +1,5 @@
 // File: api/orders/create.js
-// Create order + notify seller
+// FIXED VERSION — always sets buyer_id, seller_id, listing_id, status.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -25,11 +25,14 @@ export default async function handler(req, res) {
     } = JSON.parse(req.body);
 
     const firstItem = items?.[0] || {};
-    const listing_id = firstItem.listing_id;
-    const seller_id = firstItem.seller_id;
+    const listing_id = firstItem.listing_id || null;
+    const seller_id = firstItem.seller_id || null;
+    const buyer_id = buyer?.id || buyer?.user_id || null;
+
+    const nowIso = new Date().toISOString();
 
     // -----------------------------
-    // 1. INSERT ORDER
+    // INSERT ORDER  (FIXED)
     // -----------------------------
     const { data: orderRow, error: orderErr } = await supabase
       .from("orders")
@@ -37,11 +40,15 @@ export default async function handler(req, res) {
         id: order_id,
         listing_id,
         seller_id,
+        buyer_id,                 // FIXED
         buyer_email: buyer?.email || "",
         stripe_payment_intent: source || "",
         subtotal_cents,
         shipping_cents,
-        total_cents
+        total_cents,
+        status: "PAID",           // FIXED
+        created_at: nowIso,       // FIXED
+        updated_at: nowIso        // FIXED
       })
       .select("*")
       .single();
@@ -52,16 +59,16 @@ export default async function handler(req, res) {
     }
 
     // -----------------------------
-    // 2. NOTIFY SELLER
+    // NOTIFY SELLER (unchanged)
     // -----------------------------
     if (seller_id) {
       await supabase.from("notifications").insert({
         user_id: seller_id,
-        actor_id: seller_id,
+        actor_id: buyer_id || seller_id,
         type: "listing_order",
         kind: "purchase",
         title: "New order received",
-        body: `Your item has been purchased.`,
+        body: "Your item has been purchased.",
         href: "orders.html",
         link: "orders.html",
         metadata: {
@@ -73,6 +80,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ ok: true, order: orderRow });
+
   } catch (err) {
     console.error("orders/create error:", err);
     return res.status(500).json({ error: "Server error" });
