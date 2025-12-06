@@ -1,0 +1,115 @@
+// public/scripts/purchases.js
+// Loads the logged-in buyer’s purchase history.
+
+import {
+  formatMoney,
+  formatDate,
+  extractListingTitle,
+  extractTotalCents,
+  cancellationWindowHtml
+} from "./orders-utils.js";
+
+(async () => {
+  const supabase = window.HM && window.HM.supabase;
+  if (!supabase) {
+    console.error("[purchases] Missing Supabase client");
+    return;
+  }
+
+  // Ensure session
+  async function ensureSession(maxMs = 3000){
+    let { data:{ session } } = await supabase.auth.getSession();
+    const start = Date.now();
+    while(!session?.user && Date.now() - start < maxMs){
+      await new Promise(r => setTimeout(r,120));
+      ({ data:{ session } } = await supabase.auth.getSession());
+    }
+    return session;
+  }
+
+  const session = await ensureSession();
+  if (!session || !session.user){
+    window.location.href = "auth.html?view=login";
+    return;
+  }
+
+  const uid = session.user.id;
+
+  const list  = document.getElementById("ordersList");
+  const empty = document.getElementById("emptyState");
+
+  // Load this buyer’s orders
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("buyer_id", uid)
+    .order("created_at", { ascending:false });
+
+  if (error){
+    console.error("[purchases] Load error:", error);
+    empty.style.display = "block";
+    empty.textContent = "We couldn’t load your purchases. Please refresh.";
+    return;
+  }
+
+  if (!data || data.length === 0){
+    empty.style.display = "block";
+    return;
+  }
+
+  empty.style.display = "none";
+  list.innerHTML = "";
+
+  data.forEach(order => {
+    const card = document.createElement("div");
+    card.className = "order-card";
+
+    const title = extractListingTitle(order);
+    const totalCents = extractTotalCents(order);
+    const cancelNote = cancellationWindowHtml(order);
+
+    card.innerHTML = `
+      <div class="order-top">
+        <span>Purchase #${String(order.id).slice(0,8)}</span>
+        <span>${formatDate(order.created_at)}</span>
+      </div>
+
+      <div class="order-status">Status: ${String(order.status || "PAID").toUpperCase()}</div>
+
+      <div class="order-meta">
+        Total: ${formatMoney(totalCents)} ${order.currency || "USD"}
+      </div>
+
+      <div class="order-items">
+        <div><span class="name">${title}</span></div>
+      </div>
+
+      <div class="order-actions"></div>
+      ${cancelNote}
+    `;
+
+    const actions = card.querySelector(".order-actions");
+
+    // View listing
+    if (order.listing_id){
+      const link = document.createElement("a");
+      link.className = "btn";
+      link.href = `listing.html?id=${encodeURIComponent(order.listing_id)}`;
+      link.textContent = "View listing";
+      actions.appendChild(link);
+    }
+
+    // Message seller
+    if (order.seller_id){
+      const msg = document.createElement("a");
+      msg.className = "btn";
+      msg.href =
+        `messages.html?user=${encodeURIComponent(order.seller_id)}` +
+        `&order=${encodeURIComponent(order.id)}`;
+      msg.textContent = "Message seller";
+      actions.appendChild(msg);
+    }
+
+    list.appendChild(card);
+  });
+})();
