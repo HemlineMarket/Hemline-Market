@@ -1,85 +1,91 @@
-// File: /api/orders/cancel.js
-// Cancels a purchase IF within 30 minutes of creation.
-// Updates: orders.status, listings.status, notifications.
+// File: /api/cancel_purchase.js
+// Buyer can cancel a purchase within 30 minutes.
+// Cancels the order and reopens the listing immediately.
 
-import supabaseAdmin from "../_supabaseAdmin";
+import supabaseAdmin from "./_supabaseAdmin";
 
-export const config = {
-  api: { bodyParser: true }
-};
+// Helper: return JSON with status
+function json(res, code, obj) {
+  res.status(code).json(obj);
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+    return json(res, 405, { error: "Method Not Allowed" });
   }
 
-  const { order_id, user_id } = req.body || {};
-  if (!order_id || !user_id) {
-    return res.status(400).json({ error: "Missing order_id or user_id" });
+  const { order_id, buyer_id } = req.body || {};
+
+  if (!order_id || !buyer_id) {
+    return json(res, 400, { error: "Missing order_id or buyer_id" });
   }
 
-  // Fetch order
-  const { data: order, error: fetchErr } = await supabaseAdmin
+  // 1) Load the order
+  const { data: order, error: loadErr } = await supabaseAdmin
     .from("orders")
     .select("*")
     .eq("id", order_id)
     .single();
 
-  if (fetchErr || !order) {
-    return res.status(404).json({ error: "Order not found" });
+  if (loadErr || !order) {
+    return json(res, 404, { error: "Order not found." });
   }
 
-  // Ensure buyer matches
-  if (order.buyer_id !== user_id) {
-    return res.status(403).json({ error: "Not allowed" });
+  // 2) Verify buyer
+  if (order.buyer_id !== buyer_id) {
+    return json(res, 403, { error: "You are not allowed to cancel this purchase." });
   }
 
-  // Check window (30 minutes)
+  // 3) Validate time window (30 min)
   const created = new Date(order.created_at).getTime();
   const now = Date.now();
   const diffMinutes = (now - created) / 60000;
 
   if (diffMinutes > 30) {
-    return res.status(400).json({ error: "Cancellation window expired" });
+    return json(res, 400, { error: "Cancellation window has expired." });
   }
 
-  // Update order → CANCELLED
-  const { error: updateOrderErr } = await supabaseAdmin
+  // 4) Cancel order
+  const cancelTime = new Date().toISOString();
+
+  const { error: updateErr } = await supabaseAdmin
     .from("orders")
     .update({
-      status: "CANCELLED",
-      updated_at: new Date().toISOString()
+      status: "CANCELED",
+      canceled_at: cancelTime,
+      updated_at: cancelTime
     })
     .eq("id", order_id);
 
-  if (updateOrderErr) {
-    return res.status(500).json({ error: "Failed to update order" });
+  if (updateErr) {
+    return json(res, 500, { error: "Failed to cancel order." });
   }
 
-  // Restore listing
+  // 5) Reopen listing immediately
   if (order.listing_id) {
     await supabaseAdmin
       .from("listings")
       .update({
         status: "ACTIVE",
-        updated_at: new Date().toISOString()
+        updated_at: cancelTime
       })
-      .eq("id", order.listing_id);
+      .eq("id", order.listing_id)
+      .is("deleted_at", null);
   }
 
-  // Notification to seller
-  if (order.seller_id) {
+  // 6) Optional notification to seller
+  try {
     await supabaseAdmin.from("notifications").insert({
       user_id: order.seller_id,
       actor_id: order.buyer_id,
-      type: "purchase_cancelled",
-      kind: "order",
-      title: "Buyer cancelled purchase",
-      body: `A buyer cancelled the purchase for “${order.listing_title || "your listing"}”.`,
-      href: `/sales.html`,
-      link: `/sales.html`
+      type: "purchase_canceled",
+      title: "Purchase canceled",
+      body: "The buyer canceled the purchase within the 30-minute window.",
+      href: `/listing.html?id=${order.listing_id}`
     });
+  } catch (_) {
+    // best effort only
   }
 
-  return res.status(200).json({ success: true });
+  return json(res, 200, { success: true });
 }
