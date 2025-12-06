@@ -45,7 +45,7 @@
       margin-bottom:18px;
     }
 
-    .order-card{
+    .purchase-card{
       background:#fff;
       border:1px solid var(--hm-border);
       border-radius:12px;
@@ -55,34 +55,34 @@
       font-size:14px;
     }
 
-    .order-top{
+    .purchase-top{
       display:flex;
       justify-content:space-between;
       margin-bottom:8px;
       font-weight:600;
     }
 
-    .order-meta{
+    .purchase-meta{
       font-size:13px;
       color:var(--hm-muted);
       line-height:1.4;
       margin-bottom:8px;
     }
 
-    .order-items{
+    .purchase-items{
       font-size:13px;
       margin-bottom:10px;
     }
 
-    .order-items div{
+    .purchase-items div{
       margin-bottom:2px;
     }
 
-    .order-items span.name{
+    .purchase-items span.name{
       font-weight:600;
     }
 
-    .order-status{
+    .purchase-status{
       font-size:12px;
       font-weight:600;
       color:var(--hm-accent);
@@ -126,11 +126,11 @@
   <div id="hm-shell-header"></div>
 
   <main id="maincontent">
-    <h1>Purchases</h1>
-    <p class="sub">Orders you’ve purchased from fabric sellers.</p>
+    <h1>Your Purchases</h1>
+    <p class="sub">Fabric you’ve purchased on Hemline Market.</p>
 
-    <div id="ordersList"></div>
-    <p class="empty" id="emptyState" style="display:none;">You have no purchases yet.</p>
+    <div id="purchasesList"></div>
+    <p class="empty" id="emptyState" style="display:none;">You haven’t purchased anything yet.</p>
   </main>
 
   <div id="hm-shell-footer"></div>
@@ -147,7 +147,6 @@
     function formatDate(iso){
       if (!iso) return "";
       const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return "";
       return d.toLocaleDateString(undefined,{
         month:"short",
         day:"numeric",
@@ -156,15 +155,9 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      if (window.HM && window.HM.renderShell){
-        window.HM.renderShell({ currentPage:"purchases" });
-      }
+      window.HM.renderShell({ currentPage:"purchases" });
 
-      const supabase = window.HM && window.HM.supabase;
-      if (!supabase){
-        console.error("Supabase client not found on window.HM.supabase");
-        return;
-      }
+      const supabase = window.HM.supabase;
 
       async function ensureSession(maxWaitMs = 3000){
         let { data:{ session } } = await supabase.auth.getSession();
@@ -179,7 +172,7 @@
       }
 
       async function loadPurchases(){
-        const list  = document.getElementById("ordersList");
+        const list  = document.getElementById("purchasesList");
         const empty = document.getElementById("emptyState");
 
         const session = await ensureSession();
@@ -188,24 +181,19 @@
           return;
         }
 
-        // Only this buyer’s orders, newest first
         const { data, error } = await supabase
           .from("orders")
           .select("*")
           .eq("buyer_id", session.user.id)
           .order("created_at", { ascending:false });
 
-        console.log("[Purchases] buyer orders:", data);
-        window.lastOrders = data; // for debugging if needed
-
         if (error){
-          console.error("loadPurchases error:", error);
           empty.style.display = "block";
-          empty.textContent = "We couldn’t load your purchases. Please refresh.";
+          empty.textContent = "Unable to load purchases.";
           return;
         }
 
-        if (!data || !data.length){
+        if (!data.length){
           empty.style.display = "block";
           list.innerHTML = "";
           return;
@@ -216,11 +204,10 @@
 
         data.forEach(o => {
           const card = document.createElement("div");
-          card.className = "order-card";
+          card.className = "purchase-card";
 
           const status = String(o.status || "paid").toUpperCase();
 
-          // Title from several possible places
           let listingTitle =
             o.listing_title ||
             o.listing_name ||
@@ -228,82 +215,75 @@
 
           const snapshot = o.listing_snapshot;
           if (!listingTitle && Array.isArray(snapshot) && snapshot.length){
-            listingTitle = snapshot[0].name || "Order";
+            listingTitle = snapshot[0].name || "Fabric purchase";
           }
-          if (!listingTitle){
-            listingTitle = "Order";
-          }
+          if (!listingTitle) listingTitle = "Fabric purchase";
 
-          // Total: prefer *_cents; fall back to amount_total
           const amountCents = Number(
-            (o.total_cents ??
-             o.amount_total_cents ??
-             o.amount_total ??
-             0)
+            o.total_cents ??
+            o.amount_total_cents ??
+            o.amount_total ??
+            0
           );
 
-          // Cancellation note: soft 30-minute window from created_at
           let cancellationHtml = "";
           if (o.created_at){
             const createdMs = new Date(o.created_at).getTime();
-            if (!Number.isNaN(createdMs)){
-              const diffMinutes = (Date.now() - createdMs) / (60 * 1000);
-              if (diffMinutes < 30){
-                cancellationHtml = `
-                  <div class="cancellation-note cancellation-open">
-                    You can still request cancellation within 30 minutes of purchase.
-                    Message the seller and mention “Cancel this order”.
-                  </div>
-                `;
-              } else {
-                cancellationHtml = `
-                  <div class="cancellation-note">
-                    If you need to cancel, message the seller through this order.
-                    Cancellations after shipping are handled case-by-case.
-                  </div>
-                `;
-              }
+            const diffMinutes = (Date.now() - createdMs) / 60000;
+
+            if (diffMinutes < 30){
+              cancellationHtml = `
+                <div class="cancellation-note cancellation-open">
+                  You may request cancellation within 30 minutes of purchase.
+                  Contact the seller immediately.
+                </div>
+              `;
+            } else {
+              cancellationHtml = `
+                <div class="cancellation-note">
+                  Cancellation after the 30-minute window is seller-discretion.
+                </div>
+              `;
             }
           }
 
           card.innerHTML = `
-            <div class="order-top">
-              <span>Order #${String(o.id).slice(0,8)}</span>
+            <div class="purchase-top">
+              <span>Purchase #${String(o.id).slice(0,8)}</span>
               <span>${formatDate(o.created_at)}</span>
             </div>
 
-            <div class="order-status">Status: ${status}</div>
+            <div class="purchase-status">Status: ${status}</div>
 
-            <div class="order-meta">
+            <div class="purchase-meta">
               Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
             </div>
 
-            <div class="order-items">
+            <div class="purchase-items">
               <div><span class="name">${listingTitle}</span></div>
             </div>
 
-            <div class="order-actions"></div>
+            <div class="purchase-actions"></div>
             ${cancellationHtml}
           `;
 
-          const actionsDiv = card.querySelector(".order-actions");
+          const actions = card.querySelector(".purchase-actions");
 
           if (o.listing_id){
-            const viewListing = document.createElement("a");
-            viewListing.className = "btn";
-            viewListing.href = `listing.html?id=${encodeURIComponent(o.listing_id)}`;
-            viewListing.textContent = "View listing";
-            actionsDiv.appendChild(viewListing);
+            const viewBtn = document.createElement("a");
+            viewBtn.className = "btn";
+            viewBtn.href = `listing.html?id=${encodeURIComponent(o.listing_id)}`;
+            viewBtn.textContent = "View fabric";
+            actions.appendChild(viewBtn);
           }
 
           if (o.seller_id){
             const msgBtn = document.createElement("a");
             msgBtn.className = "btn";
             msgBtn.href =
-              `messages.html?user=${encodeURIComponent(o.seller_id)}` +
-              `&order=${encodeURIComponent(o.id)}`;
-            msgBtn.textContent = "Message seller";
-            actionsDiv.appendChild(msgBtn);
+              `messages.html?user=${encodeURIComponent(o.seller_id)}&purchase=${encodeURIComponent(o.id)}`;
+            msgBtn.textContent = "Contact seller";
+            actions.appendChild(msgBtn);
           }
 
           list.appendChild(card);
