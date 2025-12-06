@@ -1,5 +1,5 @@
 // public/scripts/purchases.js
-// Loads the logged-in buyer’s purchase history.
+// Loads the logged-in buyer’s purchase history and supports 30-minute cancellation.
 
 import {
   formatMoney,
@@ -69,11 +69,15 @@ import {
 
   if (!data || data.length === 0) {
     empty.style.display = "block";
+    empty.textContent = "You haven’t purchased anything yet.";
+    list.innerHTML = "";
     return;
   }
 
   empty.style.display = "none";
   list.innerHTML = "";
+
+  const now = new Date();
 
   data.forEach((order) => {
     const card = document.createElement("div");
@@ -81,7 +85,16 @@ import {
 
     const title = extractListingTitle(order);
     const totalCents = extractTotalCents(order);
-    const cancelNote = cancellationWindowHtml(order);
+    const cancelNoteHtml = cancellationWindowHtml(order);
+
+    const createdAt = order.created_at ? new Date(order.created_at) : null;
+    const isPaid =
+      !order.status ||
+      String(order.status).toUpperCase() === "PAID" ||
+      String(order.status).toUpperCase() === "COMPLETED";
+    const within30Min =
+      createdAt && now.getTime() - createdAt.getTime() <= 30 * 60 * 1000;
+    const canCancel = isPaid && within30Min;
 
     card.innerHTML = `
       <div class="order-top">
@@ -102,7 +115,7 @@ import {
       </div>
 
       <div class="order-actions"></div>
-      ${cancelNote}
+      <div class="order-cancel-note">${cancelNoteHtml || ""}</div>
     `;
 
     const actions = card.querySelector(".order-actions");
@@ -125,6 +138,76 @@ import {
         `&order=${encodeURIComponent(order.id)}`;
       msg.textContent = "Message seller";
       actions.appendChild(msg);
+    }
+
+    // 30-minute cancellation (buyer side)
+    if (canCancel) {
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "btn btn-secondary";
+      cancelBtn.type = "button";
+      cancelBtn.textContent = "Cancel order";
+
+      cancelBtn.addEventListener("click", async () => {
+        if (
+          !window.confirm(
+            "Cancel this order? This will release the listing and cannot be undone."
+          )
+        ) {
+          return;
+        }
+
+        cancelBtn.disabled = true;
+        cancelBtn.textContent = "Cancelling…";
+
+        // Double-check the 30-minute window at click time
+        const latestNow = new Date();
+        const created = order.created_at ? new Date(order.created_at) : null;
+        if (
+          !created ||
+          latestNow.getTime() - created.getTime() > 30 * 60 * 1000
+        ) {
+          window.alert(
+            "This order can no longer be cancelled because the 30-minute window has passed."
+          );
+          cancelBtn.disabled = false;
+          cancelBtn.textContent = "Cancel order";
+          return;
+        }
+
+        const { data: updated, error: cancelError } = await supabase
+          .from("orders")
+          .update({ status: "CANCELLED" })
+          .eq("id", order.id)
+          .eq("buyer_id", uid)
+          .select("status")
+          .single();
+
+        if (cancelError) {
+          console.error("[purchases] Cancel error:", cancelError);
+          window.alert(
+            "We couldn’t cancel this order. Please refresh and try again."
+          );
+          cancelBtn.disabled = false;
+          cancelBtn.textContent = "Cancel order";
+          return;
+        }
+
+        const statusEl = card.querySelector(".order-status");
+        if (statusEl) {
+          statusEl.textContent = `Status: ${String(
+            updated?.status || "CANCELLED"
+          ).toUpperCase()}`;
+        }
+
+        cancelBtn.remove();
+
+        const noteEl = card.querySelector(".order-cancel-note");
+        if (noteEl) {
+          noteEl.textContent = "Order cancelled within the 30-minute window.";
+        }
+      });
+
+      actions.appendChild(cancelBtn);
     }
 
     list.appendChild(card);
