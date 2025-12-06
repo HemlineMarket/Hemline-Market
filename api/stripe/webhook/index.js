@@ -1,9 +1,9 @@
-// File: /api/stripe/webhook.js
+// File: /api/stripe/webhook/index.js
 // FIXED VERSION — ensures buyer_id, seller_id, listing_id are ALWAYS written.
 
 import Stripe from "stripe";
 import fetch from "node-fetch";
-import supabaseAdmin from "../_supabaseAdmin";
+import supabaseAdmin from "../../_supabaseAdmin";   // <-- FIXED PATH
 
 export const config = { api: { bodyParser: false } };
 
@@ -75,7 +75,6 @@ async function insertPurchaseNotifications({ buyerId, sellerId, listingId, listi
   }
 
   if (!rows.length) return;
-
   await supabaseAdmin.from("notifications").insert(rows);
 }
 
@@ -100,7 +99,7 @@ async function markListingSold(listingId) {
 }
 
 // ----------------------------------------------------------
-// UPSERT ORDER (FIXED: always sets buyer_id, seller_id, listing_id)
+// UPSERT ORDER
 // ----------------------------------------------------------
 
 async function upsertOrderIntoOrders(event, session) {
@@ -137,9 +136,9 @@ async function upsertOrderIntoOrders(event, session) {
     stripe_checkout: session.id,
 
     buyer_email: session.customer_details?.email || session.customer_email || "",
-    buyer_id: buyerId,       // FIXED
-    seller_id: sellerId,     // FIXED
-    listing_id: listingId,   // FIXED
+    buyer_id: buyerId,
+    seller_id: sellerId,
+    listing_id: listingId,
 
     listing_snapshot: cart,
     total_cents: session.amount_total || 0,
@@ -147,7 +146,7 @@ async function upsertOrderIntoOrders(event, session) {
     updated_at: new Date().toISOString()
   };
 
-  // ---- UPSERT ----
+  // UPSERT
   const { data: existing } = await supabaseAdmin
     .from("orders")
     .select("id")
@@ -174,7 +173,7 @@ async function upsertOrderIntoOrders(event, session) {
 }
 
 // ----------------------------------------------------------
-// Purchase email (unchanged)
+// Purchase email
 // ----------------------------------------------------------
 
 async function sendPurchaseEmail({ stripeSessionId }) {
@@ -191,7 +190,7 @@ async function sendPurchaseEmail({ stripeSessionId }) {
 }
 
 // ----------------------------------------------------------
-// Main
+// Main Handler
 // ----------------------------------------------------------
 
 export default async function handler(req, res) {
