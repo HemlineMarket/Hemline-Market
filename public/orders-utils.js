@@ -1,38 +1,43 @@
-// public/scripts/orders-utils.js
-// Shared helpers for Purchases + Sales pages
+// File: public/scripts/orders-utils.js
+// Shared helpers for purchases.js and sales.js
 
-export function formatMoney(cents){
+// --- Money formatter ---
+export function formatMoney(cents) {
   const n = Number(cents || 0) / 100;
-  return n.toLocaleString(undefined, { style:"currency", currency:"USD" });
-}
-
-export function formatDate(iso){
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined,{
-    month:"short",
-    day:"numeric",
-    year:"numeric"
+  return n.toLocaleString(undefined, {
+    style: "currency",
+    currency: "USD",
   });
 }
 
-// Derive a clean, human title from order row
-export function extractListingTitle(order){
-  let t =
+// --- Date formatter ---
+export function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// --- Extract listing title ---
+export function extractListingTitle(order) {
+  let title =
     order.listing_title ||
     order.listing_name ||
     "";
 
-  const ss = order.listing_snapshot;
-  if (!t && Array.isArray(ss) && ss.length){
-    t = ss[0].name || "Fabric";
+  const snap = order.listing_snapshot;
+  if (!title && Array.isArray(snap) && snap.length > 0) {
+    title = snap[0].name || "Fabric";
   }
-  return t || "Fabric";
+
+  return title || "Fabric";
 }
 
-// Derive total cents from all possible fields
-export function extractTotalCents(order){
+// --- Extract total amount ---
+export function extractTotalCents(order) {
   return Number(
     order.total_cents ??
     order.amount_total_cents ??
@@ -41,28 +46,25 @@ export function extractTotalCents(order){
   );
 }
 
-// Determine if 30-min cancellation window is still open
-export function cancellationWindowHtml(order){
+// --- 30-minute cancellation window notice ---
+export function cancellationWindowHtml(order) {
   if (!order.created_at) return "";
 
   const createdMs = new Date(order.created_at).getTime();
-  if (Number.isNaN(createdMs)) return "";
+  const diffMinutes = (Date.now() - createdMs) / 60000;
 
-  const diff = (Date.now() - createdMs) / (60 * 1000);
-
-  if (diff < 30){
+  if (diffMinutes < 30) {
     return `
       <div class="cancellation-note cancellation-open">
-        You can still request cancellation within 30 minutes of purchase.
-        Message the seller and mention “Cancel this purchase”.
+        You may request cancellation within 30 minutes of purchase.
+        Contact the seller immediately.
       </div>
     `;
   }
 
   return `
     <div class="cancellation-note">
-      If you need to cancel, message the seller through this purchase.
-      Cancellations after shipping are handled case-by-case.
+      Cancellation after the 30-minute window is seller discretion.
     </div>
   `;
 }
