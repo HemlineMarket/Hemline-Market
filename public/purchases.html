@@ -188,7 +188,7 @@
           return;
         }
 
-        // Real query: only this buyer’s orders, newest first
+        // Only this buyer’s orders, newest first
         const { data, error } = await supabase
           .from("orders")
           .select("*")
@@ -196,7 +196,7 @@
           .order("created_at", { ascending:false });
 
         console.log("[Purchases] buyer orders:", data);
-        window.lastOrders = data; // helpful while we’re still tuning
+        window.lastOrders = data; // for debugging if needed
 
         if (error){
           console.error("loadPurchases error:", error);
@@ -220,7 +220,7 @@
 
           const status = String(o.status || "paid").toUpperCase();
 
-          // Try a few places for the title
+          // Title from several possible places
           let listingTitle =
             o.listing_title ||
             o.listing_name ||
@@ -234,7 +234,7 @@
             listingTitle = "Order";
           }
 
-          // Try multiple columns for totals; whichever is populated wins
+          // Total: prefer *_cents; fall back to amount_total
           const amountCents = Number(
             (o.total_cents ??
              o.amount_total_cents ??
@@ -242,7 +242,7 @@
              0)
           );
 
-          // Cancellation note: 30-minute soft window based on created_at
+          // Cancellation note: soft 30-minute window from created_at
           let cancellationHtml = "";
           if (o.created_at){
             const createdMs = new Date(o.created_at).getTime();
