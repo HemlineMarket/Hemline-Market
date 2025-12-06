@@ -1,5 +1,6 @@
-// File: public/scripts/sales.js
-// Loads all sales (orders where the logged-in user is the seller).
+// public/scripts/sales.js
+// Loads all sales (orders where the logged-in user is the seller)
+// Includes 30-minute cancellation window indicator.
 
 (async () => {
   const supabase = window.HM && window.HM.supabase;
@@ -8,30 +9,51 @@
     return;
   }
 
-  // Utility: format money
   function formatMoney(cents) {
     const n = Number(cents || 0) / 100;
     return n.toLocaleString(undefined, { style: "currency", currency: "USD" });
   }
 
-  // Utility: date formatting
   function formatDate(iso) {
     if (!iso) return "";
     const d = new Date(iso);
     return d.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
-      year: "numeric"
+      year: "numeric",
     });
   }
 
-  // Ensure session
+  // Cancellation note for seller
+  function cancellationWindowHtml(order) {
+    if (!order.created_at) return "";
+
+    const createdMs = new Date(order.created_at).getTime();
+    const nowMs = Date.now();
+    const diffMinutes = (nowMs - createdMs) / 60000;
+
+    if (diffMinutes < 30) {
+      const remaining = Math.max(0, Math.ceil(30 - diffMinutes));
+      return `
+        <div class="cancel-note" style="font-size:12px;color:#b45309;margin-top:6px;font-weight:600;">
+          Buyer may request cancellation for another ${remaining} min.
+        </div>
+      `;
+    }
+
+    return `
+      <div class="cancel-note" style="font-size:12px;color:#6b7280;margin-top:6px;">
+        Cancellation window has closed.
+      </div>
+    `;
+  }
+
   async function ensureSession(maxMs = 3000) {
     let { data: { session } } = await supabase.auth.getSession();
     const start = Date.now();
 
     while (!session?.user && Date.now() - start < maxMs) {
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 120));
       ({ data: { session } } = await supabase.auth.getSession());
     }
 
@@ -46,18 +68,16 @@
 
   const uid = session.user.id;
 
-  // Query all sales where this user is the seller
+  const list = document.getElementById("ordersList");
+  const empty = document.getElementById("emptyState");
+
   const { data, error } = await supabase
     .from("orders")
     .select("*")
     .eq("seller_id", uid)
     .order("created_at", { ascending: false });
 
-  const list = document.getElementById("ordersList");
-  const empty = document.getElementById("emptyState");
-
   if (error) {
-    console.error("[sales] load error:", error);
     empty.style.display = "block";
     return;
   }
@@ -70,13 +90,12 @@
   empty.style.display = "none";
   list.innerHTML = "";
 
-  data.forEach(o => {
+  data.forEach((o) => {
     const card = document.createElement("div");
     card.className = "order-card";
 
     const dateStr = formatDate(o.created_at);
 
-    // Listing title
     let listingTitle =
       o.listing_title ||
       o.listing_name ||
@@ -88,13 +107,14 @@
     }
     if (!listingTitle) listingTitle = "Fabric sale";
 
-    // Total amount
     const amount = Number(
       o.total_cents ??
-      o.amount_total_cents ??
-      o.amount_total ??
-      0
+        o.amount_total_cents ??
+        o.amount_total ??
+        0
     );
+
+    const cancelNote = cancellationWindowHtml(o);
 
     card.innerHTML = `
       <div class="order-top">
@@ -109,14 +129,15 @@
       </div>
 
       <a class="btn"
-         href="messages.html?user=${encodeURIComponent(o.buyer_id)}&order=${encodeURIComponent(o.id)}">
+         href="messages.html?user=${encodeURIComponent(o.buyer_id)}&sale=${encodeURIComponent(o.id)}">
         Message buyer
       </a>
+
+      ${cancelNote}
     `;
 
     list.appendChild(card);
   });
 
-  // Highlight header nav
   window.HM && window.HM.renderShell({ currentPage: "sales" });
 })();
