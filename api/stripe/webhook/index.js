@@ -3,7 +3,7 @@
 
 import Stripe from "stripe";
 import fetch from "node-fetch";
-import supabaseAdmin from "../../_supabaseAdmin";   // <-- FIXED PATH
+import supabaseAdmin from "../../_supabaseAdmin.js";   // <-- FIXED PATH WITH .js
 
 export const config = { api: { bodyParser: false } };
 
@@ -41,7 +41,12 @@ function safeMeta(session) {
 // Notifications
 // ----------------------------------------------------------
 
-async function insertPurchaseNotifications({ buyerId, sellerId, listingId, listingTitle }) {
+async function insertPurchaseNotifications({
+  buyerId,
+  sellerId,
+  listingId,
+  listingTitle,
+}) {
   const title = listingTitle || "your fabric";
   const sellerHref = `/listing.html?id=${listingId || ""}`;
   const buyerHref = `/purchases.html`;
@@ -57,7 +62,7 @@ async function insertPurchaseNotifications({ buyerId, sellerId, listingId, listi
       title: `Your fabric was purchased: “${title}”`,
       body: `Someone purchased “${title}”.`,
       href: sellerHref,
-      link: sellerHref
+      link: sellerHref,
     });
   }
 
@@ -70,7 +75,7 @@ async function insertPurchaseNotifications({ buyerId, sellerId, listingId, listi
       title: `Purchase confirmed: “${title}”`,
       body: `Your purchase of “${title}” is confirmed.`,
       href: buyerHref,
-      link: buyerHref
+      link: buyerHref,
     });
   }
 
@@ -89,7 +94,7 @@ async function markListingSold(listingId) {
       .from("listings")
       .update({
         status: "SOLD",
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq("id", listingId)
       .is("deleted_at", null);
@@ -119,23 +124,18 @@ async function upsertOrderIntoOrders(event, session) {
     first.name || meta.listing_title || meta.listingTitle || "";
 
   const buyerId =
-    meta.buyer_user_id ||
-    meta.buyer_id ||
-    meta.buyerId ||
-    null;
+    meta.buyer_user_id || meta.buyer_id || meta.buyerId || null;
 
   const sellerId =
-    first.seller_user_id ||
-    meta.seller_user_id ||
-    meta.sellerId ||
-    null;
+    first.seller_user_id || meta.seller_user_id || meta.sellerId || null;
 
   const payload = {
     stripe_event_id: event.id,
     stripe_payment_intent: session.payment_intent,
     stripe_checkout: session.id,
 
-    buyer_email: session.customer_details?.email || session.customer_email || "",
+    buyer_email:
+      session.customer_details?.email || session.customer_email || "",
     buyer_id: buyerId,
     seller_id: sellerId,
     listing_id: listingId,
@@ -143,7 +143,7 @@ async function upsertOrderIntoOrders(event, session) {
     listing_snapshot: cart,
     total_cents: session.amount_total || 0,
     status: "PAID",
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
   };
 
   // UPSERT
@@ -184,7 +184,7 @@ async function sendPurchaseEmail({ stripeSessionId }) {
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stripeSessionId })
+      body: JSON.stringify({ stripeSessionId }),
     });
   } catch {}
 }
@@ -224,10 +224,7 @@ export default async function handler(req, res) {
       const meta = safeMeta(session);
 
       const listingId =
-        orderRow?.listing_id ||
-        meta.listing_id ||
-        meta.listingId ||
-        null;
+        orderRow?.listing_id || meta.listing_id || meta.listingId || null;
 
       if (listingId) await markListingSold(listingId);
 
@@ -260,7 +257,7 @@ export default async function handler(req, res) {
         buyerId,
         sellerId,
         listingId,
-        listingTitle
+        listingTitle,
       });
     }
 
