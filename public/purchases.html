@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Purchases — Hemline Market</title>
+  <title>Your Purchases — Hemline Market</title>
 
+  <!-- UNIVERSAL CSS -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -62,11 +63,18 @@
       font-weight:600;
     }
 
+    .purchase-status{
+      font-size:12px;
+      font-weight:600;
+      color:var(--hm-accent);
+      margin-bottom:6px;
+    }
+
     .purchase-meta{
       font-size:13px;
       color:var(--hm-muted);
-      line-height:1.4;
       margin-bottom:8px;
+      line-height:1.4;
     }
 
     .purchase-items{
@@ -74,19 +82,8 @@
       margin-bottom:10px;
     }
 
-    .purchase-items div{
-      margin-bottom:2px;
-    }
-
     .purchase-items span.name{
       font-weight:600;
-    }
-
-    .purchase-status{
-      font-size:12px;
-      font-weight:600;
-      color:var(--hm-accent);
-      margin-bottom:6px;
     }
 
     a.btn{
@@ -123,6 +120,7 @@
 </head>
 
 <body>
+  <!-- UNIVERSAL HEADER -->
   <div id="hm-shell-header"></div>
 
   <main id="maincontent">
@@ -133,165 +131,16 @@
     <p class="empty" id="emptyState" style="display:none;">You haven’t purchased anything yet.</p>
   </main>
 
+  <!-- UNIVERSAL FOOTER -->
   <div id="hm-shell-footer"></div>
 
+  <!-- JS STACK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
+  <script src="scripts/purchases.js"></script>
 
   <script>
-    function formatMoney(cents){
-      const n = Number(cents || 0) / 100;
-      return n.toLocaleString(undefined,{ style:"currency", currency:"USD" });
-    }
-
-    function formatDate(iso){
-      if (!iso) return "";
-      const d = new Date(iso);
-      return d.toLocaleDateString(undefined,{
-        month:"short",
-        day:"numeric",
-        year:"numeric"
-      });
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      window.HM.renderShell({ currentPage:"purchases" });
-
-      const supabase = window.HM.supabase;
-
-      async function ensureSession(maxWaitMs = 3000){
-        let { data:{ session } } = await supabase.auth.getSession();
-        if (session?.user) return session;
-
-        const start = Date.now();
-        while (!session?.user && Date.now() - start < maxWaitMs){
-          await new Promise(r => setTimeout(r, 120));
-          ({ data:{ session } } = await supabase.auth.getSession());
-        }
-        return session || null;
-      }
-
-      async function loadPurchases(){
-        const list  = document.getElementById("purchasesList");
-        const empty = document.getElementById("emptyState");
-
-        const session = await ensureSession();
-        if (!session || !session.user){
-          window.location.href = "auth.html?view=login";
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("buyer_id", session.user.id)
-          .order("created_at", { ascending:false });
-
-        if (error){
-          empty.style.display = "block";
-          empty.textContent = "Unable to load purchases.";
-          return;
-        }
-
-        if (!data.length){
-          empty.style.display = "block";
-          list.innerHTML = "";
-          return;
-        }
-
-        empty.style.display = "none";
-        list.innerHTML = "";
-
-        data.forEach(o => {
-          const card = document.createElement("div");
-          card.className = "purchase-card";
-
-          const status = String(o.status || "paid").toUpperCase();
-
-          let listingTitle =
-            o.listing_title ||
-            o.listing_name ||
-            "";
-
-          const snapshot = o.listing_snapshot;
-          if (!listingTitle && Array.isArray(snapshot) && snapshot.length){
-            listingTitle = snapshot[0].name || "Fabric purchase";
-          }
-          if (!listingTitle) listingTitle = "Fabric purchase";
-
-          const amountCents = Number(
-            o.total_cents ??
-            o.amount_total_cents ??
-            o.amount_total ??
-            0
-          );
-
-          let cancellationHtml = "";
-          if (o.created_at){
-            const createdMs = new Date(o.created_at).getTime();
-            const diffMinutes = (Date.now() - createdMs) / 60000;
-
-            if (diffMinutes < 30){
-              cancellationHtml = `
-                <div class="cancellation-note cancellation-open">
-                  You may request cancellation within 30 minutes of purchase.
-                  Contact the seller immediately.
-                </div>
-              `;
-            } else {
-              cancellationHtml = `
-                <div class="cancellation-note">
-                  Cancellation after the 30-minute window is seller-discretion.
-                </div>
-              `;
-            }
-          }
-
-          card.innerHTML = `
-            <div class="purchase-top">
-              <span>Purchase #${String(o.id).slice(0,8)}</span>
-              <span>${formatDate(o.created_at)}</span>
-            </div>
-
-            <div class="purchase-status">Status: ${status}</div>
-
-            <div class="purchase-meta">
-              Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
-            </div>
-
-            <div class="purchase-items">
-              <div><span class="name">${listingTitle}</span></div>
-            </div>
-
-            <div class="purchase-actions"></div>
-            ${cancellationHtml}
-          `;
-
-          const actions = card.querySelector(".purchase-actions");
-
-          if (o.listing_id){
-            const viewBtn = document.createElement("a");
-            viewBtn.className = "btn";
-            viewBtn.href = `listing.html?id=${encodeURIComponent(o.listing_id)}`;
-            viewBtn.textContent = "View fabric";
-            actions.appendChild(viewBtn);
-          }
-
-          if (o.seller_id){
-            const msgBtn = document.createElement("a");
-            msgBtn.className = "btn";
-            msgBtn.href =
-              `messages.html?user=${encodeURIComponent(o.seller_id)}&purchase=${encodeURIComponent(o.id)}`;
-            msgBtn.textContent = "Contact seller";
-            actions.appendChild(msgBtn);
-          }
-
-          list.appendChild(card);
-        });
-      }
-
-      loadPurchases();
-    });
+    window.HM && window.HM.renderShell({ currentPage:"purchases" });
   </script>
 </body>
 </html>
