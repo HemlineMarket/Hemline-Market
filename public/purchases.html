@@ -62,6 +62,13 @@
       font-weight:600;
     }
 
+    .purchase-status{
+      font-size:12px;
+      font-weight:600;
+      color:var(--hm-accent);
+      margin-bottom:6px;
+    }
+
     .purchase-meta{
       font-size:13px;
       color:var(--hm-muted);
@@ -69,15 +76,8 @@
       margin-bottom:8px;
     }
 
-    .purchase-items div span.name{
+    .purchase-items span.name{
       font-weight:600;
-    }
-
-    .purchase-status{
-      font-size:12px;
-      font-weight:600;
-      color:var(--hm-accent);
-      margin-bottom:6px;
     }
 
     a.btn, button.btn{
@@ -92,6 +92,11 @@
       color:var(--hm-accent);
       margin-right:8px;
       cursor:pointer;
+    }
+
+    button.btn:disabled{
+      opacity:0.6;
+      cursor:not-allowed;
     }
 
     .empty{
@@ -146,31 +151,6 @@
       });
     }
 
-    // -------- CANCEL FUNCTION (REAL) --------
-    async function cancelOrder(orderId, buyerId){
-      try {
-        const res = await fetch("/api/orders/cancel", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body:JSON.stringify({ order_id: orderId, buyer_id: buyerId })
-        });
-
-        const json = await res.json();
-
-        if (!res.ok){
-          alert(json.error || "Unable to cancel order.");
-          return;
-        }
-
-        alert("Your order has been canceled.");
-        location.reload();
-
-      } catch (err){
-        console.error("cancel error:", err);
-        alert("Something went wrong.");
-      }
-    }
-
     window.addEventListener("DOMContentLoaded", () => {
       window.HM.renderShell({ currentPage:"purchases" });
 
@@ -187,6 +167,27 @@
         return session;
       }
 
+      async function cancelPurchase(orderId){
+        const session = await supabase.auth.getSession();
+        const buyerId = session.data.session.user.id;
+
+        const res = await fetch("/api/cancel_purchase", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify({ order_id: orderId, buyer_id: buyerId })
+        });
+
+        const out = await res.json();
+
+        if (!res.ok){
+          alert(out.error || "Unable to cancel purchase.");
+          return;
+        }
+
+        alert("Purchase canceled successfully.");
+        location.reload();
+      }
+
       async function loadPurchases(){
         const list  = document.getElementById("purchasesList");
         const empty = document.getElementById("emptyState");
@@ -197,12 +198,10 @@
           return;
         }
 
-        const buyerId = session.user.id;
-
         const { data, error } = await supabase
           .from("orders")
           .select("*")
-          .eq("buyer_id", buyerId)
+          .eq("buyer_id", session.user.id)
           .order("created_at", { ascending:false });
 
         if (error){
@@ -237,26 +236,25 @@
             0
           );
 
-          // --- 30 minute cancellation logic ---
           let cancellationHtml = "";
-          let cancelButton = "";
+          let cancelBtn = "";
 
           if (o.created_at){
             const createdMs = new Date(o.created_at).getTime();
             const diffMinutes = (Date.now() - createdMs) / 60000;
 
-            if (diffMinutes < 30){
+            if (diffMinutes < 30 && o.status !== "CANCELED"){
+              cancelBtn = `
+                <button class="btn cancel-btn" data-id="${o.id}">
+                  Cancel purchase
+                </button>
+              `;
               cancellationHtml = `
                 <div class="cancellation-note cancellation-open">
                   Cancellation available for 30 minutes after purchase.
                 </div>
               `;
-              cancelButton = `
-                <button class="btn cancel-btn" data-id="${o.id}">
-                  Cancel purchase
-                </button>
-              `;
-            } else {
+            } else if (o.status !== "CANCELED"){
               cancellationHtml = `
                 <div class="cancellation-note">
                   The 30-minute cancellation window has expired.
@@ -282,7 +280,7 @@
             </div>
 
             <div class="purchase-actions">
-              ${cancelButton}
+              ${cancelBtn}
             </div>
 
             ${cancellationHtml}
@@ -291,11 +289,12 @@
           list.appendChild(card);
         });
 
-        // --- Add cancel handlers ---
-        list.querySelectorAll(".cancel-btn").forEach(btn => {
-          btn.addEventListener("click", (e) => {
-            const orderId = e.target.dataset.id;
-            cancelOrder(orderId, buyerId);
+        // Attach cancel handlers
+        document.querySelectorAll(".cancel-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            btn.disabled = true;
+            btn.textContent = "Canceling...";
+            cancelPurchase(btn.dataset.id);
           });
         });
       }
