@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Sales — Hemline Market</title>
+  <title>Your Sales — Hemline Market</title>
 
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
@@ -19,28 +19,33 @@
       --hm-text:#111827;
       --hm-bg:#f4f4f7;
     }
+
     html, body{
       margin:0;
       background:var(--hm-bg);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       color:var(--hm-text);
     }
+
     main{
       max-width:1100px;
       margin:20px auto;
       padding:0 12px;
     }
+
     h1{
       font-size:26px;
       font-weight:800;
       margin-bottom:4px;
     }
+
     .sub{
       font-size:14px;
       color:var(--hm-muted);
       margin-bottom:18px;
     }
-    .order-card{
+
+    .sale-card{
       background:#fff;
       border:1px solid var(--hm-border);
       border-radius:12px;
@@ -49,24 +54,21 @@
       margin-bottom:14px;
       font-size:14px;
     }
-    .order-top{
+
+    .sale-top{
       display:flex;
       justify-content:space-between;
       margin-bottom:8px;
       font-weight:600;
     }
-    .order-meta{
+
+    .sale-meta{
       font-size:13px;
       color:var(--hm-muted);
       line-height:1.4;
       margin-bottom:10px;
     }
-    .empty{
-      text-align:center;
-      color:var(--hm-muted);
-      font-size:15px;
-      margin-top:40px;
-    }
+
     a.btn{
       display:inline-block;
       padding:6px 12px;
@@ -77,6 +79,14 @@
       font-weight:600;
       background:#fff;
       color:var(--hm-accent);
+      margin-right:8px;
+    }
+
+    .empty{
+      text-align:center;
+      color:var(--hm-muted);
+      font-size:15px;
+      margin-top:40px;
     }
   </style>
 </head>
@@ -85,10 +95,10 @@
   <div id="hm-shell-header"></div>
 
   <main id="maincontent">
-    <h1>Sales</h1>
-    <p class="sub">Orders buyers purchased from your shop.</p>
+    <h1>Your Sales</h1>
+    <p class="sub">Fabric buyers have purchased from your shop.</p>
 
-    <div id="ordersList"></div>
+    <div id="salesList"></div>
     <p class="empty" id="emptyState" style="display:none;">You have no sales yet.</p>
   </main>
 
@@ -115,7 +125,7 @@
         .eq("seller_id", uid)
         .order("created_at", { ascending:false });
 
-      const list = document.getElementById("ordersList");
+      const list = document.getElementById("salesList");
       const empty = document.getElementById("emptyState");
 
       if(error || !data || data.length === 0){
@@ -126,29 +136,43 @@
       empty.style.display = "none";
       list.innerHTML = "";
 
-      data.forEach(o=>{
+      data.forEach(sale=>{
         const div = document.createElement("div");
-        div.className = "order-card";
+        div.className = "sale-card";
 
-        const dateStr = o.created_at
-          ? new Date(o.created_at).toLocaleDateString()
+        const dateStr = sale.created_at
+          ? new Date(sale.created_at).toLocaleDateString(undefined,{
+              month:"short",
+              day:"numeric",
+              year:"numeric"
+            })
           : "";
 
+        const title =
+          sale.listing_title ||
+          sale.listing_name ||
+          (Array.isArray(sale.listing_snapshot) && sale.listing_snapshot.length
+            ? sale.listing_snapshot[0].name
+            : "Fabric sale");
+
+        const buyerEmail = sale.buyer_email || "Unknown buyer";
+
         div.innerHTML = `
-          <div class="order-top">
-            <span>Order</span>
+          <div class="sale-top">
+            <span>Sale #${String(sale.id).slice(0,8)}</span>
             <span>${dateStr}</span>
           </div>
 
-          <div class="order-meta">
-            Listing ID: ${o.listing_id || "—"}<br>
-            Buyer email: ${o.buyer_email || "—"}<br>
-            Stripe Payment: ${o.stripe_payment_intent || "—"}
+          <div class="sale-meta">
+            <strong>${title}</strong><br>
+            Buyer: ${buyerEmail}<br>
+            Listing ID: ${sale.listing_id || "—"}<br>
+            Payment Ref: ${sale.stripe_payment_intent || "—"}
           </div>
 
           <a class="btn"
-             href="messages.html?user=${encodeURIComponent(o.buyer_id)}&order=${encodeURIComponent(o.id)}">
-            Message buyer
+             href="messages.html?user=${encodeURIComponent(sale.buyer_id)}&purchase=${encodeURIComponent(sale.id)}">
+            Contact buyer
           </a>
         `;
 
@@ -156,8 +180,8 @@
       });
     }
 
-    loadSales();
     window.HM.renderShell({ currentPage:"sales" });
+    loadSales();
   </script>
 </body>
 </html>
