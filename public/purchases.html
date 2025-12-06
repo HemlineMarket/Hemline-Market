@@ -108,6 +108,17 @@
       font-size:15px;
       margin-top:40px;
     }
+
+    .cancellation-note{
+      font-size:12px;
+      color:var(--hm-muted);
+      margin-top:4px;
+    }
+
+    .cancellation-open{
+      color:#b45309;
+      font-weight:600;
+    }
   </style>
 </head>
 
@@ -129,7 +140,7 @@
 
   <script>
     function formatMoney(cents){
-      const n = Number(cents || 0)/100;
+      const n = Number(cents || 0) / 100;
       return n.toLocaleString(undefined,{ style:"currency", currency:"USD" });
     }
 
@@ -177,13 +188,15 @@
           return;
         }
 
-        // TEMP: show ALL rows from orders so we can see what's there
+        // Real query: only this buyer’s orders, newest first
         const { data, error } = await supabase
           .from("orders")
-          .select("*");
+          .select("*")
+          .eq("buyer_id", session.user.id)
+          .order("created_at", { ascending:false });
 
-        console.log("[Purchases] raw orders:", data);
-        window.lastOrders = data;
+        console.log("[Purchases] buyer orders:", data);
+        window.lastOrders = data; // helpful while we’re still tuning
 
         if (error){
           console.error("loadPurchases error:", error);
@@ -201,19 +214,57 @@
         empty.style.display = "none";
         list.innerHTML = "";
 
-        const rows = [...data];
-
-        rows.forEach(o => {
+        data.forEach(o => {
           const card = document.createElement("div");
           card.className = "order-card";
 
           const status = String(o.status || "paid").toUpperCase();
-          const listingTitle =
+
+          // Try a few places for the title
+          let listingTitle =
             o.listing_title ||
             o.listing_name ||
-            "Order";
+            "";
 
-          const amountCents = Number(o.amount_total_cents || 0);
+          const snapshot = o.listing_snapshot;
+          if (!listingTitle && Array.isArray(snapshot) && snapshot.length){
+            listingTitle = snapshot[0].name || "Order";
+          }
+          if (!listingTitle){
+            listingTitle = "Order";
+          }
+
+          // Try multiple columns for totals; whichever is populated wins
+          const amountCents = Number(
+            (o.total_cents ??
+             o.amount_total_cents ??
+             o.amount_total ??
+             0)
+          );
+
+          // Cancellation note: 30-minute soft window based on created_at
+          let cancellationHtml = "";
+          if (o.created_at){
+            const createdMs = new Date(o.created_at).getTime();
+            if (!Number.isNaN(createdMs)){
+              const diffMinutes = (Date.now() - createdMs) / (60 * 1000);
+              if (diffMinutes < 30){
+                cancellationHtml = `
+                  <div class="cancellation-note cancellation-open">
+                    You can still request cancellation within 30 minutes of purchase.
+                    Message the seller and mention “Cancel this order”.
+                  </div>
+                `;
+              } else {
+                cancellationHtml = `
+                  <div class="cancellation-note">
+                    If you need to cancel, message the seller through this order.
+                    Cancellations after shipping are handled case-by-case.
+                  </div>
+                `;
+              }
+            }
+          }
 
           card.innerHTML = `
             <div class="order-top">
@@ -232,6 +283,7 @@
             </div>
 
             <div class="order-actions"></div>
+            ${cancellationHtml}
           `;
 
           const actionsDiv = card.querySelector(".order-actions");
