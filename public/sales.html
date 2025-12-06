@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Your Sales — Hemline Market</title>
 
+  <!-- UNIVERSAL CSS -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -65,8 +66,8 @@
     .sale-meta{
       font-size:13px;
       color:var(--hm-muted);
+      margin-bottom:8px;
       line-height:1.4;
-      margin-bottom:10px;
     }
 
     a.btn{
@@ -92,96 +93,27 @@
 </head>
 
 <body>
+  <!-- UNIVERSAL HEADER -->
   <div id="hm-shell-header"></div>
 
   <main id="maincontent">
     <h1>Your Sales</h1>
-    <p class="sub">Fabric buyers have purchased from your shop.</p>
+    <p class="sub">Fabric you’ve sold on Hemline Market.</p>
 
     <div id="salesList"></div>
-    <p class="empty" id="emptyState" style="display:none;">You have no sales yet.</p>
+    <p class="empty" id="emptyState" style="display:none;">You haven’t sold anything yet.</p>
   </main>
 
+  <!-- UNIVERSAL FOOTER -->
   <div id="hm-shell-footer"></div>
 
+  <!-- JS STACK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
+  <script src="scripts/sales.js"></script>
 
   <script>
-    const supabase = window.HM.supabase;
-
-    async function loadSales(){
-      const { data:{ session } } = await supabase.auth.getSession();
-      if(!session || !session.user){
-        window.location.href = "auth.html?view=login";
-        return;
-      }
-
-      const uid = session.user.id;
-
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("seller_id", uid)
-        .order("created_at", { ascending:false });
-
-      const list = document.getElementById("salesList");
-      const empty = document.getElementById("emptyState");
-
-      if(error || !data || data.length === 0){
-        empty.style.display = "block";
-        return;
-      }
-
-      empty.style.display = "none";
-      list.innerHTML = "";
-
-      data.forEach(sale=>{
-        const div = document.createElement("div");
-        div.className = "sale-card";
-
-        const dateStr = sale.created_at
-          ? new Date(sale.created_at).toLocaleDateString(undefined,{
-              month:"short",
-              day:"numeric",
-              year:"numeric"
-            })
-          : "";
-
-        const title =
-          sale.listing_title ||
-          sale.listing_name ||
-          (Array.isArray(sale.listing_snapshot) && sale.listing_snapshot.length
-            ? sale.listing_snapshot[0].name
-            : "Fabric sale");
-
-        const buyerEmail = sale.buyer_email || "Unknown buyer";
-
-        div.innerHTML = `
-          <div class="sale-top">
-            <span>Sale #${String(sale.id).slice(0,8)}</span>
-            <span>${dateStr}</span>
-          </div>
-
-          <div class="sale-meta">
-            <strong>${title}</strong><br>
-            Buyer: ${buyerEmail}<br>
-            Listing ID: ${sale.listing_id || "—"}<br>
-            Payment Ref: ${sale.stripe_payment_intent || "—"}
-          </div>
-
-          <a class="btn"
-             href="messages.html?user=${encodeURIComponent(sale.buyer_id)}&purchase=${encodeURIComponent(sale.id)}">
-            Contact buyer
-          </a>
-        `;
-
-        list.appendChild(div);
-      });
-    }
-
-    window.HM.renderShell({ currentPage:"sales" });
-    loadSales();
+    window.HM && window.HM.renderShell({ currentPage:"sales" });
   </script>
 </body>
 </html>
