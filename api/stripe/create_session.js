@@ -79,11 +79,7 @@ export default async function handler(req, res) {
         listing_id: it.listing_id || it.id || null,
         seller_user_id:
           it.seller_user_id || it.seller_id || it.user_id || null,
-        name:
-          it.title ||
-          it.name ||
-          it.label ||
-          "Fabric listing",
+        name: it.title || it.name || it.label || "Fabric listing",
         qty,
         amount_cents: amount,
       };
