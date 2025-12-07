@@ -529,7 +529,6 @@
         <div class="owner-actions-label">Seller tools (only you can see this)</div>
         <div class="owner-actions-buttons">
           <button type="button" class="btn" id="editListingBtn">Edit listing</button>
-          <!-- renamed text here -->
           <button type="button" class="btn" id="deleteListingBtn">Archive listing</button>
         </div>
       </div>
@@ -780,41 +779,55 @@
     const editBtn  = document.getElementById("editListingBtn");
     const delBtn   = document.getElementById("deleteListingBtn");
 
-    if(!ownerBox || !listing || !currentSession || !currentSession.user){
-      if(ownerBox) ownerBox.style.display = "none";
+    if (!ownerBox || !listing || !currentSession || !currentSession.user) {
+      if (ownerBox) ownerBox.style.display = "none";
       return;
     }
 
     const isOwner = listing.seller_id === currentSession.user.id;
-    if(!isOwner){
+    if (!isOwner) {
       ownerBox.style.display = "none";
       return;
     }
 
+    // Lock tools on SOLD or DELETED listings
+    const status = String(listing.status || "").toLowerCase();
+    const isLocked = status === "sold" || status === "deleted";
+
     ownerBox.style.display = "block";
 
-    if(editBtn){
-      editBtn.onclick = ()=>{
+    if (isLocked) {
+      const label = ownerBox.querySelector(".owner-actions-label");
+      if (label) {
+        label.textContent = "Sold listing (locked) — you can no longer edit or archive this listing.";
+      }
+      if (editBtn) editBtn.style.display = "none";
+      if (delBtn)  delBtn.style.display  = "none";
+      return;
+    }
+
+    // Active listing: seller can still edit / archive
+    if (editBtn) {
+      editBtn.onclick = () => {
         const id = listing.id;
-        if(!id) return;
+        if (!id) return;
         const url = "sell.html?edit=" + encodeURIComponent(id);
         window.location.href = url;
       };
     }
 
-    if(delBtn){
-      delBtn.onclick = async ()=>{
+    if (delBtn) {
+      delBtn.onclick = async () => {
         const ok = window.confirm(
           "Archive this listing? Buyers will no longer see it, but it will stay in your records."
         );
-        if(!ok) return;
+        if (!ok) return;
 
         delBtn.disabled = true;
         const originalText = delBtn.textContent;
         delBtn.textContent = "Archiving…";
 
-        try{
-          // Non-destructive: just mark unpublished + archived
+        try {
           const { error } = await supabaseClient
             .from("listings")
             .update({
@@ -824,18 +837,18 @@
             .eq("id", listing.id)
             .eq("seller_id", currentSession.user.id);
 
-          if(error){
+          if (error) {
             console.warn("Archive listing error", error);
             showToast("Could not archive listing");
             delBtn.disabled = false;
             delBtn.textContent = originalText;
-          }else{
+          } else {
             showToast("Listing archived");
-            setTimeout(()=>{
+            setTimeout(() => {
               window.location.href = "atelier.html";
             }, 700);
           }
-        }catch(e){
+        } catch (e) {
           console.warn("Archive listing exception", e);
           showToast("Could not archive listing");
           delBtn.disabled = false;
@@ -1085,7 +1098,6 @@
         setHeartUI(btn, true);
         showToast("Saved to favorites");
 
-        // Local bell notifications (for the viewer)
         const nowIso = new Date().toISOString();
         const notifs = loadNotifs();
         notifs.push({
@@ -1099,7 +1111,6 @@
         });
         saveNotifs(notifs);
 
-        // Supabase notification to the seller
         try{
           const buyerId  = currentSession && currentSession.user && currentSession.user.id;
           const sellerId = currentListing && currentListing.seller_id;
