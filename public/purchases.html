@@ -63,7 +63,7 @@
     }
 
     .purchase-status{
-      font-size:12px;
+      font-size:13px;
       font-weight:600;
       color:var(--hm-accent);
       margin-bottom:6px;
@@ -73,30 +73,15 @@
       font-size:13px;
       color:var(--hm-muted);
       line-height:1.4;
-      margin-bottom:8px;
+      margin-bottom:6px;
+    }
+
+    .purchase-meta strong{
+      color:var(--hm-text);
     }
 
     .purchase-items span.name{
       font-weight:600;
-    }
-
-    a.btn, button.btn{
-      display:inline-block;
-      padding:6px 12px;
-      border-radius:8px;
-      border:1px solid var(--hm-border);
-      text-decoration:none;
-      font-size:13px;
-      font-weight:600;
-      background:#fff;
-      color:var(--hm-accent);
-      margin-right:8px;
-      cursor:pointer;
-    }
-
-    button.btn:disabled{
-      opacity:0.6;
-      cursor:not-allowed;
     }
 
     .empty{
@@ -167,33 +152,6 @@
         return session;
       }
 
-      async function cancelPurchase(orderId){
-        const { data:{ session } } = await supabase.auth.getSession();
-        const buyerId = session?.user?.id;
-        if (!buyerId) return;
-
-        try{
-          const res = await fetch("/api/cancel_purchase", {
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body:JSON.stringify({ order_id: orderId, buyer_id: buyerId })
-          });
-
-          const out = await res.json();
-
-          if (!res.ok){
-            alert(out.error || "Unable to cancel purchase.");
-            return;
-          }
-
-          alert("Purchase canceled successfully.");
-          location.reload();
-        } catch(err){
-          console.error("cancelPurchase error", err);
-          alert("Unable to cancel purchase right now.");
-        }
-      }
-
       async function loadPurchases(){
         const list  = document.getElementById("purchasesList");
         const empty = document.getElementById("emptyState");
@@ -204,10 +162,14 @@
           return;
         }
 
+        const uid   = session.user.id;
+        const email = session.user.email;
+
+        // 🔑 Show orders tied to this account by id OR by email
         const { data, error } = await supabase
           .from("orders")
           .select("*")
-          .eq("buyer_id", session.user.id)
+          .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
           .order("created_at", { ascending:false });
 
         if (error){
@@ -226,6 +188,8 @@
         empty.style.display = "none";
         list.innerHTML = "";
 
+        const now = Date.now();
+
         data.forEach(o => {
           const card = document.createElement("div");
           card.className = "purchase-card";
@@ -233,6 +197,7 @@
           const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
           const first = snapshot[0] || {};
 
+          // What you bought
           const title =
             o.listing_title ||
             o.listing_name ||
@@ -240,29 +205,37 @@
             first.title ||
             "Fabric purchase";
 
-          const amountCents = Number(
+          // Total cents from orders table
+          const totalCents = Number(
             o.total_cents ??
             o.amount_total_cents ??
             o.amount_total ??
             0
           );
 
-          let cancellationHtml = "";
-          let cancelBtnHtml = "";
+          // Items subtotal from snapshot
+          let itemsCents = 0;
+          if (snapshot.length){
+            for (const item of snapshot){
+              const amt = Number(item.amount_cents || 0);
+              const qty = Number(item.qty || 1);
+              itemsCents += amt * qty;
+            }
+          }
+          if (itemsCents < 0 || !Number.isFinite(itemsCents)) itemsCents = 0;
 
+          const shippingCents = Math.max(totalCents - itemsCents, 0);
+
+          // 30-minute cancellation text only
+          let cancellationHtml = "";
           if (o.created_at){
             const createdMs = new Date(o.created_at).getTime();
-            const diffMinutes = (Date.now() - createdMs) / 60000;
+            const diffMinutes = (now - createdMs) / 60000;
 
             const status = String(o.status || "PAID").toUpperCase();
             const isCancelled = status === "CANCELED" || status === "CANCELLED";
 
             if (diffMinutes < 30 && !isCancelled){
-              cancelBtnHtml = `
-                <button class="btn cancel-btn" data-id="${o.id}">
-                  Cancel purchase
-                </button>
-              `;
               cancellationHtml = `
                 <div class="cancellation-note cancellation-open">
                   Cancellation available for 30 minutes after purchase.
@@ -294,30 +267,21 @@
             </div>
 
             <div class="purchase-meta">
-              Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
+              <div>Total: <strong>${formatMoney(totalCents)} ${o.currency || "USD"}</strong></div>
+              <div>
+                Items: ${formatMoney(itemsCents)}
+                • Shipping: ${formatMoney(shippingCents)}
+              </div>
             </div>
 
             <div class="purchase-items">
               <div><span class="name">${title}</span></div>
             </div>
 
-            <div class="purchase-actions">
-              ${cancelBtnHtml}
-            </div>
-
             ${cancellationHtml}
           `;
 
           list.appendChild(card);
-        });
-
-        // Attach cancel handlers
-        document.querySelectorAll(".cancel-btn").forEach(btn => {
-          btn.addEventListener("click", () => {
-            btn.disabled = true;
-            btn.textContent = "Canceling...";
-            cancelPurchase(btn.dataset.id);
-          });
         });
       }
 
