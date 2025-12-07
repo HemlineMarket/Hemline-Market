@@ -101,6 +101,20 @@
       color:#b45309;
       font-weight:600;
     }
+
+    /* View listing link */
+    a.view-link{
+      display:inline-block;
+      margin-top:8px;
+      padding:5px 10px;
+      font-size:13px;
+      font-weight:600;
+      text-decoration:none;
+      color:var(--hm-accent);
+      border:1px solid var(--hm-border);
+      border-radius:8px;
+      background:#fff;
+    }
   </style>
 </head>
 
@@ -165,7 +179,7 @@
         const uid   = session.user.id;
         const email = session.user.email;
 
-        // 🔑 Show orders tied to this account by id OR by email
+        // IMPORTANT: show orders tied by id OR by email
         const { data, error } = await supabase
           .from("orders")
           .select("*")
@@ -197,7 +211,6 @@
           const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
           const first = snapshot[0] || {};
 
-          // What you bought
           const title =
             o.listing_title ||
             o.listing_name ||
@@ -205,7 +218,6 @@
             first.title ||
             "Fabric purchase";
 
-          // Total cents from orders table
           const totalCents = Number(
             o.total_cents ??
             o.amount_total_cents ??
@@ -213,7 +225,6 @@
             0
           );
 
-          // Items subtotal from snapshot
           let itemsCents = 0;
           if (snapshot.length){
             for (const item of snapshot){
@@ -226,7 +237,6 @@
 
           const shippingCents = Math.max(totalCents - itemsCents, 0);
 
-          // 30-minute cancellation text only
           let cancellationHtml = "";
           if (o.created_at){
             const createdMs = new Date(o.created_at).getTime();
@@ -256,6 +266,11 @@
             }
           }
 
+          const listingId = o.listing_id || first.listing_id || null;
+          const viewLinkHtml = listingId
+            ? `<a class="view-link" href="listing.html?id=${encodeURIComponent(listingId)}">View listing</a>`
+            : "";
+
           card.innerHTML = `
             <div class="purchase-top">
               <span>Purchase #${String(o.id).slice(0,8)}</span>
@@ -276,6 +291,7 @@
 
             <div class="purchase-items">
               <div><span class="name">${title}</span></div>
+              ${viewLinkHtml}
             </div>
 
             ${cancellationHtml}
