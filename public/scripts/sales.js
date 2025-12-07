@@ -1,5 +1,6 @@
 // File: public/scripts/sales.js
-// Shows orders where the logged-in user is the seller.
+// Shows orders for listings owned by the logged-in user.
+// RLS on the orders table ensures we only see our own sales.
 
 (function () {
   const supabase = window.HM?.supabase;
@@ -23,14 +24,13 @@
       return;
     }
 
-    const sellerId = user.id;
-
+    // We do NOT filter by seller_id here.
+    // RLS on orders limits rows to listings where seller_id = auth.uid().
     const { data, error } = await supabase
       .from("orders")
       .select(
         "id,buyer_id,buyer_email,items_cents,shipping_cents,total_cents,listing_title,created_at"
       )
-      .eq("seller_id", sellerId)
       .order("created_at", { ascending: false });
 
     if (error) {
