@@ -54,22 +54,50 @@ export default async function handler(req, res) {
     const session = event.data.object;
     const md = session.metadata || {};
 
+    // Try to look up the listing so we always know the real seller
+    let listingRow = null;
+    if (md.listing_id) {
+      const { data: listing, error: listingError } = await supabaseAdmin
+        .from("listings")
+        .select("id, seller_id, title, image_url")
+        .eq("id", md.listing_id)
+        .maybeSingle();
+
+      if (listingError) {
+        console.error("Listing lookup error:", listingError);
+      } else {
+        listingRow = listing;
+      }
+    }
+
+    const sellerId = md.seller_id || listingRow?.seller_id || null;
+    const listingTitle = md.title || listingRow?.title || "";
+    const listingImageUrl = md.image_url || listingRow?.image_url || null;
+    const buyerEmail =
+      session.customer_details?.email ||
+      session.customer_email ||
+      md.buyer_email ||
+      null;
+
+    const priceCents = Number(md.price_cents) || 0;
+    const shippingCents = Number(md.shipping_cents) || 0;
+
     // Insert order into Supabase
     const { error: insertError } = await supabaseAdmin
       .from("orders")
       .insert({
-        stripe_checkout: session.id,
+        stripe_checkout_session: session.id,
+        stripe_event_id: event.id,
         buyer_id: md.buyer_id || null,
-        seller_id: md.seller_id || null,
+        buyer_email: buyerEmail,
+        seller_id: sellerId,
         listing_id: md.listing_id || null,
-        yardage: Number(md.yardage) || 1,
-        items_cents: Number(md.price_cents) || 0,
-        shipping_cents: Number(md.shipping_cents) || 0,
-        total_cents:
-          (Number(md.price_cents) || 0) +
-          (Number(md.shipping_cents) || 0),
-        listing_title: md.title || "",
-        listing_image: md.image_url || "",
+        items_cents: priceCents,
+        shipping_cents: shippingCents,
+        total_cents: priceCents + shippingCents,
+        listing_title: listingTitle,
+        listing_image_url: listingImageUrl,
+        status: "paid",
       });
 
     if (insertError) {
@@ -77,15 +105,21 @@ export default async function handler(req, res) {
       // Still return 200 so Stripe doesn't retry forever
     }
 
-    // Mark listing SOLD
+    // Mark listing SOLD (and clear cart-reserve info if you’re using it)
     if (md.listing_id) {
-      await supabaseAdmin
+      const { error: listingUpdateError } = await supabaseAdmin
         .from("listings")
         .update({
-          status: "SOLD",
-          cart_set_at: null,
+          status: "sold",
+          in_cart_by: null,
+          reserved_until: null,
+          sold_at: new Date().toISOString(),
         })
         .eq("id", md.listing_id);
+
+      if (listingUpdateError) {
+        console.error("Listing sold update error:", listingUpdateError);
+      }
     }
   }
 
