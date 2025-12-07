@@ -253,7 +253,7 @@
       cursor:pointer;
     }
 
-    /* OWNER ACTIONS (edit/delete) */
+    /* OWNER ACTIONS (edit/archive) */
     .owner-actions{
       margin-top:10px;
       padding-top:10px;
@@ -524,12 +524,13 @@
         </div>
       </div>
 
-      <!-- Seller-only tools: edit / delete -->
+      <!-- Seller-only tools: edit / archive (non-destructive) -->
       <div class="owner-actions" id="ownerActions" style="display:none;">
         <div class="owner-actions-label">Seller tools (only you can see this)</div>
         <div class="owner-actions-buttons">
           <button type="button" class="btn" id="editListingBtn">Edit listing</button>
-          <button type="button" class="btn" id="deleteListingBtn">Delete listing</button>
+          <!-- renamed text here -->
+          <button type="button" class="btn" id="deleteListingBtn">Archive listing</button>
         </div>
       </div>
     </aside>
@@ -803,37 +804,40 @@
 
     if(delBtn){
       delBtn.onclick = async ()=>{
-        const ok = window.confirm("Delete this listing? Buyers will no longer see it.");
+        const ok = window.confirm(
+          "Archive this listing? Buyers will no longer see it, but it will stay in your records."
+        );
         if(!ok) return;
 
         delBtn.disabled = true;
         const originalText = delBtn.textContent;
-        delBtn.textContent = "Deleting…";
+        delBtn.textContent = "Archiving…";
 
         try{
+          // Non-destructive: just mark unpublished + archived
           const { error } = await supabaseClient
             .from("listings")
             .update({
               is_published: false,
-              status: "deleted"
+              status: "archived"
             })
             .eq("id", listing.id)
             .eq("seller_id", currentSession.user.id);
 
           if(error){
-            console.warn("Delete listing error", error);
-            showToast("Could not delete listing");
+            console.warn("Archive listing error", error);
+            showToast("Could not archive listing");
             delBtn.disabled = false;
             delBtn.textContent = originalText;
           }else{
-            showToast("Listing deleted");
+            showToast("Listing archived");
             setTimeout(()=>{
               window.location.href = "atelier.html";
             }, 700);
           }
         }catch(e){
-          console.warn("Delete listing exception", e);
-          showToast("Could not delete listing");
+          console.warn("Archive listing exception", e);
+          showToast("Could not archive listing");
           delBtn.disabled = false;
           delBtn.textContent = originalText;
         }
