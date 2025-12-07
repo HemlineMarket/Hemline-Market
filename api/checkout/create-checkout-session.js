@@ -1,23 +1,5 @@
 // File: /api/checkout/create-checkout-session.js
-// Creates a Stripe Checkout Session and embeds everything our webhooks need:
-// - metadata.orderId           (used to tie payment → shipping label)
-// - metadata.items_json        (shown in confirmation email)
-// - metadata.sellers_json      (used to create Transfers to connected accounts)
-// - shipping_address_collection (so we get buyer shipping address for Shippo)
-//
-// ENV required: STRIPE_SECRET_KEY
-//
-// POST JSON shape (example)
-// {
-//   "orderId": "HM-771234",
-//   "line_items": [
-//     { "price": "price_123", "quantity": 1 }
-//   ],
-//   "sellers_json": { "acct_1Abc...": 1299 },   // cents per connected acct (optional)
-//   "customer_email": "buyer@example.com",      // optional if using customer
-//   "success_path": "/orders-buyer.html",       // optional
-//   "cancel_path": "/cart.html"                 // optional
-// }
+// Creates a Stripe Checkout Session and embeds everything our webhooks need.
 
 import Stripe from "stripe";
 
@@ -37,7 +19,17 @@ export default async function handler(req, res) {
       customer_email,
       success_path = "/orders-buyer.html",
       cancel_path = "/cart.html",
-      items = [] // optional, for email summary; if omitted we’ll derive a minimal list
+      items = [],
+
+      // NEW REQUIRED FIELDS FOR WEBHOOK → ORDERS TABLE
+      listing_id,
+      seller_id,
+      buyer_id,
+      price_cents,
+      yardage,
+      shipping_cents,
+      title,
+      image_url,
     } = req.body || {};
 
     if (!orderId) return res.status(400).json({ error: "Missing orderId" });
@@ -53,13 +45,31 @@ export default async function handler(req, res) {
     const success_url = `${origin}${success_path}?order=${encodeURIComponent(orderId)}&paid=1`;
     const cancel_url = `${origin}${cancel_path}?order=${encodeURIComponent(orderId)}&canceled=1`;
 
-    // Keep items_json small & safe
+    // Minimal item summary
     const items_json = JSON.stringify(
       (Array.isArray(items) ? items : []).map((i) => ({
         name: String(i.name || "").slice(0, 120),
         qty: Number(i.qty || i.quantity || 1) || 1,
       }))
     );
+
+    // -----------------------------------------
+    // UPDATED METADATA — THIS FIXES SALES / PURCHASES
+    // -----------------------------------------
+    const metadata = {
+      orderId,
+      listing_id,
+      seller_id,
+      buyer_id,
+      price_cents,
+      yardage,
+      shipping_cents,
+      title: title || "",
+      image_url: image_url || "",
+      items_json,
+      sellers_json: JSON.stringify(sellers_json || {}),
+      origin_url: origin,
+    };
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -68,21 +78,12 @@ export default async function handler(req, res) {
       cancel_url,
       customer_email: customer_email || undefined,
 
-      // Collect shipping address so our webhook can pass it to Shippo
       shipping_address_collection: {
         allowed_countries: ["US", "CA"],
       },
 
-      // Surface everything our webhooks need
-      metadata: {
-        orderId,
-        items_json,
-        sellers_json: JSON.stringify(sellers_json || {}),
-        // optional convenience field
-        origin_url: origin,
-      },
+      metadata,
 
-      // Recommended for marketplaces that charge tax/shipping via prices
       allow_promotion_codes: true,
       submit_type: "pay",
     });
