@@ -1,146 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Your Purchases — Hemline Market</title>
-
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hm-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
-
-  <style>
-    :root{
-      --hm-accent:#991b1b;
-      --hm-border:#e5e7eb;
-      --hm-muted:#6b7280;
-      --hm-text:#111827;
-      --hm-bg:#f4f4f7;
-    }
-
-    html, body{
-      margin:0;
-      background:var(--hm-bg);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      color:var(--hm-text);
-    }
-
-    main{
-      max-width:1100px;
-      margin:20px auto;
-      padding:0 12px;
-    }
-
-    h1{
-      font-size:26px;
-      font-weight:800;
-      margin-bottom:4px;
-    }
-
-    .sub{
-      font-size:14px;
-      color:var(--hm-muted);
-      margin-bottom:18px;
-    }
-
-    .purchase-card{
-      background:#fff;
-      border:1px solid var(--hm-border);
-      border-radius:12px;
-      box-shadow:0 4px 14px rgba(0,0,0,.05);
-      padding:16px;
-      margin-bottom:14px;
-      font-size:14px;
-    }
-
-    .purchase-top{
-      display:flex;
-      justify-content:space-between;
-      margin-bottom:8px;
-      font-weight:600;
-    }
-
-    .purchase-status{
-      font-size:12px;
-      font-weight:600;
-      color:var(--hm-accent);
-      margin-bottom:6px;
-    }
-
-    .purchase-meta{
-      font-size:13px;
-      color:var(--hm-muted);
-      line-height:1.4;
-      margin-bottom:8px;
-    }
-
-    .purchase-meta strong{
-      color:var(--hm-text);
-    }
-
-    .purchase-items span.name{
-      font-weight:600;
-    }
-
-    .purchase-actions{
-      margin-top:8px;
-      margin-bottom:4px;
-    }
-
-    a.btn, button.btn{
-      display:inline-block;
-      padding:6px 12px;
-      border-radius:8px;
-      border:1px solid var(--hm-border);
-      text-decoration:none;
-      font-size:13px;
-      font-weight:600;
-      background:#fff;
-      color:var(--hm-accent);
-      margin-right:8px;
-      cursor:pointer;
-    }
-
-    button.btn:disabled{
-      opacity:0.6;
-      cursor:not-allowed;
-    }
-
-    .empty{
-      text-align:center;
-      color:var(--hm-muted);
-      font-size:15px;
-      margin-top:40px;
-    }
-
-    .cancellation-note{
-      font-size:12px;
-      color:var(--hm-muted);
-      margin-top:8px;
-    }
-
-    .cancellation-open{
-      color:#b45309;
-      font-weight:600;
-    }
-  </style>
-</head>
-
-<body>
-  <div id="hm-shell-header"></div>
-
-  <main id="maincontent">
-    <h1>Your Purchases</h1>
-    <p class="sub">Fabric you’ve purchased on Hemline Market.</p>
-
-    <div id="purchasesList"></div>
-    <p class="empty" id="emptyState" style="display:none;">You haven’t purchased anything yet.</p>
-  </main>
-
-  <div id="hm-shell-footer"></div>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
 
@@ -213,13 +70,15 @@
           return;
         }
 
-        const uid = session.user.id;
+        const uid   = session.user.id;
+        const email = session.user.email;
 
-        // SAME query as the last working version
+        // 🔴 This was the bug: we were only doing .eq("buyer_id", uid)
+        // ✅ Fix: look up by buyer_id OR buyer_email (email is what your existing rows have)
         const { data, error } = await supabase
           .from("orders")
           .select("*")
-          .eq("buyer_id", uid)
+          .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
           .order("created_at", { ascending:false });
 
         if (error){
@@ -242,7 +101,6 @@
           const card = document.createElement("div");
           card.className = "purchase-card";
 
-          // listing snapshot info (what you bought + price breakdown)
           const firstItem = Array.isArray(o.listing_snapshot) && o.listing_snapshot.length
             ? o.listing_snapshot[0]
             : null;
@@ -267,6 +125,7 @@
               const amt = Number(item.amount_cents || 0);
               return sum + qty * amt;
             }, 0);
+            if (!Number.isFinite(itemsSubtotalCents)) itemsSubtotalCents = null;
           }
 
           const shippingCents =
@@ -288,7 +147,11 @@
             const createdMs = new Date(o.created_at).getTime();
             const diffMinutes = (Date.now() - createdMs) / 60000;
 
-            if (diffMinutes < 30 && o.status !== "CANCELED" && o.status !== "CANCELLED"){
+            const isCancelled =
+              String(o.status || "").toUpperCase() === "CANCELED" ||
+              String(o.status || "").toUpperCase() === "CANCELLED";
+
+            if (diffMinutes < 30 && !isCancelled){
               cancelBtnHtml = `
                 <button class="btn cancel-btn" data-id="${o.id}">
                   Cancel purchase
@@ -299,7 +162,7 @@
                   Cancellation available for 30 minutes after purchase.
                 </div>
               `;
-            } else if (o.status !== "CANCELED" && o.status !== "CANCELLED"){
+            } else if (!isCancelled){
               cancellationHtml = `
                 <div class="cancellation-note">
                   The 30-minute cancellation window has expired.
@@ -378,5 +241,3 @@
       loadPurchases();
     });
   </script>
-</body>
-</html>
