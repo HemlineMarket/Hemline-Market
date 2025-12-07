@@ -1,121 +1,93 @@
-// public/scripts/cart.js
-// Manages cart actions, prevents checkout of SOLD or IN_CART listings,
-// and sets listing status to IN_CART when user begins checkout.
+// File: /api/stripe/webhook/index.js
+// Handles Stripe events and inserts real orders into Supabase.
 
-(async () => {
-  const supabase = window.HM && window.HM.supabase;
-  if (!supabase) {
-    console.error("[cart] Missing Supabase client");
-    return;
+import Stripe from "stripe";
+import supabaseAdmin from "../../_supabaseAdmin";
+
+export const config = { api: { bodyParser: false } };
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-06-20",
+});
+
+// Read raw body for signature verification
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  // Utility: ensure logged-in user
-  async function ensureSession(maxMs = 3000) {
-    let { data: { session } } = await supabase.auth.getSession();
-    const start = Date.now();
-    while (!session?.user && Date.now() - start < maxMs) {
-      await new Promise(res => setTimeout(res,120));
-      ({ data: { session } } = await supabase.auth.getSession());
-    }
-    return session;
+  let event;
+  let rawBody;
+
+  try {
+    rawBody = await readRawBody(req);
+  } catch (e) {
+    return res.status(400).send(`Raw body error: ${e.message}`);
   }
 
-  // Attach this to your Add-to-cart button from listing.html
-  window.HM = window.HM || {};
-  window.HM.addToCart = async function(listingId, yards) {
-    const session = await ensureSession();
-    if (!session || !session.user) {
-      window.location.href = "auth.html?view=login";
-      return;
-    }
+  const sig = req.headers["stripe-signature"];
 
-    // Load listing state
-    const { data: listing, error } = await supabase
-      .from("listings")
-      .select("status, price_cents, user_id, title, image_url")
-      .eq("id", listingId)
-      .single();
-
-    if (error || !listing) {
-      alert("Unable to load listing.");
-      return;
-    }
-
-    // Block checkout if listing already sold
-    if (listing.status === "SOLD") {
-      alert("This item is no longer available.");
-      return;
-    }
-
-    // Block if someone else currently has it in cart
-    if (listing.status === "IN_CART") {
-      alert("Someone is already checking out with this item.");
-      return;
-    }
-
-    // Mark listing IN_CART
-    const { error: upd } = await supabase
-      .from("listings")
-      .update({
-        status: "IN_CART",
-        cart_set_at: new Date().toISOString()
-      })
-      .eq("id", listingId);
-
-    if (upd) {
-      alert("Unable to reserve item.");
-      return;
-    }
-
-    // Build the cart object for Stripe session
-    const cart = [{
-      listing_id: listingId,
-      seller_user_id: listing.user_id,
-      name: listing.title || "Fabric",
-      image_url: listing.image_url,
-      qty: 1,
-      yards: yards,
-      amount: listing.price_cents
-    }];
-
-    // Create checkout session
-    const res = await fetch("/api/stripe/create_session", {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({
-        cart,
-        buyer: {
-          id: session.user.id,
-          email: session.user.email
-        },
-        shipping_cents: 0
-      })
-    });
-
-    const out = await res.json();
-
-    if (out.url) {
-      window.location.href = out.url;
-    } else {
-      alert("Unable to begin checkout.");
-    }
-  };
-
-
-  // Auto-cleanup: if a listing is left IN_CART for > 20 minutes, unlock it.
-  // (Runs whenever user loads the site.)
-  async function cleanStaleCarts() {
-    const cutoff = new Date(Date.now() - 20 * 60 * 1000).toISOString();
-
-    await supabase
-      .from("listings")
-      .update({
-        status: "ACTIVE",
-        cart_set_at: null
-      })
-      .lt("cart_set_at", cutoff)
-      .eq("status", "IN_CART");
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    return res.status(400).send(`Webhook signature error: ${err.message}`);
   }
 
-  cleanStaleCarts();
-})();
+  // ------------------------------
+  // CHECKOUT COMPLETED
+  // ------------------------------
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const md = session.metadata || {};
+
+    // Insert order into Supabase
+    const { error: insertError } = await supabaseAdmin
+      .from("orders")
+      .insert({
+        stripe_checkout: session.id,
+        buyer_id: md.buyer_id || null,
+        seller_id: md.seller_id || null,
+        listing_id: md.listing_id || null,
+        yardage: Number(md.yardage) || 1,
+        items_cents: Number(md.price_cents) || 0,
+        shipping_cents: Number(md.shipping_cents) || 0,
+        total_cents:
+          (Number(md.price_cents) || 0) +
+          (Number(md.shipping_cents) || 0),
+        listing_title: md.title || "",
+        listing_image: md.image_url || "",
+      });
+
+    if (insertError) {
+      console.error("Order insert error:", insertError);
+      // Still return 200 so Stripe doesn't retry forever
+    }
+
+    // Mark listing SOLD
+    if (md.listing_id) {
+      await supabaseAdmin
+        .from("listings")
+        .update({
+          status: "SOLD",
+          cart_set_at: null,
+        })
+        .eq("id", md.listing_id);
+    }
+  }
+
+  return res.json({ received: true });
+}
