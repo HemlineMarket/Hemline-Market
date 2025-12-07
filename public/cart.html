@@ -233,9 +233,9 @@
   <!-- Universal shell JS -->
   <script src="scripts/hm-shell.js"></script>
 
-  <!-- CART LOGIC (localStorage 'hm_cart' + per-seller shipping tiers) -->
+  <!-- CART LOGIC (localStorage 'hm_cart' + per-seller shipping tiers + prune purchased) -->
   <script>
-  (function(){
+  (async function(){
     const LS      = 'hm_cart';
     const SHIP_LS = 'hm_cart_shipping';
 
@@ -399,6 +399,47 @@
       totEl.textContent = fmt(subtotal + ship.total_cents);
     }
 
+    // --- NEW: prune items that have already been purchased by this user ---
+    async function prunePurchasedFromCart(){
+      const supabase = window.HM && window.HM.supabase;
+      if(!supabase) return;
+
+      let cart = read();
+      if(!cart.length) return;
+
+      const listingIds = Array.from(
+        new Set(cart.map(it => it.id).filter(Boolean))
+      );
+      if(!listingIds.length) return;
+
+      // ensure session
+      let { data: { session } } = await supabase.auth.getSession();
+      if(!session || !session.user) return;
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select('listing_id,status')
+        .eq('buyer_id', session.user.id)
+        .in('listing_id', listingIds);
+
+      if(error || !data || !data.length) return;
+
+      const purchasedSet = new Set(
+        data
+          .filter(o => {
+            const s = String(o.status || '').toUpperCase();
+            return s !== 'CANCELED' && s !== 'CANCELLED';
+          })
+          .map(o => o.listing_id)
+      );
+
+      if(!purchasedSet.size) return;
+
+      cart = cart.filter(it => !purchasedSet.has(it.id));
+      write(cart);
+    }
+    // ----------------------------------------------------------------------
+
     // remove-only interactions (no quantity changes)
     itemsEl.addEventListener('click', e=>{
       const act = e.target.dataset.act;
@@ -426,6 +467,8 @@
       window.location.href = 'checkout.html';
     });
 
+    // On first load: prune any already-purchased listings, then render
+    await prunePurchasedFromCart();
     render();
   })();
   </script>
