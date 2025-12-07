@@ -1,15 +1,54 @@
 // File: public/scripts/purchase-success.js
-// Handles post-purchase cleanup.
-// - Reads session_id from URL
-// - Looks up the order in Supabase for logging/debug
-// - Clears browser cart (localStorage) so purchased items disappear
-// - Lets success.html handle all UI
+// On Stripe success redirect, clear the local cart and (optionally) log the order.
 
 (function () {
-  const supabase = window.HM?.supabase;
-  if (!supabase) {
-    console.warn("[purchase-success] Supabase client missing on window.HM.supabase");
-    return;
+  const HM = window.HM || {};
+  const supabase = HM.supabase || null;
+
+  const CART_KEY = "hm_cart";
+  const SHIP_KEY = "hm_cart_shipping";
+
+  function clearLocalCart() {
+    try {
+      localStorage.removeItem(CART_KEY);
+      localStorage.removeItem(SHIP_KEY);
+      if (window.HM_CART_BADGE_UPDATE) {
+        try {
+          window.HM_CART_BADGE_UPDATE([]);
+        } catch (_) {}
+      }
+      console.log("[purchase-success] Cleared local cart storage");
+    } catch (e) {
+      console.warn("[purchase-success] Failed to clear local cart:", e);
+    }
+  }
+
+  async function lookupOrder(sessionId) {
+    if (!supabase) {
+      console.warn("[purchase-success] Supabase missing; skipping order lookup");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("stripe_checkout", sessionId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn("[purchase-success] order lookup error", error);
+        return;
+      }
+      if (!data) {
+        console.warn("[purchase-success] No order found for this session");
+        return;
+      }
+
+      console.log("[purchase-success] Order found:", data);
+    } catch (e) {
+      console.warn("[purchase-success] lookup exception:", e);
+    }
   }
 
   async function init() {
@@ -17,36 +56,18 @@
     const sessionId = url.searchParams.get("session_id");
 
     if (!sessionId) {
-      console.log("[purchase-success] No session_id found — skipping order lookup");
-      // Still clear the cart if someone reached success page without query params
-      localStorage.removeItem("hm_cart");
-      localStorage.removeItem("hm_cart_shipping");
+      console.log(
+        "[purchase-success] No session_id in URL; leaving cart alone."
+      );
       return;
     }
 
-    // Fetch order for developer visibility (not shown in UI)
-    const { data: order, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("stripe_checkout", sessionId)
-      .maybeSingle();
+    // We reached the Stripe success URL with a session_id:
+    // clear the local cart for this browser.
+    clearLocalCart();
 
-    if (error) {
-      console.warn("[purchase-success] Order lookup error:", error);
-    } else if (!order) {
-      console.warn("[purchase-success] No order found for this session_id");
-    } else {
-      console.log("[purchase-success] Order found:", order);
-    }
-
-    // 🔥 CRITICAL FIX: Clear browser cart after successful checkout
-    try {
-      localStorage.removeItem("hm_cart");
-      localStorage.removeItem("hm_cart_shipping");
-      console.log("[purchase-success] Browser cart cleared");
-    } catch (e) {
-      console.warn("[purchase-success] Could not clear cart", e);
-    }
+    // Optional: log/verify the order row in Supabase (for debugging/display later).
+    await lookupOrder(sessionId);
   }
 
   init();
