@@ -1,132 +1,172 @@
 // File: public/scripts/sales.js
-// Shows seller's completed orders using the hemline_sales_view view.
+// Shows orders where the current user is the seller (your Sales page).
 
 (function () {
   const HM = window.HM || {};
   const supabase = HM.supabase;
 
   if (!supabase) {
-    console.error("[sales] Supabase client missing on window.HM.supabase");
+    console.warn("[sales] Supabase client missing on window.HM.supabase");
     return;
   }
 
-  const ordersListEl = document.getElementById("ordersList");
-  const emptyStateEl = document.getElementById("emptyState");
+  const listEl = document.getElementById("ordersList");
+  const emptyEl = document.getElementById("emptyState");
 
-  function moneyFromCents(c) {
-    if (c == null) return "$0.00";
-    const v = c / 100;
-    return v.toLocaleString("en-US", {
+  function fmtMoney(cents) {
+    const n = Number(cents || 0) / 100;
+    return n.toLocaleString("en-US", {
       style: "currency",
       currency: "USD",
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
     });
   }
 
+  function fmtDate(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function shortId(id) {
+    if (!id) return "";
+    return String(id).slice(0, 8);
+  }
+
   async function ensureSession() {
-    const { data } = await supabase.auth.getSession();
-    return data.session || null;
-  }
-
-  function shortOrderId(stripeCheckout) {
-    if (!stripeCheckout) return "";
-    // Take last 6 chars as a lightweight order reference
-    return stripeCheckout.slice(-6);
-  }
-
-  function renderEmpty(message) {
-    if (ordersListEl) ordersListEl.innerHTML = "";
-    if (emptyStateEl) {
-      emptyStateEl.textContent = message || "You haven’t sold anything yet.";
-      emptyStateEl.style.display = "block";
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.warn("[sales] getSession error", error);
     }
+    const session = data?.session || null;
+    if (!session || !session.user) {
+      // Require sign-in to see sales
+      window.location.href = "auth.html?view=login";
+      return null;
+    }
+    return session;
+  }
+
+  function renderEmpty() {
+    if (listEl) listEl.innerHTML = "";
+    if (emptyEl) emptyEl.style.display = "block";
   }
 
   function renderOrders(rows) {
-    if (!ordersListEl) return;
+    if (!listEl) return;
+    listEl.innerHTML = "";
 
     if (!rows || !rows.length) {
-      renderEmpty("You haven’t sold anything yet.");
+      renderEmpty();
       return;
     }
 
-    if (emptyStateEl) emptyStateEl.style.display = "none";
-    ordersListEl.innerHTML = "";
+    if (emptyEl) emptyEl.style.display = "none";
 
-    rows.forEach((row) => {
-      const itemsCents = row.items_cents ?? 0;
-      const shippingCents = row.shipping_cents ?? 0;
-      const totalCents =
-        row.total_cents != null ? row.total_cents : itemsCents + shippingCents;
-
-      const listingTitle = row.listing_title || "Fabric purchase";
-      const orderRef = shortOrderId(row.stripe_checkout);
-
-      const createdAt = row.created_at ? new Date(row.created_at) : null;
-      const dateLabel = createdAt
-        ? createdAt.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
-        : "";
-
+    rows.forEach((o) => {
       const card = document.createElement("article");
       card.className = "order-card";
+
+      const created = fmtDate(o.created_at);
+      const itemsMoney = fmtMoney(o.items_cents);
+      const shippingMoney = fmtMoney(o.shipping_cents);
+      const totalMoney = fmtMoney(o.total_cents);
+
+      const appFee = Number(o.application_fee_amount || 0);
+      const earningsCents = Number(o.total_cents || 0) - appFee;
+      const earningsMoney = fmtMoney(earningsCents);
+
+      const status = (o.status || "paid").toUpperCase();
+
+      const buyerLabel = o.buyer_email
+        ? `Buyer: ${o.buyer_email}`
+        : "";
+
+      const listingTitle = o.listing_title || o.listing_name || "Fabric purchase";
+      const thumbUrl = o.listing_image_url || "";
 
       card.innerHTML = `
         <div class="order-top">
           <div>
-            <div>Order ${orderRef ? "#" + orderRef : ""}</div>
-            <div class="order-meta">
-              Status: <strong>PAID</strong>
-              ${dateLabel ? " • " + dateLabel : ""}
-            </div>
+            Purchase #${shortId(o.id)}
           </div>
-          <div style="text-align:right;">
-            <div style="font-weight:700;">${moneyFromCents(totalCents)}</div>
-            <div class="order-meta">Total (items + shipping)</div>
-          </div>
+          <div>${created}</div>
         </div>
-
-        <div style="margin-bottom:6px;font-weight:600;">${listingTitle}</div>
 
         <div class="order-meta">
-          Items: ${moneyFromCents(itemsCents)}
-          • Shipping: ${moneyFromCents(shippingCents)}
+          <div><strong>Status:</strong> ${status}</div>
+          <div>
+            <strong>Your earnings:</strong> ${earningsMoney}
+          </div>
+          <div>
+            <strong>Total paid by buyer:</strong> ${totalMoney}
+            <span style="color:#6b7280;">
+              (Items: ${itemsMoney} • Shipping: ${shippingMoney})
+            </span>
+          </div>
+          <div style="margin-top:4px;">
+            <strong>Listing:</strong> ${listingTitle}
+          </div>
+          ${buyerLabel ? `<div style="margin-top:2px;">${buyerLabel}</div>` : ""}
         </div>
 
-        <a class="btn" href="listing.html?id=${encodeURIComponent(
-          row.listing_id
-        )}">
-          View listing
-        </a>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+          ${
+            thumbUrl
+              ? `<div style="width:52px;height:52px;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb;background:#f9fafb;flex-shrink:0;">
+                   <img src="${thumbUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
+                 </div>`
+              : ""
+          }
+          <a class="btn" href="listing.html?id=${encodeURIComponent(
+            o.listing_id
+          )}">View listing</a>
+        </div>
       `;
 
-      ordersListEl.appendChild(card);
+      listEl.appendChild(card);
     });
   }
 
   async function loadSales() {
     const session = await ensureSession();
+    if (!session) return;
 
-    if (!session || !session.user) {
-      renderEmpty("Sign in to see your sales.");
-      return;
-    }
+    const userId = session.user.id;
 
-    const sellerId = session.user.id;
-
-    // Query the sales view we created in SQL
     const { data, error } = await supabase
-      .from("hemline_sales_view")
-      .select("*")
-      .eq("seller_id", sellerId);
+      .from("orders")
+      .select(
+        `
+          id,
+          listing_id,
+          listing_title,
+          listing_name,
+          listing_image_url,
+          seller_id,
+          buyer_id,
+          buyer_email,
+          items_cents,
+          shipping_cents,
+          total_cents,
+          application_fee_amount,
+          status,
+          stripe_checkout,
+          created_at
+        `
+      )
+      .eq("seller_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
 
     if (error) {
-      console.error("[sales] load error", error);
-      renderEmpty("We couldn’t load your sales right now.");
+      console.warn("[sales] load error", error);
+      renderEmpty();
       return;
     }
 
@@ -134,6 +174,9 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    loadSales();
+    loadSales().catch((e) => {
+      console.error("[sales] unexpected error", e);
+      renderEmpty();
+    });
   });
 })();
