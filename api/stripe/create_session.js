@@ -1,31 +1,23 @@
-// /api/stripe/create_session.js
-// Creates a Stripe Checkout Session for the current cart.
-//
-// ENV needed: STRIPE_SECRET_KEY
-// Optional: STRIPE_SUCCESS_URL, STRIPE_CANCEL_URL (fallbacks to request origin)
+// File: /api/stripe/webhook/index.js
+// Handles Stripe events and inserts real orders into Supabase.
 
 import Stripe from "stripe";
+import supabaseAdmin from "../../_supabaseAdmin";
 
-export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
+export const config = { api: { bodyParser: false } };
 
-// --- Stripe client ---------------------------------------------------------
-const stripeSecret = process.env.STRIPE_SECRET_KEY;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-06-20",
+});
 
-if (!stripeSecret) {
-  throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
-}
-
-const stripe = new Stripe(stripeSecret);
-
-// Helper: get origin from request (for success/cancel URLs)
-function originFrom(req) {
-  const proto = (req.headers["x-forwarded-proto"] || "https").toString();
-  const host = (
-    req.headers["x-forwarded-host"] ||
-    req.headers.host ||
-    ""
-  ).toString();
-  return `${proto}://${host}`;
+// Read raw body for signature verification
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
 }
 
 export default async function handler(req, res) {
@@ -34,106 +26,138 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
+  let event;
+  let rawBody;
+
   try {
-    const { cart = [], buyer = {}, shipping_cents = 0 } = req.body || {};
-
-    // --- simple total from cart -------------------------------------------
-    let subtotal = 0;
-
-    for (const it of cart) {
-      const qty = Number(it.qty || 1);
-      const amount = Number(it.amount || 0); // cents
-      subtotal += amount * qty;
-    }
-
-    const total = subtotal + Number(shipping_cents || 0);
-
-    if (total <= 0) {
-      return res
-        .status(400)
-        .json({ error: "Total must be greater than zero to start checkout." });
-    }
-
-    // 30-minute cancellation window timestamp (metadata only for now)
-    const now = new Date();
-    const cancelExpiresIso = new Date(
-      now.getTime() + 30 * 60 * 1000
-    ).toISOString();
-
-    // Fallback URLs from origin
-    const origin = originFrom(req);
-    const success_url =
-      process.env.STRIPE_SUCCESS_URL ||
-      `${origin}/success.html?sid={CHECKOUT_SESSION_ID}`;
-
-    const cancel_url =
-      process.env.STRIPE_CANCEL_URL || `${origin}/checkout.html`;
-
-    // Compact snapshot of what we care about for orders table
-    const slimCart = cart.map((it) => {
-      const qty = Number(it.qty || 1);
-      const amount = Number(it.amount || 0);
-
-      return {
-        // try a few possible keys so we don't depend on one exact name
-        listing_id: it.listing_id || it.id || null,
-        seller_user_id:
-          it.seller_user_id || it.seller_id || it.user_id || null,
-        name: it.title || it.name || it.label || "Fabric listing",
-        qty,
-        amount_cents: amount,
-      };
-    });
-
-    const first = slimCart[0] || {};
-
-    // One Stripe line item for the entire purchase
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      success_url,
-      cancel_url,
-
-      customer_email: buyer.email || undefined,
-      shipping_address_collection: { allowed_countries: ["US", "CA"] },
-
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: "Fabric purchase" },
-            unit_amount: total,
-          },
-          quantity: 1,
-        },
-      ],
-
-      // *** This is what the webhook will read ***
-      metadata: {
-        subtotal_cents: String(subtotal),
-        shipping_cents: String(Number(shipping_cents || 0)),
-
-        // who is buying
-        buyer_user_id: buyer.id || buyer.user_id || "",
-
-        // first listing info for convenience
-        listing_id: first.listing_id || "",
-        listing_title: first.name || "",
-
-        // full cart snapshot as JSON for listing_snapshot + seller_id
-        cart_json: JSON.stringify(slimCart),
-
-        cancel_expires_at: cancelExpiresIso,
-      },
-
-      automatic_tax: { enabled: false },
-    });
-
-    return res.status(200).json({ url: session.url, id: session.id });
-  } catch (err) {
-    console.error("create_session error:", err?.type, err?.message || err);
-    return res.status(500).json({
-      error: "Unable to create checkout session",
-      detail: err?.message || null,
-    });
+    rawBody = await readRawBody(req);
+  } catch (e) {
+    return res.status(400).send(`Raw body error: ${e.message}`);
   }
+
+  const sig = req.headers["stripe-signature"];
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    return res.status(400).send(`Webhook signature error: ${err.message}`);
+  }
+
+  // ------------------------------
+  // CHECKOUT COMPLETED
+  // ------------------------------
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const md = session.metadata || {};
+
+    // Recover cart from metadata (created in /api/stripe/create_session.js)
+    let cart = [];
+    if (md.cart_json) {
+      try {
+        cart = JSON.parse(md.cart_json);
+      } catch (e) {
+        console.warn("[webhook] Failed to parse cart_json:", e);
+      }
+    }
+    const first = cart[0] || {};
+
+    // Buyer / seller / listing
+    const buyerId =
+      md.buyer_id ||
+      md.buyer_user_id ||
+      md.buyerId ||
+      md.buyer ||
+      null;
+
+    const sellerId =
+      md.seller_id ||
+      first.seller_user_id ||
+      first.seller_id ||
+      first.user_id ||
+      null;
+
+    const listingId =
+      md.listing_id ||
+      first.listing_id ||
+      first.id ||
+      null;
+
+    // Yardage (best-effort; we only support 1 listing per order right now)
+    const yardage =
+      Number(md.yardage) ||
+      Number(first.qty) ||
+      1;
+
+    // Amounts (cents)
+    let itemsCents = 0;
+    if (md.price_cents != null) {
+      itemsCents = Number(md.price_cents) || 0;
+    } else if (md.subtotal_cents != null) {
+      itemsCents = Number(md.subtotal_cents) || 0;
+    } else if (first.amount_cents != null) {
+      itemsCents = Number(first.amount_cents) || 0;
+    }
+
+    const shippingCents = Number(md.shipping_cents) || 0;
+    const totalCents = itemsCents + shippingCents;
+
+    const listingTitle =
+      md.title ||
+      md.listing_title ||
+      first.name ||
+      "Fabric listing";
+
+    const listingImage = md.image_url || "";
+
+    const cancelExpiresAt = md.cancel_expires_at || null;
+    const currency =
+      (session.currency || "usd").toUpperCase();
+
+    try {
+      // Insert order into Supabase
+      const { error: insertError } = await supabaseAdmin
+        .from("orders")
+        .insert({
+          stripe_checkout: session.id,
+          buyer_id: buyerId || null,
+          seller_id: sellerId || null,
+          listing_id: listingId || null,
+          yardage: yardage || 1,
+          items_cents: itemsCents,
+          shipping_cents: shippingCents,
+          total_cents: totalCents,
+          listing_title: listingTitle,
+          listing_image: listingImage,
+          status: "PAID",
+          currency,
+          listing_snapshot: cart && cart.length ? cart : null,
+          cancel_expires_at: cancelExpiresAt,
+        });
+
+      if (insertError) {
+        console.error("[webhook] Order insert error:", insertError);
+        // Still return 200 so Stripe doesn’t keep retrying
+      }
+
+      // Mark listing SOLD + clear cart lock (single-item cart for now)
+      if (listingId) {
+        await supabaseAdmin
+          .from("listings")
+          .update({
+            status: "SOLD",
+            cart_set_at: null,
+          })
+          .eq("id", listingId);
+      }
+    } catch (e) {
+      console.error("[webhook] Order handling exception:", e);
+      // Do NOT throw a 4xx here; acknowledge to Stripe
+    }
+  }
+
+  return res.json({ received: true });
 }
