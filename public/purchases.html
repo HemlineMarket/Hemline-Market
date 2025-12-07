@@ -84,6 +84,13 @@
       font-weight:600;
     }
 
+    .purchase-spec{
+      font-size:13px;
+      color:var(--hm-muted);
+      margin-top:2px;
+      margin-bottom:4px;
+    }
+
     .empty{
       text-align:center;
       color:var(--hm-muted);
@@ -105,7 +112,7 @@
     /* View listing link */
     a.view-link{
       display:inline-block;
-      margin-top:8px;
+      margin-top:4px;
       padding:5px 10px;
       font-size:13px;
       font-weight:600;
@@ -179,7 +186,7 @@
         const uid   = session.user.id;
         const email = session.user.email;
 
-        // IMPORTANT: show orders tied by id OR by email
+        // IMPORTANT: query stays exactly the same
         const { data, error } = await supabase
           .from("orders")
           .select("*")
@@ -217,6 +224,28 @@
             first.name ||
             first.title ||
             "Fabric purchase";
+
+          // One-line fabric spec from the snapshot (safe; display-only)
+          const content =
+            first.content ||
+            first.fiber_content ||
+            "";
+          const width =
+            first.width ||
+            first.width_inches ||
+            first.width_in ||
+            "";
+          let specText = "";
+          if (content && width){
+            specText = `${content} · ${width} wide`;
+          } else if (content){
+            specText = content;
+          } else if (width){
+            specText = `${width} wide`;
+          }
+          const specHtml = specText
+            ? `<div class="purchase-spec">${specText}</div>`
+            : "";
 
           const totalCents = Number(
             o.total_cents ??
@@ -291,6 +320,7 @@
 
             <div class="purchase-items">
               <div><span class="name">${title}</span></div>
+              ${specHtml}
               ${viewLinkHtml}
             </div>
 
