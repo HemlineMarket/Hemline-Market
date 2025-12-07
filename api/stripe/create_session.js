@@ -20,7 +20,11 @@ const stripe = new Stripe(stripeSecret);
 // Helper: get origin from request (for success/cancel URLs)
 function originFrom(req) {
   const proto = (req.headers["x-forwarded-proto"] || "https").toString();
-  const host = (req.headers["x-forwarded-host"] || req.headers.host || "").toString();
+  const host = (
+    req.headers["x-forwarded-host"] ||
+    req.headers.host ||
+    ""
+  ).toString();
   return `${proto}://${host}`;
 }
 
@@ -52,7 +56,9 @@ export default async function handler(req, res) {
 
     // 30-minute cancellation window timestamp (metadata only for now)
     const now = new Date();
-    const cancelExpiresIso = new Date(now.getTime() + 30 * 60 * 1000).toISOString();
+    const cancelExpiresIso = new Date(
+      now.getTime() + 30 * 60 * 1000
+    ).toISOString();
 
     // Fallback URLs from origin
     const origin = originFrom(req);
@@ -62,6 +68,28 @@ export default async function handler(req, res) {
 
     const cancel_url =
       process.env.STRIPE_CANCEL_URL || `${origin}/checkout.html`;
+
+    // Compact snapshot of what we care about for orders table
+    const slimCart = cart.map((it) => {
+      const qty = Number(it.qty || 1);
+      const amount = Number(it.amount || 0);
+
+      return {
+        // try a few possible keys so we don't depend on one exact name
+        listing_id: it.listing_id || it.id || null,
+        seller_user_id:
+          it.seller_user_id || it.seller_id || it.user_id || null,
+        name:
+          it.title ||
+          it.name ||
+          it.label ||
+          "Fabric listing",
+        qty,
+        amount_cents: amount,
+      };
+    });
+
+    const first = slimCart[0] || {};
 
     // One Stripe line item for the entire purchase
     const session = await stripe.checkout.sessions.create({
@@ -83,10 +111,21 @@ export default async function handler(req, res) {
         },
       ],
 
+      // *** This is what the webhook will read ***
       metadata: {
         subtotal_cents: String(subtotal),
         shipping_cents: String(Number(shipping_cents || 0)),
+
+        // who is buying
         buyer_user_id: buyer.id || buyer.user_id || "",
+
+        // first listing info for convenience
+        listing_id: first.listing_id || "",
+        listing_title: first.name || "",
+
+        // full cart snapshot as JSON for listing_snapshot + seller_id
+        cart_json: JSON.stringify(slimCart),
+
         cancel_expires_at: cancelExpiresIso,
       },
 
