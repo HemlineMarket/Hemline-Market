@@ -215,6 +215,7 @@
 
         const uid = session.user.id;
 
+        // SAME query as the last working version
         const { data, error } = await supabase
           .from("orders")
           .select("*")
@@ -234,31 +235,6 @@
           return;
         }
 
-        // -------- fetch seller names (profiles) --------
-        const sellerIds = Array.from(
-          new Set(
-            data
-              .map(o => o.seller_id)
-              .filter(Boolean)
-          )
-        );
-
-        const sellerMap = {};
-        if (sellerIds.length){
-          const { data: sellers, error: sellersError } = await supabase
-            .from("profiles")
-            .select("id, display_name, username")
-            .in("id", sellerIds);
-
-          if (!sellersError && Array.isArray(sellers)){
-            sellers.forEach(p => {
-              sellerMap[p.id] = p;
-            });
-          } else if (sellersError){
-            console.warn("[purchases] profiles load error:", sellersError);
-          }
-        }
-
         empty.style.display = "none";
         list.innerHTML = "";
 
@@ -266,22 +242,24 @@
           const card = document.createElement("div");
           card.className = "purchase-card";
 
-          // listing title from snapshot/columns
+          // listing snapshot info (what you bought + price breakdown)
+          const firstItem = Array.isArray(o.listing_snapshot) && o.listing_snapshot.length
+            ? o.listing_snapshot[0]
+            : null;
+
           const title =
             o.listing_title ||
             o.listing_name ||
-            (Array.isArray(o.listing_snapshot) && o.listing_snapshot[0]?.name) ||
+            (firstItem && firstItem.name) ||
             "Fabric purchase";
 
-          // total paid
-          const totalCents = Number(
+          const amountCents = Number(
             o.total_cents ??
             o.amount_total_cents ??
             o.amount_total ??
             0
           );
 
-          // compute items subtotal from snapshot (sum of amount_cents * qty)
           let itemsSubtotalCents = null;
           if (Array.isArray(o.listing_snapshot) && o.listing_snapshot.length){
             itemsSubtotalCents = o.listing_snapshot.reduce((sum, item) => {
@@ -293,14 +271,15 @@
 
           const shippingCents =
             itemsSubtotalCents !== null
-              ? Math.max(0, totalCents - itemsSubtotalCents)
+              ? Math.max(0, amountCents - itemsSubtotalCents)
               : null;
 
-          // seller display
-          const sellerProfile = o.seller_id ? sellerMap[o.seller_id] : null;
-          const sellerName =
-            (sellerProfile && (sellerProfile.display_name || sellerProfile.username)) ||
-            (o.seller_id ? "Seller" : "");
+          const sellerId =
+            o.seller_id ||
+            (firstItem && (firstItem.seller_user_id || firstItem.user_id)) ||
+            null;
+
+          const sellerLine = sellerId ? `Seller ID: ${sellerId}` : "";
 
           let cancellationHtml = "";
           let cancelBtnHtml = "";
@@ -343,16 +322,12 @@
             ? `Shipping: ${formatMoney(shippingCents)}`
             : "";
 
-          const sellerLine = sellerName
-            ? `Seller: ${sellerName}`
+          const messageSellerLink = sellerId
+            ? `<a class="btn" href="messages.html?user=${encodeURIComponent(sellerId)}&order=${encodeURIComponent(o.id)}">Message seller</a>`
             : "";
 
           const viewListingLink = o.listing_id
             ? `<a class="btn" href="listing.html?id=${encodeURIComponent(o.listing_id)}">View listing</a>`
-            : "";
-
-          const messageSellerLink = o.seller_id
-            ? `<a class="btn" href="messages.html?user=${encodeURIComponent(o.seller_id)}&order=${encodeURIComponent(o.id)}">Message seller</a>`
             : "";
 
           card.innerHTML = `
@@ -371,7 +346,7 @@
 
             <div class="purchase-meta">
               ${sellerLine ? `<div>${sellerLine}</div>` : ""}
-              <div>Total paid: <strong>${formatMoney(totalCents)} ${o.currency || "USD"}</strong></div>
+              <div>Total paid: <strong>${formatMoney(amountCents)} ${o.currency || "USD"}</strong></div>
               ${(itemsLine || shippingLine)
                 ? `<div>${itemsLine}${itemsLine && shippingLine ? " • " : ""}${shippingLine}</div>`
                 : ""
@@ -390,7 +365,7 @@
           list.appendChild(card);
         });
 
-        // Attach cancel handlers after cards exist
+        // attach cancel handlers
         document.querySelectorAll(".cancel-btn").forEach(btn => {
           btn.addEventListener("click", () => {
             btn.disabled = true;
