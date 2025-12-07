@@ -23,7 +23,7 @@
 
     // 2) fetch from seller_orders_view
     const { data, error } = await supabase
-      .from("seller_orders_view")
+      .from("orders_buyer_seller_view")
       .select("*")
       .eq("seller_id", sellerId)
       .order("created_at", { ascending: false });
