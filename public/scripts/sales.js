@@ -1,13 +1,13 @@
-// File: public/scripts/sales.js
-// Shows the current user's SALES (orders where they are the seller),
-// using the `seller_orders_view` defined in SQL.
+// public/scripts/sales.js
+// Shows orders where the current user is the SELLER.
+// Uses Supabase join: orders + listings (via foreign key orders.listing_id → listings.id).
 
 (function () {
   const HM = window.HM || {};
   const supabase = HM.supabase;
 
   if (!supabase) {
-    console.warn("[sales] Supabase client missing on window.HM.supabase");
+    console.error("[sales] Supabase client missing on window.HM.supabase");
     return;
   }
 
@@ -15,8 +15,7 @@
   const emptyStateEl = document.getElementById("emptyState");
 
   function fmtMoney(cents) {
-    if (cents == null) return "$0.00";
-    const v = cents / 100;
+    const v = (Number(cents) || 0) / 100;
     return v.toLocaleString("en-US", {
       style: "currency",
       currency: "USD",
@@ -25,86 +24,114 @@
     });
   }
 
-  function shortId(id) {
-    if (!id) return "";
-    const s = String(id);
-    return s.length > 8 ? s.slice(0, 8) : s;
-  }
-
-  function fmtDate(iso) {
+  function shortDate(iso) {
     if (!iso) return "";
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleDateString(undefined, {
-      year: "numeric",
       month: "short",
       day: "numeric",
+      year: "numeric",
     });
   }
 
-  async function ensureSession(maxMs = 3000) {
-    const start = Date.now();
-    let { data: { session } = { session: null } } = await supabase.auth.getSession();
+  function shortOrderId(stripeId, fallbackId) {
+    if (stripeId && typeof stripeId === "string") {
+      return "#" + stripeId.slice(-8);
+    }
+    if (fallbackId) {
+      return "#" + String(fallbackId).slice(0, 8);
+    }
+    return "#—";
+  }
 
+  async function ensureSession(maxMs = 4000) {
+    let {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const start = Date.now();
     while (!session?.user && Date.now() - start < maxMs) {
       await new Promise((res) => setTimeout(res, 120));
-      ({ data: { session } = { session: null } } =
-        await supabase.auth.getSession());
+      ({
+        data: { session },
+      } = await supabase.auth.getSession());
     }
     return session || null;
   }
 
-  function renderEmpty(message) {
+  function renderEmpty() {
     if (ordersListEl) ordersListEl.innerHTML = "";
-    if (emptyStateEl) {
-      emptyStateEl.textContent = message;
-      emptyStateEl.style.display = "block";
-    }
+    if (emptyStateEl) emptyStateEl.style.display = "block";
   }
 
-  function renderOrders(rows) {
+  function renderError(message) {
+    if (!ordersListEl) return;
+    ordersListEl.innerHTML =
+      '<p style="color:#b91c1c;font-size:14px;">' +
+      (message || "We couldn’t load your sales. Please try again.") +
+      "</p>";
+    if (emptyStateEl) emptyStateEl.style.display = "none";
+  }
+
+  function renderSales(orders) {
     if (!ordersListEl) return;
 
-    ordersListEl.innerHTML = "";
-    if (!rows || !rows.length) {
-      renderEmpty("You haven’t sold anything yet.");
+    if (!orders || !orders.length) {
+      renderEmpty();
       return;
     }
 
     if (emptyStateEl) emptyStateEl.style.display = "none";
+    ordersListEl.innerHTML = "";
 
-    rows.forEach((row) => {
+    orders.forEach((o) => {
+      const listing = o.listings || {};
+      const listingTitle = listing.title || "Fabric purchase";
+
+      const itemsCents =
+        o.items_cents != null
+          ? Number(o.items_cents)
+          : Math.max(
+              (Number(o.total_cents) || 0) - (Number(o.shipping_cents) || 0),
+              0
+            );
+
+      const shippingCents = Number(o.shipping_cents) || 0;
+      const totalCents =
+        o.total_cents != null
+          ? Number(o.total_cents)
+          : itemsCents + shippingCents;
+
+      const orderNumber = shortOrderId(o.stripe_checkout, o.id);
+      const created = shortDate(o.created_at);
+
       const card = document.createElement("article");
       card.className = "order-card";
 
-      const orderId = shortId(row.id);
-      const dateStr = fmtDate(row.created_at);
-      const status = (row.status || "paid").toUpperCase();
-
-      const itemsAmount = fmtMoney(row.items_cents || 0);
-      const shippingAmount = fmtMoney(row.shipping_cents || 0);
-      const totalAmount = fmtMoney(row.total_cents || 0);
-
-      const title = row.listing_title || "Fabric purchase";
-
       card.innerHTML = `
         <div class="order-top">
-          <div>Order #${orderId}</div>
-          <div>${dateStr}</div>
-        </div>
-        <div class="order-meta">
-          <div><strong>Status:</strong> ${status}</div>
-          <div><strong>Listing:</strong> ${title}</div>
           <div>
-            <strong>Items:</strong> ${itemsAmount}
-            &nbsp;•&nbsp;
-            <strong>Shipping:</strong> ${shippingAmount}
+            <div>${listingTitle}</div>
+            <div class="order-meta">${created} · ${orderNumber}</div>
           </div>
-          <div><strong>Total paid by buyer:</strong> ${totalAmount}</div>
+          <div style="text-align:right;">
+            <div><strong>${fmtMoney(totalCents)}</strong> total</div>
+            <div class="order-meta">
+              Items: ${fmtMoney(itemsCents)} · Shipping: ${fmtMoney(
+        shippingCents
+      )}
+            </div>
+          </div>
         </div>
-        <a href="listing.html?id=${encodeURIComponent(
-          row.listing_id
-        )}" class="btn">View listing</a>
+
+        <div class="order-meta">
+          Status: <strong>PAID</strong>
+        </div>
+
+        <a class="btn" href="listing.html?id=${encodeURIComponent(
+          o.listing_id
+        )}">View listing</a>
       `;
 
       ordersListEl.appendChild(card);
@@ -113,30 +140,43 @@
 
   async function loadSales() {
     const session = await ensureSession();
-
     if (!session || !session.user) {
-      renderEmpty("Sign in to see your sales.");
+      renderError("Sign in to see your sales.");
       return;
     }
 
     const sellerId = session.user.id;
 
     const { data, error } = await supabase
-      .from("seller_orders_view")
+      .from("orders")
       .select(
-        "id, created_at, status, items_cents, shipping_cents, total_cents, listing_id, listing_title, seller_id"
+        `
+        id,
+        created_at,
+        items_cents,
+        shipping_cents,
+        total_cents,
+        buyer_id,
+        stripe_checkout,
+        listing_id,
+        listings!inner (
+          id,
+          seller_id,
+          title
+        )
+      `
       )
-      .eq("seller_id", sellerId)
+      .eq("listings.seller_id", sellerId)
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.warn("[sales] error loading sales", error);
-      renderEmpty("We couldn’t load your sales right now.");
+      console.error("[sales] orders query error", error);
+      renderError("We couldn’t load your sales. Please try again.");
       return;
     }
 
-    renderOrders(data || []);
+    renderSales(data || []);
   }
 
-  document.addEventListener("DOMContentLoaded", loadSales);
+  window.addEventListener("DOMContentLoaded", loadSales);
 })();
