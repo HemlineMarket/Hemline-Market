@@ -76,8 +76,36 @@
       margin-bottom:6px;
     }
 
+    .purchase-meta strong{
+      color:var(--hm-text);
+    }
+
     .purchase-items span.name{
       font-weight:600;
+    }
+
+    .purchase-actions{
+      margin-top:8px;
+      margin-bottom:4px;
+    }
+
+    a.btn, button.btn{
+      display:inline-block;
+      padding:6px 12px;
+      border-radius:8px;
+      border:1px solid var(--hm-border);
+      text-decoration:none;
+      font-size:13px;
+      font-weight:600;
+      background:#fff;
+      color:var(--hm-accent);
+      margin-right:8px;
+      cursor:pointer;
+    }
+
+    button.btn:disabled{
+      opacity:0.6;
+      cursor:not-allowed;
     }
 
     .empty{
@@ -158,6 +186,7 @@
           return;
         }
 
+        // 🔒 DO NOT CHANGE THIS QUERY RIGHT NOW
         const { data, error } = await supabase
           .from("orders")
           .select("*")
@@ -186,19 +215,16 @@
           const card = document.createElement("div");
           card.className = "purchase-card";
 
-          // Title from listing snapshot / metadata
+          const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
+          const first = snapshot[0] || {};
+
+          // What you bought
           let title =
             o.listing_title ||
             o.listing_name ||
+            first.name ||
+            first.title ||
             "Fabric purchase";
-
-          if (Array.isArray(o.listing_snapshot) && o.listing_snapshot.length){
-            const first = o.listing_snapshot[0];
-            title =
-              first.name ||
-              first.title ||
-              title;
-          }
 
           // Total cents from orders table
           const totalCents = Number(
@@ -208,10 +234,10 @@
             0
           );
 
-          // Reconstruct items subtotal from listing_snapshot (if present)
+          // Items subtotal from snapshot
           let itemsCents = 0;
-          if (Array.isArray(o.listing_snapshot)){
-            for (const item of o.listing_snapshot){
+          if (snapshot.length){
+            for (const item of snapshot){
               const amt = Number(item.amount_cents || 0);
               const qty = Number(item.qty || 1);
               itemsCents += amt * qty;
@@ -221,26 +247,52 @@
 
           const shippingCents = Math.max(totalCents - itemsCents, 0);
 
-          // Cancellation window messaging
+          // Seller info (if we have it)
+          const sellerId =
+            o.seller_id ||
+            first.seller_user_id ||
+            first.user_id ||
+            null;
+
+          const sellerLine = sellerId ? `Seller ID: ${sellerId}` : "";
+
+          // 30-minute cancellation text only (no button yet)
           let cancellationHtml = "";
           if (o.created_at){
             const createdMs = new Date(o.created_at).getTime();
             const diffMinutes = (now - createdMs) / 60000;
 
-            if (diffMinutes < 30 && String(o.status || "PAID").toUpperCase() !== "CANCELLED"){
+            const isCancelled =
+              String(o.status || "").toUpperCase() === "CANCELED" ||
+              String(o.status || "").toUpperCase() === "CANCELLED";
+
+            if (diffMinutes < 30 && !isCancelled){
               cancellationHtml = `
                 <div class="cancellation-note cancellation-open">
                   Cancellation available for 30 minutes after purchase.
                 </div>
               `;
-            } else if (String(o.status || "PAID").toUpperCase() !== "CANCELLED"){
+            } else if (!isCancelled){
               cancellationHtml = `
                 <div class="cancellation-note">
                   The 30-minute cancellation window has expired.
                 </div>
               `;
+            } else {
+              cancellationHtml = `
+                <div class="cancellation-note">
+                  Order cancelled within the 30-minute window.
+                </div>
+              `;
             }
           }
+
+          // Message seller link (safe: only shows if sellerId exists)
+          const messageSellerLink = sellerId
+            ? `<a class="btn" href="messages.html?user=${encodeURIComponent(
+                sellerId
+              )}&order=${encodeURIComponent(o.id)}">Message seller</a>`
+            : "";
 
           card.innerHTML = `
             <div class="purchase-top">
@@ -248,15 +300,25 @@
               <span>${formatDate(o.created_at)}</span>
             </div>
 
-            <div class="purchase-status">Status: ${String(o.status || "PAID").toUpperCase()}</div>
-
-            <div class="purchase-meta">
-              Total: ${formatMoney(totalCents)} ${o.currency || "usd"}<br/>
-              Items: ${formatMoney(itemsCents)} • Shipping: ${formatMoney(shippingCents)}
+            <div class="purchase-status">
+              Status: ${String(o.status || "PAID").toUpperCase()}
             </div>
 
             <div class="purchase-items">
               <div><span class="name">${title}</span></div>
+            </div>
+
+            <div class="purchase-meta">
+              ${sellerLine ? `<div>${sellerLine}</div>` : ""}
+              <div>Total paid: <strong>${formatMoney(totalCents)} ${o.currency || "USD"}</strong></div>
+              <div>
+                Items: ${formatMoney(itemsCents)}
+                • Shipping: ${formatMoney(shippingCents)}
+              </div>
+            </div>
+
+            <div class="purchase-actions">
+              ${messageSellerLink}
             </div>
 
             ${cancellationHtml}
