@@ -13,7 +13,7 @@ if (!stripeSecret) throw new Error("STRIPE_SECRET_KEY is not set");
 
 const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" });
 
-// We KEEP the env var so it’s ready when we turn signing back on
+// we keep this env var only for later when we re-enable signing
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || null;
 
 const SITE_URL =
@@ -28,7 +28,7 @@ const SITE_URL =
 function buffer(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (c) => chunks.push(c));
+    req.on("data", c => chunks.push(c));
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
@@ -42,12 +42,7 @@ function safeMeta(session) {
 // Notifications
 // ----------------------------------------------------------
 
-async function insertPurchaseNotifications({
-  buyerId,
-  sellerId,
-  listingId,
-  listingTitle,
-}) {
+async function insertPurchaseNotifications({ buyerId, sellerId, listingId, listingTitle }) {
   const title = listingTitle || "your fabric";
   const sellerHref = `/listing.html?id=${listingId || ""}`;
   const buyerHref = `/purchases.html`;
@@ -100,7 +95,7 @@ async function markListingSold(listingId) {
       .eq("id", listingId)
       .is("deleted_at", null);
   } catch (err) {
-    console.warn("[webhook] markListingSold error:", err);
+    console.warn("markListingSold error:", err);
   }
 }
 
@@ -114,9 +109,7 @@ async function upsertOrderIntoOrders(event, session) {
   let cart = [];
   try {
     if (meta.cart_json) cart = JSON.parse(meta.cart_json);
-  } catch {
-    cart = [];
-  }
+  } catch {}
 
   const first = Array.isArray(cart) && cart.length ? cart[0] : {};
 
@@ -127,18 +120,23 @@ async function upsertOrderIntoOrders(event, session) {
     first.name || meta.listing_title || meta.listingTitle || "";
 
   const buyerId =
-    meta.buyer_user_id || meta.buyer_id || meta.buyerId || null;
+    meta.buyer_user_id ||
+    meta.buyer_id ||
+    meta.buyerId ||
+    null;
 
   const sellerId =
-    first.seller_user_id || meta.seller_user_id || meta.sellerId || null;
+    first.seller_user_id ||
+    meta.seller_user_id ||
+    meta.sellerId ||
+    null;
 
   const payload = {
-    stripe_event_id: event.id,
-    stripe_payment_intent: session.payment_intent,
-    stripe_checkout: session.id,
+    stripe_event_id: event.id || null,
+    stripe_payment_intent: session.payment_intent || null,
+    stripe_checkout: session.id || null,
 
-    buyer_email:
-      session.customer_details?.email || session.customer_email || "",
+    buyer_email: session.customer_details?.email || session.customer_email || "",
     buyer_id: buyerId,
     seller_id: sellerId,
     listing_id: listingId,
@@ -188,13 +186,13 @@ async function sendPurchaseEmail({ stripeSessionId }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ stripeSessionId }),
     });
-  } catch {
-    // swallow for now
+  } catch (err) {
+    console.warn("purchase-email error", err);
   }
 }
 
 // ----------------------------------------------------------
-// Main Handler  (NO SIGNATURE CHECK)
+// MAIN HANDLER  (NO SIGNATURE CHECK)
 // ----------------------------------------------------------
 
 export default async function handler(req, res) {
@@ -206,17 +204,17 @@ export default async function handler(req, res) {
   let rawBody;
   try {
     rawBody = await buffer(req);
-  } catch {
+  } catch (err) {
+    console.error("buffer error", err);
     return res.status(400).send("Unable to read request body");
   }
 
-  // IMPORTANT: temporarily skip stripe.webhooks.constructEvent
   let event;
   try {
-    event = JSON.parse(rawBody.toString());
+    event = JSON.parse(rawBody.toString("utf8") || "{}");
   } catch (err) {
-    console.error("[webhook] JSON parse error:", err);
-    return res.status(400).send("Invalid JSON payload");
+    console.error("webhook JSON parse error", err);
+    return res.status(400).send("Invalid JSON");
   }
 
   try {
@@ -227,7 +225,10 @@ export default async function handler(req, res) {
       const meta = safeMeta(session);
 
       const listingId =
-        orderRow?.listing_id || meta.listing_id || meta.listingId || null;
+        orderRow?.listing_id ||
+        meta.listing_id ||
+        meta.listingId ||
+        null;
 
       if (listingId) await markListingSold(listingId);
 
@@ -266,7 +267,7 @@ export default async function handler(req, res) {
 
     return res.json({ received: true });
   } catch (err) {
-    console.error("[webhook] handler error:", err);
+    console.error("webhook handler error:", err);
     return res.status(500).json({ error: "Webhook handler error" });
   }
 }
