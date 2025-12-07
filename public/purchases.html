@@ -63,7 +63,7 @@
     }
 
     .purchase-status{
-      font-size:13px;
+      font-size:12px;
       font-weight:600;
       color:var(--hm-accent);
       margin-bottom:6px;
@@ -73,20 +73,11 @@
       font-size:13px;
       color:var(--hm-muted);
       line-height:1.4;
-      margin-bottom:6px;
-    }
-
-    .purchase-meta strong{
-      color:var(--hm-text);
+      margin-bottom:8px;
     }
 
     .purchase-items span.name{
       font-weight:600;
-    }
-
-    .purchase-actions{
-      margin-top:8px;
-      margin-bottom:4px;
     }
 
     a.btn, button.btn{
@@ -176,6 +167,33 @@
         return session;
       }
 
+      async function cancelPurchase(orderId){
+        const { data:{ session } } = await supabase.auth.getSession();
+        const buyerId = session?.user?.id;
+        if (!buyerId) return;
+
+        try{
+          const res = await fetch("/api/cancel_purchase", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body:JSON.stringify({ order_id: orderId, buyer_id: buyerId })
+          });
+
+          const out = await res.json();
+
+          if (!res.ok){
+            alert(out.error || "Unable to cancel purchase.");
+            return;
+          }
+
+          alert("Purchase canceled successfully.");
+          location.reload();
+        } catch(err){
+          console.error("cancelPurchase error", err);
+          alert("Unable to cancel purchase right now.");
+        }
+      }
+
       async function loadPurchases(){
         const list  = document.getElementById("purchasesList");
         const empty = document.getElementById("emptyState");
@@ -186,7 +204,6 @@
           return;
         }
 
-        // 🔒 DO NOT CHANGE THIS QUERY RIGHT NOW
         const { data, error } = await supabase
           .from("orders")
           .select("*")
@@ -209,8 +226,6 @@
         empty.style.display = "none";
         list.innerHTML = "";
 
-        const now = Date.now();
-
         data.forEach(o => {
           const card = document.createElement("div");
           card.className = "purchase-card";
@@ -218,55 +233,36 @@
           const snapshot = Array.isArray(o.listing_snapshot) ? o.listing_snapshot : [];
           const first = snapshot[0] || {};
 
-          // What you bought
-          let title =
+          const title =
             o.listing_title ||
             o.listing_name ||
             first.name ||
             first.title ||
             "Fabric purchase";
 
-          // Total cents from orders table
-          const totalCents = Number(
+          const amountCents = Number(
             o.total_cents ??
             o.amount_total_cents ??
             o.amount_total ??
             0
           );
 
-          // Items subtotal from snapshot
-          let itemsCents = 0;
-          if (snapshot.length){
-            for (const item of snapshot){
-              const amt = Number(item.amount_cents || 0);
-              const qty = Number(item.qty || 1);
-              itemsCents += amt * qty;
-            }
-          }
-          if (itemsCents < 0 || !Number.isFinite(itemsCents)) itemsCents = 0;
-
-          const shippingCents = Math.max(totalCents - itemsCents, 0);
-
-          // Seller info (if we have it)
-          const sellerId =
-            o.seller_id ||
-            first.seller_user_id ||
-            first.user_id ||
-            null;
-
-          const sellerLine = sellerId ? `Seller ID: ${sellerId}` : "";
-
-          // 30-minute cancellation text only (no button yet)
           let cancellationHtml = "";
+          let cancelBtnHtml = "";
+
           if (o.created_at){
             const createdMs = new Date(o.created_at).getTime();
-            const diffMinutes = (now - createdMs) / 60000;
+            const diffMinutes = (Date.now() - createdMs) / 60000;
 
-            const isCancelled =
-              String(o.status || "").toUpperCase() === "CANCELED" ||
-              String(o.status || "").toUpperCase() === "CANCELLED";
+            const status = String(o.status || "PAID").toUpperCase();
+            const isCancelled = status === "CANCELED" || status === "CANCELLED";
 
             if (diffMinutes < 30 && !isCancelled){
+              cancelBtnHtml = `
+                <button class="btn cancel-btn" data-id="${o.id}">
+                  Cancel purchase
+                </button>
+              `;
               cancellationHtml = `
                 <div class="cancellation-note cancellation-open">
                   Cancellation available for 30 minutes after purchase.
@@ -287,13 +283,6 @@
             }
           }
 
-          // Message seller link (safe: only shows if sellerId exists)
-          const messageSellerLink = sellerId
-            ? `<a class="btn" href="messages.html?user=${encodeURIComponent(
-                sellerId
-              )}&order=${encodeURIComponent(o.id)}">Message seller</a>`
-            : "";
-
           card.innerHTML = `
             <div class="purchase-top">
               <span>Purchase #${String(o.id).slice(0,8)}</span>
@@ -304,27 +293,31 @@
               Status: ${String(o.status || "PAID").toUpperCase()}
             </div>
 
+            <div class="purchase-meta">
+              Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
+            </div>
+
             <div class="purchase-items">
               <div><span class="name">${title}</span></div>
             </div>
 
-            <div class="purchase-meta">
-              ${sellerLine ? `<div>${sellerLine}</div>` : ""}
-              <div>Total paid: <strong>${formatMoney(totalCents)} ${o.currency || "USD"}</strong></div>
-              <div>
-                Items: ${formatMoney(itemsCents)}
-                • Shipping: ${formatMoney(shippingCents)}
-              </div>
-            </div>
-
             <div class="purchase-actions">
-              ${messageSellerLink}
+              ${cancelBtnHtml}
             </div>
 
             ${cancellationHtml}
           `;
 
           list.appendChild(card);
+        });
+
+        // Attach cancel handlers
+        document.querySelectorAll(".cancel-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            btn.disabled = true;
+            btn.textContent = "Canceling...";
+            cancelPurchase(btn.dataset.id);
+          });
         });
       }
 
