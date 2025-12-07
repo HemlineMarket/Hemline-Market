@@ -1,5 +1,5 @@
 // File: public/scripts/sales.js
-// Show all orders where the current user owns the listing (seller).
+// Shows orders where the logged-in user is the seller.
 
 (function () {
   const supabase = window.HM?.supabase;
@@ -25,23 +25,12 @@
 
     const sellerId = user.id;
 
-    // IMPORTANT: join orders → listings and filter by listings.seller_id
     const { data, error } = await supabase
       .from("orders")
       .select(
-        `
-        id,
-        buyer_id,
-        buyer_email,
-        items_cents,
-        shipping_cents,
-        total_cents,
-        listing_title,
-        created_at,
-        listings!inner(id,seller_id)
-      `
+        "id,buyer_id,buyer_email,items_cents,shipping_cents,total_cents,listing_title,created_at"
       )
-      .eq("listings.seller_id", sellerId)
+      .eq("seller_id", sellerId)
       .order("created_at", { ascending: false });
 
     if (error) {
