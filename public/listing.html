@@ -21,12 +21,14 @@
       --bg:#ffffff;
       --page:#fafafa;
     }
+
     html,body{
       margin:0;
       background:var(--page);
       color:var(--ink);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
     }
+
     main{
       max-width:1100px;
       margin:24px auto;
@@ -34,35 +36,49 @@
       display:flex;
       gap:32px;
     }
+
     .img-box img{
       width:100%;
       border-radius:12px;
       border:1px solid var(--border);
+      object-fit:cover;
     }
+
     .details h1{
       margin:0 0 8px;
       font-size:28px;
       font-weight:800;
     }
+
     .price{
       font-size:20px;
       font-weight:700;
       margin:12px 0;
     }
+
+    .meta{
+      font-size:14px;
+      color:var(--muted);
+      margin-bottom:8px;
+      white-space:pre-line;
+    }
+
     label{
       display:block;
       margin-top:12px;
       font-size:14px;
       color:var(--muted);
     }
+
     input{
       margin-top:6px;
-      width:80px;
+      width:90px;
       padding:6px;
       border-radius:8px;
       border:1px solid var(--border);
       font-size:14px;
     }
+
     .btn-buy{
       margin-top:20px;
       display:inline-block;
@@ -76,10 +92,46 @@
       color:#fff;
       text-decoration:none;
     }
-    .sold{
-      color:#991b1b;
-      font-weight:700;
-      margin-top:12px;
+
+    .btn-buy[disabled]{
+      opacity:0.6;
+      cursor:not-allowed;
+    }
+
+    .status-pill{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:600;
+      border:1px solid var(--border);
+      color:var(--muted);
+      margin-top:4px;
+    }
+
+    .status-pill.sold{
+      border-color:#b91c1c;
+      color:#b91c1c;
+      background:#fef2f2;
+    }
+
+    .sold-note{
+      margin-top:10px;
+      font-size:13px;
+      color:#b45309;
+    }
+
+    .error{
+      font-size:16px;
+      font-weight:600;
+      color:#b91c1c;
+      margin-top:8px;
+    }
+
+    @media (max-width:768px){
+      main{
+        flex-direction:column;
+      }
     }
   </style>
 </head>
@@ -98,13 +150,19 @@
       <h1 id="listingTitle">Loading…</h1>
       <div id="listingPrice" class="price"></div>
       <div id="listingStatus"></div>
+      <div id="listingMeta" class="meta"></div>
 
-      <label for="yardsInput">Yards</label>
-      <input id="yardsInput" type="number" min="1" value="1"/>
+      <div id="purchaseControls">
+        <label for="yardsInput">Yards</label>
+        <input id="yardsInput" type="number" min="1" value="1"/>
 
-      <button class="btn-buy" onclick="startCheckout()" id="buyBtn">
-        Purchase This Fabric
-      </button>
+        <button class="btn-buy" id="buyBtn" onclick="startCheckout()">
+          Purchase This Fabric
+        </button>
+      </div>
+
+      <div id="soldNote" class="sold-note" style="display:none;"></div>
+      <div id="errorMsg" class="error" style="display:none;"></div>
     </div>
   </main>
 
@@ -116,42 +174,126 @@
   <script src="scripts/cart.js"></script>
 
   <script>
-    const supabase = window.HM.supabase;
-    const id = new URL(window.location.href).searchParams.get("id");
+    window.addEventListener("DOMContentLoaded", async () => {
+      // Render header/footer + get Supabase client
+      if (window.HM && typeof window.HM.renderShell === "function") {
+        window.HM.renderShell({ currentPage: "" });
+      }
 
-    async function loadListing(){
-      const { data, error } = await supabase
-        .from("listings")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
+      const supabase = window.HM && window.HM.supabase;
+      const titleEl = document.getElementById("listingTitle");
+      const priceEl = document.getElementById("listingPrice");
+      const statusEl = document.getElementById("listingStatus");
+      const metaEl = document.getElementById("listingMeta");
+      const imgEl = document.getElementById("listingImage");
+      const buyBtn = document.getElementById("buyBtn");
+      const purchaseControls = document.getElementById("purchaseControls");
+      const soldNoteEl = document.getElementById("soldNote");
+      const errorMsgEl = document.getElementById("errorMsg");
 
-      if (error || !data){
-        document.getElementById("listingTitle").textContent = "Listing not found.";
-        document.getElementById("buyBtn").style.display = "none";
+      if (!supabase) {
+        titleEl.textContent = "Listing unavailable.";
+        errorMsgEl.style.display = "block";
+        errorMsgEl.textContent = "We couldn’t connect to the database.";
+        if (purchaseControls) purchaseControls.style.display = "none";
         return;
       }
 
-      document.getElementById("listingImage").src = data.image_url || "";
-      document.getElementById("listingTitle").textContent = data.title || data.name || "Fabric";
-      document.getElementById("listingPrice").textContent =
-        `$${(Number(data.price_cents)/100).toFixed(2)} per yard`;
+      const params = new URLSearchParams(window.location.search);
+      const listingId = params.get("id");
 
-      if (data.status === "SOLD"){
-        document.getElementById("listingStatus").innerHTML =
-          `<div class="sold">This fabric has been sold.</div>`;
-        document.getElementById("buyBtn").style.display = "none";
+      if (!listingId) {
+        titleEl.textContent = "Listing not found.";
+        errorMsgEl.style.display = "block";
+        errorMsgEl.textContent = "Missing listing id in the URL.";
+        if (purchaseControls) purchaseControls.style.display = "none";
+        return;
       }
-    }
 
-    loadListing();
+      async function loadListing() {
+        const { data, error } = await supabase
+          .from("listings")
+          .select("*")
+          .eq("id", listingId)
+          .maybeSingle();
 
-    async function startCheckout(){
-      const yards = Number(document.getElementById("yardsInput").value || 1);
-      window.HM.addToCart(id, yards);
-    }
+        if (error || !data) {
+          console.error("[listing] load error:", error || "no data");
+          titleEl.textContent = "Listing not found.";
+          errorMsgEl.style.display = "block";
+          errorMsgEl.textContent =
+            "This listing may have been removed by the seller.";
+          if (purchaseControls) purchaseControls.style.display = "none";
+          return;
+        }
 
-    window.HM.renderShell({ currentPage:"" });
+        // Basic fields
+        const title =
+          data.title || data.name || "Fabric listing";
+        const pricePerYard = Number(data.price_cents || 0) / 100;
+        const currency = data.currency || "USD";
+
+        titleEl.textContent = title;
+        priceEl.textContent = pricePerYard
+          ? `$${pricePerYard.toFixed(2)} per yard`
+          : "";
+
+        if (data.image_url) {
+          imgEl.src = data.image_url;
+        } else {
+          imgEl.removeAttribute("src");
+        }
+
+        // Optional meta (width, fiber, etc. if you add later)
+        const metaLines = [];
+        if (data.width) metaLines.push(`Width: ${data.width}`);
+        if (data.content) metaLines.push(`Content: ${data.content}`);
+        if (data.color) metaLines.push(`Color: ${data.color}`);
+        metaEl.textContent = metaLines.join("\n");
+
+        // Status pill
+        const status = (data.status || "").toUpperCase();
+        if (status === "SOLD") {
+          statusEl.innerHTML =
+            '<span class="status-pill sold">Sold</span>';
+          if (purchaseControls) purchaseControls.style.display = "none";
+          soldNoteEl.style.display = "block";
+          soldNoteEl.textContent =
+            "This fabric has been sold. You can still view this page from your Purchases and Sales history.";
+        } else {
+          statusEl.innerHTML =
+            '<span class="status-pill">Available</span>';
+          soldNoteEl.style.display = "none";
+        }
+
+        // Expose id on window so cart logic can use it if needed
+        window.currentListingId = data.id;
+      }
+
+      await loadListing();
+
+      // Checkout handler – kept global because of the onclick on the button.
+      window.startCheckout = function startCheckout() {
+        const yardsInput = document.getElementById("yardsInput");
+        const yards = Number((yardsInput && yardsInput.value) || 1);
+
+        if (!window.currentListingId) {
+          alert("We couldn’t find this listing. Please refresh and try again.");
+          return;
+        }
+
+        if (!window.HM || typeof window.HM.addToCart !== "function") {
+          alert("Cart is not available right now. Please refresh and try again.");
+          return;
+        }
+
+        const safeYards = Math.max(1, Math.floor(yards || 1));
+        yardsInput.value = safeYards;
+
+        // This only adds to cart; it does NOT delete or change the listing.
+        window.HM.addToCart(window.currentListingId, safeYards);
+      };
+    });
   </script>
 </body>
 </html>
