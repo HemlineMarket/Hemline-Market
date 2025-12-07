@@ -1,172 +1,142 @@
-// scripts/sales.js
-// Your Sales — orders where you are the seller.
-// This does NOT touch purchases logic or listing queries.
+// File: public/scripts/sales.js
+// Shows the current user's SALES (orders where they are the seller),
+// using the `seller_orders_view` defined in SQL.
 
 (function () {
   const HM = window.HM || {};
   const supabase = HM.supabase;
 
   if (!supabase) {
-    console.error("[sales] Supabase client not found on window.HM.supabase");
+    console.warn("[sales] Supabase client missing on window.HM.supabase");
     return;
   }
 
-  function formatMoney(cents) {
-    const n = Number(cents || 0) / 100;
-    return n.toLocaleString(undefined, {
+  const ordersListEl = document.getElementById("ordersList");
+  const emptyStateEl = document.getElementById("emptyState");
+
+  function fmtMoney(cents) {
+    if (cents == null) return "$0.00";
+    const v = cents / 100;
+    return v.toLocaleString("en-US", {
       style: "currency",
       currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     });
   }
 
-  function formatDate(iso) {
+  function shortId(id) {
+    if (!id) return "";
+    const s = String(id);
+    return s.length > 8 ? s.slice(0, 8) : s;
+  }
+
+  function fmtDate(iso) {
     if (!iso) return "";
     const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleDateString(undefined, {
+      year: "numeric",
       month: "short",
       day: "numeric",
-      year: "numeric",
     });
   }
 
-  async function ensureSession(maxWaitMs = 3000) {
-    let {
-      data: { session },
-    } = await supabase.auth.getSession();
+  async function ensureSession(maxMs = 3000) {
     const start = Date.now();
+    let { data: { session } = { session: null } } = await supabase.auth.getSession();
 
-    while (!session?.user && Date.now() - start < maxWaitMs) {
-      await new Promise((r) => setTimeout(r, 120));
-      ({
-        data: { session },
-      } = await supabase.auth.getSession());
+    while (!session?.user && Date.now() - start < maxMs) {
+      await new Promise((res) => setTimeout(res, 120));
+      ({ data: { session } = { session: null } } =
+        await supabase.auth.getSession());
     }
-    return session;
+    return session || null;
   }
 
-  async function loadSales() {
-    const list = document.getElementById("ordersList");
-    const empty = document.getElementById("emptyState");
+  function renderEmpty(message) {
+    if (ordersListEl) ordersListEl.innerHTML = "";
+    if (emptyStateEl) {
+      emptyStateEl.textContent = message;
+      emptyStateEl.style.display = "block";
+    }
+  }
 
-    if (!list || !empty) {
-      console.warn("[sales] Missing container elements");
+  function renderOrders(rows) {
+    if (!ordersListEl) return;
+
+    ordersListEl.innerHTML = "";
+    if (!rows || !rows.length) {
+      renderEmpty("You haven’t sold anything yet.");
       return;
     }
 
-    const session = await ensureSession();
-    if (!session || !session.user) {
-      window.location.href = "auth.html?view=login";
-      return;
-    }
+    if (emptyStateEl) emptyStateEl.style.display = "none";
 
-    const uid = session.user.id;
-    const email = session.user.email;
-
-    // IMPORTANT: keep query simple and stable
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .or(`seller_id.eq.${uid},seller_email.eq.${email}`)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("[sales] load error:", error);
-      empty.style.display = "block";
-      empty.textContent = "Unable to load sales.";
-      return;
-    }
-
-    if (!data || !data.length) {
-      empty.style.display = "block";
-      list.innerHTML = "";
-      return;
-    }
-
-    empty.style.display = "none";
-    list.innerHTML = "";
-
-    data.forEach((o) => {
-      const card = document.createElement("div");
+    rows.forEach((row) => {
+      const card = document.createElement("article");
       card.className = "order-card";
 
-      const snapshot = Array.isArray(o.listing_snapshot)
-        ? o.listing_snapshot
-        : [];
-      const first = snapshot[0] || {};
+      const orderId = shortId(row.id);
+      const dateStr = fmtDate(row.created_at);
+      const status = (row.status || "paid").toUpperCase();
 
-      const title =
-        o.listing_title ||
-        o.listing_name ||
-        first.name ||
-        first.title ||
-        "Fabric sale";
+      const itemsAmount = fmtMoney(row.items_cents || 0);
+      const shippingAmount = fmtMoney(row.shipping_cents || 0);
+      const totalAmount = fmtMoney(row.total_cents || 0);
 
-      // One-line fabric spec from snapshot (display-only, safe)
-      const content =
-        first.content ||
-        first.fiber_content ||
-        "";
-      const width =
-        first.width ||
-        first.width_inches ||
-        first.width_in ||
-        "";
-      let specText = "";
-      if (content && width) {
-        specText = `${content} · ${width} wide`;
-      } else if (content) {
-        specText = content;
-      } else if (width) {
-        specText = `${width} wide`;
-      }
-      const specHtml = specText
-        ? `<div style="font-size:13px;color:#6b7280;margin-top:2px;margin-bottom:4px;">${specText}</div>`
-        : "";
-
-      const totalCents = Number(
-        o.total_cents ??
-          o.amount_total_cents ??
-          o.amount_total ??
-          0
-      );
-
-      const buyerLabel =
-        o.buyer_email ||
-        o.buyer_name ||
-        "Buyer";
-
-      const listingId = o.listing_id || first.listing_id || null;
-      const viewLinkHtml = listingId
-        ? `<a class="btn" href="listing.html?id=${encodeURIComponent(
-            listingId
-          )}">View listing</a>`
-        : "";
+      const title = row.listing_title || "Fabric purchase";
 
       card.innerHTML = `
         <div class="order-top">
-          <span>Order #${String(o.id).slice(0, 8)}</span>
-          <span>${formatDate(o.created_at)}</span>
+          <div>Order #${orderId}</div>
+          <div>${dateStr}</div>
         </div>
-
         <div class="order-meta">
-          <div>Buyer: <strong>${buyerLabel}</strong></div>
-          <div>Total: <strong>${formatMoney(totalCents)} ${
-        o.currency || "USD"
-      }</strong></div>
+          <div><strong>Status:</strong> ${status}</div>
+          <div><strong>Listing:</strong> ${title}</div>
+          <div>
+            <strong>Items:</strong> ${itemsAmount}
+            &nbsp;•&nbsp;
+            <strong>Shipping:</strong> ${shippingAmount}
+          </div>
+          <div><strong>Total paid by buyer:</strong> ${totalAmount}</div>
         </div>
-
-        <div>
-          <div><strong>${title}</strong></div>
-          ${specHtml}
-          ${viewLinkHtml}
-        </div>
+        <a href="listing.html?id=${encodeURIComponent(
+          row.listing_id
+        )}" class="btn">View listing</a>
       `;
 
-      list.appendChild(card);
+      ordersListEl.appendChild(card);
     });
   }
 
-  window.addEventListener("DOMContentLoaded", () => {
-    loadSales();
-  });
+  async function loadSales() {
+    const session = await ensureSession();
+
+    if (!session || !session.user) {
+      renderEmpty("Sign in to see your sales.");
+      return;
+    }
+
+    const sellerId = session.user.id;
+
+    const { data, error } = await supabase
+      .from("seller_orders_view")
+      .select(
+        "id, created_at, status, items_cents, shipping_cents, total_cents, listing_id, listing_title, seller_id"
+      )
+      .eq("seller_id", sellerId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("[sales] error loading sales", error);
+      renderEmpty("We couldn’t load your sales right now.");
+      return;
+    }
+
+    renderOrders(data || []);
+  }
+
+  document.addEventListener("DOMContentLoaded", loadSales);
 })();
