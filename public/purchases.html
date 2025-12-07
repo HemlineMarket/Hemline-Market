@@ -198,19 +198,37 @@
           return;
         }
 
-        const { data, error } = await supabase
+        const uid = session.user.id;
+        const email = session.user.email;
+
+        // 1) Try by buyer_id (future orders where webhook fills this)
+        let { data, error } = await supabase
           .from("orders")
           .select("*")
-          .eq("buyer_id", session.user.id)
+          .eq("buyer_id", uid)
           .order("created_at", { ascending:false });
 
+        // 2) If nothing found, fall back to buyer_email (current data)
+        if (!error && (!data || data.length === 0) && email) {
+          const fallback = await supabase
+            .from("orders")
+            .select("*")
+            .eq("buyer_email", email)
+            .order("created_at", { ascending:false });
+
+          if (!fallback.error) {
+            data = fallback.data;
+          }
+        }
+
         if (error){
+          console.error("[purchases] load error:", error);
           empty.style.display = "block";
           empty.textContent = "Unable to load purchases.";
           return;
         }
 
-        if (!data.length){
+        if (!data || !data.length){
           empty.style.display = "block";
           list.innerHTML = "";
           return;
