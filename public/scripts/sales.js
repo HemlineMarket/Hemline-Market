@@ -1,5 +1,5 @@
 // public/scripts/sales.js
-// Shows all orders where the logged-in user is the seller.
+// Shows all orders for listings owned by the logged-in seller.
 
 (function () {
   const supabase = window.HM && window.HM.supabase;
@@ -16,7 +16,6 @@
     return;
   }
 
-  // Small helpers
   function formatMoneyCents(cents, currency) {
     const val = (Number(cents) || 0) / 100;
     const code = (currency || "USD").toUpperCase();
@@ -39,7 +38,6 @@
     });
   }
 
-  // Ensure we have a session (like purchases.js)
   async function ensureSession(maxMs = 3000) {
     let {
       data: { session },
@@ -64,15 +62,14 @@
 
     const sellerId = session.user.id;
 
-    // Load all orders where this user is the seller
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("seller_id", sellerId)
-      .order("created_at", { ascending: false });
+    // 1) Find all listings owned by this seller
+    const { data: listings, error: listingsErr } = await supabase
+      .from("listings")
+      .select("id, title")
+      .eq("seller_id", sellerId);
 
-    if (error) {
-      console.error("[sales] Load error:", error);
+    if (listingsErr) {
+      console.error("[sales] listings fetch error:", listingsErr);
       emptyState.style.display = "block";
       emptyState.textContent =
         "We couldn’t load your sales. Please refresh and try again.";
@@ -80,7 +77,34 @@
       return;
     }
 
-    if (!data || data.length === 0) {
+    const listingIds = (listings || [])
+      .map((l) => l.id)
+      .filter((id) => !!id);
+
+    if (!listingIds.length) {
+      emptyState.style.display = "block";
+      emptyState.textContent = "You haven’t sold anything yet.";
+      ordersList.innerHTML = "";
+      return;
+    }
+
+    // 2) Load orders that reference those listings
+    const { data: orders, error: ordersErr } = await supabase
+      .from("orders")
+      .select("*")
+      .in("listing_id", listingIds)
+      .order("created_at", { ascending: false });
+
+    if (ordersErr) {
+      console.error("[sales] orders fetch error:", ordersErr);
+      emptyState.style.display = "block";
+      emptyState.textContent =
+        "We couldn’t load your sales. Please refresh and try again.";
+      ordersList.innerHTML = "";
+      return;
+    }
+
+    if (!orders || !orders.length) {
       emptyState.style.display = "block";
       emptyState.textContent = "You haven’t sold anything yet.";
       ordersList.innerHTML = "";
@@ -88,19 +112,23 @@
     }
 
     emptyState.style.display = "none";
-    render(data);
+    render(orders, listings);
   }
 
-  function render(rows) {
-    ordersList.innerHTML = rows
-      .map((order) => {
-        const title =
-          order.listing_title && String(order.listing_title).trim().length
-            ? order.listing_title
-            : "Listing";
+  function render(orders, listings) {
+    const titleByListingId = {};
+    (listings || []).forEach((l) => {
+      if (l.id) {
+        titleByListingId[l.id] = l.title || "Listing";
+      }
+    });
 
-        const buyerEmail = order.buyer_email || "(buyer email hidden)";
-        const buyerId = order.buyer_id || "";
+    ordersList.innerHTML = orders
+      .map((order) => {
+        const listingTitle =
+          order.listing_title ||
+          titleByListingId[order.listing_id] ||
+          "Listing";
 
         const currency = order.currency || "USD";
 
@@ -117,7 +145,8 @@
         const shortId = String(order.id || "").slice(0, 8);
         const status = String(order.status || "PAID").toUpperCase();
 
-        const messageHref = buyerId
+        const buyerId = order.buyer_id || "";
+        const msgHref = buyerId
           ? `messages.html?user=${encodeURIComponent(
               buyerId
             )}&order=${encodeURIComponent(order.id)}`
@@ -131,17 +160,16 @@
             </div>
 
             <div class="order-meta">
-              <strong>${title}</strong><br/>
+              <strong>${listingTitle}</strong><br/>
               Status: ${status}<br/>
-              Buyer: ${buyerEmail}<br/>
               Item: ${itemsMoney}<br/>
-              Shipping: ${shippingMoney}<br/>
-              <strong>Total: ${totalMoney}</strong>
+              Shipping charged: ${shippingMoney}<br/>
+              <strong>Buyer paid: ${totalMoney}</strong>
             </div>
 
             ${
-              messageHref
-                ? `<a href="${messageHref}" class="btn">Message buyer</a>`
+              msgHref
+                ? `<a href="${msgHref}" class="btn">Message buyer</a>`
                 : ""
             }
           </div>
