@@ -80,6 +80,12 @@
       font-weight:600;
     }
 
+    .purchase-seller{
+      font-size:13px;
+      color:var(--hm-muted);
+      margin-top:4px;
+    }
+
     a.btn, button.btn{
       display:inline-block;
       padding:6px 12px;
@@ -167,27 +173,6 @@
         return session;
       }
 
-      async function cancelPurchase(orderId){
-        const session = await supabase.auth.getSession();
-        const buyerId = session.data.session.user.id;
-
-        const res = await fetch("/api/cancel_purchase", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body:JSON.stringify({ order_id: orderId, buyer_id: buyerId })
-        });
-
-        const out = await res.json();
-
-        if (!res.ok){
-          alert(out.error || "Unable to cancel purchase.");
-          return;
-        }
-
-        alert("Purchase canceled successfully.");
-        location.reload();
-      }
-
       async function loadPurchases(){
         const list  = document.getElementById("purchasesList");
         const empty = document.getElementById("emptyState");
@@ -198,28 +183,12 @@
           return;
         }
 
-        const uid = session.user.id;
-        const email = session.user.email;
-
-        // 1) Try by buyer_id (future orders where webhook fills this)
-        let { data, error } = await supabase
+        // 1) Load this buyer's orders
+        const { data, error } = await supabase
           .from("orders")
           .select("*")
-          .eq("buyer_id", uid)
+          .eq("buyer_id", session.user.id)
           .order("created_at", { ascending:false });
-
-        // 2) If nothing found, fall back to buyer_email (current data)
-        if (!error && (!data || data.length === 0) && email) {
-          const fallback = await supabase
-            .from("orders")
-            .select("*")
-            .eq("buyer_email", email)
-            .order("created_at", { ascending:false });
-
-          if (!fallback.error) {
-            data = fallback.data;
-          }
-        }
 
         if (error){
           console.error("[purchases] load error:", error);
@@ -232,6 +201,33 @@
           empty.style.display = "block";
           list.innerHTML = "";
           return;
+        }
+
+        // 2) Fetch seller profiles so we can show who you bought from
+        const sellerIds = Array.from(
+          new Set(
+            data
+              .map(o => o.seller_id)
+              .filter(Boolean)
+          )
+        );
+
+        const sellerMap = {};
+        if (sellerIds.length){
+          const { data: profiles, error: profErr } = await supabase
+            .from("profiles")
+            .select("id, display_name, full_name, username")
+            .in("id", sellerIds);
+
+          if (!profErr && profiles){
+            for (const p of profiles){
+              sellerMap[p.id] =
+                p.display_name ||
+                p.full_name ||
+                p.username ||
+                "";
+            }
+          }
         }
 
         empty.style.display = "none";
@@ -254,6 +250,11 @@
             0
           );
 
+          const sellerName = o.seller_id
+            ? (sellerMap[o.seller_id] || "Hemline Market seller")
+            : "";
+
+          // --- cancellation window text (same behaviour as before) ----
           let cancellationHtml = "";
           let cancelBtn = "";
 
@@ -262,8 +263,9 @@
             const diffMinutes = (Date.now() - createdMs) / 60000;
 
             if (diffMinutes < 30 && o.status !== "CANCELED"){
+              // NOTE: cancel API not wired yet; button disabled for now
               cancelBtn = `
-                <button class="btn cancel-btn" data-id="${o.id}">
+                <button class="btn" type="button" disabled>
                   Cancel purchase
                 </button>
               `;
@@ -281,13 +283,46 @@
             }
           }
 
+          // View listing / message seller actions
+          let actionsHtml = "";
+
+          if (o.listing_id){
+            const href = "listing.html?id=" + encodeURIComponent(o.listing_id);
+            actionsHtml += `
+              <a class="btn" href="${href}">
+                View listing
+              </a>
+            `;
+          }
+
+          if (o.seller_id){
+            const href =
+              "messages.html?user=" +
+              encodeURIComponent(o.seller_id) +
+              "&order=" +
+              encodeURIComponent(o.id);
+            actionsHtml += `
+              <a class="btn" href="${href}">
+                Message seller
+              </a>
+            `;
+          }
+
+          actionsHtml += cancelBtn;
+
+          const sellerLine = sellerName
+            ? `<div class="purchase-seller">Seller: ${sellerName}</div>`
+            : "";
+
           card.innerHTML = `
             <div class="purchase-top">
               <span>Purchase #${String(o.id).slice(0,8)}</span>
               <span>${formatDate(o.created_at)}</span>
             </div>
 
-            <div class="purchase-status">Status: ${String(o.status || "PAID").toUpperCase()}</div>
+            <div class="purchase-status">
+              Status: ${String(o.status || "PAID").toUpperCase()}
+            </div>
 
             <div class="purchase-meta">
               Total: ${formatMoney(amountCents)} ${o.currency || "USD"}
@@ -295,25 +330,17 @@
 
             <div class="purchase-items">
               <div><span class="name">${title}</span></div>
+              ${sellerLine}
             </div>
 
             <div class="purchase-actions">
-              ${cancelBtn}
+              ${actionsHtml}
             </div>
 
             ${cancellationHtml}
           `;
 
           list.appendChild(card);
-        });
-
-        // Attach cancel handlers
-        document.querySelectorAll(".cancel-btn").forEach(btn => {
-          btn.addEventListener("click", () => {
-            btn.disabled = true;
-            btn.textContent = "Canceling...";
-            cancelPurchase(btn.dataset.id);
-          });
         });
       }
 
