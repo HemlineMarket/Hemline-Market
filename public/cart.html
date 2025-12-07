@@ -233,9 +233,9 @@
   <!-- Universal shell JS -->
   <script src="scripts/hm-shell.js"></script>
 
-  <!-- CART LOGIC (localStorage 'hm_cart' + per-seller shipping tiers + prune purchased) -->
+  <!-- CART LOGIC (localStorage 'hm_cart' + per-seller shipping tiers) -->
   <script>
-  (async function(){
+  (function(){
     const LS      = 'hm_cart';
     const SHIP_LS = 'hm_cart_shipping';
 
@@ -399,46 +399,39 @@
       totEl.textContent = fmt(subtotal + ship.total_cents);
     }
 
-    // --- NEW: prune items that have already been purchased by this user ---
-    async function prunePurchasedFromCart(){
-      const supabase = window.HM && window.HM.supabase;
+    // Remove SOLD listings from the local cart (in case someone else bought them)
+    async function cleanSoldFromCart(){
+      const hm = window.HM;
+      const supabase = hm && hm.supabase;
       if(!supabase) return;
 
-      let cart = read();
-      if(!cart.length) return;
+      const cart = read();
+      if(!cart || !cart.length) return;
 
-      const listingIds = Array.from(
-        new Set(cart.map(it => it.id).filter(Boolean))
-      );
+      const listingIds = Array.from(new Set(
+        cart.map(it => it.listing_id).filter(Boolean)
+      ));
       if(!listingIds.length) return;
 
-      // ensure session
-      let { data: { session } } = await supabase.auth.getSession();
-      if(!session || !session.user) return;
-
       const { data, error } = await supabase
-        .from('orders')
-        .select('listing_id,status')
-        .eq('buyer_id', session.user.id)
-        .in('listing_id', listingIds);
+        .from('listings')
+        .select('id, status')
+        .in('id', listingIds);
 
-      if(error || !data || !data.length) return;
+      if(error || !data) return;
 
-      const purchasedSet = new Set(
+      const soldIds = new Set(
         data
-          .filter(o => {
-            const s = String(o.status || '').toUpperCase();
-            return s !== 'CANCELED' && s !== 'CANCELLED';
-          })
-          .map(o => o.listing_id)
+          .filter(row => (row.status || '').toUpperCase() === 'SOLD')
+          .map(row => row.id)
       );
+      if(!soldIds.size) return;
 
-      if(!purchasedSet.size) return;
-
-      cart = cart.filter(it => !purchasedSet.has(it.id));
-      write(cart);
+      const filtered = cart.filter(it => !soldIds.has(it.listing_id));
+      if(filtered.length !== cart.length){
+        write(filtered);
+      }
     }
-    // ----------------------------------------------------------------------
 
     // remove-only interactions (no quantity changes)
     itemsEl.addEventListener('click', e=>{
@@ -467,9 +460,13 @@
       window.location.href = 'checkout.html';
     });
 
-    // On first load: prune any already-purchased listings, then render
-    await prunePurchasedFromCart();
-    render();
+    // init: clean SOLD items based on Supabase, then render cart
+    (async function init(){
+      try{
+        await cleanSoldFromCart();
+      }catch(_){}
+      render();
+    })();
   })();
   </script>
 
