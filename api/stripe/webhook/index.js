@@ -4,7 +4,7 @@
 
 import Stripe from "stripe";
 import fetch from "node-fetch";
-import supabaseAdmin from "../../_supabaseAdmin";
+import supabaseAdmin from "../../_supabaseAdmin.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -42,7 +42,12 @@ function safeMeta(session) {
 // Notifications
 // ----------------------------------------------------------
 
-async function insertPurchaseNotifications({ buyerId, sellerId, listingId, listingTitle }) {
+async function insertPurchaseNotifications({
+  buyerId,
+  sellerId,
+  listingId,
+  listingTitle
+}) {
   const title = listingTitle || "your fabric";
   const sellerHref = `/listing.html?id=${listingId || ""}`;
   const buyerHref = `/purchases.html`;
@@ -58,7 +63,7 @@ async function insertPurchaseNotifications({ buyerId, sellerId, listingId, listi
       title: `Your fabric was purchased: “${title}”`,
       body: `Someone purchased “${title}”.`,
       href: sellerHref,
-      link: sellerHref,
+      link: sellerHref
     });
   }
 
@@ -71,7 +76,7 @@ async function insertPurchaseNotifications({ buyerId, sellerId, listingId, listi
       title: `Purchase confirmed: “${title}”`,
       body: `Your purchase of “${title}” is confirmed.`,
       href: buyerHref,
-      link: buyerHref,
+      link: buyerHref
     });
   }
 
@@ -90,7 +95,7 @@ async function markListingSold(listingId) {
       .from("listings")
       .update({
         status: "SOLD",
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .eq("id", listingId)
       .is("deleted_at", null);
@@ -136,7 +141,8 @@ async function upsertOrderIntoOrders(event, session) {
     stripe_payment_intent: session.payment_intent || null,
     stripe_checkout: session.id || null,
 
-    buyer_email: session.customer_details?.email || session.customer_email || "",
+    buyer_email:
+      session.customer_details?.email || session.customer_email || "",
     buyer_id: buyerId,
     seller_id: sellerId,
     listing_id: listingId,
@@ -144,7 +150,7 @@ async function upsertOrderIntoOrders(event, session) {
     listing_snapshot: cart,
     total_cents: session.amount_total || 0,
     status: "PAID",
-    updated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
 
   const { data: existing } = await supabaseAdmin
@@ -184,7 +190,7 @@ async function sendPurchaseEmail({ stripeSessionId }) {
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stripeSessionId }),
+      body: JSON.stringify({ stripeSessionId })
     });
   } catch (err) {
     console.warn("purchase-email error", err);
@@ -261,7 +267,7 @@ export default async function handler(req, res) {
         buyerId,
         sellerId,
         listingId,
-        listingTitle,
+        listingTitle
       });
     }
 
