@@ -42,6 +42,7 @@
       border-radius:12px;
       border:1px solid var(--border);
       object-fit:cover;
+      background:#f9fafb;
     }
 
     .details h1{
@@ -56,6 +57,16 @@
       margin:12px 0;
     }
 
+    .meta-label{
+      font-size:13px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.04em;
+      color:var(--muted);
+      margin-top:16px;
+      margin-bottom:4px;
+    }
+
     .meta{
       font-size:14px;
       color:var(--muted);
@@ -65,7 +76,7 @@
 
     label{
       display:block;
-      margin-top:12px;
+      margin-top:16px;
       font-size:14px;
       color:var(--muted);
     }
@@ -150,7 +161,11 @@
       <h1 id="listingTitle">Loading…</h1>
       <div id="listingPrice" class="price"></div>
       <div id="listingStatus"></div>
-      <div id="listingMeta" class="meta"></div>
+
+      <div id="detailsBlock">
+        <div id="detailsLabel" class="meta-label" style="display:none;">Fabric details</div>
+        <div id="listingMeta" class="meta"></div>
+      </div>
 
       <div id="purchaseControls">
         <label for="yardsInput">Yards</label>
@@ -185,8 +200,8 @@
       const priceEl = document.getElementById("listingPrice");
       const statusEl = document.getElementById("listingStatus");
       const metaEl = document.getElementById("listingMeta");
+      const detailsLabelEl = document.getElementById("detailsLabel");
       const imgEl = document.getElementById("listingImage");
-      const buyBtn = document.getElementById("buyBtn");
       const purchaseControls = document.getElementById("purchaseControls");
       const soldNoteEl = document.getElementById("soldNote");
       const errorMsgEl = document.getElementById("errorMsg");
@@ -211,6 +226,7 @@
       }
 
       async function loadListing() {
+        // Keep the query broad and stable: do NOT change how rows are fetched
         const { data, error } = await supabase
           .from("listings")
           .select("*")
@@ -228,8 +244,7 @@
         }
 
         // Basic fields
-        const title =
-          data.title || data.name || "Fabric listing";
+        const title = data.title || data.name || "Fabric listing";
         const pricePerYard = Number(data.price_cents || 0) / 100;
         const currency = data.currency || "USD";
 
@@ -238,28 +253,55 @@
           ? `$${pricePerYard.toFixed(2)} per yard`
           : "";
 
-        if (data.image_url) {
-          imgEl.src = data.image_url;
+        // Image (use whatever field is present, but don't break if missing)
+        const imageUrl =
+          data.image_url ||
+          data.photo_url ||
+          data.thumbnail_url ||
+          data.primary_image_url ||
+          "";
+
+        if (imageUrl) {
+          imgEl.src = imageUrl;
         } else {
           imgEl.removeAttribute("src");
         }
 
-        // Optional meta (width, fiber, etc. if you add later)
+        // Full fabric details block – content, width, weight, etc.
         const metaLines = [];
-        if (data.width) metaLines.push(`Width: ${data.width}`);
+
         if (data.content) metaLines.push(`Content: ${data.content}`);
+        if (data.width) metaLines.push(`Width: ${data.width}`);
+        if (data.weight) metaLines.push(`Weight: ${data.weight}`);
         if (data.color) metaLines.push(`Color: ${data.color}`);
-        metaEl.textContent = metaLines.join("\n");
+        if (data.yards_available || data.available_yards) {
+          const yards =
+            data.yards_available != null
+              ? data.yards_available
+              : data.available_yards;
+          metaLines.push(`Available: ${yards} yards`);
+        }
+        if (data.condition) metaLines.push(`Condition: ${data.condition}`);
+        if (data.notes) metaLines.push(`Notes: ${data.notes}`);
+
+        if (metaLines.length) {
+          detailsLabelEl.style.display = "block";
+          metaEl.textContent = metaLines.join("\n");
+        } else {
+          detailsLabelEl.style.display = "none";
+          metaEl.textContent = "";
+        }
 
         // Status pill
-        const status = (data.status || "").toUpperCase();
+        const statusRaw = data.status || (data.is_sold ? "SOLD" : "AVAILABLE");
+        const status = String(statusRaw).toUpperCase();
+
         if (status === "SOLD") {
           statusEl.innerHTML =
             '<span class="status-pill sold">Sold</span>';
           if (purchaseControls) purchaseControls.style.display = "none";
           soldNoteEl.style.display = "block";
-          soldNoteEl.textContent =
-            "This fabric has been sold. You can still view this page from your Purchases and Sales history.";
+          soldNoteEl.textContent = "This fabric has been sold.";
         } else {
           statusEl.innerHTML =
             '<span class="status-pill">Available</span>';
