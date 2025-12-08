@@ -1,130 +1,72 @@
 // public/scripts/sales.js
-// Shows all orders where the logged-in user is the SELLER.
+// Loads all completed orders where the logged-in user is the seller.
 
-import {
-  formatMoney,
-  formatDate,
-  extractListingTitle,
-  extractTotalCents,
-} from "./orders-utils.js";
+(function () {
+  const supabase = window.HM?.supabase;
+  if (!supabase) return;
 
-(async () => {
-  const supabase = window.HM && window.HM.supabase;
-  if (!supabase) {
-    console.error("[sales] Missing Supabase client");
-    return;
-  }
+  const ordersList = document.getElementById("ordersList");
+  const emptyState = document.getElementById("emptyState");
 
-  // Same session helper as purchases.js
-  async function ensureSession(maxMs = 3000) {
-    let {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const start = Date.now();
-    while (!session?.user && Date.now() - start < maxMs) {
-      await new Promise((r) => setTimeout(r, 120));
-      ({
-        data: { session },
-      } = await supabase.auth.getSession());
-    }
-    return session;
-  }
-
-  const session = await ensureSession();
-  if (!session || !session.user) {
-    window.location.href = "auth.html?view=login";
-    return;
-  }
-
-  const uid = session.user.id;
-
-  const list =
-    document.getElementById("ordersList") ||
-    document.getElementById("salesList");
-  const empty = document.getElementById("emptyState");
-
-  if (!list || !empty) {
-    console.error("[sales] Missing DOM nodes (#ordersList/#salesList or #emptyState)");
-    return;
-  }
-
-  // Load orders where this user is the SELLER
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("seller_id", uid)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("[sales] Load error:", error);
-    empty.style.display = "block";
-    empty.textContent =
-      "We couldn’t load your sales. Please refresh and try again.";
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    empty.style.display = "block";
-    empty.textContent = "You haven’t sold anything yet.";
-    list.innerHTML = "";
-    return;
-  }
-
-  empty.style.display = "none";
-  list.innerHTML = "";
-
-  data.forEach((order) => {
-    const card = document.createElement("div");
-    card.className = "order-card";
-
-    const title = extractListingTitle(order);
-    const totalCents = extractTotalCents(order);
-    const buyerEmail = order.buyer_email || "(buyer email not available)";
-
-    card.innerHTML = `
-      <div class="order-top">
-        <span>Order #${String(order.id).slice(0, 8)}</span>
-        <span>${formatDate(order.created_at)}</span>
-      </div>
-
-      <div class="order-status">
-        Status: ${String(order.status || "PAID").toUpperCase()}
-      </div>
-
-      <div class="order-meta">
-        Buyer: ${buyerEmail}<br/>
-        Items + shipping total: ${formatMoney(totalCents)} ${order.currency || "USD"}
-      </div>
-
-      <div class="order-items">
-        <div><span class="name">${title}</span></div>
-      </div>
-
-      <div class="order-actions"></div>
-    `;
-
-    const actions = card.querySelector(".order-actions");
-
-    // View listing
-    if (order.listing_id) {
-      const link = document.createElement("a");
-      link.className = "btn";
-      link.href = `listing.html?id=${encodeURIComponent(order.listing_id)}`;
-      link.textContent = "View listing";
-      actions.appendChild(link);
+  async function init() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      ordersList.innerHTML = `<p>Please sign in to view sales.</p>`;
+      return;
     }
 
-    // Message buyer
-    if (order.buyer_id) {
-      const msg = document.createElement("a");
-      msg.className = "btn";
-      msg.href =
-        `messages.html?user=${encodeURIComponent(order.buyer_id)}` +
-        `&order=${encodeURIComponent(order.id)}`;
-      msg.textContent = "Message buyer";
-      actions.appendChild(msg);
+    const sellerId = user.id;
+
+    const { data, error } = await supabase
+      .from("seller_orders_view")
+      .select("*")
+      .eq("seller_id", sellerId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      ordersList.innerHTML = `<p>Could not load sales.</p>`;
+      return;
     }
 
-    list.appendChild(card);
-  });
+    if (!data || data.length === 0) {
+      emptyState.style.display = "block";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    render(data);
+  }
+
+  function render(rows) {
+    ordersList.innerHTML = rows
+      .map((o) => {
+        const price = (o.items_cents || 0) / 100;
+        const shipping = (o.shipping_cents || 0) / 100;
+        const total = (o.total_cents || 0) / 100;
+
+        return `
+          <div class="order-card">
+            <div class="order-top">
+              <div>Order ${String(o.id).slice(0, 8)}</div>
+              <div>${new Date(o.created_at).toLocaleDateString()}</div>
+            </div>
+
+            <div class="order-meta">
+              <strong>${o.listing_title || o.listing_name || "Listing"}</strong><br/>
+              Buyer: ${o.buyer_email || "(unknown)"}<br/>
+              Item: $${price.toFixed(2)}<br/>
+              Shipping: $${shipping.toFixed(2)}<br/>
+              <strong>Total: $${total.toFixed(2)}</strong><br/>
+            </div>
+
+            <a href="messages.html?user=${o.buyer_id}" class="btn">
+              Message Buyer
+            </a>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  init();
 })();
