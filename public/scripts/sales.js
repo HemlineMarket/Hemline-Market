@@ -1,226 +1,229 @@
-// scripts/sales.js
-// Hemline Market — Seller Sales page
-//
-// Requirements:
-// - <div id="sales-root"></div> in account/sales.html
-// - This script loaded with: <script type="module" src="/scripts/sales.js"></script>
-// - scripts/supabase-client.js must export `supabase`
+// public/scripts/sales.js
+// Loads the logged-in seller’s sales and supports seller-side cancellation.
 
-import { supabase } from "./supabase-client.js";
+import {
+  formatMoney,
+  formatDate,
+  extractListingTitle,
+  extractTotalCents,
+} from "./orders-utils.js";
 
-const salesRoot = document.getElementById("sales-root");
-const loadingEl = document.getElementById("sales-loading");
-const emptyEl = document.getElementById("sales-empty");
-const errorEl = document.getElementById("sales-error");
-
-function showLoading(show) {
-  if (!loadingEl) return;
-  loadingEl.style.display = show ? "flex" : "none";
-}
-
-function showError(message) {
-  if (!errorEl) return;
-  errorEl.textContent = message || "Something went wrong loading your sales.";
-  errorEl.style.display = "block";
-}
-
-function showEmpty(show) {
-  if (!emptyEl) return;
-  emptyEl.style.display = show ? "block" : "none";
-}
-
-async function getCurrentUser() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
-  return data.user;
-}
-
-function formatDate(value) {
-  if (!value) return "";
-  const d = new Date(value);
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
-
-function canSellerCancel(order) {
-  // Mirror RLS: only when status is paid/pending
-  return order.status === "paid" || order.status === "pending";
-}
-
-function renderSales(orders) {
-  if (!salesRoot) return;
-
-  salesRoot.innerHTML = "";
-
-  if (!orders || orders.length === 0) {
-    showEmpty(true);
+(async () => {
+  const supabase = window.HM && window.HM.supabase;
+  if (!supabase) {
+    console.error("[sales] Missing Supabase client");
     return;
   }
 
-  showEmpty(false);
+  // Ensure session (same pattern as purchases.js)
+  async function ensureSession(maxMs = 3000) {
+    let {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const start = Date.now();
+    while (!session?.user && Date.now() - start < maxMs) {
+      await new Promise((r) => setTimeout(r, 120));
+      ({
+        data: { session },
+      } = await supabase.auth.getSession());
+    }
+    return session;
+  }
 
-  const list = document.createElement("div");
-  list.className = "hm-sales-list";
+  const session = await ensureSession();
+  if (!session || !session.user) {
+    window.location.href = "auth.html?view=login";
+    return;
+  }
 
-  orders.forEach((order) => {
-    const item = document.createElement("article");
-    item.className = "hm-sales-item";
+  const uid = session.user.id;
 
-    const header = document.createElement("div");
-    header.className = "hm-sales-header";
+  // Allow a couple of possible IDs to be robust against HTML differences
+  const list =
+    document.getElementById("salesList") ||
+    document.getElementById("ordersList");
+  const empty =
+    document.getElementById("emptySalesState") ||
+    document.getElementById("emptyState");
 
-    const title = document.createElement("div");
-    title.className = "hm-sales-title";
-    // Use listing_title if you store it, otherwise show listing_id
-    const listingLabel = order.listing_title || `Listing #${order.listing_id}`;
-    title.textContent = listingLabel;
+  if (!list || !empty) {
+    console.error(
+      "[sales] Missing DOM nodes (#salesList/#ordersList or #emptySalesState/#emptyState)"
+    );
+    return;
+  }
 
-    const statusBadge = document.createElement("span");
-    statusBadge.className = `hm-badge hm-badge-${order.status}`;
-    statusBadge.textContent = order.status.replace("_", " ");
+  // Load this seller’s orders (sales)
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("seller_id", uid)
+    .order("created_at", { ascending: false });
 
-    header.appendChild(title);
-    header.appendChild(statusBadge);
+  if (error) {
+    console.error("[sales] Load error:", error);
+    empty.style.display = "block";
+    empty.textContent =
+      "We couldn’t load your sales. Please refresh and try again.";
+    return;
+  }
 
-    const meta = document.createElement("div");
-    meta.className = "hm-sales-meta";
-    const created = formatDate(order.created_at);
-    const buyer = order.buyer_name || order.buyer_email || "Buyer";
-    const amount =
-      order.total_amount != null
-        ? `${(order.total_amount / 100).toFixed(2)} ${order.currency || ""}`
-        : "";
+  if (!data || data.length === 0) {
+    empty.style.display = "block";
+    empty.textContent = "You haven’t sold anything yet.";
+    list.innerHTML = "";
+    return;
+  }
 
-    meta.textContent = `${buyer} • ${created}${amount ? " • " + amount : ""}`;
+  empty.style.display = "none";
+  list.innerHTML = "";
 
-    const footer = document.createElement("div");
-    footer.className = "hm-sales-footer";
+  data.forEach((order) => {
+    const card = document.createElement("div");
+    card.className = "order-card";
 
-    const left = document.createElement("div");
-    left.className = "hm-sales-footer-left";
+    const title = extractListingTitle(order);
+    const totalCents = extractTotalCents(order);
 
-    if (order.canceled_at) {
-      const cancelInfo = document.createElement("div");
-      cancelInfo.className = "hm-sales-cancel-info";
-      cancelInfo.textContent = `Canceled at ${formatDate(
-        order.canceled_at
-      )}${order.cancel_reason ? " • " + order.cancel_reason : ""}`;
-      left.appendChild(cancelInfo);
+    const createdAt = order.created_at ? new Date(order.created_at) : null;
+    const rawStatus = order.status || "paid";
+    const statusUpper = String(rawStatus).toUpperCase();
+
+    const isCancelableStatus =
+      statusUpper === "PAID" || statusUpper === "PENDING";
+
+    const canceledAt = order.canceled_at ? new Date(order.canceled_at) : null;
+    const cancelReason = order.cancel_reason || "";
+
+    card.innerHTML = `
+      <div class="order-top">
+        <span>Sale #${String(order.id).slice(0, 8)}</span>
+        <span>${formatDate(order.created_at)}</span>
+      </div>
+
+      <div class="order-status">
+        Status: ${statusUpper}
+      </div>
+
+      <div class="order-meta">
+        Total: ${formatMoney(totalCents)} ${order.currency || "USD"}
+      </div>
+
+      <div class="order-items">
+        <div><span class="name">${title}</span></div>
+      </div>
+
+      <div class="order-actions"></div>
+      <div class="order-cancel-note"></div>
+    `;
+
+    const actions = card.querySelector(".order-actions");
+    const cancelNoteEl = card.querySelector(".order-cancel-note");
+
+    // View listing
+    if (order.listing_id) {
+      const link = document.createElement("a");
+      link.className = "btn";
+      link.href = `listing.html?id=${encodeURIComponent(order.listing_id)}`;
+      link.textContent = "View listing";
+      actions.appendChild(link);
     }
 
-    const right = document.createElement("div");
-    right.className = "hm-sales-footer-right";
+    // Message buyer
+    if (order.buyer_id) {
+      const msg = document.createElement("a");
+      msg.className = "btn";
+      msg.href =
+        `messages.html?user=${encodeURIComponent(order.buyer_id)}` +
+        `&order=${encodeURIComponent(order.id)}`;
+      msg.textContent = "Message buyer";
+      actions.appendChild(msg);
+    }
 
-    if (canSellerCancel(order)) {
+    // Existing cancel info, if any
+    if (canceledAt || cancelReason) {
+      const parts = [];
+      if (canceledAt) parts.push(`Canceled at ${formatDate(canceledAt)}`);
+      if (cancelReason) parts.push(cancelReason);
+      cancelNoteEl.textContent = parts.join(" • ");
+    }
+
+    // Seller cancel (no time limit, but only for PAID/PENDING)
+    if (isCancelableStatus) {
       const cancelBtn = document.createElement("button");
+      cancelBtn.className = "btn btn-secondary";
       cancelBtn.type = "button";
-      cancelBtn.className = "hm-button hm-button-outline hm-button-danger";
       cancelBtn.textContent = "Cancel order";
-      cancelBtn.addEventListener("click", () =>
-        handleSellerCancel(order.id, item)
-      );
-      right.appendChild(cancelBtn);
+
+      cancelBtn.addEventListener("click", async () => {
+        if (
+          !window.confirm(
+            "Cancel this order? The buyer will see this as seller-canceled."
+          )
+        ) {
+          return;
+        }
+
+        const reasonInput =
+          window.prompt(
+            "Reason for cancellation? (e.g. damaged, unfound, changed mind)",
+            "Seller canceled: item unavailable"
+          ) || "Seller canceled: item unavailable";
+
+        cancelBtn.disabled = true;
+        cancelBtn.textContent = "Cancelling…";
+
+        const payload = {
+          status: "seller_canceled",
+          canceled_at: new Date().toISOString(),
+          canceled_by: uid,
+          cancel_reason: reasonInput,
+        };
+
+        const { data: updated, error: cancelError } = await supabase
+          .from("orders")
+          .update(payload)
+          .eq("id", order.id)
+          .eq("seller_id", uid)
+          .select("status, canceled_at, cancel_reason")
+          .single();
+
+        if (cancelError) {
+          console.error("[sales] Cancel error:", cancelError);
+          window.alert(
+            "We couldn’t cancel this order. Please refresh and try again."
+          );
+          cancelBtn.disabled = false;
+          cancelBtn.textContent = "Cancel order";
+          return;
+        }
+
+        const statusEl = card.querySelector(".order-status");
+        if (statusEl) {
+          const newStatusUpper = String(
+            updated?.status || "seller_canceled"
+          ).toUpperCase();
+          statusEl.textContent = `Status: ${newStatusUpper}`;
+        }
+
+        cancelBtn.remove();
+
+        const updatedCanceledAt = updated?.canceled_at
+          ? new Date(updated.canceled_at)
+          : null;
+        const updatedReason =
+          updated?.cancel_reason || "Order cancelled by seller.";
+
+        const parts = [];
+        if (updatedCanceledAt)
+          parts.push(`Canceled at ${formatDate(updatedCanceledAt)}`);
+        if (updatedReason) parts.push(updatedReason);
+        cancelNoteEl.textContent = parts.join(" • ");
+      });
+
+      actions.appendChild(cancelBtn);
     }
 
-    footer.appendChild(left);
-    footer.appendChild(right);
-
-    item.appendChild(header);
-    item.appendChild(meta);
-    item.appendChild(footer);
-
-    list.appendChild(item);
+    list.appendChild(card);
   });
-
-  salesRoot.appendChild(list);
-}
-
-async function handleSellerCancel(orderId, domNode) {
-  const confirmCancel = window.confirm(
-    "Cancel this order? The buyer will see this as seller-canceled."
-  );
-  if (!confirmCancel) return;
-
-  try {
-    // Optional prompt for reason
-    const reason =
-      window.prompt(
-        "Reason for cancellation? (e.g. damaged, unfound, changed mind)",
-        "Seller canceled: item unavailable"
-      ) || "Seller canceled: item unavailable";
-
-    const { error } = await supabase
-      .from("orders")
-      .update({
-        status: "seller_canceled",
-        canceled_at: new Date().toISOString(),
-        cancel_reason: reason
-      })
-      .eq("id", orderId);
-
-    if (error) {
-      console.error(error);
-      window.alert("Could not cancel order. Please try again.");
-      return;
-    }
-
-    // Optimistic UI: mark the row as canceled
-    if (domNode) {
-      domNode.classList.add("hm-sales-item-canceled");
-      const badge = domNode.querySelector(".hm-badge");
-      if (badge) badge.textContent = "seller canceled";
-      const buttons = domNode.querySelectorAll("button");
-      buttons.forEach((btn) => (btn.disabled = true));
-    }
-  } catch (err) {
-    console.error(err);
-    window.alert("Could not cancel order. Please try again.");
-  }
-}
-
-async function loadSales() {
-  try {
-    showLoading(true);
-    showError(null);
-    showEmpty(false);
-
-    const user = await getCurrentUser();
-    if (!user) {
-      showLoading(false);
-      if (salesRoot) {
-        salesRoot.innerHTML =
-          '<p class="hm-text-muted">Please sign in to view your sales.</p>';
-      }
-      return;
-    }
-
-    const { data: orders, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("seller_id", user.id)
-      .order("created_at", { ascending: false });
-
-    showLoading(false);
-
-    if (error) {
-      console.error(error);
-      showError("Could not load your sales.");
-      return;
-    }
-
-    renderSales(orders || []);
-  } catch (err) {
-    console.error(err);
-    showLoading(false);
-    showError("Could not load your sales.");
-  }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  loadSales();
-});
+})();
