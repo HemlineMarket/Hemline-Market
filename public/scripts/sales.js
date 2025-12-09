@@ -38,7 +38,7 @@ import {
 
   const uid = session.user.id;
 
-  // Allow a couple of possible IDs to be robust against HTML differences
+  // DOM hooks: re-use same IDs as your existing HTML
   const list =
     document.getElementById("salesList") ||
     document.getElementById("ordersList");
@@ -85,14 +85,15 @@ import {
     const title = extractListingTitle(order);
     const totalCents = extractTotalCents(order);
 
-    const createdAt = order.created_at ? new Date(order.created_at) : null;
     const rawStatus = order.status || "paid";
     const statusUpper = String(rawStatus).toUpperCase();
 
     const isCancelableStatus =
       statusUpper === "PAID" || statusUpper === "PENDING";
 
-    const canceledAt = order.canceled_at ? new Date(order.canceled_at) : null;
+    const canceledAt = order.canceled_at
+      ? new Date(order.canceled_at)
+      : null;
     const cancelReason = order.cancel_reason || "";
 
     card.innerHTML = `
@@ -140,7 +141,7 @@ import {
       actions.appendChild(msg);
     }
 
-    // Existing cancel info, if any
+    // Existing cancel info (if any)
     if (canceledAt || cancelReason) {
       const parts = [];
       if (canceledAt) parts.push(`Canceled at ${formatDate(canceledAt)}`);
@@ -148,7 +149,7 @@ import {
       cancelNoteEl.textContent = parts.join(" • ");
     }
 
-    // Seller cancel (no time limit, but only for PAID/PENDING)
+    // Seller cancel (no time limit; allowed by RLS when status is PAID/PENDING)
     if (isCancelableStatus) {
       const cancelBtn = document.createElement("button");
       cancelBtn.className = "btn btn-secondary";
