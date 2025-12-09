@@ -1,5 +1,5 @@
 // public/scripts/sales.js
-// Loads the logged-in seller’s sales and supports seller-side cancellation.
+// Seller Sales page with built-in diagnostics so we can see what's going on.
 
 import {
   formatMoney,
@@ -38,7 +38,7 @@ import {
 
   const uid = session.user.id;
 
-  // DOM hooks: re-use same IDs as your existing HTML
+  // DOM hooks
   const list =
     document.getElementById("salesList") ||
     document.getElementById("ordersList");
@@ -53,11 +53,10 @@ import {
     return;
   }
 
-  // Load this seller’s orders (sales)
+  // ---- LOAD ORDERS VISIBLE TO THIS USER (no filter) ----
   const { data, error } = await supabase
     .from("orders")
     .select("*")
-    .eq("seller_id", uid)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -68,7 +67,23 @@ import {
     return;
   }
 
-  if (!data || data.length === 0) {
+  console.log("[sales] current uid:", uid);
+  console.log("[sales] orders visible to this user:", data);
+
+  // Filter in JS to find "my" sales
+  const mySales = (data || []).filter((o) => o.seller_id === uid);
+
+  // Diagnostic banner to make the situation visible on-page
+  const debugBanner = document.createElement("div");
+  debugBanner.style.fontSize = "11px";
+  debugBanner.style.color = "#6b7280";
+  debugBanner.style.marginBottom = "8px";
+  debugBanner.textContent =
+    `Debug — uid: ${uid} · visible orders: ${(data || []).length} · ` +
+    `sales where seller_id == uid: ${mySales.length}`;
+  list.parentElement.insertBefore(debugBanner, list);
+
+  if (!mySales || mySales.length === 0) {
     empty.style.display = "block";
     empty.textContent = "You haven’t sold anything yet.";
     list.innerHTML = "";
@@ -78,7 +93,7 @@ import {
   empty.style.display = "none";
   list.innerHTML = "";
 
-  data.forEach((order) => {
+  mySales.forEach((order) => {
     const card = document.createElement("div");
     card.className = "order-card";
 
@@ -149,7 +164,7 @@ import {
       cancelNoteEl.textContent = parts.join(" • ");
     }
 
-    // Seller cancel (no time limit; allowed by RLS when status is PAID/PENDING)
+    // Seller cancel
     if (isCancelableStatus) {
       const cancelBtn = document.createElement("button");
       cancelBtn.className = "btn btn-secondary";
