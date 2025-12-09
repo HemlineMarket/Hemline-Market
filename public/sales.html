@@ -1,116 +1,230 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Your Sales — Hemline Market</title>
+// public/scripts/sales.js
+// Loads the logged-in seller’s sales and supports seller-side cancellation.
 
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hm-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+import {
+  formatMoney,
+  formatDate,
+  extractListingTitle,
+  extractTotalCents,
+} from "./orders-utils.js";
 
-  <style>
-    :root{
-      --hm-accent:#991b1b;
-      --hm-border:#e5e7eb;
-      --hm-muted:#6b7280;
-      --hm-text:#111827;
-      --hm-bg:#f4f4f7;
+(async () => {
+  const supabase = window.HM && window.HM.supabase;
+  if (!supabase) {
+    console.error("[sales] Missing Supabase client");
+    return;
+  }
+
+  // Ensure session (same pattern as purchases.js)
+  async function ensureSession(maxMs = 3000) {
+    let {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const start = Date.now();
+    while (!session?.user && Date.now() - start < maxMs) {
+      await new Promise((r) => setTimeout(r, 120));
+      ({
+        data: { session },
+      } = await supabase.auth.getSession());
+    }
+    return session;
+  }
+
+  const session = await ensureSession();
+  if (!session || !session.user) {
+    window.location.href = "auth.html?view=login";
+    return;
+  }
+
+  const uid = session.user.id;
+
+  // DOM hooks: re-use same IDs as your existing HTML
+  const list =
+    document.getElementById("salesList") ||
+    document.getElementById("ordersList");
+  const empty =
+    document.getElementById("emptySalesState") ||
+    document.getElementById("emptyState");
+
+  if (!list || !empty) {
+    console.error(
+      "[sales] Missing DOM nodes (#salesList/#ordersList or #emptySalesState/#emptyState)"
+    );
+    return;
+  }
+
+  // Load this seller’s orders (sales)
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("seller_id", uid)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[sales] Load error:", error);
+    empty.style.display = "block";
+    empty.textContent =
+      "We couldn’t load your sales. Please refresh and try again.";
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    empty.style.display = "block";
+    empty.textContent = "You haven’t sold anything yet.";
+    list.innerHTML = "";
+    return;
+  }
+
+  empty.style.display = "none";
+  list.innerHTML = "";
+
+  data.forEach((order) => {
+    const card = document.createElement("div");
+    card.className = "order-card";
+
+    const title = extractListingTitle(order);
+    const totalCents = extractTotalCents(order);
+
+    const rawStatus = order.status || "paid";
+    const statusUpper = String(rawStatus).toUpperCase();
+
+    const isCancelableStatus =
+      statusUpper === "PAID" || statusUpper === "PENDING";
+
+    const canceledAt = order.canceled_at
+      ? new Date(order.canceled_at)
+      : null;
+    const cancelReason = order.cancel_reason || "";
+
+    card.innerHTML = `
+      <div class="order-top">
+        <span>Sale #${String(order.id).slice(0, 8)}</span>
+        <span>${formatDate(order.created_at)}</span>
+      </div>
+
+      <div class="order-status">
+        Status: ${statusUpper}
+      </div>
+
+      <div class="order-meta">
+        Total: ${formatMoney(totalCents)} ${order.currency || "USD"}
+      </div>
+
+      <div class="order-items">
+        <div><span class="name">${title}</span></div>
+      </div>
+
+      <div class="order-actions"></div>
+      <div class="order-cancel-note"></div>
+    `;
+
+    const actions = card.querySelector(".order-actions");
+    const cancelNoteEl = card.querySelector(".order-cancel-note");
+
+    // View listing
+    if (order.listing_id) {
+      const link = document.createElement("a");
+      link.className = "btn";
+      link.href = `listing.html?id=${encodeURIComponent(order.listing_id)}`;
+      link.textContent = "View listing";
+      actions.appendChild(link);
     }
 
-    html, body{
-      margin:0;
-      background:var(--hm-bg);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      color:var(--hm-text);
+    // Message buyer
+    if (order.buyer_id) {
+      const msg = document.createElement("a");
+      msg.className = "btn";
+      msg.href =
+        `messages.html?user=${encodeURIComponent(order.buyer_id)}` +
+        `&order=${encodeURIComponent(order.id)}`;
+      msg.textContent = "Message buyer";
+      actions.appendChild(msg);
     }
 
-    main{
-      max-width:1100px;
-      margin:20px auto;
-      padding:0 12px;
+    // Existing cancel info (if any)
+    if (canceledAt || cancelReason) {
+      const parts = [];
+      if (canceledAt) parts.push(`Canceled at ${formatDate(canceledAt)}`);
+      if (cancelReason) parts.push(cancelReason);
+      cancelNoteEl.textContent = parts.join(" • ");
     }
 
-    h1{
-      font-size:26px;
-      font-weight:800;
-      margin-bottom:4px;
+    // Seller cancel (no time limit; allowed by RLS when status is PAID/PENDING)
+    if (isCancelableStatus) {
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "btn btn-secondary";
+      cancelBtn.type = "button";
+      cancelBtn.textContent = "Cancel order";
+
+      cancelBtn.addEventListener("click", async () => {
+        if (
+          !window.confirm(
+            "Cancel this order? The buyer will see this as seller-canceled."
+          )
+        ) {
+          return;
+        }
+
+        const reasonInput =
+          window.prompt(
+            "Reason for cancellation? (e.g. damaged, unfound, changed mind)",
+            "Seller canceled: item unavailable"
+          ) || "Seller canceled: item unavailable";
+
+        cancelBtn.disabled = true;
+        cancelBtn.textContent = "Cancelling…";
+
+        const payload = {
+          status: "seller_canceled",
+          canceled_at: new Date().toISOString(),
+          canceled_by: uid,
+          cancel_reason: reasonInput,
+        };
+
+        const { data: updated, error: cancelError } = await supabase
+          .from("orders")
+          .update(payload)
+          .eq("id", order.id)
+          .eq("seller_id", uid)
+          .select("status, canceled_at, cancel_reason")
+          .single();
+
+        if (cancelError) {
+          console.error("[sales] Cancel error:", cancelError);
+          window.alert(
+            "We couldn’t cancel this order. Please refresh and try again."
+          );
+          cancelBtn.disabled = false;
+          cancelBtn.textContent = "Cancel order";
+          return;
+        }
+
+        const statusEl = card.querySelector(".order-status");
+        if (statusEl) {
+          const newStatusUpper = String(
+            updated?.status || "seller_canceled"
+          ).toUpperCase();
+          statusEl.textContent = `Status: ${newStatusUpper}`;
+        }
+
+        cancelBtn.remove();
+
+        const updatedCanceledAt = updated?.canceled_at
+          ? new Date(updated.canceled_at)
+          : null;
+        const updatedReason =
+          updated?.cancel_reason || "Order cancelled by seller.";
+
+        const parts = [];
+        if (updatedCanceledAt)
+          parts.push(`Canceled at ${formatDate(updatedCanceledAt)}`);
+        if (updatedReason) parts.push(updatedReason);
+        cancelNoteEl.textContent = parts.join(" • ");
+      });
+
+      actions.appendChild(cancelBtn);
     }
 
-    .sub{
-      font-size:14px;
-      color:var(--hm-muted);
-      margin-bottom:18px;
-    }
-
-    .order-card{
-      background:#fff;
-      border:1px solid var(--hm-border);
-      border-radius:12px;
-      box-shadow:0 4px 14px rgba(0,0,0,.05);
-      padding:16px;
-      margin-bottom:14px;
-      font-size:14px;
-    }
-
-    .order-top{
-      display:flex;
-      justify-content:space-between;
-      margin-bottom:8px;
-      font-weight:600;
-    }
-
-    .order-meta{
-      font-size:13px;
-      color:var(--hm-muted);
-      line-height:1.4;
-      margin-bottom:10px;
-    }
-
-    .empty{
-      text-align:center;
-      color:var(--hm-muted);
-      font-size:15px;
-      margin-top:40px;
-    }
-
-    a.btn{
-      display:inline-block;
-      padding:6px 12px;
-      border-radius:8px;
-      border:1px solid var(--hm-border);
-      text-decoration:none;
-      font-size:13px;
-      font-weight:600;
-      background:#fff;
-      color:var(--hm-accent);
-    }
-  </style>
-</head>
-
-<body>
-  <div id="hm-shell-header"></div>
-
-  <main id="maincontent">
-    <h1>Your Sales</h1>
-    <p class="sub">Fabric buyers purchased from your listings.</p>
-
-    <div id="ordersList"></div>
-    <p class="empty" id="emptyState" style="display:none;">You haven’t sold anything yet.</p>
-  </main>
-
-  <div id="hm-shell-footer"></div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="scripts/hm-shell.js"></script>
-
-  <!-- Sales logic: MUST be a module because sales.js uses ES module imports -->
-  <script type="module" src="scripts/sales.js"></script>
-
-  <script>
-    window.HM && window.HM.renderShell({ currentPage:"sales" });
-  </script>
-</body>
-</html>
+    list.appendChild(card);
+  });
+})();
