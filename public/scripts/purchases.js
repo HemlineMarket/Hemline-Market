@@ -77,8 +77,6 @@ import {
   empty.style.display = "none";
   list.innerHTML = "";
 
-  const now = new Date();
-
   data.forEach((order) => {
     const card = document.createElement("div");
     card.className = "order-card";
@@ -88,13 +86,19 @@ import {
     const cancelNoteHtml = cancellationWindowHtml(order);
 
     const createdAt = order.created_at ? new Date(order.created_at) : null;
-    const isPaid =
-      !order.status ||
-      String(order.status).toUpperCase() === "PAID" ||
-      String(order.status).toUpperCase() === "COMPLETED";
+    const now = new Date();
+
+    const rawStatus = order.status || "paid";
+    const statusUpper = String(rawStatus).toUpperCase();
+
+    // Only treat PAID / PENDING as cancel-eligible; COMPLETED and others are final
+    const isCancelableStatus =
+      statusUpper === "PAID" || statusUpper === "PENDING";
+
     const within30Min =
       createdAt && now.getTime() - createdAt.getTime() <= 30 * 60 * 1000;
-    const canCancel = isPaid && within30Min;
+
+    const canCancel = isCancelableStatus && within30Min;
 
     card.innerHTML = `
       <div class="order-top">
@@ -103,7 +107,7 @@ import {
       </div>
 
       <div class="order-status">
-        Status: ${String(order.status || "PAID").toUpperCase()}
+        Status: ${statusUpper}
       </div>
 
       <div class="order-meta">
@@ -174,12 +178,20 @@ import {
           return;
         }
 
+        // Update order as buyer-canceled and record metadata
+        const cancelPayload = {
+          status: "buyer_canceled",
+          canceled_at: new Date().toISOString(),
+          canceled_by: uid,
+          cancel_reason: "Buyer canceled within 30 minutes.",
+        };
+
         const { data: updated, error: cancelError } = await supabase
           .from("orders")
-          .update({ status: "CANCELLED" })
+          .update(cancelPayload)
           .eq("id", order.id)
           .eq("buyer_id", uid)
-          .select("status")
+          .select("status, canceled_at, cancel_reason")
           .single();
 
         if (cancelError) {
@@ -194,16 +206,20 @@ import {
 
         const statusEl = card.querySelector(".order-status");
         if (statusEl) {
-          statusEl.textContent = `Status: ${String(
-            updated?.status || "CANCELLED"
-          ).toUpperCase()}`;
+          const newStatusUpper = String(
+            updated?.status || "buyer_canceled"
+          ).toUpperCase();
+          statusEl.textContent = `Status: ${newStatusUpper}`;
         }
 
         cancelBtn.remove();
 
         const noteEl = card.querySelector(".order-cancel-note");
         if (noteEl) {
-          noteEl.textContent = "Order cancelled within the 30-minute window.";
+          const reasonText =
+            updated?.cancel_reason ||
+            "Order cancelled within the 30-minute window.";
+          noteEl.textContent = reasonText;
         }
       });
 
