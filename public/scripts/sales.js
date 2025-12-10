@@ -1,12 +1,13 @@
 // public/scripts/sales.js
 // Loads the logged-in seller’s sales and supports seller-side cancellation.
 
+// IMPORTANT: use an absolute path so this works no matter where sales.html lives.
 import {
   formatMoney,
   formatDate,
   extractListingTitle,
   extractTotalCents,
-} from "./orders-utils.js";
+} from "/scripts/orders-utils.js";
 
 (async () => {
   const supabase = window.HM && window.HM.supabase;
@@ -15,7 +16,7 @@ import {
     return;
   }
 
-  // Ensure session (same pattern as purchases.js)
+  // Same session helper as purchases.js
   async function ensureSession(maxMs = 3000) {
     let {
       data: { session },
@@ -38,7 +39,7 @@ import {
 
   const uid = session.user.id;
 
-  // DOM hooks (matches sales.html)
+  // DOM nodes (same IDs as your existing HTML)
   const list =
     document.getElementById("salesList") ||
     document.getElementById("ordersList");
@@ -53,7 +54,7 @@ import {
     return;
   }
 
-  // Load this seller’s orders (sales) – RLS now allows seller_id = uid
+  // Load sales for this seller (RLS ensures seller_id = auth.uid())
   const { data, error } = await supabase
     .from("orders")
     .select("*")
@@ -68,7 +69,7 @@ import {
     return;
   }
 
-  console.log("[sales] uid:", uid, "rows:", data?.length ?? 0);
+  console.log("[sales] uid:", uid, "sales rows:", data?.length ?? 0);
 
   if (!data || data.length === 0) {
     empty.style.display = "block";
@@ -151,7 +152,7 @@ import {
       cancelNoteEl.textContent = parts.join(" • ");
     }
 
-    // Seller cancel (no time limit; RLS enforces seller_id = uid)
+    // Seller cancel (RLS enforces seller_id = uid)
     if (isCancelableStatus) {
       const cancelBtn = document.createElement("button");
       cancelBtn.className = "btn btn-secondary";
