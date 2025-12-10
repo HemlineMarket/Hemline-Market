@@ -1,5 +1,5 @@
 // public/scripts/sales.js
-// Seller Sales page with built-in diagnostics so we can see what's going on.
+// Loads the logged-in seller’s sales and supports seller-side cancellation.
 
 import {
   formatMoney,
@@ -38,7 +38,7 @@ import {
 
   const uid = session.user.id;
 
-  // DOM hooks
+  // DOM hooks (matches sales.html)
   const list =
     document.getElementById("salesList") ||
     document.getElementById("ordersList");
@@ -53,10 +53,11 @@ import {
     return;
   }
 
-  // ---- LOAD ORDERS VISIBLE TO THIS USER (no filter) ----
+  // Load this seller’s orders (sales) – RLS now allows seller_id = uid
   const { data, error } = await supabase
     .from("orders")
     .select("*")
+    .eq("seller_id", uid)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -67,23 +68,9 @@ import {
     return;
   }
 
-  console.log("[sales] current uid:", uid);
-  console.log("[sales] orders visible to this user:", data);
+  console.log("[sales] uid:", uid, "rows:", data?.length ?? 0);
 
-  // Filter in JS to find "my" sales
-  const mySales = (data || []).filter((o) => o.seller_id === uid);
-
-  // Diagnostic banner to make the situation visible on-page
-  const debugBanner = document.createElement("div");
-  debugBanner.style.fontSize = "11px";
-  debugBanner.style.color = "#6b7280";
-  debugBanner.style.marginBottom = "8px";
-  debugBanner.textContent =
-    `Debug — uid: ${uid} · visible orders: ${(data || []).length} · ` +
-    `sales where seller_id == uid: ${mySales.length}`;
-  list.parentElement.insertBefore(debugBanner, list);
-
-  if (!mySales || mySales.length === 0) {
+  if (!data || data.length === 0) {
     empty.style.display = "block";
     empty.textContent = "You haven’t sold anything yet.";
     list.innerHTML = "";
@@ -93,7 +80,7 @@ import {
   empty.style.display = "none";
   list.innerHTML = "";
 
-  mySales.forEach((order) => {
+  data.forEach((order) => {
     const card = document.createElement("div");
     card.className = "order-card";
 
@@ -164,7 +151,7 @@ import {
       cancelNoteEl.textContent = parts.join(" • ");
     }
 
-    // Seller cancel
+    // Seller cancel (no time limit; RLS enforces seller_id = uid)
     if (isCancelableStatus) {
       const cancelBtn = document.createElement("button");
       cancelBtn.className = "btn btn-secondary";
