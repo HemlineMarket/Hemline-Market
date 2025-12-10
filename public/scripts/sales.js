@@ -1,13 +1,12 @@
 // public/scripts/sales.js
 // Loads the logged-in seller’s sales and supports seller-side cancellation.
 
-// IMPORTANT: use an absolute path so this works no matter where sales.html lives.
 import {
   formatMoney,
   formatDate,
   extractListingTitle,
   extractTotalCents,
-} from "/scripts/orders-utils.js";
+} from "./orders-utils.js"; // <-- same pattern as purchases.js
 
 (async () => {
   const supabase = window.HM && window.HM.supabase;
@@ -16,7 +15,7 @@ import {
     return;
   }
 
-  // Same session helper as purchases.js
+  // Same helper used in purchases.js
   async function ensureSession(maxMs = 3000) {
     let {
       data: { session },
@@ -39,22 +38,22 @@ import {
 
   const uid = session.user.id;
 
-  // DOM nodes (same IDs as your existing HTML)
+  // DOM nodes (match your sales.html)
   const list =
-    document.getElementById("salesList") ||
-    document.getElementById("ordersList");
+    document.getElementById("ordersList") ||
+    document.getElementById("salesList");
   const empty =
-    document.getElementById("emptySalesState") ||
-    document.getElementById("emptyState");
+    document.getElementById("emptyState") ||
+    document.getElementById("emptySalesState");
 
   if (!list || !empty) {
     console.error(
-      "[sales] Missing DOM nodes (#salesList/#ordersList or #emptySalesState/#emptyState)"
+      "[sales] Missing DOM nodes (#ordersList/#salesList or #emptyState/#emptySalesState)"
     );
     return;
   }
 
-  // Load sales for this seller (RLS ensures seller_id = auth.uid())
+  // Load this seller’s sales (RLS enforces seller_id = auth.uid())
   const { data, error } = await supabase
     .from("orders")
     .select("*")
@@ -80,6 +79,8 @@ import {
 
   empty.style.display = "none";
   list.innerHTML = "";
+
+  const now = new Date();
 
   data.forEach((order) => {
     const card = document.createElement("div");
@@ -152,7 +153,7 @@ import {
       cancelNoteEl.textContent = parts.join(" • ");
     }
 
-    // Seller cancel (RLS enforces seller_id = uid)
+    // Seller cancel (no time limit here; RLS and JS enforce ownership)
     if (isCancelableStatus) {
       const cancelBtn = document.createElement("button");
       cancelBtn.className = "btn btn-secondary";
@@ -179,7 +180,7 @@ import {
 
         const payload = {
           status: "seller_canceled",
-          canceled_at: new Date().toISOString(),
+          canceled_at: now.toISOString(),
           canceled_by: uid,
           cancel_reason: reasonInput,
         };
