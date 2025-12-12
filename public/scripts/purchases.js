@@ -1,73 +1,158 @@
 // public/scripts/purchases.js
-// Loads the logged-in buyer’s purchase history and supports 30-minute cancellation.
-
-import {
-  formatMoney,
-  formatDate,
-  extractListingTitle,
-  extractTotalCents,
-  cancellationWindowHtml,
-} from "./orders-utils.js";
+// Purchases page — Sales-style cards + robust query (buyer_id OR buyer_email) + shipping + listing link
 
 (async () => {
-  const supabase = window.HM && window.HM.supabase;
-  if (!supabase) {
-    console.error("[purchases] Missing Supabase client");
-    return;
-  }
+  const supabase = window.HM?.supabase;
+  if (!supabase) return;
 
-  // Ensure session
-  async function ensureSession(maxMs = 3000) {
-    let {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const start = Date.now();
-    while (!session?.user && Date.now() - start < maxMs) {
-      await new Promise((r) => setTimeout(r, 120));
-      ({
-        data: { session },
-      } = await supabase.auth.getSession());
-    }
-    return session;
-  }
-
-  const session = await ensureSession();
-  if (!session || !session.user) {
-    window.location.href = "auth.html?view=login";
-    return;
-  }
-
-  const uid = session.user.id;
-
-  // Allow for either #ordersList or #purchasesList in the HTML
   const list =
     document.getElementById("ordersList") ||
     document.getElementById("purchasesList");
   const empty = document.getElementById("emptyState");
 
-  if (!list || !empty) {
-    console.error(
-      "[purchases] Missing DOM nodes (#ordersList/#purchasesList or #emptyState)"
+  if (!list || !empty) return;
+
+  /* ---------------- helpers ---------------- */
+
+  const money = (cents) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
+      (Number(cents) || 0) / 100
     );
+
+  const dateLabel = (d) =>
+    new Date(d).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const statusLabel = (s) => {
+    const up = String(s || "").toUpperCase();
+    const map = {
+      PAID: "Paid",
+      PENDING: "Pending",
+      SHIPPED: "Shipped",
+      DELIVERED: "Delivered",
+      CANCELED: "Canceled",
+      REFUNDED: "Refunded",
+      BUYER_CANCELED: "Canceled",
+      SELLER_CANCELED: "Canceled",
+    };
+    return map[up] || (s ? String(s) : "—");
+  };
+
+  const getQty = (order) => {
+    const items = order?.listing_snapshot?.items;
+    if (Array.isArray(items) && items.length) {
+      const sum = items.reduce((acc, it) => acc + (Number(it?.qty) || 0), 0);
+      return sum > 0 ? sum : null;
+    }
+    return null;
+  };
+
+  const getCentsBreakdown = (order) => {
+    const total = Number(order?.total_cents) || 0;
+    const shipping = Number(order?.shipping_cents);
+    const shippingCents = Number.isFinite(shipping) ? shipping : 0;
+    const itemsCents = Math.max(0, total - shippingCents);
+    return { itemsCents, shippingCents, totalCents: total };
+  };
+
+  const withinMinutes = (createdAtIso, minutes) => {
+    if (!createdAtIso) return false;
+    const created = new Date(createdAtIso).getTime();
+    const now = Date.now();
+    return now - created <= minutes * 60 * 1000;
+  };
+
+  const canBuyerCancel = (order) => {
+    const up = String(order?.status || "").toUpperCase();
+    // Buyer cancel only while still PAID/PENDING and within 30 minutes.
+    // IMPORTANT: do NOT reference shipped_at (not in your schema right now).
+    return (up === "PAID" || up === "PENDING") && withinMinutes(order?.created_at, 30);
+  };
+
+  async function buyerCancel(orderId, buyerId) {
+    const payload = {
+      status: "CANCELED",
+      canceled_at: new Date().toISOString(),
+      canceled_by: buyerId,
+      cancel_reason: "Buyer canceled within 30 minutes.",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("orders")
+      .update(payload)
+      .eq("id", orderId)
+      .eq("buyer_id", buyerId);
+
+    if (error) {
+      console.error("[purchases] cancel error", error);
+      alert("Cancel failed. Please refresh and try again.");
+      return false;
+    }
+    return true;
+  }
+
+  /* ---------------- session ---------------- */
+
+  const { data: sess } = await supabase.auth.getSession();
+  const session = sess?.session;
+
+  if (!session?.user) {
+    window.location.href = "auth.html?view=login";
     return;
   }
 
-  // Load this buyer’s orders
-  const { data, error } = await supabase
+  const buyerId = session.user.id;
+  const buyerEmail =
+    session.user.email ||
+    session.user.user_metadata?.email ||
+    "";
+
+  /* ---------------- load orders ---------------- */
+
+  // KEY FIX:
+  // - Some orders were created with buyer_email populated but buyer_id not matching the current session.
+  // - We load by buyer_id OR buyer_email (fallback) so Purchases never appears empty incorrectly.
+  let query = supabase
     .from("orders")
-    .select("*")
-    .eq("buyer_id", uid)
+    .select(
+      `
+      id,
+      status,
+      created_at,
+      total_cents,
+      shipping_cents,
+      buyer_id,
+      buyer_email,
+      seller_id,
+      listing_id,
+      listing_title,
+      listing_image_url,
+      listing_snapshot
+    `
+    )
     .order("created_at", { ascending: false });
 
+  if (buyerEmail) {
+    query = query.or(`buyer_id.eq.${buyerId},buyer_email.eq.${buyerEmail}`);
+  } else {
+    query = query.eq("buyer_id", buyerId);
+  }
+
+  const { data: orders, error } = await query;
+
   if (error) {
-    console.error("[purchases] Load error:", error);
+    console.error("[purchases] load error", error);
     empty.style.display = "block";
     empty.textContent =
       "We couldn’t load your purchases. Please refresh and try again.";
     return;
   }
 
-  if (!data || data.length === 0) {
+  if (!orders || orders.length === 0) {
     empty.style.display = "block";
     empty.textContent = "You haven’t purchased anything yet.";
     list.innerHTML = "";
@@ -77,155 +162,141 @@ import {
   empty.style.display = "none";
   list.innerHTML = "";
 
-  data.forEach((order) => {
+  /* ---------------- render ---------------- */
+
+  orders.forEach((o) => {
+    const qty = getQty(o);
+    const { itemsCents, shippingCents, totalCents } = getCentsBreakdown(o);
+
+    const listingHref = o.listing_id
+      ? `listing.html?id=${encodeURIComponent(o.listing_id)}`
+      : null;
+
     const card = document.createElement("div");
     card.className = "order-card";
+    card.style.display = "flex";
+    card.style.gap = "14px";
+    card.style.alignItems = "center";
 
-    const title = extractListingTitle(order);
-    const totalCents = extractTotalCents(order);
-    const cancelNoteHtml = cancellationWindowHtml(order);
-
-    const createdAt = order.created_at ? new Date(order.created_at) : null;
-    const now = new Date();
-
-    const rawStatus = order.status || "paid";
-    const statusUpper = String(rawStatus).toUpperCase();
-
-    // Only treat PAID / PENDING as cancel-eligible; COMPLETED and others are final
-    const isCancelableStatus =
-      statusUpper === "PAID" || statusUpper === "PENDING";
-
-    const within30Min =
-      createdAt && now.getTime() - createdAt.getTime() <= 30 * 60 * 1000;
-
-    const canCancel = isCancelableStatus && within30Min;
-
-    card.innerHTML = `
-      <div class="order-top">
-        <span>Purchase #${String(order.id).slice(0, 8)}</span>
-        <span>${formatDate(order.created_at)}</span>
-      </div>
-
-      <div class="order-status">
-        Status: ${statusUpper}
-      </div>
-
-      <div class="order-meta">
-        Total: ${formatMoney(totalCents)} ${order.currency || "USD"}
-      </div>
-
-      <div class="order-items">
-        <div><span class="name">${title}</span></div>
-      </div>
-
-      <div class="order-actions"></div>
-      <div class="order-cancel-note">${cancelNoteHtml || ""}</div>
-    `;
-
-    const actions = card.querySelector(".order-actions");
-
-    // View listing
-    if (order.listing_id) {
-      const link = document.createElement("a");
-      link.className = "btn";
-      link.href = `listing.html?id=${encodeURIComponent(order.listing_id)}`;
-      link.textContent = "View listing";
-      actions.appendChild(link);
+    if (listingHref) {
+      card.style.cursor = "pointer";
+      card.tabIndex = 0;
+      card.setAttribute("role", "link");
+      card.addEventListener("click", (e) => {
+        if (e.target.closest("[data-no-nav]")) return;
+        window.location.href = listingHref;
+      });
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") window.location.href = listingHref;
+      });
     }
 
+    // image tile
+    if (o.listing_image_url) {
+      const imgLink = document.createElement("a");
+      imgLink.href = listingHref || "#";
+      imgLink.setAttribute("data-no-nav", "1");
+      imgLink.style.width = "64px";
+      imgLink.style.height = "64px";
+      imgLink.style.borderRadius = "10px";
+      imgLink.style.overflow = "hidden";
+      imgLink.style.background = "#f3f4f6";
+      imgLink.innerHTML = `<img src="${o.listing_image_url}" style="width:100%;height:100%;object-fit:cover" />`;
+      card.appendChild(imgLink);
+    }
+
+    const mid = document.createElement("div");
+    mid.style.flex = "1";
+
+    const browseLine = qty
+      ? `${money(itemsCents)} for ${qty} yards`
+      : `Total: ${money(totalCents)}`;
+
+    mid.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px">
+        ${
+          listingHref
+            ? `<a href="${listingHref}" data-no-nav="1"
+                 style="font-weight:700;text-decoration:none;color:inherit">
+                 ${o.listing_title || "Listing"}
+               </a>`
+            : `<div style="font-weight:700">${o.listing_title || "Listing"}</div>`
+        }
+
+        ${
+          listingHref
+            ? `<a href="${listingHref}" data-no-nav="1"
+                 style="margin-left:auto;color:#6b7280;text-decoration:none;font-weight:700">
+                 View listing ›
+               </a>`
+            : `<span style="margin-left:auto;color:#9ca3af">—</span>`
+        }
+      </div>
+
+      <div style="font-size:13px;color:#6b7280;margin-top:2px">${browseLine}</div>
+      <div style="font-size:13px;color:#6b7280">${statusLabel(o.status)} · ${dateLabel(o.created_at)}</div>
+      <div style="font-size:12px;color:#9ca3af;margin-top:2px">
+        Shipping: ${money(shippingCents)} · Total paid: ${money(totalCents)}
+      </div>
+
+      <div class="actions" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap" data-no-nav="1"></div>
+    `;
+
+    const actions = mid.querySelector(".actions");
+
     // Message seller
-    if (order.seller_id) {
+    if (o.seller_id) {
       const msg = document.createElement("a");
-      msg.className = "btn";
-      msg.href =
-        `messages.html?user=${encodeURIComponent(order.seller_id)}` +
-        `&order=${encodeURIComponent(order.id)}`;
+      msg.href = `messages.html?user=${encodeURIComponent(o.seller_id)}&order=${encodeURIComponent(o.id)}`;
       msg.textContent = "Message seller";
+      msg.style.height = "32px";
+      msg.style.display = "inline-flex";
+      msg.style.alignItems = "center";
+      msg.style.padding = "0 12px";
+      msg.style.borderRadius = "8px";
+      msg.style.border = "1px solid #e5e7eb";
+      msg.style.background = "#fff";
+      msg.style.fontWeight = "700";
+      msg.style.fontSize = "13px";
+      msg.style.textDecoration = "none";
+      msg.style.color = "#111827";
       actions.appendChild(msg);
     }
 
-    // 30-minute cancellation (buyer side)
-    if (canCancel) {
+    // Buyer cancel (UI only if eligible)
+    if (canBuyerCancel(o)) {
       const cancelBtn = document.createElement("button");
-      cancelBtn.className = "btn btn-secondary";
       cancelBtn.type = "button";
-      cancelBtn.textContent = "Cancel order";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.style.height = "32px";
+      cancelBtn.style.padding = "0 12px";
+      cancelBtn.style.borderRadius = "8px";
+      cancelBtn.style.border = "1px solid #e5e7eb";
+      cancelBtn.style.background = "#fff";
+      cancelBtn.style.fontWeight = "700";
+      cancelBtn.style.fontSize = "13px";
+      cancelBtn.style.cursor = "pointer";
 
-      cancelBtn.addEventListener("click", async () => {
-        if (
-          !window.confirm(
-            "Cancel this order? This will release the listing and cannot be undone."
-          )
-        ) {
-          return;
-        }
-
+      cancelBtn.onclick = async () => {
+        if (!confirm("Cancel this order?")) return;
         cancelBtn.disabled = true;
-        cancelBtn.textContent = "Cancelling…";
 
-        // Double-check the 30-minute window at click time
-        const latestNow = new Date();
-        const created = order.created_at ? new Date(order.created_at) : null;
-        if (
-          !created ||
-          latestNow.getTime() - created.getTime() > 30 * 60 * 1000
-        ) {
-          window.alert(
-            "This order can no longer be cancelled because the 30-minute window has passed."
-          );
+        // re-check 30-min window at click time
+        if (!withinMinutes(o.created_at, 30)) {
+          alert("This order can no longer be canceled (30-minute window passed).");
           cancelBtn.disabled = false;
-          cancelBtn.textContent = "Cancel order";
           return;
         }
 
-        // Update order as buyer-canceled and record metadata
-        const cancelPayload = {
-          status: "buyer_canceled",
-          canceled_at: new Date().toISOString(),
-          canceled_by: uid,
-          cancel_reason: "Buyer canceled within 30 minutes.",
-        };
-
-        const { data: updated, error: cancelError } = await supabase
-          .from("orders")
-          .update(cancelPayload)
-          .eq("id", order.id)
-          .eq("buyer_id", uid)
-          .select("status, canceled_at, cancel_reason")
-          .single();
-
-        if (cancelError) {
-          console.error("[purchases] Cancel error:", cancelError);
-          window.alert(
-            "We couldn’t cancel this order. Please refresh and try again."
-          );
-          cancelBtn.disabled = false;
-          cancelBtn.textContent = "Cancel order";
-          return;
-        }
-
-        const statusEl = card.querySelector(".order-status");
-        if (statusEl) {
-          const newStatusUpper = String(
-            updated?.status || "buyer_canceled"
-          ).toUpperCase();
-          statusEl.textContent = `Status: ${newStatusUpper}`;
-        }
-
-        cancelBtn.remove();
-
-        const noteEl = card.querySelector(".order-cancel-note");
-        if (noteEl) {
-          const reasonText =
-            updated?.cancel_reason ||
-            "Order cancelled within the 30-minute window.";
-          noteEl.textContent = reasonText;
-        }
-      });
+        const ok = await buyerCancel(o.id, buyerId);
+        if (ok) location.reload();
+        cancelBtn.disabled = false;
+      };
 
       actions.appendChild(cancelBtn);
     }
 
+    card.appendChild(mid);
     list.appendChild(card);
   });
 })();
