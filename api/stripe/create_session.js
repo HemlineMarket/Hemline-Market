@@ -1,23 +1,38 @@
-// File: /api/stripe/webhook/index.js
-// Handles Stripe events and inserts real orders into Supabase.
+// File: /api/stripe/create_session.js
+// Creates a Stripe Checkout Session from the client cart payload.
+// Defensive: works for (a) single-listing carts and (b) generic multi-item carts
+// without crashing (no 500s).
 
 import Stripe from "stripe";
-import supabaseAdmin from "../../_supabaseAdmin";
-
-export const config = { api: { bodyParser: false } };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2024-06-20",
 });
 
-// Read raw body for signature verification
-function readRawBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on("data", (c) => chunks.push(c));
-    req.on("end", () => resolve(Buffer.concat(chunks)));
-    req.on("error", reject);
-  });
+function getOrigin(req) {
+  const proto =
+    (req.headers["x-forwarded-proto"] || "https").toString().split(",")[0].trim();
+  const host =
+    (req.headers["x-forwarded-host"] || req.headers.host || "").toString().split(",")[0].trim();
+
+  // If you have a canonical URL, prefer it
+  if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/$/, "");
+  if (host) return `${proto}://${host}`;
+  return "https://hemlinemarket.com";
+}
+
+function asInt(n, fallback = 0) {
+  const x = Number(n);
+  return Number.isFinite(x) ? Math.trunc(x) : fallback;
+}
+
+function safeJsonStringify(obj, maxLen = 450) {
+  try {
+    const s = JSON.stringify(obj ?? {});
+    return s.length > maxLen ? s.slice(0, maxLen) : s;
+  } catch {
+    return "";
+  }
 }
 
 export default async function handler(req, res) {
@@ -26,138 +41,108 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  let event;
-  let rawBody;
-
   try {
-    rawBody = await readRawBody(req);
-  } catch (e) {
-    return res.status(400).send(`Raw body error: ${e.message}`);
-  }
+    const origin = getOrigin(req);
 
-  const sig = req.headers["stripe-signature"];
+    const body = req.body || {};
+    const cart = Array.isArray(body.cart) ? body.cart : [];
+    const buyerEmail = (body?.buyer?.email || body?.buyer_email || "").toString().trim();
+    const buyerId = (body?.buyer?.id || body?.buyer_id || "").toString().trim();
+    const shippingCents = Math.max(0, asInt(body?.shipping_cents, 0));
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    return res.status(400).send(`Webhook signature error: ${err.message}`);
-  }
-
-  // ------------------------------
-  // CHECKOUT COMPLETED
-  // ------------------------------
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const md = session.metadata || {};
-
-    // Recover cart from metadata (created in /api/stripe/create_session.js)
-    let cart = [];
-    if (md.cart_json) {
-      try {
-        cart = JSON.parse(md.cart_json);
-      } catch (e) {
-        console.warn("[webhook] Failed to parse cart_json:", e);
-      }
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ error: "Missing STRIPE_SECRET_KEY" });
     }
-    const first = cart[0] || {};
 
-    // Buyer / seller / listing
-    const buyerId =
-      md.buyer_id ||
-      md.buyer_user_id ||
-      md.buyerId ||
-      md.buyer ||
-      null;
+    if (!cart.length) {
+      return res.status(400).json({ error: "Cart is empty" });
+    }
 
-    const sellerId =
-      md.seller_id ||
-      first.seller_user_id ||
-      first.seller_id ||
-      first.user_id ||
-      null;
-
-    const listingId =
-      md.listing_id ||
-      first.listing_id ||
-      first.id ||
-      null;
-
-    // Yardage (best-effort; we only support 1 listing per order right now)
-    const yardage =
-      Number(md.yardage) ||
-      Number(first.qty) ||
-      1;
-
-    // Amounts (cents)
+    // Compute subtotal from cart items (expects cents in it.amount)
+    const currency = "usd";
     let itemsCents = 0;
-    if (md.price_cents != null) {
-      itemsCents = Number(md.price_cents) || 0;
-    } else if (md.subtotal_cents != null) {
-      itemsCents = Number(md.subtotal_cents) || 0;
-    } else if (first.amount_cents != null) {
-      itemsCents = Number(first.amount_cents) || 0;
+
+    for (const it of cart) {
+      const qty = Math.max(1, asInt(it?.qty, 1));
+      const amount = Math.max(0, asInt(it?.amount, 0)); // cents
+      itemsCents += amount * qty;
     }
 
-    const shippingCents = Number(md.shipping_cents) || 0;
-    const totalCents = itemsCents + shippingCents;
+    if (itemsCents <= 0) {
+      return res.status(400).json({ error: "Cart total is invalid" });
+    }
 
-    const listingTitle =
-      md.title ||
-      md.listing_title ||
-      first.name ||
-      "Fabric listing";
-
-    const listingImage = md.image_url || "";
-
-    const cancelExpiresAt = md.cancel_expires_at || null;
-    const currency =
-      (session.currency || "usd").toUpperCase();
-
-    try {
-      // Insert order into Supabase
-      const { error: insertError } = await supabaseAdmin
-        .from("orders")
-        .insert({
-          stripe_checkout: session.id,
-          buyer_id: buyerId || null,
-          seller_id: sellerId || null,
-          listing_id: listingId || null,
-          yardage: yardage || 1,
-          items_cents: itemsCents,
-          shipping_cents: shippingCents,
-          total_cents: totalCents,
-          listing_title: listingTitle,
-          listing_image: listingImage,
-          status: "PAID",
+    // Build Stripe line_items
+    // Keep it simple + robust: represent each cart line as its own line item.
+    // If any item lacks name, fall back gracefully.
+    const line_items = cart.map((it) => {
+      const qty = Math.max(1, asInt(it?.qty, 1));
+      const name = (it?.name || it?.title || "Fabric").toString();
+      const unitAmount = Math.max(0, asInt(it?.amount, 0)); // cents
+      return {
+        quantity: qty,
+        price_data: {
           currency,
-          listing_snapshot: cart && cart.length ? cart : null,
-          cancel_expires_at: cancelExpiresAt,
-        });
+          unit_amount: unitAmount,
+          product_data: {
+            name: name.length > 120 ? name.slice(0, 120) : name,
+          },
+        },
+      };
+    });
 
-      if (insertError) {
-        console.error("[webhook] Order insert error:", insertError);
-        // Still return 200 so Stripe doesn’t keep retrying
-      }
-
-      // Mark listing SOLD + clear cart lock (single-item cart for now)
-      if (listingId) {
-        await supabaseAdmin
-          .from("listings")
-          .update({
-            status: "SOLD",
-            cart_set_at: null,
-          })
-          .eq("id", listingId);
-      }
-    } catch (e) {
-      console.error("[webhook] Order handling exception:", e);
-      // Do NOT throw a 4xx here; acknowledge to Stripe
+    // Add shipping as a separate line item so it never disappears
+    if (shippingCents > 0) {
+      line_items.push({
+        quantity: 1,
+        price_data: {
+          currency,
+          unit_amount: shippingCents,
+          product_data: { name: "Shipping" },
+        },
+      });
     }
-  }
 
-  return res.json({ received: true });
+    // If this is a single-listing style checkout, carry metadata for webhook compatibility
+    const first = cart[0] || {};
+    const listingId =
+      (first.listing_id || first.listingId || body.listing_id || "").toString().trim();
+    const sellerId =
+      (first.seller_id || first.sellerId || body.seller_id || "").toString().trim();
+    const imageUrl = (first.image_url || first.imageUrl || "").toString().trim();
+    const title = (first.title || first.name || "").toString().trim();
+
+    const metadata = {
+      buyer_email: buyerEmail || "",
+      buyer_id: buyerId || "",
+      shipping_cents: String(shippingCents),
+      price_cents: String(itemsCents),
+      // keep these for your existing webhook (safe if blank)
+      listing_id: listingId,
+      seller_id: sellerId,
+      title: title,
+      image_url: imageUrl,
+      // for debugging / future multi-item support
+      cart_json: safeJsonStringify(cart),
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items,
+      customer_email: buyerEmail || undefined,
+      success_url: `${origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/checkout.html?canceled=1`,
+      metadata,
+      // optional: helps Stripe receipts & address capture
+      billing_address_collection: "auto",
+    });
+
+    return res.status(200).json({ url: session.url, id: session.id });
+  } catch (err) {
+    console.error("[create_session] error", err);
+    return res.status(500).json({
+      error: "Stripe create_session failed",
+      message: err?.message || String(err),
+    });
+  }
 }
