@@ -5,413 +5,565 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Your Sales — Hemline Market</title>
 
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+
+  <!-- Shared styles (universal stack) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
   <style>
     :root{
       --hm-accent:#991b1b;
-      --hm-border:#e5e7eb;
-      --hm-muted:#6b7280;
       --hm-text:#111827;
-      --hm-bg:#f4f4f7;
-      --hm-card:#ffffff;
-      --hm-shadow:0 8px 24px rgba(17,24,39,.08);
-      --hm-radius:16px;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
+      --hm-bg:#fafafa;
+      --hm-bg-card:rgba(255,255,255,.96);
     }
 
-    html, body { margin:0; background:var(--hm-bg); color:var(--hm-text); }
-    .wrap{ max-width:980px; margin:0 auto; padding:28px 16px 48px; }
+    html,body{
+      margin:0;
+      max-width:100%;
+      overflow-x:hidden;
+      background:var(--hm-bg);
+      color:var(--hm-text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
 
-    .page-title{ font-size:28px; font-weight:800; margin:4px 0 6px; }
-    .page-sub{ color:var(--hm-muted); margin:0 0 18px; }
+    .sales-wrap{
+      max-width:1100px;
+      margin:18px auto 28px;
+      padding:0 12px;
+    }
+
+    .page-head{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:10px;
+      flex-wrap:wrap;
+    }
+
+    .page-title{
+      margin:0;
+      font-size:28px;
+      letter-spacing:-0.02em;
+    }
+
+    .page-sub{
+      margin:6px 0 0;
+      color:var(--hm-muted);
+      font-size:13px;
+    }
 
     .card{
-      background:var(--hm-card);
+      background:#fff;
       border:1px solid var(--hm-border);
-      border-radius:var(--hm-radius);
-      box-shadow:var(--hm-shadow);
-      padding:16px;
+      border-radius:12px;
+      padding:12px;
     }
 
-    .empty{
-      text-align:center;
-      padding:18px;
+    .state{
       color:var(--hm-muted);
+      font-size:13px;
+      padding:14px;
+      border:1px dashed #e5e7eb;
+      border-radius:12px;
+      background:#fff;
+    }
+
+    /* --- Sales list --- */
+    .sales-list{
+      display:grid;
+      gap:10px;
+      margin-top:10px;
     }
 
     .sale-row{
-      display:flex;
-      gap:14px;
-      align-items:flex-start;
-      justify-content:space-between;
-      padding:14px;
-      border-radius:14px;
+      background:var(--hm-bg-card);
       border:1px solid var(--hm-border);
-      background:#fff;
-    }
-    .sale-left{ min-width:0; flex:1; }
-    @media (max-width: 820px){
-      .sale-row{ flex-direction:column; }
+      border-radius:12px;
+      overflow:hidden;
+      display:grid;
+      grid-template-columns: 140px 1fr;
     }
 
-    /* Mini listing tile (Browse-style, clickable) */
-    .mini-tile{
-      display:flex;
-      gap:12px;
-      align-items:center;
-      width:100%;
+    @media(max-width:700px){
+      .sale-row{ grid-template-columns: 120px 1fr; }
+    }
+
+    /* left: mini listing link (browse-style thumbnail) */
+    .mini-link{
+      display:block;
       text-decoration:none;
       color:inherit;
+      border-right:1px solid var(--hm-border);
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
     }
-    .mini-img{
-      width:64px; height:64px; border-radius:12px;
-      border:1px solid var(--hm-border);
+    .mini-thumb{
+      aspect-ratio:4/3;
+      width:100%;
       overflow:hidden;
-      background:linear-gradient(180deg, rgba(17,24,39,.06), rgba(17,24,39,.02));
-      flex:0 0 auto;
+      display:grid;
+      place-items:center;
     }
-    .mini-img img{ width:100%; height:100%; object-fit:cover; display:block; }
-    .mini-meta{ min-width:0; flex:1; }
-    .mini-title{
+    .mini-thumb img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .mini-fallback{
+      width:100%;
+      height:100%;
+      display:grid;
+      place-items:center;
+      color:#9ca3af;
       font-weight:800;
-      line-height:1.2;
+      font-size:28px;
+      letter-spacing:-0.03em;
+    }
+
+    /* right: content */
+    .sale-body{
+      padding:10px 12px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width:0;
+    }
+
+    .sale-top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .sale-title{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+
+    .sale-title a{
+      color:var(--hm-text);
+      text-decoration:none;
+      font-weight:800;
+      font-size:14px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      margin:0 0 4px;
-    }
-    .mini-sub{
-      color:var(--hm-muted);
-      font-size:13px;
-      margin:0;
-    }
-    .mini-cta{
-      margin-left:auto;
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex:0 0 auto;
-    }
-    .mini-pill{
-      border:1px solid var(--hm-border);
-      border-radius:999px;
-      padding:6px 10px;
-      font-weight:800;
-      font-size:13px;
-      background:#fff;
-      white-space:nowrap;
-    }
-    .mini-arrow{
-      font-size:18px;
-      color:var(--hm-muted);
-      line-height:1;
-      padding:6px 8px;
-      border-radius:10px;
-      border:1px solid var(--hm-border);
-      background:#fff;
     }
 
-    .sale-details{
-      margin-top:8px;
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:4px;
+    .meta-line{
       color:var(--hm-muted);
-      font-size:13px;
-    }
-    .sale-details b{ color:var(--hm-text); font-weight:800; }
-
-    .actions{
-      margin-top:12px;
+      font-size:12px;
       display:flex;
       gap:10px;
       flex-wrap:wrap;
       align-items:center;
     }
 
-    select, button{ font:inherit; }
-    select{
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      padding:8px 10px;
+    .pill{
+      font-size:11px;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
       background:#fff;
+      color:#374151;
+      font-weight:700;
+    }
+
+    .amount{
+      text-align:right;
+      flex:0 0 auto;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      align-items:flex-end;
+    }
+
+    .amount .big{
+      font-weight:900;
+      font-size:14px;
+      color:#111827;
+      white-space:nowrap;
+    }
+    .amount .small{
+      color:var(--hm-muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    .actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-top:4px;
+    }
+
+    select, button{
+      font-family:inherit;
+    }
+
+    .reason{
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      font-size:13px;
       min-width:220px;
     }
-    button{
-      border:1px solid var(--hm-border);
+
+    .btn{
+      padding:8px 12px;
       border-radius:10px;
-      padding:9px 12px;
-      background:#fff;
+      border:1px solid var(--hm-accent);
+      background:var(--hm-accent);
+      color:#fff;
+      font-weight:800;
+      font-size:13px;
       cursor:pointer;
+    }
+    .btn.secondary{
+      border-color:var(--hm-border);
+      background:#fff;
+      color:#111827;
       font-weight:800;
     }
-    button.primary{
-      background:var(--hm-accent);
-      border-color:var(--hm-accent);
-      color:#fff;
+    .btn[disabled]{
+      opacity:.55;
+      cursor:not-allowed;
     }
-    button[disabled]{ opacity:.6; cursor:not-allowed; }
 
     .note{
-      margin-top:10px;
       color:var(--hm-muted);
       font-size:12px;
     }
-  </style>
 
-  <!-- IMPORTANT: supabase-client.js uses ES module imports -->
-  <script type="module" src="scripts/supabase-client.js"></script>
+    .toast{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#111827;
+      font-size:13px;
+      display:none;
+    }
+    .toast.ok{ border-color:#86efac; background:#f0fdf4; }
+    .toast.err{ border-color:#fecaca; background:#fef2f2; }
+  </style>
 </head>
 
 <body>
-  <header class="hm-header">
-    <div class="hm-header__inner">
-      <a class="hm-header__brand" href="/">Hemline Market</a>
-      <nav class="hm-header__nav">
-        <a class="hm-header__icon" href="/browse.html" aria-label="Browse">🔎</a>
-        <a class="hm-header__icon" href="/favorites.html" aria-label="Favorites">♡</a>
-        <a class="hm-header__icon" href="/messages.html" aria-label="Messages">💬</a>
-        <a class="hm-header__icon" href="/sales.html" aria-label="Sales">🧾</a>
-        <a class="hm-header__icon" href="/cart.html" aria-label="Cart">🛒</a>
-        <a class="hm-header__icon" href="/account.html" aria-label="Account">👤</a>
-        <a class="hm-header__sell" href="/sell.html">Sell</a>
-      </nav>
-    </div>
-  </header>
+  <!-- UNIVERSAL HEADER (injected by hm-shell.js) -->
+  <div id="hm-shell-header"></div>
 
-  <main class="wrap">
-    <div class="page-title">Your Sales</div>
-    <p class="page-sub">Fabric buyers purchased from your listings.</p>
-
-    <div id="root" class="card">
-      <div class="empty">Loading…</div>
+  <main class="sales-wrap">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Your Sales</h1>
+        <p class="page-sub">Fabric buyers purchased from your listings.</p>
+      </div>
+      <div id="signedInHint" class="note"></div>
     </div>
+
+    <section class="card">
+      <div id="state" class="state">Loading…</div>
+      <div id="sales" class="sales-list" style="display:none"></div>
+      <div id="toast" class="toast"></div>
+    </section>
   </main>
 
-  <footer class="hm-footer">
-    <div class="hm-footer__inner">
-      <div>© 2025 Hemline Market</div>
-      <div class="hm-footer__links">
-        <a href="/about.html">About</a>
-        <a href="/faq.html">FAQ</a>
-        <a href="/contact.html">Contact</a>
-        <a href="/terms.html">Terms</a>
-        <a href="/privacy.html">Privacy</a>
-      </div>
-    </div>
-  </footer>
+  <!-- UNIVERSAL FOOTER (injected by hm-shell.js) -->
+  <div id="hm-shell-footer"></div>
 
-  <!-- Main logic as module too (safe + consistent with supabase-client.js) -->
-  <script type="module">
-    const $root = document.getElementById('root');
+  <!-- Supabase JS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Shared shell (universal header/footer + menu + header session) -->
+  <script src="scripts/hm-shell.js"></script>
 
-    function money(cents){
-      const n = Number(cents || 0);
-      return (n/100).toLocaleString(undefined, { style:'currency', currency:'USD' });
+  <script>
+    // Render shared header + footer
+    window.HM && window.HM.renderShell({ currentPage: "sales" });
+  </script>
+
+  <script>
+    // ===== Supabase client (CDN style, like browse.html) =====
+    const supabaseClient = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+    );
+
+    // ===== Helpers =====
+    function moneyFromCents(c){
+      if(c == null) return null;
+      const v = Number(c) / 100;
+      return v.toLocaleString("en-US",{
+        style:"currency",
+        currency:"USD",
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      });
     }
-    function fmtDate(iso){
+
+    function fmtDate(d){
       try{
-        const d = new Date(iso);
-        return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
-      }catch(e){ return ''; }
-    }
-    function escapeHtml(str){
-      return String(str)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+        const dt = new Date(d);
+        return dt.toLocaleDateString("en-US",{ month:"short", day:"numeric", year:"numeric" });
+      }catch(_){ return ""; }
     }
 
-    // Shipping tiers (your policy)
-    function computeShippingCentsFromYards(yards){
-      const y = Number(yards || 0);
-      if (y <= 0) return 0;
-      if (y < 3) return 500;     // $5
-      if (y <= 10) return 800;   // $8
-      return 1400;               // $14
+    // keep it readable + safer than full email everywhere
+    function maskEmail(email){
+      if(!email || typeof email !== "string") return "";
+      const at = email.indexOf("@");
+      if(at <= 1) return email;
+      const name = email.slice(0, at);
+      const domain = email.slice(at + 1);
+      const head = name.slice(0, 2);
+      return head + "•••@" + domain;
     }
 
-    function getYardsFromOrder(order){
-      const qty = order?.listing_snapshot?.items?.[0]?.qty;
-      const n = Number(qty);
-      return Number.isFinite(n) && n > 0 ? n : 1;
+    // Shipping policy (your doc): <3yd $5, 3–10yd $8, >10yd $14
+    function shippingFromYards(yards){
+      const y = Number(yards);
+      if(!Number.isFinite(y) || y <= 0) return 0;
+      if(y < 3) return 500;
+      if(y <= 10) return 800;
+      return 1400;
     }
 
-    function getImageFromOrderOrListing(order, listing){
-      const direct =
-        order.listing_image_url ||
-        order.image_url ||
-        order?.listing_snapshot?.image_url ||
-        order?.listing_snapshot?.imageUrl ||
-        order?.listing_snapshot?.items?.[0]?.image_url ||
-        order?.listing_snapshot?.items?.[0]?.imageUrl;
-
-      if (direct) return direct;
-      if (listing && listing.image_url) return listing.image_url;
-      return '';
+    function getQtyFromSnapshot(snap){
+      // supports either array or {items:[...]}
+      try{
+        const items = Array.isArray(snap) ? snap : (snap && snap.items ? snap.items : null);
+        if(!items || !items.length) return null;
+        const q = items[0]?.qty;
+        const n = Number(q);
+        return Number.isFinite(n) ? n : null;
+      }catch(_){ return null; }
     }
 
-    async function getSupabase(){
-      // Your supabase-client.js should set ONE of these globals.
-      // We support both names.
-      if (window.supabase) return window.supabase;
-      if (window.supabaseClient) return window.supabaseClient;
-      throw new Error('Supabase client not found (window.supabase / window.supabaseClient).');
+    function getTitleFromSnapshot(snap){
+      try{
+        const items = Array.isArray(snap) ? snap : (snap && snap.items ? snap.items : null);
+        if(!items || !items.length) return null;
+        return items[0]?.title || null;
+      }catch(_){ return null; }
     }
 
+    function getImageFromSnapshot(snap){
+      try{
+        const items = Array.isArray(snap) ? snap : (snap && snap.items ? snap.items : null);
+        if(!items || !items.length) return null;
+        return items[0]?.image_url || items[0]?.photo || null;
+      }catch(_){ return null; }
+    }
+
+    function setToast(type, msg){
+      const t = document.getElementById("toast");
+      if(!t) return;
+      t.className = "toast " + (type || "");
+      t.textContent = msg || "";
+      t.style.display = msg ? "block" : "none";
+    }
+
+    // ===== Load + render =====
     async function loadSales(){
-      const supabase = await getSupabase();
+      const state = document.getElementById("state");
+      const list  = document.getElementById("sales");
+      const hint  = document.getElementById("signedInHint");
 
-      const { data: { user }, error: userErr } = await supabase.auth.getUser();
-      if (userErr) throw userErr;
+      setToast("", "");
+      state.style.display = "block";
+      list.style.display = "none";
+      state.textContent = "Loading…";
 
-      if (!user){
-        $root.innerHTML = `
-          <div class="empty">
-            <div style="font-weight:800; color: var(--hm-text); margin-bottom:6px;">Sign in to view your sales.</div>
-            <div>Go to <a href="/account.html">Account</a> to sign in.</div>
-          </div>
-        `;
+      // Get signed-in user
+      const { data: auth } = await supabaseClient.auth.getUser();
+      const user = auth?.user;
+
+      if(!user){
+        state.textContent = "Sign in to view your sales.";
+        if(hint) hint.textContent = "";
         return;
       }
 
-      const { data: orders, error: ordersErr } = await supabase
-        .from('orders')
-        .select('id, created_at, status, seller_id, buyer_email, listing_id, listing_title, total_cents, items_cents, shipping_cents, listing_image_url, listing_snapshot, cancel_reason, canceled_at')
-        .eq('seller_id', user.id)
-        .order('created_at', { ascending: false })
+      if(hint) hint.textContent = "Signed in";
+
+      // Fetch sales for this seller
+      const { data: orders, error } = await supabaseClient
+        .from("orders")
+        .select("id, created_at, status, seller_id, buyer_id, buyer_email, listing_id, listing_title, listing_image_url, listing_snapshot, items_cents, shipping_cents, total_cents")
+        .eq("seller_id", user.id)
+        .order("created_at", { ascending:false })
         .limit(50);
 
-      if (ordersErr) throw ordersErr;
-
-      if (!orders || orders.length === 0){
-        $root.innerHTML = `<div class="empty">You haven’t sold anything yet.</div>`;
+      if(error){
+        console.error(error);
+        state.textContent = "Error loading sales.";
+        setToast("err", error.message || "Failed to load sales.");
         return;
       }
 
-      const listingIds = Array.from(new Set(orders.map(o => o.listing_id).filter(Boolean)));
-      let listingsById = {};
-      if (listingIds.length){
-        const { data: listings, error: listErr } = await supabase
-          .from('listings')
-          .select('id, title, image_url')
-          .in('id', listingIds);
-
-        if (!listErr && listings){
-          listingsById = Object.fromEntries(listings.map(l => [l.id, l]));
-        }
+      const rows = orders || [];
+      if(!rows.length){
+        state.textContent = "You haven’t sold anything yet.";
+        return;
       }
 
-      $root.innerHTML = '';
+      // Render
+      list.innerHTML = "";
+      rows.forEach(o => {
+        const listingHref = "listing.html?id=" + encodeURIComponent(o.listing_id || "");
+        const snap = o.listing_snapshot;
 
-      for (const o of orders){
-        const yards = getYardsFromOrder(o);
+        const qty = getQtyFromSnapshot(snap);
+        const title = o.listing_title || getTitleFromSnapshot(snap) || "Listing";
+        const img = o.listing_image_url || getImageFromSnapshot(snap) || "";
 
-        const itemsCents = Number(o.items_cents ?? o.total_cents ?? 0);
+        const itemsCents = (o.items_cents != null) ? Number(o.items_cents)
+                        : (o.total_cents != null) ? Number(o.total_cents)
+                        : null;
 
-        // Prefer stored shipping if present, otherwise compute from yards.
-        const storedShip = Number(o.shipping_cents ?? 0);
-        const shipCents = storedShip > 0 ? storedShip : computeShippingCentsFromYards(yards);
+        // If shipping_cents is missing/0, compute from qty so the seller sees what buyer paid in checkout
+        const shippingCentsStored = (o.shipping_cents != null) ? Number(o.shipping_cents) : 0;
+        const shippingCents = (shippingCentsStored && shippingCentsStored > 0)
+          ? shippingCentsStored
+          : shippingFromYards(qty);
 
-        const totalCents = Number(o.total_cents ?? (itemsCents + shipCents));
+        const totalCents = (o.total_cents != null)
+          ? Number(o.total_cents)
+          : ((itemsCents != null) ? (itemsCents + shippingCents) : null);
 
-        const title = o.listing_title || listingsById[o.listing_id]?.title || 'Listing';
-        const listingHref = o.listing_id ? `/listing.html?id=${encodeURIComponent(o.listing_id)}` : '#';
+        const status = (o.status || "PAID").toUpperCase();
+        const canCancel = (status === "PAID"); // keep simple for MVP
 
-        const img = getImageFromOrderOrListing(o, listingsById[o.listing_id]);
-        const buyer = o.buyer_email || '';
+        const buyerDisplay = maskEmail(o.buyer_email || "");
 
-        const canCancel = (o.status === 'PAID');
-
-        const row = document.createElement('div');
-        row.className = 'sale-row';
-
+        const row = document.createElement("div");
+        row.className = "sale-row";
         row.innerHTML = `
-          <div class="sale-left">
-            <a class="mini-tile" href="${listingHref}">
-              <div class="mini-img">
-                ${img ? `<img src="${img}" alt="">` : ``}
-              </div>
-              <div class="mini-meta">
-                <div class="mini-title">${escapeHtml(title)}</div>
-                <p class="mini-sub">Sold · ${escapeHtml(fmtDate(o.created_at))}</p>
-              </div>
-              <div class="mini-cta">
-                <div class="mini-pill">${escapeHtml(money(itemsCents))} for ${escapeHtml(String(yards))} yd</div>
-                <div class="mini-arrow" aria-hidden="true">›</div>
-              </div>
-            </a>
+          <a class="mini-link" href="${listingHref}" aria-label="View listing">
+            <div class="mini-thumb">
+              ${
+                img
+                  ? `<img src="${img}" alt="${title.replace(/"/g,"&quot;")}">`
+                  : `<div class="mini-fallback">HM</div>`
+              }
+            </div>
+          </a>
 
-            <div class="sale-details">
-              <div><b>Buyer:</b> ${buyer ? escapeHtml(buyer) : '—'}</div>
-              <div><b>Shipping:</b> ${escapeHtml(money(shipCents))} &nbsp;·&nbsp; <b>Total spent:</b> ${escapeHtml(money(totalCents))}</div>
+          <div class="sale-body">
+            <div class="sale-top">
+              <div class="sale-title">
+                <a href="${listingHref}">${title}</a>
+                <div class="meta-line">
+                  <span class="pill">${status}</span>
+                  ${qty != null ? `<span>${qty} yards</span>` : ""}
+                  <span>Sold · ${fmtDate(o.created_at)}</span>
+                  ${buyerDisplay ? `<span>Buyer: ${buyerDisplay}</span>` : ""}
+                </div>
+              </div>
+
+              <div class="amount">
+                <div class="big">
+                  ${ (itemsCents != null && qty != null) ? `${moneyFromCents(itemsCents)} for ${qty} yards` : (itemsCents != null ? moneyFromCents(itemsCents) : "") }
+                </div>
+                <div class="small">
+                  ${moneyFromCents(shippingCents)} shipping · ${totalCents != null ? moneyFromCents(totalCents) + " total" : ""}
+                </div>
+              </div>
             </div>
 
             <div class="actions">
-              <select class="cancel-reason" ${canCancel ? '' : 'disabled'}>
+              <button class="btn secondary" type="button" data-view="${listingHref}">View listing</button>
+
+              <select class="reason" ${canCancel ? "" : "disabled"} data-reason>
                 <option value="">Cancel reason…</option>
-                <option value="cannot_ship">Can’t ship within 5 business days</option>
-                <option value="listing_issue">Listing issue / inventory problem</option>
-                <option value="buyer_requested">Buyer requested cancellation</option>
+                <option value="out_of_stock">Out of stock / can’t fulfill</option>
+                <option value="shipping_issue">Shipping issue / can’t ship on time</option>
+                <option value="listing_error">Listing error</option>
+                <option value="buyer_request">Buyer requested cancel</option>
                 <option value="other">Other</option>
               </select>
-              <button class="primary cancel-btn" ${canCancel ? '' : 'disabled'}>Cancel order</button>
-            </div>
 
-            <div class="note">
-              ${canCancel ? 'Canceling marks the order as canceled (refund/Stripe flow can come later).' : `Status: ${escapeHtml(String(o.status || '—'))}`}
+              <button class="btn" type="button" ${canCancel ? "" : "disabled"} data-cancel>
+                Cancel order
+              </button>
+
+              <span class="note" data-note></span>
             </div>
           </div>
         `;
 
-        const $reason = row.querySelector('.cancel-reason');
-        const $btn = row.querySelector('.cancel-btn');
-
-        $btn?.addEventListener('click', async (e) => {
+        // Wire buttons
+        row.querySelector('[data-view]').addEventListener("click", (e) => {
           e.preventDefault();
-          const reason = ($reason?.value || '').trim();
-          if (!reason){
-            alert('Please select a cancel reason.');
+          window.location.href = listingHref;
+        });
+
+        const cancelBtn = row.querySelector("[data-cancel]");
+        const reasonSel = row.querySelector("[data-reason]");
+        const noteEl    = row.querySelector("[data-note]");
+
+        async function doCancel(){
+          setToast("", "");
+          const reason = (reasonSel?.value || "").trim();
+          if(!reason){
+            setToast("err", "Pick a cancel reason first.");
             return;
           }
 
-          $btn.disabled = true;
-          try{
-            const { error: updErr } = await supabase
-              .from('orders')
-              .update({
-                status: 'CANCELED',
-                cancel_reason: reason,
-                canceled_at: new Date().toISOString()
-              })
-              .eq('id', o.id)
-              .eq('seller_id', user.id);
+          cancelBtn.disabled = true;
+          reasonSel.disabled = true;
+          noteEl.textContent = "Cancelling…";
 
-            if (updErr) throw updErr;
-            await loadSales();
-          }catch(err){
-            console.error(err);
-            alert(err?.message || 'Failed to cancel order.');
-            $btn.disabled = false;
+          // Try to update order status (RLS must allow seller update)
+          const { error: upErr } = await supabaseClient
+            .from("orders")
+            .update({
+              status: "CANCELED",
+              cancel_reason: reason,
+              canceled_at: new Date().toISOString()
+            })
+            .eq("id", o.id);
+
+          if(upErr){
+            console.error(upErr);
+            setToast("err", upErr.message || "Cancel failed.");
+            cancelBtn.disabled = false;
+            reasonSel.disabled = false;
+            noteEl.textContent = "";
+            return;
           }
-        });
 
-        $root.appendChild(row);
-      }
+          setToast("ok", "Order canceled.");
+          // refresh list
+          await loadSales();
+        }
+
+        cancelBtn.addEventListener("click", doCancel);
+
+        list.appendChild(row);
+      });
+
+      state.style.display = "none";
+      list.style.display = "grid";
     }
 
-    try{
-      await loadSales();
-    }catch(err){
-      console.error(err);
-      $root.innerHTML = `<div class="empty">Error loading sales: ${escapeHtml(err?.message || String(err))}</div>`;
-    }
+    document.addEventListener("DOMContentLoaded", loadSales);
   </script>
 </body>
 </html>
