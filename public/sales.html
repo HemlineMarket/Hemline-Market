@@ -12,148 +12,338 @@
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
   <style>
-    .sales-wrap{max-width:900px;margin:20px auto;padding:0 14px}
-    .sale-card{
-      display:grid;
-      grid-template-columns:96px 1fr;
-      gap:14px;
-      background:#fff;
-      border:1px solid #e5e7eb;
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#f4f4f7;
+      --hm-card:rgba(255,255,255,.96);
+    }
+    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:980px;margin:18px auto 28px;padding:0 12px}
+    h1{margin:10px 0 4px;font-size:32px}
+    .sub{color:var(--hm-muted);margin:0 0 14px}
+    .bar{display:flex;justify-content:space-between;align-items:center;margin:8px 0 14px;gap:12px;flex-wrap:wrap}
+    .pill{font-size:12px;color:#374151;background:#fff;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px}
+
+    .notice{
+      background:#fff;border:1px solid var(--hm-border);border-radius:12px;
+      padding:12px;color:#374151;display:none
+    }
+    .notice.error{border-color:#fecaca;background:#fff1f2;color:#7f1d1d;display:block}
+    .notice.ok{display:block}
+
+    .grid{display:grid;gap:12px}
+
+    .card{
+      background:var(--hm-card);
+      border:1px solid var(--hm-border);
       border-radius:12px;
       padding:12px;
-      margin-bottom:12px;
-    }
-    .sale-thumb{
-      width:96px;height:96px;
-      border-radius:10px;
+      display:grid;
+      grid-template-columns:110px 1fr;
+      gap:12px;
+      align-items:start;
       overflow:hidden;
-      background:#f3f4f6;
-      display:grid;place-items:center;
-      font-weight:700;color:#9ca3af;
     }
-    .sale-thumb img{width:100%;height:100%;object-fit:cover}
-    .sale-title{font-weight:700}
-    .sale-meta{font-size:13px;color:#6b7280}
-    .sale-right{margin-left:auto;text-align:right}
-    .sale-total{font-weight:700}
-    .sale-actions{margin-top:8px;display:flex;gap:8px}
-    .btn-small{
-      padding:6px 10px;
-      border-radius:8px;
-      font-size:13px;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      cursor:pointer;
+    .thumbLink{display:block;text-decoration:none;color:inherit}
+    .thumb{
+      width:110px;height:110px;border-radius:12px;overflow:hidden;
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      border:1px solid #eef2f7;
+      display:grid;place-items:center;
+    }
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .thumb .fallback{font-weight:800;color:#9ca3af;letter-spacing:.06em}
+
+    .row1{display:flex;gap:10px;align-items:flex-start}
+    .title{font-weight:800;font-size:15px}
+    .meta{font-size:13px;color:var(--hm-muted);margin-top:2px}
+    .right{margin-left:auto;text-align:right}
+    .total{font-weight:800}
+    .small{font-size:12px;color:var(--hm-muted);margin-top:2px}
+
+    .actions{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+    .select{
+      padding:8px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;
+      font-size:13px;min-width:220px;
+    }
+    .btn{
+      padding:8px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;
+      font-weight:700;font-size:13px;cursor:pointer;
     }
     .btn-danger{
-      background:#7f1d1d;
+      background:var(--hm-accent);
+      border-color:var(--hm-accent);
       color:#fff;
-      border-color:#7f1d1d;
+      padding:8px 10px;
+      font-size:13px;      /* smaller */
+      font-weight:700;
+    }
+
+    /* “mini link like browse” */
+    .miniLink{
+      display:inline-flex;align-items:center;gap:6px;
+      text-decoration:none;
+      color:#374151;
+      font-weight:700;
+      font-size:13px;
+      padding:7px 9px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      background:#fff;
+    }
+    .miniLink:hover{border-color:#d1d5db}
+    .miniIcon{
+      width:18px;height:18px;display:inline-grid;place-items:center;
+      border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb;
+      font-size:12px;line-height:1;
+    }
+
+    @media(max-width:640px){
+      .card{grid-template-columns:1fr}
+      .thumb{width:100%;height:180px}
+      .right{text-align:left;margin-left:0}
+      .row1{flex-wrap:wrap}
     }
   </style>
 </head>
 
 <body>
+  <!-- UNIVERSAL HEADER/FOOTER via hm-shell.js (keep this exactly like your other pages) -->
+  <div id="hm-shell-header"></div>
 
-<div id="hm-shell-header"></div>
+  <main class="wrap">
+    <div class="bar">
+      <div>
+        <h1>Your Sales</h1>
+        <p class="sub">Fabric buyers purchased from your listings.</p>
+      </div>
+      <div class="pill" id="statusPill">Loading…</div>
+    </div>
 
-<main class="sales-wrap">
-  <h1>Your Sales</h1>
-  <p class="muted">Fabric buyers purchased from your listings.</p>
+    <div id="msg" class="notice"></div>
+    <div id="list" class="grid"></div>
+  </main>
 
-  <div id="sales"></div>
-</main>
+  <div id="hm-shell-footer"></div>
 
-<div id="hm-shell-footer"></div>
+  <!-- ✅ Use the same working Supabase CDN approach as browse.html -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/hm-shell.js"></script>
 
-<!-- Supabase CDN ONLY -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="scripts/hm-shell.js"></script>
+  <script>
+    // Render shell (restores header/footer/menu exactly like your other pages)
+    window.HM && window.HM.renderShell({ currentPage: "sales" });
 
-<script>
-  window.HM && window.HM.renderShell({ currentPage: "sales" });
+    // ✅ ONE client. No scripts/supabase-client.js here. No imports. No window.supabaseClient dependency.
+    const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
+      window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+      )
+    );
 
-  const supabase = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "YOUR_PUBLIC_ANON_KEY"
-  );
+    const elList = document.getElementById("list");
+    const elMsg  = document.getElementById("msg");
+    const elPill = document.getElementById("statusPill");
 
-  async function loadSales(){
-    const { data: { user } } = await supabase.auth.getUser();
-    if(!user) return;
+    function showMsg(text, kind){
+      elMsg.style.display = "block";
+      elMsg.className = "notice " + (kind === "error" ? "error" : "ok");
+      elMsg.textContent = text;
+    }
+    function clearMsg(){ elMsg.style.display = "none"; elMsg.textContent = ""; }
 
-    const { data, error } = await supabase
-      .from("orders")
-      .select(`
-        id,
-        created_at,
-        buyer_email,
-        items_cents,
-        shipping_cents,
-        status,
-        listing:listings (
-          id,
-          title,
-          image_url_1,
-          yards_available
-        )
-      `)
-      .eq("seller_id", user.id)
-      .order("created_at", { ascending:false });
-
-    if(error){
-      console.error(error);
-      document.getElementById("sales").textContent = "Error loading sales.";
-      return;
+    function money(cents){
+      const v = (Number(cents || 0) / 100);
+      return v.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+    function fmtDate(iso){
+      try{ return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); }
+      catch(e){ return ""; }
     }
 
-    const root = document.getElementById("sales");
-    root.innerHTML = "";
+    // Use snapshot qty if available; fallback 1
+    function getQty(order){
+      try{
+        const q = order?.listing_snapshot?.items?.[0]?.qty;
+        const n = Number(q);
+        return Number.isFinite(n) && n > 0 ? n : 1;
+      }catch(e){
+        return 1;
+      }
+    }
 
-    data.forEach(o=>{
-      const card = document.createElement("div");
-      card.className = "sale-card";
+    function listingHref(listingId){
+      return "listing.html?id=" + encodeURIComponent(listingId);
+    }
 
-      const shipped = o.status === "shipped";
+    // Shipping: show the actual order.shipping_cents if present;
+    // if 0/missing, fall back to policy estimate based on qty yards.
+    function shippingFromPolicy(qtyYards){
+      const y = Number(qtyYards || 0);
+      if(y > 0 && y < 3) return 500;
+      if(y >= 3 && y <= 10) return 800;
+      if(y > 10) return 1400;
+      return 0;
+    }
 
-      card.innerHTML = `
-        <div class="sale-thumb">
-          ${o.listing?.image_url_1
-            ? `<img src="${o.listing.image_url_1}">`
-            : "Fabric"}
-        </div>
+    async function loadSales(){
+      clearMsg();
+      elList.innerHTML = "";
+      elPill.textContent = "Checking session…";
 
-        <div>
-          <div class="sale-title">${o.listing?.title || "Listing"}</div>
-          <div class="sale-meta">
-            ${o.items_cents/100} for ${o.listing?.yards_available || ""} yards ·
-            Sold ${new Date(o.created_at).toLocaleDateString()}
+      // ✅ Avoid /auth/v1/user 401 spam: use getSession()
+      const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
+      if(sessErr){
+        console.error(sessErr);
+        elPill.textContent = "Not ready";
+        showMsg("Session error. Please refresh.", "error");
+        return;
+      }
+
+      const user = sessData?.session?.user;
+      if(!user){
+        elPill.textContent = "Not signed in";
+        showMsg("Please sign in to view your sales.", "error");
+        return;
+      }
+
+      elPill.textContent = "Signed in";
+
+      // ✅ Only select columns that exist (your screenshot shows these exist)
+      const { data: orders, error: ordErr } = await supabaseClient
+        .from("orders")
+        .select("id, created_at, status, seller_id, buyer_email, listing_id, total_cents, items_cents, shipping_cents, listing_snapshot")
+        .eq("seller_id", user.id)
+        .order("created_at", { ascending:false });
+
+      if(ordErr){
+        console.error(ordErr);
+        elPill.textContent = "Error";
+        showMsg("Error loading sales. Check orders RLS for seller read.", "error");
+        return;
+      }
+
+      const list = orders || [];
+      if(!list.length){
+        elPill.textContent = "0 sales";
+        showMsg("No sales yet.", "ok");
+        return;
+      }
+
+      elPill.textContent = list.length === 1 ? "1 sale" : `${list.length} sales`;
+
+      // Best effort: fetch listing thumbnails/titles
+      const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
+      const listingMap = {};
+      if(ids.length){
+        const { data: listings, error: lErr } = await supabaseClient
+          .from("listings")
+          .select("id, title, image_url_1")
+          .in("id", ids);
+
+        if(!lErr && listings){
+          listings.forEach(l => listingMap[l.id] = l);
+        } else {
+          console.warn("Listing fetch failed (non-fatal):", lErr);
+        }
+      }
+
+      list.forEach(order => {
+        const listing = listingMap[order.listing_id] || null;
+
+        const qty = getQty(order);
+        const title = (listing?.title) || (order?.listing_snapshot?.listing_title) || "Listing";
+        const img = (listing?.image_url_1) || (order?.listing_snapshot?.image_url_1) || "";
+
+        const itemsCents = (order.items_cents != null ? Number(order.items_cents) :
+                           order.total_cents != null ? Number(order.total_cents) : 0);
+
+        const shipRaw = Number(order.shipping_cents || 0);
+        const shipCents = shipRaw > 0 ? shipRaw : shippingFromPolicy(qty);
+
+        // ✅ Don’t mask the buyer email (you explicitly said it was wrong to hide it)
+        const buyerEmail = order.buyer_email || "";
+
+        // ✅ Cancel should only exist before shipped.
+        // You don’t have shipped_at (your console showed it doesn’t exist), so use status.
+        const status = String(order.status || "").toUpperCase();
+        const isShipped = (status === "SHIPPED" || status === "DELIVERED");
+        const canCancel = !isShipped && (status === "PAID" || status === "PENDING" || status === "");
+
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+          <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
+            <div class="thumb">
+              ${img ? `<img src="${img}" alt="">` : `<div class="fallback">HM</div>`}
+            </div>
+          </a>
+
+          <div>
+            <div class="row1">
+              <div>
+                <div class="title">${title}</div>
+                <div class="meta">
+                  ${status ? `<span class="pill" style="padding:2px 8px;margin-right:6px">${status}</span>` : ""}
+                  ${qty} ${qty === 1 ? "yard" : "yards"} · Sold · ${fmtDate(order.created_at)}
+                  ${buyerEmail ? ` · Buyer: ${buyerEmail}` : ""}
+                </div>
+              </div>
+
+              <div class="right">
+                <div class="total">${money(itemsCents)} for ${qty} ${qty === 1 ? "yard" : "yards"}</div>
+                ${shipCents ? `<div class="small">${money(shipCents)} shipping</div>` : ""}
+              </div>
+            </div>
+
+            <div class="actions">
+              <!-- mini link like browse: clear, compact -->
+              <a class="miniLink" href="${listingHref(order.listing_id)}" aria-label="View listing">
+                <span class="miniIcon">↗</span>
+                <span>Listing</span>
+              </a>
+
+              ${
+                canCancel ? `
+                  <select class="select" data-cancel-reason>
+                    <option value="">Cancel reason…</option>
+                    <option value="out_of_stock">Out of stock</option>
+                    <option value="cannot_ship">Cannot ship in time</option>
+                    <option value="buyer_requested">Buyer requested cancel</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <button class="btn btn-danger" data-cancel-btn>Cancel</button>
+                ` : `
+                  <span class="pill">Cancel disabled after shipped</span>
+                `
+              }
+            </div>
           </div>
-          <div class="sale-meta">
-            Buyer: ${o.buyer_email}
-          </div>
+        `;
 
-          <div class="sale-actions">
-            ${
-              !shipped
-                ? `<button class="btn-small btn-danger">Cancel</button>`
-                : ""
+        // Cancel wiring: if you already have an RPC/endpoint, hook it here.
+        const cancelBtn = card.querySelector("[data-cancel-btn]");
+        if(cancelBtn){
+          cancelBtn.addEventListener("click", async () => {
+            const reason = card.querySelector("[data-cancel-reason]")?.value || "";
+            if(!reason){
+              alert("Please select a cancel reason.");
+              return;
             }
-          </div>
-        </div>
+            alert("Cancel flow not wired yet. Reason: " + reason);
+          });
+        }
 
-        <div class="sale-right">
-          <div class="sale-total">$${(o.items_cents/100).toFixed(2)}</div>
-          <div class="sale-meta">Shipping $${(o.shipping_cents/100).toFixed(2)}</div>
-        </div>
-      `;
+        elList.appendChild(card);
+      });
+    }
 
-      root.appendChild(card);
-    });
-  }
-
-  loadSales();
-</script>
-
+    loadSales();
+  </script>
 </body>
 </html>
