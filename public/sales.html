@@ -65,7 +65,7 @@
       padding:12px;
     }
 
-    /* Sales card layout (mini “listing” link like Browse) */
+    /* Sales card */
     .sale-card{
       background:var(--hm-card);
       border:1px solid var(--hm-border);
@@ -73,7 +73,6 @@
       overflow:hidden;
       display:grid;
       grid-template-columns:140px 1fr;
-      gap:0;
       margin:10px 0;
     }
     @media (max-width:640px){
@@ -87,6 +86,7 @@
       background:linear-gradient(180deg,#f8fafc,#eef2f7);
       border-right:1px solid var(--hm-border);
       min-height:110px;
+      position:relative;
     }
     .thumb{
       width:100%;
@@ -98,12 +98,40 @@
       width:100%;
       height:100%;
       min-height:110px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      color:#6b7280;
+      user-select:none;
+      padding:10px;
+      text-align:center;
+    }
+    .thumb-fallback .icon{
+      width:44px;
+      height:44px;
+      border-radius:12px;
+      background:#fff;
+      border:1px solid var(--hm-border);
       display:grid;
       place-items:center;
-      color:#9ca3af;
+      font-size:20px;
+    }
+    .thumb-fallback .label{
       font-weight:800;
-      letter-spacing:.08em;
-      user-select:none;
+      letter-spacing:.02em;
+      font-size:12px;
+      color:#374151;
+    }
+    .thumb-fallback .sub{
+      font-size:11px;
+      color:var(--hm-muted);
+      line-height:1.2;
+      max-width:120px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
     }
 
     .sale-body{
@@ -168,6 +196,7 @@
       border-radius:999px;
     }
     .pill.paid{ background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
+    .pill.shipped{ background:#ecfdf5; border-color:#bbf7d0; color:#065f46; }
     .pill.refunded{ background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
     .pill.canceled{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }
 
@@ -179,30 +208,39 @@
       margin-top:4px;
     }
     select{
-      padding:9px 10px;
+      padding:8px 10px;
       border:1px solid var(--hm-border);
       border-radius:10px;
       background:#fff;
       font-size:13px;
       min-width:220px;
+      height:36px;
     }
     .btn{
-      padding:9px 12px;
+      padding:7px 10px;
       border-radius:10px;
       border:1px solid var(--hm-border);
       background:#fff;
       color:#111827;
       font-weight:800;
       cursor:pointer;
+      height:36px;
+      font-size:13px;
     }
     .btn-danger{
       border-color:var(--hm-accent);
       background:var(--hm-accent);
       color:#fff;
     }
-    .btn[disabled]{
-      opacity:.6;
+    .btn[disabled], select[disabled]{
+      opacity:.55;
       cursor:not-allowed;
+    }
+
+    .note{
+      font-size:12px;
+      color:var(--hm-muted);
+      margin-top:2px;
     }
 
     .empty{
@@ -252,7 +290,6 @@
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    // Render shared header + footer
     window.HM && window.HM.renderShell({ currentPage: "sales" });
   </script>
 
@@ -279,6 +316,9 @@
     const elSigned= document.getElementById("signedInLine");
     const elCount = document.getElementById("countLine");
 
+    // listing_id -> { image_url_1, title }
+    const listingMeta = new Map();
+
     function moneyFromCents(c){
       if(c == null || !Number.isFinite(Number(c))) return null;
       return (Number(c)/100).toLocaleString("en-US", { style:"currency", currency:"USD" });
@@ -293,17 +333,6 @@
       }
     }
 
-    function maskEmail(email){
-      if(!email || typeof email !== "string") return "—";
-      const at = email.indexOf("@");
-      if(at <= 1) return "—";
-      const name = email.slice(0, at);
-      const domain = email.slice(at);
-      const keep = Math.min(2, name.length);
-      return name.slice(0, keep) + "•••" + domain;
-    }
-
-    // qty (yards) from snapshot: items[0].qty
     function getQtyFromSnapshot(snap){
       try{
         if(!snap) return null;
@@ -324,7 +353,7 @@
       return "";
     }
 
-    // If shipping is missing/0, compute from policy (not “fake”, it’s your published policy)
+    // Shipping policy fallback (only used when stored shipping is missing/0)
     function shippingByPolicy(qty){
       if(qty == null || !Number.isFinite(Number(qty))) return null;
       const y = Number(qty);
@@ -336,9 +365,20 @@
     function statusClass(s){
       const v = String(s || "").toUpperCase();
       if(v === "PAID") return "paid";
+      if(v === "SHIPPED") return "shipped";
       if(v === "REFUNDED") return "refunded";
       if(v === "CANCELED" || v === "CANCELLED") return "canceled";
       return "";
+    }
+
+    // Cancel should only be available before shipped.
+    function isShipped(o){
+      const st = String(o.status || "").toUpperCase();
+      if(st === "SHIPPED" || st === "DELIVERED" || st === "COMPLETED") return true;
+      // allow future schema without breaking:
+      if(o.shipped_at) return true;
+      if(o.tracking_number) return true;
+      return false;
     }
 
     function clearUI(){
@@ -351,19 +391,16 @@
 
     async function cancelOrder(orderId, reason){
       if(!orderId) return;
-
-      // Require a real reason (no silent cancels)
       if(!reason){
         alert("Please choose a cancellation reason first.");
         return;
       }
 
-      // Best-effort update (your schema may or may not have cancel_reason)
       const patch = {
         status: "CANCELED",
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        cancel_reason: reason
       };
-      patch.cancel_reason = reason;
 
       const { error } = await supabaseClient
         .from("orders")
@@ -378,50 +415,66 @@
       await loadSales();
     }
 
+    async function fetchListingMeta(listingIds){
+      const ids = Array.from(new Set((listingIds || []).filter(Boolean)));
+      const missing = ids.filter(id => !listingMeta.has(id));
+      if(!missing.length) return;
+
+      const { data, error } = await supabaseClient
+        .from("listings")
+        .select("id, title, image_url_1")
+        .in("id", missing);
+
+      if(error){
+        console.warn("Could not fetch listing meta:", error);
+        return;
+      }
+      (data || []).forEach(l => listingMeta.set(l.id, { title: l.title || "", image_url_1: l.image_url_1 || "" }));
+    }
+
     function renderSaleRow(o){
       const listingId = o.listing_id;
       const href = listingId ? ("listing.html?id=" + encodeURIComponent(listingId)) : "#";
 
       const snap = o.listing_snapshot || null;
-      const thumb = getThumbFromSnapshot(snap);
       const qty = getQtyFromSnapshot(snap);
+
+      // Thumb: snapshot -> listings table -> fallback tile
+      const snapThumb = getThumbFromSnapshot(snap);
+      const meta = listingId ? (listingMeta.get(listingId) || {}) : {};
+      const thumb = snapThumb || meta.image_url_1 || "";
+
+      const title = o.listing_title || meta.title || "Untitled listing";
 
       const itemsCents = (o.items_cents != null ? Number(o.items_cents) : null);
       const storedShip = (o.shipping_cents != null ? Number(o.shipping_cents) : null);
       const totalCents = (o.total_cents != null ? Number(o.total_cents) : null);
 
-      // Shipping display:
-      // - Prefer stored shipping_cents
-      // - If missing/0, compute from policy so seller UI matches your published shipping tiers
+      // Shipping display: prefer stored shipping, otherwise policy fallback (but DO NOT label it “policy”)
       let shipCents = storedShip;
-      let shipNote = "";
       if((shipCents == null || shipCents === 0) && qty != null){
         shipCents = shippingByPolicy(qty);
-        shipNote = " (policy)";
       }
 
-      // Total spent:
-      // If total_cents missing, derive = items + ship (policy if needed)
+      // Total spent: prefer stored total, otherwise derive.
       let spentCents = totalCents;
       if(spentCents == null && itemsCents != null){
         spentCents = itemsCents + (shipCents || 0);
       }
 
-      const title = o.listing_title || "Untitled listing";
-      const pill = String(o.status || "").toUpperCase() || "—";
-      const pillCls = statusClass(pill);
+      const st = String(o.status || "").toUpperCase() || "—";
+      const pillCls = statusClass(st);
 
       const rightBig = (spentCents != null && qty != null)
         ? `${moneyFromCents(spentCents)} for ${qty} yards`
         : (spentCents != null ? moneyFromCents(spentCents) : "—");
 
       const shipLine = (shipCents != null)
-        ? `${moneyFromCents(shipCents)} shipping${shipNote}`
+        ? `${moneyFromCents(shipCents)} shipping`
         : `Shipping: —`;
 
-      const buyerLine = `Buyer: ${maskEmail(o.buyer_email)}`;
-
-      const canCancel = pill === "PAID";
+      const shipped = isShipped(o);
+      const canCancel = (st === "PAID") && !shipped;
 
       const card = document.createElement("article");
       card.className = "sale-card";
@@ -430,7 +483,13 @@
           ${
             thumb
               ? `<img class="thumb" src="${thumb}" alt="">`
-              : `<div class="thumb-fallback" aria-hidden="true"></div>`
+              : `
+                <div class="thumb-fallback" aria-hidden="true">
+                  <div class="icon">📦</div>
+                  <div class="label">Listing</div>
+                  <div class="sub">${(title || "").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+                </div>
+              `
           }
         </a>
 
@@ -439,10 +498,11 @@
             <div style="min-width:0">
               <p class="title"><a href="${href}">${title}</a></p>
               <div class="meta">
-                <span class="pill ${pillCls}">${pill}</span>
+                <span class="pill ${pillCls}">${st}</span>
+                ${shipped ? `<span class="pill shipped">SHIPPED</span>` : ``}
                 ${qty != null ? `<span>${qty} yards</span>` : ``}
                 <span>Sold · ${formatDate(o.created_at)}</span>
-                <span>${buyerLine}</span>
+                <span>Buyer: ${o.buyer_email || "—"}</span>
               </div>
             </div>
 
@@ -452,26 +512,33 @@
             </div>
           </div>
 
-          <div class="actions">
-            <select data-cancel-reason ${canCancel ? "" : "disabled"}>
-              <option value="">Cancel reason…</option>
-              <option value="Out of stock">Out of stock</option>
-              <option value="Cannot ship in time">Cannot ship in time</option>
-              <option value="Item damaged / incorrect">Item damaged / incorrect</option>
-              <option value="Buyer requested cancel">Buyer requested cancel</option>
-              <option value="Other">Other</option>
-            </select>
+          ${
+            canCancel
+              ? `
+                <div class="actions">
+                  <select data-cancel-reason>
+                    <option value="">Cancel reason…</option>
+                    <option value="Out of stock">Out of stock</option>
+                    <option value="Cannot ship in time">Cannot ship in time</option>
+                    <option value="Item damaged / incorrect">Item damaged / incorrect</option>
+                    <option value="Buyer requested cancel">Buyer requested cancel</option>
+                    <option value="Other">Other</option>
+                  </select>
 
-            <button class="btn btn-danger" data-cancel-btn ${canCancel ? "" : "disabled"}>
-              Cancel order
-            </button>
-          </div>
+                  <button class="btn btn-danger" data-cancel-btn>Cancel order</button>
+                </div>
+                <div class="note">Cancel is available until the order is marked shipped.</div>
+              `
+              : ``
+          }
         </div>
       `;
 
-      const sel = card.querySelector("[data-cancel-reason]");
-      const btn = card.querySelector("[data-cancel-btn]");
-      btn.addEventListener("click", () => cancelOrder(o.id, sel.value));
+      if(canCancel){
+        const sel = card.querySelector("[data-cancel-reason]");
+        const btn = card.querySelector("[data-cancel-btn]");
+        btn.addEventListener("click", () => cancelOrder(o.id, sel.value));
+      }
 
       return card;
     }
@@ -492,18 +559,15 @@
 
       elSigned.textContent = "Signed in";
 
-      // IMPORTANT: seller view uses seller_id = current user
+      // Seller view uses seller_id = current user
       const { data, error } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, seller_id, buyer_email, buyer_id, listing_id, listing_title, items_cents, shipping_cents, total_cents, listing_snapshot")
+        .select("id, created_at, status, shipped_at, tracking_number, seller_id, buyer_email, buyer_id, listing_id, listing_title, items_cents, shipping_cents, total_cents, listing_snapshot")
         .eq("seller_id", user.id)
         .order("created_at", { ascending:false });
 
       if(error){
         console.error("Sales load error:", error);
-
-        // Most common: 401/permission due to RLS not allowing the seller to read orders.
-        // This page won’t “fake” anything—so show the real error state.
         elErr.style.display = "block";
         elErr.textContent = "Error loading sales. (Check orders RLS for seller read, and confirm you are signed in.)";
         return;
@@ -516,6 +580,9 @@
         elEmpty.style.display = "block";
         return;
       }
+
+      // Fill in thumbnails/titles (so the left block actually looks like a listing)
+      await fetchListingMeta(rows.map(r => r.listing_id));
 
       const frag = document.createDocumentFragment();
       rows.forEach(o => frag.appendChild(renderSaleRow(o)));
