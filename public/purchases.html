@@ -7,116 +7,201 @@
 
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
-  <!-- Shared styles (universal stack) -->
+  <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
   <style>
-    :root{
-      --hm-accent:#991b1b;
-      --hm-text:#111827;
-      --hm-muted:#6b7280;
-      --hm-border:#e5e7eb;
-      --hm-bg:#f4f4f7;
-      --hm-card:#ffffff;
-    }
+    main{max-width:900px;margin:24px auto;padding:0 14px}
+    h1{font-size:22px;margin-bottom:14px}
 
-    html, body{
-      margin:0;
-      background:var(--hm-bg);
-      color:var(--hm-text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      -webkit-font-smoothing:antialiased;
-    }
-
-    .wrap{
-      max-width:1100px;
-      margin:18px auto 28px;
-      padding:0 12px;
-    }
-
-    .page-head{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:10px;
-    }
-    .page-head h1{
-      margin:0;
-      font-size:34px;
-      line-height:1.15;
-      letter-spacing:-0.02em;
-    }
-    .sub{
-      margin:6px 0 0;
-      color:var(--hm-muted);
-      font-size:13px;
-    }
-    .status-pill{
-      align-self:center;
-      font-size:12px;
-      color:#6b7280;
-    }
-
-    .panel{
-      background:var(--hm-card);
+    .order-card{
+      background:#fff;
       border:1px solid var(--hm-border);
       border-radius:14px;
       padding:14px;
-      box-shadow:0 1px 0 rgba(0,0,0,.02);
+      margin-bottom:12px;
     }
 
-    #ordersList{
+    .order-top{
       display:flex;
-      flex-direction:column;
-      gap:10px;
+      justify-content:space-between;
+      font-size:13px;
+      color:var(--hm-muted);
+      margin-bottom:6px;
+    }
+
+    .purchase-items{
+      margin-top:6px;
+    }
+
+    .purchase-items .name{
+      font-weight:700;
+      font-size:14px;
+    }
+
+    .purchase-spec{
+      font-size:13px;
+      color:var(--hm-muted);
+      margin-top:2px;
+      margin-bottom:4px;
+    }
+
+    a.view-link{
+      display:inline-block;
+      margin-top:4px;
+      padding:5px 10px;
+      font-size:13px;
+      font-weight:600;
+      border:1px solid var(--hm-border);
+      border-radius:999px;
+      text-decoration:none;
+      color:#111;
     }
 
     .empty{
+      text-align:center;
       color:var(--hm-muted);
-      font-size:14px;
-      padding:18px 12px;
+      margin-top:60px;
     }
   </style>
 </head>
-
 <body>
-  <!-- UNIVERSAL HEADER (injected by hm-shell.js) -->
-  <div id="hm-shell-header"></div>
 
-  <main class="wrap">
-    <div class="page-head">
-      <div>
-        <h1>Your Purchases</h1>
-        <p class="sub">Fabric you’ve purchased on Hemline Market.</p>
+<div id="hm-shell-header"></div>
+
+<main>
+  <h1>Your Purchases</h1>
+  <div id="ordersList"></div>
+  <div id="emptyState" class="empty" style="display:none">
+    You haven’t purchased anything yet.
+  </div>
+</main>
+
+<div id="hm-shell-footer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scripts/hm-shell.js"></script>
+
+<script>
+window.HM && window.HM.renderShell({ currentPage:"purchases" });
+
+(async ()=>{
+  const supabase = window.HM?.supabase;
+  if(!supabase) return;
+
+  const list  = document.getElementById("ordersList");
+  const empty = document.getElementById("emptyState");
+
+  const { data:{ session } } = await supabase.auth.getSession();
+  if(!session?.user){
+    location.href = "auth.html?view=login";
+    return;
+  }
+
+  const uid   = session.user.id;
+  const email = session.user.email;
+
+  /* 🔑 THIS IS THE FIX:
+     Query by buyer_id OR buyer_email
+     This is why past purchases now appear.
+  */
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
+    .order("created_at",{ ascending:false });
+
+  if(error){
+    console.error(error);
+    empty.style.display="block";
+    empty.textContent="Unable to load purchases.";
+    return;
+  }
+
+  if(!data || data.length===0){
+    empty.style.display="block";
+    return;
+  }
+
+  list.innerHTML="";
+  empty.style.display="none";
+
+  data.forEach(o=>{
+    const snap = o.listing_snapshot || {};
+    const items = snap.items || [];
+    const first = items[0] || {};
+
+    const title =
+      o.listing_title ||
+      first.title ||
+      "Fabric purchase";
+
+    // Fabric spec (display-only)
+    const content =
+      first.content ||
+      first.fiber_content ||
+      "";
+    const width =
+      first.width ||
+      first.width_inches ||
+      first.width_in ||
+      "";
+
+    let specText="";
+    if(content && width){
+      specText = `${content} · ${width} wide`;
+    } else if(content){
+      specText = content;
+    } else if(width){
+      specText = `${width} wide`;
+    }
+
+    const specHtml = specText
+      ? `<div class="purchase-spec">${specText}</div>`
+      : "";
+
+    const totalCents = Number(
+      o.total_cents ??
+      o.amount_total_cents ??
+      0
+    );
+
+    const money = (totalCents/100).toLocaleString("en-US",{
+      style:"currency",
+      currency:o.currency || "USD"
+    });
+
+    const card = document.createElement("div");
+    card.className="order-card";
+
+    card.innerHTML = `
+      <div class="order-top">
+        <span>Order ${String(o.id).slice(0,8)}</span>
+        <span>${new Date(o.created_at).toLocaleDateString()}</span>
       </div>
-      <div class="status-pill" id="pageStatus"></div>
-    </div>
 
-    <section class="panel">
-      <div id="emptyState" class="empty">Loading…</div>
-      <div id="ordersList"></div>
-    </section>
-  </main>
+      <div class="purchase-items">
+        <div><span class="name">${title}</span></div>
+        ${specHtml}
+        ${
+          o.listing_id
+            ? `<a class="view-link" href="listing.html?id=${o.listing_id}">View listing</a>`
+            : ""
+        }
+      </div>
 
-  <!-- UNIVERSAL FOOTER (injected by hm-shell.js) -->
-  <div id="hm-shell-footer"></div>
+      <div class="purchase-spec">
+        Total: ${money}
+      </div>
+    `;
 
-  <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    list.appendChild(card);
+  });
+})();
+</script>
 
-  <!-- Shared shell (universal header/footer + session) -->
-  <script src="scripts/hm-shell.js"></script>
-  <script>
-    window.HM && window.HM.renderShell({ currentPage: "purchases" });
-    const s = document.getElementById("pageStatus");
-    if (s) s.textContent = "Signed in";
-  </script>
-
-  <!-- ✅ Purchases logic (THIS WAS MISSING) -->
-  <script src="scripts/purchases.js" defer></script>
 </body>
 </html>
