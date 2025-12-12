@@ -1,10 +1,10 @@
 // public/scripts/purchases.js
-// Purchases page — robust buyer matching (buyer_id first, then buyer_email fallback), Sales-style cards
+// Purchases page — loads buyer history (by buyer_id OR buyer_email) + compact cards
 
 (async () => {
   const supabase = window.HM?.supabase;
   if (!supabase) {
-    console.error("[purchases] Supabase not found on window.HM");
+    console.error("[purchases] Supabase client missing (window.HM.supabase).");
     return;
   }
 
@@ -14,11 +14,9 @@
   const empty = document.getElementById("emptyState");
 
   if (!list || !empty) {
-    console.error("[purchases] Missing DOM nodes (#ordersList/#purchasesList or #emptyState)");
+    console.error("[purchases] Missing #ordersList/#purchasesList or #emptyState");
     return;
   }
-
-  /* ---------- helpers ---------- */
 
   const money = (cents) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -26,11 +24,7 @@
     );
 
   const dateLabel = (d) =>
-    new Date(d).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   const statusLabel = (s) => {
     const map = {
@@ -39,35 +33,33 @@
       SHIPPED: "Shipped",
       CANCELED: "Canceled",
       REFUNDED: "Refunded",
-      BUYER_CANCELED: "Canceled",
-      SELLER_CANCELED: "Canceled",
     };
     return map[String(s || "").toUpperCase()] || String(s || "");
   };
 
-  const getQty = (order) => {
-    const items = order?.listing_snapshot?.items;
-    if (Array.isArray(items) && items.length) {
-      const sum = items.reduce((acc, it) => acc + (Number(it?.qty) || 0), 0);
-      return sum > 0 ? sum : null;
-    }
-    return null;
+  const canBuyerCancel = (order) => {
+    const st = String(order?.status || "").toUpperCase();
+    if (!(st === "PAID" || st === "PENDING")) return false;
+
+    const createdAt = order?.created_at ? new Date(order.created_at) : null;
+    if (!createdAt) return false;
+
+    // 30-minute cancellation window
+    return Date.now() - createdAt.getTime() <= 30 * 60 * 1000;
   };
 
   const getCentsBreakdown = (order) => {
     const total = Number(order?.total_cents) || 0;
-    const shippingRaw = Number(order?.shipping_cents);
-    const shippingCents = Number.isFinite(shippingRaw) ? shippingRaw : 0;
+    const shipping = Number(order?.shipping_cents);
+    const shippingCents = Number.isFinite(shipping) ? shipping : 0;
     const itemsCents = Math.max(0, total - shippingCents);
     return { itemsCents, shippingCents, totalCents: total };
   };
 
-  /* ---------- session ---------- */
-
-  const { data: sess, error: sessErr } = await supabase.auth.getSession();
-  if (sessErr) console.warn("[purchases] session error", sessErr);
-
+  // -------- session --------
+  const { data: sess } = await supabase.auth.getSession();
   const session = sess?.session;
+
   if (!session?.user) {
     window.location.href = "auth.html?view=login";
     return;
@@ -76,96 +68,80 @@
   const uid = session.user.id;
   const email = (session.user.email || "").trim();
 
-  /* ---------- load orders (2-pass, no OR syntax) ---------- */
-
-  // Keep select minimal + compatible with your sales schema
-  const selectCols = `
-    id,
-    status,
-    created_at,
-    total_cents,
-    shipping_cents,
-    listing_id,
-    listing_title,
-    listing_image_url,
-    listing_snapshot,
-    seller_id,
-    buyer_id,
-    buyer_email
-  `;
-
-  // Pass 1: buyer_id match
-  let orders = [];
-  {
-    const { data, error } = await supabase
-      .from("orders")
-      .select(selectCols)
-      .eq("buyer_id", uid)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("[purchases] load error (buyer_id)", error);
-      empty.style.display = "block";
-      empty.textContent = "Unable to load purchases.";
-      return;
-    }
-    orders = data || [];
+  // -------- load orders (IMPORTANT: buyer_id OR buyer_email) --------
+  // This is the key fix that makes old orders show even if buyer_id was null at purchase time.
+  const orParts = [`buyer_id.eq.${uid}`];
+  if (email) {
+    // ilike needs wildcard-safe value; email is fine as-is for exact match.
+    orParts.push(`buyer_email.ilike.${email}`);
   }
 
-  // Pass 2: buyer_email fallback (case-insensitive) if pass 1 returned none
-  if (orders.length === 0 && email) {
-    const { data, error } = await supabase
-      .from("orders")
-      .select(selectCols)
-      .ilike("buyer_email", email)
-      .order("created_at", { ascending: false });
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select(
+      `
+      id,
+      status,
+      created_at,
+      total_cents,
+      shipping_cents,
+      seller_id,
+      seller_email,
+      listing_id,
+      listing_title,
+      listing_image_url
+    `
+    )
+    .or(orParts.join(","))
+    .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("[purchases] load error (buyer_email)", error);
-      empty.style.display = "block";
-      empty.textContent = "Unable to load purchases.";
-      return;
-    }
-    orders = data || [];
+  if (error) {
+    console.error("[purchases] load error", error);
+    empty.style.display = "block";
+    empty.textContent = "Unable to load purchases.";
+    list.innerHTML = "";
+    return;
   }
-
-  // De-dupe by id (in case you later add both matches)
-  const seen = new Set();
-  orders = orders.filter((o) => {
-    const id = String(o?.id || "");
-    if (!id) return false;
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-
-  /* ---------- render ---------- */
-
-  list.innerHTML = "";
-
-  // Tiny debug line so we stop guessing who is logged in
-  const debug = document.createElement("div");
-  debug.style.margin = "0 0 10px";
-  debug.style.fontSize = "12px";
-  debug.style.color = "#6b7280";
-  debug.textContent = `Signed in as: ${email || "unknown email"} · ${uid.slice(0, 8)}…`;
-  list.appendChild(debug);
 
   if (!orders || orders.length === 0) {
     empty.style.display = "block";
     empty.textContent = "You haven’t purchased anything yet.";
+    list.innerHTML = "";
     return;
   }
 
   empty.style.display = "none";
+  list.innerHTML = "";
 
+  // -------- cancel (buyer-side) --------
+  async function buyerCancel(orderId) {
+    const payload = {
+      status: "CANCELED",
+      canceled_at: new Date().toISOString(),
+      canceled_by: uid,
+      cancel_reason: "Buyer canceled within 30 minutes.",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: cancelErr } = await supabase
+      .from("orders")
+      .update(payload)
+      .eq("id", orderId)
+      // allow cancel only if this buyer matches (either id or email)
+      .or(`buyer_id.eq.${uid}${email ? `,buyer_email.ilike.${email}` : ""}`);
+
+    if (cancelErr) {
+      console.error("[purchases] cancel error", cancelErr);
+      alert("Cancel failed. Please try again.");
+      return false;
+    }
+    return true;
+  }
+
+  // -------- render --------
   orders.forEach((o) => {
-    const qty = getQty(o);
     const { itemsCents, shippingCents, totalCents } = getCentsBreakdown(o);
-
-    const listingHref = o.listing_id
-      ? `listing.html?id=${encodeURIComponent(o.listing_id)}`
-      : null;
+    const listingHref = o.listing_id ? `listing.html?id=${encodeURIComponent(o.listing_id)}` : null;
 
     const card = document.createElement("div");
     card.className = "order-card";
@@ -173,7 +149,7 @@
     card.style.gap = "14px";
     card.style.alignItems = "center";
 
-    // Whole-row click to listing
+    // Whole-row click to listing (if known)
     if (listingHref) {
       card.style.cursor = "pointer";
       card.tabIndex = 0;
@@ -204,10 +180,6 @@
     const mid = document.createElement("div");
     mid.style.flex = "1";
 
-    const browseLine = qty
-      ? `${money(itemsCents)} for ${qty} yards`
-      : `Total: ${money(totalCents)}`;
-
     mid.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px">
         ${
@@ -225,16 +197,20 @@
                  style="margin-left:auto;color:#6b7280;text-decoration:none;font-weight:700">
                  View listing ›
                </a>`
-            : ""
+            : `<span style="margin-left:auto;color:#9ca3af">—</span>`
         }
       </div>
 
-      <div style="font-size:13px;color:#6b7280;margin-top:2px">${browseLine}</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:2px">
+        ${money(itemsCents)} + ${money(shippingCents)} shipping
+      </div>
+
       <div style="font-size:13px;color:#6b7280">
         ${statusLabel(o.status)} · ${dateLabel(o.created_at)}
       </div>
+
       <div style="font-size:12px;color:#9ca3af;margin-top:2px">
-        Shipping: ${money(shippingCents)} · Total: ${money(totalCents)}
+        Total spent: ${money(totalCents)}
       </div>
 
       <div class="actions" style="margin-top:10px" data-no-nav="1"></div>
@@ -242,18 +218,56 @@
 
     const actions = mid.querySelector(".actions");
 
-    // Message seller
+    // Message seller (if seller_id present)
     if (o.seller_id) {
       const msg = document.createElement("a");
       msg.href =
         `messages.html?user=${encodeURIComponent(o.seller_id)}` +
         `&order=${encodeURIComponent(o.id)}`;
       msg.textContent = "Message seller";
+      msg.setAttribute("data-no-nav", "1");
+      msg.style.display = "inline-flex";
+      msg.style.alignItems = "center";
+      msg.style.justifyContent = "center";
+      msg.style.height = "32px";
+      msg.style.padding = "0 12px";
+      msg.style.borderRadius = "8px";
+      msg.style.border = "1px solid #e5e7eb";
+      msg.style.background = "#fff";
       msg.style.fontWeight = "700";
       msg.style.fontSize = "13px";
       msg.style.textDecoration = "none";
-      msg.style.color = "#6b7280";
+      msg.style.color = "#111827";
       actions.appendChild(msg);
+    }
+
+    // Buyer cancel (30 min window)
+    if (canBuyerCancel(o)) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Cancel order";
+      btn.setAttribute("data-no-nav", "1");
+      btn.style.marginLeft = actions.children.length ? "8px" : "0";
+      btn.style.height = "32px";
+      btn.style.padding = "0 12px";
+      btn.style.borderRadius = "8px";
+      btn.style.border = "1px solid #e5e7eb";
+      btn.style.background = "#fff";
+      btn.style.fontWeight = "700";
+      btn.style.fontSize = "13px";
+      btn.style.cursor = "pointer";
+
+      btn.onclick = async () => {
+        if (!confirm("Cancel this order? This can’t be undone.")) return;
+        btn.disabled = true;
+
+        const ok = await buyerCancel(o.id);
+        if (ok) location.reload();
+
+        btn.disabled = false;
+      };
+
+      actions.appendChild(btn);
     }
 
     card.appendChild(mid);
