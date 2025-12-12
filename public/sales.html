@@ -22,13 +22,11 @@
       --hm-bg:#f4f4f7;
       --hm-card:rgba(255,255,255,.96);
     }
-    html,body{
-      margin:0;
-      background:var(--hm-bg);
-      color:var(--hm-text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-    }
-    .wrap{max-width:1100px;margin:18px auto;padding:0 12px}
+    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;}
+    .wrap{max-width:1100px;margin:18px auto 28px;padding:0 12px;}
+    .sub{color:var(--hm-muted);margin-top:4px}
+    .topline{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .smallmuted{font-size:12px;color:var(--hm-muted)}
     .sale-card{
       background:var(--hm-card);
       border:1px solid var(--hm-border);
@@ -36,166 +34,236 @@
       display:grid;
       grid-template-columns:140px 1fr;
       overflow:hidden;
-      margin-bottom:12px;
+      margin:12px 0;
     }
-    .thumb-link{
-      display:block;
-      background:#f1f5f9;
-      border-right:1px solid var(--hm-border);
-    }
-    .thumb{width:100%;height:100%;object-fit:cover}
+    .thumb-link{display:block;background:#f1f5f9;border-right:1px solid var(--hm-border);text-decoration:none}
+    .thumb{width:100%;height:100%;object-fit:cover;display:block}
     .thumb-fallback{
       height:100%;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      gap:6px;
-      color:#6b7280;
-      font-size:12px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:6px;color:#6b7280;font-size:12px;padding:10px;text-align:center;
     }
-    .sale-body{padding:12px;display:flex;flex-direction:column;gap:6px}
-    .toprow{display:flex;justify-content:space-between;gap:10px}
-    .title{font-weight:800;font-size:14px;margin:0}
+    .sale-body{padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+    .toprow{display:flex;justify-content:space-between;gap:12px}
+    .title{font-weight:800;font-size:14px;margin:0;min-width:0}
     .title a{color:inherit;text-decoration:none}
-    .meta{font-size:12px;color:var(--hm-muted);display:flex;gap:10px;flex-wrap:wrap}
-    .pill{
-      font-size:11px;font-weight:800;
-      padding:2px 8px;border-radius:999px;
-      border:1px solid var(--hm-border);background:#f3f4f6;
-    }
+    .title a:hover{text-decoration:underline}
+    .meta{font-size:12px;color:var(--hm-muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid var(--hm-border);background:#f3f4f6}
     .pill.paid{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
-    .rightmeta{text-align:right;font-size:12px}
+    .rightmeta{text-align:right;font-size:12px;white-space:nowrap}
     .rightmeta .big{font-weight:900;font-size:14px}
-    .actions{display:flex;gap:10px;margin-top:6px}
-    select,button{
-      height:36px;border-radius:10px;font-size:13px
-    }
-    select{border:1px solid var(--hm-border);padding:0 10px}
+    .actions{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+    select,button{height:36px;border-radius:10px;font-size:13px}
+    select{border:1px solid var(--hm-border);padding:0 10px;min-width:220px}
     .btn-danger{
-      background:var(--hm-accent);
-      color:#fff;border:1px solid var(--hm-accent);
-      padding:0 12px;font-weight:800
+      background:var(--hm-accent);color:#fff;border:1px solid var(--hm-accent);
+      padding:0 12px;font-weight:800;cursor:pointer;
     }
+    .btn-danger[disabled]{opacity:.6;cursor:not-allowed}
     .error{
       background:#fff;border:1px solid #fecaca;
-      padding:10px;border-radius:12px;color:#991b1b
+      padding:10px;border-radius:12px;color:#991b1b;margin-top:10px;white-space:pre-wrap
+    }
+    .empty{color:var(--hm-muted);padding:14px 0}
+    @media (max-width:680px){
+      .sale-card{grid-template-columns:1fr}
+      .thumb-link{border-right:0;border-bottom:1px solid var(--hm-border);height:160px}
+      .rightmeta{text-align:left}
+      .toprow{flex-direction:column}
+      select{min-width:0;width:100%}
     }
   </style>
 </head>
 <body>
 
-<div id="hm-shell-header"></div>
+  <!-- UNIVERSAL HEADER -->
+  <div id="hm-shell-header"></div>
 
-<main class="wrap">
-  <h1>Your Sales</h1>
-  <p class="hm-muted">Fabric buyers purchased from your listings.</p>
+  <main class="wrap">
+    <div class="topline">
+      <div>
+        <h1 style="margin:0">Your Sales</h1>
+        <div class="sub">Fabric buyers purchased from your listings.</div>
+      </div>
+      <div class="smallmuted" id="statusLine">Loading…</div>
+    </div>
 
-  <div id="salesList"></div>
-  <div id="err" class="error" style="display:none"></div>
-</main>
+    <div id="salesList"></div>
+    <div id="empty" class="empty" style="display:none">No sales yet.</div>
+    <div id="err" class="error" style="display:none"></div>
+  </main>
 
-<div id="hm-shell-footer"></div>
+  <!-- UNIVERSAL FOOTER -->
+  <div id="hm-shell-footer"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="scripts/hm-shell.js"></script>
-<script>
-  window.HM && window.HM.renderShell({ currentPage:"sales" });
-</script>
+  <!-- IMPORTANT: use your existing client bootstrap (avoids CSP + duplicate clients) -->
+  <script src="scripts/supabase-client.js"></script>
+  <script src="scripts/hm-shell.js"></script>
+  <script>
+    window.HM && window.HM.renderShell({ currentPage:"sales" });
+  </script>
 
-<script>
-  const supabaseClient = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "YOUR_ANON_KEY"
-  );
+  <script>
+    const list = document.getElementById("salesList");
+    const err  = document.getElementById("err");
+    const emptyEl = document.getElementById("empty");
+    const statusLine = document.getElementById("statusLine");
 
-  const list = document.getElementById("salesList");
-  const err  = document.getElementById("err");
+    const money = (c) => "$" + ((Number(c)||0)/100).toFixed(2);
 
-  const money = c => "$" + (c/100).toFixed(2);
-
-  function isShipped(o){
-    return ["SHIPPED","DELIVERED","COMPLETED"].includes(
-      String(o.status||"").toUpperCase()
-    );
-  }
-
-  async function loadSales(){
-    const { data:session } = await supabaseClient.auth.getSession();
-    if(!session?.session?.user){
-      err.style.display="block";
-      err.textContent="You are not signed in.";
-      return;
+    function showError(message, extra){
+      err.style.display = "block";
+      err.textContent = extra ? (message + "\n\n" + extra) : message;
     }
 
-    const { data, error } = await supabaseClient
-      .from("orders")
-      .select(`
-        id, created_at, status,
-        buyer_email,
-        listing_id, listing_title,
-        items_cents, shipping_cents, total_cents,
-        listing_snapshot
-      `)
-      .eq("seller_id", session.session.user.id)
-      .order("created_at",{ascending:false});
-
-    if(error){
-      err.style.display="block";
-      err.textContent="Error loading sales.";
-      console.error(error);
-      return;
+    function isShipped(order){
+      // No shipped_at column. Treat shipped states as shipped.
+      const s = String(order.status || "").toUpperCase();
+      return ["SHIPPED","DELIVERED","COMPLETED"].includes(s);
     }
 
-    list.innerHTML="";
+    function safeQty(order){
+      // Prefer snapshot qty if present; fallback to 1.
+      const snap = order.listing_snapshot || {};
+      const q = snap?.items?.[0]?.qty;
+      const n = Number(q);
+      return Number.isFinite(n) && n > 0 ? n : 1;
+    }
 
-    data.forEach(o=>{
-      const snap = o.listing_snapshot || {};
-      const qty = snap?.items?.[0]?.qty ?? "";
-      const img = snap.image_url || "";
-      const shipped = isShipped(o);
+    function safeImage(order){
+      const snap = order.listing_snapshot || {};
+      return snap.image_url || snap.image_url_1 || "";
+    }
 
-      const card = document.createElement("article");
-      card.className="sale-card";
-      card.innerHTML = `
-        <a class="thumb-link" href="listing.html?id=${o.listing_id}">
-          ${img ? `<img class="thumb" src="${img}">`
-          : `<div class="thumb-fallback">📦<div>${o.listing_title}</div></div>`}
-        </a>
-        <div class="sale-body">
-          <div class="toprow">
-            <div>
-              <p class="title"><a href="listing.html?id=${o.listing_id}">${o.listing_title}</a></p>
-              <div class="meta">
-                <span class="pill paid">${o.status}</span>
-                <span>${qty} yards</span>
-                <span>Buyer: ${o.buyer_email}</span>
+    async function loadSales(){
+      err.style.display = "none";
+      emptyEl.style.display = "none";
+      list.innerHTML = "";
+      statusLine.textContent = "Loading…";
+
+      const supabaseClient = window.supabaseClient || window.supabase;
+      if(!supabaseClient){
+        statusLine.textContent = "Not ready";
+        showError("Supabase client not found. Make sure scripts/supabase-client.js loads and sets window.supabaseClient.");
+        return;
+      }
+
+      const { data: { user }, error: userErr } = await supabaseClient.auth.getUser();
+      if(userErr){
+        statusLine.textContent = "Signed out";
+        showError("Could not read session.", userErr.message || String(userErr));
+        return;
+      }
+      if(!user){
+        statusLine.textContent = "Signed out";
+        showError("You are not signed in.");
+        return;
+      }
+
+      statusLine.textContent = "Signed in";
+
+      // Seller view: orders where seller_id == current user
+      const { data, error } = await supabaseClient
+        .from("orders")
+        .select("id, created_at, status, buyer_email, listing_id, listing_title, items_cents, shipping_cents, total_cents, listing_snapshot")
+        .eq("seller_id", user.id)
+        .order("created_at", { ascending:false });
+
+      if(error){
+        statusLine.textContent = "Error";
+        showError(
+          "Error loading sales.",
+          (error.message || "") + (error.details ? ("\n" + error.details) : "")
+        );
+        console.error(error);
+        return;
+      }
+
+      const rows = data || [];
+      statusLine.textContent = rows.length === 1 ? "1 sale" : `${rows.length} sales`;
+
+      if(!rows.length){
+        emptyEl.style.display = "block";
+        return;
+      }
+
+      rows.forEach(o=>{
+        const qty = safeQty(o);
+        const img = safeImage(o);
+        const shipped = isShipped(o);
+
+        const card = document.createElement("article");
+        card.className = "sale-card";
+
+        card.innerHTML = `
+          <a class="thumb-link" href="listing.html?id=${encodeURIComponent(o.listing_id || "")}" aria-label="View listing">
+            ${
+              img
+                ? `<img class="thumb" src="${img}" alt="">`
+                : `<div class="thumb-fallback">📦<div><strong>${o.listing_title || "Listing"}</strong></div><div>View listing</div></div>`
+            }
+          </a>
+
+          <div class="sale-body">
+            <div class="toprow">
+              <div style="min-width:0">
+                <p class="title">
+                  <a href="listing.html?id=${encodeURIComponent(o.listing_id || "")}">${o.listing_title || "Untitled listing"}</a>
+                </p>
+                <div class="meta">
+                  <span class="pill paid">${o.status || "PAID"}</span>
+                  <span>${qty} yards</span>
+                  <span>Buyer: ${o.buyer_email || "—"}</span>
+                  <span>Sold: ${new Date(o.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <div class="rightmeta">
+                <div class="big">${money(o.total_cents)} for ${qty} yards</div>
+                <div>${money(o.shipping_cents)} shipping</div>
               </div>
             </div>
-            <div class="rightmeta">
-              <div class="big">${money(o.total_cents)} for ${qty} yards</div>
-              <div>${money(o.shipping_cents)} shipping</div>
-            </div>
+
+            ${
+              (!shipped && String(o.status||"").toUpperCase()==="PAID")
+                ? `
+                  <div class="actions">
+                    <select data-order="${o.id}">
+                      <option value="">Cancel reason…</option>
+                      <option value="out_of_stock">Out of stock</option>
+                      <option value="cannot_ship">Cannot ship in time</option>
+                      <option value="buyer_requested">Buyer requested cancel</option>
+                    </select>
+                    <button class="btn-danger" data-cancel="${o.id}" disabled>Cancel order</button>
+                  </div>
+                `
+                : ``
+            }
           </div>
+        `;
 
-          ${(!shipped && o.status==="PAID") ? `
-            <div class="actions">
-              <select>
-                <option value="">Cancel reason…</option>
-                <option>Out of stock</option>
-                <option>Cannot ship in time</option>
-                <option>Buyer requested cancel</option>
-              </select>
-              <button class="btn-danger">Cancel order</button>
-            </div>
-          ` : ``}
-        </div>
-      `;
-      list.appendChild(card);
-    });
-  }
+        list.appendChild(card);
+      });
 
-  loadSales();
-</script>
+      // Enable cancel only when reason selected (no SQL / no backend cancel yet)
+      list.querySelectorAll('select[data-order]').forEach(sel=>{
+        const id = sel.getAttribute("data-order");
+        const btn = list.querySelector(`button[data-cancel="${id}"]`);
+        if(!btn) return;
+
+        sel.addEventListener("change", ()=>{
+          btn.disabled = !sel.value;
+        });
+
+        btn.addEventListener("click", ()=>{
+          // Placeholder: UI only. Real cancel flow should update orders.status + refund logic later.
+          alert("Cancel flow not wired yet. This will be implemented with a secure server-side refund/cancel step.");
+        });
+      });
+    }
+
+    loadSales();
+  </script>
 </body>
 </html>
