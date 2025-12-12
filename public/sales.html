@@ -6,8 +6,10 @@
   <title>Your Sales — Hemline Market</title>
 
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
-  <!-- Shared styles -->
+  <!-- Shared styles (universal stack) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
@@ -16,265 +18,511 @@
   <style>
     :root{
       --hm-accent:#991b1b;
-      --hm-border:#e5e7eb;
-      --hm-muted:#6b7280;
       --hm-text:#111827;
+      --hm-muted:#6b7280;
+      --hm-border:#e5e7eb;
       --hm-bg:#f4f4f7;
+      --hm-card:rgba(255,255,255,.96);
     }
-
     html,body{
       margin:0;
       background:var(--hm-bg);
       color:var(--hm-text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
     }
 
-    main{
+    .wrap{
       max-width:1100px;
-      margin:24px auto 40px;
-      padding:0 14px;
+      margin:18px auto 28px;
+      padding:0 12px;
     }
 
-    h1{
-      font-size:24px;
-      margin:0 0 4px;
+    .page-title{
+      font-size:28px;
+      margin:6px 0 4px;
     }
-
-    .sub{
+    .page-sub{
       color:var(--hm-muted);
-      margin-bottom:18px;
+      margin:0 0 14px;
+      font-size:13px;
     }
 
-    .sale-card{
+    .statusline{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin:6px 0 14px;
+      color:var(--hm-muted);
+      font-size:12px;
+    }
+
+    .panel{
       background:#fff;
       border:1px solid var(--hm-border);
-      border-radius:14px;
-      padding:14px;
-      display:grid;
-      grid-template-columns:96px 1fr auto;
-      gap:14px;
-      align-items:center;
+      border-radius:12px;
+      padding:12px;
     }
 
-    .sale-thumb-link{
+    /* Sales card layout (mini “listing” link like Browse) */
+    .sale-card{
+      background:var(--hm-card);
+      border:1px solid var(--hm-border);
+      border-radius:14px;
+      overflow:hidden;
+      display:grid;
+      grid-template-columns:140px 1fr;
+      gap:0;
+      margin:10px 0;
+    }
+    @media (max-width:640px){
+      .sale-card{ grid-template-columns:110px 1fr; }
+    }
+
+    .thumb-link{
       display:block;
       text-decoration:none;
+      color:inherit;
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      border-right:1px solid var(--hm-border);
+      min-height:110px;
     }
-
-    .sale-thumb{
-      width:96px;
-      height:96px;
-      border-radius:10px;
-      overflow:hidden;
-      background:#f3f4f6;
-      border:1px solid var(--hm-border);
-      display:grid;
-      place-items:center;
-    }
-
-    .sale-thumb img{
+    .thumb{
       width:100%;
       height:100%;
+      display:block;
       object-fit:cover;
     }
-
-    .sale-thumb-placeholder{
+    .thumb-fallback{
       width:100%;
       height:100%;
-      background:linear-gradient(180deg,#f9fafb,#e5e7eb);
+      min-height:110px;
+      display:grid;
+      place-items:center;
+      color:#9ca3af;
+      font-weight:800;
+      letter-spacing:.08em;
+      user-select:none;
     }
 
-    .sale-main{
+    .sale-body{
+      padding:10px 12px 12px;
       display:flex;
       flex-direction:column;
       gap:6px;
       min-width:0;
     }
 
-    .sale-title{
-      font-weight:700;
-      font-size:15px;
+    .toprow{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+      min-width:0;
+    }
+    .title{
+      font-weight:800;
+      font-size:14px;
+      margin:0;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     }
+    .title a{
+      color:inherit;
+      text-decoration:none;
+    }
+    .title a:hover{ text-decoration:underline; }
 
-    .sale-meta{
-      font-size:13px;
+    .rightmeta{
+      text-align:right;
+      flex:0 0 auto;
+      white-space:nowrap;
+    }
+    .rightmeta .big{
+      font-weight:900;
+      font-size:14px;
+    }
+    .rightmeta .small{
       color:var(--hm-muted);
+      font-size:12px;
+      margin-top:2px;
+    }
+
+    .meta{
       display:flex;
       flex-wrap:wrap;
       gap:10px;
+      color:var(--hm-muted);
+      font-size:12px;
+      align-items:center;
     }
-
     .pill{
       font-size:11px;
-      font-weight:700;
-      padding:2px 8px;
-      border-radius:999px;
+      font-weight:800;
+      border:1px solid var(--hm-border);
       background:#f3f4f6;
       color:#374151;
+      padding:2px 8px;
+      border-radius:999px;
     }
+    .pill.paid{ background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
+    .pill.refunded{ background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
+    .pill.canceled{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }
 
-    .sale-actions{
+    .actions{
       display:flex;
-      flex-direction:column;
-      gap:8px;
-      align-items:flex-end;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-top:4px;
     }
-
-    .price{
-      font-weight:700;
-      text-align:right;
-      font-size:14px;
-    }
-
-    .muted{
-      font-size:12px;
-      color:var(--hm-muted);
-      text-align:right;
-    }
-
     select{
-      padding:7px 10px;
+      padding:9px 10px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      background:#fff;
+      font-size:13px;
+      min-width:220px;
+    }
+    .btn{
+      padding:9px 12px;
       border-radius:10px;
       border:1px solid var(--hm-border);
       background:#fff;
-      font-size:13px;
+      color:#111827;
+      font-weight:800;
+      cursor:pointer;
     }
-
-    .danger-btn{
-      padding:8px 12px;
-      border-radius:10px;
-      border:1px solid var(--hm-accent);
+    .btn-danger{
+      border-color:var(--hm-accent);
       background:var(--hm-accent);
       color:#fff;
-      font-weight:700;
-      cursor:pointer;
+    }
+    .btn[disabled]{
+      opacity:.6;
+      cursor:not-allowed;
+    }
+
+    .empty{
+      color:var(--hm-muted);
+      padding:14px 2px 0;
       font-size:13px;
     }
 
-    @media(max-width:720px){
-      .sale-card{
-        grid-template-columns:72px 1fr;
-        gap:12px;
-      }
-      .sale-actions{
-        grid-column:1 / -1;
-        flex-direction:row;
-        justify-content:space-between;
-        align-items:center;
-      }
-      .price,.muted{text-align:left;}
+    .error{
+      color:#991b1b;
+      background:#fff;
+      border:1px solid #fecaca;
+      padding:10px 12px;
+      border-radius:12px;
+      margin-top:10px;
+      font-size:13px;
     }
   </style>
 </head>
 <body>
 
-  <!-- Universal header -->
+  <!-- UNIVERSAL HEADER (injected by hm-shell.js) -->
   <div id="hm-shell-header"></div>
 
-  <main>
-    <h1>Your Sales</h1>
-    <div class="sub">Fabric buyers purchased from your listings.</div>
+  <main class="wrap">
+    <h1 class="page-title">Your Sales</h1>
+    <p class="page-sub">Fabric buyers purchased from your listings.</p>
 
-    <div id="salesList"></div>
+    <div class="statusline">
+      <div id="signedInLine">Checking sign-in…</div>
+      <div id="countLine"></div>
+    </div>
+
+    <section class="panel">
+      <div id="salesList"></div>
+      <div id="empty" class="empty" style="display:none;">You haven’t sold anything yet.</div>
+      <div id="err" class="error" style="display:none;"></div>
+    </section>
   </main>
 
-  <!-- Universal footer -->
+  <!-- UNIVERSAL FOOTER (injected by hm-shell.js) -->
   <div id="hm-shell-footer"></div>
 
-  <!-- Supabase -->
+  <!-- Supabase JS (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Shared shell (universal header/footer + menu + header session) -->
   <script src="scripts/hm-shell.js"></script>
 
   <script>
+    // Render shared header + footer
     window.HM && window.HM.renderShell({ currentPage: "sales" });
   </script>
 
   <script>
-    const supabase = window.supabase.createClient(
-      "https://clkizksbvxjkoatdajgd.supabase.co",
-      "YOUR_PUBLIC_ANON_KEY"
-    );
+    // ---- Supabase client (single instance) ----
+    const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 
-    function money(cents){
-      return (cents/100).toLocaleString("en-US",{style:"currency",currency:"USD"});
+    const supabaseClient = (window.__hmSupabase ||= window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY,
+      {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      }
+    ));
+
+    const elList  = document.getElementById("salesList");
+    const elEmpty = document.getElementById("empty");
+    const elErr   = document.getElementById("err");
+    const elSigned= document.getElementById("signedInLine");
+    const elCount = document.getElementById("countLine");
+
+    function moneyFromCents(c){
+      if(c == null || !Number.isFinite(Number(c))) return null;
+      return (Number(c)/100).toLocaleString("en-US", { style:"currency", currency:"USD" });
+    }
+
+    function formatDate(iso){
+      try{
+        const d = new Date(iso);
+        return d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
+      }catch(_){
+        return "";
+      }
+    }
+
+    function maskEmail(email){
+      if(!email || typeof email !== "string") return "—";
+      const at = email.indexOf("@");
+      if(at <= 1) return "—";
+      const name = email.slice(0, at);
+      const domain = email.slice(at);
+      const keep = Math.min(2, name.length);
+      return name.slice(0, keep) + "•••" + domain;
+    }
+
+    // qty (yards) from snapshot: items[0].qty
+    function getQtyFromSnapshot(snap){
+      try{
+        if(!snap) return null;
+        const items = snap.items;
+        if(Array.isArray(items) && items[0] && items[0].qty != null){
+          const q = Number(items[0].qty);
+          return Number.isFinite(q) ? q : null;
+        }
+      }catch(_){}
+      return null;
+    }
+
+    function getThumbFromSnapshot(snap){
+      try{
+        if(!snap) return "";
+        return snap.image_url || snap.image_url_1 || snap.photo || "";
+      }catch(_){}
+      return "";
+    }
+
+    // If shipping is missing/0, compute from policy (not “fake”, it’s your published policy)
+    function shippingByPolicy(qty){
+      if(qty == null || !Number.isFinite(Number(qty))) return null;
+      const y = Number(qty);
+      if(y < 3) return 500;
+      if(y <= 10) return 800;
+      return 1400;
+    }
+
+    function statusClass(s){
+      const v = String(s || "").toUpperCase();
+      if(v === "PAID") return "paid";
+      if(v === "REFUNDED") return "refunded";
+      if(v === "CANCELED" || v === "CANCELLED") return "canceled";
+      return "";
+    }
+
+    function clearUI(){
+      elErr.style.display = "none";
+      elErr.textContent = "";
+      elEmpty.style.display = "none";
+      elList.innerHTML = "";
+      elCount.textContent = "";
+    }
+
+    async function cancelOrder(orderId, reason){
+      if(!orderId) return;
+
+      // Require a real reason (no silent cancels)
+      if(!reason){
+        alert("Please choose a cancellation reason first.");
+        return;
+      }
+
+      // Best-effort update (your schema may or may not have cancel_reason)
+      const patch = {
+        status: "CANCELED",
+        updated_at: new Date().toISOString()
+      };
+      patch.cancel_reason = reason;
+
+      const { error } = await supabaseClient
+        .from("orders")
+        .update(patch)
+        .eq("id", orderId);
+
+      if(error){
+        console.error("Cancel failed:", error);
+        alert("Cancel failed. Check RLS/policies for updating orders.");
+        return;
+      }
+      await loadSales();
+    }
+
+    function renderSaleRow(o){
+      const listingId = o.listing_id;
+      const href = listingId ? ("listing.html?id=" + encodeURIComponent(listingId)) : "#";
+
+      const snap = o.listing_snapshot || null;
+      const thumb = getThumbFromSnapshot(snap);
+      const qty = getQtyFromSnapshot(snap);
+
+      const itemsCents = (o.items_cents != null ? Number(o.items_cents) : null);
+      const storedShip = (o.shipping_cents != null ? Number(o.shipping_cents) : null);
+      const totalCents = (o.total_cents != null ? Number(o.total_cents) : null);
+
+      // Shipping display:
+      // - Prefer stored shipping_cents
+      // - If missing/0, compute from policy so seller UI matches your published shipping tiers
+      let shipCents = storedShip;
+      let shipNote = "";
+      if((shipCents == null || shipCents === 0) && qty != null){
+        shipCents = shippingByPolicy(qty);
+        shipNote = " (policy)";
+      }
+
+      // Total spent:
+      // If total_cents missing, derive = items + ship (policy if needed)
+      let spentCents = totalCents;
+      if(spentCents == null && itemsCents != null){
+        spentCents = itemsCents + (shipCents || 0);
+      }
+
+      const title = o.listing_title || "Untitled listing";
+      const pill = String(o.status || "").toUpperCase() || "—";
+      const pillCls = statusClass(pill);
+
+      const rightBig = (spentCents != null && qty != null)
+        ? `${moneyFromCents(spentCents)} for ${qty} yards`
+        : (spentCents != null ? moneyFromCents(spentCents) : "—");
+
+      const shipLine = (shipCents != null)
+        ? `${moneyFromCents(shipCents)} shipping${shipNote}`
+        : `Shipping: —`;
+
+      const buyerLine = `Buyer: ${maskEmail(o.buyer_email)}`;
+
+      const canCancel = pill === "PAID";
+
+      const card = document.createElement("article");
+      card.className = "sale-card";
+      card.innerHTML = `
+        <a class="thumb-link" href="${href}" aria-label="Open listing">
+          ${
+            thumb
+              ? `<img class="thumb" src="${thumb}" alt="">`
+              : `<div class="thumb-fallback" aria-hidden="true"></div>`
+          }
+        </a>
+
+        <div class="sale-body">
+          <div class="toprow">
+            <div style="min-width:0">
+              <p class="title"><a href="${href}">${title}</a></p>
+              <div class="meta">
+                <span class="pill ${pillCls}">${pill}</span>
+                ${qty != null ? `<span>${qty} yards</span>` : ``}
+                <span>Sold · ${formatDate(o.created_at)}</span>
+                <span>${buyerLine}</span>
+              </div>
+            </div>
+
+            <div class="rightmeta">
+              <div class="big">${rightBig}</div>
+              <div class="small">${shipLine}</div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <select data-cancel-reason ${canCancel ? "" : "disabled"}>
+              <option value="">Cancel reason…</option>
+              <option value="Out of stock">Out of stock</option>
+              <option value="Cannot ship in time">Cannot ship in time</option>
+              <option value="Item damaged / incorrect">Item damaged / incorrect</option>
+              <option value="Buyer requested cancel">Buyer requested cancel</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <button class="btn btn-danger" data-cancel-btn ${canCancel ? "" : "disabled"}>
+              Cancel order
+            </button>
+          </div>
+        </div>
+      `;
+
+      const sel = card.querySelector("[data-cancel-reason]");
+      const btn = card.querySelector("[data-cancel-btn]");
+      btn.addEventListener("click", () => cancelOrder(o.id, sel.value));
+
+      return card;
     }
 
     async function loadSales(){
-      const wrap = document.getElementById("salesList");
-      wrap.innerHTML = "";
+      clearUI();
+      elSigned.textContent = "Checking sign-in…";
 
-      const { data, error } = await supabase
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      const user = sessionData?.session?.user;
+
+      if(!user){
+        elSigned.textContent = "Not signed in";
+        elEmpty.style.display = "block";
+        elEmpty.textContent = "Sign in to view your sales.";
+        return;
+      }
+
+      elSigned.textContent = "Signed in";
+
+      // IMPORTANT: seller view uses seller_id = current user
+      const { data, error } = await supabaseClient
         .from("orders")
-        .select(`
-          id,
-          created_at,
-          buyer_email,
-          total_cents,
-          shipping_cents,
-          listing_id,
-          listing_snapshot
-        `)
-        .order("created_at",{ascending:false});
+        .select("id, created_at, status, seller_id, buyer_email, buyer_id, listing_id, listing_title, items_cents, shipping_cents, total_cents, listing_snapshot")
+        .eq("seller_id", user.id)
+        .order("created_at", { ascending:false });
 
       if(error){
-        wrap.textContent = "Error loading sales.";
+        console.error("Sales load error:", error);
+
+        // Most common: 401/permission due to RLS not allowing the seller to read orders.
+        // This page won’t “fake” anything—so show the real error state.
+        elErr.style.display = "block";
+        elErr.textContent = "Error loading sales. (Check orders RLS for seller read, and confirm you are signed in.)";
         return;
       }
 
-      if(!data.length){
-        wrap.textContent = "No sales yet.";
+      const rows = data || [];
+      elCount.textContent = rows.length ? (rows.length === 1 ? "1 sale" : rows.length + " sales") : "";
+
+      if(!rows.length){
+        elEmpty.style.display = "block";
         return;
       }
 
-      data.forEach(o=>{
-        const snap = o.listing_snapshot || {};
-        const img  = snap.image_url_1 || "";
-        const title = snap.title || "Listing";
-        const yards = snap.qty || "";
-        const href = "listing.html?id=" + o.listing_id;
-
-        const card = document.createElement("div");
-        card.className = "sale-card";
-
-        card.innerHTML = `
-          <a class="sale-thumb-link" href="${href}">
-            <div class="sale-thumb">
-              ${img ? `<img src="${img}" alt="${title}">` : `<div class="sale-thumb-placeholder"></div>`}
-            </div>
-          </a>
-
-          <div class="sale-main">
-            <div class="sale-title">${title}</div>
-            <div class="sale-meta">
-              <span class="pill">PAID</span>
-              ${yards ? `<span>${yards} yards</span>` : ""}
-              <span>Sold · ${new Date(o.created_at).toLocaleDateString()}</span>
-              <span>Buyer: ${o.buyer_email}</span>
-            </div>
-          </div>
-
-          <div class="sale-actions">
-            <div class="price">${money(o.total_cents)} for ${yards} yards</div>
-            <div class="muted">${money(o.shipping_cents)} shipping · ${money(o.total_cents)} total</div>
-            <select>
-              <option>Cancel reason…</option>
-              <option>Buyer request</option>
-              <option>Out of stock</option>
-              <option>Damage discovered</option>
-            </select>
-            <button class="danger-btn">Cancel order</button>
-          </div>
-        `;
-
-        wrap.appendChild(card);
-      });
+      const frag = document.createDocumentFragment();
+      rows.forEach(o => frag.appendChild(renderSaleRow(o)));
+      elList.appendChild(frag);
     }
 
     document.addEventListener("DOMContentLoaded", loadSales);
   </script>
-
 </body>
 </html>
