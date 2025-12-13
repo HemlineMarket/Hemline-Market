@@ -3,25 +3,12 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-
-  <!-- FORCE CSP FOR THIS PAGE (fixes connect-src 'self' blocking Supabase) -->
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    base-uri 'self';
-    object-src 'none';
-    frame-ancestors 'none';
-    form-action 'self';
-    img-src 'self' data: https:;
-    style-src 'self' 'unsafe-inline' https:;
-    font-src 'self' data: https:;
-    script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';
-    connect-src 'self' https://*.supabase.co wss://*.supabase.co;
-  ">
-
   <title>Your Purchases — Hemline Market</title>
 
   <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
   <link rel="icon" href="/favicon.ico"/>
 
   <style>
@@ -33,142 +20,218 @@
       --hm-card:#ffffff;
     }
     html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-    .wrap{max-width:1120px;margin:0 auto;padding:18px 14px 50px}
-    .panel{background:#fff;border:1px solid var(--hm-border);border-radius:16px;overflow:hidden}
-    .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;border-bottom:1px solid var(--hm-border)}
+    .wrap{max-width:1180px;margin:0 auto;padding:18px 14px 40px}
+    .page-title{margin:10px 0 6px;font-size:28px;letter-spacing:-.02em}
+    .sub{margin:0 0 16px;color:var(--hm-muted)}
+    .layout{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:start}
+    @media (max-width: 920px){ .layout{grid-template-columns:1fr} .sidebar{display:none} }
+
+    .card{background:var(--hm-card);border:1px solid var(--hm-border);border-radius:16px;overflow:hidden}
+    .sidebar .sec{padding:12px 12px}
+    .sidebar h3{margin:0 0 10px;font-size:13px;color:var(--hm-muted);text-transform:uppercase;letter-spacing:.08em}
+    .nav a{display:flex;align-items:center;justify-content:space-between;padding:10px 10px;border-radius:12px;text-decoration:none;color:inherit}
+    .nav a:hover{background:#f3f4f6}
+    .nav .active{background:#eef2ff}
+    .nav small{color:var(--hm-muted);font-weight:600}
+
+    .main .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border-bottom:1px solid var(--hm-border)}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--hm-border);border-radius:999px;background:#fff;font-size:13px}
-    .btn{border:1px solid var(--hm-border);background:#fff;border-radius:12px;padding:10px 12px;font-weight:650;cursor:pointer}
+    .btn{border:1px solid var(--hm-border);background:#fff;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
     .btn:hover{border-color:#d1d5db}
-    .list{display:flex;flex-direction:column}
-    .row{display:flex;gap:12px;align-items:flex-start;padding:14px;border-top:1px solid var(--hm-border);text-decoration:none;color:inherit;background:#fff}
-    .thumb{width:54px;height:54px;border-radius:12px;background:#f3f4f6;border:1px solid var(--hm-border);flex:0 0 auto}
-    .title{font-weight:750;margin:0 0 4px;letter-spacing:-.01em}
-    .meta{color:var(--hm-muted);font-size:13px}
-    .price{margin-left:auto;font-weight:750;white-space:nowrap}
-    .err{display:none;padding:14px;background:#fff5f5;color:#991b1b;border-top:1px solid var(--hm-border);white-space:pre-wrap}
-    .empty{display:none;padding:16px;color:var(--hm-muted)}
-    /* simple header/footer (no JS) */
-    .hm-header{background:#fff;border-bottom:1px solid var(--hm-border)}
-    .hm-header .inner{max-width:1120px;margin:0 auto;padding:12px 14px;display:flex;align-items:center;justify-content:space-between}
-    .hm-brand{font-weight:850;letter-spacing:-.02em;text-decoration:none;color:inherit}
-    .hm-nav{display:flex;gap:12px;flex-wrap:wrap}
-    .hm-nav a{color:inherit;text-decoration:none;font-weight:650;font-size:14px;opacity:.85}
-    .hm-nav a:hover{opacity:1;text-decoration:underline}
-    .hm-footer{max-width:1120px;margin:28px auto 0;padding:0 14px;color:var(--hm-muted);font-size:13px}
-  </style>
-</head>
-<body>
 
-  <!-- HEADER (no JS) -->
-  <header class="hm-header">
-    <div class="inner">
-      <a class="hm-brand" href="/index.html">Hemline Market</a>
-      <nav class="hm-nav">
-        <a href="/browse.html">Browse</a>
-        <a href="/sell.html">Sell</a>
-        <a href="/cart.html">Cart</a>
-        <a href="/account.html">Account</a>
-      </nav>
-    </div>
-  </header>
-
-  <main class="wrap">
-    <h1 style="margin:14px 0 10px;">Your Purchases</h1>
-    <p style="margin:0 0 14px;color:var(--hm-muted);">Everything you’ve bought, pulled directly from Supabase.</p>
-
-    <section class="panel">
-      <div class="topbar">
-        <div>
-          <span class="pill" id="statusPill"><strong id="status">Signed out</strong></span>
-          <span class="pill"><strong id="count">0</strong> items</span>
-        </div>
-        <button class="btn" id="refreshBtn" type="button">Refresh</button>
-      </div>
-
-      <div id="list" class="list"></div>
-      <div id="empty" class="empty">No purchases yet.</div>
-      <div id="err" class="err"></div>
-    </section>
-
-    <!-- FOOTER (no JS) -->
-    <footer class="hm-footer">
-      © Hemline Market
-    </footer>
-  </main>
-
-  <script type="module">
-    import { supabase } from "/scripts/supabase-client.js";
-
-    const list = document.getElementById("list");
-    const empty = document.getElementById("empty");
-    const errBox = document.getElementById("err");
-    const status = document.getElementById("status");
-    const count = document.getElementById("count");
-    const refreshBtn = document.getElementById("refreshBtn");
-
-    const esc = (s) => String(s ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-
-    const money = (cents) =>
-      (Number(cents || 0) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
-
-    const showErr = (msg) => {
-      errBox.style.display = msg ? "block" : "none";
-      errBox.textContent = msg || "";
-    };
-
-    async function loadPurchases(){
-      showErr("");
-      list.innerHTML = "";
-      empty.style.display = "none";
-      count.textContent = "0";
-
-      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-      if (sessionErr) { showErr(sessionErr.message || String(sessionErr)); return; }
-
-      const session = sessionData?.session;
-      if (!session) { location.href = "/account.html"; return; }
-
-      status.textContent = "Signed in";
-
-      const { data, error } = await supabase
-        .from("purchases_feed")
-        .select("*")
-        .order("purchased_at", { ascending: false });
-
-      if (error) { showErr(error.message || String(error)); return; }
-
-      const rows = Array.isArray(data) ? data : [];
-      count.textContent = String(rows.length);
-
-      if (!rows.length) { empty.style.display = "block"; return; }
-
-      list.innerHTML = rows.map(r => {
-        const href = `/listing.html?id=${encodeURIComponent(r.listing_id)}`;
-        const title = esc(r.listing_title || "Listing");
-        const price = money(r.item_price_cents);
-        const orderShort = esc(String(r.order_id || "").slice(0,8));
-        const statusTxt = esc(String(r.listing_status || "").toUpperCase());
-        return `
-          <a class="row" href="${href}">
-            <div class="thumb"></div>
-            <div style="min-width:0;">
-              <div class="title">${title}</div>
-              <div class="meta">${statusTxt ? statusTxt + " • " : ""}Order ${orderShort}</div>
-            </div>
-            <div class="price">${esc(price)}</div>
-          </a>
-        `;
-      }).join("");
+    .searchRow{padding:12px 14px;border-bottom:1px solid var(--hm-border);display:flex;gap:10px;align-items:center}
+    .search{
+      width:100%;
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:14px;
+      outline:none;
+      background:#fff;
     }
 
-    refreshBtn.addEventListener("click", () => loadPurchases().catch(e => showErr(e?.message || String(e))));
+    .list{display:flex;flex-direction:column}
+    .row{display:flex;gap:12px;align-items:flex-start;padding:14px;border-top:1px solid var(--hm-border);text-decoration:none;color:inherit;background:#fff}
+    .row:hover{background:#fafafa}
+    .thumb{width:56px;height:56px;border-radius:12px;background:#f3f4f6;border:1px solid var(--hm-border);flex:0 0 auto;overflow:hidden;display:flex;align-items:center;justify-content:center}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .title{font-weight:800;margin:0 0 4px;letter-spacing:-.01em;line-height:1.2}
+    .meta{color:var(--hm-muted);font-size:13px}
+    .price{margin-left:auto;font-weight:900;white-space:nowrap}
 
-    loadPurchases().catch(e => showErr(e?.message || String(e)));
+    .empty{display:none;padding:16px;color:var(--hm-muted)}
+    .err{display:none;padding:14px;background:#fff5f5;color:#991b1b;border-top:1px solid var(--hm-border);white-space:pre-wrap}
+  </style>
+</head>
+
+<body>
+  <!-- Universal shell -->
+  <div id="hm-shell-header"></div>
+
+  <main class="wrap">
+    <h1 class="page-title">Your Purchases</h1>
+    <p class="sub">Everything you’ve bought, pulled directly from Supabase.</p>
+
+    <div class="layout">
+      <!-- Left nav (Poshmark-style) -->
+      <aside class="sidebar card">
+        <div class="sec">
+          <h3>Order Activity</h3>
+          <nav class="nav">
+            <a class="active" href="/purchases.html">My Purchases <small id="navCount">0</small></a>
+            <a href="/sales.html">My Sales</a>
+            <a href="/account.html">Account</a>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <section class="main card">
+        <div class="topbar">
+          <div class="chips">
+            <span class="pill"><strong id="status">Signed out</strong></span>
+            <span class="pill"><strong id="count">0</strong> items</span>
+          </div>
+          <button class="btn" id="refreshBtn" type="button">Refresh</button>
+        </div>
+
+        <div class="searchRow">
+          <input id="q" class="search" placeholder="Search My Purchases" autocomplete="off"/>
+        </div>
+
+        <div id="list" class="list"></div>
+        <div id="empty" class="empty">No purchases yet.</div>
+        <div id="err" class="err"></div>
+      </section>
+    </div>
+  </main>
+
+  <div id="hm-shell-footer"></div>
+
+  <!-- Supabase (UMD global) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Universal shell JS -->
+  <script src="scripts/hm-shell.js"></script>
+  <script>
+    window.HM && window.HM.renderShell({ currentPage: "purchases" });
+  </script>
+
+  <!-- Page logic -->
+  <script>
+    (function () {
+      const SUPABASE_URL = "https://clkizksbvxxjkoatdajgd.supabase.co";
+      const SUPABASE_ANON =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzI2ImFub24iLCJpYXQiOjE3NTQ2YyMDUsImV4cCI6IjA3MDE1NjWX0.m3wd6UAuqxa7BpcQof9mnzd8zdsmawdGD0x7-nyBjI";
+
+      const statusEl = document.getElementById("status");
+      const countEl = document.getElementById("count");
+      const navCount = document.getElementById("navCount");
+      const listEl = document.getElementById("list");
+      const emptyEl = document.getElementById("empty");
+      const errEl = document.getElementById("err");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const qEl = document.getElementById("q");
+
+      function esc(s){
+        return String(s ?? "")
+          .replaceAll("&","&amp;")
+          .replaceAll("<","&lt;")
+          .replaceAll(">","&gt;")
+          .replaceAll('"',"&quot;")
+          .replaceAll("'","&#039;");
+      }
+      function money(cents){
+        return (Number(cents || 0) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
+      }
+      function showErr(msg){
+        errEl.style.display = msg ? "block" : "none";
+        errEl.textContent = msg || "";
+      }
+
+      const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      });
+
+      let allRows = [];
+
+      function render(){
+        const q = (qEl.value || "").trim().toLowerCase();
+        const rows = q
+          ? allRows.filter(r =>
+              String(r.listing_title || "").toLowerCase().includes(q) ||
+              String(r.order_id || "").toLowerCase().includes(q)
+            )
+          : allRows;
+
+        countEl.textContent = String(rows.length);
+        navCount.textContent = String(rows.length);
+
+        if (!rows.length){
+          listEl.innerHTML = "";
+          emptyEl.style.display = "block";
+          return;
+        }
+        emptyEl.style.display = "none";
+
+        listEl.innerHTML = rows.map(r => {
+          const href = "/listing.html?id=" + encodeURIComponent(r.listing_id);
+          const title = esc(r.listing_title || "Listing");
+          const price = esc(money(r.item_price_cents));
+          const orderShort = esc(String(r.order_id || "").slice(0,8));
+          const st = esc(String(r.listing_status || "").toUpperCase());
+          const thumb = r.thumbnail_url ? `<img src="${esc(r.thumbnail_url)}" alt="">` : "";
+
+          return `
+            <a class="row" href="${href}">
+              <div class="thumb">${thumb}</div>
+              <div style="min-width:0;">
+                <div class="title">${title}</div>
+                <div class="meta">${st ? (st + " • ") : ""}Order ${orderShort}</div>
+              </div>
+              <div class="price">${price}</div>
+            </a>
+          `;
+        }).join("");
+      }
+
+      async function load(){
+        showErr("");
+        listEl.innerHTML = "";
+        emptyEl.style.display = "none";
+        countEl.textContent = "0";
+        navCount.textContent = "0";
+        statusEl.textContent = "Signed out";
+
+        const { data: sessionData, error: sessionErr } = await client.auth.getSession();
+        if (sessionErr){ showErr(sessionErr.message || String(sessionErr)); return; }
+
+        const session = sessionData && sessionData.session;
+        if (!session){ location.href = "/account.html"; return; }
+
+        statusEl.textContent = "Signed in";
+
+        const { data, error } = await client
+          .from("purchases_feed")
+          .select("order_id,purchased_at,listing_id,listing_title,item_price_cents,thumbnail_url,listing_status,seller_id")
+          .order("purchased_at", { ascending: false });
+
+        if (error){ showErr(error.message || String(error)); return; }
+
+        allRows = Array.isArray(data) ? data : [];
+        render();
+      }
+
+      refreshBtn.addEventListener("click", () => load().catch(e => showErr(e?.message || String(e))));
+      qEl.addEventListener("input", render);
+
+      load().catch(e => showErr(e?.message || String(e)));
+    })();
   </script>
 </body>
 </html>
