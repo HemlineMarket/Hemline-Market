@@ -10,178 +10,61 @@
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
   <link rel="icon" href="/favicon.ico"/>
-
-  <style>
-    :root{
-      --hm-border:#e5e7eb;
-      --hm-muted:#6b7280;
-      --hm-text:#111827;
-      --hm-bg:#f4f4f7;
-      --hm-card:#ffffff;
-    }
-    html,body{
-      margin:0;
-      background:var(--hm-bg);
-      color:var(--hm-text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-    }
-    .wrap{max-width:1100px;margin:0 auto;padding:18px 14px 40px;}
-    h1{font-size:22px;margin:14px 0 12px}
-    .sub{color:var(--hm-muted);margin:0 0 14px}
-    .panel{
-      background:var(--hm-card);
-      border:1px solid var(--hm-border);
-      border-radius:16px;
-      overflow:hidden;
-    }
-    .toolbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:14px;
-      border-bottom:1px solid var(--hm-border);
-    }
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:8px 10px;
-      border:1px solid var(--hm-border);
-      border-radius:999px;
-      font-size:13px;
-      background:#fff;
-    }
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
-      gap:12px;
-      padding:14px;
-    }
-    .card{
-      display:flex;
-      gap:12px;
-      border:1px solid var(--hm-border);
-      border-radius:14px;
-      padding:12px;
-      text-decoration:none;
-      color:inherit;
-      background:#fff;
-    }
-    .thumb{
-      width:90px;height:90px;
-      border-radius:12px;
-      background:#f3f4f6;
-      flex-shrink:0;
-    }
-    .title{font-weight:700;margin:0 0 6px}
-    .muted{color:var(--hm-muted);font-size:13px}
-    .tag{
-      display:inline-block;
-      border:1px solid var(--hm-border);
-      border-radius:999px;
-      padding:4px 8px;
-      font-size:12px;
-      margin-right:6px;
-    }
-    .err{
-      padding:14px;
-      background:#fff5f5;
-      color:#991b1b;
-      display:none;
-      border-top:1px solid var(--hm-border);
-      white-space:pre-wrap;
-    }
-  </style>
 </head>
 <body>
 
-  <main class="wrap">
+  <main style="max-width:1100px;margin:24px auto;padding:0 16px;">
     <h1>Your Purchases</h1>
-    <p class="sub">Everything you’ve bought, pulled directly from Supabase.</p>
+    <p>Everything you’ve bought, pulled directly from Supabase.</p>
 
-    <section class="panel">
-      <div class="toolbar">
-        <div>
-          <span class="pill" id="who">Signed out</span>
-          <span class="pill"><strong id="count">0</strong> items</span>
-        </div>
-      </div>
+    <div>
+      <span id="status">Signed out</span> ·
+      <span id="count">0</span> items
+    </div>
 
-      <div id="grid" class="grid"></div>
-      <div id="err" class="err"></div>
-    </section>
+    <div id="list"></div>
+    <pre id="err" style="color:red;"></pre>
   </main>
 
+  <!-- IMPORTANT: Supabase client is an ES MODULE -->
   <script type="module">
     import { supabase } from '/scripts/supabase-client.js';
 
-    const grid = document.getElementById('grid');
-    const errBox = document.getElementById('err');
-    const who = document.getElementById('who');
+    const status = document.getElementById('status');
     const count = document.getElementById('count');
+    const list = document.getElementById('list');
+    const err = document.getElementById('err');
 
-    function money(c){
-      return (Number(c||0)/100).toLocaleString(undefined,{style:'currency',currency:'USD'});
-    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
 
-    function showErr(msg){
-      errBox.style.display = msg ? 'block' : 'none';
-      errBox.textContent = msg || '';
-    }
-
-    function esc(s){
-      return String(s ?? '')
-        .replaceAll('&','&amp;')
-        .replaceAll('<','&lt;')
-        .replaceAll('>','&gt;')
-        .replaceAll('"','&quot;')
-        .replaceAll("'","&#039;");
-    }
-
-    async function load(){
-      const { data:{ session }, error:sessionErr } = await supabase.auth.getSession();
-
-      if(sessionErr){
-        showErr(sessionErr.message);
-        return;
-      }
-
-      if(!session){
+      if (!session) {
         location.href = '/account.html';
-        return;
+        throw new Error('No session');
       }
 
-      who.textContent = 'Signed in';
+      status.textContent = 'Signed in';
 
       const { data, error } = await supabase
         .from('purchases_feed')
         .select('*')
-        .order('purchased_at',{ascending:false});
+        .order('purchased_at', { ascending: false });
 
-      if(error){
-        showErr(error.message);
-        return;
-      }
+      if (error) throw error;
 
-      const rows = Array.isArray(data) ? data : [];
-      count.textContent = String(rows.length);
+      count.textContent = data.length;
 
-      grid.innerHTML = rows.map(r => `
-        <a class="card" href="/listing.html?id=${encodeURIComponent(r.listing_id)}">
-          <div class="thumb"></div>
-          <div>
-            <div class="title">${esc(r.listing_title)}</div>
-            <div>
-              <span class="tag">${money(r.item_price_cents)}</span>
-              <span class="tag">${esc(r.listing_status)}</span>
-            </div>
-            <div class="muted">Order ${esc(String(r.order_id).slice(0,8))}</div>
-          </div>
-        </a>
+      list.innerHTML = data.map(p => `
+        <div style="margin:12px 0;padding:12px;border:1px solid #ddd;">
+          <strong>${p.listing_title}</strong><br/>
+          $${(p.item_price_cents/100).toFixed(2)}<br/>
+          Order ${String(p.order_id).slice(0,8)}
+        </div>
       `).join('');
-    }
 
-    load().catch(e => showErr(e?.message || String(e)));
+    } catch (e) {
+      err.textContent = e.message;
+    }
   </script>
 
 </body>
