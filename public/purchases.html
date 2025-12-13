@@ -37,7 +37,7 @@
     .main .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border-bottom:1px solid var(--hm-border)}
     .chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--hm-border);border-radius:999px;background:#fff;font-size:13px}
-    .btn{border:1px solid var(--hm-border);background:#fff;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
+    .btn{border:1px solid var(--hm-border);background:#fff;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}
     .btn:hover{border-color:#d1d5db}
 
     .searchRow{padding:12px 14px;border-bottom:1px solid var(--hm-border);display:flex;gap:10px;align-items:center}
@@ -56,17 +56,18 @@
     .row:hover{background:#fafafa}
     .thumb{width:56px;height:56px;border-radius:12px;background:#f3f4f6;border:1px solid var(--hm-border);flex:0 0 auto;overflow:hidden;display:flex;align-items:center;justify-content:center}
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .title{font-weight:800;margin:0 0 4px;letter-spacing:-.01em;line-height:1.2}
+    .title{font-weight:850;margin:0 0 4px;letter-spacing:-.01em;line-height:1.2}
     .meta{color:var(--hm-muted);font-size:13px}
-    .price{margin-left:auto;font-weight:900;white-space:nowrap}
+    .price{margin-left:auto;font-weight:950;white-space:nowrap}
 
     .empty{display:none;padding:16px;color:var(--hm-muted)}
     .err{display:none;padding:14px;background:#fff5f5;color:#991b1b;border-top:1px solid var(--hm-border);white-space:pre-wrap}
+    .cta{display:none;padding:14px;border-top:1px solid var(--hm-border);background:#fff;align-items:center;justify-content:space-between;gap:10px}
+    .cta p{margin:0;color:var(--hm-muted)}
   </style>
 </head>
 
 <body>
-  <!-- Universal shell -->
   <div id="hm-shell-header"></div>
 
   <main class="wrap">
@@ -74,7 +75,6 @@
     <p class="sub">Everything you’ve bought, pulled directly from Supabase.</p>
 
     <div class="layout">
-      <!-- Left nav (Poshmark-style) -->
       <aside class="sidebar card">
         <div class="sec">
           <h3>Order Activity</h3>
@@ -86,11 +86,10 @@
         </div>
       </aside>
 
-      <!-- Main -->
       <section class="main card">
         <div class="topbar">
           <div class="chips">
-            <span class="pill"><strong id="status">Signed out</strong></span>
+            <span class="pill"><strong id="status">Checking…</strong></span>
             <span class="pill"><strong id="count">0</strong> items</span>
           </div>
           <button class="btn" id="refreshBtn" type="button">Refresh</button>
@@ -98,6 +97,11 @@
 
         <div class="searchRow">
           <input id="q" class="search" placeholder="Search My Purchases" autocomplete="off"/>
+        </div>
+
+        <div id="cta" class="cta">
+          <p>You’re signed out. Sign in to view your purchases.</p>
+          <a class="btn" href="/account.html" style="text-decoration:none;display:inline-block;">Go to Sign In</a>
         </div>
 
         <div id="list" class="list"></div>
@@ -109,21 +113,16 @@
 
   <div id="hm-shell-footer"></div>
 
-  <!-- Supabase (UMD global) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Universal shell JS -->
   <script src="scripts/hm-shell.js"></script>
   <script>
     window.HM && window.HM.renderShell({ currentPage: "purchases" });
   </script>
 
-  <!-- Page logic -->
   <script>
-    (function () {
+    (function(){
       const SUPABASE_URL = "https://clkizksbvxxjkoatdajgd.supabase.co";
-      const SUPABASE_ANON =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzI2ImFub24iLCJpYXQiOjE3NTQ2YyMDUsImV4cCI6IjA3MDE1NjWX0.m3wd6UAuqxa7BpcQof9mnzd8zdsmawdGD0x7-nyBjI";
+      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzI2ImFub24iLCJpYXQiOjE3NTQ2YyMDUsImV4cCI6IjA3MDE1NjWX0.m3wd6UAuqxa7BpcQof9mnzd8zdsmawdGD0x7-nyBjI";
 
       const statusEl = document.getElementById("status");
       const countEl = document.getElementById("count");
@@ -131,6 +130,7 @@
       const listEl = document.getElementById("list");
       const emptyEl = document.getElementById("empty");
       const errEl = document.getElementById("err");
+      const ctaEl = document.getElementById("cta");
       const refreshBtn = document.getElementById("refreshBtn");
       const qEl = document.getElementById("q");
 
@@ -151,11 +151,7 @@
       }
 
       const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true
-        }
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       });
 
       let allRows = [];
@@ -186,7 +182,6 @@
           const orderShort = esc(String(r.order_id || "").slice(0,8));
           const st = esc(String(r.listing_status || "").toUpperCase());
           const thumb = r.thumbnail_url ? `<img src="${esc(r.thumbnail_url)}" alt="">` : "";
-
           return `
             <a class="row" href="${href}">
               <div class="thumb">${thumb}</div>
@@ -204,15 +199,21 @@
         showErr("");
         listEl.innerHTML = "";
         emptyEl.style.display = "none";
+        ctaEl.style.display = "none";
+        statusEl.textContent = "Checking…";
         countEl.textContent = "0";
         navCount.textContent = "0";
-        statusEl.textContent = "Signed out";
 
         const { data: sessionData, error: sessionErr } = await client.auth.getSession();
-        if (sessionErr){ showErr(sessionErr.message || String(sessionErr)); return; }
+        if (sessionErr){ statusEl.textContent = "Error"; showErr(sessionErr.message || String(sessionErr)); return; }
 
         const session = sessionData && sessionData.session;
-        if (!session){ location.href = "/account.html"; return; }
+        if (!session){
+          statusEl.textContent = "Signed out";
+          ctaEl.style.display = "flex";
+          emptyEl.style.display = "none";
+          return;
+        }
 
         statusEl.textContent = "Signed in";
 
@@ -221,7 +222,7 @@
           .select("order_id,purchased_at,listing_id,listing_title,item_price_cents,thumbnail_url,listing_status,seller_id")
           .order("purchased_at", { ascending: false });
 
-        if (error){ showErr(error.message || String(error)); return; }
+        if (error){ statusEl.textContent = "Signed in"; showErr(error.message || String(error)); return; }
 
         allRows = Array.isArray(data) ? data : [];
         render();
@@ -230,7 +231,7 @@
       refreshBtn.addEventListener("click", () => load().catch(e => showErr(e?.message || String(e))));
       qEl.addEventListener("input", render);
 
-      load().catch(e => showErr(e?.message || String(e)));
+      load().catch(e => { statusEl.textContent = "Error"; showErr(e?.message || String(e)); });
     })();
   </script>
 </body>
