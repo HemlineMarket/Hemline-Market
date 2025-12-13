@@ -168,7 +168,6 @@
       const errBox = document.getElementById('err');
       const countNum = document.getElementById('countNum');
       const whoPill = document.getElementById('whoPill');
-      const whoEmail = document.getElementById('whoEmail');
       const refreshBtn = document.getElementById('refreshBtn');
 
       function money(cents){
@@ -185,16 +184,26 @@
         errBox.style.display = msg ? 'block' : 'none';
         errBox.textContent = msg || '';
       }
+      function escapeHtml(s){
+        return String(s ?? '')
+          .replaceAll('&','&amp;')
+          .replaceAll('<','&lt;')
+          .replaceAll('>','&gt;')
+          .replaceAll('"','&quot;')
+          .replaceAll("'","&#039;");
+      }
 
       function cardHTML(row){
         const href = `listing.html?id=${encodeURIComponent(row.listing_id)}`;
         const title = row.listing_title || 'Listing';
-        const thumb = row.thumbnail_url ? `<img src="${row.thumbnail_url}" alt=""/>` : '';
         const purchasedAt = fmtDate(row.purchased_at);
         const orderIdShort = (row.order_id || '').toString().slice(0,8);
-
         const status = (row.order_status || 'PAID').toString().toUpperCase();
         const listingStatus = (row.listing_status || '').toString().toUpperCase();
+
+        const thumb = row.thumbnail_url
+          ? `<img src="${row.thumbnail_url}" alt=""/>`
+          : '';
 
         return `
           <a class="card" href="${href}">
@@ -202,7 +211,7 @@
             <div class="meta">
               <div class="title">${escapeHtml(title)}</div>
               <div class="row">
-                <span class="tag">${money(row.item_price_cents ?? row.listing_price_cents)}</span>
+                <span class="tag">${money(row.item_price_cents)}</span>
                 ${listingStatus ? `<span class="tag">${escapeHtml(listingStatus)}</span>` : ''}
                 ${status ? `<span class="tag">Order: ${escapeHtml(status)}</span>` : ''}
               </div>
@@ -215,15 +224,6 @@
         `;
       }
 
-      function escapeHtml(s){
-        return String(s ?? '')
-          .replaceAll('&','&amp;')
-          .replaceAll('<','&lt;')
-          .replaceAll('>','&gt;')
-          .replaceAll('"','&quot;')
-          .replaceAll("'","&#039;");
-      }
-
       async function requireSession(){
         const { data, error } = await window.supabase.auth.getSession();
         if (error) throw error;
@@ -232,9 +232,7 @@
           location.href = 'account.html';
           return null;
         }
-        const email = session.user.email || '';
-        whoPill.innerHTML = `<strong>Signed in</strong><small id="whoEmail"></small>`;
-        document.getElementById('whoEmail').textContent = email ? ` ${email}` : '';
+        whoPill.innerHTML = `<strong>Signed in</strong>`;
         return session.user;
       }
 
@@ -244,8 +242,7 @@
         empty.style.display = 'none';
         countNum.textContent = '0';
 
-        const user = await requireSession();
-        if (!user) return;
+        await requireSession();
 
         const { data, error } = await window.supabase
           .from('purchases_feed')
@@ -268,7 +265,7 @@
         grid.innerHTML = rows.map(cardHTML).join('');
       }
 
-      refreshBtn.addEventListener('click', loadPurchases);
+      refreshBtn.addEventListener('click', () => loadPurchases().catch(e => showErr(e?.message || String(e))));
 
       document.addEventListener('DOMContentLoaded', () => {
         loadPurchases().catch(e => showErr(e?.message || String(e)));
