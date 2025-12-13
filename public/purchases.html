@@ -13,123 +13,143 @@
 
   <style>
     :root{
-      --hm-accent:#991b1b;
       --hm-border:#e5e7eb;
       --hm-muted:#6b7280;
       --hm-text:#111827;
       --hm-bg:#f4f4f7;
       --hm-card:#ffffff;
     }
-    html, body{ margin:0; background:var(--hm-bg); color:var(--hm-text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
-    .wrap{ max-width:1100px; margin:0 auto; padding:18px 14px 40px; }
-    h1{ font-size:22px; margin:14px 0 12px; letter-spacing:-.02em; }
-    .sub{ color:var(--hm-muted); margin:0 0 14px; }
+    html,body{
+      margin:0;
+      background:var(--hm-bg);
+      color:var(--hm-text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    }
+    .wrap{max-width:1100px;margin:0 auto;padding:18px 14px 40px;}
+    h1{font-size:22px;margin:14px 0 12px}
+    .sub{color:var(--hm-muted);margin:0 0 14px}
     .panel{
       background:var(--hm-card);
       border:1px solid var(--hm-border);
       border-radius:16px;
-      box-shadow:0 1px 6px rgba(17,24,39,.06);
       overflow:hidden;
     }
     .toolbar{
       display:flex;
-      align-items:center;
       justify-content:space-between;
+      align-items:center;
       padding:14px;
       border-bottom:1px solid var(--hm-border);
-      gap:10px;
-      flex-wrap:wrap;
     }
-    .toolbar .left{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
     .pill{
       display:inline-flex;
       align-items:center;
-      gap:8px;
+      gap:6px;
       padding:8px 10px;
       border:1px solid var(--hm-border);
       border-radius:999px;
-      background:#fff;
-      color:var(--hm-text);
       font-size:13px;
-    }
-    .pill small{ color:var(--hm-muted); font-size:12px; }
-    .btn{
-      appearance:none;
-      border:1px solid var(--hm-border);
       background:#fff;
-      color:var(--hm-text);
-      padding:10px 12px;
-      border-radius:12px;
-      cursor:pointer;
-      font-weight:600;
-      font-size:13px;
     }
-    .btn:hover{ border-color:#d1d5db; }
     .grid{
       display:grid;
-      grid-template-columns:repeat(3, minmax(0,1fr));
+      grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
       gap:12px;
       padding:14px;
     }
-    @media (max-width: 980px){ .grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
-    @media (max-width: 620px){ .grid{ grid-template-columns:1fr; } }
-
     .card{
       display:flex;
       gap:12px;
       border:1px solid var(--hm-border);
-      border-radius:16px;
-      background:#fff;
+      border-radius:14px;
       padding:12px;
-      align-items:flex-start;
       text-decoration:none;
       color:inherit;
+      background:#fff;
     }
     .thumb{
-      width:92px; height:92px;
-      border-radius:14px;
-      border:1px solid var(--hm-border);
+      width:90px;height:90px;
+      border-radius:12px;
       background:#f3f4f6;
-      overflow:hidden;
-      flex:0 0 auto;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      flex-shrink:0;
     }
-    .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
-    .meta{ flex:1 1 auto; min-width:0; }
-    .title{ font-weight:750; letter-spacing:-.01em; line-height:1.2; margin:0 0 6px; }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .muted{ color:var(--hm-muted); font-size:13px; }
+    .title{font-weight:700;margin:0 0 6px}
+    .muted{color:var(--hm-muted);font-size:13px}
     .tag{
-      display:inline-flex;
-      align-items:center;
-      padding:6px 10px;
-      border-radius:999px;
+      display:inline-block;
       border:1px solid var(--hm-border);
-      background:#fff;
+      border-radius:999px;
+      padding:4px 8px;
       font-size:12px;
-      font-weight:650;
-    }
-    .empty{
-      padding:18px 14px;
-      color:var(--hm-muted);
+      margin-right:6px;
     }
     .err{
       padding:14px;
-      color:#991b1b;
-      border-top:1px solid var(--hm-border);
       background:#fff5f5;
+      color:#991b1b;
       display:none;
-      white-space:pre-wrap;
+      border-top:1px solid var(--hm-border);
     }
   </style>
 
-  <script defer src="scripts/supabase-client.js"></script>
-  <script defer src="scripts/hm-header.js"></script>
+  <!-- IMPORTANT: supabase client MUST be module -->
+  <script type="module">
+    import { supabase } from '/scripts/supabase-client.js';
+
+    const grid = document.getElementById('grid');
+    const errBox = document.getElementById('err');
+    const who = document.getElementById('who');
+    const count = document.getElementById('count');
+
+    function money(c){
+      return (Number(c||0)/100).toLocaleString(undefined,{style:'currency',currency:'USD'});
+    }
+
+    function showErr(msg){
+      errBox.style.display = msg ? 'block' : 'none';
+      errBox.textContent = msg || '';
+    }
+
+    async function load(){
+      const { data: { session } } = await supabase.auth.getSession();
+      if(!session){
+        location.href = '/account.html';
+        return;
+      }
+
+      who.textContent = 'Signed in';
+
+      const { data, error } = await supabase
+        .from('purchases_feed')
+        .select('*')
+        .order('purchased_at', { ascending:false });
+
+      if(error){
+        showErr(error.message);
+        return;
+      }
+
+      count.textContent = data.length;
+
+      grid.innerHTML = data.map(r => `
+        <a class="card" href="/listing.html?id=${r.listing_id}">
+          <div class="thumb"></div>
+          <div>
+            <div class="title">${r.listing_title}</div>
+            <div>
+              <span class="tag">${money(r.item_price_cents)}</span>
+              <span class="tag">${r.listing_status}</span>
+            </div>
+            <div class="muted">Order ${String(r.order_id).slice(0,8)}</div>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    load().catch(e => showErr(e.message));
+  </script>
 </head>
 <body>
-  <div id="hm-header-root"></div>
 
   <main class="wrap">
     <h1>Your Purchases</h1>
@@ -137,140 +157,16 @@
 
     <section class="panel">
       <div class="toolbar">
-        <div class="left">
-          <div class="pill" id="whoPill">
-            <strong>Signed out</strong>
-            <small id="whoEmail"></small>
-          </div>
-          <div class="pill" id="countPill">
-            <strong id="countNum">0</strong>
-            <small>items</small>
-          </div>
-        </div>
-        <div class="right">
-          <button class="btn" id="refreshBtn" type="button">Refresh</button>
+        <div>
+          <span class="pill" id="who">Signed out</span>
+          <span class="pill"><strong id="count">0</strong> items</span>
         </div>
       </div>
 
       <div id="grid" class="grid"></div>
-      <div id="empty" class="empty" style="display:none;">No purchases yet.</div>
       <div id="err" class="err"></div>
     </section>
   </main>
 
-  <div id="hm-footer-root"></div>
-  <script defer src="scripts/hm-footer.js"></script>
-
-  <script>
-    (function(){
-      const grid = document.getElementById('grid');
-      const empty = document.getElementById('empty');
-      const errBox = document.getElementById('err');
-      const countNum = document.getElementById('countNum');
-      const whoPill = document.getElementById('whoPill');
-      const refreshBtn = document.getElementById('refreshBtn');
-
-      function money(cents){
-        const n = Number(cents || 0) / 100;
-        return n.toLocaleString(undefined, { style:'currency', currency:'USD' });
-      }
-      function fmtDate(iso){
-        try{
-          const d = new Date(iso);
-          return d.toLocaleString(undefined, { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
-        }catch(_){ return ''; }
-      }
-      function showErr(msg){
-        errBox.style.display = msg ? 'block' : 'none';
-        errBox.textContent = msg || '';
-      }
-      function escapeHtml(s){
-        return String(s ?? '')
-          .replaceAll('&','&amp;')
-          .replaceAll('<','&lt;')
-          .replaceAll('>','&gt;')
-          .replaceAll('"','&quot;')
-          .replaceAll("'","&#039;");
-      }
-
-      function cardHTML(row){
-        const href = `listing.html?id=${encodeURIComponent(row.listing_id)}`;
-        const title = row.listing_title || 'Listing';
-        const purchasedAt = fmtDate(row.purchased_at);
-        const orderIdShort = (row.order_id || '').toString().slice(0,8);
-        const status = (row.order_status || 'PAID').toString().toUpperCase();
-        const listingStatus = (row.listing_status || '').toString().toUpperCase();
-
-        const thumb = row.thumbnail_url
-          ? `<img src="${row.thumbnail_url}" alt=""/>`
-          : '';
-
-        return `
-          <a class="card" href="${href}">
-            <div class="thumb">${thumb}</div>
-            <div class="meta">
-              <div class="title">${escapeHtml(title)}</div>
-              <div class="row">
-                <span class="tag">${money(row.item_price_cents)}</span>
-                ${listingStatus ? `<span class="tag">${escapeHtml(listingStatus)}</span>` : ''}
-                ${status ? `<span class="tag">Order: ${escapeHtml(status)}</span>` : ''}
-              </div>
-              <div class="row" style="margin-top:8px;">
-                <span class="muted">Purchased: ${escapeHtml(purchasedAt)}</span>
-                ${orderIdShort ? `<span class="muted">• Order ${escapeHtml(orderIdShort)}</span>` : ''}
-              </div>
-            </div>
-          </a>
-        `;
-      }
-
-      async function requireSession(){
-        const { data, error } = await window.supabase.auth.getSession();
-        if (error) throw error;
-        const session = data?.session;
-        if (!session?.user?.id) {
-          location.href = 'account.html';
-          return null;
-        }
-        whoPill.innerHTML = `<strong>Signed in</strong>`;
-        return session.user;
-      }
-
-      async function loadPurchases(){
-        showErr('');
-        grid.innerHTML = '';
-        empty.style.display = 'none';
-        countNum.textContent = '0';
-
-        await requireSession();
-
-        const { data, error } = await window.supabase
-          .from('purchases_feed')
-          .select('*')
-          .order('purchased_at', { ascending: false });
-
-        if (error) {
-          showErr(error.message || String(error));
-          return;
-        }
-
-        const rows = Array.isArray(data) ? data : [];
-        countNum.textContent = String(rows.length);
-
-        if (!rows.length) {
-          empty.style.display = 'block';
-          return;
-        }
-
-        grid.innerHTML = rows.map(cardHTML).join('');
-      }
-
-      refreshBtn.addEventListener('click', () => loadPurchases().catch(e => showErr(e?.message || String(e))));
-
-      document.addEventListener('DOMContentLoaded', () => {
-        loadPurchases().catch(e => showErr(e?.message || String(e)));
-      });
-    })();
-  </script>
 </body>
 </html>
