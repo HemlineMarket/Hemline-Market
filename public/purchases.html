@@ -68,6 +68,7 @@
 </head>
 
 <body>
+  <!-- Universal header/footer -->
   <div id="hm-shell-header"></div>
 
   <main class="wrap">
@@ -75,17 +76,17 @@
     <p class="sub">Everything you’ve bought, pulled directly from Supabase.</p>
 
     <div class="layout">
+      <!-- Left nav (Purchases only) -->
       <aside class="sidebar card">
         <div class="sec">
           <h3>Order Activity</h3>
           <nav class="nav">
             <a class="active" href="/purchases.html">My Purchases <small id="navCount">0</small></a>
-            <a href="/sales.html">My Sales</a>
-            <a href="/account.html">Account</a>
           </nav>
         </div>
       </aside>
 
+      <!-- Main -->
       <section class="main card">
         <div class="topbar">
           <div class="chips">
@@ -113,126 +114,128 @@
 
   <div id="hm-shell-footer"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Universal shell JS -->
   <script src="scripts/hm-shell.js"></script>
   <script>
     window.HM && window.HM.renderShell({ currentPage: "purchases" });
   </script>
 
-  <script>
-    (function(){
-      const SUPABASE_URL = "https://clkizksbvxxjkoatdajgd.supabase.co";
-      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzI2ImFub24iLCJpYXQiOjE3NTQ2YyMDUsImV4cCI6IjA3MDE1NjWX0.m3wd6UAuqxa7BpcQof9mnzd8zdsmawdGD0x7-nyBjI";
+  <!-- Page logic (USES THE SAME MODULE CLIENT AS THE REST OF YOUR SITE) -->
+  <script type="module">
+    import { supabase } from "/scripts/supabase-client.js";
 
-      const statusEl = document.getElementById("status");
-      const countEl = document.getElementById("count");
-      const navCount = document.getElementById("navCount");
-      const listEl = document.getElementById("list");
-      const emptyEl = document.getElementById("empty");
-      const errEl = document.getElementById("err");
-      const ctaEl = document.getElementById("cta");
-      const refreshBtn = document.getElementById("refreshBtn");
-      const qEl = document.getElementById("q");
+    const statusEl = document.getElementById("status");
+    const countEl = document.getElementById("count");
+    const navCount = document.getElementById("navCount");
+    const listEl = document.getElementById("list");
+    const emptyEl = document.getElementById("empty");
+    const errEl = document.getElementById("err");
+    const ctaEl = document.getElementById("cta");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const qEl = document.getElementById("q");
 
-      function esc(s){
-        return String(s ?? "")
-          .replaceAll("&","&amp;")
-          .replaceAll("<","&lt;")
-          .replaceAll(">","&gt;")
-          .replaceAll('"',"&quot;")
-          .replaceAll("'","&#039;");
-      }
-      function money(cents){
-        return (Number(cents || 0) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
-      }
-      function showErr(msg){
-        errEl.style.display = msg ? "block" : "none";
-        errEl.textContent = msg || "";
-      }
+    const esc = (s) => String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
 
-      const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-      });
+    const money = (cents) =>
+      (Number(cents || 0) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
 
-      let allRows = [];
+    const showErr = (msg) => {
+      errEl.style.display = msg ? "block" : "none";
+      errEl.textContent = msg || "";
+    };
 
-      function render(){
-        const q = (qEl.value || "").trim().toLowerCase();
-        const rows = q
-          ? allRows.filter(r =>
-              String(r.listing_title || "").toLowerCase().includes(q) ||
-              String(r.order_id || "").toLowerCase().includes(q)
-            )
-          : allRows;
+    let allRows = [];
 
-        countEl.textContent = String(rows.length);
-        navCount.textContent = String(rows.length);
+    function render(){
+      const q = (qEl.value || "").trim().toLowerCase();
+      const rows = q
+        ? allRows.filter(r =>
+            String(r.listing_title || "").toLowerCase().includes(q) ||
+            String(r.order_id || "").toLowerCase().includes(q)
+          )
+        : allRows;
 
-        if (!rows.length){
-          listEl.innerHTML = "";
-          emptyEl.style.display = "block";
-          return;
-        }
-        emptyEl.style.display = "none";
+      countEl.textContent = String(rows.length);
+      navCount.textContent = String(rows.length);
 
-        listEl.innerHTML = rows.map(r => {
-          const href = "/listing.html?id=" + encodeURIComponent(r.listing_id);
-          const title = esc(r.listing_title || "Listing");
-          const price = esc(money(r.item_price_cents));
-          const orderShort = esc(String(r.order_id || "").slice(0,8));
-          const st = esc(String(r.listing_status || "").toUpperCase());
-          const thumb = r.thumbnail_url ? `<img src="${esc(r.thumbnail_url)}" alt="">` : "";
-          return `
-            <a class="row" href="${href}">
-              <div class="thumb">${thumb}</div>
-              <div style="min-width:0;">
-                <div class="title">${title}</div>
-                <div class="meta">${st ? (st + " • ") : ""}Order ${orderShort}</div>
-              </div>
-              <div class="price">${price}</div>
-            </a>
-          `;
-        }).join("");
-      }
-
-      async function load(){
-        showErr("");
+      if (!rows.length){
         listEl.innerHTML = "";
-        emptyEl.style.display = "none";
-        ctaEl.style.display = "none";
-        statusEl.textContent = "Checking…";
-        countEl.textContent = "0";
-        navCount.textContent = "0";
+        emptyEl.style.display = "block";
+        return;
+      }
+      emptyEl.style.display = "none";
 
-        const { data: sessionData, error: sessionErr } = await client.auth.getSession();
-        if (sessionErr){ statusEl.textContent = "Error"; showErr(sessionErr.message || String(sessionErr)); return; }
+      listEl.innerHTML = rows.map(r => {
+        const href = "/listing.html?id=" + encodeURIComponent(r.listing_id);
+        const title = esc(r.listing_title || "Listing");
+        const price = esc(money(r.item_price_cents));
+        const orderShort = esc(String(r.order_id || "").slice(0,8));
+        const st = esc(String(r.listing_status || "").toUpperCase());
+        const thumb = r.thumbnail_url ? `<img src="${esc(r.thumbnail_url)}" alt="">` : "";
+        return `
+          <a class="row" href="${href}">
+            <div class="thumb">${thumb}</div>
+            <div style="min-width:0;">
+              <div class="title">${title}</div>
+              <div class="meta">${st ? (st + " • ") : ""}Order ${orderShort}</div>
+            </div>
+            <div class="price">${price}</div>
+          </a>
+        `;
+      }).join("");
+    }
 
-        const session = sessionData && sessionData.session;
-        if (!session){
-          statusEl.textContent = "Signed out";
-          ctaEl.style.display = "flex";
-          emptyEl.style.display = "none";
-          return;
-        }
+    async function load(){
+      showErr("");
+      listEl.innerHTML = "";
+      emptyEl.style.display = "none";
+      ctaEl.style.display = "none";
+      statusEl.textContent = "Checking…";
+      countEl.textContent = "0";
+      navCount.textContent = "0";
 
-        statusEl.textContent = "Signed in";
-
-        const { data, error } = await client
-          .from("purchases_feed")
-          .select("order_id,purchased_at,listing_id,listing_title,item_price_cents,thumbnail_url,listing_status,seller_id")
-          .order("purchased_at", { ascending: false });
-
-        if (error){ statusEl.textContent = "Signed in"; showErr(error.message || String(error)); return; }
-
-        allRows = Array.isArray(data) ? data : [];
-        render();
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr){
+        statusEl.textContent = "Error";
+        showErr(sessionErr.message || String(sessionErr));
+        return;
       }
 
-      refreshBtn.addEventListener("click", () => load().catch(e => showErr(e?.message || String(e))));
-      qEl.addEventListener("input", render);
+      const session = sessionData?.session;
+      if (!session){
+        statusEl.textContent = "Signed out";
+        ctaEl.style.display = "flex";
+        return;
+      }
 
-      load().catch(e => { statusEl.textContent = "Error"; showErr(e?.message || String(e)); });
-    })();
+      statusEl.textContent = "Signed in";
+
+      const { data, error } = await supabase
+        .from("purchases_feed")
+        .select("order_id,purchased_at,listing_id,listing_title,item_price_cents,thumbnail_url,listing_status,seller_id")
+        .order("purchased_at", { ascending: false });
+
+      if (error){
+        showErr(error.message || String(error));
+        return;
+      }
+
+      allRows = Array.isArray(data) ? data : [];
+      render();
+    }
+
+    // keep the page in sync if auth changes
+    supabase.auth.onAuthStateChange(() => load());
+
+    refreshBtn.addEventListener("click", () => load().catch(e => showErr(e?.message || String(e))));
+    qEl.addEventListener("input", render);
+
+    load().catch(e => { statusEl.textContent = "Error"; showErr(e?.message || String(e)); });
   </script>
 </body>
 </html>
