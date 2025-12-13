@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" href="/favicon.ico"/>
 
   <style>
     :root{
@@ -92,10 +92,29 @@
     }
   </style>
 
-  <!-- IMPORTANT: supabase client MUST be module -->
-  <script type="module">
-    import { supabase } from '/scripts/supabase-client.js';
+  <!-- SAME CLIENT LOADER USED EVERYWHERE ELSE -->
+  <script src="/scripts/supabase-client.js"></script>
+</head>
+<body>
 
+  <main class="wrap">
+    <h1>Your Purchases</h1>
+    <p class="sub">Everything you’ve bought, pulled directly from Supabase.</p>
+
+    <section class="panel">
+      <div class="toolbar">
+        <div>
+          <span class="pill" id="who">Signed out</span>
+          <span class="pill"><strong id="count">0</strong> items</span>
+        </div>
+      </div>
+
+      <div id="grid" class="grid"></div>
+      <div id="err" class="err"></div>
+    </section>
+  </main>
+
+  <script>
     const grid = document.getElementById('grid');
     const errBox = document.getElementById('err');
     const who = document.getElementById('who');
@@ -111,7 +130,19 @@
     }
 
     async function load(){
-      const { data: { session } } = await supabase.auth.getSession();
+      if(!window.supabase){
+        showErr('Supabase client not loaded');
+        return;
+      }
+
+      const { data:{ session }, error:sessionErr } =
+        await window.supabase.auth.getSession();
+
+      if(sessionErr){
+        showErr(sessionErr.message);
+        return;
+      }
+
       if(!session){
         location.href = '/account.html';
         return;
@@ -119,10 +150,10 @@
 
       who.textContent = 'Signed in';
 
-      const { data, error } = await supabase
+      const { data, error } = await window.supabase
         .from('purchases_feed')
         .select('*')
-        .order('purchased_at', { ascending:false });
+        .order('purchased_at',{ascending:false});
 
       if(error){
         showErr(error.message);
@@ -148,25 +179,6 @@
 
     load().catch(e => showErr(e.message));
   </script>
-</head>
-<body>
-
-  <main class="wrap">
-    <h1>Your Purchases</h1>
-    <p class="sub">Everything you’ve bought, pulled directly from Supabase.</p>
-
-    <section class="panel">
-      <div class="toolbar">
-        <div>
-          <span class="pill" id="who">Signed out</span>
-          <span class="pill"><strong id="count">0</strong> items</span>
-        </div>
-      </div>
-
-      <div id="grid" class="grid"></div>
-      <div id="err" class="err"></div>
-    </section>
-  </main>
 
 </body>
 </html>
