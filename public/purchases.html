@@ -5,203 +5,275 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Your Purchases — Hemline Market</title>
 
-  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
-
-  <!-- Shared styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
   <style>
-    main{max-width:900px;margin:24px auto;padding:0 14px}
-    h1{font-size:22px;margin-bottom:14px}
-
-    .order-card{
-      background:#fff;
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#f4f4f7;
+      --hm-card:#ffffff;
+    }
+    html, body{ margin:0; background:var(--hm-bg); color:var(--hm-text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+    .wrap{ max-width:1100px; margin:0 auto; padding:18px 14px 40px; }
+    h1{ font-size:22px; margin:14px 0 12px; letter-spacing:-.02em; }
+    .sub{ color:var(--hm-muted); margin:0 0 14px; }
+    .panel{
+      background:var(--hm-card);
       border:1px solid var(--hm-border);
-      border-radius:14px;
-      padding:14px;
-      margin-bottom:12px;
+      border-radius:16px;
+      box-shadow:0 1px 6px rgba(17,24,39,.06);
+      overflow:hidden;
     }
-
-    .order-top{
+    .toolbar{
       display:flex;
+      align-items:center;
       justify-content:space-between;
-      font-size:13px;
-      color:var(--hm-muted);
-      margin-bottom:6px;
+      padding:14px;
+      border-bottom:1px solid var(--hm-border);
+      gap:10px;
+      flex-wrap:wrap;
     }
-
-    .purchase-items{
-      margin-top:6px;
-    }
-
-    .purchase-items .name{
-      font-weight:700;
-      font-size:14px;
-    }
-
-    .purchase-spec{
-      font-size:13px;
-      color:var(--hm-muted);
-      margin-top:2px;
-      margin-bottom:4px;
-    }
-
-    a.view-link{
-      display:inline-block;
-      margin-top:4px;
-      padding:5px 10px;
-      font-size:13px;
-      font-weight:600;
+    .toolbar .left{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
       border:1px solid var(--hm-border);
       border-radius:999px;
-      text-decoration:none;
-      color:#111;
+      background:#fff;
+      color:var(--hm-text);
+      font-size:13px;
     }
+    .pill small{ color:var(--hm-muted); font-size:12px; }
+    .btn{
+      appearance:none;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      color:var(--hm-text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:13px;
+    }
+    .btn:hover{ border-color:#d1d5db; }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:12px;
+      padding:14px;
+    }
+    @media (max-width: 980px){ .grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 620px){ .grid{ grid-template-columns:1fr; } }
 
+    .card{
+      display:flex;
+      gap:12px;
+      border:1px solid var(--hm-border);
+      border-radius:16px;
+      background:#fff;
+      padding:12px;
+      align-items:flex-start;
+      text-decoration:none;
+      color:inherit;
+    }
+    .thumb{
+      width:92px; height:92px;
+      border-radius:14px;
+      border:1px solid var(--hm-border);
+      background:#f3f4f6;
+      overflow:hidden;
+      flex:0 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .meta{ flex:1 1 auto; min-width:0; }
+    .title{ font-weight:750; letter-spacing:-.01em; line-height:1.2; margin:0 0 6px; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .muted{ color:var(--hm-muted); font-size:13px; }
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      font-size:12px;
+      font-weight:650;
+    }
     .empty{
-      text-align:center;
+      padding:18px 14px;
       color:var(--hm-muted);
-      margin-top:60px;
+    }
+    .err{
+      padding:14px;
+      color:#991b1b;
+      border-top:1px solid var(--hm-border);
+      background:#fff5f5;
+      display:none;
+      white-space:pre-wrap;
     }
   </style>
+
+  <script defer src="scripts/supabase-client.js"></script>
+  <script defer src="scripts/hm-header.js"></script>
 </head>
 <body>
+  <div id="hm-header-root"></div>
 
-<div id="hm-shell-header"></div>
+  <main class="wrap">
+    <h1>Your Purchases</h1>
+    <p class="sub">Everything you’ve bought, pulled directly from Supabase.</p>
 
-<main>
-  <h1>Your Purchases</h1>
-  <div id="ordersList"></div>
-  <div id="emptyState" class="empty" style="display:none">
-    You haven’t purchased anything yet.
-  </div>
-</main>
-
-<div id="hm-shell-footer"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="scripts/hm-shell.js"></script>
-
-<script>
-window.HM && window.HM.renderShell({ currentPage:"purchases" });
-
-(async ()=>{
-  const supabase = window.HM?.supabase;
-  if(!supabase) return;
-
-  const list  = document.getElementById("ordersList");
-  const empty = document.getElementById("emptyState");
-
-  const { data:{ session } } = await supabase.auth.getSession();
-  if(!session?.user){
-    location.href = "auth.html?view=login";
-    return;
-  }
-
-  const uid   = session.user.id;
-  const email = session.user.email;
-
-  /* 🔑 THIS IS THE FIX:
-     Query by buyer_id OR buyer_email
-     This is why past purchases now appear.
-  */
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
-    .order("created_at",{ ascending:false });
-
-  if(error){
-    console.error(error);
-    empty.style.display="block";
-    empty.textContent="Unable to load purchases.";
-    return;
-  }
-
-  if(!data || data.length===0){
-    empty.style.display="block";
-    return;
-  }
-
-  list.innerHTML="";
-  empty.style.display="none";
-
-  data.forEach(o=>{
-    const snap = o.listing_snapshot || {};
-    const items = snap.items || [];
-    const first = items[0] || {};
-
-    const title =
-      o.listing_title ||
-      first.title ||
-      "Fabric purchase";
-
-    // Fabric spec (display-only)
-    const content =
-      first.content ||
-      first.fiber_content ||
-      "";
-    const width =
-      first.width ||
-      first.width_inches ||
-      first.width_in ||
-      "";
-
-    let specText="";
-    if(content && width){
-      specText = `${content} · ${width} wide`;
-    } else if(content){
-      specText = content;
-    } else if(width){
-      specText = `${width} wide`;
-    }
-
-    const specHtml = specText
-      ? `<div class="purchase-spec">${specText}</div>`
-      : "";
-
-    const totalCents = Number(
-      o.total_cents ??
-      o.amount_total_cents ??
-      0
-    );
-
-    const money = (totalCents/100).toLocaleString("en-US",{
-      style:"currency",
-      currency:o.currency || "USD"
-    });
-
-    const card = document.createElement("div");
-    card.className="order-card";
-
-    card.innerHTML = `
-      <div class="order-top">
-        <span>Order ${String(o.id).slice(0,8)}</span>
-        <span>${new Date(o.created_at).toLocaleDateString()}</span>
+    <section class="panel">
+      <div class="toolbar">
+        <div class="left">
+          <div class="pill" id="whoPill">
+            <strong>Signed out</strong>
+            <small id="whoEmail"></small>
+          </div>
+          <div class="pill" id="countPill">
+            <strong id="countNum">0</strong>
+            <small>items</small>
+          </div>
+        </div>
+        <div class="right">
+          <button class="btn" id="refreshBtn" type="button">Refresh</button>
+        </div>
       </div>
 
-      <div class="purchase-items">
-        <div><span class="name">${title}</span></div>
-        ${specHtml}
-        ${
-          o.listing_id
-            ? `<a class="view-link" href="listing.html?id=${o.listing_id}">View listing</a>`
-            : ""
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" style="display:none;">No purchases yet.</div>
+      <div id="err" class="err"></div>
+    </section>
+  </main>
+
+  <div id="hm-footer-root"></div>
+  <script defer src="scripts/hm-footer.js"></script>
+
+  <script>
+    (function(){
+      const grid = document.getElementById('grid');
+      const empty = document.getElementById('empty');
+      const errBox = document.getElementById('err');
+      const countNum = document.getElementById('countNum');
+      const whoPill = document.getElementById('whoPill');
+      const whoEmail = document.getElementById('whoEmail');
+      const refreshBtn = document.getElementById('refreshBtn');
+
+      function money(cents){
+        const n = Number(cents || 0) / 100;
+        return n.toLocaleString(undefined, { style:'currency', currency:'USD' });
+      }
+      function fmtDate(iso){
+        try{
+          const d = new Date(iso);
+          return d.toLocaleString(undefined, { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+        }catch(_){ return ''; }
+      }
+      function showErr(msg){
+        errBox.style.display = msg ? 'block' : 'none';
+        errBox.textContent = msg || '';
+      }
+
+      function cardHTML(row){
+        const href = `listing.html?id=${encodeURIComponent(row.listing_id)}`;
+        const title = row.listing_title || 'Listing';
+        const thumb = row.thumbnail_url ? `<img src="${row.thumbnail_url}" alt=""/>` : '';
+        const purchasedAt = fmtDate(row.purchased_at);
+        const orderIdShort = (row.order_id || '').toString().slice(0,8);
+
+        const status = (row.order_status || 'PAID').toString().toUpperCase();
+        const listingStatus = (row.listing_status || '').toString().toUpperCase();
+
+        return `
+          <a class="card" href="${href}">
+            <div class="thumb">${thumb}</div>
+            <div class="meta">
+              <div class="title">${escapeHtml(title)}</div>
+              <div class="row">
+                <span class="tag">${money(row.item_price_cents ?? row.listing_price_cents)}</span>
+                ${listingStatus ? `<span class="tag">${escapeHtml(listingStatus)}</span>` : ''}
+                ${status ? `<span class="tag">Order: ${escapeHtml(status)}</span>` : ''}
+              </div>
+              <div class="row" style="margin-top:8px;">
+                <span class="muted">Purchased: ${escapeHtml(purchasedAt)}</span>
+                ${orderIdShort ? `<span class="muted">• Order ${escapeHtml(orderIdShort)}</span>` : ''}
+              </div>
+            </div>
+          </a>
+        `;
+      }
+
+      function escapeHtml(s){
+        return String(s ?? '')
+          .replaceAll('&','&amp;')
+          .replaceAll('<','&lt;')
+          .replaceAll('>','&gt;')
+          .replaceAll('"','&quot;')
+          .replaceAll("'","&#039;");
+      }
+
+      async function requireSession(){
+        const { data, error } = await window.supabase.auth.getSession();
+        if (error) throw error;
+        const session = data?.session;
+        if (!session?.user?.id) {
+          location.href = 'account.html';
+          return null;
         }
-      </div>
+        const email = session.user.email || '';
+        whoPill.innerHTML = `<strong>Signed in</strong><small id="whoEmail"></small>`;
+        document.getElementById('whoEmail').textContent = email ? ` ${email}` : '';
+        return session.user;
+      }
 
-      <div class="purchase-spec">
-        Total: ${money}
-      </div>
-    `;
+      async function loadPurchases(){
+        showErr('');
+        grid.innerHTML = '';
+        empty.style.display = 'none';
+        countNum.textContent = '0';
 
-    list.appendChild(card);
-  });
-})();
-</script>
+        const user = await requireSession();
+        if (!user) return;
 
+        const { data, error } = await window.supabase
+          .from('purchases_feed')
+          .select('*')
+          .order('purchased_at', { ascending: false });
+
+        if (error) {
+          showErr(error.message || String(error));
+          return;
+        }
+
+        const rows = Array.isArray(data) ? data : [];
+        countNum.textContent = String(rows.length);
+
+        if (!rows.length) {
+          empty.style.display = 'block';
+          return;
+        }
+
+        grid.innerHTML = rows.map(cardHTML).join('');
+      }
+
+      refreshBtn.addEventListener('click', loadPurchases);
+
+      document.addEventListener('DOMContentLoaded', () => {
+        loadPurchases().catch(e => showErr(e?.message || String(e)));
+      });
+    })();
+  </script>
 </body>
 </html>
