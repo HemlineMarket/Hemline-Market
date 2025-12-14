@@ -347,6 +347,85 @@
   window.HM && window.HM.renderShell({ currentPage: "checkout" });
 </script>
 
+<!-- ✅ NEW: Prefill from profiles + localStorage, without overwriting edits -->
+<script>
+  (async function prefillCheckoutFromAccount(){
+    const $ = (id) => document.getElementById(id);
+    const setIfEmpty = (id, val) => {
+      const el = $(id);
+      if(!el) return;
+      if(String(el.value || "").trim() !== "") return; // don't overwrite user edits
+      if(val === undefined || val === null) return;
+      const s = String(val).trim();
+      if(!s) return;
+      el.value = s;
+    };
+
+    try{
+      // 1) If we already saved an address from a prior checkout attempt, use it first.
+      try{
+        const cached = JSON.parse(localStorage.getItem("hm_checkout_address") || "null");
+        if(cached && typeof cached === "object"){
+          setIfEmpty("email", cached.email);
+          setIfEmpty("phone", cached.phone);
+          setIfEmpty("addr1", cached.line1);
+          setIfEmpty("addr2", cached.line2);
+          setIfEmpty("city",  cached.city);
+          setIfEmpty("state", cached.state);
+          setIfEmpty("zip",   cached.zip);
+        }
+      }catch(_){}
+
+      // 2) Pull from signed-in user + profiles table
+      const supabase = (window.HM && window.HM.supabase) || window.__hm_supabase;
+      if(!supabase) return;
+
+      const { data: sess } = await supabase.auth.getSession();
+      const user = sess?.session?.user;
+      if(!user) return;
+
+      // Email: always default to auth email (but only if empty)
+      setIfEmpty("email", user.email);
+
+      // Load profile row
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if(error || !profile) return;
+
+      // Support multiple possible column naming styles
+      const pick = (obj, keys) => {
+        for(const k of keys){
+          const v = obj?.[k];
+          if(v !== undefined && v !== null && String(v).trim() !== "") return v;
+        }
+        return "";
+      };
+
+      const addrObj =
+        profile.shipping_address ||
+        profile.address ||
+        profile.addr ||
+        null;
+
+      // Phone
+      setIfEmpty("phone", pick(profile, ["phone", "phone_number", "mobile", "mobile_phone"]) || pick(addrObj, ["phone"]));
+
+      // Address
+      setIfEmpty("addr1", pick(profile, ["address_line1","addr1","line1","street1"]) || pick(addrObj, ["line1","address_line1","addr1"]));
+      setIfEmpty("addr2", pick(profile, ["address_line2","addr2","line2","street2"]) || pick(addrObj, ["line2","address_line2","addr2"]));
+      setIfEmpty("city",  pick(profile, ["city","address_city","town"]) || pick(addrObj, ["city"]));
+      setIfEmpty("state", pick(profile, ["state","region","province","address_state"]) || pick(addrObj, ["state","region"]));
+      setIfEmpty("zip",   pick(profile, ["zip","postal_code","postcode","address_zip"]) || pick(addrObj, ["zip","postal_code","postcode"]));
+    }catch(err){
+      console.warn("[checkout] prefill failed (non-fatal):", err);
+    }
+  })();
+</script>
+
 <script>
   // Shipping, totals, and Stripe Checkout redirect
   (function () {
