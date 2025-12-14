@@ -426,6 +426,71 @@
       )
     );
 
+    // ------------------------
+    // Cart helpers
+    // ------------------------
+    const CART_KEY = "hm_cart";
+
+    function readCart() {
+      try { return JSON.parse(localStorage.getItem(CART_KEY) || "[]"); }
+      catch (_) { return []; }
+    }
+
+    function writeCart(list) {
+      try { localStorage.setItem(CART_KEY, JSON.stringify(list || [])); } catch(_) {}
+      // update badge if your shell exposes it
+      if (window.HM_CART_BADGE_UPDATE) {
+        try { window.HM_CART_BADGE_UPDATE(list || []); } catch(_) {}
+      }
+    }
+
+    // Extract listing id from a cart item (supports your existing shapes)
+    function getListingId(it) {
+      return it.listing_id || it.listingId || it.id || it.listing || null;
+    }
+
+    // Remove SOLD listings from cart, return {removedCount, removedNames}
+    async function cleanSoldFromCart({ silent = false } = {}) {
+      const cart = readCart();
+      if (!cart.length) return { removedCount: 0, removedNames: [] };
+
+      const ids = Array.from(new Set(cart.map(getListingId).filter(Boolean)));
+      if (!ids.length) return { removedCount: 0, removedNames: [] };
+
+      // Query listings
+      const { data, error } = await supabaseClient
+        .from("listings")
+        .select("id, status")
+        .in("id", ids);
+
+      if (error || !data) {
+        if (!silent) console.warn("Sold-check failed:", error);
+        return { removedCount: 0, removedNames: [] };
+      }
+
+      const sold = new Set(
+        data
+          .filter(r => String(r.status || "").toUpperCase() === "SOLD")
+          .map(r => r.id)
+      );
+
+      if (!sold.size) return { removedCount: 0, removedNames: [] };
+
+      const removedNames = [];
+      const filtered = cart.filter(it => {
+        const id = getListingId(it);
+        const isSold = id && sold.has(id);
+        if (isSold) removedNames.push(it.name || "Item");
+        return !isSold;
+      });
+
+      if (filtered.length !== cart.length) {
+        writeCart(filtered);
+      }
+
+      return { removedCount: cart.length - filtered.length, removedNames };
+    }
+
     // Tier rule: <3yd = $5, 3–10yd = $8, >10yd = $15 (per seller)
     function tierCents(y) {
       if (y < 3) return 500;
@@ -517,7 +582,6 @@
 
     function buildSummaryLines(addr) {
       const lines = [];
-      // Account has addrName, but checkout form does not — so we just show street/city/state/zip/country
       const l1 = (addr?.addrLine1 || addr?.line1 || "").trim();
       const l2 = (addr?.addrLine2 || addr?.line2 || "").trim();
       const city = (addr?.addrCity || addr?.city || "").trim();
@@ -558,7 +622,6 @@
 
     function getAddressFromForm() {
       return {
-        // Keep both shapes for compatibility
         addrLine1: addr1El.value.trim(),
         addrLine2: addr2El.value.trim(),
         addrCity:  cityEl.value.trim(),
@@ -590,7 +653,6 @@
 
     btnEditAddr.addEventListener("click", openAddrEditor);
     btnDoneAddr.addEventListener("click", () => {
-      // When they hit Done, sync summary + save defaults
       const nextAddr = getAddressFromForm();
       setSummaryFromAddress(nextAddr);
       closeAddrEditor();
@@ -631,7 +693,7 @@
         if (user?.email && emailEl && !emailEl.value) emailEl.value = user.email;
       } catch (_) {}
 
-      // 1) If checkout address exists, use it (user may have typed it already)
+      // 1) If checkout address exists, use it
       const checkoutAddr = safeParse("hm_checkout_address", {});
       const hasCheckout = !!(checkoutAddr?.line1 || checkoutAddr?.city || checkoutAddr?.zip);
       if (hasCheckout) {
@@ -643,9 +705,7 @@
           state: checkoutAddr.state,
           zip: checkoutAddr.zip,
         });
-        // Keep editor closed by default
         closeAddrEditor();
-        // also prefill phone/email if stored
         if (checkoutAddr.email && emailEl && !emailEl.value) emailEl.value = checkoutAddr.email;
         if (checkoutAddr.phone && phoneEl && !phoneEl.value) phoneEl.value = checkoutAddr.phone;
         return;
@@ -665,14 +725,14 @@
         }
       }
 
-      // 3) No address found → show empty
       setSummaryFromAddress({});
       closeAddrEditor();
     }
 
     function renderCartSummary() {
-      const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
+      const cart = readCart();
       itemsEl.innerHTML = "";
+
       if (cart.length === 0) {
         subEl.textContent = fmt(0);
         shipEl.textContent = fmt(0);
@@ -681,6 +741,7 @@
         showBanner("Your cart is empty — add fabric to continue.", "err");
         return;
       }
+
       next.disabled = false;
       showBanner("Cart has items — ready to check out.", "ok");
 
@@ -697,21 +758,7 @@
         itemsEl.appendChild(row);
       }
 
-      const t = (function () {
-        let sub = 0;
-        const yardsBySeller = {};
-        for (const it of cart) {
-          const qty = Number(it.qty || 1);
-          const line = Number(it.amount || 0) * qty;
-          sub += line;
-          const key = sellerKey(it);
-          const yds = yardsForItem(it);
-          yardsBySeller[key] = (yardsBySeller[key] || 0) + yds;
-        }
-        const ship = Object.values(yardsBySeller).reduce((s, y) => s + tierCents(y), 0);
-        return { sub, ship, tot: sub + ship };
-      })();
-
+      const t = totals(cart);
       subEl.textContent = fmt(t.sub);
       shipEl.textContent = fmt(t.ship);
       totEl.textContent = fmt(t.tot);
@@ -719,6 +766,9 @@
       try { localStorage.setItem("hm_checkout_preview", JSON.stringify(t)); } catch (_) {}
     }
 
+    // ------------------------
+    // Checkout → Stripe
+    // ------------------------
     async function goToStripe() {
       const agree = document.getElementById("agreeCheckout");
       if (!agree || !agree.checked) {
@@ -727,13 +777,31 @@
         return;
       }
 
-      const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
-      if (!cart.length) return;
+      // HARD STOP: re-check SOLD right before payment to prevent race conditions
+      try {
+        const soldResult = await cleanSoldFromCart({ silent: true });
+        if (soldResult.removedCount > 0) {
+          renderCartSummary();
+          showBanner(
+            soldResult.removedCount === 1
+              ? "One item in your cart was just purchased by someone else, so we removed it. Please review your cart."
+              : soldResult.removedCount + " items in your cart were just purchased by someone else, so we removed them. Please review your cart.",
+            "err"
+          );
+          return;
+        }
+      } catch (e) {
+        // If the sold-check fails, we *do not* block payment, but we warn (devil’s advocate: you may want to block)
+        console.warn("Pre-payment sold-check failed:", e);
+      }
 
-      // If editor is open, take latest typed values
+      const cart = readCart();
+      if (!cart.length) {
+        renderCartSummary();
+        return;
+      }
+
       const addrNow = getAddressFromForm();
-
-      // Basic validation
       if (!addrNow.line1 || !addrNow.city || !addrNow.state || !addrNow.zip) {
         showBanner("Please enter your shipping address (street, city, state, ZIP).", "err");
         openAddrEditor();
@@ -758,7 +826,6 @@
       const ship = (function () {
         const yardsBySeller = {};
         for (const it of cart) {
-          const qty = Number(it.qty || 1);
           const key = sellerKey(it);
           const yds = yardsForItem(it);
           yardsBySeller[key] = (yardsBySeller[key] || 0) + yds;
@@ -816,9 +883,26 @@
 
     next.addEventListener("click", goToStripe);
 
-    // Start
-    renderCartSummary();
-    hydrateDefaults();
+    // ------------------------
+    // Init
+    // ------------------------
+    (async function init() {
+      // On load, proactively remove SOLD so the user doesn’t get surprised later
+      try {
+        const soldResult = await cleanSoldFromCart({ silent: true });
+        if (soldResult.removedCount > 0) {
+          showBanner(
+            soldResult.removedCount === 1
+              ? "One item in your cart was already sold, so we removed it."
+              : soldResult.removedCount + " items in your cart were already sold, so we removed them.",
+            "err"
+          );
+        }
+      } catch (_) {}
+
+      renderCartSummary();
+      hydrateDefaults();
+    })();
   })();
 </script>
 </body>
