@@ -1,95 +1,179 @@
-<script>
-  function formatMoney(cents){
-    const n = Number(cents || 0) / 100;
-    return n.toLocaleString(undefined,{ style:"currency", currency:"USD" });
-  }
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Your Purchases — Hemline Market</title>
 
-  function formatDate(iso){
-    if (!iso) return "";
-    const d = new Date(iso);
-    return d.toLocaleDateString(undefined,{
-      month:"short",
-      day:"numeric",
-      year:"numeric"
-    });
-  }
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hm-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="icon" href="/favicon.ico"/>
 
-  async function waitForSupabase(timeout = 4000){
-    const start = Date.now();
-    while (!window.HM || !window.HM.supabase){
-      if (Date.now() - start > timeout) return null;
-      await new Promise(r => setTimeout(r, 100));
-    }
-    return window.HM.supabase;
-  }
-
-  document.addEventListener("DOMContentLoaded", async () => {
-    window.HM.renderShell({ currentPage:"purchases" });
-
-    const supabase = await waitForSupabase();
-    if (!supabase){
-      console.error("Supabase not available");
-      return;
+  <style>
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#f4f4f7;
     }
 
-    const list  = document.getElementById("purchasesList");
-    const empty = document.getElementById("emptyState");
-
-    const { data:{ session } } = await supabase.auth.getSession();
-    if (!session || !session.user){
-      empty.style.display = "block";
-      empty.textContent = "Sign in to view your purchases.";
-      return;
+    html,body{
+      margin:0;
+      background:var(--hm-bg);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      color:var(--hm-text);
     }
 
-    const uid   = session.user.id;
-    const email = session.user.email;
-
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
-      .order("created_at", { ascending:false });
-
-    if (error){
-      console.error(error);
-      empty.style.display = "block";
-      empty.textContent = "Unable to load purchases.";
-      return;
+    main{
+      max-width:1100px;
+      margin:24px auto;
+      padding:0 16px;
     }
 
-    if (!data || !data.length){
-      empty.style.display = "block";
-      return;
+    h1{
+      font-size:26px;
+      font-weight:800;
+      margin:0 0 6px;
     }
 
-    empty.style.display = "none";
-    list.innerHTML = "";
+    .sub{
+      color:var(--hm-muted);
+      margin-bottom:20px;
+      font-size:14px;
+    }
 
-    data.forEach(o => {
-      const card = document.createElement("div");
-      card.className = "purchase-card";
+    .purchase-card{
+      background:#fff;
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      padding:16px;
+      margin-bottom:14px;
+      box-shadow:0 4px 14px rgba(0,0,0,.05);
+      font-size:14px;
+    }
 
-      card.innerHTML = `
-        <div class="purchase-top">
-          <span>Order #${String(o.id).slice(0,8)}</span>
-          <span>${formatDate(o.created_at)}</span>
-        </div>
+    .row{
+      display:flex;
+      justify-content:space-between;
+      margin-bottom:6px;
+      font-weight:600;
+    }
 
-        <div class="purchase-status">
-          ${String(o.status || "PAID").toUpperCase()}
-        </div>
+    .status{
+      color:var(--hm-accent);
+      font-weight:700;
+      margin-bottom:6px;
+    }
 
-        <div class="purchase-meta">
-          <div>Total: <strong>${formatMoney(o.total_cents)}</strong></div>
-        </div>
+    .meta{
+      color:var(--hm-muted);
+      font-size:13px;
+      margin-bottom:6px;
+    }
 
-        <div class="purchase-items">
-          <div><span class="name">${o.listing_title || o.listing_name || "Purchase"}</span></div>
-        </div>
-      `;
+    .empty{
+      text-align:center;
+      color:var(--hm-muted);
+      margin-top:40px;
+      font-size:15px;
+    }
+  </style>
+</head>
 
-      list.appendChild(card);
-    });
-  });
-</script>
+<body>
+
+  <!-- HEADER -->
+  <div id="hm-header">
+    <div class="hm-header-inner">
+      <a href="/" class="hm-logo">Hemline Market</a>
+      <nav class="hm-nav">
+        <a href="/browse.html">Browse</a>
+        <a href="/sell.html">Sell</a>
+        <a href="/cart.html">Cart</a>
+        <a href="/account.html">Account</a>
+      </nav>
+    </div>
+  </div>
+
+  <main>
+    <h1>Your Purchases</h1>
+    <p class="sub">Your completed orders.</p>
+
+    <div id="list"></div>
+    <p class="empty" id="empty" style="display:none;">You haven’t purchased anything yet.</p>
+  </main>
+
+  <!-- FOOTER -->
+  <div id="hm-footer">
+    <div class="hm-footer-inner">
+      © 2025 Hemline Market · <a href="/about.html">About</a> · <a href="/faq.html">FAQ</a> · <a href="/privacy.html">Privacy</a>
+    </div>
+  </div>
+
+  <!-- SUPABASE CLIENT (DIRECT, NO WRAPPERS) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://clkizksbvjxkoatdajgd.supabase.co";
+    const SUPABASE_ANON = "PASTE_YOUR_PUBLIC_ANON_KEY_HERE";
+
+    const supabase = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON,
+      { auth:{ persistSession:true } }
+    );
+
+    function money(c){ return (Number(c||0)/100).toLocaleString(undefined,{style:"currency",currency:"USD"}); }
+    function date(d){ return new Date(d).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+
+    (async () => {
+      const list  = document.getElementById("list");
+      const empty = document.getElementById("empty");
+
+      const { data:{ session } } = await supabase.auth.getSession();
+      if (!session || !session.user){
+        empty.style.display = "block";
+        empty.textContent = "Sign in to view your purchases.";
+        return;
+      }
+
+      const uid   = session.user.id;
+      const email = session.user.email;
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
+        .order("created_at",{ascending:false});
+
+      if (error){
+        empty.style.display = "block";
+        empty.textContent = "Unable to load purchases.";
+        return;
+      }
+
+      if (!data || !data.length){
+        empty.style.display = "block";
+        return;
+      }
+
+      data.forEach(o => {
+        const card = document.createElement("div");
+        card.className = "purchase-card";
+        card.innerHTML = `
+          <div class="row">
+            <span>Order #${String(o.id).slice(0,8)}</span>
+            <span>${date(o.created_at)}</span>
+          </div>
+          <div class="status">${(o.status||"PAID").toUpperCase()}</div>
+          <div class="meta">Total: <strong>${money(o.total_cents)}</strong></div>
+          <div>${o.listing_title || o.listing_name || "Purchase"}</div>
+        `;
+        list.appendChild(card);
+      });
+    })();
+  </script>
+</body>
+</html>
