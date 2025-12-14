@@ -1,4 +1,3 @@
-<!-- File: success.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -133,16 +132,11 @@
       font-size:13px;
       display:none;
     }
-    .warn code{ font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; }
-
-    @media (max-width:640px){
-      .success-card{ padding:18px 16px 16px; }
-      .success-title{ font-size:20px; }
-    }
   </style>
 </head>
 
 <body>
+
   <!-- UNIVERSAL HEADER -->
   <div id="hm-shell-header"></div>
 
@@ -181,16 +175,10 @@
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    // Render shell first (so any shared globals are available before success logic runs)
+    // Render header/footer first
     window.HM && window.HM.renderShell({ currentPage: "" });
 
-    // Ensure a single shared client exists (same pattern as sales/purchases)
-    window.__hm_supabase = window.__hm_supabase || window.supabase.createClient(
-      "https://clkizksbvxjkoatdajgd.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-    );
-
-    // Small guardrail: if session_id is missing, show a clear message (prevents silent failures)
+    // Guardrail: ensure Stripe session_id exists
     (function(){
       const warnBox = document.getElementById("warnBox");
       const params = new URLSearchParams(window.location.search || "");
@@ -198,12 +186,30 @@
 
       if(!sid){
         warnBox.style.display = "block";
-        warnBox.innerHTML = `Missing <code>session_id</code>. If you just paid and were redirected here, your checkout success URL is misconfigured.`;
+        warnBox.innerHTML =
+          "Missing <code>session_id</code>. If you just paid, your Stripe success URL is misconfigured.";
+      }
+    })();
+
+    // 🔑 SUCCESS SIDE EFFECTS (CART CLEANUP)
+    (function(){
+      try{
+        // Clear cart + shipping cache
+        localStorage.removeItem("hm_cart");
+        localStorage.removeItem("hm_cart_shipping");
+
+        // Update header badge immediately if available
+        if(window.HM_CART_BADGE_UPDATE){
+          window.HM_CART_BADGE_UPDATE([]);
+        }
+
+        // Optional safety flag (prevents accidental double-clears elsewhere)
+        sessionStorage.setItem("hm_last_checkout", "success");
+      }catch(e){
+        console.warn("Cart cleanup failed", e);
       }
     })();
   </script>
 
-  <!-- Success logic LAST so it runs after shell + client are ready -->
-  <script src="scripts/purchase-success.js"></script>
 </body>
 </html>
