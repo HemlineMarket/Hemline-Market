@@ -136,7 +136,6 @@
   <script>
     window.HM && window.HM.renderShell({ currentPage: "sales" });
 
-    // ONE client. Keep same pattern.
     const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
       window.supabase.createClient(
         "https://clkizksbvxjkoatdajgd.supabase.co",
@@ -157,73 +156,15 @@
 
     function money(cents){
       const v = (Number(cents || 0) / 100);
-      return v.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
+      return v.toLocaleString("en-US",{style:"currency",currency:"USD"});
     }
     function fmtDate(iso){
       try{ return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); }
       catch(e){ return ""; }
     }
 
-    function getQty(order){
-      try{
-        const q = order?.listing_snapshot?.items?.[0]?.qty;
-        const n = Number(q);
-        return Number.isFinite(n) && n > 0 ? n : 1;
-      }catch(e){ return 1; }
-    }
-
-    function listingHref(listingId){
-      return "listing.html?id=" + encodeURIComponent(listingId);
-    }
-
-    function shippingFromPolicy(qtyYards){
-      const y = Number(qtyYards || 0);
-      if(y > 0 && y < 3) return 500;
-      if(y >= 3 && y <= 10) return 800;
-      if(y > 10) return 1400;
-      return 0;
-    }
-
-    function isCancelableStatus(statusUpper){
-      // Keep simple and predictable:
-      // - allow cancel for PAID/PENDING only
-      // - block for SHIPPED/DELIVERED/CANCELED
-      return (
-        statusUpper === "PAID" ||
-        statusUpper === "PENDING" ||
-        statusUpper === ""
-      );
-    }
-
-    async function cancelOrder({ orderId, listingId, reason, userId }){
-      // Update orders (this is the real “cancel works” part)
-      const nowIso = new Date().toISOString();
-
-      const { error: updErr } = await supabaseClient
-        .from("orders")
-        .update({
-          status: "CANCELED",
-          canceled_at: nowIso,
-          cancel_requested_at: nowIso,
-          canceled_by: userId,
-          cancel_reason: reason
-        })
-        .eq("id", orderId)
-        .eq("seller_id", userId);
-
-      if(updErr) throw updErr;
-
-      // Best-effort: try to re-open the listing (non-fatal if your listings table differs)
-      if(listingId){
-        try{
-          await supabaseClient
-            .from("listings")
-            .update({ status: "ACTIVE" })
-            .eq("id", listingId);
-        }catch(e){
-          // ignore
-        }
-      }
+    function listingHref(id){
+      return "listing.html?id=" + encodeURIComponent(id);
     }
 
     async function loadSales(){
@@ -231,169 +172,73 @@
       elList.innerHTML = "";
       elPill.textContent = "Checking session…";
 
-      const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
-      if(sessErr){
-        console.error(sessErr);
-        elPill.textContent = "Not ready";
-        showMsg("Session error. Please refresh.", "error");
-        return;
-      }
-
-      const user = sessData?.session?.user;
+      const { data: sess } = await supabaseClient.auth.getSession();
+      const user = sess?.session?.user;
       if(!user){
         elPill.textContent = "Not signed in";
         showMsg("Please sign in to view your sales.", "error");
         return;
       }
 
-      elPill.textContent = "Signed in";
-
-      const { data: orders, error: ordErr } = await supabaseClient
+      const { data: orders, error } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, seller_id, buyer_email, listing_id, total_cents, items_cents, shipping_cents, listing_snapshot, canceled_at, cancel_reason")
+        .select("id, created_at, status, seller_id, buyer_email, listing_id, total_cents, shipping_cents, canceled_at, cancel_reason")
         .eq("seller_id", user.id)
         .order("created_at", { ascending:false });
 
-      if(ordErr){
-        console.error(ordErr);
-        elPill.textContent = "Error";
+      if(error){
+        console.error(error);
         showMsg("Error loading sales.", "error");
         return;
       }
 
-      const list = orders || [];
-      if(!list.length){
+      if(!orders.length){
         elPill.textContent = "0 sales";
         showMsg("No sales yet.", "ok");
         return;
       }
 
-      elPill.textContent = list.length === 1 ? "1 sale" : `${list.length} sales`;
+      elPill.textContent = orders.length === 1 ? "1 sale" : `${orders.length} sales`;
 
-      // Best effort: listing thumbnails/titles
-      const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
-      const listingMap = {};
-      if(ids.length){
-        const { data: listings, error: lErr } = await supabaseClient
-          .from("listings")
-          .select("id, title, image_url_1")
-          .in("id", ids);
-
-        if(!lErr && listings){
-          listings.forEach(l => listingMap[l.id] = l);
-        }
-      }
-
-      list.forEach(order => {
-        const listing = listingMap[order.listing_id] || null;
-
-        const qty = getQty(order);
-        const title = (listing?.title) || (order?.listing_snapshot?.listing_title) || (order?.listing_snapshot?.title) || "Listing";
-        const img = (listing?.image_url_1) || (order?.listing_snapshot?.image_url_1) || "";
-
-        const itemsCents = (order.items_cents != null ? Number(order.items_cents) :
-                           order.total_cents != null ? Number(order.total_cents) : 0);
-
-        const shipRaw = Number(order.shipping_cents || 0);
-        const shipCents = shipRaw > 0 ? shipRaw : shippingFromPolicy(qty);
-
-        const buyerEmail = order.buyer_email || "";
-
+      orders.forEach(order => {
         const status = String(order.status || "").toUpperCase();
-        const isCanceled = (status === "CANCELED" || status === "CANCELLED");
+        const isCanceled = status === "CANCELED" || status === "CANCELLED";
 
-        const canCancel = !isCanceled && isCancelableStatus(status);
+        const buyerEmail =
+          (order.buyer_email && order.buyer_email !== user.email)
+            ? order.buyer_email
+            : "";
 
         const card = document.createElement("div");
         card.className = "card";
 
         card.innerHTML = `
-          <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
-            <div class="thumb">
-              ${img ? `<img src="${img}" alt="">` : `<div class="fallback">HM</div>`}
-            </div>
-          </a>
-
+          <div class="thumb"><div class="fallback">HM</div></div>
           <div>
             <div class="row1">
               <div>
-                <div class="title">${title}</div>
+                <div class="title">Listing</div>
                 <div class="meta">
-                  ${status ? `<span class="pill" style="padding:2px 8px;margin-right:6px">${status}</span>` : ""}
-                  ${qty} ${qty === 1 ? "yard" : "yards"} · Sold · ${fmtDate(order.created_at)}
+                  ${status ? `<span class="pill">${status}</span>` : ""}
+                  Sold · ${fmtDate(order.created_at)}
                   ${buyerEmail ? ` · Buyer: ${buyerEmail}` : ""}
                 </div>
-                ${
-                  isCanceled ? `<div class="inlineNote"><strong>Cancelled</strong>${order.cancel_reason ? ` · Reason: ${order.cancel_reason}` : ""}</div>` : ``
-                }
+                ${isCanceled ? `<div class="inlineNote"><strong>Cancelled</strong>${order.cancel_reason ? ` · ${order.cancel_reason}` : ""}</div>` : ""}
               </div>
-
               <div class="right">
-                <div class="total">${money(itemsCents)} for ${qty} ${qty === 1 ? "yard" : "yards"}</div>
-                ${shipCents ? `<div class="small">${money(shipCents)} shipping</div>` : ""}
+                <div class="total">${money(order.total_cents)}</div>
+                <div class="small">${money(order.shipping_cents)} shipping</div>
               </div>
             </div>
 
             <div class="actions">
-              <a class="miniLink" href="${listingHref(order.listing_id)}" aria-label="View listing">
-                <span class="miniIcon">↗</span>
-                <span>Listing</span>
+              <a class="miniLink" href="${listingHref(order.listing_id)}">
+                <span class="miniIcon">↗</span> Listing
               </a>
-
-              ${
-                canCancel ? `
-                  <select class="select" data-cancel-reason>
-                    <option value="">Cancel reason…</option>
-                    <option value="out_of_stock">Out of stock</option>
-                    <option value="cannot_ship">Cannot ship in time</option>
-                    <option value="buyer_requested">Buyer requested cancel</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <button class="btn btn-danger" data-cancel-btn>Cancel</button>
-                ` : `
-                  <span class="pill">${isCanceled ? "Cancelled" : "Cancel disabled"}</span>
-                `
-              }
+              <span class="pill">${isCanceled ? "Cancelled" : "Completed"}</span>
             </div>
           </div>
         `;
-
-        const cancelBtn = card.querySelector("[data-cancel-btn]");
-        if(cancelBtn){
-          cancelBtn.addEventListener("click", async () => {
-            const sel = card.querySelector("[data-cancel-reason]");
-            const reason = (sel && sel.value) ? sel.value : "";
-            if(!reason){
-              alert("Please select a cancel reason.");
-              return;
-            }
-
-            // hard confirm (prevents accidental clicks)
-            const ok = confirm("Cancel this sale? This will mark the order as canceled.");
-            if(!ok) return;
-
-            cancelBtn.disabled = true;
-            cancelBtn.textContent = "Cancelling…";
-
-            try{
-              await cancelOrder({
-                orderId: order.id,
-                listingId: order.listing_id || null,
-                reason,
-                userId: user.id
-              });
-
-              // Update UI immediately
-              showMsg("Cancelled. Refresh to confirm.", "ok");
-              await loadSales();
-            }catch(e){
-              console.error(e);
-              showMsg("Cancel failed. This usually means the order update policy doesn’t allow the seller to update this row.", "error");
-              cancelBtn.disabled = false;
-              cancelBtn.textContent = "Cancel";
-            }
-          });
-        }
 
         elList.appendChild(card);
       });
