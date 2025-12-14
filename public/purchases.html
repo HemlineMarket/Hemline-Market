@@ -20,12 +20,7 @@
       --hm-bg:#f4f4f7;
       --hm-card:rgba(255,255,255,.96);
     }
-    html,body{
-      margin:0;
-      background:var(--hm-bg);
-      color:var(--hm-text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif
-    }
+    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
     .wrap{max-width:980px;margin:18px auto 28px;padding:0 12px}
     h1{margin:10px 0 4px;font-size:32px}
     .sub{color:var(--hm-muted);margin:0 0 14px}
@@ -51,8 +46,10 @@
       gap:12px;
       align-items:start;
       overflow:hidden;
+      position:relative;
     }
-
+    .card.noThumb{grid-template-columns:1fr}
+    .thumbLink{display:block;text-decoration:none;color:inherit}
     .thumb{
       width:110px;height:110px;border-radius:12px;overflow:hidden;
       background:linear-gradient(180deg,#f8fafc,#eef2f7);
@@ -60,11 +57,6 @@
       display:grid;place-items:center;
     }
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .thumb .fallback{
-      font-size:12px;
-      color:#9ca3af;
-      font-weight:600;
-    }
 
     .row1{display:flex;gap:10px;align-items:flex-start}
     .title{font-weight:800;font-size:15px}
@@ -72,9 +64,27 @@
     .right{margin-left:auto;text-align:right}
     .total{font-weight:800}
     .small{font-size:12px;color:var(--hm-muted);margin-top:2px}
+    .small a{color:inherit}
 
     .actions{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+    .btn{
+      padding:8px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;
+      font-weight:700;font-size:13px;cursor:pointer;
+    }
+    .btn-danger{
+      background:var(--hm-accent);
+      border-color:var(--hm-accent);
+      color:#fff;
+      padding:8px 10px;
+      font-size:13px;
+      font-weight:700;
+    }
+    .select{
+      padding:8px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;
+      font-size:13px;min-width:220px;
+    }
 
+    /* mini link like browse */
     .miniLink{
       display:inline-flex;align-items:center;gap:6px;
       text-decoration:none;
@@ -86,6 +96,38 @@
       border-radius:10px;
       background:#fff;
     }
+    .miniLink:hover{border-color:#d1d5db}
+    .miniIcon{
+      width:18px;height:18px;display:inline-grid;place-items:center;
+      border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb;
+      font-size:12px;line-height:1;
+    }
+
+    /* Problems dropdown */
+    .menuWrap{position:relative;display:inline-block}
+    .menu{
+      position:absolute;top:42px;left:0;
+      background:#fff;border:1px solid var(--hm-border);border-radius:12px;
+      box-shadow:0 12px 30px rgba(0,0,0,.10);
+      min-width:240px;overflow:hidden;display:none;z-index:10;
+    }
+    .menu.open{display:block}
+    .menu button{
+      width:100%;text-align:left;border:0;background:#fff;
+      padding:10px 12px;font-size:13px;cursor:pointer;color:#111827;
+    }
+    .menu button:hover{background:#f9fafb}
+    .menu .sep{height:1px;background:#f3f4f6}
+
+    /* 30-min notice */
+    .note{
+      margin-top:8px;
+      font-size:12px;
+      color:var(--hm-muted);
+    }
+    .note.warn{color:#b45309;font-weight:700}
+    .note.ok{color:#065f46;font-weight:700}
+    .note.bad{color:#7f1d1d;font-weight:700}
 
     @media(max-width:640px){
       .card{grid-template-columns:1fr}
@@ -114,13 +156,14 @@
 
   <div id="hm-shell-footer"></div>
 
-  <!-- Same working setup as sales -->
+  <!-- keep same approach as your working sales page -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
 
   <script>
     window.HM && window.HM.renderShell({ currentPage: "purchases" });
 
+    // SINGLETON client (prevents “Multiple GoTrueClient instances” warning)
     const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
       window.supabase.createClient(
         "https://clkizksbvxjkoatdajgd.supabase.co",
@@ -137,83 +180,308 @@
       elMsg.className = "notice " + (kind === "error" ? "error" : "ok");
       elMsg.textContent = text;
     }
-    function clearMsg(){ elMsg.style.display = "none"; }
+    function clearMsg(){ elMsg.style.display = "none"; elMsg.textContent = ""; }
 
     function money(cents){
-      return (Number(cents || 0) / 100)
-        .toLocaleString("en-US",{style:"currency",currency:"USD"});
+      const v = (Number(cents || 0) / 100);
+      return v.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
     }
     function fmtDate(iso){
-      return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"});
+      try{ return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); }
+      catch(e){ return ""; }
     }
+    function listingHref(listingId){
+      return "listing.html?id=" + encodeURIComponent(listingId);
+    }
+
+    function safeUpper(s){ return String(s || "").toUpperCase(); }
+
+    function getTitle(order){
+      return (
+        order.listing_title ||
+        order.listing_name ||
+        order?.listing_snapshot?.listing_title ||
+        order?.listing_snapshot?.title ||
+        "Listing"
+      );
+    }
+
+    function getImage(order, listingMap){
+      const byOrder = order.listing_image_url || order?.listing_snapshot?.image_url_1 || "";
+      if(byOrder) return byOrder;
+
+      const l = listingMap?.[order.listing_id];
+      if(l && (l.image_url_1 || l.image_url)) return (l.image_url_1 || l.image_url);
+
+      return "";
+    }
+
+    function calcShipping(order){
+      // Prefer explicit shipping_cents
+      const ship = Number(order.shipping_cents);
+      if (Number.isFinite(ship) && ship >= 0) return ship;
+
+      // Else derive from total - items if available
+      const total = Number(order.total_cents);
+      const items = Number(order.items_cents);
+      if (Number.isFinite(total) && Number.isFinite(items)) return Math.max(total - items, 0);
+
+      return 0;
+    }
+
+    function isCanceled(status){
+      const s = safeUpper(status);
+      return (s === "CANCELED" || s === "CANCELLED");
+    }
+
+    function withinCancelWindow(createdAtIso, minutes){
+      const createdMs = new Date(createdAtIso).getTime();
+      if(!createdMs) return false;
+      const diffMin = (Date.now() - createdMs) / 60000;
+      return diffMin >= 0 && diffMin < minutes;
+    }
+
+    function closeAllMenus(){
+      document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open"));
+    }
+    document.addEventListener("click", (e) => {
+      if(!e.target.closest(".menuWrap")) closeAllMenus();
+    });
 
     async function loadPurchases(){
       clearMsg();
       elList.innerHTML = "";
-      elPill.textContent = "Checking session…";
+      elPill.textContent = "Checking…";
 
-      const { data: sess } = await supabaseClient.auth.getSession();
-      const user = sess?.session?.user;
-      if(!user){
-        elPill.textContent = "Not signed in";
-        showMsg("Please sign in to view your purchases.", "error");
+      const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
+      if(sessErr){
+        console.error(sessErr);
+        elPill.textContent = "Not ready";
+        showMsg("Session error. Please refresh.", "error");
         return;
       }
 
-      const { data: orders, error } = await supabaseClient
+      const user = sessData?.session?.user;
+      if(!user){
+        elPill.textContent = "Signed out";
+        showMsg("Sign in to view your purchases.", "error");
+        return;
+      }
+
+      elPill.textContent = "Loading…";
+
+      // Orders for this buyer
+      const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, total_cents, shipping_cents, listing_id, listing_title, listing_image_url, listing_snapshot")
+        .select("id, created_at, status, buyer_id, buyer_email, seller_id, listing_id, total_cents, items_cents, shipping_cents, listing_title, listing_name, listing_image_url, listing_snapshot, cancel_requested_at, canceled_at, canceled_by, cancel_reason")
         .eq("buyer_id", user.id)
         .order("created_at", { ascending:false });
 
-      if(error){
+      if(ordErr){
+        console.error(ordErr);
+        elPill.textContent = "Error";
         showMsg("Error loading purchases.", "error");
         return;
       }
 
-      if(!orders.length){
+      const list = orders || [];
+      if(!list.length){
         elPill.textContent = "0 purchases";
         showMsg("You haven’t purchased anything yet.", "ok");
         return;
       }
 
-      elPill.textContent = `${orders.length} purchases`;
+      // Best-effort: fetch listing images/titles (non-fatal if it fails)
+      const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
+      const listingMap = {};
+      if(ids.length){
+        const { data: listings, error: lErr } = await supabaseClient
+          .from("listings")
+          .select("id, title, image_url_1, image_url")
+          .in("id", ids);
 
-      orders.forEach(o => {
-        const snap = o.listing_snapshot || {};
-        const title = o.listing_title || snap.listing_title || snap.title || "Listing";
-        const img = o.listing_image_url || snap.image_url_1 || "";
-        const shippingCents = Number(o.shipping_cents || 0);
+        if(!lErr && listings){
+          listings.forEach(l => listingMap[l.id] = l);
+        } else {
+          console.warn("Listing fetch failed (non-fatal):", lErr);
+        }
+      }
+
+      elPill.textContent = list.length === 1 ? "1 purchase" : `${list.length} purchases`;
+
+      list.forEach(order => {
+        const title = getTitle(order);
+        const status = safeUpper(order.status || "PAID");
+        const created = fmtDate(order.created_at);
+        const totalCents = Number(order.total_cents || 0);
+        const shipCents = calcShipping(order);
+        const orderShort = String(order.id || "").slice(0, 8);
+        const canceled = isCanceled(status);
+
+        const img = getImage(order, listingMap);
+        const hasThumb = !!img;
+
+        const canCancel =
+          !canceled &&
+          (status === "PAID" || status === "PENDING" || status === "") &&
+          !!order.created_at &&
+          withinCancelWindow(order.created_at, 30);
+
+        let cancelNote = "";
+        if(canceled){
+          cancelNote = `<div class="note bad">Order cancelled.</div>`;
+        } else if(order.created_at && withinCancelWindow(order.created_at, 30)){
+          cancelNote = `<div class="note warn">Cancellation available for 30 minutes after purchase.</div>`;
+        } else {
+          cancelNote = `<div class="note">The 30-minute cancellation window has expired.</div>`;
+        }
 
         const card = document.createElement("div");
-        card.className = "card";
+        card.className = "card" + (hasThumb ? "" : " noThumb");
+
+        const thumbHtml = hasThumb ? `
+          <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
+            <div class="thumb">
+              <img src="${img}" alt="">
+            </div>
+          </a>
+        ` : "";
+
         card.innerHTML = `
-          <div class="thumb">
-            ${img ? `<img src="${img}" alt="">` : `<div class="fallback">No image</div>`}
-          </div>
+          ${thumbHtml}
 
           <div>
             <div class="row1">
               <div>
                 <div class="title">${title}</div>
                 <div class="meta">
-                  ${String(o.status).toUpperCase()} · Purchased ${fmtDate(o.created_at)}
+                  <span class="pill" style="padding:2px 8px;margin-right:6px">${status}</span>
+                  Purchased ${created}
+                  ${orderShort ? ` · Order #${orderShort}` : ""}
                 </div>
               </div>
 
               <div class="right">
-                <div class="total">${money(o.total_cents)}</div>
-                <div class="small">Shipping: ${money(shippingCents)}</div>
+                <div class="total">${money(totalCents)}</div>
+                <div class="small">Shipping: ${money(shipCents)}</div>
               </div>
             </div>
 
             <div class="actions">
-              <a class="miniLink" href="listing.html?id=${encodeURIComponent(o.listing_id)}">
-                View listing
+              <a class="miniLink" href="${listingHref(order.listing_id)}" aria-label="View listing">
+                <span class="miniIcon">↗</span>
+                <span>View listing</span>
               </a>
+
+              <div class="menuWrap">
+                <button class="btn" type="button" data-menu-btn>Problems / Order Inquiry ▾</button>
+                <div class="menu" data-menu>
+                  <button type="button" data-issue="accidental">Accidental Purchase</button>
+                  <button type="button" data-issue="delayed">Order is Delayed</button>
+                  <button type="button" data-issue="not_as_described">Order Not as Described</button>
+                  <div class="sep"></div>
+                  <button type="button" data-issue="message_seller">Message Seller</button>
+                  <button type="button" data-issue="support">Contact Support</button>
+                </div>
+              </div>
+
+              ${
+                canCancel ? `
+                  <select class="select" data-cancel-reason>
+                    <option value="">Cancel reason…</option>
+                    <option value="accidental_purchase">Accidental purchase</option>
+                    <option value="found_better_option">Found a better option</option>
+                    <option value="wrong_quantity">Wrong quantity</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <button class="btn btn-danger" type="button" data-cancel-btn>Cancel</button>
+                ` : `
+                  <span class="pill">Cancel ${canceled ? "completed" : "unavailable"}</span>
+                `
+              }
             </div>
+
+            ${cancelNote}
           </div>
         `;
+
+        // Problems menu wiring
+        const menuBtn = card.querySelector("[data-menu-btn]");
+        const menu = card.querySelector("[data-menu]");
+        if(menuBtn && menu){
+          menuBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isOpen = menu.classList.contains("open");
+            closeAllMenus();
+            if(!isOpen) menu.classList.add("open");
+          });
+
+          menu.querySelectorAll("button[data-issue]").forEach(b => {
+            b.addEventListener("click", () => {
+              const kind = b.getAttribute("data-issue");
+              closeAllMenus();
+
+              // Minimal, non-breaking actions (no new pages required)
+              if(kind === "message_seller"){
+                alert("Messaging will be added next. For now, use the listing page to contact the seller.");
+                return;
+              }
+              if(kind === "support"){
+                alert("Support will be added next. For now, take a screenshot and send it to support.");
+                return;
+              }
+              if(kind === "accidental"){
+                alert("If this was accidental and you’re within 30 minutes, use Cancel on this order.");
+                return;
+              }
+              if(kind === "delayed"){
+                alert("If the order seems delayed, contact the seller from the listing page.");
+                return;
+              }
+              if(kind === "not_as_described"){
+                alert("If the order isn’t as described, contact the seller and keep photos of the issue.");
+                return;
+              }
+            });
+          });
+        }
+
+        // Cancel wiring (best-effort — if policy blocks, you’ll see the error)
+        const cancelBtn = card.querySelector("[data-cancel-btn]");
+        if(cancelBtn){
+          cancelBtn.addEventListener("click", async () => {
+            const reason = card.querySelector("[data-cancel-reason]")?.value || "";
+            if(!reason){
+              alert("Please select a cancel reason.");
+              return;
+            }
+            if(!confirm("Cancel this order? This can only be done within 30 minutes after purchase.")) return;
+
+            const nowIso = new Date().toISOString();
+
+            const { error: upErr } = await supabaseClient
+              .from("orders")
+              .update({
+                status: "CANCELED",
+                canceled_at: nowIso,
+                canceled_by: user.id,
+                cancel_reason: reason,
+                cancel_requested_at: nowIso
+              })
+              .eq("id", order.id)
+              .eq("buyer_id", user.id);
+
+            if(upErr){
+              console.error(upErr);
+              alert("Cancel failed. This is usually a permissions/policy issue. Open DevTools Console for the error.");
+              return;
+            }
+
+            loadPurchases();
+          });
+        }
+
         elList.appendChild(card);
       });
     }
