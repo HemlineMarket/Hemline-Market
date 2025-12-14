@@ -32,7 +32,17 @@
     .notice.ok{display:block}
 
     .grid{display:grid;gap:12px}
-    .card{background:var(--hm-card);border:1px solid var(--hm-border);border-radius:12px;padding:12px;display:grid;grid-template-columns:110px 1fr;gap:12px}
+
+    .card{
+      background:var(--hm-card);
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      padding:12px;
+      display:grid;
+      grid-template-columns:110px 1fr;
+      gap:12px;
+    }
+
     .thumb{width:110px;height:110px;border-radius:12px;overflow:hidden;background:#eef2f7}
     .thumb img{width:100%;height:100%;object-fit:cover}
 
@@ -88,6 +98,7 @@
 
     function money(c){return (Number(c||0)/100).toLocaleString("en-US",{style:"currency",currency:"USD"})}
     function fmt(d){return new Date(d).toLocaleDateString()}
+    function minsSince(iso){return (Date.now()-new Date(iso).getTime())/60000}
 
     async function loadPurchases(){
       elList.innerHTML="";
@@ -102,13 +113,10 @@
         return;
       }
 
-      const email = user.email;
-      elPill.textContent="Loading…";
-
       const { data: orders, error } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, total_cents, listing_id")
-        .eq("buyer_email", email)
+        .select("id, created_at, status, total_cents, listing_id, cancel_requested_at, canceled_at")
+        .eq("buyer_email", user.email)
         .order("created_at",{ascending:false});
 
       if(error){
@@ -129,15 +137,33 @@
 
       elPill.textContent=`${orders.length} purchase${orders.length>1?"s":""}`;
 
+      const ids=[...new Set(orders.map(o=>o.listing_id).filter(Boolean))];
+      const listingMap={};
+
+      if(ids.length){
+        const { data:listings } = await supabaseClient
+          .from("listings")
+          .select("id,title,image_url_1")
+          .in("id",ids);
+        listings?.forEach(l=>listingMap[l.id]=l);
+      }
+
       orders.forEach(o=>{
+        const listing=listingMap[o.listing_id]||{};
+        const canCancel=
+          minsSince(o.created_at)<=30 &&
+          !o.canceled_at &&
+          !o.cancel_requested_at &&
+          o.status==="PAID";
+
         const card=document.createElement("div");
         card.className="card";
         card.innerHTML=`
-          <div class="thumb"></div>
+          <div class="thumb">${listing.image_url_1?`<img src="${listing.image_url_1}">`:""}</div>
           <div>
             <div class="row1">
               <div>
-                <div class="title">Order #${o.id.slice(0,8)}</div>
+                <div class="title">${listing.title||"Listing"}</div>
                 <div class="meta">
                   <span class="statusBadge">${o.status}</span>
                   <span>${fmt(o.created_at)}</span>
@@ -147,7 +173,25 @@
                 <div class="total">${money(o.total_cents)}</div>
               </div>
             </div>
-          </div>`;
+            ${
+              canCancel
+                ? `<button class="btn btn-danger">Cancel (30-minute window)</button>`
+                : `<button class="btn btn-disabled" disabled>${o.canceled_at?"Canceled":"Cancellation unavailable"}</button>`
+            }
+          </div>
+        `;
+
+        if(canCancel){
+          card.querySelector(".btn-danger").onclick=async()=>{
+            await supabaseClient.from("orders").update({
+              status:"CANCELED",
+              canceled_at:new Date().toISOString(),
+              cancel_requested_at:new Date().toISOString()
+            }).eq("id",o.id);
+            loadPurchases();
+          };
+        }
+
         elList.appendChild(card);
       });
     }
