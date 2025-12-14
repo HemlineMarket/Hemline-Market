@@ -20,15 +20,20 @@
       --hm-bg:#f4f4f7;
       --hm-card:rgba(255,255,255,.96);
     }
-    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui}
+    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
     .wrap{max-width:980px;margin:18px auto 28px;padding:0 12px}
     h1{margin:10px 0 4px;font-size:32px}
     .sub{color:var(--hm-muted);margin:0 0 14px}
     .bar{display:flex;justify-content:space-between;align-items:center;margin:8px 0 14px;gap:12px;flex-wrap:wrap}
-    .pill{font-size:12px;background:#fff;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px}
-    .notice{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:12px;display:none}
+    .pill{font-size:12px;color:#374151;background:#fff;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px}
+
+    .notice{
+      background:#fff;border:1px solid var(--hm-border);border-radius:12px;
+      padding:12px;color:#374151;display:none
+    }
     .notice.error{border-color:#fecaca;background:#fff1f2;color:#7f1d1d;display:block}
     .notice.ok{display:block}
+
     .grid{display:grid;gap:12px}
 
     .card{
@@ -39,28 +44,76 @@
       display:grid;
       grid-template-columns:110px 1fr;
       gap:12px;
+      align-items:start;
+      overflow:hidden;
     }
+    .thumbLink{display:block;text-decoration:none;color:inherit}
+    .thumb{
+      width:110px;height:110px;border-radius:12px;overflow:hidden;
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      border:1px solid #eef2f7;
+    }
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 
-    .thumb{width:110px;height:110px;border-radius:12px;overflow:hidden;background:#eef2f7}
-    .thumb img{width:100%;height:100%;object-fit:cover}
-
-    .row1{display:flex;gap:10px}
+    .row1{display:flex;gap:10px;align-items:flex-start}
     .title{font-weight:800;font-size:15px}
-    .meta{font-size:13px;color:var(--hm-muted);display:flex;gap:8px;flex-wrap:wrap}
+    .meta{font-size:13px;color:var(--hm-muted);margin-top:2px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     .right{margin-left:auto;text-align:right}
     .total{font-weight:800}
+    .small{font-size:12px;color:var(--hm-muted);margin-top:2px}
 
-    .actions{margin-top:10px}
+    .actions{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
     .btn{
-      padding:8px 10px;border-radius:10px;border:1px solid var(--hm-border);
-      background:#fff;font-weight:700;font-size:13px;cursor:pointer
+      padding:8px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;
+      font-weight:700;font-size:13px;cursor:pointer;
+      display:inline-flex;align-items:center;gap:8px;
+      text-decoration:none;color:#374151;
     }
-    .btn-danger{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff}
-    .btn-disabled{opacity:.55;cursor:not-allowed}
+    .btn:hover{border-color:#d1d5db}
+    .btn-danger{
+      background:var(--hm-accent);
+      border-color:var(--hm-accent);
+      color:#fff;
+      padding:8px 10px;
+      font-size:13px;
+      font-weight:700;
+    }
+    .btn-disabled{
+      opacity:.55; cursor:not-allowed;
+    }
+
+    .select{
+      padding:8px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;
+      font-size:13px;min-width:240px;
+    }
+
+    .note{
+      font-size:12px;color:var(--hm-muted);margin-top:8px
+    }
+    .note.warn{color:#b45309;font-weight:600}
 
     .statusBadge{
-      font-size:12px;border:1px solid var(--hm-border);
-      border-radius:999px;padding:4px 10px;background:#fff;font-weight:700
+      font-size:12px;
+      border:1px solid var(--hm-border);
+      border-radius:999px;
+      padding:4px 10px;
+      background:#fff;
+      font-weight:700;
+      color:#374151;
+    }
+
+    .miniIcon{
+      width:18px;height:18px;display:inline-grid;place-items:center;
+      border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb;
+      font-size:12px;line-height:1;
+    }
+
+    @media(max-width:640px){
+      .card{grid-template-columns:1fr}
+      .thumb{width:100%;height:180px}
+      .right{text-align:left;margin-left:0}
+      .row1{flex-wrap:wrap}
+      .select{min-width:0;width:100%}
     }
   </style>
 </head>
@@ -89,125 +142,273 @@
   <script>
     window.HM && window.HM.renderShell({ currentPage: "purchases" });
 
-    const supabaseClient = window.supabase.createClient(
-      "https://clkizksbvxjkoatdajgd.supabase.co",
-      "PUBLIC_ANON_KEY"
+    const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
+      window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+      )
     );
 
     const elList = document.getElementById("list");
     const elMsg  = document.getElementById("msg");
     const elPill = document.getElementById("statusPill");
 
-    const money = c => (Number(c||0)/100).toLocaleString("en-US",{style:"currency",currency:"USD"});
-    const fmt = d => new Date(d).toLocaleDateString();
-    const minsSince = iso => (Date.now() - new Date(iso).getTime()) / 60000;
+    function showMsg(text, kind){
+      elMsg.style.display = "block";
+      elMsg.className = "notice " + (kind === "error" ? "error" : "ok");
+      elMsg.textContent = text;
+    }
+    function clearMsg(){ elMsg.style.display = "none"; elMsg.textContent = ""; }
 
-    async function cancelOrder(order, user){
-      await supabaseClient
+    function money(cents){
+      const v = (Number(cents || 0) / 100);
+      return v.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+    function fmtDate(iso){
+      try{ return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); }
+      catch(e){ return ""; }
+    }
+    function minutesSince(iso){
+      if(!iso) return Infinity;
+      const ms = Date.now() - new Date(iso).getTime();
+      return ms / 60000;
+    }
+
+    function listingHref(listingId){
+      return "listing.html?id=" + encodeURIComponent(listingId);
+    }
+
+    function safeUpper(x){ return String(x || "").toUpperCase(); }
+
+    function supportMailto(order, reasonLabel){
+      const orderShort = String(order.id || "").slice(0, 8);
+      const created = order.created_at ? new Date(order.created_at).toISOString() : "";
+      const status = safeUpper(order.status || "");
+
+      const body =
+`Hi Hemline Market Support,
+
+I need help with my order.
+
+Reason: ${reasonLabel}
+Order: ${orderShort} (${order.id})
+Purchased: ${created}
+Status: ${status}
+
+Please advise next steps.
+`;
+
+      const subject = encodeURIComponent(`Order help: ${reasonLabel} (#${orderShort})`);
+      const mailto = `mailto:hello@hemlinemarket.com?subject=${subject}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+    }
+
+    async function buyerCancelIfEligible(order, user){
+      const status = safeUpper(order.status || "");
+      const isCancelled = (status === "CANCELED" || status === "CANCELLED");
+      const alreadyRequested = !!order.cancel_requested_at;
+      const within = minutesSince(order.created_at) <= 30;
+
+      if(!within || isCancelled || alreadyRequested) return { ok:false, skipped:true };
+
+      const patch = {
+        status: "CANCELED",
+        canceled_at: new Date().toISOString(),
+        canceled_by: user?.id || null,
+        cancel_reason: "accidental_purchase",
+        cancel_requested_at: new Date().toISOString()
+      };
+
+      const { error } = await supabaseClient
         .from("orders")
-        .update({
-          status: "CANCELED",
-          canceled_at: new Date().toISOString(),
-          canceled_by: user.id,
-          cancel_requested_at: new Date().toISOString(),
-          cancel_reason: "buyer_30_min"
-        })
+        .update(patch)
         .eq("id", order.id);
+
+      if(error){
+        console.error("[purchases] cancel failed:", error);
+        return { ok:false, error };
+      }
+      return { ok:true };
     }
 
     async function loadPurchases(){
-      elList.innerHTML="";
-      elMsg.style.display="none";
+      clearMsg();
+      elList.innerHTML = "";
+      elPill.textContent = "Checking session…";
 
-      const { data } = await supabaseClient.auth.getSession();
-      const user = data?.session?.user;
+      const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
+      if(sessErr){
+        console.error(sessErr);
+        elPill.textContent = "Not ready";
+        showMsg("Session error. Please refresh.", "error");
+        return;
+      }
 
+      const user = sessData?.session?.user;
       if(!user){
-        elPill.textContent="Not signed in";
-        elMsg.className="notice error";
-        elMsg.textContent="Please sign in to view purchases.";
-        elMsg.style.display="block";
+        elPill.textContent = "Not signed in";
+        showMsg("Please sign in to view your purchases.", "error");
         return;
       }
 
-      elPill.textContent="Loading…";
+      elPill.textContent = "Signed in";
 
-      const { data: orders, error } = await supabaseClient
+      const uid = user.id;
+
+      // ✅ RLS-safe minimal select (prevents 400/Bad Request)
+      const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
-        .select("id,created_at,status,total_cents,listing_id,cancel_requested_at,canceled_at")
-        .eq("buyer_email", user.email)
-        .order("created_at",{ascending:false});
+        .select("id, created_at, status, total_cents, shipping_cents, listing_id, cancel_requested_at, canceled_at, canceled_by, cancel_reason")
+        .eq("buyer_id", uid)
+        .order("created_at", { ascending:false });
 
-      if(error){
-        elPill.textContent="Error";
-        elMsg.className="notice error";
-        elMsg.textContent="Failed to load purchases.";
-        elMsg.style.display="block";
+      if(ordErr){
+        console.error(ordErr);
+        elPill.textContent = "Error";
+        showMsg("Error loading purchases.", "error");
         return;
       }
 
-      if(!orders.length){
-        elPill.textContent="0 purchases";
-        elMsg.className="notice ok";
-        elMsg.textContent="You haven’t purchased anything yet.";
-        elMsg.style.display="block";
+      const list = orders || [];
+      if(!list.length){
+        elPill.textContent = "0 purchases";
+        showMsg("You haven’t purchased anything yet.", "ok");
         return;
       }
 
-      elPill.textContent=`${orders.length} purchase${orders.length>1?"s":""}`;
+      elPill.textContent = list.length === 1 ? "1 purchase" : `${list.length} purchases`;
 
-      const ids=[...new Set(orders.map(o=>o.listing_id).filter(Boolean))];
-      const listingMap={};
-
+      // Best-effort listing details for title + thumbnail (may fail under RLS; UI still works)
+      const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
+      const listingMap = {};
       if(ids.length){
-        const { data:listings } = await supabaseClient
+        const { data: listings, error: lErr } = await supabaseClient
           .from("listings")
-          .select("id,title,image_url_1")
-          .in("id",ids);
-        listings?.forEach(l=>listingMap[l.id]=l);
+          .select("id, title, image_url_1")
+          .in("id", ids);
+
+        if(!lErr && listings){
+          listings.forEach(l => listingMap[l.id] = l);
+        } else {
+          console.warn("Listing fetch failed (non-fatal):", lErr);
+        }
       }
 
-      orders.forEach(o=>{
-        const listing = listingMap[o.listing_id] || {};
-        const canCancel =
-          minsSince(o.created_at) <= 30 &&
-          !o.canceled_at &&
-          !o.cancel_requested_at &&
-          o.status === "PAID";
+      elList.innerHTML = "";
+
+      list.forEach(order => {
+        const listing = listingMap[order.listing_id] || null;
+
+        const title = (listing?.title) || "Listing";
+        const img = (listing?.image_url_1) || "";
+
+        const status = safeUpper(order.status || "PAID");
+
+        const totalCents = Number(order.total_cents || 0);
+        const shipCents = Number(order.shipping_cents || 0);
+
+        const within = minutesSince(order.created_at) <= 30;
+        const isCancelled = (status === "CANCELED" || status === "CANCELLED");
+        const alreadyRequested = !!order.cancel_requested_at;
+        const canCancel = within && !isCancelled && !alreadyRequested && (status === "PAID" || status === "PENDING" || status === "");
+
+        const orderShort = String(order.id || "").slice(0,8);
 
         const card = document.createElement("div");
         card.className = "card";
+
+        const cancelBtnHtml = canCancel
+          ? `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`
+          : `<button class="btn btn-disabled" disabled>${alreadyRequested ? "Cancel requested" : "Cancel unavailable"}</button>`;
+
+        const noteHtml = (() => {
+          if(isCancelled) return `<div class="note">Order cancelled.</div>`;
+          if(canCancel) return `<div class="note warn">Cancellation available for 30 minutes after purchase.</div>`;
+          return `<div class="note">The 30-minute cancellation window has expired.</div>`;
+        })();
+
         card.innerHTML = `
-          <div class="thumb">${listing.image_url_1 ? `<img src="${listing.image_url_1}">` : ""}</div>
+          <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
+            <div class="thumb">
+              ${img ? `<img src="${img}" alt="">` : ``}
+            </div>
+          </a>
+
           <div>
             <div class="row1">
               <div>
-                <div class="title">${listing.title || "Listing"}</div>
+                <div class="title">${title}</div>
                 <div class="meta">
-                  <span class="statusBadge">${o.status}</span>
-                  <span>${fmt(o.created_at)}</span>
+                  <span class="statusBadge">${status}</span>
+                  <span>Purchased ${fmtDate(order.created_at)}</span>
+                  <span class="pill">Order #${orderShort}</span>
                 </div>
               </div>
+
               <div class="right">
-                <div class="total">${money(o.total_cents)}</div>
+                <div class="total">${money(totalCents)}</div>
+                <div class="small">Shipping: ${money(shipCents)}</div>
               </div>
             </div>
 
             <div class="actions">
-              ${
-                canCancel
-                  ? `<button class="btn btn-danger">Cancel (30-minute window)</button>`
-                  : `<button class="btn btn-disabled" disabled>${o.canceled_at ? "Canceled" : "Cancellation unavailable"}</button>`
-              }
+              <a class="btn" href="${listingHref(order.listing_id)}" aria-label="View listing">
+                <span class="miniIcon">↗</span>
+                <span>View listing</span>
+              </a>
+
+              <select class="select" data-problem>
+                <option value="">Problems / Order Inquiry</option>
+                <option value="accidental_purchase">Accidental Purchase</option>
+                <option value="delayed">Order is Delayed</option>
+                <option value="not_as_described">Order Not as Described</option>
+                <option value="message_seller">Message Seller</option>
+                <option value="contact_support">Contact Support Center</option>
+              </select>
+
+              ${cancelBtnHtml}
             </div>
+
+            ${noteHtml}
           </div>
         `;
 
-        if(canCancel){
-          card.querySelector(".btn-danger").onclick = async () => {
-            await cancelOrder(o, user);
-            loadPurchases();
-          };
+        // Problems: always go to support. Accidental purchase also triggers cancel if eligible.
+        const sel = card.querySelector("[data-problem]");
+        sel.addEventListener("change", async () => {
+          const v = sel.value;
+          if(!v) return;
+
+          if(v === "accidental_purchase"){
+            await buyerCancelIfEligible(order, user);
+            supportMailto(order, "Accidental Purchase");
+          } else if(v === "delayed"){
+            supportMailto(order, "Order is Delayed");
+          } else if(v === "not_as_described"){
+            supportMailto(order, "Order Not as Described");
+          } else if(v === "message_seller"){
+            supportMailto(order, "Message Seller");
+          } else {
+            supportMailto(order, "Contact Support Center");
+          }
+
+          sel.value = "";
+        });
+
+        // Cancel button: only active during 30 minutes
+        const cancelBtn = card.querySelector("[data-cancel-btn]");
+        if(cancelBtn){
+          cancelBtn.addEventListener("click", async () => {
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = "Cancelling…";
+            const res = await buyerCancelIfEligible(order, user);
+            if(res?.ok){
+              loadPurchases();
+              return;
+            }
+            cancelBtn.textContent = "Cancel";
+            cancelBtn.disabled = false;
+          });
         }
 
         elList.appendChild(card);
