@@ -206,16 +206,17 @@ Please advise next steps.
     async function buyerCancelIfEligible(order, user){
       const status = safeUpper(order.status || "");
       const isCancelled = (status === "CANCELED" || status === "CANCELLED");
+      const alreadyRequested = !!order.cancel_requested_at;
       const within = minutesSince(order.created_at) <= 30;
 
-      if(!within || isCancelled) return { ok:false, skipped:true };
+      if(!within || isCancelled || alreadyRequested) return { ok:false, skipped:true };
 
       const patch = {
         status: "CANCELED",
         canceled_at: new Date().toISOString(),
         canceled_by: user?.id || null,
-        cancel_reason: "buyer_30_min"
-        // NOTE: no cancel_requested_at (you said no “request” concept)
+        cancel_reason: "accidental_purchase",
+        cancel_requested_at: new Date().toISOString()
       };
 
       const { error } = await supabaseClient
@@ -252,10 +253,14 @@ Please advise next steps.
 
       elPill.textContent = "Signed in";
 
+      const uid = user.id;
+
+      // ✅ ONLY CHANGE: exclude self-sales so your Sales don't appear in Purchases
       const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
         .select("id, created_at, status, total_cents, shipping_cents, listing_id, cancel_requested_at, canceled_at, canceled_by, cancel_reason")
-        .eq("buyer_email", user.email)
+        .eq("buyer_id", uid)
+        .neq("seller_id", uid)
         .order("created_at", { ascending:false });
 
       if(ordErr){
@@ -304,19 +309,17 @@ Please advise next steps.
 
         const within = minutesSince(order.created_at) <= 30;
         const isCancelled = (status === "CANCELED" || status === "CANCELLED");
-        const canCancel = within && !isCancelled && (status === "PAID" || status === "PENDING" || status === "");
+        const alreadyRequested = !!order.cancel_requested_at;
+        const canCancel = within && !isCancelled && !alreadyRequested && (status === "PAID" || status === "PENDING" || status === "");
 
         const orderShort = String(order.id || "").slice(0,8);
 
         const card = document.createElement("div");
         card.className = "card";
 
-        const cancelBtnHtml = isCancelled
-          ? `<button class="btn btn-disabled" disabled>Canceled</button>`
-          : (canCancel
-              ? `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`
-              : `<button class="btn btn-disabled" disabled>Cancel unavailable</button>`
-            );
+        const cancelBtnHtml = canCancel
+          ? `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`
+          : `<button class="btn btn-disabled" disabled>${isCancelled ? "Canceled" : "Cancel unavailable"}</button>`;
 
         const noteHtml = (() => {
           if(isCancelled) return `<div class="note">Order cancelled.</div>`;
