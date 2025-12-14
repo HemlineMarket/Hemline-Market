@@ -176,14 +176,6 @@
       return "listing.html?id=" + encodeURIComponent(listingId);
     }
 
-    function shippingFromPolicy(qtyYards){
-      const y = Number(qtyYards || 0);
-      if(y > 0 && y < 3) return 500;
-      if(y >= 3 && y <= 10) return 800;
-      if(y > 10) return 1400;
-      return 0;
-    }
-
     function isCancelableStatus(statusUpper){
       return (
         statusUpper === "PAID" ||
@@ -200,7 +192,6 @@
         .update({
           status: "CANCELED",
           canceled_at: nowIso,
-          cancel_requested_at: nowIso,
           canceled_by: userId,
           cancel_reason: reason
         })
@@ -265,7 +256,7 @@
 
       elPill.textContent = list.length === 1 ? "1 sale" : `${list.length} sales`;
 
-      // Best effort: listing thumbnails/titles
+      // Best effort: listing thumbnails/titles (non-fatal if RLS blocks or rows missing)
       const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
       const listingMap = {};
       if(ids.length){
@@ -284,36 +275,33 @@
 
         const qty = getQty(order);
 
-        const title =
-          (listing?.title) ||
+        // Prefer live listing; fallback to snapshot; fallback to "Listing"
+        const snapTitle =
           (order?.listing_snapshot?.listing_title) ||
           (order?.listing_snapshot?.title) ||
-          (order?.listing_snapshot?.name) ||
-          "Listing";
+          "";
 
-        const img =
-          (listing?.image_url_1) ||
+        const snapImg =
           (order?.listing_snapshot?.image_url_1) ||
           (order?.listing_snapshot?.image_url) ||
-          (order?.listing_snapshot?.image) ||
-          (order?.listing_snapshot?.photo_url) ||
-          (order?.listing_snapshot?.photo) ||
           "";
+
+        const title = (listing?.title) || snapTitle || "Listing";
+        const img = (listing?.image_url_1) || snapImg || "";
 
         const itemsCents = (order.items_cents != null ? Number(order.items_cents) :
                            order.total_cents != null ? Number(order.total_cents) : 0);
 
-        const shipRaw = Number(order.shipping_cents || 0);
-        const shipCents = shipRaw > 0 ? shipRaw : shippingFromPolicy(qty);
+        const shipCents = Number(order.shipping_cents || 0);
 
         const status = String(order.status || "").toUpperCase();
         const isCanceled = (status === "CANCELED" || status === "CANCELLED");
 
         const canCancel = !isCanceled && isCancelableStatus(status);
 
-        // Only show buyer email if buyer != seller (prevents "I'm the buyer" confusion)
-        const showBuyer = !!order.buyer_email && order.buyer_id && order.seller_id && (order.buyer_id !== order.seller_id);
-        const buyerEmail = showBuyer ? order.buyer_email : "";
+        // If someone somehow bought their own listing, don't display buyer email (it causes confusion)
+        const selfOrder = (order.buyer_id && order.seller_id && order.buyer_id === order.seller_id);
+        const buyerEmail = (!selfOrder && order.buyer_email) ? order.buyer_email : "";
 
         const card = document.createElement("div");
         card.className = "card";
@@ -331,11 +319,14 @@
                 <div class="title">${title}</div>
                 <div class="meta">
                   ${status ? `<span class="pill" style="padding:2px 8px;margin-right:6px">${status}</span>` : ""}
-                  ${qty} ${qty === 1 ? "yard" : "yards"} · Sold · ${fmtDate(order.created_at)}
+                  ${qty} ${qty === 1 ? "yard" : "yards"} · ${isCanceled ? "Cancelled" : "Sold"} · ${fmtDate(order.created_at)}
                   ${buyerEmail ? ` · Buyer: ${buyerEmail}` : ""}
                 </div>
                 ${
                   isCanceled ? `<div class="inlineNote"><strong>Cancelled</strong>${order.cancel_reason ? ` · Reason: ${order.cancel_reason}` : ""}</div>` : ``
+                }
+                ${
+                  selfOrder ? `<div class="inlineNote"><strong>Note:</strong> This looks like a self-order (buyer_id = seller_id). Avoid buying your own listings.</div>` : ``
                 }
               </div>
 
@@ -393,11 +384,11 @@
                 userId: user.id
               });
 
-              showMsg("Cancelled. Refresh to confirm.", "ok");
+              showMsg("Cancelled.", "ok");
               await loadSales();
             }catch(e){
               console.error(e);
-              showMsg("Cancel failed. This usually means the order update policy doesn’t allow the seller to update this row.", "error");
+              showMsg("Cancel failed. This usually means the seller update policy doesn’t allow this row.", "error");
               cancelBtn.disabled = false;
               cancelBtn.textContent = "Cancel";
             }
