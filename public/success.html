@@ -1,3 +1,4 @@
+<!-- File: success.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -99,9 +100,7 @@
       gap:6px;
     }
 
-    .btn-primary:hover{
-      filter:brightness(0.95);
-    }
+    .btn-primary:hover{ filter:brightness(0.95); }
 
     .btn-ghost{
       appearance:none;
@@ -124,18 +123,26 @@
       color:var(--muted);
     }
 
+    .warn{
+      margin-top:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid #fecaca;
+      background:#fff1f2;
+      color:#7f1d1d;
+      font-size:13px;
+      display:none;
+    }
+    .warn code{ font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; }
+
     @media (max-width:640px){
-      .success-card{
-        padding:18px 16px 16px;
-      }
-      .success-title{
-        font-size:20px;
-      }
+      .success-card{ padding:18px 16px 16px; }
+      .success-title{ font-size:20px; }
     }
   </style>
 </head>
-<body>
 
+<body>
   <!-- UNIVERSAL HEADER -->
   <div id="hm-shell-header"></div>
 
@@ -158,8 +165,10 @@
         </div>
 
         <p class="success-meta">
-          If anything looks incorrect, please message the seller from your Purchases page.
+          If anything looks incorrect, use <strong>Problems / Order Inquiry</strong> on your Purchases page.
         </p>
+
+        <div id="warnBox" class="warn"></div>
       </div>
     </section>
   </main>
@@ -170,10 +179,31 @@
   <!-- JS STACK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
-  <script src="scripts/purchase-success.js"></script>
 
   <script>
+    // Render shell first (so any shared globals are available before success logic runs)
     window.HM && window.HM.renderShell({ currentPage: "" });
+
+    // Ensure a single shared client exists (same pattern as sales/purchases)
+    window.__hm_supabase = window.__hm_supabase || window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+    );
+
+    // Small guardrail: if session_id is missing, show a clear message (prevents silent failures)
+    (function(){
+      const warnBox = document.getElementById("warnBox");
+      const params = new URLSearchParams(window.location.search || "");
+      const sid = params.get("session_id");
+
+      if(!sid){
+        warnBox.style.display = "block";
+        warnBox.innerHTML = `Missing <code>session_id</code>. If you just paid and were redirected here, your checkout success URL is misconfigured.`;
+      }
+    })();
   </script>
+
+  <!-- Success logic LAST so it runs after shell + client are ready -->
+  <script src="scripts/purchase-success.js"></script>
 </body>
 </html>
