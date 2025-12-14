@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Your Purchases — Hemline Market</title>
 
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
-  <link rel="icon" href="/favicon.ico"/>
 
   <style>
     :root{
@@ -18,162 +18,193 @@
       --hm-muted:#6b7280;
       --hm-text:#111827;
       --hm-bg:#f4f4f7;
+      --hm-card:rgba(255,255,255,.96);
     }
+    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:980px;margin:18px auto 28px;padding:0 12px}
+    h1{margin:10px 0 4px;font-size:32px}
+    .sub{color:var(--hm-muted);margin:0 0 14px}
+    .bar{display:flex;justify-content:space-between;align-items:center;margin:8px 0 14px;gap:12px;flex-wrap:wrap}
+    .pill{font-size:12px;color:#374151;background:#fff;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px}
 
-    html,body{
-      margin:0;
-      background:var(--hm-bg);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      color:var(--hm-text);
+    .notice{
+      background:#fff;border:1px solid var(--hm-border);border-radius:12px;
+      padding:12px;color:#374151;display:none
     }
+    .notice.error{border-color:#fecaca;background:#fff1f2;color:#7f1d1d;display:block}
+    .notice.ok{display:block}
 
-    main{
-      max-width:1100px;
-      margin:24px auto;
-      padding:0 16px;
-    }
+    .grid{display:grid;gap:12px}
 
-    h1{
-      font-size:26px;
-      font-weight:800;
-      margin:0 0 6px;
-    }
-
-    .sub{
-      color:var(--hm-muted);
-      margin-bottom:20px;
-      font-size:14px;
-    }
-
-    .purchase-card{
-      background:#fff;
+    .card{
+      background:var(--hm-card);
       border:1px solid var(--hm-border);
       border-radius:12px;
-      padding:16px;
-      margin-bottom:14px;
-      box-shadow:0 4px 14px rgba(0,0,0,.05);
-      font-size:14px;
+      padding:12px;
+      display:grid;
+      grid-template-columns:110px 1fr;
+      gap:12px;
+      align-items:start;
+      overflow:hidden;
+    }
+    .thumbLink{display:block;text-decoration:none;color:inherit}
+    .thumb{
+      width:110px;height:110px;border-radius:12px;overflow:hidden;
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      border:1px solid #eef2f7;
+      display:grid;place-items:center;
+    }
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .thumb .fallback{font-weight:800;color:#9ca3af;letter-spacing:.06em}
+
+    .row1{display:flex;gap:10px;align-items:flex-start}
+    .title{font-weight:800;font-size:15px}
+    .meta{font-size:13px;color:var(--hm-muted);margin-top:2px}
+    .right{margin-left:auto;text-align:right}
+    .total{font-weight:800}
+    .small{font-size:12px;color:var(--hm-muted);margin-top:2px}
+
+    .actions{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+
+    .miniLink{
+      display:inline-flex;align-items:center;gap:6px;
+      text-decoration:none;color:#374151;font-weight:700;
+      font-size:13px;padding:7px 9px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;background:#fff;
+    }
+    .miniIcon{
+      width:18px;height:18px;display:inline-grid;place-items:center;
+      border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb;
+      font-size:12px;
     }
 
-    .row{
-      display:flex;
-      justify-content:space-between;
-      margin-bottom:6px;
-      font-weight:600;
-    }
-
-    .status{
-      color:var(--hm-accent);
-      font-weight:700;
-      margin-bottom:6px;
-    }
-
-    .meta{
-      color:var(--hm-muted);
-      font-size:13px;
-      margin-bottom:6px;
-    }
-
-    .empty{
-      text-align:center;
-      color:var(--hm-muted);
-      margin-top:40px;
-      font-size:15px;
+    @media(max-width:640px){
+      .card{grid-template-columns:1fr}
+      .thumb{width:100%;height:180px}
+      .right{text-align:left;margin-left:0}
+      .row1{flex-wrap:wrap}
     }
   </style>
 </head>
 
 <body>
+  <div id="hm-shell-header"></div>
 
-  <!-- HEADER -->
-  <div id="hm-header">
-    <div class="hm-header-inner">
-      <a href="/" class="hm-logo">Hemline Market</a>
-      <nav class="hm-nav">
-        <a href="/browse.html">Browse</a>
-        <a href="/sell.html">Sell</a>
-        <a href="/cart.html">Cart</a>
-        <a href="/account.html">Account</a>
-      </nav>
+  <main class="wrap">
+    <div class="bar">
+      <div>
+        <h1>Your Purchases</h1>
+        <p class="sub">Fabric you’ve purchased on Hemline Market.</p>
+      </div>
+      <div class="pill" id="statusPill">Loading…</div>
     </div>
-  </div>
 
-  <main>
-    <h1>Your Purchases</h1>
-    <p class="sub">Your completed orders.</p>
-
-    <div id="list"></div>
-    <p class="empty" id="empty" style="display:none;">You haven’t purchased anything yet.</p>
+    <div id="msg" class="notice"></div>
+    <div id="list" class="grid"></div>
   </main>
 
-  <!-- FOOTER -->
-  <div id="hm-footer">
-    <div class="hm-footer-inner">
-      © 2025 Hemline Market · <a href="/about.html">About</a> · <a href="/faq.html">FAQ</a> · <a href="/privacy.html">Privacy</a>
-    </div>
-  </div>
+  <div id="hm-shell-footer"></div>
 
-  <!-- SUPABASE CLIENT (DIRECT, NO WRAPPERS) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = "https://clkizksbvjxkoatdajgd.supabase.co";
-    const SUPABASE_ANON = "PASTE_YOUR_PUBLIC_ANON_KEY_HERE";
+  <script src="scripts/hm-shell.js"></script>
 
-    const supabase = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON,
-      { auth:{ persistSession:true } }
+  <script>
+    window.HM && window.HM.renderShell({ currentPage: "purchases" });
+
+    const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
+      window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+      )
     );
 
-    function money(c){ return (Number(c||0)/100).toLocaleString(undefined,{style:"currency",currency:"USD"}); }
-    function date(d){ return new Date(d).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+    const elList = document.getElementById("list");
+    const elMsg  = document.getElementById("msg");
+    const elPill = document.getElementById("statusPill");
 
-    (async () => {
-      const list  = document.getElementById("list");
-      const empty = document.getElementById("empty");
+    function showMsg(text, kind){
+      elMsg.style.display = "block";
+      elMsg.className = "notice " + (kind === "error" ? "error" : "ok");
+      elMsg.textContent = text;
+    }
+    function money(cents){
+      return (Number(cents||0)/100).toLocaleString("en-US",{style:"currency",currency:"USD"});
+    }
+    function fmtDate(iso){
+      return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"});
+    }
 
-      const { data:{ session } } = await supabase.auth.getSession();
-      if (!session || !session.user){
-        empty.style.display = "block";
-        empty.textContent = "Sign in to view your purchases.";
+    async function loadPurchases(){
+      elList.innerHTML = "";
+      const { data } = await supabaseClient.auth.getSession();
+      const user = data?.session?.user;
+
+      if(!user){
+        elPill.textContent = "Signed out";
+        showMsg("Sign in to view your purchases.", "error");
         return;
       }
 
-      const uid   = session.user.id;
-      const email = session.user.email;
+      elPill.textContent = "Signed in";
 
-      const { data, error } = await supabase
+      const { data: orders, error } = await supabaseClient
         .from("orders")
-        .select("*")
-        .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
-        .order("created_at",{ascending:false});
+        .select("id, created_at, status, buyer_id, listing_id, total_cents, items_cents, shipping_cents, listing_snapshot")
+        .eq("buyer_id", user.id)
+        .order("created_at", { ascending:false });
 
-      if (error){
-        empty.style.display = "block";
-        empty.textContent = "Unable to load purchases.";
+      if(error){
+        console.error(error);
+        showMsg("Unable to load purchases.", "error");
         return;
       }
 
-      if (!data || !data.length){
-        empty.style.display = "block";
+      if(!orders.length){
+        elPill.textContent = "0 purchases";
+        showMsg("You haven’t purchased anything yet.", "ok");
         return;
       }
 
-      data.forEach(o => {
+      elPill.textContent = `${orders.length} purchase${orders.length>1?"s":""}`;
+
+      orders.forEach(o=>{
+        const snap = o.listing_snapshot || {};
+        const title = snap.listing_title || "Listing";
+        const img = snap.image_url_1 || "";
+
         const card = document.createElement("div");
-        card.className = "purchase-card";
+        card.className = "card";
         card.innerHTML = `
-          <div class="row">
-            <span>Order #${String(o.id).slice(0,8)}</span>
-            <span>${date(o.created_at)}</span>
+          <a class="thumbLink" href="listing.html?id=${o.listing_id}">
+            <div class="thumb">
+              ${img ? `<img src="${img}">` : `<div class="fallback">HM</div>`}
+            </div>
+          </a>
+          <div>
+            <div class="row1">
+              <div>
+                <div class="title">${title}</div>
+                <div class="meta">
+                  ${o.status} · Purchased ${fmtDate(o.created_at)}
+                </div>
+              </div>
+              <div class="right">
+                <div class="total">${money(o.total_cents)}</div>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="miniLink" href="listing.html?id=${o.listing_id}">
+                <span class="miniIcon">↗</span> Listing
+              </a>
+            </div>
           </div>
-          <div class="status">${(o.status||"PAID").toUpperCase()}</div>
-          <div class="meta">Total: <strong>${money(o.total_cents)}</strong></div>
-          <div>${o.listing_title || o.listing_name || "Purchase"}</div>
         `;
-        list.appendChild(card);
+        elList.appendChild(card);
       });
-    })();
+    }
+
+    loadPurchases();
   </script>
 </body>
 </html>
