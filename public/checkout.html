@@ -114,6 +114,63 @@
       color:#6b7280;
     }
 
+    /* --- NEW: "Account-style" shipping address summary card --- */
+    .shipCard{
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      background:#fff;
+      padding:12px;
+      margin-top:10px;
+    }
+    .shipCardTop{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:8px;
+    }
+    .shipCardTitle{
+      margin:0;
+      font-size:13px;
+      font-weight:800;
+      color:#111827;
+      letter-spacing:.02em;
+      text-transform:uppercase;
+    }
+    .shipCardHint{
+      margin:4px 0 0;
+      font-size:12px;
+      color:#6b7280;
+      line-height:1.35;
+    }
+    .shipEditBtn{
+      appearance:none;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      color:#374151;
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:700;
+      font-size:13px;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .shipEditBtn:hover{ border-color:#d1d5db; }
+
+    .shipSummary{
+      font-size:14px;
+      color:#111827;
+      line-height:1.45;
+    }
+    .shipSummary .muted{
+      color:#6b7280;
+      font-size:13px;
+    }
+    .shipSummaryLine{ margin:0; }
+
+    .hidden{ display:none !important; }
+    /* --------------------------------------------------------- */
+
     /* Legal block */
     .checkout-legal{
       margin:18px 0 0;
@@ -252,32 +309,52 @@
         </div>
       </div>
 
-      <div class="checkout-row" style="margin-top:10px">
-        <div>
-          <label class="checkout-label" for="addr1">Address line 1</label>
-          <input id="addr1" class="checkout-input" placeholder="Street address" autocomplete="address-line1">
+      <!-- NEW: Account-style shipping address display + Edit button -->
+      <div class="shipCard" aria-label="Shipping address">
+        <div class="shipCardTop">
+          <div>
+            <p class="shipCardTitle">Shipping address</p>
+            <p class="shipCardHint">This address prints on prepaid labels for your fabric sales and purchases.</p>
+          </div>
+          <button id="editShipBtn" class="shipEditBtn" type="button">Edit address</button>
         </div>
-      </div>
 
-      <div class="checkout-row" style="margin-top:10px">
-        <div>
-          <label class="checkout-label" for="addr2">Address line 2 (optional)</label>
-          <input id="addr2" class="checkout-input" placeholder="Apt, suite, etc." autocomplete="address-line2">
-        </div>
-      </div>
+        <div id="shipSummary" class="shipSummary" role="group" aria-label="Current shipping address"></div>
 
-      <div class="checkout-row" style="margin-top:10px">
-        <div>
-          <label class="checkout-label" for="city">City</label>
-          <input id="city" class="checkout-input" placeholder="City" autocomplete="address-level2">
-        </div>
-        <div>
-          <label class="checkout-label" for="state">State</label>
-          <input id="state" class="checkout-input" placeholder="State" autocomplete="address-level1">
-        </div>
-        <div>
-          <label class="checkout-label" for="zip">ZIP</label>
-          <input id="zip" class="checkout-input" placeholder="ZIP" autocomplete="postal-code" inputmode="numeric">
+        <!-- Keep your existing inputs (same IDs) but hide/show them like Account -->
+        <div id="addrForm" class="hidden" style="margin-top:10px">
+          <div class="checkout-row">
+            <div>
+              <label class="checkout-label" for="addr1">Address line 1</label>
+              <input id="addr1" class="checkout-input" placeholder="Street address" autocomplete="address-line1">
+            </div>
+          </div>
+
+          <div class="checkout-row" style="margin-top:10px">
+            <div>
+              <label class="checkout-label" for="addr2">Address line 2 (optional)</label>
+              <input id="addr2" class="checkout-input" placeholder="Apt, suite, etc." autocomplete="address-line2">
+            </div>
+          </div>
+
+          <div class="checkout-row" style="margin-top:10px">
+            <div>
+              <label class="checkout-label" for="city">City</label>
+              <input id="city" class="checkout-input" placeholder="City" autocomplete="address-level2">
+            </div>
+            <div>
+              <label class="checkout-label" for="state">State</label>
+              <input id="state" class="checkout-input" placeholder="State" autocomplete="address-level1">
+            </div>
+            <div>
+              <label class="checkout-label" for="zip">ZIP</label>
+              <input id="zip" class="checkout-input" placeholder="ZIP" autocomplete="postal-code" inputmode="numeric">
+            </div>
+          </div>
+
+          <p class="checkout-help" style="margin-top:10px">
+            You can edit the address here, then continue to payment.
+          </p>
         </div>
       </div>
 
@@ -345,85 +422,6 @@
 <script>
   // Render universal header/footer
   window.HM && window.HM.renderShell({ currentPage: "checkout" });
-</script>
-
-<!-- ✅ NEW: Prefill from profiles + localStorage, without overwriting edits -->
-<script>
-  (async function prefillCheckoutFromAccount(){
-    const $ = (id) => document.getElementById(id);
-    const setIfEmpty = (id, val) => {
-      const el = $(id);
-      if(!el) return;
-      if(String(el.value || "").trim() !== "") return; // don't overwrite user edits
-      if(val === undefined || val === null) return;
-      const s = String(val).trim();
-      if(!s) return;
-      el.value = s;
-    };
-
-    try{
-      // 1) If we already saved an address from a prior checkout attempt, use it first.
-      try{
-        const cached = JSON.parse(localStorage.getItem("hm_checkout_address") || "null");
-        if(cached && typeof cached === "object"){
-          setIfEmpty("email", cached.email);
-          setIfEmpty("phone", cached.phone);
-          setIfEmpty("addr1", cached.line1);
-          setIfEmpty("addr2", cached.line2);
-          setIfEmpty("city",  cached.city);
-          setIfEmpty("state", cached.state);
-          setIfEmpty("zip",   cached.zip);
-        }
-      }catch(_){}
-
-      // 2) Pull from signed-in user + profiles table
-      const supabase = (window.HM && window.HM.supabase) || window.__hm_supabase;
-      if(!supabase) return;
-
-      const { data: sess } = await supabase.auth.getSession();
-      const user = sess?.session?.user;
-      if(!user) return;
-
-      // Email: always default to auth email (but only if empty)
-      setIfEmpty("email", user.email);
-
-      // Load profile row
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if(error || !profile) return;
-
-      // Support multiple possible column naming styles
-      const pick = (obj, keys) => {
-        for(const k of keys){
-          const v = obj?.[k];
-          if(v !== undefined && v !== null && String(v).trim() !== "") return v;
-        }
-        return "";
-      };
-
-      const addrObj =
-        profile.shipping_address ||
-        profile.address ||
-        profile.addr ||
-        null;
-
-      // Phone
-      setIfEmpty("phone", pick(profile, ["phone", "phone_number", "mobile", "mobile_phone"]) || pick(addrObj, ["phone"]));
-
-      // Address
-      setIfEmpty("addr1", pick(profile, ["address_line1","addr1","line1","street1"]) || pick(addrObj, ["line1","address_line1","addr1"]));
-      setIfEmpty("addr2", pick(profile, ["address_line2","addr2","line2","street2"]) || pick(addrObj, ["line2","address_line2","addr2"]));
-      setIfEmpty("city",  pick(profile, ["city","address_city","town"]) || pick(addrObj, ["city"]));
-      setIfEmpty("state", pick(profile, ["state","region","province","address_state"]) || pick(addrObj, ["state","region"]));
-      setIfEmpty("zip",   pick(profile, ["zip","postal_code","postcode","address_zip"]) || pick(addrObj, ["zip","postal_code","postcode"]));
-    }catch(err){
-      console.warn("[checkout] prefill failed (non-fatal):", err);
-    }
-  })();
 </script>
 
 <script>
@@ -499,6 +497,93 @@
       banner.style.display = "block";
     }
 
+    // ---- NEW: Summary <-> Edit behavior for shipping address ----
+    const shipSummaryEl = document.getElementById("shipSummary");
+    const addrFormEl = document.getElementById("addrForm");
+    const editBtn = document.getElementById("editShipBtn");
+
+    const $ = (id) => document.getElementById(id);
+
+    function readAddr() {
+      return {
+        email: $("email")?.value?.trim() || "",
+        phone: $("phone")?.value?.trim() || "",
+        line1: $("addr1")?.value?.trim() || "",
+        line2: $("addr2")?.value?.trim() || "",
+        city: $("city")?.value?.trim() || "",
+        state: $("state")?.value?.trim() || "",
+        zip: $("zip")?.value?.trim() || "",
+        country: "US",
+      };
+    }
+
+    function hasEnoughForSummary(a) {
+      // You can tighten this, but this keeps it from looking blank.
+      return !!(a.line1 || a.city || a.state || a.zip);
+    }
+
+    function renderShipSummary() {
+      const a = readAddr();
+
+      if (!hasEnoughForSummary(a)) {
+        shipSummaryEl.innerHTML =
+          `<p class="shipSummaryLine muted">No address on file yet. Click <strong>Edit address</strong> to add one.</p>`;
+        return;
+      }
+
+      const lineCity = [a.city, a.state, a.zip].filter(Boolean).join(" ");
+      const lines = [
+        a.line1,
+        a.line2,
+        lineCity,
+        "United States"
+      ].filter(Boolean);
+
+      shipSummaryEl.innerHTML = lines
+        .map(s => `<p class="shipSummaryLine">${escapeHtml(s)}</p>`)
+        .join("");
+    }
+
+    function escapeHtml(s){
+      return String(s || "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function setEditMode(isEditing) {
+      if (isEditing) {
+        addrFormEl.classList.remove("hidden");
+        editBtn.textContent = "Done";
+      } else {
+        addrFormEl.classList.add("hidden");
+        editBtn.textContent = "Edit address";
+        renderShipSummary();
+      }
+    }
+
+    editBtn.addEventListener("click", () => {
+      const isHidden = addrFormEl.classList.contains("hidden");
+      setEditMode(isHidden); // if hidden -> show; if shown -> hide
+    });
+
+    // Keep summary in sync when user types
+    ["email","phone","addr1","addr2","city","state","zip"].forEach(id => {
+      const el = $(id);
+      if (el) el.addEventListener("input", renderShipSummary);
+    });
+
+    // On load: if address is already prefilled, start in summary mode (like Account).
+    // If it's empty, open the form so it's obvious what to do.
+    setTimeout(() => {
+      renderShipSummary();
+      const a = readAddr();
+      setEditMode(!hasEnoughForSummary(a)); // empty -> edit mode; else summary mode
+    }, 0);
+    // ------------------------------------------------------------
+
     function render() {
       const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
       itemsEl.innerHTML = "";
@@ -557,16 +642,7 @@
       const cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
       if (!cart.length) return;
 
-      const addr = {
-        email: document.getElementById("email")?.value?.trim() || "",
-        phone: document.getElementById("phone")?.value?.trim() || "",
-        line1: document.getElementById("addr1")?.value?.trim() || "",
-        line2: document.getElementById("addr2")?.value?.trim() || "",
-        city: document.getElementById("city")?.value?.trim() || "",
-        state: document.getElementById("state")?.value?.trim() || "",
-        zip: document.getElementById("zip")?.value?.trim() || "",
-        country: "US",
-      };
+      const addr = readAddr();
 
       try {
         localStorage.setItem(
