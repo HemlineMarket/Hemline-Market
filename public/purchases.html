@@ -1,456 +1,95 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Your Purchases — Hemline Market</title>
-
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hm-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
-
-  <style>
-    :root{
-      --hm-accent:#991b1b;
-      --hm-border:#e5e7eb;
-      --hm-muted:#6b7280;
-      --hm-text:#111827;
-      --hm-bg:#f4f4f7;
-      --hm-card:#ffffff;
-    }
-    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-
-    main{max-width:1180px;margin:18px auto;padding:0 14px 44px}
-    h1{font-size:30px;font-weight:900;letter-spacing:-.02em;margin:10px 0 6px}
-    .sub{margin:0 0 16px;color:var(--hm-muted);font-size:14px}
-
-    .layout{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:start}
-    @media (max-width: 920px){ .layout{grid-template-columns:1fr} .sidebar{display:none} }
-
-    .card{background:var(--hm-card);border:1px solid var(--hm-border);border-radius:16px;overflow:hidden}
-    .sec{padding:12px}
-    .sidebar h3{margin:0 0 10px;font-size:13px;color:var(--hm-muted);text-transform:uppercase;letter-spacing:.08em}
-
-    .nav a{display:flex;align-items:center;justify-content:space-between;padding:10px 10px;border-radius:12px;text-decoration:none;color:inherit}
-    .nav a:hover{background:#f3f4f6}
-    .nav .active{background:#eef2ff}
-    .nav small{color:var(--hm-muted);font-weight:800}
-
-    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border-bottom:1px solid var(--hm-border)}
-    .chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--hm-border);border-radius:999px;background:#fff;font-size:13px}
-    .btn{border:1px solid var(--hm-border);background:#fff;border-radius:12px;padding:10px 12px;font-weight:900;cursor:pointer}
-    .btn:hover{border-color:#d1d5db}
-
-    .searchRow{padding:12px 14px;border-bottom:1px solid var(--hm-border);display:flex;gap:10px;align-items:center}
-    .search{width:100%;border:1px solid var(--hm-border);border-radius:12px;padding:10px 12px;font-size:14px;outline:none;background:#fff}
-
-    .list{display:flex;flex-direction:column}
-    .row{display:flex;gap:12px;align-items:flex-start;padding:14px;border-top:1px solid var(--hm-border);text-decoration:none;color:inherit;background:#fff}
-    .row:hover{background:#fafafa}
-
-    .thumb{
-      width:56px;height:56px;border-radius:12px;
-      background:#f3f4f6;border:1px solid var(--hm-border);
-      flex:0 0 auto; overflow:hidden;
-      display:flex;align-items:center;justify-content:center;
-    }
-    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-
-    .title{font-weight:950;margin:0 0 4px;letter-spacing:-.01em;line-height:1.2}
-    .meta{color:var(--hm-muted);font-size:13px}
-    .price{margin-left:auto;font-weight:950;white-space:nowrap}
-    .chev{margin-left:10px;color:#9ca3af;font-weight:900}
-
-    .empty{display:none;padding:16px;color:var(--hm-muted)}
-    .err{display:none;padding:14px;background:#fff5f5;color:#991b1b;border-top:1px solid var(--hm-border);white-space:pre-wrap}
-    .cta{display:none;padding:14px;border-top:1px solid var(--hm-border);background:#fff;align-items:center;justify-content:space-between;gap:10px}
-    .cta p{margin:0;color:var(--hm-muted)}
-
-    /* Detail view (Poshmark-ish) */
-    .detailWrap{display:none;padding:14px}
-    .backRow{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-    .backLink{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:inherit;font-weight:900}
-    .detailCard{background:#fff;border:1px solid var(--hm-border);border-radius:16px;overflow:hidden}
-    .detailTop{display:grid;grid-template-columns:1fr 280px;gap:14px;padding:14px;border-bottom:1px solid var(--hm-border)}
-    @media (max-width: 980px){ .detailTop{grid-template-columns:1fr} }
-
-    .detailLeft{display:flex;gap:12px;align-items:flex-start}
-    .bigThumb{width:92px;height:92px;border-radius:16px;background:#f3f4f6;border:1px solid var(--hm-border);overflow:hidden;flex:0 0 auto}
-    .bigThumb img{width:100%;height:100%;object-fit:cover;display:block}
-
-    .kv{font-size:13px;color:var(--hm-muted);line-height:1.45}
-    .kv strong{color:var(--hm-text)}
-
-    .timeline{padding:14px}
-    .tTitle{font-weight:950;margin:0 0 10px}
-    .tItem{display:flex;gap:10px;align-items:flex-start;margin:10px 0}
-    .dot{width:10px;height:10px;border-radius:999px;background:var(--hm-border);margin-top:4px}
-    .tItem.on .dot{background:var(--hm-accent)}
-    .tText{font-size:13px;color:var(--hm-muted)}
-    .tText strong{color:var(--hm-text)}
-
-    .moneyRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
-    .moneyPill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--hm-border);border-radius:999px;padding:8px 10px;background:#fff;font-size:13px}
-  </style>
-</head>
-
-<body>
-  <div id="hm-shell-header"></div>
-
-  <main>
-    <h1>Your Purchases</h1>
-    <p class="sub">Everything you’ve bought, pulled directly from Supabase.</p>
-
-    <div class="layout">
-      <aside class="sidebar card">
-        <div class="sec">
-          <h3>Order Activity</h3>
-          <nav class="nav">
-            <a class="active" href="/purchases.html">My Purchases <small id="navCount">0</small></a>
-          </nav>
-        </div>
-      </aside>
-
-      <section class="card">
-        <div class="topbar">
-          <div class="chips">
-            <span class="pill"><strong id="status">Checking…</strong></span>
-            <span class="pill"><strong id="count">0</strong> items</span>
-          </div>
-          <button class="btn" id="refreshBtn" type="button">Refresh</button>
-        </div>
-
-        <div id="listView">
-          <div class="searchRow">
-            <input id="q" class="search" placeholder="Search My Purchases" autocomplete="off"/>
-          </div>
-
-          <div id="cta" class="cta">
-            <p>You’re signed out. Sign in to view your purchases.</p>
-            <a class="btn" href="/auth.html?view=login" style="text-decoration:none;display:inline-block;">Go to Sign In</a>
-          </div>
-
-          <div id="list" class="list"></div>
-          <div id="empty" class="empty">You haven’t purchased anything yet.</div>
-          <div id="err" class="err"></div>
-        </div>
-
-        <div id="detailView" class="detailWrap"></div>
-      </section>
-    </div>
-  </main>
-
-  <div id="hm-shell-footer"></div>
-
-  <script src="scripts/hm-shell.js"></script>
-
-  <script>
-    function esc(s){
-      return String(s ?? "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-    }
-    function money(cents){
-      return (Number(cents || 0) / 100).toLocaleString(undefined,{ style:"currency", currency:"USD" });
-    }
-    function formatDate(iso){
-      if (!iso) return "";
-      const d = new Date(iso);
-      return d.toLocaleDateString(undefined,{ month:"short", day:"numeric", year:"numeric" });
-    }
-    function show(el, on){ el.style.display = on ? "" : "none"; }
-    function showErr(el, msg){
-      el.style.display = msg ? "block" : "none";
-      el.textContent = msg || "";
-    }
-    function getParam(name){
-      const u = new URL(location.href);
-      return u.searchParams.get(name);
-    }
-    function setParam(name, value){
-      const u = new URL(location.href);
-      if (value == null) u.searchParams.delete(name);
-      else u.searchParams.set(name, value);
-      history.pushState({}, "", u.toString());
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      window.HM.renderShell({ currentPage:"purchases" });
-
-      const supabase = window.HM.supabase;
-
-      const statusEl = document.getElementById("status");
-      const countEl  = document.getElementById("count");
-      const navCount = document.getElementById("navCount");
-      const listEl   = document.getElementById("list");
-      const emptyEl  = document.getElementById("empty");
-      const errEl    = document.getElementById("err");
-      const ctaEl    = document.getElementById("cta");
-      const refreshBtn = document.getElementById("refreshBtn");
-      const qEl = document.getElementById("q");
-
-      const listView = document.getElementById("listView");
-      const detailView = document.getElementById("detailView");
-
-      let allOrders = [];
-
-      async function ensureSession(maxWaitMs = 2500){
-        let { data:{ session } } = await supabase.auth.getSession();
-        const start = Date.now();
-        while (!session?.user && Date.now() - start < maxWaitMs){
-          await new Promise(r => setTimeout(r,120));
-          ({ data:{ session } } = await supabase.auth.getSession());
-        }
-        return session;
-      }
-
-      function buildThumb(url){
-        if (!url) return `<div class="thumb"></div>`;
-        return `<div class="thumb"><img alt="" src="${esc(url)}"/></div>`;
-      }
-
-      function renderList(){
-        const q = (qEl.value || "").trim().toLowerCase();
-        const rows = q
-          ? allOrders.filter(o => {
-              const title = String(o.listing_title || o.listing_name || "").toLowerCase();
-              const id8 = String(o.id || "").slice(0,8).toLowerCase();
-              return title.includes(q) || id8.includes(q);
-            })
-          : allOrders;
-
-        countEl.textContent = String(rows.length);
-        navCount.textContent = String(rows.length);
-
-        if (!rows.length){
-          listEl.innerHTML = "";
-          show(emptyEl, true);
-          return;
-        }
-        show(emptyEl, false);
-
-        listEl.innerHTML = rows.map(o => {
-          const title = esc(o.listing_title || o.listing_name || "Purchase");
-          const price = esc(money(o.total_cents));
-          const when  = esc(formatDate(o.created_at));
-          const id8   = esc(String(o.id || "").slice(0,8));
-          const st    = esc(String(o.status || "PAID").toUpperCase());
-          const img   = buildThumb(o.listing_image_url);
-          const href  = `/purchases.html?order=${encodeURIComponent(o.id)}`;
-
-          return `
-            <a class="row" href="${href}" data-order="${esc(o.id)}">
-              ${img}
-              <div style="min-width:0;">
-                <div class="title">${title}</div>
-                <div class="meta">${st} • Order ${id8}${when ? (" • " + when) : ""}</div>
-              </div>
-              <div class="price">${price}</div>
-              <div class="chev">›</div>
-            </a>
-          `;
-        }).join("");
-      }
-
-      function timelineSteps(statusRaw){
-        const s = String(statusRaw || "PAID").toUpperCase();
-        const placed = true;
-        const shipped = (s === "SHIPPED" || s === "IN_TRANSIT" || s === "DELIVERED" || s === "COMPLETED");
-        const inTransit = (s === "IN_TRANSIT" || s === "DELIVERED" || s === "COMPLETED");
-        const delivered = (s === "DELIVERED" || s === "COMPLETED");
-        const complete = (s === "COMPLETED");
-        return { placed, shipped, inTransit, delivered, complete, s };
-      }
-
-      function renderDetail(orderId){
-        const o = allOrders.find(x => String(x.id) === String(orderId));
-        if (!o){
-          detailView.innerHTML = `<div style="padding:14px;color:var(--hm-muted);">Order not found.</div>`;
-          show(listView, false);
-          show(detailView, true);
-          return;
-        }
-
-        const title = esc(o.listing_title || o.listing_name || "Purchase");
-        const id8   = esc(String(o.id || "").slice(0,8));
-        const when  = esc(formatDate(o.created_at));
-        const st    = esc(String(o.status || "PAID").toUpperCase());
-        const imgUrl = o.listing_image_url ? String(o.listing_image_url) : "";
-        const img = imgUrl
-          ? `<div class="bigThumb"><img alt="" src="${esc(imgUrl)}"/></div>`
-          : `<div class="bigThumb"></div>`;
-
-        const itemsCents = Number(o.items_cents ?? 0);
-        const shippingCents = Number(o.shipping_cents ?? Math.max(Number(o.total_cents||0) - itemsCents, 0));
-        const totalCents = Number(o.total_cents ?? 0);
-
-        const snap = (o.listing_snapshot && typeof o.listing_snapshot === "object") ? o.listing_snapshot : null;
-        let shipName = "";
-        let shipLine = "";
-        if (snap && snap.shipping){
-          shipName = snap.shipping.name || "";
-          shipLine = [snap.shipping.address1, snap.shipping.city, snap.shipping.state, snap.shipping.zip].filter(Boolean).join(", ");
-        }
-
-        const t = timelineSteps(st);
-
-        detailView.innerHTML = `
-          <div class="backRow">
-            <a class="backLink" href="/purchases.html" id="backBtn">← Back to orders</a>
-          </div>
-
-          <div class="detailCard">
-            <div class="detailTop">
-              <div>
-                <div class="kv" style="margin-bottom:8px;">
-                  <div><strong>Order Date</strong> ${when || ""}</div>
-                  <div><strong>Order Number</strong> ${id8}</div>
-                </div>
-
-                <div class="detailLeft">
-                  ${img}
-                  <div style="min-width:0;">
-                    <div class="title" style="margin:0 0 6px;">${title}</div>
-                    <div class="kv"><strong>Status</strong> ${st}</div>
-                    <div class="moneyRow" style="margin-top:10px;">
-                      <span class="moneyPill"><strong>Total</strong> ${esc(money(totalCents))}</span>
-                      <span class="moneyPill"><strong>Items</strong> ${esc(money(itemsCents))}</span>
-                      <span class="moneyPill"><strong>Shipping</strong> ${esc(money(shippingCents))}</span>
-                    </div>
-                    ${shipName || shipLine ? `
-                      <div class="kv" style="margin-top:10px;">
-                        <div><strong>Ship To</strong> ${esc(shipName)}</div>
-                        <div>${esc(shipLine)}</div>
-                      </div>
-                    ` : ``}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div class="timeline">
-                  <div class="tTitle">Tracking</div>
-                  <div class="tItem ${t.placed ? "on" : ""}">
-                    <div class="dot"></div>
-                    <div class="tText"><strong>Order Placed</strong></div>
-                  </div>
-                  <div class="tItem ${t.shipped ? "on" : ""}">
-                    <div class="dot"></div>
-                    <div class="tText"><strong>Shipped by Seller</strong></div>
-                  </div>
-                  <div class="tItem ${t.inTransit ? "on" : ""}">
-                    <div class="dot"></div>
-                    <div class="tText"><strong>In Transit</strong></div>
-                  </div>
-                  <div class="tItem ${t.delivered ? "on" : ""}">
-                    <div class="dot"></div>
-                    <div class="tText"><strong>Delivered</strong></div>
-                  </div>
-                  <div class="tItem ${t.complete ? "on" : ""}">
-                    <div class="dot"></div>
-                    <div class="tText"><strong>Order Complete</strong></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style="padding:14px;border-top:1px solid var(--hm-border);display:flex;gap:10px;flex-wrap:wrap;">
-              ${o.listing_id ? `<a class="btn" style="text-decoration:none;display:inline-block;" href="/listing.html?id=${encodeURIComponent(o.listing_id)}">View listing</a>` : ``}
-              <a class="btn" style="text-decoration:none;display:inline-block;" href="/messages.html">Message seller</a>
-            </div>
-          </div>
-        `;
-
-        show(listView, false);
-        show(detailView, true);
-
-        const backBtn = document.getElementById("backBtn");
-        backBtn.addEventListener("click", (e) => {
-          e.preventDefault();
-          setParam("order", null);
-          show(detailView, false);
-          show(listView, true);
-        });
-      }
-
-      async function load(){
-        showErr(errEl, "");
-        listEl.innerHTML = "";
-        show(emptyEl, false);
-        show(ctaEl, false);
-        statusEl.textContent = "Checking…";
-        countEl.textContent = "0";
-        navCount.textContent = "0";
-        allOrders = [];
-
-        const session = await ensureSession();
-        if (!session?.user){
-          statusEl.textContent = "Signed out";
-          show(ctaEl, true);
-          show(listView, true);
-          show(detailView, false);
-          return;
-        }
-
-        statusEl.textContent = "Signed in";
-
-        const uid = session.user.id;
-        const email = session.user.email;
-
-        const { data, error } = await supabase
-          .from("orders")
-          .select("id, created_at, status, total_cents, items_cents, shipping_cents, currency, listing_id, listing_title, listing_name, listing_image_url, listing_snapshot, buyer_id, buyer_email")
-          .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
-          .order("created_at", { ascending:false });
-
-        if (error){
-          showErr(errEl, error.message || String(error));
-          show(emptyEl, true);
-          show(listView, true);
-          show(detailView, false);
-          return;
-        }
-
-        allOrders = Array.isArray(data) ? data : [];
-        renderList();
-
-        const orderId = getParam("order");
-        if (orderId){
-          renderDetail(orderId);
-        } else {
-          show(listView, true);
-          show(detailView, false);
-        }
-      }
-
-      refreshBtn.addEventListener("click", () => load());
-      qEl.addEventListener("input", () => renderList());
-
-      window.addEventListener("popstate", () => {
-        const orderId = getParam("order");
-        if (orderId) renderDetail(orderId);
-        else { show(detailView, false); show(listView, true); }
-      });
-
-      supabase.auth.onAuthStateChange(() => load());
-
-      listEl.addEventListener("click", (e) => {
-        const a = e.target.closest("a.row");
-        if (!a) return;
-        e.preventDefault();
-        const oid = a.getAttribute("data-order");
-        setParam("order", oid);
-        renderDetail(oid);
-      });
-
-      load();
+<script>
+  function formatMoney(cents){
+    const n = Number(cents || 0) / 100;
+    return n.toLocaleString(undefined,{ style:"currency", currency:"USD" });
+  }
+
+  function formatDate(iso){
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined,{
+      month:"short",
+      day:"numeric",
+      year:"numeric"
     });
-  </script>
-</body>
-</html>
+  }
+
+  async function waitForSupabase(timeout = 4000){
+    const start = Date.now();
+    while (!window.HM || !window.HM.supabase){
+      if (Date.now() - start > timeout) return null;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return window.HM.supabase;
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    window.HM.renderShell({ currentPage:"purchases" });
+
+    const supabase = await waitForSupabase();
+    if (!supabase){
+      console.error("Supabase not available");
+      return;
+    }
+
+    const list  = document.getElementById("purchasesList");
+    const empty = document.getElementById("emptyState");
+
+    const { data:{ session } } = await supabase.auth.getSession();
+    if (!session || !session.user){
+      empty.style.display = "block";
+      empty.textContent = "Sign in to view your purchases.";
+      return;
+    }
+
+    const uid   = session.user.id;
+    const email = session.user.email;
+
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
+      .order("created_at", { ascending:false });
+
+    if (error){
+      console.error(error);
+      empty.style.display = "block";
+      empty.textContent = "Unable to load purchases.";
+      return;
+    }
+
+    if (!data || !data.length){
+      empty.style.display = "block";
+      return;
+    }
+
+    empty.style.display = "none";
+    list.innerHTML = "";
+
+    data.forEach(o => {
+      const card = document.createElement("div");
+      card.className = "purchase-card";
+
+      card.innerHTML = `
+        <div class="purchase-top">
+          <span>Order #${String(o.id).slice(0,8)}</span>
+          <span>${formatDate(o.created_at)}</span>
+        </div>
+
+        <div class="purchase-status">
+          ${String(o.status || "PAID").toUpperCase()}
+        </div>
+
+        <div class="purchase-meta">
+          <div>Total: <strong>${formatMoney(o.total_cents)}</strong></div>
+        </div>
+
+        <div class="purchase-items">
+          <div><span class="name">${o.listing_title || o.listing_name || "Purchase"}</span></div>
+        </div>
+      `;
+
+      list.appendChild(card);
+    });
+  });
+</script>
