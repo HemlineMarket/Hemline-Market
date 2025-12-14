@@ -20,7 +20,12 @@
       --hm-bg:#f4f4f7;
       --hm-card:rgba(255,255,255,.96);
     }
-    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    html,body{
+      margin:0;
+      background:var(--hm-bg);
+      color:var(--hm-text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif
+    }
     .wrap{max-width:980px;margin:18px auto 28px;padding:0 12px}
     h1{margin:10px 0 4px;font-size:32px}
     .sub{color:var(--hm-muted);margin:0 0 14px}
@@ -47,7 +52,7 @@
       align-items:start;
       overflow:hidden;
     }
-    .thumbLink{display:block;text-decoration:none;color:inherit}
+
     .thumb{
       width:110px;height:110px;border-radius:12px;overflow:hidden;
       background:linear-gradient(180deg,#f8fafc,#eef2f7);
@@ -55,7 +60,11 @@
       display:grid;place-items:center;
     }
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .thumb .fallback{font-weight:800;color:#9ca3af;letter-spacing:.06em}
+    .thumb .fallback{
+      font-size:12px;
+      color:#9ca3af;
+      font-weight:600;
+    }
 
     .row1{display:flex;gap:10px;align-items:flex-start}
     .title{font-weight:800;font-size:15px}
@@ -68,15 +77,14 @@
 
     .miniLink{
       display:inline-flex;align-items:center;gap:6px;
-      text-decoration:none;color:#374151;font-weight:700;
-      font-size:13px;padding:7px 9px;
+      text-decoration:none;
+      color:#374151;
+      font-weight:700;
+      font-size:13px;
+      padding:7px 9px;
       border:1px solid var(--hm-border);
-      border-radius:10px;background:#fff;
-    }
-    .miniIcon{
-      width:18px;height:18px;display:inline-grid;place-items:center;
-      border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb;
-      font-size:12px;
+      border-radius:10px;
+      background:#fff;
     }
 
     @media(max-width:640px){
@@ -106,6 +114,7 @@
 
   <div id="hm-shell-footer"></div>
 
+  <!-- Same working setup as sales -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
 
@@ -128,35 +137,37 @@
       elMsg.className = "notice " + (kind === "error" ? "error" : "ok");
       elMsg.textContent = text;
     }
+    function clearMsg(){ elMsg.style.display = "none"; }
+
     function money(cents){
-      return (Number(cents||0)/100).toLocaleString("en-US",{style:"currency",currency:"USD"});
+      return (Number(cents || 0) / 100)
+        .toLocaleString("en-US",{style:"currency",currency:"USD"});
     }
     function fmtDate(iso){
       return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"});
     }
 
     async function loadPurchases(){
+      clearMsg();
       elList.innerHTML = "";
-      const { data } = await supabaseClient.auth.getSession();
-      const user = data?.session?.user;
+      elPill.textContent = "Checking session…";
 
+      const { data: sess } = await supabaseClient.auth.getSession();
+      const user = sess?.session?.user;
       if(!user){
-        elPill.textContent = "Signed out";
-        showMsg("Sign in to view your purchases.", "error");
+        elPill.textContent = "Not signed in";
+        showMsg("Please sign in to view your purchases.", "error");
         return;
       }
 
-      elPill.textContent = "Signed in";
-
       const { data: orders, error } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, buyer_id, listing_id, total_cents, items_cents, shipping_cents, listing_snapshot")
+        .select("id, created_at, status, total_cents, shipping_cents, listing_id, listing_title, listing_image_url, listing_snapshot")
         .eq("buyer_id", user.id)
         .order("created_at", { ascending:false });
 
       if(error){
-        console.error(error);
-        showMsg("Unable to load purchases.", "error");
+        showMsg("Error loading purchases.", "error");
         return;
       }
 
@@ -166,36 +177,39 @@
         return;
       }
 
-      elPill.textContent = `${orders.length} purchase${orders.length>1?"s":""}`;
+      elPill.textContent = `${orders.length} purchases`;
 
-      orders.forEach(o=>{
+      orders.forEach(o => {
         const snap = o.listing_snapshot || {};
-        const title = snap.listing_title || "Listing";
-        const img = snap.image_url_1 || "";
+        const title = o.listing_title || snap.listing_title || snap.title || "Listing";
+        const img = o.listing_image_url || snap.image_url_1 || "";
+        const shippingCents = Number(o.shipping_cents || 0);
 
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML = `
-          <a class="thumbLink" href="listing.html?id=${o.listing_id}">
-            <div class="thumb">
-              ${img ? `<img src="${img}">` : `<div class="fallback">HM</div>`}
-            </div>
-          </a>
+          <div class="thumb">
+            ${img ? `<img src="${img}" alt="">` : `<div class="fallback">No image</div>`}
+          </div>
+
           <div>
             <div class="row1">
               <div>
                 <div class="title">${title}</div>
                 <div class="meta">
-                  ${o.status} · Purchased ${fmtDate(o.created_at)}
+                  ${String(o.status).toUpperCase()} · Purchased ${fmtDate(o.created_at)}
                 </div>
               </div>
+
               <div class="right">
                 <div class="total">${money(o.total_cents)}</div>
+                <div class="small">Shipping: ${money(shippingCents)}</div>
               </div>
             </div>
+
             <div class="actions">
-              <a class="miniLink" href="listing.html?id=${o.listing_id}">
-                <span class="miniIcon">↗</span> Listing
+              <a class="miniLink" href="listing.html?id=${encodeURIComponent(o.listing_id)}">
+                View listing
               </a>
             </div>
           </div>
