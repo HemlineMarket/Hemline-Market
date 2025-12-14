@@ -3,7 +3,9 @@
 
 (function () {
   const HM = window.HM || {};
-  const supabase = HM.supabase || null;
+
+  // ✅ Prefer the shared singleton client if present (matches checkout/sales/purchases pattern)
+  const supabase = window.__hm_supabase || HM.supabase || null;
 
   const CART_KEY = "hm_cart";
   const SHIP_KEY = "hm_cart_shipping";
@@ -12,11 +14,13 @@
     try {
       localStorage.removeItem(CART_KEY);
       localStorage.removeItem(SHIP_KEY);
+
       if (window.HM_CART_BADGE_UPDATE) {
         try {
           window.HM_CART_BADGE_UPDATE([]);
         } catch (_) {}
       }
+
       console.log("[purchase-success] Cleared local cart storage");
     } catch (e) {
       console.warn("[purchase-success] Failed to clear local cart:", e);
@@ -56,9 +60,7 @@
     const sessionId = url.searchParams.get("session_id");
 
     if (!sessionId) {
-      console.log(
-        "[purchase-success] No session_id in URL; leaving cart alone."
-      );
+      console.log("[purchase-success] No session_id in URL; leaving cart alone.");
       return;
     }
 
