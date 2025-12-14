@@ -19,17 +19,13 @@
       --hm-text:#111827;
       --hm-bg:#f4f4f7;
       --hm-card:rgba(255,255,255,.96);
-      --hm-soft:#f8fafc;
     }
     html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-
     .wrap{max-width:980px;margin:18px auto 28px;padding:0 12px}
     h1{margin:10px 0 4px;font-size:32px}
     .sub{color:var(--hm-muted);margin:0 0 14px}
     .bar{display:flex;justify-content:space-between;align-items:center;margin:8px 0 14px;gap:12px;flex-wrap:wrap}
     .pill{font-size:12px;color:#374151;background:#fff;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px}
-    .pill.soft{background:var(--hm-soft)}
-    .pill.gray{color:#6b7280}
 
     .notice{
       background:#fff;border:1px solid var(--hm-border);border-radius:12px;
@@ -43,7 +39,7 @@
     .card{
       background:var(--hm-card);
       border:1px solid var(--hm-border);
-      border-radius:14px;
+      border-radius:12px;
       padding:12px;
       display:grid;
       grid-template-columns:110px 1fr;
@@ -51,19 +47,17 @@
       align-items:start;
       overflow:hidden;
     }
-
     .thumbLink{display:block;text-decoration:none;color:inherit}
     .thumb{
       width:110px;height:110px;border-radius:12px;overflow:hidden;
       background:linear-gradient(180deg,#f8fafc,#eef2f7);
       border:1px solid #eef2f7;
-      display:grid;place-items:center;
     }
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 
     .row1{display:flex;gap:10px;align-items:flex-start}
     .title{font-weight:800;font-size:15px}
-    .meta{font-size:13px;color:var(--hm-muted);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .meta{font-size:13px;color:var(--hm-muted);margin-top:2px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     .right{margin-left:auto;text-align:right}
     .total{font-weight:800}
     .small{font-size:12px;color:var(--hm-muted);margin-top:2px}
@@ -72,16 +66,20 @@
     .btn{
       padding:8px 10px;border-radius:10px;border:1px solid var(--hm-border);background:#fff;
       font-weight:700;font-size:13px;cursor:pointer;
+      display:inline-flex;align-items:center;gap:8px;
+      text-decoration:none;color:#374151;
     }
     .btn:hover{border-color:#d1d5db}
     .btn-danger{
       background:var(--hm-accent);
       border-color:var(--hm-accent);
       color:#fff;
+      padding:8px 10px;
+      font-size:13px;
+      font-weight:700;
     }
     .btn-disabled{
-      cursor:default;
-      opacity:.7;
+      opacity:.55; cursor:not-allowed;
     }
 
     .select{
@@ -89,28 +87,25 @@
       font-size:13px;min-width:240px;
     }
 
-    .miniLink{
-      display:inline-flex;align-items:center;gap:6px;
-      text-decoration:none;
-      color:#374151;
-      font-weight:700;
-      font-size:13px;
-      padding:7px 9px;
-      border:1px solid var(--hm-border);
-      border-radius:10px;
-      background:#fff;
+    .note{
+      font-size:12px;color:var(--hm-muted);margin-top:8px
     }
-    .miniLink:hover{border-color:#d1d5db}
+    .note.warn{color:#b45309;font-weight:600}
+
+    .statusBadge{
+      font-size:12px;
+      border:1px solid var(--hm-border);
+      border-radius:999px;
+      padding:4px 10px;
+      background:#fff;
+      font-weight:700;
+      color:#374151;
+    }
+
     .miniIcon{
       width:18px;height:18px;display:inline-grid;place-items:center;
       border-radius:6px;background:#f3f4f6;border:1px solid #e5e7eb;
       font-size:12px;line-height:1;
-    }
-
-    .cancelNote{
-      margin-top:6px;
-      font-size:12px;
-      color:var(--hm-muted);
     }
 
     @media(max-width:640px){
@@ -118,7 +113,7 @@
       .thumb{width:100%;height:180px}
       .right{text-align:left;margin-left:0}
       .row1{flex-wrap:wrap}
-      .select{min-width:200px}
+      .select{min-width:0;width:100%}
     }
   </style>
 </head>
@@ -145,10 +140,8 @@
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    // Universal shell
     window.HM && window.HM.renderShell({ currentPage: "purchases" });
 
-    // ONE client (singleton)
     const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
       window.supabase.createClient(
         "https://clkizksbvxjkoatdajgd.supabase.co",
@@ -175,27 +168,26 @@
       try{ return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); }
       catch(e){ return ""; }
     }
-
-    function listingHref(listingId){
-      return "listing.html?id=" + encodeURIComponent(listingId);
+    function minutesSince(iso){
+      if(!iso) return Infinity;
+      const ms = Date.now() - new Date(iso).getTime();
+      return ms / 60000;
     }
 
-    // Qty helper supports both shapes:
-    // - listing_snapshot.items[0].qty  (object)
-    // - listing_snapshot[0].qty       (array)
     function getQty(order){
       try{
-        const snap = order?.listing_snapshot;
-        const q1 = snap?.items?.[0]?.qty;
-        const q2 = Array.isArray(snap) ? snap?.[0]?.qty : null;
-        const n = Number(q1 ?? q2);
+        const q = order?.listing_snapshot?.items?.[0]?.qty;
+        const n = Number(q);
         return Number.isFinite(n) && n > 0 ? n : 1;
       }catch(e){
         return 1;
       }
     }
 
-    // Shipping policy fallback by qty (yards)
+    function listingHref(listingId){
+      return "listing.html?id=" + encodeURIComponent(listingId);
+    }
+
     function shippingFromPolicy(qtyYards){
       const y = Number(qtyYards || 0);
       if(y > 0 && y < 3) return 500;
@@ -204,114 +196,60 @@
       return 0;
     }
 
-    // Shipping cents:
-    // 1) prefer explicit shipping_cents when > 0
-    // 2) else if totals exist, use total - items (if positive)
-    // 3) else policy fallback by qty
-    function computeShippingCents(order, qty){
-      const ship = (order?.shipping_cents != null) ? Number(order.shipping_cents) : null;
-      if(Number.isFinite(ship) && ship > 0) return ship;
+    function safeUpper(x){ return String(x || "").toUpperCase(); }
 
-      const total = (order?.total_cents != null) ? Number(order.total_cents) : null;
-      const items = (order?.items_cents != null) ? Number(order.items_cents) : null;
+    function supportMailto(order, reasonLabel){
+      const orderShort = String(order.id || "").slice(0, 8);
+      const title = (order.listing_title || order.listing_name || "Listing");
+      const created = order.created_at ? new Date(order.created_at).toISOString() : "";
+      const status = safeUpper(order.status || "");
 
-      if(Number.isFinite(total) && Number.isFinite(items)){
-        const diff = total - items;
-        if(diff > 0) return diff;
-      }
+      const body =
+`Hi Hemline Market Support,
 
-      // If shipping_cents exists but is 0, and total/items don't give us anything, fall back to policy.
-      return shippingFromPolicy(qty);
+I need help with my order.
+
+Reason: ${reasonLabel}
+Order: ${orderShort} (${order.id})
+Item: ${title}
+Purchased: ${created}
+Status: ${status}
+
+Please advise next steps.
+`;
+
+      const subject = encodeURIComponent(`Order help: ${reasonLabel} (#${orderShort})`);
+      const mailto = `mailto:support@hemlinemarket.com?subject=${subject}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
     }
 
-    function getTitle(order, listing){
-      const fromOrder = order?.listing_title || order?.listing_name;
-      const fromListing = listing?.title;
-      // snapshot title best-effort
-      let fromSnap = "";
-      try{
-        const snap = order?.listing_snapshot;
-        fromSnap = snap?.listing_title || snap?.title || (Array.isArray(snap) ? (snap?.[0]?.title || snap?.[0]?.name) : "");
-      }catch(e){}
-      return fromListing || fromOrder || fromSnap || "Listing";
-    }
+    async function buyerCancelIfEligible(order, user){
+      const status = safeUpper(order.status || "");
+      const isCancelled = (status === "CANCELED" || status === "CANCELLED");
+      const alreadyRequested = !!order.cancel_requested_at;
+      const within = minutesSince(order.created_at) <= 30;
 
-    function getImage(order, listing){
-      // prefer listing image, then order.listing_image_url, then snapshot image
-      const fromListing = listing?.image_url_1 || "";
-      const fromOrder = order?.listing_image_url || "";
-      let fromSnap = "";
-      try{
-        const snap = order?.listing_snapshot;
-        fromSnap = snap?.image_url_1 || snap?.image_url || (Array.isArray(snap) ? (snap?.[0]?.image_url || snap?.[0]?.image_url_1) : "");
-      }catch(e){}
-      return fromListing || fromOrder || fromSnap || "";
-    }
+      if(!within || isCancelled || alreadyRequested) return { ok:false, skipped:true };
 
-    function minutesSince(iso){
-      try{
-        const ms = Date.now() - new Date(iso).getTime();
-        return ms / 60000;
-      }catch(e){
-        return 1e9;
-      }
-    }
-
-    async function requestCancel(orderId, userId, reason){
-      // Best-effort: mark cancellation requested.
-      // If your RLS doesn’t allow buyer updates, this will error and we’ll show a message.
-      const payload = {
-        status: "CANCEL_REQUESTED",
-        cancel_requested_at: new Date().toISOString(),
-        cancel_reason: reason || null,
-        canceled_by: userId || null
+      // Immediate cancel (buyer-side) within 30 minutes
+      const patch = {
+        status: "CANCELED",
+        canceled_at: new Date().toISOString(),
+        canceled_by: user?.id || null,
+        cancel_reason: "accidental_purchase",
+        cancel_requested_at: new Date().toISOString()
       };
 
       const { error } = await supabaseClient
         .from("orders")
-        .update(payload)
-        .eq("id", orderId);
+        .update(patch)
+        .eq("id", order.id);
 
-      return { error };
-    }
-
-    function handleInquiry(action, ctx){
-      const { order, qty } = ctx;
-      const orderShort = String(order?.id || "").slice(0,8);
-
-      if(action === "message_seller"){
-        // If you later add a real messages page, swap this to that route.
-        const subj = encodeURIComponent("Order inquiry #" + orderShort);
-        const body = encodeURIComponent(
-          "Hi — I have a question about my order #" + orderShort + ".\n\nThanks!"
-        );
-        window.location.href = "mailto:support@hemlinemarket.com?subject=" + subj + "&body=" + body;
-        return;
+      if(error){
+        console.error("[purchases] cancel failed:", error);
+        return { ok:false, error };
       }
-
-      if(action === "support"){
-        const subj = encodeURIComponent("Help with order #" + orderShort);
-        const body = encodeURIComponent(
-          "Hi — I need help with order #" + orderShort + ".\n\nIssue:\n"
-        );
-        window.location.href = "mailto:support@hemlinemarket.com?subject=" + subj + "&body=" + body;
-        return;
-      }
-
-      if(action === "accidental"){
-        alert("Accidental purchase:\n\nIf you’re within 30 minutes of purchase, use “Request cancel”. If the window expired, contact support.");
-        return;
-      }
-
-      if(action === "delayed"){
-        alert("Order delayed:\n\nContact support and include your order # so we can help.");
-        return;
-      }
-
-      if(action === "not_as_described"){
-        alert("Order not as described:\n\nContact support and include your order # and any photos if relevant.");
-        return;
-      }
+      return { ok:true };
     }
 
     async function loadPurchases(){
@@ -331,23 +269,18 @@
       if(!user){
         elPill.textContent = "Not signed in";
         showMsg("Please sign in to view your purchases.", "error");
-
-        const btn = document.createElement("button");
-        btn.className = "btn";
-        btn.textContent = "Go to Sign In";
-        btn.addEventListener("click", () => window.location.href = "auth.html?view=login");
-        elMsg.appendChild(document.createElement("div")).style.height = "10px";
-        elMsg.appendChild(btn);
         return;
       }
 
       elPill.textContent = "Signed in";
 
-      // Pull orders for this buyer
+      const uid = user.id;
+      const email = user.email || "";
+
       const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, buyer_id, buyer_email, seller_id, listing_id, total_cents, items_cents, shipping_cents, listing_title, listing_name, listing_image_url, listing_snapshot, cancel_requested_at, canceled_at, cancel_reason")
-        .eq("buyer_id", user.id)
+        .select("id, created_at, status, buyer_id, buyer_email, seller_id, listing_id, total_cents, items_cents, shipping_cents, listing_title, listing_name, listing_image_url, listing_snapshot, cancel_requested_at, canceled_at, canceled_by, cancel_reason")
+        .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
         .order("created_at", { ascending:false });
 
       if(ordErr){
@@ -366,7 +299,7 @@
 
       elPill.textContent = list.length === 1 ? "1 purchase" : `${list.length} purchases`;
 
-      // Best-effort listing lookup (title/image)
+      // Fetch listing thumbnails/titles (best effort)
       const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
       const listingMap = {};
       if(ids.length){
@@ -388,26 +321,46 @@
         const listing = listingMap[order.listing_id] || null;
 
         const qty = getQty(order);
-        const title = getTitle(order, listing);
-        const img = getImage(order, listing);
+        const title =
+          (listing?.title) ||
+          (order.listing_title) ||
+          (order.listing_name) ||
+          (order?.listing_snapshot?.listing_title) ||
+          "Listing";
 
-        const status = String(order.status || "PAID").toUpperCase();
+        const img =
+          (order.listing_image_url) ||
+          (listing?.image_url_1) ||
+          (order?.listing_snapshot?.image_url_1) ||
+          (order?.listing_snapshot?.image) ||
+          "";
+
+        const status = safeUpper(order.status || "PAID");
 
         const totalCents = Number(order.total_cents || 0);
-        const itemsCents = (order.items_cents != null ? Number(order.items_cents) : totalCents);
-        const shipCents = computeShippingCents(order, qty);
 
-        const mins = minutesSince(order.created_at);
-        const inCancelWindow = mins <= 30;
+        const shipRaw = Number(order.shipping_cents || 0);
+        const shipCents = shipRaw > 0 ? shipRaw : shippingFromPolicy(qty);
+
+        const within = minutesSince(order.created_at) <= 30;
         const isCancelled = (status === "CANCELED" || status === "CANCELLED");
-        const cancelRequested = (status === "CANCEL_REQUESTED") || !!order.cancel_requested_at;
-
-        const canRequestCancel = inCancelWindow && !isCancelled && !cancelRequested;
+        const alreadyRequested = !!order.cancel_requested_at;
+        const canCancel = within && !isCancelled && !alreadyRequested && (status === "PAID" || status === "PENDING" || status === "");
 
         const orderShort = String(order.id || "").slice(0,8);
 
         const card = document.createElement("div");
         card.className = "card";
+
+        const cancelBtnHtml = canCancel
+          ? `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`
+          : `<button class="btn btn-disabled" disabled>${alreadyRequested ? "Cancel requested" : "Cancel unavailable"}</button>`;
+
+        const noteHtml = (() => {
+          if(isCancelled) return `<div class="note">Order cancelled.</div>`;
+          if(canCancel) return `<div class="note warn">Cancellation available for 30 minutes after purchase.</div>`;
+          return `<div class="note">The 30-minute cancellation window has expired.</div>`;
+        })();
 
         card.innerHTML = `
           <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
@@ -421,87 +374,76 @@
               <div>
                 <div class="title">${title}</div>
                 <div class="meta">
-                  <span class="pill soft">${status || "PAID"}</span>
+                  <span class="statusBadge">${status}</span>
                   <span>Purchased ${fmtDate(order.created_at)}</span>
-                  <span class="pill gray">Order #${orderShort}</span>
+                  <span class="pill">Order #${orderShort}</span>
                 </div>
               </div>
 
               <div class="right">
-                <div class="total">${money(itemsCents || totalCents)}</div>
+                <div class="total">${money(totalCents)}</div>
                 <div class="small">Shipping: ${money(shipCents)}</div>
               </div>
             </div>
 
             <div class="actions">
-              <a class="miniLink" href="${listingHref(order.listing_id)}" aria-label="View listing">
+              <a class="btn" href="${listingHref(order.listing_id)}" aria-label="View listing">
                 <span class="miniIcon">↗</span>
                 <span>View listing</span>
               </a>
 
-              <select class="select" data-inquiry>
+              <select class="select" data-problem>
                 <option value="">Problems / Order Inquiry</option>
-                <option value="accidental">Accidental Purchase</option>
+                <option value="accidental_purchase">Accidental Purchase</option>
                 <option value="delayed">Order is Delayed</option>
                 <option value="not_as_described">Order Not as Described</option>
                 <option value="message_seller">Message Seller</option>
-                <option value="support">Contact Support Center</option>
+                <option value="contact_support">Contact Support Center</option>
               </select>
 
-              ${
-                canRequestCancel ? `
-                  <button class="btn btn-danger" data-cancel-btn>Request cancel</button>
-                ` : `
-                  <button class="btn btn-disabled" disabled>
-                    ${cancelRequested ? "Cancel requested" : (isCancelled ? "Cancelled" : "Cancel unavailable")}
-                  </button>
-                `
-              }
+              ${cancelBtnHtml}
             </div>
 
-            <div class="cancelNote">
-              ${
-                isCancelled ? "Order cancelled." :
-                cancelRequested ? "Cancellation request submitted." :
-                inCancelWindow ? "Cancellation available for 30 minutes after purchase." :
-                "The 30-minute cancellation window has expired."
-              }
-            </div>
+            ${noteHtml}
           </div>
         `;
 
-        // Inquiry dropdown action
-        const inquiry = card.querySelector("[data-inquiry]");
-        if(inquiry){
-          inquiry.addEventListener("change", (e) => {
-            const v = e.target.value;
-            if(!v) return;
-            handleInquiry(v, { order, qty });
-            e.target.value = "";
-          });
-        }
+        // Problems: always go to support. Accidental purchase also triggers cancel if eligible.
+        const sel = card.querySelector("[data-problem]");
+        sel.addEventListener("change", async () => {
+          const v = sel.value;
+          if(!v) return;
 
-        // Cancel request
+          if(v === "accidental_purchase"){
+            await buyerCancelIfEligible(order, user);
+            supportMailto(order, "Accidental Purchase");
+          } else if(v === "delayed"){
+            supportMailto(order, "Order is Delayed");
+          } else if(v === "not_as_described"){
+            supportMailto(order, "Order Not as Described");
+          } else if(v === "message_seller"){
+            supportMailto(order, "Message Seller");
+          } else {
+            supportMailto(order, "Contact Support Center");
+          }
+
+          sel.value = "";
+        });
+
+        // Cancel button: only active during 30 minutes
         const cancelBtn = card.querySelector("[data-cancel-btn]");
         if(cancelBtn){
           cancelBtn.addEventListener("click", async () => {
-            const ok = confirm("Request cancellation for order #" + orderShort + "?\n\nThis is only available within 30 minutes of purchase.");
-            if(!ok) return;
-
             cancelBtn.disabled = true;
-            cancelBtn.textContent = "Requesting…";
-
-            const { error } = await requestCancel(order.id, user.id, "buyer_requested");
-            if(error){
-              console.error(error);
-              showMsg("Cancel request failed. If this should be cancellable, contact support.", "error");
-              cancelBtn.disabled = false;
-              cancelBtn.textContent = "Request cancel";
+            cancelBtn.textContent = "Cancelling…";
+            const res = await buyerCancelIfEligible(order, user);
+            if(res?.ok){
+              // refresh
+              loadPurchases();
               return;
             }
-
-            // Soft refresh
-            loadPurchases();
+            cancelBtn.textContent = "Cancel";
+            cancelBtn.disabled = false;
           });
         }
 
