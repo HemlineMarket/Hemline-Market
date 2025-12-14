@@ -610,7 +610,6 @@
     (async function initAccount(){
       const session = await ensureSession();
       if(!session || !session.user){
-        // Not logged in: go to login view
         window.location.href = "auth.html?view=login";
         return;
       }
@@ -623,6 +622,30 @@
       const PROFILE_KEY = "hm_profile_" + userId;
       const ADDRESS_KEY = "hm_address_" + userId;
       const VAC_KEY     = "hm_vacation_" + userId;
+
+      // ✅ NEW: when Account saves an address, also save it in Checkout’s expected format
+      function syncAddressToCheckoutKeys(accountAddr){
+        try{
+          const checkoutAddr = {
+            // checkout.html uses these names
+            email: "",
+            phone: "",
+            name: (accountAddr.addrName || "").trim(),
+            line1: (accountAddr.addrLine1 || "").trim(),
+            line2: (accountAddr.addrLine2 || "").trim(),
+            city:  (accountAddr.addrCity  || "").trim(),
+            state: (accountAddr.addrState || "").trim(),
+            zip:   (accountAddr.addrZip   || "").trim(),
+            country: "US"
+          };
+
+          // Write both a global fallback and a user-specific key
+          localStorage.setItem("hm_checkout_address", JSON.stringify(checkoutAddr));
+          localStorage.setItem("hm_checkout_address_" + userId, JSON.stringify(checkoutAddr));
+        }catch(e){
+          // ignore
+        }
+      }
 
       // Elements
       const profileNameEl        = document.getElementById('profileName');
@@ -813,17 +836,14 @@
         if(next.bio)       newLines.push(next.bio);
         profileExtraEl.textContent = newLines.join("\n");
 
-        // Refresh initials in avatar (still hidden visually)
         const initials = initialsFromProfile(next.firstName, next.lastName, email);
         profileAvatarEl.style.backgroundImage = "";
         profileAvatarEl.textContent = initials;
 
-        // Update slug preview
         if(storeSlugPreviewEl){
           storeSlugPreviewEl.textContent = next.storeSlug || "your-shop";
         }
 
-        // If address name is still empty, prefill from profile name
         if(!address.addrName && displayName.trim()){
           address.addrName = displayName.trim();
           try{
@@ -846,6 +866,7 @@
         addressEditor.classList.add('is-hidden');
       });
 
+      // ✅ MODIFIED: also sync the checkout address keys when saving from Account
       addressForm.addEventListener('submit', (e)=>{
         e.preventDefault();
         const next = {
@@ -858,6 +879,10 @@
           addrCountry: addressForm.addrCountry.value || "United States"
         };
         localStorage.setItem(ADDRESS_KEY, JSON.stringify(next));
+
+        // 🔥 THIS is the fix: make checkout read the updated address
+        syncAddressToCheckoutKeys(next);
+
         address = next;
         renderAddress();
         addressEditor.classList.add('is-hidden');
