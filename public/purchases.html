@@ -206,17 +206,16 @@ Please advise next steps.
     async function buyerCancelIfEligible(order, user){
       const status = safeUpper(order.status || "");
       const isCancelled = (status === "CANCELED" || status === "CANCELLED");
-      const alreadyRequested = !!order.cancel_requested_at;
       const within = minutesSince(order.created_at) <= 30;
 
-      if(!within || isCancelled || alreadyRequested) return { ok:false, skipped:true };
+      if(!within || isCancelled) return { ok:false, skipped:true };
 
       const patch = {
         status: "CANCELED",
         canceled_at: new Date().toISOString(),
         canceled_by: user?.id || null,
-        cancel_reason: "accidental_purchase",
-        cancel_requested_at: new Date().toISOString()
+        cancel_reason: "buyer_30_min"
+        // NOTE: no cancel_requested_at (you said no “request” concept)
       };
 
       const { error } = await supabaseClient
@@ -253,13 +252,10 @@ Please advise next steps.
 
       elPill.textContent = "Signed in";
 
-      const uid = user.id;
-
-      // ✅ RLS-safe minimal select (prevents 400/Bad Request)
       const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
         .select("id, created_at, status, total_cents, shipping_cents, listing_id, cancel_requested_at, canceled_at, canceled_by, cancel_reason")
-        .eq("buyer_email", user.email)   /* ✅ ONLY CHANGE */
+        .eq("buyer_email", user.email)
         .order("created_at", { ascending:false });
 
       if(ordErr){
@@ -278,7 +274,6 @@ Please advise next steps.
 
       elPill.textContent = list.length === 1 ? "1 purchase" : `${list.length} purchases`;
 
-      // Best-effort listing details for title + thumbnail (may fail under RLS; UI still works)
       const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
       const listingMap = {};
       if(ids.length){
@@ -309,17 +304,19 @@ Please advise next steps.
 
         const within = minutesSince(order.created_at) <= 30;
         const isCancelled = (status === "CANCELED" || status === "CANCELLED");
-        const alreadyRequested = !!order.cancel_requested_at;
-        const canCancel = within && !isCancelled && !alreadyRequested && (status === "PAID" || status === "PENDING" || status === "");
+        const canCancel = within && !isCancelled && (status === "PAID" || status === "PENDING" || status === "");
 
         const orderShort = String(order.id || "").slice(0,8);
 
         const card = document.createElement("div");
         card.className = "card";
 
-        const cancelBtnHtml = canCancel
-          ? `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`
-          : `<button class="btn btn-disabled" disabled>${alreadyRequested ? "Cancel requested" : "Cancel unavailable"}</button>`;
+        const cancelBtnHtml = isCancelled
+          ? `<button class="btn btn-disabled" disabled>Canceled</button>`
+          : (canCancel
+              ? `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`
+              : `<button class="btn btn-disabled" disabled>Cancel unavailable</button>`
+            );
 
         const noteHtml = (() => {
           if(isCancelled) return `<div class="note">Order cancelled.</div>`;
@@ -373,7 +370,6 @@ Please advise next steps.
           </div>
         `;
 
-        // Problems: always go to support. Accidental purchase also triggers cancel if eligible.
         const sel = card.querySelector("[data-problem]");
         sel.addEventListener("change", async () => {
           const v = sel.value;
@@ -395,7 +391,6 @@ Please advise next steps.
           sel.value = "";
         });
 
-        // Cancel button: only active during 30 minutes
         const cancelBtn = card.querySelector("[data-cancel-btn]");
         if(cancelBtn){
           cancelBtn.addEventListener("click", async () => {
