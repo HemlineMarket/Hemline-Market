@@ -78,11 +78,10 @@
       border-color:var(--hm-accent);
       color:#fff;
       padding:8px 10px;
-      font-size:13px;      /* smaller */
+      font-size:13px;
       font-weight:700;
     }
 
-    /* “mini link like browse” */
     .miniLink{
       display:inline-flex;align-items:center;gap:6px;
       text-decoration:none;
@@ -101,6 +100,9 @@
       font-size:12px;line-height:1;
     }
 
+    .inlineNote{margin-top:8px;font-size:12px;color:var(--hm-muted)}
+    .inlineNote strong{color:#374151}
+
     @media(max-width:640px){
       .card{grid-template-columns:1fr}
       .thumb{width:100%;height:180px}
@@ -111,7 +113,6 @@
 </head>
 
 <body>
-  <!-- UNIVERSAL HEADER/FOOTER via hm-shell.js (keep this exactly like your other pages) -->
   <div id="hm-shell-header"></div>
 
   <main class="wrap">
@@ -129,15 +130,13 @@
 
   <div id="hm-shell-footer"></div>
 
-  <!-- ✅ Use the same working Supabase CDN approach as browse.html -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    // Render shell (restores header/footer/menu exactly like your other pages)
     window.HM && window.HM.renderShell({ currentPage: "sales" });
 
-    // ✅ ONE client. No scripts/supabase-client.js here. No imports. No window.supabaseClient dependency.
+    // ONE client. Keep same pattern.
     const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
       window.supabase.createClient(
         "https://clkizksbvxjkoatdajgd.supabase.co",
@@ -165,23 +164,18 @@
       catch(e){ return ""; }
     }
 
-    // Use snapshot qty if available; fallback 1
     function getQty(order){
       try{
         const q = order?.listing_snapshot?.items?.[0]?.qty;
         const n = Number(q);
         return Number.isFinite(n) && n > 0 ? n : 1;
-      }catch(e){
-        return 1;
-      }
+      }catch(e){ return 1; }
     }
 
     function listingHref(listingId){
       return "listing.html?id=" + encodeURIComponent(listingId);
     }
 
-    // Shipping: show the actual order.shipping_cents if present;
-    // if 0/missing, fall back to policy estimate based on qty yards.
     function shippingFromPolicy(qtyYards){
       const y = Number(qtyYards || 0);
       if(y > 0 && y < 3) return 500;
@@ -190,12 +184,53 @@
       return 0;
     }
 
+    function isCancelableStatus(statusUpper){
+      // Keep simple and predictable:
+      // - allow cancel for PAID/PENDING only
+      // - block for SHIPPED/DELIVERED/CANCELED
+      return (
+        statusUpper === "PAID" ||
+        statusUpper === "PENDING" ||
+        statusUpper === ""
+      );
+    }
+
+    async function cancelOrder({ orderId, listingId, reason, userId }){
+      // Update orders (this is the real “cancel works” part)
+      const nowIso = new Date().toISOString();
+
+      const { error: updErr } = await supabaseClient
+        .from("orders")
+        .update({
+          status: "CANCELED",
+          canceled_at: nowIso,
+          cancel_requested_at: nowIso,
+          canceled_by: userId,
+          cancel_reason: reason
+        })
+        .eq("id", orderId)
+        .eq("seller_id", userId);
+
+      if(updErr) throw updErr;
+
+      // Best-effort: try to re-open the listing (non-fatal if your listings table differs)
+      if(listingId){
+        try{
+          await supabaseClient
+            .from("listings")
+            .update({ status: "ACTIVE" })
+            .eq("id", listingId);
+        }catch(e){
+          // ignore
+        }
+      }
+    }
+
     async function loadSales(){
       clearMsg();
       elList.innerHTML = "";
       elPill.textContent = "Checking session…";
 
-      // ✅ Avoid /auth/v1/user 401 spam: use getSession()
       const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
       if(sessErr){
         console.error(sessErr);
@@ -213,17 +248,16 @@
 
       elPill.textContent = "Signed in";
 
-      // ✅ Only select columns that exist (your screenshot shows these exist)
       const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, seller_id, buyer_email, listing_id, total_cents, items_cents, shipping_cents, listing_snapshot")
+        .select("id, created_at, status, seller_id, buyer_email, listing_id, total_cents, items_cents, shipping_cents, listing_snapshot, canceled_at, cancel_reason")
         .eq("seller_id", user.id)
         .order("created_at", { ascending:false });
 
       if(ordErr){
         console.error(ordErr);
         elPill.textContent = "Error";
-        showMsg("Error loading sales. Check orders RLS for seller read.", "error");
+        showMsg("Error loading sales.", "error");
         return;
       }
 
@@ -236,7 +270,7 @@
 
       elPill.textContent = list.length === 1 ? "1 sale" : `${list.length} sales`;
 
-      // Best effort: fetch listing thumbnails/titles
+      // Best effort: listing thumbnails/titles
       const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
       const listingMap = {};
       if(ids.length){
@@ -247,8 +281,6 @@
 
         if(!lErr && listings){
           listings.forEach(l => listingMap[l.id] = l);
-        } else {
-          console.warn("Listing fetch failed (non-fatal):", lErr);
         }
       }
 
@@ -256,7 +288,7 @@
         const listing = listingMap[order.listing_id] || null;
 
         const qty = getQty(order);
-        const title = (listing?.title) || (order?.listing_snapshot?.listing_title) || "Listing";
+        const title = (listing?.title) || (order?.listing_snapshot?.listing_title) || (order?.listing_snapshot?.title) || "Listing";
         const img = (listing?.image_url_1) || (order?.listing_snapshot?.image_url_1) || "";
 
         const itemsCents = (order.items_cents != null ? Number(order.items_cents) :
@@ -265,14 +297,12 @@
         const shipRaw = Number(order.shipping_cents || 0);
         const shipCents = shipRaw > 0 ? shipRaw : shippingFromPolicy(qty);
 
-        // ✅ Don’t mask the buyer email (you explicitly said it was wrong to hide it)
         const buyerEmail = order.buyer_email || "";
 
-        // ✅ Cancel should only exist before shipped.
-        // You don’t have shipped_at (your console showed it doesn’t exist), so use status.
         const status = String(order.status || "").toUpperCase();
-        const isShipped = (status === "SHIPPED" || status === "DELIVERED");
-        const canCancel = !isShipped && (status === "PAID" || status === "PENDING" || status === "");
+        const isCanceled = (status === "CANCELED" || status === "CANCELLED");
+
+        const canCancel = !isCanceled && isCancelableStatus(status);
 
         const card = document.createElement("div");
         card.className = "card";
@@ -293,6 +323,9 @@
                   ${qty} ${qty === 1 ? "yard" : "yards"} · Sold · ${fmtDate(order.created_at)}
                   ${buyerEmail ? ` · Buyer: ${buyerEmail}` : ""}
                 </div>
+                ${
+                  isCanceled ? `<div class="inlineNote"><strong>Cancelled</strong>${order.cancel_reason ? ` · Reason: ${order.cancel_reason}` : ""}</div>` : ``
+                }
               </div>
 
               <div class="right">
@@ -302,7 +335,6 @@
             </div>
 
             <div class="actions">
-              <!-- mini link like browse: clear, compact -->
               <a class="miniLink" href="${listingHref(order.listing_id)}" aria-label="View listing">
                 <span class="miniIcon">↗</span>
                 <span>Listing</span>
@@ -319,23 +351,47 @@
                   </select>
                   <button class="btn btn-danger" data-cancel-btn>Cancel</button>
                 ` : `
-                  <span class="pill">Cancel disabled after shipped</span>
+                  <span class="pill">${isCanceled ? "Cancelled" : "Cancel disabled"}</span>
                 `
               }
             </div>
           </div>
         `;
 
-        // Cancel wiring: if you already have an RPC/endpoint, hook it here.
         const cancelBtn = card.querySelector("[data-cancel-btn]");
         if(cancelBtn){
           cancelBtn.addEventListener("click", async () => {
-            const reason = card.querySelector("[data-cancel-reason]")?.value || "";
+            const sel = card.querySelector("[data-cancel-reason]");
+            const reason = (sel && sel.value) ? sel.value : "";
             if(!reason){
               alert("Please select a cancel reason.");
               return;
             }
-            alert("Cancel flow not wired yet. Reason: " + reason);
+
+            // hard confirm (prevents accidental clicks)
+            const ok = confirm("Cancel this sale? This will mark the order as canceled.");
+            if(!ok) return;
+
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = "Cancelling…";
+
+            try{
+              await cancelOrder({
+                orderId: order.id,
+                listingId: order.listing_id || null,
+                reason,
+                userId: user.id
+              });
+
+              // Update UI immediately
+              showMsg("Cancelled. Refresh to confirm.", "ok");
+              await loadSales();
+            }catch(e){
+              console.error(e);
+              showMsg("Cancel failed. This usually means the order update policy doesn’t allow the seller to update this row.", "error");
+              cancelBtn.disabled = false;
+              cancelBtn.textContent = "Cancel";
+            }
           });
         }
 
