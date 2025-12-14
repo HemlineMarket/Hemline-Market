@@ -174,33 +174,14 @@
       return ms / 60000;
     }
 
-    function getQty(order){
-      try{
-        const q = order?.listing_snapshot?.items?.[0]?.qty;
-        const n = Number(q);
-        return Number.isFinite(n) && n > 0 ? n : 1;
-      }catch(e){
-        return 1;
-      }
-    }
-
     function listingHref(listingId){
       return "listing.html?id=" + encodeURIComponent(listingId);
-    }
-
-    function shippingFromPolicy(qtyYards){
-      const y = Number(qtyYards || 0);
-      if(y > 0 && y < 3) return 500;
-      if(y >= 3 && y <= 10) return 800;
-      if(y > 10) return 1400;
-      return 0;
     }
 
     function safeUpper(x){ return String(x || "").toUpperCase(); }
 
     function supportMailto(order, reasonLabel){
       const orderShort = String(order.id || "").slice(0, 8);
-      const title = (order.listing_title || order.listing_name || "Listing");
       const created = order.created_at ? new Date(order.created_at).toISOString() : "";
       const status = safeUpper(order.status || "");
 
@@ -211,7 +192,6 @@ I need help with my order.
 
 Reason: ${reasonLabel}
 Order: ${orderShort} (${order.id})
-Item: ${title}
 Purchased: ${created}
 Status: ${status}
 
@@ -219,7 +199,7 @@ Please advise next steps.
 `;
 
       const subject = encodeURIComponent(`Order help: ${reasonLabel} (#${orderShort})`);
-      const mailto = `mailto:support@hemlinemarket.com?subject=${subject}&body=${encodeURIComponent(body)}`;
+      const mailto = `mailto:hello@hemlinemarket.com?subject=${subject}&body=${encodeURIComponent(body)}`;
       window.location.href = mailto;
     }
 
@@ -231,7 +211,6 @@ Please advise next steps.
 
       if(!within || isCancelled || alreadyRequested) return { ok:false, skipped:true };
 
-      // Immediate cancel (buyer-side) within 30 minutes
       const patch = {
         status: "CANCELED",
         canceled_at: new Date().toISOString(),
@@ -275,12 +254,12 @@ Please advise next steps.
       elPill.textContent = "Signed in";
 
       const uid = user.id;
-      const email = user.email || "";
 
+      // ✅ RLS-safe minimal select (prevents 400/Bad Request)
       const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, buyer_id, buyer_email, seller_id, listing_id, total_cents, items_cents, shipping_cents, listing_title, listing_name, listing_image_url, listing_snapshot, cancel_requested_at, canceled_at, canceled_by, cancel_reason")
-        .or(`buyer_id.eq.${uid},buyer_email.eq.${email}`)
+        .select("id, created_at, status, total_cents, shipping_cents, listing_id, cancel_requested_at, canceled_at, canceled_by, cancel_reason")
+        .eq("buyer_id", uid)
         .order("created_at", { ascending:false });
 
       if(ordErr){
@@ -299,7 +278,7 @@ Please advise next steps.
 
       elPill.textContent = list.length === 1 ? "1 purchase" : `${list.length} purchases`;
 
-      // Fetch listing thumbnails/titles (best effort)
+      // Best-effort listing details for title + thumbnail (may fail under RLS; UI still works)
       const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
       const listingMap = {};
       if(ids.length){
@@ -320,27 +299,13 @@ Please advise next steps.
       list.forEach(order => {
         const listing = listingMap[order.listing_id] || null;
 
-        const qty = getQty(order);
-        const title =
-          (listing?.title) ||
-          (order.listing_title) ||
-          (order.listing_name) ||
-          (order?.listing_snapshot?.listing_title) ||
-          "Listing";
-
-        const img =
-          (order.listing_image_url) ||
-          (listing?.image_url_1) ||
-          (order?.listing_snapshot?.image_url_1) ||
-          (order?.listing_snapshot?.image) ||
-          "";
+        const title = (listing?.title) || "Listing";
+        const img = (listing?.image_url_1) || "";
 
         const status = safeUpper(order.status || "PAID");
 
         const totalCents = Number(order.total_cents || 0);
-
-        const shipRaw = Number(order.shipping_cents || 0);
-        const shipCents = shipRaw > 0 ? shipRaw : shippingFromPolicy(qty);
+        const shipCents = Number(order.shipping_cents || 0);
 
         const within = minutesSince(order.created_at) <= 30;
         const isCancelled = (status === "CANCELED" || status === "CANCELLED");
@@ -438,7 +403,6 @@ Please advise next steps.
             cancelBtn.textContent = "Cancelling…";
             const res = await buyerCancelIfEligible(order, user);
             if(res?.ok){
-              // refresh
               loadPurchases();
               return;
             }
