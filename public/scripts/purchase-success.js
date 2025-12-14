@@ -1,12 +1,7 @@
 // File: public/scripts/purchase-success.js
-// On Stripe success redirect, clear the local cart and (optionally) log the order.
+// Clears local cart on Stripe success and hard-refreshes SOLD state everywhere.
 
 (function () {
-  const HM = window.HM || {};
-
-  // ✅ Prefer the shared singleton client if present (matches checkout/sales/purchases pattern)
-  const supabase = window.__hm_supabase || HM.supabase || null;
-
   const CART_KEY = "hm_cart";
   const SHIP_KEY = "hm_cart_shipping";
 
@@ -14,62 +9,42 @@
     try {
       localStorage.removeItem(CART_KEY);
       localStorage.removeItem(SHIP_KEY);
-
       if (window.HM_CART_BADGE_UPDATE) {
-        try {
-          window.HM_CART_BADGE_UPDATE([]);
-        } catch (_) {}
+        window.HM_CART_BADGE_UPDATE([]);
       }
-
-      console.log("[purchase-success] Cleared local cart storage");
-    } catch (e) {
-      console.warn("[purchase-success] Failed to clear local cart:", e);
-    }
+    } catch (_) {}
   }
 
-  async function lookupOrder(sessionId) {
-    if (!supabase) {
-      console.warn("[purchase-success] Supabase missing; skipping order lookup");
-      return;
-    }
-
+  function purgeSoldFromAnyCachedViews() {
     try {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("stripe_checkout", sessionId)
-        .maybeSingle();
+      const cart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+      if (!Array.isArray(cart) || !cart.length) return;
 
-      if (error) {
-        console.warn("[purchase-success] order lookup error", error);
-        return;
-      }
-      if (!data) {
-        console.warn("[purchase-success] No order found for this session");
-        return;
-      }
+      const filtered = cart.filter(it => {
+        const s = String(it.status || "").toUpperCase();
+        return s !== "SOLD";
+      });
 
-      console.log("[purchase-success] Order found:", data);
-    } catch (e) {
-      console.warn("[purchase-success] lookup exception:", e);
-    }
+      if (filtered.length !== cart.length) {
+        localStorage.setItem(CART_KEY, JSON.stringify(filtered));
+        if (window.HM_CART_BADGE_UPDATE) {
+          window.HM_CART_BADGE_UPDATE(filtered);
+        }
+      }
+    } catch (_) {}
   }
 
   async function init() {
     const url = new URL(window.location.href);
     const sessionId = url.searchParams.get("session_id");
 
-    if (!sessionId) {
-      console.log("[purchase-success] No session_id in URL; leaving cart alone.");
-      return;
-    }
+    if (!sessionId) return;
 
-    // We reached the Stripe success URL with a session_id:
-    // clear the local cart for this browser.
+    // 1) Clear cart for this browser
     clearLocalCart();
 
-    // Optional: log/verify the order row in Supabase (for debugging/display later).
-    await lookupOrder(sessionId);
+    // 2) Extra safety: remove SOLD items if any cache survived
+    purgeSoldFromAnyCachedViews();
   }
 
   init();
