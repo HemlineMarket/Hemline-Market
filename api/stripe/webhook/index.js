@@ -1,14 +1,45 @@
 // File: api/stripe/webhook/index.js
-// Handles Stripe events and inserts orders into Supabase (Admin client inline, ESM-safe).
+// ESM-only, self-contained Stripe webhook for Vercel.
+// No relative imports. No require(). No helper modules.
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
 export const config = { api: { bodyParser: false } };
 
+// Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2024-06-20",
 });
+
+// Supabase (Admin/service role)
+function getSupabaseAdmin() {
+  const url =
+    process.env.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    "";
+
+  const serviceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE ||
+    "";
+
+  if (!url) {
+    throw new Error(
+      "Missing Supabase URL env var. Set SUPABASE_URL (preferred)."
+    );
+  }
+  if (!serviceKey) {
+    throw new Error(
+      "Missing Supabase service role env var. Set SUPABASE_SERVICE_ROLE_KEY."
+    );
+  }
+
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -25,32 +56,13 @@ function getStripeSignatureHeader(req) {
   return h ? String(h) : "";
 }
 
-function getSupabaseAdmin() {
-  const url =
-    process.env.SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    "";
-
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_KEY ||
-    "";
-
-  if (!url) throw new Error("SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) is missing");
-  if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
-
-  return createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
+  // 1) Verify Stripe signature
   const sig = getStripeSignatureHeader(req);
   if (!sig) {
     return res
@@ -62,7 +74,7 @@ export default async function handler(req, res) {
   try {
     rawBody = await readRawBody(req);
   } catch (e) {
-    return res.status(400).send(`Raw body error: ${e.message}`);
+    return res.status(400).send(`Raw body error: ${e?.message || e}`);
   }
 
   let event;
@@ -76,14 +88,19 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook signature error: ${err.message}`);
   }
 
-  // Only handle what we need right now
-  if (event.type === "checkout.session.completed") {
+  // 2) Only handle what you actually need
+  if (event.type !== "checkout.session.completed") {
+    return res.status(200).json({ received: true, ignored: event.type });
+  }
+
+  // 3) Process order
+  try {
     const supabaseAdmin = getSupabaseAdmin();
 
     const session = event.data.object;
     const md = session.metadata || {};
 
-    // Try to look up listing for real seller/title/image
+    // Attempt to enrich listing data if we have listing_id
     let listingRow = null;
     if (md.listing_id) {
       const { data, error } = await supabaseAdmin
@@ -108,8 +125,7 @@ export default async function handler(req, res) {
     const priceCents = Number(md.price_cents) || 0;
     const shippingCents = Number(md.shipping_cents) || 0;
 
-    // Idempotent-ish: if Stripe retries, we don't want duplicates.
-    // Requires a unique constraint on stripe_event_id OR stripe_checkout_session to fully guarantee.
+    // Insert order
     const { error: insertError } = await supabaseAdmin.from("orders").insert({
       stripe_checkout_session: session.id,
       stripe_event_id: event.id,
@@ -123,28 +139,38 @@ export default async function handler(req, res) {
       total_cents: priceCents + shippingCents,
       listing_title: listingTitle,
       listing_image_url: listingImageUrl,
-      status: "paid",
+      status: "PAID",
     });
 
-    if (insertError) {
-      // Still return 200 so Stripe doesn't retry forever
-      console.error("Order insert error:", insertError);
-    } else if (md.listing_id) {
-      const { error: listingUpdateError } = await supabaseAdmin
+    // If order insert succeeded, mark listing sold
+    if (!insertError && md.listing_id) {
+      await supabaseAdmin
         .from("listings")
         .update({
-          status: "sold",
+          status: "SOLD",
           in_cart_by: null,
           reserved_until: null,
           sold_at: new Date().toISOString(),
         })
         .eq("id", md.listing_id);
-
-      if (listingUpdateError) {
-        console.error("Listing sold update error:", listingUpdateError);
-      }
     }
-  }
 
-  return res.status(200).json({ received: true });
+    // If insert failed, surface it clearly (so Stripe retries, and you see why)
+    if (insertError) {
+      // Stripe will retry on 500s
+      console.error("Webhook order insert failed:", insertError);
+      return res.status(500).json({
+        error: "Order insert failed",
+        details: insertError,
+      });
+    }
+
+    return res.status(200).json({ received: true });
+  } catch (e) {
+    console.error("Webhook handler error:", e);
+    return res.status(500).json({
+      error: "Webhook handler error",
+      message: e?.message || String(e),
+    });
+  }
 }
