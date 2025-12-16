@@ -2,7 +2,7 @@
 // Handles Stripe events and inserts orders into Supabase.
 
 import Stripe from "stripe";
-import supabaseAdmin from "../../_supabaseAdmin";
+import supabaseAdmin from "../_supabaseAdmin";
 
 export const config = { api: { bodyParser: false } };
 
@@ -33,7 +33,9 @@ export default async function handler(req, res) {
 
   const sig = getStripeSignatureHeader(req);
   if (!sig) {
-    return res.status(400).send("Webhook signature error: Missing stripe-signature header");
+    return res
+      .status(400)
+      .send("Webhook signature error: Missing stripe-signature header");
   }
 
   let rawBody;
