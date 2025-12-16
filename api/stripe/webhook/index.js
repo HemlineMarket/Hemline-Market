@@ -1,83 +1,64 @@
 // File: api/stripe/webhook/index.js
-// Handles Stripe events and inserts orders into Supabase.
+// Stripe webhook → Supabase (Vercel-safe, no external imports)
 
 import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 
-export const config = { api: { bodyParser: false } };
+export const config = {
+  api: { bodyParser: false },
+};
 
+/* -------------------------
+   Stripe
+-------------------------- */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2024-06-20",
 });
 
-// --- Supabase admin (lazy, dynamic import to avoid CJS/ESM mismatch on Vercel) ---
-let _supabaseAdmin = null;
+/* -------------------------
+   Supabase Admin (INLINE)
+-------------------------- */
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-async function getSupabaseAdmin() {
-  if (_supabaseAdmin) return _supabaseAdmin;
-
-  const supabaseUrl =
-    process.env.SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    "";
-
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.SUPABASE_SERVICE_KEY ||
-    process.env.SUPABASE_SERVICE_KEY_SECRET ||
-    "";
-
-  if (!supabaseUrl || !serviceKey) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  }
-
-  const mod = await import("@supabase/supabase-js");
-  const createClient = mod.createClient || mod.default?.createClient;
-  if (!createClient) {
-    throw new Error("Failed to load createClient from @supabase/supabase-js");
-  }
-
-  _supabaseAdmin = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  return _supabaseAdmin;
-}
-
-// --- Stripe raw body helpers ---
+/* -------------------------
+   Helpers
+-------------------------- */
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    req.on("data", (c) => chunks.push(c));
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }
 
-function getStripeSignatureHeader(req) {
-  const h = req.headers?.["stripe-signature"];
-  if (Array.isArray(h)) return h.join(",");
-  return h ? String(h) : "";
+function getStripeSignature(req) {
+  const sig = req.headers["stripe-signature"];
+  return Array.isArray(sig) ? sig.join(",") : sig;
 }
 
+/* -------------------------
+   Handler
+-------------------------- */
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method Not Allowed" });
+    return res.status(405).end("Method Not Allowed");
   }
 
-  const sig = getStripeSignatureHeader(req);
+  const sig = getStripeSignature(req);
   if (!sig) {
-    return res
-      .status(400)
-      .send("Webhook signature error: Missing stripe-signature header");
+    return res.status(400).send("Missing Stripe signature");
   }
 
   let rawBody;
   try {
     rawBody = await readRawBody(req);
-  } catch (e) {
-    return res.status(400).send(`Raw body error: ${e.message}`);
+  } catch (err) {
+    return res.status(400).send(`Raw body error: ${err.message}`);
   }
 
   let event;
@@ -91,67 +72,64 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook signature error: ${err.message}`);
   }
 
-  try {
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const md = session.metadata || {};
+  /* -------------------------
+     checkout.session.completed
+  -------------------------- */
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const md = session.metadata || {};
 
-      const supabaseAdmin = await getSupabaseAdmin();
+    // Lookup listing (optional safety)
+    let listing = null;
+    if (md.listing_id) {
+      const { data } = await supabaseAdmin
+        .from("listings")
+        .select("id, seller_id, title, image_url")
+        .eq("id", md.listing_id)
+        .maybeSingle();
 
-      let listingRow = null;
-      if (md.listing_id) {
-        const { data, error } = await supabaseAdmin
-          .from("listings")
-          .select("id, seller_id, title, image_url")
-          .eq("id", md.listing_id)
-          .maybeSingle();
-        if (!error) listingRow = data;
-      }
+      listing = data;
+    }
 
-      const sellerId = md.seller_id || listingRow?.seller_id || null;
-      const listingTitle = md.title || listingRow?.title || "";
-      const listingImageUrl = md.image_url || listingRow?.image_url || null;
+    const priceCents = Number(md.price_cents) || 0;
+    const shippingCents = Number(md.shipping_cents) || 0;
 
-      const buyerEmail =
+    await supabaseAdmin.from("orders").insert({
+      stripe_checkout_session: session.id,
+      stripe_event_id: event.id,
+      stripe_payment_intent: session.payment_intent || null,
+
+      buyer_id: md.buyer_id || null,
+      buyer_email:
         session.customer_details?.email ||
         session.customer_email ||
         md.buyer_email ||
-        null;
+        null,
 
-      const priceCents = Number(md.price_cents) || 0;
-      const shippingCents = Number(md.shipping_cents) || 0;
+      seller_id: md.seller_id || listing?.seller_id || null,
+      listing_id: md.listing_id || null,
 
-      const { error: insertError } = await supabaseAdmin.from("orders").insert({
-        stripe_checkout_session: session.id,
-        stripe_event_id: event.id,
-        stripe_payment_intent: session.payment_intent || null,
-        buyer_id: md.buyer_id || null,
-        buyer_email: buyerEmail,
-        seller_id: sellerId,
-        listing_id: md.listing_id || null,
-        items_cents: priceCents,
-        shipping_cents: shippingCents,
-        total_cents: priceCents + shippingCents,
-        listing_title: listingTitle,
-        listing_image_url: listingImageUrl,
-        status: "PAID",
-      });
+      items_cents: priceCents,
+      shipping_cents: shippingCents,
+      total_cents: priceCents + shippingCents,
 
-      if (!insertError && md.listing_id) {
-        await supabaseAdmin
-          .from("listings")
-          .update({
-            status: "SOLD",
-            in_cart_by: null,
-            reserved_until: null,
-            sold_at: new Date().toISOString(),
-          })
-          .eq("id", md.listing_id);
-      }
+      listing_title: md.title || listing?.title || "",
+      listing_image_url: md.image_url || listing?.image_url || null,
+
+      status: "PAID",
+    });
+
+    if (md.listing_id) {
+      await supabaseAdmin
+        .from("listings")
+        .update({
+          status: "SOLD",
+          in_cart_by: null,
+          reserved_until: null,
+          sold_at: new Date().toISOString(),
+        })
+        .eq("id", md.listing_id);
     }
-  } catch (e) {
-    // Always 200 so Stripe doesn't retry forever
-    console.error("Webhook handler error:", e);
   }
 
   return res.status(200).json({ received: true });
