@@ -2,7 +2,7 @@
 // Handles Stripe events and inserts orders into Supabase.
 
 import Stripe from "stripe";
-import supabaseAdmin from "../../../_supabaseAdmin.js"; // FIXED PATH
+import supabaseAdmin from "../../_supabaseAdmin.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -33,7 +33,9 @@ export default async function handler(req, res) {
 
   const sig = getStripeSignatureHeader(req);
   if (!sig) {
-    return res.status(400).send("Webhook signature error: Missing stripe-signature header");
+    return res
+      .status(400)
+      .send("Webhook signature error: Missing stripe-signature header");
   }
 
   let rawBody;
@@ -54,62 +56,88 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook signature error: ${err.message}`);
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const md = session.metadata || {};
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const md = session.metadata || {};
 
-    let listingRow = null;
-    if (md.listing_id) {
-      const { data, error } = await supabaseAdmin
-        .from("listings")
-        .select("id, seller_id, title, image_url")
-        .eq("id", md.listing_id)
-        .maybeSingle();
+      // Idempotency: if we've already recorded this session, ack and stop.
+      const { data: existing, error: existingErr } = await supabaseAdmin
+        .from("orders")
+        .select("id")
+        .eq("stripe_checkout_session", session.id)
+        .limit(1);
 
-      if (!error) listingRow = data;
+      if (!existingErr && Array.isArray(existing) && existing.length > 0) {
+        return res.status(200).json({ received: true, deduped: true });
+      }
+
+      let listingRow = null;
+      if (md.listing_id) {
+        const { data, error } = await supabaseAdmin
+          .from("listings")
+          .select("id, seller_id, title, image_url")
+          .eq("id", md.listing_id)
+          .maybeSingle();
+
+        if (!error) listingRow = data;
+      }
+
+      const sellerId = md.seller_id || listingRow?.seller_id || null;
+      const listingTitle = md.title || listingRow?.title || "";
+      const listingImageUrl = md.image_url || listingRow?.image_url || null;
+
+      const buyerEmail =
+        session.customer_details?.email ||
+        session.customer_email ||
+        md.buyer_email ||
+        null;
+
+      const priceCents = Number(md.price_cents) || 0;
+      const shippingCents = Number(md.shipping_cents) || 0;
+
+      const { error: insertError } = await supabaseAdmin.from("orders").insert({
+        stripe_checkout_session: session.id,
+        stripe_event_id: event.id,
+        stripe_payment_intent: session.payment_intent || null,
+        buyer_id: md.buyer_id || null,
+        buyer_email: buyerEmail,
+        seller_id: sellerId,
+        listing_id: md.listing_id || null,
+        items_cents: priceCents,
+        shipping_cents: shippingCents,
+        total_cents: priceCents + shippingCents,
+        listing_title: listingTitle,
+        listing_image_url: listingImageUrl,
+        status: "PAID",
+      });
+
+      if (insertError) {
+        console.error("Order insert error:", insertError);
+        return res.status(500).json({ error: "Order insert failed" });
+      }
+
+      if (md.listing_id) {
+        const { error: listingErr } = await supabaseAdmin
+          .from("listings")
+          .update({
+            status: "SOLD",
+            in_cart_by: null,
+            reserved_until: null,
+            sold_at: new Date().toISOString(),
+          })
+          .eq("id", md.listing_id);
+
+        if (listingErr) {
+          console.error("Listing update error:", listingErr);
+          return res.status(500).json({ error: "Listing update failed" });
+        }
+      }
     }
 
-    const sellerId = md.seller_id || listingRow?.seller_id || null;
-    const listingTitle = md.title || listingRow?.title || "";
-    const listingImageUrl = md.image_url || listingRow?.image_url || null;
-
-    const buyerEmail =
-      session.customer_details?.email ||
-      session.customer_email ||
-      md.buyer_email ||
-      null;
-
-    const priceCents = Number(md.price_cents) || 0;
-    const shippingCents = Number(md.shipping_cents) || 0;
-
-    const { error: insertError } = await supabaseAdmin.from("orders").insert({
-      stripe_checkout_session: session.id,
-      stripe_event_id: event.id,
-      stripe_payment_intent: session.payment_intent || null,
-      buyer_id: md.buyer_id || null,
-      buyer_email: buyerEmail,
-      seller_id: sellerId,
-      listing_id: md.listing_id || null,
-      items_cents: priceCents,
-      shipping_cents: shippingCents,
-      total_cents: priceCents + shippingCents,
-      listing_title: listingTitle,
-      listing_image_url: listingImageUrl,
-      status: "PAID",
-    });
-
-    if (!insertError && md.listing_id) {
-      await supabaseAdmin
-        .from("listings")
-        .update({
-          status: "SOLD",
-          in_cart_by: null,
-          reserved_until: null,
-          sold_at: new Date().toISOString(),
-        })
-        .eq("id", md.listing_id);
-    }
+    return res.status(200).json({ received: true });
+  } catch (e) {
+    console.error("Webhook handler error:", e);
+    return res.status(500).json({ error: "Webhook handler error" });
   }
-
-  return res.status(200).json({ received: true });
 }
