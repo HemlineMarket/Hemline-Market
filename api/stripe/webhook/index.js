@@ -159,7 +159,7 @@ export default async function handler(req, res) {
       .from("orders")
       .insert(orderData);
 
-    // If order insert succeeded, mark listing sold
+    // If order insert succeeded, mark listing sold and notify seller
     if (!insertError && md.listing_id) {
       await supabaseAdmin
         .from("listings")
@@ -170,6 +170,22 @@ export default async function handler(req, res) {
           sold_at: new Date().toISOString(),
         })
         .eq("id", md.listing_id);
+
+      // Notify seller of the sale
+      if (sellerId) {
+        await supabaseAdmin
+          .from("notifications")
+          .insert({
+            user_id: sellerId,
+            type: "sale",
+            kind: "sale",
+            title: "You made a sale!",
+            body: `Your item "${listingTitle}" sold for $${(priceCents / 100).toFixed(2)}`,
+            href: "/sales.html",
+            link: "/sales.html",
+            listing_id: md.listing_id || null,
+          });
+      }
     }
 
     // If insert failed, surface it clearly (so Stripe retries, and you see why)
