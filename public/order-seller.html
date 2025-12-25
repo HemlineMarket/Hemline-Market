@@ -87,8 +87,10 @@
     .itemThumb{
       width:100px;height:100px;border-radius:10px;overflow:hidden;
       background:#f3f4f6;border:1px solid var(--hm-border);flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
     }
     .itemThumb img{width:100%;height:100%;object-fit:cover}
+    .itemThumb .placeholder-icon{color:#d1d5db;}
     .itemInfo{flex:1}
     .itemTitle{font-weight:700;font-size:16px;margin-bottom:4px}
     .itemMeta{color:var(--hm-muted);font-size:13px}
@@ -386,7 +388,7 @@
               <div class="card-body">
                 <div class="itemRow">
                   <div class="itemThumb">
-                    ${img ? `<img src="${img}" alt="${title}">` : ''}
+                    ${img ? `<img src="${img}" alt="${title}">` : `<svg class="placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`}
                   </div>
                   <div class="itemInfo">
                     <div class="itemTitle">${title}</div>
@@ -494,15 +496,15 @@
               <div class="card-body">
                 <div class="actions">
                   ${statusInfo.step === 1 ? `
-                    <button class="btn btn-primary" id="markShippedBtn">
+                    <a href="ship-order.html?id=${order.id}" class="btn btn-primary">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="1" y="3" width="15" height="13" rx="2"/>
                         <path d="M16 8h4l3 3v5a2 2 0 0 1-2 2h-1"/>
                         <circle cx="5.5" cy="18.5" r="2.5"/>
                         <circle cx="18.5" cy="18.5" r="2.5"/>
                       </svg>
-                      Mark as Shipped
-                    </button>
+                      Create Shipping Label
+                    </a>
                   ` : ''}
                   
                   ${order.listing_id ? `
@@ -516,7 +518,7 @@
                     </a>
                   ` : ''}
 
-                  <a href="mailto:${buyerEmail}?subject=Your Hemline Market Order ${orderShort}" class="btn">
+                  <a href="messages.html?to=${order.buyer_id || ''}&order=${order.id}" class="btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
@@ -538,38 +540,7 @@
         </div>
       `;
 
-      // Mark as shipped button handler
-      const markShippedBtn = document.getElementById("markShippedBtn");
-      if(markShippedBtn){
-        markShippedBtn.addEventListener("click", async () => {
-          const tracking = prompt("Enter tracking number (optional):");
-          
-          markShippedBtn.disabled = true;
-          markShippedBtn.textContent = "Updating...";
-
-          const updateData = {
-            status: "SHIPPED",
-            shipped_at: new Date().toISOString()
-          };
-          if(tracking && tracking.trim()){
-            updateData.tracking_number = tracking.trim();
-          }
-
-          const { error } = await supabaseClient
-            .from("orders")
-            .update(updateData)
-            .eq("id", order.id)
-            .eq("seller_id", user.id);
-
-          if(error){
-            alert("Could not update order. Please try again.");
-            markShippedBtn.disabled = false;
-            markShippedBtn.textContent = "Mark as Shipped";
-          } else {
-            location.reload();
-          }
-        });
-      }
+      // Shipped button is now a link to ship-order.html, no JS handler needed
     }
 
     function renderTimeline(order, currentStep){
