@@ -890,7 +890,28 @@
     // Init
     // ------------------------
     (async function init() {
-      // On load, proactively remove SOLD so the user doesn’t get surprised later
+      // REQUIRE SIGN IN - no guest checkout
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) {
+          showBanner("Please sign in to complete your purchase.", "err");
+          next.disabled = true;
+          next.textContent = "Sign in to checkout";
+          next.onclick = (e) => {
+            e.preventDefault();
+            window.location.href = "signin.html?redirect=" + encodeURIComponent(window.location.pathname + window.location.search);
+          };
+          return;
+        }
+        window.__hm_user_id_for_address_key = user.id;
+        if (user.email && emailEl && !emailEl.value) emailEl.value = user.email;
+      } catch (err) {
+        console.error("Auth check failed", err);
+        showBanner("Could not verify sign-in status. Please refresh.", "err");
+        return;
+      }
+
+      // On load, proactively remove SOLD so the user doesn't get surprised later
       try {
         const soldResult = await cleanSoldFromCart({ silent: true });
         if (soldResult.removedCount > 0) {
