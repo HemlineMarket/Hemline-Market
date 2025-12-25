@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Create Shipping Label — Hemline Market</title>
+
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="stylesheet" href="styles/hm-modern.css"/>
+  <link rel="stylesheet" href="styles/hm-header.css"/>
+  <link rel="stylesheet" href="styles/hm-typography.css"/>
+  <link rel="stylesheet" href="styles/hm-footer.css"/>
+
+  <style>
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#f4f4f7;
+      --hm-card:rgba(255,255,255,.96);
+      --hm-green:#065f46;
+      --hm-green-bg:#ecfdf5;
+    }
+    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    
+    .wrap{max-width:700px;margin:0 auto;padding:18px 12px 40px}
+    
+    /* Back link */
+    .back{
+      display:inline-flex;align-items:center;gap:6px;
+      color:var(--hm-accent);text-decoration:none;font-weight:600;
+      margin-bottom:16px;font-size:14px;
+    }
+    .back:hover{text-decoration:underline}
+    .back svg{width:18px;height:18px}
+
+    h1{margin:0 0 8px;font-size:24px}
+    .subtitle{color:var(--hm-muted);margin:0 0 20px;font-size:14px}
+
+    /* Cards */
+    .card{
+      background:var(--hm-card);
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      margin-bottom:16px;
+      overflow:hidden;
+    }
+    .card-header{
+      padding:14px 16px;
+      border-bottom:1px solid var(--hm-border);
+      font-weight:700;
+      font-size:15px;
+      background:#fafafa;
+    }
+    .card-body{padding:16px}
+
+    /* Address boxes */
+    .addressBox{
+      background:#f9fafb;padding:14px;border-radius:8px;
+      font-size:14px;line-height:1.6;
+    }
+    .addressBox .label{
+      font-size:11px;text-transform:uppercase;letter-spacing:0.5px;
+      color:var(--hm-muted);margin-bottom:6px;font-weight:600;
+    }
+    .addressBox .name{font-weight:600}
+
+    .addressGrid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+    }
+    @media(max-width:600px){
+      .addressGrid{grid-template-columns:1fr}
+    }
+
+    /* Parcel inputs */
+    .parcelGrid{
+      display:grid;
+      grid-template-columns:repeat(4, 1fr);
+      gap:12px;
+    }
+    @media(max-width:500px){
+      .parcelGrid{grid-template-columns:1fr 1fr}
+    }
+    .field label{
+      display:block;
+      font-size:12px;
+      font-weight:600;
+      color:var(--hm-muted);
+      margin-bottom:4px;
+    }
+    .field input, .field select{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid var(--hm-border);
+      border-radius:8px;
+      font-size:14px;
+      box-sizing:border-box;
+    }
+    .field input:focus, .field select:focus{
+      outline:none;
+      border-color:var(--hm-accent);
+    }
+
+    /* Buttons */
+    .btn{
+      padding:12px 20px;border-radius:10px;border:1px solid var(--hm-border);
+      background:#fff;font-weight:600;font-size:14px;cursor:pointer;
+      text-decoration:none;color:#374151;text-align:center;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      transition:all 0.15s;
+    }
+    .btn:hover{background:#f9fafb;border-color:#d1d5db}
+    .btn:disabled{opacity:0.6;cursor:not-allowed}
+    .btn-primary{
+      background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;
+    }
+    .btn-primary:hover{background:#7f1d1d}
+    .btn-success{
+      background:var(--hm-green);border-color:var(--hm-green);color:#fff;
+    }
+    .btn-success:hover{background:#064e3b}
+    .btn-block{width:100%;display:flex}
+
+    /* Rates list */
+    .ratesList{margin-top:16px}
+    .rate{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:14px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      margin-bottom:10px;
+      cursor:pointer;
+      transition:all 0.15s;
+    }
+    .rate:hover{border-color:#d1d5db;background:#fafafa}
+    .rate.selected{border-color:var(--hm-accent);background:#fef2f2}
+    .rate input[type="radio"]{
+      width:18px;height:18px;accent-color:var(--hm-accent);
+    }
+    .rateInfo{flex:1}
+    .rateCarrier{font-weight:600;font-size:14px}
+    .rateService{font-size:13px;color:var(--hm-muted)}
+    .ratePrice{font-weight:700;font-size:16px}
+    .rateDays{font-size:12px;color:var(--hm-muted)}
+
+    /* Success state */
+    .successBox{
+      background:var(--hm-green-bg);
+      border:1px solid #6ee7b7;
+      border-radius:12px;
+      padding:24px;
+      text-align:center;
+    }
+    .successBox h2{margin:0 0 8px;color:var(--hm-green)}
+    .successBox p{margin:0 0 16px;color:#374151}
+    .successBox .tracking{
+      background:#fff;padding:12px;border-radius:8px;
+      font-family:monospace;font-size:14px;margin-bottom:16px;
+    }
+
+    /* Loading & error */
+    .loading{text-align:center;padding:40px;color:var(--hm-muted)}
+    .error{
+      background:#fef2f2;border:1px solid #fecaca;
+      color:#991b1b;padding:16px;border-radius:10px;
+    }
+    .warning{
+      background:#fef3c7;border:1px solid #fcd34d;
+      color:#92400e;padding:14px;border-radius:10px;
+      font-size:14px;margin-bottom:16px;
+    }
+
+    .btnRow{
+      display:flex;gap:12px;margin-top:20px;
+      flex-wrap:wrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="hm-shell-header"></div>
+
+  <main class="wrap">
+    <a class="back" id="backLink" href="sales.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back to Sales
+    </a>
+
+    <h1>Create Shipping Label</h1>
+    <p class="subtitle">Generate a prepaid USPS label for this order</p>
+
+    <div id="content">
+      <div class="loading">Loading order details...</div>
+    </div>
+  </main>
+
+  <div id="hm-shell-footer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/hm-shell.js"></script>
+
+  <script>
+    window.HM && window.HM.renderShell({ currentPage: "sales" });
+
+    const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
+      window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+      )
+    );
+
+    const contentEl = document.getElementById("content");
+    const backLink = document.getElementById("backLink");
+
+    let currentOrder = null;
+    let currentUser = null;
+    let selectedRateId = null;
+    let fetchedRates = [];
+
+    function getOrderId(){
+      const params = new URLSearchParams(window.location.search);
+      return params.get("id");
+    }
+
+    function getSellerAddress(userId){
+      // Try to get from localStorage (same format as account.html saves)
+      const key = "hm_address_" + userId;
+      try {
+        const raw = localStorage.getItem(key);
+        if(raw){
+          const addr = JSON.parse(raw);
+          return {
+            name: addr.addrName || "",
+            street1: addr.addrLine1 || "",
+            street2: addr.addrLine2 || "",
+            city: addr.addrCity || "",
+            state: addr.addrState || "",
+            zip: addr.addrZip || "",
+            country: "US"
+          };
+        }
+      } catch(e){}
+      return null;
+    }
+
+    async function loadOrder(){
+      const orderId = getOrderId();
+      if(!orderId){
+        contentEl.innerHTML = '<div class="error">No order ID provided.</div>';
+        return;
+      }
+
+      backLink.href = `order-seller.html?id=${orderId}`;
+
+      // Check auth
+      const { data: sessData } = await supabaseClient.auth.getSession();
+      const user = sessData?.session?.user;
+      if(!user){
+        contentEl.innerHTML = '<div class="error">Please sign in to continue.</div>';
+        return;
+      }
+      currentUser = user;
+
+      // Fetch order
+      const { data: order, error: orderErr } = await supabaseClient
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .eq("seller_id", user.id)
+        .maybeSingle();
+
+      if(orderErr || !order){
+        contentEl.innerHTML = '<div class="error">Order not found or you don\'t have permission.</div>';
+        return;
+      }
+
+      currentOrder = order;
+
+      // Check if already shipped
+      const status = (order.status || "").toUpperCase();
+      if(status === "SHIPPED" || status === "DELIVERED" || status === "COMPLETE"){
+        contentEl.innerHTML = `
+          <div class="warning">
+            This order has already been marked as shipped.
+            ${order.tracking_number ? `<br>Tracking: <strong>${order.tracking_number}</strong>` : ''}
+          </div>
+          <a href="order-seller.html?id=${orderId}" class="btn">← Back to Order</a>
+        `;
+        return;
+      }
+
+      // Get seller's ship-from address
+      const sellerAddr = getSellerAddress(user.id);
+
+      // Check buyer's ship-to address
+      const hasShipTo = order.shipping_address_line1 && order.shipping_city;
+
+      renderForm(order, sellerAddr, hasShipTo);
+    }
+
+    function renderForm(order, sellerAddr, hasShipTo){
+      const buyerName = order.shipping_name || (order.buyer_email || "").split("@")[0];
+      
+      contentEl.innerHTML = `
+        ${!sellerAddr ? `
+          <div class="warning">
+            ⚠️ You haven't set up your ship-from address yet.
+            <a href="account.html" style="color:#92400e;font-weight:600;">Add it in Account Settings</a> first.
+          </div>
+        ` : ''}
+
+        ${!hasShipTo ? `
+          <div class="error" style="margin-bottom:16px">
+            ⚠️ Buyer's shipping address is missing. They may not have completed checkout properly.
+            <a href="contact.html?subject=Order ${order.id.slice(0,8)} - Missing Address">Contact Support</a>
+          </div>
+        ` : ''}
+
+        <!-- Addresses -->
+        <div class="card">
+          <div class="card-header">Shipping Addresses</div>
+          <div class="card-body">
+            <div class="addressGrid">
+              <div class="addressBox">
+                <div class="label">From (You)</div>
+                ${sellerAddr ? `
+                  <div class="name">${sellerAddr.name || 'Your Name'}</div>
+                  <div>${sellerAddr.street1 || ''}</div>
+                  ${sellerAddr.street2 ? `<div>${sellerAddr.street2}</div>` : ''}
+                  <div>${sellerAddr.city || ''}, ${sellerAddr.state || ''} ${sellerAddr.zip || ''}</div>
+                ` : `
+                  <div style="color:#991b1b">Not set up yet</div>
+                `}
+              </div>
+              <div class="addressBox">
+                <div class="label">To (Buyer)</div>
+                ${hasShipTo ? `
+                  <div class="name">${buyerName}</div>
+                  <div>${order.shipping_address_line1 || ''}</div>
+                  ${order.shipping_address_line2 ? `<div>${order.shipping_address_line2}</div>` : ''}
+                  <div>${order.shipping_city || ''}, ${order.shipping_state || ''} ${order.shipping_postal_code || ''}</div>
+                ` : `
+                  <div style="color:#991b1b">Missing</div>
+                `}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Package Details -->
+        <div class="card">
+          <div class="card-header">Package Details</div>
+          <div class="card-body">
+            <p style="margin:0 0 14px;font-size:13px;color:var(--hm-muted)">
+              Enter your package dimensions. For fabric, a typical poly mailer is 12×9×2 inches.
+            </p>
+            <div class="parcelGrid">
+              <div class="field">
+                <label for="length">Length (in)</label>
+                <input type="number" id="length" value="12" min="1" step="0.5">
+              </div>
+              <div class="field">
+                <label for="width">Width (in)</label>
+                <input type="number" id="width" value="9" min="1" step="0.5">
+              </div>
+              <div class="field">
+                <label for="height">Height (in)</label>
+                <input type="number" id="height" value="2" min="0.5" step="0.5">
+              </div>
+              <div class="field">
+                <label for="weight">Weight (lb)</label>
+                <input type="number" id="weight" value="1.0" min="0.1" step="0.1">
+              </div>
+            </div>
+
+            <div class="btnRow">
+              <button class="btn btn-primary" id="getRatesBtn" ${!sellerAddr || !hasShipTo ? 'disabled' : ''}>
+                Get Shipping Rates
+              </button>
+            </div>
+
+            <div id="ratesContainer" class="ratesList" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- Purchase button (hidden until rate selected) -->
+        <div id="purchaseSection" style="display:none">
+          <button class="btn btn-success btn-block" id="purchaseBtn">
+            Purchase Label & Mark Shipped
+          </button>
+        </div>
+      `;
+
+      // Event listeners
+      const getRatesBtn = document.getElementById("getRatesBtn");
+      if(getRatesBtn && sellerAddr && hasShipTo){
+        getRatesBtn.addEventListener("click", () => fetchRates(sellerAddr, order));
+      }
+    }
+
+    async function fetchRates(sellerAddr, order){
+      const getRatesBtn = document.getElementById("getRatesBtn");
+      const ratesContainer = document.getElementById("ratesContainer");
+      
+      getRatesBtn.disabled = true;
+      getRatesBtn.textContent = "Fetching rates...";
+      ratesContainer.style.display = "block";
+      ratesContainer.innerHTML = '<div class="loading">Getting shipping rates from USPS...</div>';
+
+      const parcel = {
+        length: parseFloat(document.getElementById("length").value) || 12,
+        width: parseFloat(document.getElementById("width").value) || 9,
+        height: parseFloat(document.getElementById("height").value) || 2,
+        distance_unit: "in",
+        weight: parseFloat(document.getElementById("weight").value) || 1.0,
+        mass_unit: "lb"
+      };
+
+      const toAddr = {
+        name: order.shipping_name || "Customer",
+        street1: order.shipping_address_line1 || "",
+        street2: order.shipping_address_line2 || "",
+        city: order.shipping_city || "",
+        state: order.shipping_state || "",
+        zip: order.shipping_postal_code || "",
+        country: order.shipping_country || "US"
+      };
+
+      try {
+        const res = await fetch("/api/shippo-rates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: sellerAddr,
+            to: toAddr,
+            parcel
+          })
+        });
+
+        const data = await res.json();
+
+        if(!res.ok || !data.rates || data.rates.length === 0){
+          ratesContainer.innerHTML = `
+            <div class="error">
+              Could not get shipping rates. ${data.error || 'Please check addresses and try again.'}
+            </div>
+          `;
+          getRatesBtn.disabled = false;
+          getRatesBtn.textContent = "Get Shipping Rates";
+          return;
+        }
+
+        fetchedRates = data.rates;
+        renderRates(data.rates);
+        getRatesBtn.textContent = "Refresh Rates";
+        getRatesBtn.disabled = false;
+
+      } catch(err){
+        console.error(err);
+        ratesContainer.innerHTML = `
+          <div class="error">Network error. Please try again.</div>
+        `;
+        getRatesBtn.disabled = false;
+        getRatesBtn.textContent = "Get Shipping Rates";
+      }
+    }
+
+    function renderRates(rates){
+      const ratesContainer = document.getElementById("ratesContainer");
+      const purchaseSection = document.getElementById("purchaseSection");
+      
+      // Sort by price
+      rates.sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount));
+
+      ratesContainer.innerHTML = `
+        <p style="margin:0 0 12px;font-size:13px;color:var(--hm-muted)">
+          Select a shipping rate:
+        </p>
+        ${rates.map((r, i) => `
+          <label class="rate" data-rate-id="${r.object_id}">
+            <input type="radio" name="rate" value="${r.object_id}" ${i === 0 ? 'checked' : ''}>
+            <div class="rateInfo">
+              <div class="rateCarrier">${r.provider || r.carrier || 'USPS'}</div>
+              <div class="rateService">${r.servicelevel?.name || r.service || ''}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="ratePrice">$${parseFloat(r.amount).toFixed(2)}</div>
+              ${r.estimated_days ? `<div class="rateDays">${r.estimated_days} day${r.estimated_days > 1 ? 's' : ''}</div>` : ''}
+            </div>
+          </label>
+        `).join('')}
+      `;
+
+      // Select first by default
+      selectedRateId = rates[0]?.object_id;
+      document.querySelector('.rate')?.classList.add('selected');
+
+      // Rate selection handlers
+      ratesContainer.querySelectorAll('.rate').forEach(el => {
+        el.addEventListener('click', () => {
+          ratesContainer.querySelectorAll('.rate').forEach(r => r.classList.remove('selected'));
+          el.classList.add('selected');
+          el.querySelector('input').checked = true;
+          selectedRateId = el.dataset.rateId;
+        });
+      });
+
+      // Show purchase button
+      purchaseSection.style.display = "block";
+      
+      const purchaseBtn = document.getElementById("purchaseBtn");
+      purchaseBtn.addEventListener("click", purchaseLabel);
+    }
+
+    async function purchaseLabel(){
+      if(!selectedRateId || !currentOrder){
+        alert("Please select a shipping rate first.");
+        return;
+      }
+
+      const purchaseBtn = document.getElementById("purchaseBtn");
+      purchaseBtn.disabled = true;
+      purchaseBtn.textContent = "Creating label...";
+
+      try {
+        // Get seller address again
+        const sellerAddr = getSellerAddress(currentUser.id);
+        
+        const toAddr = {
+          name: currentOrder.shipping_name || "Customer",
+          street1: currentOrder.shipping_address_line1 || "",
+          street2: currentOrder.shipping_address_line2 || "",
+          city: currentOrder.shipping_city || "",
+          state: currentOrder.shipping_state || "",
+          zip: currentOrder.shipping_postal_code || "",
+          country: currentOrder.shipping_country || "US"
+        };
+
+        const parcel = {
+          length: parseFloat(document.getElementById("length").value) || 12,
+          width: parseFloat(document.getElementById("width").value) || 9,
+          height: parseFloat(document.getElementById("height").value) || 2,
+          distance_unit: "in",
+          weight: parseFloat(document.getElementById("weight").value) || 1.0,
+          mass_unit: "lb"
+        };
+
+        // Call create_label API
+        const res = await fetch("/api/shippo/create_label", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: currentOrder.id,
+            address_from: sellerAddr,
+            address_to: toAddr,
+            parcel
+          })
+        });
+
+        const data = await res.json();
+
+        if(!res.ok){
+          throw new Error(data.error || "Failed to create label");
+        }
+
+        // Update order status to SHIPPED
+        await supabaseClient
+          .from("orders")
+          .update({
+            status: "SHIPPED",
+            shipped_at: new Date().toISOString(),
+            tracking_number: data.tracking_number || null,
+            tracking_url: data.tracking_url || null,
+            label_url: data.label_url || null
+          })
+          .eq("id", currentOrder.id)
+          .eq("seller_id", currentUser.id);
+
+        // Show success
+        renderSuccess(data);
+
+      } catch(err){
+        console.error(err);
+        alert("Error creating label: " + (err.message || "Please try again."));
+        purchaseBtn.disabled = false;
+        purchaseBtn.textContent = "Purchase Label & Mark Shipped";
+      }
+    }
+
+    function renderSuccess(labelData){
+      contentEl.innerHTML = `
+        <div class="successBox">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#065f46" stroke-width="2" style="margin:0 auto 12px">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+          <h2>Label Created!</h2>
+          <p>Your shipping label is ready. Print it and attach to your package.</p>
+          
+          ${labelData.tracking_number ? `
+            <div class="tracking">
+              Tracking: ${labelData.tracking_number}
+            </div>
+          ` : ''}
+
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+            ${labelData.label_url ? `
+              <a href="${labelData.label_url}" target="_blank" class="btn btn-primary">
+                Download Label (PDF)
+              </a>
+            ` : ''}
+            <a href="order-seller.html?id=${currentOrder.id}" class="btn">
+              View Order
+            </a>
+            <a href="sales.html" class="btn">
+              Back to Sales
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    // Load on page ready
+    loadOrder();
+  </script>
+</body>
+</html>
