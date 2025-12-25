@@ -1,180 +1,475 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- MOBILE HOTFIX -->
-  <style id="hm-mobile-hotfix">
-    html, body { max-width:100%; overflow-x:hidden; }
-    .rail, .chiprail { overflow-x:auto; -webkit-overflow-scrolling: touch; }
-    .grid, .section, .toolbar, .header, .tabbar { max-width:100%; }
-    img, video, canvas, svg { max-width:100%; height:auto; }
-    [style*="width:1200px"], [style*="max-width:1200px"] { width:auto !important; max-width:100% !important; }
-  </style>
-
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Order HM-548728 — Hemline Market</title>
+  <title>Order Details — Hemline Market</title>
 
-  <!-- Shared styles (now correct) -->
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
   <style>
-    :root{--hm-accent:#991b1b;--hm-text:#111827;--hm-muted:#6b7280;--hm-border:#e5e7eb;--hm-bg:#fafafa}
-    body{margin:0;background:var(--hm-bg);color:var(--hm-text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#f4f4f7;
+      --hm-card:rgba(255,255,255,.96);
+      --hm-green:#065f46;
+      --hm-green-bg:#ecfdf5;
+      --hm-blue:#1e40af;
+      --hm-blue-bg:#eff6ff;
+      --hm-yellow:#92400e;
+      --hm-yellow-bg:#fef3c7;
+    }
+    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    
+    .wrap{max-width:900px;margin:0 auto;padding:18px 12px 40px}
+    
+    .back{
+      display:inline-flex;align-items:center;gap:6px;
+      color:var(--hm-accent);text-decoration:none;font-weight:600;
+      margin-bottom:16px;font-size:14px;
+    }
+    .back:hover{text-decoration:underline}
+    .back svg{width:18px;height:18px}
 
-    /* Order layout */
-    .order{display:grid;grid-template-columns:2fr 1fr;gap:20px}
-    .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:16px}
-    h1{margin:0 0 12px;font-size:22px}
+    .pageHeader{
+      display:flex;justify-content:space-between;align-items:flex-start;
+      margin-bottom:20px;flex-wrap:wrap;gap:12px;
+    }
+    .pageHeader h1{margin:0;font-size:24px}
+    .orderNumber{color:var(--hm-muted);font-size:14px;margin-top:4px}
 
-    .item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--hm-border)}
-    .item:last-child{border-bottom:0}
-    .item img{width:72px;height:72px;object-fit:cover;border-radius:8px}
-    .title{font-weight:600}
-    .meta{color:var(--hm-muted);font-size:13px;margin-top:2px}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
+    @media(max-width:800px){.grid{grid-template-columns:1fr}}
 
-    .status{margin:16px 0}
-    .pill{padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;display:inline-block}
-    .pill.orange{background:#fff7ed;color:#7c2d12;border:1px solid #fed7aa}
-    .pill.green{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+    .card{
+      background:var(--hm-card);
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      overflow:hidden;
+    }
+    .card-header{
+      padding:14px 16px;
+      border-bottom:1px solid var(--hm-border);
+      font-weight:700;font-size:15px;background:#fafafa;
+    }
+    .card-body{padding:16px}
 
-    .summary div{display:flex;justify-content:space-between;margin:6px 0}
-    .summary .total{font-weight:700}
+    .statusBadge{
+      display:inline-flex;align-items:center;gap:5px;
+      font-size:12px;font-weight:700;padding:6px 12px;
+      border-radius:999px;text-transform:uppercase;letter-spacing:0.3px;
+    }
+    .statusBadge.paid{background:var(--hm-yellow-bg);color:var(--hm-yellow);border:1px solid #fcd34d}
+    .statusBadge.shipped{background:var(--hm-blue-bg);color:var(--hm-blue);border:1px solid #93c5fd}
+    .statusBadge.delivered,.statusBadge.complete{background:var(--hm-green-bg);color:var(--hm-green);border:1px solid #6ee7b7}
+    .statusBadge.canceled{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
 
-    .actions{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
-    .btn{background:var(--hm-accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700;text-decoration:none}
-    .link{color:#374151;text-decoration:none;font-weight:700}
+    .itemRow{
+      display:flex;gap:14px;align-items:flex-start;
+      padding-bottom:16px;margin-bottom:16px;
+      border-bottom:1px solid #f3f4f6;
+    }
+    .itemThumb{
+      width:100px;height:100px;border-radius:10px;overflow:hidden;
+      background:#f9fafb;border:1px solid var(--hm-border);flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .itemThumb img{width:100%;height:100%;object-fit:cover}
+    .thumb-placeholder{
+      width:100%;height:100%;
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    }
+    .thumb-placeholder svg{color:#9ca3af;}
+    .itemInfo{flex:1}
+    .itemTitle{font-weight:700;font-size:16px;margin-bottom:4px}
+    .itemMeta{color:var(--hm-muted);font-size:13px}
+    .itemMeta a{color:var(--hm-accent);text-decoration:none}
+    .itemMeta a:hover{text-decoration:underline}
+    .itemPrice{font-weight:700;font-size:18px;text-align:right}
 
-    /* Footer */
-    .hm-footer{background:#fff;border-top:1px solid var(--hm-border);margin-top:18px}
-    .hm-footer .footer-wrap{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-    .hm-footer .footer-links a{color:#4b5563}
+    .priceRow{
+      display:flex;justify-content:space-between;
+      padding:8px 0;font-size:14px;
+    }
+    .priceRow.total{
+      border-top:2px solid var(--hm-border);
+      margin-top:8px;padding-top:12px;
+      font-weight:700;font-size:16px;
+    }
+    .priceRow .label{color:var(--hm-muted)}
+    .priceRow.total .label{color:var(--hm-text)}
+
+    .timeline{padding:8px 0}
+    .timelineStep{
+      display:flex;align-items:flex-start;gap:12px;
+      padding:12px 0;position:relative;
+    }
+    .timelineStep:not(:last-child)::before{
+      content:'';position:absolute;left:11px;top:36px;
+      width:2px;height:calc(100% - 24px);background:#e5e7eb;
+    }
+    .timelineStep.complete:not(:last-child)::before{background:var(--hm-green)}
+    .timelineDot{
+      width:24px;height:24px;border-radius:50%;
+      background:#fff;border:2px solid #e5e7eb;
+      display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;font-size:12px;
+    }
+    .timelineStep.complete .timelineDot{
+      background:var(--hm-green);border-color:var(--hm-green);color:#fff;
+    }
+    .timelineStep.active .timelineDot{
+      background:var(--hm-blue);border-color:var(--hm-blue);color:#fff;
+    }
+    .timelineContent{flex:1}
+    .timelineTitle{font-weight:600;font-size:14px}
+    .timelineDate{color:var(--hm-muted);font-size:12px;margin-top:2px}
+
+    .trackingLink{
+      display:flex;align-items:center;gap:8px;
+      background:var(--hm-blue-bg);padding:12px;border-radius:8px;
+      font-size:14px;color:var(--hm-blue);margin-top:12px;
+    }
+    .trackingLink a{color:var(--hm-blue);font-weight:600}
+
+    .addressBox{
+      background:#f9fafb;padding:12px;border-radius:8px;
+      font-size:14px;line-height:1.5;
+    }
+    .addressBox .name{font-weight:600}
+
+    .actions{display:flex;flex-direction:column;gap:10px}
+    .btn{
+      padding:12px 16px;border-radius:10px;border:1px solid var(--hm-border);
+      background:#fff;font-weight:600;font-size:14px;cursor:pointer;
+      text-decoration:none;color:#374151;text-align:center;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:all 0.15s;
+    }
+    .btn:hover{background:#f9fafb;border-color:#d1d5db}
+    .btn-danger{background:#fff;border-color:#fca5a5;color:#991b1b}
+    .btn-danger:hover{background:#fef2f2}
+    .btn svg{width:18px;height:18px}
+
+    .cancelWarning{
+      background:var(--hm-yellow-bg);border:1px solid #fcd34d;
+      border-radius:8px;padding:12px;font-size:13px;
+      color:var(--hm-yellow);margin-bottom:12px;
+    }
+
+    .loading{text-align:center;padding:60px 20px;color:var(--hm-muted)}
+    .error{
+      background:#fef2f2;border:1px solid #fecaca;
+      color:#991b1b;padding:16px;border-radius:10px;text-align:center;
+    }
   </style>
 </head>
+
 <body>
+  <div id="hm-shell-header"></div>
 
-<!-- HEADER -->
-<header class="hm-header" role="banner">
-  <div class="wrap">
-    <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6" x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
-      </button>
-      <a class="hm-brand" href="index.html">Hemline Market</a>
-    </div>
-    <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Browse fabrics">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-      </a>
-      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      </a>
-      <a class="hm-icon" href="notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-      </a>
-      <a class="hm-icon" href="cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-      </a>
-      <a class="hm-avatar" id="avatar" href="account.html" title="Your profile">AA</a>
-      <a class="hm-btn-primary" href="sell.html">Sell</a>
-    </div>
-  </div>
-</header>
-
-<!-- LEFT MENU -->
-<aside class="sheet" id="menuSheet" aria-hidden="true">
-  <header>
-    <strong>Menu</strong>
-    <button class="close" id="closeMenu" aria-label="Close menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
+  <main class="wrap">
+    <a class="back" href="purchases.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
       </svg>
-    </button>
-  </header>
-  <nav>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="atelier.html">My Atelier</a>
-    <a href="how.html">How It Works</a>
-    <a href="seller/index.html?list=new">Sell Fabric</a>
-    <a href="contact.html">Contact</a>
-  </nav>
-</aside>
+      Back to Purchases
+    </a>
 
-<main class="wrap">
-  <h1>Order HM-548728</h1>
+    <div id="content">
+      <div class="loading">Loading order details...</div>
+    </div>
+  </main>
 
-  <div class="order">
-    <!-- Left: Items -->
-    <div class="card">
-      <h2>Items</h2>
-      <div class="item">
-        <img src="https://via.placeholder.com/72" alt="Italian Silk Twill">
-        <div>
-          <div class="title">Italian Silk Twill — Navy</div>
-          <div class="meta">2.5 yd · 54″ · 180 GSM</div>
+  <div id="hm-shell-footer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="scripts/hm-shell.js"></script>
+
+  <script>
+    window.HM && window.HM.renderShell({ currentPage: "purchases" });
+
+    const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
+      window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+      )
+    );
+
+    const contentEl = document.getElementById("content");
+
+    function money(cents){ return "$" + (Number(cents || 0) / 100).toFixed(2); }
+    function fmtDate(iso){
+      if(!iso) return "";
+      return new Date(iso).toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",year:"numeric"});
+    }
+    function fmtDateTime(iso){
+      if(!iso) return "";
+      return new Date(iso).toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"});
+    }
+    function getOrderId(){
+      return new URLSearchParams(window.location.search).get("id");
+    }
+    function minutesSince(iso){
+      if(!iso) return Infinity;
+      return (Date.now() - new Date(iso).getTime()) / 60000;
+    }
+
+    function getStatusInfo(status){
+      const s = (status || "").toUpperCase();
+      if(s === "PAID" || s === "PENDING") return { class:"paid", label:"Awaiting Shipment", step:1 };
+      if(s === "SHIPPED") return { class:"shipped", label:"Shipped", step:2 };
+      if(s === "DELIVERED") return { class:"delivered", label:"Delivered", step:3 };
+      if(s === "COMPLETE") return { class:"complete", label:"Complete", step:4 };
+      if(s === "CANCELED" || s === "CANCELLED") return { class:"canceled", label:"Cancelled", step:0 };
+      return { class:"", label:status || "Unknown", step:0 };
+    }
+
+    async function loadOrder(){
+      const orderId = getOrderId();
+      if(!orderId){
+        contentEl.innerHTML = '<div class="error">No order ID provided.</div>';
+        return;
+      }
+
+      const { data: sessData } = await supabaseClient.auth.getSession();
+      const user = sessData?.session?.user;
+      if(!user){
+        contentEl.innerHTML = '<div class="error">Please sign in to view this order.</div>';
+        return;
+      }
+
+      const { data: order, error: orderErr } = await supabaseClient
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .eq("buyer_id", user.id)
+        .maybeSingle();
+
+      if(orderErr || !order){
+        contentEl.innerHTML = '<div class="error">Order not found or you don\'t have permission to view it.</div>';
+        return;
+      }
+
+      let listing = null;
+      if(order.listing_id){
+        const { data } = await supabaseClient
+          .from("listings")
+          .select("id, title, image_url_1, image_url")
+          .eq("id", order.listing_id)
+          .maybeSingle();
+        listing = data;
+      }
+
+      renderOrder(order, listing, user);
+    }
+
+    function renderOrder(order, listing, user){
+      const img = order.listing_image_url || listing?.image_url_1 || listing?.image_url || null;
+      const title = order.listing_title || listing?.title || "Fabric Order";
+      const statusInfo = getStatusInfo(order.status);
+      
+      const itemsCents = Number(order.items_cents || order.total_cents || 0);
+      const shipCents = Number(order.shipping_cents || 0);
+      const totalCents = Number(order.total_cents || (itemsCents + shipCents));
+      const orderShort = order.id.slice(0, 8);
+      
+      const isCanceled = statusInfo.step === 0;
+      const within30Min = minutesSince(order.created_at) <= 30;
+      const canCancel = within30Min && !isCanceled && statusInfo.step === 1;
+      const hasShipping = order.shipping_address_line1 || order.shipping_city;
+
+      contentEl.innerHTML = `
+        <div class="pageHeader">
+          <div>
+            <h1>Order Details</h1>
+            <div class="orderNumber">Order #${orderShort} · ${fmtDate(order.created_at)}</div>
+          </div>
+          <span class="statusBadge ${statusInfo.class}">${statusInfo.label}</span>
         </div>
-        <div>$42.00</div>
-      </div>
 
-      <div class="status">
-        <span class="pill orange">Preparing shipment</span>
-      </div>
-    </div>
+        <div class="grid">
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-header">Item Purchased</div>
+              <div class="card-body">
+                <div class="itemRow">
+                  <div class="itemThumb">
+                    ${img ? `<img src="${img}" alt="${title}">` : `<div class="thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`}
+                  </div>
+                  <div class="itemInfo">
+                    <div class="itemTitle">${title}</div>
+                    <div class="itemMeta">
+                      ${order.listing_id ? `<a href="listing.html?id=${order.listing_id}">View listing</a>` : ''}
+                    </div>
+                  </div>
+                  <div class="itemPrice">${money(itemsCents)}</div>
+                </div>
 
-    <!-- Right: Summary -->
-    <div class="card">
-      <h2>Summary</h2>
-      <div class="summary">
-        <div><span>Items</span><span>$42.00</span></div>
-        <div><span>Shipping</span><span>$0.00</span></div>
-        <div class="total"><span>Total</span><span>$42.00</span></div>
-      </div>
+                <div class="priceRow">
+                  <span class="label">Item price</span>
+                  <span>${money(itemsCents)}</span>
+                </div>
+                <div class="priceRow">
+                  <span class="label">Shipping</span>
+                  <span>${money(shipCents)}</span>
+                </div>
+                <div class="priceRow total">
+                  <span class="label">Total Paid</span>
+                  <span>${money(totalCents)}</span>
+                </div>
+              </div>
+            </div>
 
-      <div class="actions">
-        <a class="btn" href="#">Track shipment</a>
-        <a class="link" href="#">Get help</a>
-      </div>
-    </div>
-  </div>
-</main>
+            <div class="card">
+              <div class="card-header">Order Timeline</div>
+              <div class="card-body">
+                <div class="timeline">
+                  ${renderTimeline(order, statusInfo.step)}
+                </div>
+                ${order.tracking_number ? `
+                  <div class="trackingLink">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                      <rect x="1" y="3" width="15" height="13" rx="2"/>
+                      <path d="M16 8h4l3 3v5a2 2 0 0 1-2 2h-1"/>
+                      <circle cx="5.5" cy="18.5" r="2.5"/>
+                      <circle cx="18.5" cy="18.5" r="2.5"/>
+                    </svg>
+                    Tracking: <a href="https://tools.usps.com/go/TrackConfirmAction?tLabels=${order.tracking_number}" target="_blank">${order.tracking_number}</a>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
 
-<!-- FOOTER -->
-<footer class="hm-footer" role="contentinfo">
-  <div class="footer-wrap">
-    <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links" aria-label="Footer">
-      <a href="about.html">About</a>
-      <a href="faq.html">FAQ</a>
-      <a href="contact.html">Contact</a>
-      <a href="terms.html">Terms</a>
-      <a href="privacy.html">Privacy</a>
-    </nav>
-  </div>
-</footer>
+          <div>
+            ${hasShipping ? `
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">Shipping To</div>
+                <div class="card-body">
+                  <div class="addressBox">
+                    <div class="name">${order.shipping_name || ''}</div>
+                    <div>${order.shipping_address_line1 || ''}</div>
+                    ${order.shipping_address_line2 ? `<div>${order.shipping_address_line2}</div>` : ''}
+                    <div>${order.shipping_city || ''}, ${order.shipping_state || ''} ${order.shipping_postal_code || ''}</div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
 
-<script>
-(function(){
-  const sheet=document.getElementById("menuSheet");
-  const openBtn=document.getElementById("openMenu");
-  const closeBtn=document.getElementById("closeMenu");
-  function openSheet(){ sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false"); }
-  function closeSheet(){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
-  if(openBtn) openBtn.addEventListener("click",e=>{e.preventDefault();openSheet();});
-  if(closeBtn) closeBtn.addEventListener("click",e=>{e.preventDefault();closeSheet();});
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+            <div class="card">
+              <div class="card-header">Actions</div>
+              <div class="card-body">
+                ${canCancel ? `
+                  <div class="cancelWarning">
+                    ⏱ You can cancel for ${Math.round(30 - minutesSince(order.created_at))} more minutes
+                  </div>
+                ` : ''}
+                <div class="actions">
+                  ${canCancel ? `<button class="btn btn-danger" id="cancelBtn">Cancel Order</button>` : ''}
+                  ${order.seller_id ? `
+                    <a href="messages.html?to=${order.seller_id}&order=${order.id}" class="btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      Message Seller
+                    </a>
+                  ` : ''}
+                  ${order.listing_id ? `
+                    <a href="listing.html?id=${order.listing_id}" class="btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      View Listing
+                    </a>
+                  ` : ''}
+                  <a href="contact.html?subject=Order%20${orderShort}" class="btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Get Help
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
 
-  const avatar=document.getElementById("avatar");
-  try{ const url=localStorage.getItem("avatarUrl"); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
-})();
-</script>
+      const cancelBtn = document.getElementById("cancelBtn");
+      if(cancelBtn){
+        cancelBtn.addEventListener("click", async () => {
+          if(!confirm("Cancel this order?")) return;
+          cancelBtn.disabled = true;
+          cancelBtn.textContent = "Cancelling...";
+
+          const { error } = await supabaseClient
+            .from("orders")
+            .update({
+              status: "CANCELED",
+              canceled_at: new Date().toISOString(),
+              canceled_by: user.id,
+              cancel_reason: "buyer_canceled"
+            })
+            .eq("id", order.id)
+            .eq("buyer_id", user.id);
+
+          if(error){
+            alert("Could not cancel. Please contact support.");
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = "Cancel Order";
+          } else {
+            location.reload();
+          }
+        });
+      }
+    }
+
+    function renderTimeline(order, currentStep){
+      if(currentStep === 0){
+        return `
+          <div class="timelineStep complete">
+            <div class="timelineDot">✓</div>
+            <div class="timelineContent">
+              <div class="timelineTitle">Order Placed</div>
+              <div class="timelineDate">${fmtDateTime(order.created_at)}</div>
+            </div>
+          </div>
+          <div class="timelineStep active">
+            <div class="timelineDot">✕</div>
+            <div class="timelineContent">
+              <div class="timelineTitle">Cancelled</div>
+              <div class="timelineDate">${fmtDateTime(order.canceled_at) || ''}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      const steps = [
+        { label: "Order Placed", date: order.created_at, step: 1 },
+        { label: "Shipped", date: order.shipped_at, step: 2 },
+        { label: "Delivered", date: order.delivered_at, step: 3 },
+        { label: "Complete", date: order.completed_at, step: 4 }
+      ];
+
+      return steps.map(s => {
+        const isComplete = currentStep >= s.step;
+        const isActive = currentStep === s.step;
+        return `
+          <div class="timelineStep ${isComplete ? 'complete' : isActive ? 'active' : ''}">
+            <div class="timelineDot">${isComplete ? '✓' : s.step}</div>
+            <div class="timelineContent">
+              <div class="timelineTitle">${s.label}</div>
+              ${s.date ? `<div class="timelineDate">${fmtDateTime(s.date)}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    loadOrder();
+  </script>
 </body>
 </html>
