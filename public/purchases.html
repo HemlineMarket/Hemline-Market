@@ -260,10 +260,12 @@ Please advise next steps.
       // ✅ ONLY CHANGE: exclude self-sales so your Sales don't appear in Purchases
       const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, total_cents, shipping_cents, listing_id, cancel_requested_at, canceled_at, canceled_by, cancel_reason")
+        .select("id, created_at, status, total_cents, shipping_cents, listing_id, listing_title, listing_image_url, cancel_requested_at, canceled_at, canceled_by, cancel_reason, seller_id")
         .eq("buyer_id", uid)
-        .neq("seller_id", uid)
         .order("created_at", { ascending:false });
+      
+      // Filter out self-purchases (where you're both buyer and seller)
+      const filteredOrders = (orders || []).filter(o => o.seller_id !== uid);
 
       if(ordErr){
         console.error(ordErr);
@@ -272,7 +274,7 @@ Please advise next steps.
         return;
       }
 
-      const list = orders || [];
+      const list = filteredOrders;
       if(!list.length){
         elPill.textContent = "0 purchases";
         showMsg("You haven’t purchased anything yet.", "ok");
@@ -301,8 +303,10 @@ Please advise next steps.
       list.forEach(order => {
         const listing = listingMap[order.listing_id] || null;
 
-        const title = (listing?.title) || "Listing";
-        const img = (listing?.image_url_1) || "";
+        // Use order fields first, fallback to listing
+        const title = order.listing_title || listing?.title || "Fabric Order";
+        const img = order.listing_image_url || listing?.image_url_1 || "";
+        const hasListing = !!order.listing_id;
 
         const status = safeUpper(order.status || "PAID");
 
@@ -321,20 +325,28 @@ Please advise next steps.
 
         const cancelBtnHtml = canCancel
           ? `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`
-          : `<button class="btn btn-disabled" disabled>${isCancelled ? "Canceled" : "Cancel unavailable"}</button>`;
+          : (isCancelled 
+              ? `<span class="note">Order cancelled</span>` 
+              : `<a class="btn" href="contact.html?subject=Order%20${orderShort}">Contact Support</a>`);
 
         const noteHtml = (() => {
           if(isCancelled) return `<div class="note">Order cancelled.</div>`;
           if(canCancel) return `<div class="note warn">Cancellation available for 30 minutes after purchase.</div>`;
-          return `<div class="note">The 30-minute cancellation window has expired.</div>`;
+          return ``;
         })();
 
         card.innerHTML = `
-          <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
+          ${hasListing ? `
+            <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
+              <div class="thumb">
+                ${img ? `<img src="${img}" alt="">` : `<svg class="placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`}
+              </div>
+            </a>
+          ` : `
             <div class="thumb">
               ${img ? `<img src="${img}" alt="">` : `<svg class="placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`}
             </div>
-          </a>
+          `}
 
           <div>
             <div class="row1">
@@ -354,10 +366,12 @@ Please advise next steps.
             </div>
 
             <div class="actions">
-              <a class="btn" href="${listingHref(order.listing_id)}" aria-label="View listing">
-                <span class="miniIcon">↗</span>
-                <span>View listing</span>
-              </a>
+              ${hasListing ? `
+                <a class="btn" href="${listingHref(order.listing_id)}" aria-label="View listing">
+                  <span class="miniIcon">↗</span>
+                  <span>View listing</span>
+                </a>
+              ` : ``}
 
               <select class="select" data-problem>
                 <option value="">Problems / Order Inquiry</option>
