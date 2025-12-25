@@ -106,11 +106,13 @@
       background:linear-gradient(180deg,#f8fafc,#eef2f7);
       border:1px solid #eef2f7;
       flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
     }
     @media(max-width:640px){
       .thumb{width:80px;height:80px}
     }
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .thumb .placeholder-icon{color:#d1d5db;}
 
     /* Card middle content */
     .cardBody{
@@ -188,14 +190,6 @@
     }
     .btn-danger:hover{background:#fef2f2}
 
-    .cancelSelect{
-      padding:8px 10px;
-      border-radius:8px;
-      border:1px solid var(--hm-border);
-      font-size:13px;
-      background:#fff;
-    }
-
     /* Cancel note */
     .cancelNote{
       font-size:11px;
@@ -205,6 +199,18 @@
       align-items:center;
       gap:4px;
     }
+
+    /* Contact support link */
+    .supportLink{
+      font-size:12px;
+      color:var(--hm-muted);
+      margin-left:auto;
+      display:flex;
+      align-items:center;
+      gap:4px;
+    }
+    .supportLink a{color:var(--hm-accent);text-decoration:none}
+    .supportLink a:hover{text-decoration:underline}
 
     /* Empty state */
     .emptyState{
@@ -396,7 +402,7 @@
         card.innerHTML = `
           <a class="cardLink" href="order-seller.html?id=${encodeURIComponent(order.id)}">
             <div class="thumb">
-              ${img ? `<img src="${img}" alt="${title}">` : ``}
+              ${img ? `<img src="${img}" alt="${title}">` : `<svg class="placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`}
             </div>
             <div class="cardBody">
               <div class="title">${title}</div>
@@ -417,15 +423,11 @@
             </a>
             ${order.listing_id ? `<a href="listing.html?id=${encodeURIComponent(order.listing_id)}" class="btn">View Listing</a>` : ""}
             ${canCancel ? `
-              <select class="cancelSelect" data-cancel-reason>
-                <option value="">Cancel reason…</option>
-                <option value="out_of_stock">Out of stock</option>
-                <option value="cannot_ship">Cannot ship</option>
-                <option value="buyer_requested">Buyer requested</option>
-                <option value="other">Other</option>
-              </select>
               <button class="btn btn-danger" data-cancel-btn>Cancel Order</button>
               <span class="cancelNote">⏱ ${Math.round(30 - minutesSince(order.created_at))} min left</span>
+            ` : ""}
+            ${!canCancel && !isCanceled && (status === "PAID" || status === "PENDING") ? `
+              <span class="supportLink">Need help? <a href="contact.html?subject=Order ${orderShort}">Contact Support</a></span>
             ` : ""}
           </div>
         `;
@@ -436,13 +438,6 @@
           cancelBtn.addEventListener("click", async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
-            const sel = card.querySelector("[data-cancel-reason]");
-            const reason = sel?.value || "";
-            if(!reason){
-              alert("Please select a cancellation reason.");
-              return;
-            }
 
             if(!confirm("Cancel this order? The listing will be restored to active.")) return;
 
@@ -453,7 +448,7 @@
               await cancelOrder({
                 orderId: order.id,
                 listingId: order.listing_id,
-                reason,
+                reason: "seller_canceled",
                 userId: currentUser.id
               });
               await loadSales();
