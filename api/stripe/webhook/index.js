@@ -1,6 +1,6 @@
 // File: api/stripe/webhook/index.js
 // ESM-only, self-contained Stripe webhook for Vercel.
-// No relative imports. No require(). No helper modules.
+// Saves order data including shipping address from Stripe checkout.
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -125,8 +125,12 @@ export default async function handler(req, res) {
     const priceCents = Number(md.price_cents) || 0;
     const shippingCents = Number(md.shipping_cents) || 0;
 
-    // Insert order
-    const { error: insertError } = await supabaseAdmin.from("orders").insert({
+    // Extract shipping address from Stripe session
+    const shippingDetails = session.shipping_details || session.customer_details || {};
+    const shippingAddress = shippingDetails.address || {};
+
+    // Build order data object
+    const orderData = {
       stripe_checkout_session: session.id,
       stripe_event_id: event.id,
       stripe_payment_intent: session.payment_intent || null,
@@ -140,7 +144,20 @@ export default async function handler(req, res) {
       listing_title: listingTitle,
       listing_image_url: listingImageUrl,
       status: "PAID",
-    });
+      // Shipping address fields
+      shipping_name: shippingDetails.name || session.customer_details?.name || null,
+      shipping_address_line1: shippingAddress.line1 || null,
+      shipping_address_line2: shippingAddress.line2 || null,
+      shipping_city: shippingAddress.city || null,
+      shipping_state: shippingAddress.state || null,
+      shipping_postal_code: shippingAddress.postal_code || null,
+      shipping_country: shippingAddress.country || null,
+    };
+
+    // Insert order
+    const { error: insertError } = await supabaseAdmin
+      .from("orders")
+      .insert(orderData);
 
     // If order insert succeeded, mark listing sold
     if (!insertError && md.listing_id) {
