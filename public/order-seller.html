@@ -109,8 +109,21 @@
     .earnings{
       background:var(--hm-green-bg);
       padding:12px;border-radius:8px;margin-top:12px;
+    }
+    .earnings .row{
       display:flex;justify-content:space-between;
       font-weight:700;color:var(--hm-green);
+    }
+    .earnings .detail{
+      font-size:12px;color:var(--hm-muted);margin-top:6px;
+      font-weight:normal;
+    }
+    .earnings .founding-badge{
+      display:inline-block;
+      background:#fef3c7;color:#92400e;
+      font-size:11px;font-weight:600;
+      padding:2px 6px;border-radius:4px;
+      margin-left:6px;
     }
 
     /* Info rows */
@@ -196,14 +209,6 @@
       font-size:14px;color:var(--hm-blue);
     }
     .trackingLink a{color:var(--hm-blue);font-weight:600}
-
-    /* Message textarea */
-    .messageBox{
-      width:100%;padding:10px;border:1px solid var(--hm-border);
-      border-radius:8px;font-size:14px;resize:vertical;
-      min-height:80px;font-family:inherit;
-    }
-    .messageBox:focus{outline:none;border-color:var(--hm-accent)}
   </style>
 </head>
 
@@ -240,6 +245,12 @@
 
     const contentEl = document.getElementById("content");
 
+    // Fee structure
+    const FEE_RATES = {
+      founding: 0.09,  // 9% for first 300 verified sellers
+      standard: 0.13   // 13% standard fee
+    };
+
     // Helpers
     function money(cents){ return "$" + (Number(cents || 0) / 100).toFixed(2); }
     function fmtDate(iso){
@@ -274,6 +285,13 @@
     function getTitle(order, listing){
       return listing?.title || order?.listing_snapshot?.title || 
              order?.listing_title || "Listing";
+    }
+
+    function calculateEarnings(itemsCents, feeTier){
+      const rate = FEE_RATES[feeTier] || FEE_RATES.standard;
+      const fee = Math.round(itemsCents * rate);
+      const earnings = itemsCents - fee;
+      return { fee, earnings, rate, isFounder: feeTier === 'founding' };
     }
 
     async function loadOrder(){
@@ -315,10 +333,22 @@
         listing = data;
       }
 
-      renderOrder(order, listing, user);
+      // Fetch seller's fee tier from profiles
+      let feeTier = 'standard';
+      const { data: profile } = await supabaseClient
+        .from("profiles")
+        .select("fee_tier")
+        .eq("id", user.id)
+        .maybeSingle();
+      
+      if(profile?.fee_tier){
+        feeTier = profile.fee_tier;
+      }
+
+      renderOrder(order, listing, user, feeTier);
     }
 
-    function renderOrder(order, listing, user){
+    function renderOrder(order, listing, user, feeTier){
       const img = getImage(order, listing);
       const title = getTitle(order, listing);
       const statusInfo = getStatusInfo(order.status);
@@ -327,16 +357,16 @@
       const shipCents = Number(order.shipping_cents || 0);
       const totalCents = Number(order.total_cents || (itemsCents + shipCents));
       
-      // Calculate seller earnings (assume 80% after fees for display)
-      const platformFee = Math.round(totalCents * 0.20);
-      const earnings = totalCents - platformFee;
+      // Calculate seller earnings based on fee tier
+      const { fee, earnings, rate, isFounder } = calculateEarnings(itemsCents, feeTier);
+      const feePercent = Math.round(rate * 100);
 
       const buyerEmail = order.buyer_email || "Unknown buyer";
-      const buyerName = buyerEmail.split("@")[0];
+      const buyerName = order.shipping_name || buyerEmail.split("@")[0];
       const orderShort = order.id.slice(0, 8);
 
-      // Shipping address from order (if stored) or from Stripe session
-      const shippingAddress = order.shipping_address || order.listing_snapshot?.shipping_address || null;
+      // Build shipping address from order fields
+      const hasShippingAddress = order.shipping_address_line1 || order.shipping_city;
 
       contentEl.innerHTML = `
         <div class="pageHeader">
@@ -372,16 +402,31 @@
                   <span>${money(itemsCents)}</span>
                 </div>
                 <div class="priceRow">
-                  <span class="label">Shipping</span>
+                  <span class="label">Shipping (paid by buyer)</span>
                   <span>${money(shipCents)}</span>
+                </div>
+                <div class="priceRow">
+                  <span class="label">Hemline fee (${feePercent}%)</span>
+                  <span>-${money(fee)}</span>
                 </div>
                 <div class="priceRow total">
                   <span class="label">Order Total</span>
                   <span>${money(totalCents)}</span>
                 </div>
                 <div class="earnings">
-                  <span>Your Earnings</span>
-                  <span>${money(earnings)}</span>
+                  <div class="row">
+                    <span>
+                      Your Earnings
+                      ${isFounder ? '<span class="founding-badge">Founding Seller</span>' : ''}
+                    </span>
+                    <span>${money(earnings)}</span>
+                  </div>
+                  <div class="detail">
+                    ${isFounder 
+                      ? 'You have the founding seller rate of 9% (instead of 13%)' 
+                      : `${feePercent}% platform fee deducted from item price`
+                    }
+                  </div>
                 </div>
               </div>
             </div>
@@ -417,26 +462,27 @@
               <div class="card-body">
                 <div class="infoRow">
                   <span class="label">Name</span>
-                  <span class="value">@${buyerName}</span>
+                  <span class="value">${buyerName}</span>
                 </div>
                 <div class="infoRow">
                   <span class="label">Email</span>
                   <span class="value">${buyerEmail}</span>
                 </div>
                 
-                ${shippingAddress ? `
+                ${hasShippingAddress ? `
                   <div style="margin-top:12px">
-                    <div class="label" style="margin-bottom:8px;font-weight:600">Ship To:</div>
+                    <div class="label" style="margin-bottom:8px;font-weight:600;color:var(--hm-muted)">Ship To:</div>
                     <div class="addressBox">
-                      <div class="name">${shippingAddress.name || buyerName}</div>
-                      <div>${shippingAddress.line1 || shippingAddress.address1 || ''}</div>
-                      ${shippingAddress.line2 || shippingAddress.address2 ? `<div>${shippingAddress.line2 || shippingAddress.address2}</div>` : ''}
-                      <div>${shippingAddress.city || ''}, ${shippingAddress.state || ''} ${shippingAddress.postal_code || shippingAddress.zip || ''}</div>
+                      <div class="name">${order.shipping_name || buyerName}</div>
+                      <div>${order.shipping_address_line1 || ''}</div>
+                      ${order.shipping_address_line2 ? `<div>${order.shipping_address_line2}</div>` : ''}
+                      <div>${order.shipping_city || ''}, ${order.shipping_state || ''} ${order.shipping_postal_code || ''}</div>
+                      ${order.shipping_country && order.shipping_country !== 'US' ? `<div>${order.shipping_country}</div>` : ''}
                     </div>
                   </div>
                 ` : `
                   <div style="margin-top:12px;padding:12px;background:#fef3c7;border-radius:8px;font-size:13px;color:#92400e">
-                    ⚠️ Shipping address will appear here once available from Stripe checkout.
+                    ⚠️ Shipping address will appear here after the buyer completes checkout.
                   </div>
                 `}
               </div>
