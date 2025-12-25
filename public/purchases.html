@@ -50,12 +50,17 @@
     .thumbLink{display:block;text-decoration:none;color:inherit}
     .thumb{
       width:110px;height:110px;border-radius:12px;overflow:hidden;
-      background:linear-gradient(180deg,#f8fafc,#eef2f7);
-      border:1px solid #eef2f7;
+      background:#f9fafb;
+      border:1px solid #e5e7eb;
       display:flex;align-items:center;justify-content:center;
     }
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .thumb .placeholder-icon{color:#d1d5db;}
+    .thumb-placeholder{
+      width:100%;height:100%;
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    }
+    .thumb-placeholder svg{color:#9ca3af;}
 
     .row1{display:flex;gap:10px;align-items:flex-start}
     .title{font-weight:800;font-size:15px}
@@ -178,6 +183,11 @@
 
     function listingHref(listingId){
       return "listing.html?id=" + encodeURIComponent(listingId);
+    }
+    
+    function orderHref(orderId){
+      return "order-buyer.html?id=" + encodeURIComponent(orderId);
+    }
     }
 
     function safeUpper(x){ return String(x || "").toUpperCase(); }
@@ -339,19 +349,19 @@ Please advise next steps.
           ${hasListing ? `
             <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
               <div class="thumb">
-                ${img ? `<img src="${img}" alt="">` : `<svg class="placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`}
+                ${img ? `<img src="${img}" alt="">` : `<div class="thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`}
               </div>
             </a>
           ` : `
             <div class="thumb">
-              ${img ? `<img src="${img}" alt="">` : `<svg class="placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`}
+              ${img ? `<img src="${img}" alt="">` : `<div class="thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`}
             </div>
           `}
 
           <div>
             <div class="row1">
               <div>
-                <div class="title">${title}</div>
+                <a href="${orderHref(order.id)}" class="title" style="text-decoration:none;color:inherit">${title}</a>
                 <div class="meta">
                   <span class="statusBadge">${status}</span>
                   <span>Purchased ${fmtDate(order.created_at)}</span>
@@ -366,6 +376,10 @@ Please advise next steps.
             </div>
 
             <div class="actions">
+              <a class="btn" href="${orderHref(order.id)}">
+                <span class="miniIcon">📦</span>
+                <span>View Order</span>
+              </a>
               ${hasListing ? `
                 <a class="btn" href="${listingHref(order.listing_id)}" aria-label="View listing">
                   <span class="miniIcon">↗</span>
