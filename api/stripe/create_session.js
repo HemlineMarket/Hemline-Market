@@ -133,6 +133,10 @@ export default async function handler(req, res) {
       success_url: `${origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout.html?canceled=1`,
       metadata,
+      // Collect shipping address for physical goods
+      shipping_address_collection: {
+        allowed_countries: ["US", "CA"],
+      },
       // optional: helps Stripe receipts & address capture
       billing_address_collection: "auto",
     });
