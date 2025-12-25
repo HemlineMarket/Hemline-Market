@@ -10,14 +10,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 function getOrigin(req) {
-  const proto =
-    (req.headers["x-forwarded-proto"] || "https").toString().split(",")[0].trim();
-  const host =
-    (req.headers["x-forwarded-host"] || req.headers.host || "").toString().split(",")[0].trim();
-
-  // If you have a canonical URL, prefer it
+  // Always use the canonical domain for redirects
   if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/$/, "");
-  if (host) return `${proto}://${host}`;
+  
+  // Fallback to hemlinemarket.com
   return "https://hemlinemarket.com";
 }
 
