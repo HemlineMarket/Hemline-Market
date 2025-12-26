@@ -141,6 +141,11 @@
       margin-top:10px;
       align-items:center;
     }
+    .favorite-count{
+      font-size:13px;
+      color:#6b7280;
+      margin-left:-4px;
+    }
     .btn{
       padding:10px 14px;
       border-radius:10px;
@@ -497,6 +502,7 @@
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
           </svg>
         </button>
+        <span id="favoriteCount" class="favorite-count" style="display:none;">0</span>
 
         <button id="shareBtn" class="icon-btn" type="button" aria-label="Share listing">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -1078,9 +1084,43 @@
     }
   }
 
+  async function loadFavoriteCount(listingId) {
+    const countEl = document.getElementById("favoriteCount");
+    if (!countEl || !listingId) return;
+    
+    try {
+      const { count, error } = await supabaseClient
+        .from("favorites")
+        .select("*", { count: "exact", head: true })
+        .eq("listing_id", listingId);
+      
+      if (!error && count > 0) {
+        countEl.textContent = count;
+        countEl.style.display = "inline";
+      }
+    } catch (e) {
+      console.warn("Could not load favorite count", e);
+    }
+  }
+
+  function updateFavoriteCountUI(delta) {
+    const countEl = document.getElementById("favoriteCount");
+    if (!countEl) return;
+    
+    let current = parseInt(countEl.textContent) || 0;
+    current += delta;
+    if (current < 0) current = 0;
+    
+    countEl.textContent = current;
+    countEl.style.display = current > 0 ? "inline" : "none";
+  }
+
   function initFavoriteButton(){
     const btn = document.getElementById("favoriteBtn");
     if(!btn || !currentListing) return;
+
+    // Load and display favorite count from database
+    loadFavoriteCount(currentListing.id);
 
     const fav = buildFavoriteFromListing();
     if(!fav || !fav.id) return;
@@ -1091,17 +1131,44 @@
       const favs = loadFavs();
       const idx = favs.findIndex(f => String(f.id) === String(fav.id));
       const currentlyFav = idx !== -1;
+      const userId = currentSession?.user?.id;
 
       if(currentlyFav){
         favs.splice(idx, 1);
         saveFavs(favs);
         setHeartUI(btn, false);
         showToast("Removed from favorites");
+        updateFavoriteCountUI(-1);
+        
+        // Remove from database
+        if (userId) {
+          try {
+            await supabaseClient
+              .from("favorites")
+              .delete()
+              .eq("listing_id", currentListing.id)
+              .eq("user_id", userId);
+          } catch (e) {
+            console.warn("Could not remove favorite from database", e);
+          }
+        }
       }else{
         favs.push(fav);
         saveFavs(favs);
         setHeartUI(btn, true);
         showToast("Saved to favorites");
+        updateFavoriteCountUI(1);
+        
+        // Add to database
+        if (userId) {
+          try {
+            await supabaseClient
+              .from("favorites")
+              .insert({ listing_id: currentListing.id, user_id: userId });
+          } catch (e) {
+            console.warn("Could not add favorite to database", e);
+          }
+        }
 
         const nowIso = new Date().toISOString();
         const notifs = loadNotifs();
