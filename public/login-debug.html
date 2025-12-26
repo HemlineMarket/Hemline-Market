@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Login Debug — Hemline Market</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #fafafa;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    h1 { font-size: 20px; margin: 0 0 16px; }
+    h2 { font-size: 16px; margin: 16px 0 8px; color: #374151; }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #991b1b;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .log {
+      background: #1f2937;
+      color: #10b981;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 13px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .log .error { color: #f87171; }
+    .log .warn { color: #fbbf24; }
+    .log .info { color: #60a5fa; }
+    .log .success { color: #34d399; }
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    .status.checking { background: #fef3c7; color: #92400e; }
+    .status.logged-in { background: #d1fae5; color: #065f46; }
+    .status.logged-out { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔍 Login Debug Tool</h1>
+    <div id="status" class="status checking">Checking session...</div>
+    
+    <form id="loginForm">
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button type="submit" id="submitBtn">Test Login</button>
+    </form>
+    
+    <h2>Debug Log</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <!-- Supabase JS - same CDN as auth.html -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    const form = document.getElementById('loginForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function log(msg, type = '') {
+      const time = new Date().toLocaleTimeString();
+      const span = document.createElement('span');
+      span.className = type;
+      span.textContent = `[${time}] ${msg}\n`;
+      logEl.appendChild(span);
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(`[${type || 'log'}]`, msg);
+    }
+
+    // Initialize Supabase
+    log('Initializing Supabase client...', 'info');
+    
+    let supabase;
+    try {
+      supabase = window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+          }
+        }
+      );
+      log('Supabase client created successfully', 'success');
+    } catch (err) {
+      log('Failed to create Supabase client: ' + err.message, 'error');
+    }
+
+    // Check current session
+    async function checkSession() {
+      log('Checking current session...', 'info');
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          log('Session check error: ' + error.message, 'error');
+          statusEl.className = 'status logged-out';
+          statusEl.textContent = 'Error checking session';
+          return;
+        }
+
+        if (data.session && data.session.user) {
+          log('Already logged in as: ' + data.session.user.email, 'success');
+          log('User ID: ' + data.session.user.id, 'info');
+          log('Token expires: ' + new Date(data.session.expires_at * 1000).toLocaleString(), 'info');
+          statusEl.className = 'status logged-in';
+          statusEl.textContent = '✓ Logged in as ' + data.session.user.email;
+          submitBtn.textContent = 'Already Logged In';
+        } else {
+          log('No active session found', 'warn');
+          statusEl.className = 'status logged-out';
+          statusEl.textContent = 'Not logged in';
+        }
+      } catch (err) {
+        log('Session check exception: ' + err.message, 'error');
+        statusEl.className = 'status logged-out';
+        statusEl.textContent = 'Session check failed';
+      }
+    }
+
+    // Listen for auth state changes
+    supabase.auth.onAuthStateChange((event, session) => {
+      log('Auth state changed: ' + event, 'info');
+      if (session) {
+        log('New session for: ' + session.user.email, 'success');
+      }
+    });
+
+    // Handle login form
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      log('─'.repeat(40), 'info');
+      log('LOGIN ATTEMPT STARTED', 'info');
+      log('Email: ' + email, 'info');
+      log('Password length: ' + password.length + ' chars', 'info');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Logging in...';
+
+      try {
+        log('Calling supabase.auth.signInWithPassword()...', 'info');
+        
+        const startTime = Date.now();
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+        const elapsed = Date.now() - startTime;
+        
+        log('Response received in ' + elapsed + 'ms', 'info');
+
+        if (error) {
+          log('LOGIN ERROR: ' + error.message, 'error');
+          log('Error code: ' + (error.code || 'none'), 'error');
+          log('Error status: ' + (error.status || 'none'), 'error');
+          
+          statusEl.className = 'status logged-out';
+          statusEl.textContent = 'Login failed: ' + error.message;
+          
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Try Again';
+          return;
+        }
+
+        if (data && data.session) {
+          log('LOGIN SUCCESSFUL!', 'success');
+          log('User: ' + data.session.user.email, 'success');
+          log('User ID: ' + data.session.user.id, 'success');
+          log('Access token (first 20 chars): ' + data.session.access_token.substring(0, 20) + '...', 'info');
+          
+          statusEl.className = 'status logged-in';
+          statusEl.textContent = '✓ Login successful! User: ' + data.session.user.email;
+          
+          submitBtn.textContent = 'Success! Redirecting...';
+          
+          log('Redirecting to index.html in 2 seconds...', 'info');
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 2000);
+        } else {
+          log('No session returned (but no error either)', 'warn');
+          log('Data object: ' + JSON.stringify(data, null, 2), 'warn');
+          
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Try Again';
+        }
+
+      } catch (err) {
+        log('EXCEPTION during login: ' + err.message, 'error');
+        log('Stack: ' + err.stack, 'error');
+        
+        statusEl.className = 'status logged-out';
+        statusEl.textContent = 'Exception: ' + err.message;
+        
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Try Again';
+      }
+    });
+
+    // Run initial session check
+    checkSession();
+  </script>
+</body>
+</html>
