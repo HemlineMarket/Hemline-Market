@@ -230,23 +230,49 @@
     }
 
     function getSellerAddress(userId){
-      // Try to get from localStorage (same format as account.html saves)
+      // Try to get from localStorage first (same format as account.html saves)
       const key = "hm_address_" + userId;
       try {
         const raw = localStorage.getItem(key);
         if(raw){
           const addr = JSON.parse(raw);
-          return {
-            name: addr.addrName || "",
-            street1: addr.addrLine1 || "",
-            street2: addr.addrLine2 || "",
-            city: addr.addrCity || "",
-            state: addr.addrState || "",
-            zip: addr.addrZip || "",
-            country: "US"
-          };
+          if(addr.addrLine1 && addr.addrCity && addr.addrState && addr.addrZip){
+            return {
+              name: addr.addrName || "",
+              street1: addr.addrLine1 || "",
+              street2: addr.addrLine2 || "",
+              city: addr.addrCity || "",
+              state: addr.addrState || "",
+              zip: addr.addrZip || "",
+              country: "US"
+            };
+          }
         }
       } catch(e){}
+      return null;
+    }
+
+    // Also try to get address from Supabase user_metadata
+    async function getSellerAddressFromSupabase(){
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if(user && user.user_metadata){
+          const meta = user.user_metadata;
+          if(meta.ship_address1 && meta.ship_city && meta.ship_state && meta.ship_postal){
+            return {
+              name: meta.ship_name || "",
+              street1: meta.ship_address1 || "",
+              street2: meta.ship_address2 || "",
+              city: meta.ship_city || "",
+              state: meta.ship_state || "",
+              zip: meta.ship_postal || "",
+              country: "US"
+            };
+          }
+        }
+      } catch(e){
+        console.warn("Could not get address from Supabase:", e);
+      }
       return null;
     }
 
@@ -296,8 +322,11 @@
         return;
       }
 
-      // Get seller's ship-from address
-      const sellerAddr = getSellerAddress(user.id);
+      // Get seller's ship-from address - try localStorage first, then Supabase
+      let sellerAddr = getSellerAddress(user.id);
+      if(!sellerAddr || !sellerAddr.street1){
+        sellerAddr = await getSellerAddressFromSupabase();
+      }
 
       // Check buyer's ship-to address
       const hasShipTo = order.shipping_address_line1 && order.shipping_city;
