@@ -259,6 +259,19 @@
         return;
       }
 
+      // Check if already reviewed
+      const { data: existingReview } = await supabaseClient
+        .from("reviews")
+        .select("id, rating, comment")
+        .eq("order_id", orderId)
+        .maybeSingle();
+
+      if(existingReview){
+        order.reviewed = true;
+        order.review_rating = existingReview.rating;
+        order.review_comment = existingReview.comment;
+      }
+
       let listing = null;
       if(order.listing_id){
         const { data } = await supabaseClient
@@ -395,6 +408,34 @@
               </div>
             ` : ''}
 
+            <!-- Review Section (only show if delivered and not yet reviewed) -->
+            ${(order.status === 'DELIVERED' || order.status === 'COMPLETE') && !order.reviewed ? `
+              <div class="card" style="margin-bottom:16px" id="reviewCard">
+                <div class="card-header">⭐ Leave a Review</div>
+                <div class="card-body">
+                  <p style="font-size:13px;color:var(--hm-muted);margin:0 0 12px;">How was your experience with this seller?</p>
+                  <div class="star-rating" id="starRating" style="display:flex;gap:4px;margin-bottom:12px;">
+                    ${[1,2,3,4,5].map(n => `
+                      <button type="button" class="star-btn" data-rating="${n}" style="background:none;border:none;font-size:28px;cursor:pointer;padding:0;color:#d1d5db;">★</button>
+                    `).join('')}
+                  </div>
+                  <textarea id="reviewComment" placeholder="Add a comment (optional)" style="width:100%;padding:10px;border:1px solid var(--hm-border);border-radius:8px;font-size:14px;min-height:60px;resize:vertical;"></textarea>
+                  <button id="submitReviewBtn" class="btn" style="margin-top:10px;width:100%;background:var(--hm-accent);color:white;border-color:var(--hm-accent);" disabled>
+                    Submit Review
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+            ${order.reviewed ? `
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">⭐ Your Review</div>
+                <div class="card-body">
+                  <div style="font-size:20px;margin-bottom:4px;">${'★'.repeat(order.review_rating)}${'☆'.repeat(5-order.review_rating)}</div>
+                  ${order.review_comment ? `<p style="font-size:14px;color:var(--hm-text);margin:0;">${order.review_comment}</p>` : ''}
+                </div>
+              </div>
+            ` : ''}
+
             <div class="card">
               <div class="card-header">Actions</div>
               <div class="card-body">
@@ -500,6 +541,63 @@
     }
 
     loadOrder();
+
+    // Review submission handler
+    document.addEventListener('click', async (e) => {
+      // Star rating click
+      if(e.target.classList.contains('star-btn')){
+        const rating = parseInt(e.target.dataset.rating);
+        const stars = document.querySelectorAll('.star-btn');
+        stars.forEach((star, i) => {
+          star.style.color = i < rating ? '#fbbf24' : '#d1d5db';
+        });
+        document.getElementById('submitReviewBtn').disabled = false;
+        document.getElementById('submitReviewBtn').dataset.rating = rating;
+      }
+
+      // Submit review
+      if(e.target.id === 'submitReviewBtn'){
+        const btn = e.target;
+        const rating = parseInt(btn.dataset.rating);
+        const comment = document.getElementById('reviewComment')?.value || '';
+        const orderId = new URLSearchParams(window.location.search).get('id');
+
+        if(!rating || rating < 1 || rating > 5){
+          alert('Please select a star rating');
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+
+        try {
+          const { data: sessData } = await supabaseClient.auth.getSession();
+          const token = sessData?.session?.access_token;
+
+          const res = await fetch('/api/reviews/submit', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ order_id: orderId, rating, comment })
+          });
+
+          const result = await res.json();
+          if(res.ok){
+            location.reload();
+          } else {
+            alert(result.error || 'Failed to submit review');
+            btn.disabled = false;
+            btn.textContent = 'Submit Review';
+          }
+        } catch(err){
+          alert('Error submitting review');
+          btn.disabled = false;
+          btn.textContent = 'Submit Review';
+        }
+      }
+    });
   </script>
 </body>
 </html>
