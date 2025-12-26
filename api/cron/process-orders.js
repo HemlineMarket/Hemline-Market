@@ -94,10 +94,10 @@ export default async function handler(req, res) {
 
     for (const order of deliveredOrders || []) {
       try {
-        // Get seller's Stripe Connect account
+        // Get seller's Stripe Connect account and fee rate
         const { data: sellerProfile } = await supabase
           .from("profiles")
-          .select("stripe_account_id")
+          .select("stripe_account_id, fee_rate, founding_seller_number")
           .eq("id", order.seller_id)
           .maybeSingle();
 
@@ -106,8 +106,9 @@ export default async function handler(req, res) {
           continue;
         }
 
-        // Calculate payout (items_cents minus platform fee - e.g., 15%)
-        const platformFeePercent = 0.15;
+        // Use seller's fee rate (founding sellers = 9%, standard = 13%)
+        // Default to 13% if fee_rate not set
+        const platformFeePercent = sellerProfile.fee_rate || 0.13;
         const payoutAmount = Math.floor(order.items_cents * (1 - platformFeePercent));
 
         if (payoutAmount <= 0) {
@@ -130,6 +131,8 @@ export default async function handler(req, res) {
           payout_at: now.toISOString(),
           payout_amount_cents: payoutAmount,
           stripe_transfer_id: transfer.id,
+          platform_fee_rate: platformFeePercent,
+          platform_fee_cents: order.items_cents - payoutAmount,
         }).eq("id", order.id);
 
         // Notify seller
