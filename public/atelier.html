@@ -875,6 +875,43 @@
       }
     }
 
+    // Display seller rating (only if 5+ completed sales)
+    const ratingPill = document.getElementById("ratingPill");
+    const ratingStars = document.getElementById("ratingStars");
+    const mobileRatingPill = document.querySelector(".atelier-mobile-rating .rating-pill");
+    
+    if(profile && profile.completed_sales >= 5 && profile.rating_count >= 1){
+      const avg = parseFloat(profile.rating_average) || 0;
+      const fullStars = Math.floor(avg);
+      const halfStar = (avg - fullStars) >= 0.5;
+      const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+      
+      const starsHtml = '★'.repeat(fullStars) + (halfStar ? '½' : '') + '☆'.repeat(emptyStars);
+      const ratingText = `${avg.toFixed(1)} / 5 (${profile.rating_count} review${profile.rating_count === 1 ? '' : 's'})`;
+      
+      if(ratingPill){
+        ratingPill.innerHTML = `<span style="color:#fbbf24;font-size:18px;letter-spacing:2px;">${starsHtml}</span>`;
+        ratingPill.style.background = "#fef3c7";
+        ratingPill.style.border = "1px solid #fcd34d";
+      }
+      if(ratingStars){
+        ratingStars.style.display = "block";
+        ratingStars.innerHTML = `<span style="font-size:14px;color:#6b7280;">${ratingText}</span>`;
+      }
+      if(mobileRatingPill){
+        mobileRatingPill.innerHTML = `<span style="color:#fbbf24;">${starsHtml}</span> ${avg.toFixed(1)}`;
+        mobileRatingPill.style.background = "#fef3c7";
+      }
+    } else {
+      // Not enough sales yet
+      const salesNeeded = Math.max(0, 5 - (profile?.completed_sales || 0));
+      if(ratingPill && salesNeeded > 0){
+        ratingPill.textContent = "Not yet rated";
+      } else if(ratingPill){
+        ratingPill.textContent = "No reviews yet";
+      }
+    }
+
     loadListingsForSeller(sellerId, shopDisplay, isOwn);
   }
 
