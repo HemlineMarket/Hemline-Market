@@ -237,8 +237,10 @@ window.HM = window.HM || {};
   }
 
   function wireSupabaseSession() {
-    // Prefer a shared client if one already exists (e.g., from scripts/supabase-client.js)
-    if (window.HM && window.HM.supabase) {
+    // Use a single shared client across all pages to avoid session conflicts
+    if (window.supabase_client) {
+      shellSupabase = window.supabase_client;
+    } else if (window.HM && window.HM.supabase) {
       shellSupabase = window.HM.supabase;
     } else if (window.supabase) {
       shellSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -248,10 +250,13 @@ window.HM = window.HM || {};
           detectSessionInUrl: true,
         },
       });
-      window.HM.supabase = shellSupabase;
     } else {
       return;
     }
+    
+    // Store globally so all pages share the same client
+    window.supabase_client = shellSupabase;
+    window.HM.supabase = shellSupabase;
 
     const accountLink = document.getElementById("headerAccountLink");
     const accountBadge = document.getElementById("headerAccountBadge");
