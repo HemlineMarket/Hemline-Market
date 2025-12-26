@@ -205,6 +205,37 @@ export default async function handler(req, res) {
             listing_id: md.listing_id || null,
           });
       }
+
+      // Notify users who favorited this listing that it sold
+      if (md.listing_id) {
+        try {
+          const { data: favorites } = await supabaseAdmin
+            .from("favorites")
+            .select("user_id")
+            .eq("listing_id", md.listing_id);
+
+          if (favorites && favorites.length > 0) {
+            const notifications = favorites
+              .filter(f => f.user_id !== md.buyer_id && f.user_id !== sellerId) // Don't notify buyer or seller
+              .map(f => ({
+                user_id: f.user_id,
+                type: "favorite_sold",
+                kind: "favorite_sold",
+                title: "An item you favorited just sold",
+                body: `"${listingTitle || 'A fabric'}" you saved is no longer available.`,
+                href: "/favorites.html",
+                link: "/favorites.html",
+                listing_id: md.listing_id,
+              }));
+
+            if (notifications.length > 0) {
+              await supabaseAdmin.from("notifications").insert(notifications);
+            }
+          }
+        } catch (favErr) {
+          console.warn("Could not notify favorite users:", favErr);
+        }
+      }
     }
 
     // If insert failed, surface it clearly (so Stripe retries, and you see why)
