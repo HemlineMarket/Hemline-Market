@@ -883,11 +883,29 @@
       // Store slug (backfill for old profiles)
       const existingSlug = profile.storeSlug || slugifyStoreName(profile.storeName || "");
 
+      // Build profile extra info with clickable store link
       const profileLines = [];
       if(profile.storeName) profileLines.push("Store name: " + profile.storeName);
-      if(existingSlug)      profileLines.push("Store link: hemline.market/shop/" + existingSlug);
-      if(profile.bio)       profileLines.push(profile.bio);
-      profileExtraEl.textContent = profileLines.join("\n");
+      if(profile.bio) profileLines.push(profile.bio);
+      
+      // Set text content for non-link items
+      profileExtraEl.innerHTML = '';
+      if(profile.storeName) {
+        const nameLine = document.createElement('div');
+        nameLine.textContent = "Store name: " + profile.storeName;
+        profileExtraEl.appendChild(nameLine);
+      }
+      if(existingSlug) {
+        const linkLine = document.createElement('div');
+        linkLine.innerHTML = 'Store link: <a href="https://hemlinemarket.com/atelier.html?shop=' + encodeURIComponent(existingSlug) + '" target="_blank" style="color:#991b1b;">hemlinemarket.com/shop/' + existingSlug + '</a>';
+        profileExtraEl.appendChild(linkLine);
+      }
+      if(profile.bio) {
+        const bioLine = document.createElement('div');
+        bioLine.textContent = profile.bio;
+        bioLine.style.marginTop = '4px';
+        profileExtraEl.appendChild(bioLine);
+      }
 
       // Avatar initials based on profile/email (still computed even if hidden)
       const avatarInitials = initialsFromProfile(profile.firstName, profile.lastName, email);
@@ -1059,11 +1077,24 @@
         profileNameEl.textContent =
           displayName || (email.split("@")[0] || "Hemline member");
 
-        const newLines = [];
-        if(next.storeName) newLines.push("Store name: " + next.storeName);
-        if(next.storeSlug) newLines.push("Store link: hemline.market/shop/" + next.storeSlug);
-        if(next.bio)       newLines.push(next.bio);
-        profileExtraEl.textContent = newLines.join("\n");
+        // Update profile extra with clickable store link
+        profileExtraEl.innerHTML = '';
+        if(next.storeName) {
+          const nameLine = document.createElement('div');
+          nameLine.textContent = "Store name: " + next.storeName;
+          profileExtraEl.appendChild(nameLine);
+        }
+        if(next.storeSlug) {
+          const linkLine = document.createElement('div');
+          linkLine.innerHTML = 'Store link: <a href="https://hemlinemarket.com/atelier.html?shop=' + encodeURIComponent(next.storeSlug) + '" target="_blank" style="color:#991b1b;">hemlinemarket.com/shop/' + next.storeSlug + '</a>';
+          profileExtraEl.appendChild(linkLine);
+        }
+        if(next.bio) {
+          const bioLine = document.createElement('div');
+          bioLine.textContent = next.bio;
+          bioLine.style.marginTop = '4px';
+          profileExtraEl.appendChild(bioLine);
+        }
 
         const initials = initialsFromProfile(next.firstName, next.lastName, email);
         profileAvatarEl.style.backgroundImage = "";
