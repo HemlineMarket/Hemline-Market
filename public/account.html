@@ -332,7 +332,7 @@
         <div class="warning-icon">⚠️</div>
         <div class="warning-content">
           <strong>Complete your profile to buy or sell</strong>
-          <p>Please add your name, contact email, and shipping address before you can make purchases or list items for sale.</p>
+          <p id="profileWarningText">Please add your name, contact email, and shipping address before you can make purchases or list items for sale.</p>
         </div>
         <button class="btn btn-primary" type="button" id="btnCompleteProfile">Complete Profile</button>
       </div>
@@ -784,6 +784,10 @@
       if (userMeta.shop_name) {
         profile.storeName = profile.storeName || userMeta.shop_name || '';
       }
+      // ✅ Also check user_metadata for contact_email as fallback
+      if (userMeta.contact_email && !profile.contactEmail) {
+        profile.contactEmail = userMeta.contact_email;
+      }
 
       // Load address from user_metadata first
       if (userMeta.ship_address1) {
@@ -1128,6 +1132,7 @@
               last_name: next.lastName || null,
               display_name: fullName || null,
               shop_name: next.storeName || null,
+              contact_email: next.contactEmail || null,
             }
           }).then(({ error }) => {
             if (error) console.error("User metadata sync error:", error);
@@ -1178,7 +1183,18 @@
         profileEditor.classList.add('is-hidden');
         
         // ✅ Re-check completeness and update warning banner
-        recheckAndUpdateCompleteness();
+        const nowComplete = recheckAndUpdateCompleteness();
+        
+        // Also directly check and hide if name + email are done (address checked separately)
+        if (next.firstName && next.lastName && next.contactEmail) {
+          console.log('[Account] Profile info complete, checking address...');
+          if (address.addrLine1 && address.addrCity && address.addrState && address.addrZip) {
+            console.log('[Account] All complete! Hiding banner.');
+            if (profileWarning) profileWarning.classList.add('is-hidden');
+          } else {
+            console.log('[Account] Still need address. Banner stays visible.');
+          }
+        }
       });
 
       // ---- Address editor ----
