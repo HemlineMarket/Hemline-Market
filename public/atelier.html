@@ -394,30 +394,67 @@
     </div>
   </section>
 
-  <!-- STORE INFO - TWO COLUMNS -->
-  <section class="atelier-store-top" aria-label="Atelier information" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+  <!-- STORE INFO - TWO COLUMNS (stacks on mobile) -->
+  <style>
+    .atelier-store-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) {
+      .atelier-store-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .atelier-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #991b1b;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 600;
+      flex-shrink: 0;
+      background-size: cover;
+      background-position: center;
+    }
+    .atelier-profile-row {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .atelier-profile-info {
+      flex: 1;
+    }
+  </style>
+  <section class="atelier-store-grid" aria-label="Atelier information">
     <!-- COLUMN 1: STORE / OWNER -->
     <section class="hm-card" aria-labelledby="profileHeading">
       <div class="hm-card-header" id="profileHeading">Store</div>
       <div class="hm-card-body">
-        <div class="profile-panel">
-          <div class="profile-main">
+        <div class="atelier-profile-row">
+          <div class="atelier-avatar" id="atelierAvatar">HM</div>
+          <div class="atelier-profile-info">
             <div class="profile-name" id="atelierOwnerName" style="font-size:18px;font-weight:600;">Hemline member</div>
-            <div class="profile-link" id="atelierStoreLink" style="font-size:14px;margin:4px 0 8px;"></div>
-            <div class="profile-bio" id="atelierBio" style="color:#6b7280;font-size:14px;margin-bottom:12px;"></div>
-            
-            <!-- Share link row -->
-            <div style="margin-bottom:12px;">
-              <div style="display:flex;gap:8px;">
-                <input id="shareLinkInput" type="text" readonly style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;background:#f9fafb;">
-                <button class="btn" type="button" id="btnCopyLink">Copy</button>
-              </div>
-            </div>
-
-            <button class="btn btn-primary" type="button" id="btnEditShop">Edit Atelier details</button>
-            <button class="btn" type="button" id="btnMessageSeller" style="margin-top:8px;">Message this seller</button>
+            <div class="profile-bio" id="atelierBio" style="color:#6b7280;font-size:14px;margin-top:4px;"></div>
           </div>
         </div>
+        
+        <!-- Share link row -->
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;gap:8px;">
+            <input id="shareLinkInput" type="text" readonly style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;background:#f9fafb;">
+            <button class="btn" type="button" id="btnCopyLink">Copy</button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" type="button" id="btnEditShop" style="display:none;">Edit Atelier details</button>
+        <button class="btn" type="button" id="btnMessageSeller" style="margin-top:8px;display:none;">Message this seller</button>
       </div>
     </section>
 
@@ -432,8 +469,9 @@
     </section>
   </section>
   
-  <!-- Hidden element for backwards compatibility -->
+  <!-- Hidden elements for backwards compatibility -->
   <div id="atelierShopName" style="display:none;"></div>
+  <div id="atelierStoreLink" style="display:none;"></div>
 
   <!-- LISTINGS CARD -->
   <section class="hm-card" aria-labelledby="listingsHeading">
@@ -812,8 +850,26 @@
     }
 
     titleEl.textContent="Atelier: "+shopDisplay;
-    subEl.textContent= profileIncomplete ? "Complete your profile to set up your shop." : "Fabrics, stories, and listings from "+shopDisplay+".";
+    subEl.textContent= profileIncomplete ? "Complete your profile to set up your shop." : "";
     ownerNameEl.textContent=fullName;
+    
+    // Set avatar initials
+    const avatarEl = document.getElementById('atelierAvatar');
+    if (avatarEl) {
+      let initials = 'HM';
+      if (first && last) {
+        initials = (first[0] + last[0]).toUpperCase();
+      } else if (first) {
+        initials = first.slice(0, 2).toUpperCase();
+      } else if (store) {
+        initials = store.slice(0, 2).toUpperCase();
+      }
+      avatarEl.textContent = initials;
+      
+      // TODO: If profile has avatar_url, show image instead
+      // avatarEl.style.backgroundImage = `url(${profile.avatar_url})`;
+      // avatarEl.textContent = '';
+    }
     
     // Only show "Store name:" if it's different from the owner name
     if (store && store !== fullName && !profileIncomplete) {
@@ -824,23 +880,33 @@
       shopNameEl.textContent = ""; // Don't repeat the name
     }
     
-    bioEl.textContent=bio;
+    // Display bio if available
+    if (bio) {
+      bioEl.textContent = bio;
+      bioEl.style.display = 'block';
+    } else if (isOwn) {
+      bioEl.textContent = 'Add a bio in your profile to tell buyers about yourself.';
+      bioEl.style.color = '#9ca3af';
+      bioEl.style.fontStyle = 'italic';
+      bioEl.style.display = 'block';
+    } else {
+      bioEl.style.display = 'none';
+    }
 
     let slug = slugifyStoreName(shopDisplay);
-    const baseUrl = window.location.origin + "/atelier.html";
+    
+    // Use pretty URL format: hemlinemarket.com/shop/afroza
+    const prettyUrl = window.location.origin + "/shop/" + (slug || sellerId);
+    // Actual working URL for the link
+    const shareUrl = window.location.origin + "/atelier.html?shop=" + encodeURIComponent(slug || sellerId);
 
-    let shareUrl;
-    if(slug){
-      shareUrl = baseUrl + "?shop=" + encodeURIComponent(slug);
-    }else{
-      shareUrl = baseUrl + "?u=" + encodeURIComponent(sellerId);
-    }
-
-    // Clear the store link element (URL is already in the copy field)
-    const storeLinkEl = document.getElementById("atelierStoreLink");
-    if (storeLinkEl) {
-      storeLinkEl.style.display = 'none';
-    }
+    // Show pretty URL in share input, but link to working URL
+    shareInput.value = prettyUrl;
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(prettyUrl);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => copyBtn.textContent = 'Copy', 2000);
+    };
 
     // make store name in title clickable
     const safeName = shopDisplay
