@@ -472,13 +472,17 @@ async function initMessagesPage(){
       if(!confirmed) return;
       
       try{
-        // Soft delete - mark as hidden for this user
-        // We'll add a hidden_for column or use a separate table
-        // For now, we'll actually delete the thread (both sides lose it)
-        // In production, you'd want a soft delete
+        // Get the thread to determine which user column to update
+        const thread = allThreads.find(t => t.id === currentThreadId);
+        if(!thread) return;
+        
+        // Soft delete - mark as hidden for this user only
+        const isUserA = thread.user_a === currentUser.id;
+        const updateField = isUserA ? "hidden_for_user_a" : "hidden_for_user_b";
+        
         await supabaseClient
           .from("message_threads")
-          .delete()
+          .update({ [updateField]: true })
           .eq("id", currentThreadId);
         
         makeChatEmpty();
@@ -537,7 +541,12 @@ async function loadThreads(preselectThreadId){
     .order("last_message_at",{ascending:false,nullsLast:true})
     .order("created_at",{ascending:false});
 
-  allThreads = data || [];
+  // Filter out threads hidden by this user (soft delete)
+  allThreads = (data || []).filter(t => {
+    if(t.user_a === uid && t.hidden_for_user_a) return false;
+    if(t.user_b === uid && t.hidden_for_user_b) return false;
+    return true;
+  });
 
   if(!allThreads.length){
     threadsEmptyEl.style.display = "block";
