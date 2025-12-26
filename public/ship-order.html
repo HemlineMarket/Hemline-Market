@@ -237,8 +237,20 @@
         if(raw){
           const addr = JSON.parse(raw);
           if(addr.addrLine1 && addr.addrCity && addr.addrState && addr.addrZip){
+            // Try to get name from profile localStorage if addr name is empty
+            let sellerName = addr.addrName || "";
+            if(!sellerName){
+              try {
+                const profileKey = "hm_profile_" + userId;
+                const profileRaw = localStorage.getItem(profileKey);
+                if(profileRaw){
+                  const profile = JSON.parse(profileRaw);
+                  sellerName = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || profile.storeName || "";
+                }
+              } catch(e){}
+            }
             return {
-              name: addr.addrName || "",
+              name: sellerName,
               street1: addr.addrLine1 || "",
               street2: addr.addrLine2 || "",
               city: addr.addrCity || "",
@@ -259,8 +271,21 @@
         if(user && user.user_metadata){
           const meta = user.user_metadata;
           if(meta.ship_address1 && meta.ship_city && meta.ship_state && meta.ship_postal){
+            // Try to get name from profile if ship_name is empty
+            let sellerName = meta.ship_name || "";
+            if(!sellerName){
+              // Try to get from profiles table
+              const { data: profile } = await supabaseClient
+                .from("profiles")
+                .select("first_name, last_name, store_name")
+                .eq("id", user.id)
+                .maybeSingle();
+              if(profile){
+                sellerName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.store_name || "";
+              }
+            }
             return {
-              name: meta.ship_name || "",
+              name: sellerName,
               street1: meta.ship_address1 || "",
               street2: meta.ship_address2 || "",
               city: meta.ship_city || "",
@@ -274,6 +299,21 @@
         console.warn("Could not get address from Supabase:", e);
       }
       return null;
+    }
+
+    // Get seller name from profile for address display
+    async function getSellerNameFromProfile(userId){
+      try {
+        const { data: profile } = await supabaseClient
+          .from("profiles")
+          .select("first_name, last_name, store_name")
+          .eq("id", userId)
+          .maybeSingle();
+        if(profile){
+          return [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.store_name || "";
+        }
+      } catch(e){}
+      return "";
     }
 
     async function loadOrder(){
