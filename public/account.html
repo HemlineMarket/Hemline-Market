@@ -734,22 +734,84 @@
         return /^[a-z0-9]{6,}$/i.test(name) || name === "Hemline member";
       }
 
-      // ---- Load profile from localStorage ----
+      // ---- Load profile from Supabase FIRST, then localStorage as fallback ----
       let profile = {};
-      try{
-        const raw = localStorage.getItem(PROFILE_KEY);
-        if(raw) profile = JSON.parse(raw) || {};
-      }catch(e){
-        console.warn("Profile parse failed", e);
+      let address = {};
+      let supabaseProfile = null;
+      
+      // Try to load from Supabase profiles table
+      try {
+        const { data: profileData, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        if (!profileError && profileData) {
+          supabaseProfile = profileData;
+          // Map Supabase profile to our local format
+          const fullNameParts = (profileData.full_name || '').split(' ');
+          profile = {
+            firstName: fullNameParts[0] || '',
+            lastName: fullNameParts.slice(1).join(' ') || '',
+            storeName: profileData.store_name || profileData.shop_name || '',
+            bio: profileData.bio || '',
+            storeSlug: slugifyStoreName(profileData.store_name || profileData.shop_name || '')
+          };
+          console.log('[Account] Loaded profile from Supabase:', profile);
+        }
+      } catch (e) {
+        console.warn('Error loading profile from Supabase:', e);
       }
 
-      // ---- Load address from localStorage (need it for completeness check) ----
-      let address = {};
-      try{
-        const rawA = localStorage.getItem(ADDRESS_KEY);
-        if(rawA) address = JSON.parse(rawA) || {};
-      }catch(e){
-        console.warn("Address parse failed", e);
+      // Also check user_metadata for address and additional info
+      const userMeta = user.user_metadata || {};
+      if (userMeta.first_name || userMeta.last_name) {
+        profile.firstName = profile.firstName || userMeta.first_name || '';
+        profile.lastName = profile.lastName || userMeta.last_name || '';
+      }
+      if (userMeta.shop_name) {
+        profile.storeName = profile.storeName || userMeta.shop_name || '';
+      }
+
+      // Load address from user_metadata first
+      if (userMeta.ship_address1) {
+        address = {
+          addrName: userMeta.ship_name || '',
+          addrLine1: userMeta.ship_address1 || '',
+          addrLine2: userMeta.ship_address2 || '',
+          addrCity: userMeta.ship_city || '',
+          addrState: userMeta.ship_state || '',
+          addrZip: userMeta.ship_postal || ''
+        };
+        console.log('[Account] Loaded address from user_metadata:', address);
+      }
+
+      // Fallback to localStorage if Supabase didn't have data
+      if (!profile.firstName && !profile.lastName) {
+        try {
+          const raw = localStorage.getItem(PROFILE_KEY);
+          if (raw) {
+            const localProfile = JSON.parse(raw) || {};
+            profile = { ...localProfile, ...profile }; // Supabase data takes priority
+            console.log('[Account] Merged with localStorage profile');
+          }
+        } catch (e) {
+          console.warn("Profile parse failed", e);
+        }
+      }
+
+      // Fallback address from localStorage
+      if (!address.addrLine1) {
+        try {
+          const rawA = localStorage.getItem(ADDRESS_KEY);
+          if (rawA) {
+            const localAddr = JSON.parse(rawA) || {};
+            address = { ...localAddr, ...address };
+          }
+        } catch (e) {
+          console.warn("Address parse failed", e);
+        }
       }
 
       // ---- Check profile completeness ----
@@ -937,20 +999,32 @@
         profile = next;
 
         // ✅ Also update Supabase profiles table so atelier reflects changes
+        const fullName = ((next.firstName || "") + " " + (next.lastName || "")).trim();
         if (userId) {
           supabaseClient
             .from("profiles")
-            .update({
-              store_name: next.storeName || null,
-              store_slug: next.storeSlug || null,
-              first_name: next.firstName || null,
-              last_name: next.lastName || null,
-              display_name: ((next.firstName || "") + " " + (next.lastName || "")).trim() || null,
-            })
-            .eq("id", userId)
+            .upsert({
+              id: userId,
+              full_name: fullName || null,
+              shop_name: next.storeName || null,
+              bio: next.bio || null,
+            }, { onConflict: 'id' })
             .then(({ error }) => {
               if (error) console.error("Profile sync error:", error);
+              else console.log("[Account] Profile saved to Supabase");
             });
+          
+          // Also update user_metadata for address and cross-device sync
+          supabaseClient.auth.updateUser({
+            data: {
+              first_name: next.firstName || null,
+              last_name: next.lastName || null,
+              display_name: fullName || null,
+              shop_name: next.storeName || null,
+            }
+          }).then(({ error }) => {
+            if (error) console.error("User metadata sync error:", error);
+          });
         }
 
         const displayName =
@@ -995,7 +1069,7 @@
       });
 
       // ✅ MODIFIED: also sync the checkout address keys when saving from Account
-      addressForm.addEventListener('submit', (e)=>{
+      addressForm.addEventListener('submit', async (e)=>{
         e.preventDefault();
         const next = {
           addrName:  addressForm.addrName.value.trim(),
@@ -1010,6 +1084,24 @@
 
         // 🔥 THIS is the fix: make checkout read the updated address
         syncAddressToCheckoutKeys(next);
+
+        // ✅ Also sync to Supabase user_metadata for cross-device sync
+        try {
+          await supabaseClient.auth.updateUser({
+            data: {
+              ship_name: next.addrName || null,
+              ship_address1: next.addrLine1 || null,
+              ship_address2: next.addrLine2 || null,
+              ship_city: next.addrCity || null,
+              ship_state: next.addrState || null,
+              ship_postal: next.addrZip || null,
+              ship_country: next.addrCountry || 'United States'
+            }
+          });
+          console.log("[Account] Address saved to Supabase user_metadata");
+        } catch (err) {
+          console.error("Address sync error:", err);
+        }
 
         address = next;
         renderAddress();
