@@ -1868,7 +1868,7 @@
       
       /* Cards - clean, minimal shadow */
       .card{
-        padding:12px 16px;
+        padding:10px 14px;
         margin-bottom:8px;
         border-radius:8px;
         background:#ffffff;
@@ -1950,10 +1950,10 @@
       
       /* Post body text */
       .preview{
-        font-size:15px;
-        line-height:1.4;
+        font-size:14px;
+        line-height:1.35;
         color:#050505;
-        margin-bottom:8px;
+        margin-bottom:6px;
         word-wrap:break-word;
       }
       .preview:empty{
@@ -2106,7 +2106,7 @@
       /* Individual comment - FB bubble style */
       .tt-comment{
         position:relative;
-        padding:8px 12px;
+        padding:6px 12px;
         border-radius:18px;
         background:#f0f2f5;
         border:none;
@@ -2150,9 +2150,9 @@
       }
 
       .tt-comment-body{
-        font-size:15px;
+        font-size:14px;
         color:#050505;
-        line-height:1.35;
+        line-height:1.3;
       }
       .tt-comment-body a{
         color:#216fdb;
