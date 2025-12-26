@@ -381,7 +381,12 @@
       padding:8px 10px;
       border-radius:999px;
       border:1px solid var(--border);
-      font-size:13px;
+      font-size:16px; /* 16px prevents iOS auto-zoom on focus */
+    }
+    @media (min-width:768px){
+      #qaBody{
+        font-size:13px;
+      }
     }
     #qaSubmitBtn{
       padding-inline:16px;
@@ -1142,28 +1147,34 @@
       const url = window.location.href;
       const title = currentListing?.title || document.title || "Hemline Market listing";
 
+      // Try native share first on mobile (better UX)
+      if(navigator.share){
+        try{
+          await navigator.share({ title, url });
+          showToast("Shared successfully");
+          return;
+        }catch(e){
+          if(e && e.name === "AbortError") return;
+          console.warn("navigator.share failed, falling back to clipboard", e);
+        }
+      }
+
+      // Fallback to clipboard
       if(navigator.clipboard && window.isSecureContext){
         try{
           await navigator.clipboard.writeText(url);
-          showToast("Link copied");
+          showToast("Link copied to clipboard");
           return;
         }catch(e){
           console.warn("clipboard write failed", e);
         }
       }
 
-      if(navigator.share){
-        try{
-          await navigator.share({ title, url });
-          return;
-        }catch(e){
-          if(e && e.name === "AbortError") return;
-          console.warn("navigator.share failed", e);
-        }
+      // Final fallback - prompt dialog
+      const copied = window.prompt("Copy this link:", url);
+      if(copied !== null){
+        showToast("Link ready to copy");
       }
-
-      window.prompt("Copy this link:", url);
-      showToast("Link ready to copy");
     };
   }
 
@@ -1335,10 +1346,29 @@
         const flagSpan = document.createElement("span");
         flagSpan.textContent = "Flag";
         flagSpan.className = "qa-link";
-        flagSpan.addEventListener("click", ()=>{
+        flagSpan.addEventListener("click", async ()=>{
           const ok = window.confirm("Flag this comment as spam or inappropriate?");
           if(ok){
-            showToast("Thanks for your report");
+            // Record the flag in notifications/admin table
+            try{
+              if(currentSession && currentSession.user){
+                await supabaseClient.from("notifications").insert({
+                  user_id: currentListing?.seller_id || row.author_id,
+                  type: "comment_flagged",
+                  kind: "flag",
+                  title: "Comment flagged for review",
+                  body: `A comment was flagged: "${(row.body || "").slice(0, 100)}..."`,
+                  href: `listing.html?id=${encodeURIComponent(listingId)}`,
+                  link: `listing.html?id=${encodeURIComponent(listingId)}`,
+                  listing_id: listingId,
+                  question_id: row.id,
+                  flagged_by: currentSession.user.id
+                });
+              }
+            }catch(e){
+              console.warn("Flag notification failed", e);
+            }
+            showToast("Thanks for your report. We'll review this comment.");
           }
         });
         metaRow.appendChild(flagSpan);
@@ -1424,6 +1454,9 @@
 
         submitBtn.disabled = true;
         if(note) note.textContent = "Posting…";
+        
+        // Blur input to prevent mobile zoom issues
+        input.blur();
 
         const authorId = currentSession.user.id;
 
