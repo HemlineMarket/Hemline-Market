@@ -1119,9 +1119,10 @@
         try{
           const buyerId  = currentSession && currentSession.user && currentSession.user.id;
           const sellerId = currentListing && currentListing.seller_id;
+          console.log("[Favorite] Attempting notification:", { buyerId, sellerId, listingId: currentListing?.id });
           if(buyerId && sellerId && buyerId !== sellerId){
             const listingUrl = `listing.html?id=${encodeURIComponent(currentListing.id)}`;
-            await supabaseClient.from("notifications").insert({
+            const { data, error } = await supabaseClient.from("notifications").insert({
               user_id   : sellerId,
               type      : "listing_favorited",
               kind      : "favorite",
@@ -1130,10 +1131,15 @@
               href      : listingUrl,
               link      : listingUrl,
               listing_id: currentListing.id
-            });
+            }).select();
+            if(error){
+              console.error("[Favorite] Notification insert error:", error);
+            } else {
+              console.log("[Favorite] Notification created:", data);
+            }
           }
         }catch(e){
-          console.warn("Favorite notification insert failed", e);
+          console.error("Favorite notification insert failed", e);
         }
       }
     };
@@ -1487,6 +1493,7 @@
             showToast("Comment posted");
 
             const sellerId = currentListing?.seller_id;
+            console.log("[Comment] Attempting notification:", { sellerId, authorId, listingId });
             if(
               sellerId &&
               sellerId !== authorId
@@ -1497,7 +1504,7 @@
                 : body;
 
               try{
-                await supabaseClient.from("notifications").insert({
+                const { data, error } = await supabaseClient.from("notifications").insert({
                   user_id: sellerId,
                   type: "listing_comment",
                   kind: "comment",
@@ -1507,9 +1514,14 @@
                   link: listingUrl,
                   listing_id: listingId,
                   question_id: inserted?.id || null
-                });
+                }).select();
+                if(error){
+                  console.error("[Comment] Notification insert error:", error);
+                } else {
+                  console.log("[Comment] Notification created:", data);
+                }
               }catch(notifErr){
-                console.warn("Notification insert failed (listing comment)", notifErr);
+                console.error("Notification insert failed (listing comment)", notifErr);
               }
             }
 
