@@ -758,22 +758,28 @@
 
       let listings = [];
       try{
-        const nowIso = new Date().toISOString();
-
+        // Fetch all listings, filter client-side (same approach as atelier.html)
         const { data, error } = await supabaseClient
           .from("listings")
           .select("*")
-          .eq("is_published", true)
-          .or(`published_at.is.null,published_at.lte.${nowIso}`)
-          .order("published_at", { ascending:false })
-          .limit(12);
+          .order("published_at", { ascending:false, nullsFirst: false })
+          .limit(50);
 
         if(error){
           console.error("Home listings error", error);
           if(count) count.textContent = "Error loading listings";
           return;
         }
-        listings = (data || []).filter(l => (l.status || "active") === "active");
+        
+        const now = new Date();
+        // Client-side filtering: is_published true, status active, published_at in past or null
+        listings = (data || []).filter(l => {
+          if(l.is_published !== true) return false;
+          const status = (l.status || "active").toLowerCase();
+          if(status !== "active") return false;
+          if(l.published_at && new Date(l.published_at) > now) return false;
+          return true;
+        }).slice(0, 12); // Limit to 12 for homepage
       }catch(e){
         console.error("Home listings exception", e);
         if(count) count.textContent = "Error loading listings";
