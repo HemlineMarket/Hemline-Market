@@ -293,13 +293,16 @@
     // Render shared header + footer (also sets window.HM.supabase)
     window.HM && window.HM.renderShell({ currentPage: "auth" });
 
-    // Prefer the shared Supabase client if hm-shell exposed one
-    const supabase = (window.HM && window.HM.supabase)
-      ? window.HM.supabase
-      : window.supabase.createClient(
-          "https://clkizksbvxjkoatdajgd.supabase.co",
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
-        );
+    // Use existing supabase client or create one (avoid redeclaration)
+    var supabase = window.supabase_client || (window.HM && window.HM.supabase);
+    if (!supabase) {
+      supabase = window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+      );
+    }
+    // Store globally to prevent duplicate clients
+    window.supabase_client = supabase;
 
     // Session status (for the small note under the links)
     (async ()=>{
