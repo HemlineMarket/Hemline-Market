@@ -1064,14 +1064,34 @@
       addressForm.addrZip.value     = address.addrZip     || "";
       addressForm.addrCountry.value = address.addrCountry || "United States";
 
-      // Vacation toggle
+      // Vacation toggle - load from Supabase profile
       try{
+        const { data: profileData } = await supabaseClient
+          .from("profiles")
+          .select("vacation_mode")
+          .eq("id", userId)
+          .single();
+        
+        vacationToggle.checked = profileData?.vacation_mode === true;
+      }catch(e){
+        // Fallback to localStorage
         const vacRaw = localStorage.getItem(VAC_KEY);
         vacationToggle.checked = vacRaw === "on";
-      }catch(e){}
+      }
 
-      vacationToggle.addEventListener('change', () => {
-        localStorage.setItem(VAC_KEY, vacationToggle.checked ? "on" : "off");
+      vacationToggle.addEventListener('change', async () => {
+        const isOn = vacationToggle.checked;
+        localStorage.setItem(VAC_KEY, isOn ? "on" : "off");
+        
+        // Also save to Supabase for persistence across devices
+        try{
+          await supabaseClient
+            .from("profiles")
+            .update({ vacation_mode: isOn })
+            .eq("id", userId);
+        }catch(e){
+          console.warn("Failed to save vacation mode to Supabase", e);
+        }
       });
 
       // ---- Profile button handlers ----
