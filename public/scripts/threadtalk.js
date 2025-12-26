@@ -658,6 +658,25 @@
   // ---------- Media rendering ----------
   function renderMedia(thread) {
     if (!thread.media_url || !thread.media_type) return "";
+
+    // Handle multiple images
+    if (thread.media_type === "images") {
+      try {
+        const urls = JSON.parse(thread.media_url);
+        if (Array.isArray(urls) && urls.length) {
+          const imagesHtml = urls.map(url => `
+            <img class="post-img post-img-multi"
+                 src="${escapeAttr(url)}"
+                 alt="Post image"
+                 data-tt-role="zoom-img"/>
+          `).join("");
+          return `<div class="post-media-wrap post-media-grid">${imagesHtml}</div>`;
+        }
+      } catch (e) {
+        console.warn("[ThreadTalk] Could not parse multiple images", e);
+      }
+    }
+
     const src = escapeAttr(thread.media_url);
 
     if (thread.media_type === "image") {
@@ -732,7 +751,7 @@
     if (!currentUser || !recipientId || recipientId === currentUser.id) return;
 
     try {
-      const href = `/ThreadTalk.html?thread=${threadId}`;
+      const href = `ThreadTalk.html?thread=${threadId}`;
 
       const { error } = await supabase.from("notifications").insert({
         user_id: recipientId,          // recipient
@@ -830,44 +849,99 @@
   async function maybeUploadComposerMedia() {
     if (!currentUser) return { media_url: null, media_type: null };
 
-    const file =
-      photoInput?.files?.[0] || videoInput?.files?.[0];
-    if (!file) return { media_url: null, media_type: null };
+    // Check for video first (single file)
+    const videoFile = videoInput?.files?.[0];
+    if (videoFile) {
+      try {
+        const ext = videoFile.name.split(".").pop().toLowerCase();
+        const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
 
-    const isImage = !!photoInput?.files?.[0];
-    const media_type = isImage ? "image" : "video";
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(path, videoFile, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: videoFile.type,
+          });
 
-    try {
-      const ext = file.name.split(".").pop().toLowerCase();
-      const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
+        if (error) {
+          console.error("[ThreadTalk] upload error", error);
+          showToast("Upload failed.");
+          return { media_url: null, media_type: null };
+        }
 
-      const { data, error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: file.type,
-        });
+        const { data: pub } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(data.path);
 
-      if (error) {
-        console.error("[ThreadTalk] upload error", error);
+        return {
+          media_url: pub?.publicUrl || null,
+          media_type: "video",
+        };
+      } catch (err) {
+        console.error("[ThreadTalk] upload exception", err);
         showToast("Upload failed.");
         return { media_url: null, media_type: null };
       }
+    }
 
-      const { data: pub } = supabase.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(data.path);
+    // Handle multiple images
+    const photoFiles = photoInput?.files;
+    if (!photoFiles || photoFiles.length === 0) {
+      return { media_url: null, media_type: null };
+    }
 
-      return {
-        media_url: pub?.publicUrl || null,
-        media_type,
-      };
-    } catch (err) {
-      console.error("[ThreadTalk] upload exception", err);
+    const files = Array.from(photoFiles).slice(0, 4);
+    const uploadedUrls = [];
+
+    for (const file of files) {
+      try {
+        const ext = file.name.split(".").pop().toLowerCase();
+        const path = `${currentUser.id}/thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(path, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: file.type,
+          });
+
+        if (error) {
+          console.error("[ThreadTalk] upload error", error);
+          continue;
+        }
+
+        const { data: pub } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(data.path);
+
+        if (pub?.publicUrl) {
+          uploadedUrls.push(pub.publicUrl);
+        }
+      } catch (err) {
+        console.error("[ThreadTalk] upload exception", err);
+      }
+    }
+
+    if (uploadedUrls.length === 0) {
       showToast("Upload failed.");
       return { media_url: null, media_type: null };
     }
+
+    // Store multiple URLs as JSON array string for multi-image support
+    // Single image: store as plain URL for backward compatibility
+    if (uploadedUrls.length === 1) {
+      return {
+        media_url: uploadedUrls[0],
+        media_type: "image",
+      };
+    }
+
+    return {
+      media_url: JSON.stringify(uploadedUrls),
+      media_type: "images", // plural indicates multiple
+    };
   }
 
   async function maybeUploadCommentMedia(file) {
@@ -911,9 +985,11 @@
     if (!photoInput || !videoInput || !mediaPreview) return;
 
     photoInput.addEventListener("change", () => {
-      if (photoInput.files?.[0]) {
+      if (photoInput.files?.length) {
         videoInput.value = "";
-        showPreview(photoInput.files[0], "image");
+        // Limit to 4 photos
+        const files = Array.from(photoInput.files).slice(0, 4);
+        showMultiplePreview(files, "image");
       }
     });
 
@@ -923,6 +999,44 @@
         showPreview(videoInput.files[0], "video");
       }
     });
+  }
+
+  function showMultiplePreview(files, kind) {
+    mediaPreview.hidden = false;
+    mediaPreview.innerHTML = "";
+
+    files.forEach((file, idx) => {
+      const url = URL.createObjectURL(file);
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "position:relative;display:inline-block;margin-right:8px;";
+      
+      if (kind === "image") {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = `Preview image ${idx + 1}`;
+        wrapper.appendChild(img);
+      }
+      
+      // Add remove button
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.textContent = "×";
+      removeBtn.style.cssText = "position:absolute;top:2px;right:2px;background:#000;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:14px;line-height:1;";
+      removeBtn.addEventListener("click", () => {
+        wrapper.remove();
+        if (mediaPreview.children.length === 0) {
+          mediaPreview.hidden = true;
+          photoInput.value = "";
+        }
+      });
+      wrapper.appendChild(removeBtn);
+      
+      mediaPreview.appendChild(wrapper);
+    });
+    
+    if (files.length >= 4) {
+      showToast("Maximum 4 images per post");
+    }
   }
 
   function showPreview(file, kind) {
@@ -1973,12 +2087,21 @@
         margin:8px 0;
         max-width:500px;
       }
+      .post-media-grid{
+        display:grid;
+        grid-template-columns:repeat(2,1fr);
+        gap:4px;
+      }
       .post-img,
       .post-video{
         width:100%;
         height:auto;
         border-radius:8px;
         display:block;
+      }
+      .post-img-multi{
+        aspect-ratio:1;
+        object-fit:cover;
       }
 
       /* Actions row - FB style divider */
