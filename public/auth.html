@@ -197,7 +197,7 @@
         <a href="#" id="link-signup">Create account</a>
       </p>
 
-      <form id="login">
+      <form id="login" action="javascript:void(0)" onsubmit="return false;" novalidate>
         <input type="email" id="li-email" placeholder="Email" required>
         <input type="password" id="li-pass" placeholder="Password" required>
         <button class="primary" type="submit">Log in</button>
@@ -348,35 +348,66 @@
     }
 
     // Email + Password login → go to homepage
-    document.getElementById("login").onsubmit = async (e)=>{
+    const loginForm = document.getElementById("login");
+    
+    // Prevent any default form submission
+    loginForm.setAttribute("action", "javascript:void(0)");
+    loginForm.setAttribute("onsubmit", "return false;");
+    
+    loginForm.addEventListener("submit", async function(e) {
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       
-      const btn = e.target.querySelector('button[type="submit"]');
+      const btn = this.querySelector('button[type="submit"]');
       const origText = btn.textContent;
+      
+      // Check if already processing
+      if (btn.disabled) {
+        console.log("[Auth] Login already in progress, ignoring duplicate submit");
+        return false;
+      }
+      
       btn.disabled = true;
       btn.textContent = "Logging in...";
       
       const email = document.getElementById("li-email").value.trim();
       const password = document.getElementById("li-pass").value;
       
+      console.log("[Auth] Attempting login for:", email);
+      
       try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if(!error && data?.session){
-          location.href = "index.html";
-        }else{
-          alert(error?.message || "Login failed. Please check your email and password.");
+        
+        console.log("[Auth] Response received", { hasSession: !!data?.session, error: error?.message });
+        
+        if (error) {
+          console.error("[Auth] Login error:", error);
+          alert(error.message || "Login failed. Please check your email and password.");
+          btn.disabled = false;
+          btn.textContent = origText;
+          return false;
+        }
+        
+        if (data && data.session) {
+          console.log("[Auth] Login successful, redirecting...");
+          // Use replace to prevent back button issues
+          window.location.replace("index.html");
+        } else {
+          console.warn("[Auth] No session returned");
+          alert("Login failed. Please try again.");
           btn.disabled = false;
           btn.textContent = origText;
         }
       } catch(err) {
+        console.error("[Auth] Login exception:", err);
         alert("Login error: " + (err.message || "Please try again."));
         btn.disabled = false;
         btn.textContent = origText;
       }
       
       return false;
-    };
+    }, { capture: true });
 
     // Sign up → create user + display_name (from email local-part), with password rules
     document.getElementById("signup").onsubmit = async (e)=>{
