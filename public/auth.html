@@ -174,6 +174,42 @@
       text-align:center;
     }
 
+    .password-requirements{
+      font-size:13px;
+      color:#6b7280;
+      display:grid;
+      gap:4px;
+      padding:8px 0;
+    }
+
+    .pw-rule{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    .pw-icon{
+      font-size:12px;
+      width:16px;
+      text-align:center;
+    }
+
+    .pw-rule.valid{
+      color:#059669;
+    }
+
+    .pw-rule.valid .pw-icon::before{
+      content:"✓";
+    }
+
+    .pw-rule.invalid{
+      color:#dc2626;
+    }
+
+    .pw-rule.invalid .pw-icon::before{
+      content:"✗";
+    }
+
     @media (max-width:640px){
       .auth-container{
         margin:24px 12px;
@@ -241,14 +277,24 @@
     <div class="auth-container hidden" id="card-signup">
       <h1>Create your account</h1>
       <p class="muted">Spin up your seller profile and start listing fabric finds.</p>
-      <form id="signup">
+      <form id="signup" action="javascript:void(0)" onsubmit="return false;" novalidate>
         <input type="email" id="su-email" placeholder="Email" required>
-        <input type="password" id="su-pass" placeholder="Password" required>
-        <button class="primary" type="submit">Create account</button>
+        <input type="password" id="su-pass" placeholder="Password" required minlength="8">
+        <div class="password-requirements" id="pw-requirements">
+          <div class="pw-rule" id="pw-length">
+            <span class="pw-icon">○</span> At least 8 characters
+          </div>
+          <div class="pw-rule" id="pw-letter">
+            <span class="pw-icon">○</span> At least one letter (a-z)
+          </div>
+          <div class="pw-rule" id="pw-number">
+            <span class="pw-icon">○</span> At least one number (0-9)
+          </div>
+        </div>
+        <button class="primary" type="submit" id="signup-btn" disabled>Create account</button>
       </form>
       <p class="note">
-        Password must be at least 8 characters and include at least one letter and one number.
-        Symbols are optional but allowed.
+        We'll send a confirmation email to verify your address.
       </p>
       <div class="links">
         <a href="#" id="back-from-signup">Back to sign in</a>
@@ -349,6 +395,39 @@
       if(!/[0-9]/.test(pw)) return false;
       return true;
     }
+
+    // Real-time password validation
+    const pwInput = document.getElementById('su-pass');
+    const pwLength = document.getElementById('pw-length');
+    const pwLetter = document.getElementById('pw-letter');
+    const pwNumber = document.getElementById('pw-number');
+    const signupBtn = document.getElementById('signup-btn');
+    const suEmail = document.getElementById('su-email');
+
+    function validatePassword() {
+      const pw = pwInput.value;
+      
+      const hasLength = pw.length >= 8;
+      const hasLetter = /[A-Za-z]/.test(pw);
+      const hasNumber = /[0-9]/.test(pw);
+      
+      // Update visual indicators
+      pwLength.className = 'pw-rule ' + (hasLength ? 'valid' : (pw.length > 0 ? 'invalid' : ''));
+      pwLength.querySelector('.pw-icon').textContent = hasLength ? '' : (pw.length > 0 ? '' : '○');
+      
+      pwLetter.className = 'pw-rule ' + (hasLetter ? 'valid' : (pw.length > 0 ? 'invalid' : ''));
+      pwLetter.querySelector('.pw-icon').textContent = hasLetter ? '' : (pw.length > 0 ? '' : '○');
+      
+      pwNumber.className = 'pw-rule ' + (hasNumber ? 'valid' : (pw.length > 0 ? 'invalid' : ''));
+      pwNumber.querySelector('.pw-icon').textContent = hasNumber ? '' : (pw.length > 0 ? '' : '○');
+      
+      // Enable/disable signup button
+      const emailValid = suEmail.value.includes('@');
+      signupBtn.disabled = !(hasLength && hasLetter && hasNumber && emailValid);
+    }
+
+    pwInput.addEventListener('input', validatePassword);
+    suEmail.addEventListener('input', validatePassword);
 
     // Email + Password login → go to homepage
     const loginForm = document.getElementById("login");
