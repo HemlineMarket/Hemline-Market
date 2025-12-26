@@ -749,14 +749,13 @@
         
         if (!profileError && profileData) {
           supabaseProfile = profileData;
-          // Map Supabase profile to our local format
-          const fullNameParts = (profileData.full_name || '').split(' ');
+          // Map Supabase profile to our local format - use correct column names!
           profile = {
-            firstName: fullNameParts[0] || '',
-            lastName: fullNameParts.slice(1).join(' ') || '',
-            storeName: profileData.store_name || profileData.shop_name || '',
+            firstName: profileData.first_name || '',
+            lastName: profileData.last_name || '',
+            storeName: profileData.store_name || '',
             bio: profileData.bio || '',
-            storeSlug: slugifyStoreName(profileData.store_name || profileData.shop_name || '')
+            storeSlug: profileData.store_slug || slugifyStoreName(profileData.store_name || '')
           };
           console.log('[Account] Loaded profile from Supabase:', profile);
         }
@@ -1005,8 +1004,11 @@
             .from("profiles")
             .upsert({
               id: userId,
-              full_name: fullName || null,
-              shop_name: next.storeName || null,
+              first_name: next.firstName || null,
+              last_name: next.lastName || null,
+              display_name: fullName || null,
+              store_name: next.storeName || null,
+              store_slug: next.storeSlug || null,
               bio: next.bio || null,
             }, { onConflict: 'id' })
             .then(({ error }) => {
