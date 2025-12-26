@@ -189,6 +189,22 @@ export default async function handler(req, res) {
             listing_id: md.listing_id || null,
           });
       }
+
+      // Notify buyer that their order was placed
+      if (md.buyer_id) {
+        await supabaseAdmin
+          .from("notifications")
+          .insert({
+            user_id: md.buyer_id,
+            type: "order",
+            kind: "order",
+            title: "Order confirmed!",
+            body: `Your order for "${listingTitle || 'Fabric'}" has been placed. The seller will ship it soon.`,
+            href: "/purchases.html",
+            link: "/purchases.html",
+            listing_id: md.listing_id || null,
+          });
+      }
     }
 
     // If insert failed, surface it clearly (so Stripe retries, and you see why)
