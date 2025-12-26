@@ -690,10 +690,45 @@
       try {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (user?.id) window.__hm_user_id_for_address_key = user.id;
-        if (user?.email && emailEl && !emailEl.value) emailEl.value = user.email;
+        
+        // Load contact_email from profiles (preferred over login email for Apple relay users)
+        let contactEmail = null;
+        try {
+          const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('contact_email')
+            .eq('id', user.id)
+            .maybeSingle();
+          contactEmail = profile?.contact_email;
+        } catch (_) {}
+        
+        // Use contact_email if available, otherwise fall back to login email
+        if (contactEmail && emailEl && !emailEl.value) {
+          emailEl.value = contactEmail;
+        } else if (user?.email && emailEl && !emailEl.value) {
+          emailEl.value = user.email;
+        }
+        
+        // Load address from Supabase user_metadata (synced from Account page)
+        const meta = user?.user_metadata || {};
+        if (meta.ship_address1) {
+          const supabaseAddr = {
+            line1: meta.ship_address1 || '',
+            line2: meta.ship_address2 || '',
+            city: meta.ship_city || '',
+            state: meta.ship_state || '',
+            zip: meta.ship_postal || '',
+            name: meta.ship_name || ''
+          };
+          setFormFromAddress(supabaseAddr);
+          setSummaryFromAddress(supabaseAddr);
+          closeAddrEditor();
+          console.log('[Checkout] Loaded address from Supabase user_metadata');
+          return;
+        }
       } catch (_) {}
 
-      // 1) If checkout address exists, use it
+      // 1) If checkout address exists in localStorage, use it
       const checkoutAddr = safeParse("hm_checkout_address", {});
       const hasCheckout = !!(checkoutAddr?.line1 || checkoutAddr?.city || checkoutAddr?.zip);
       if (hasCheckout) {
