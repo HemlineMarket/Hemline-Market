@@ -2014,7 +2014,7 @@
         background:#f0f2f5;
       }
       .tt-like-btn.tt-like-active{
-        color:#1877f2;
+        color:#991b1b;
       }
       
       /* Reply button */
@@ -2193,7 +2193,7 @@
         text-decoration:underline;
       }
       .tt-comment-actions button.tt-like-active{
-        color:#1877f2;
+        color:#991b1b;
       }
 
       /* Comment input - FB style */
@@ -2241,12 +2241,12 @@
         font-weight:600;
         border-radius:6px;
         border:none;
-        background:#1877f2;
+        background:#991b1b;
         color:#fff;
         cursor:pointer;
       }
       .tt-comment-send:hover{
-        background:#166fe5;
+        background:#7f1d1d;
       }
 
       .tt-comment-reply-box{
@@ -2388,7 +2388,7 @@
         resize:vertical;
       }
       .tt-edit-area:focus{
-        border-color:#1877f2;
+        border-color:#991b1b;
       }
       .tt-edit-actions{
         margin-top:8px;
@@ -2405,11 +2405,11 @@
         cursor:pointer;
       }
       .tt-edit-save{
-        background:#1877f2;
+        background:#991b1b;
         color:#fff;
       }
       .tt-edit-save:hover{
-        background:#166fe5;
+        background:#7f1d1d;
       }
       .tt-edit-cancel{
         background:#e4e6eb;
