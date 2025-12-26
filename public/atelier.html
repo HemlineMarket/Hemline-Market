@@ -411,16 +411,40 @@
       width: 64px;
       height: 64px;
       border-radius: 50%;
-      background: #991b1b;
-      color: #fff;
+      background: #f3f4f6;
+      color: #9ca3af;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
-      font-weight: 600;
+      font-size: 28px;
       flex-shrink: 0;
       background-size: cover;
       background-position: center;
+      border: 2px solid #e5e7eb;
+      cursor: pointer;
+      position: relative;
+    }
+    .atelier-avatar:hover .avatar-upload-hint {
+      opacity: 1;
+    }
+    .avatar-upload-hint {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .atelier-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
     }
     .atelier-profile-row {
       display: flex;
@@ -438,7 +462,14 @@
       <div class="hm-card-header" id="profileHeading">Store</div>
       <div class="hm-card-body">
         <div class="atelier-profile-row">
-          <div class="atelier-avatar" id="atelierAvatar">HM</div>
+          <div class="atelier-avatar" id="atelierAvatar" title="Profile photo">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <div class="avatar-upload-hint" id="avatarUploadHint" style="display:none;">Edit</div>
+          </div>
+          <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
           <div class="atelier-profile-info">
             <div class="profile-name" id="atelierOwnerName" style="font-size:18px;font-weight:600;">Hemline member</div>
             <div class="profile-bio" id="atelierBio" style="color:#6b7280;font-size:14px;margin-top:4px;"></div>
@@ -853,22 +884,55 @@
     subEl.textContent= profileIncomplete ? "Complete your profile to set up your shop." : "";
     ownerNameEl.textContent=fullName;
     
-    // Set avatar initials
+    // Set avatar - show profile photo if available, otherwise default icon
     const avatarEl = document.getElementById('atelierAvatar');
+    const avatarHint = document.getElementById('avatarUploadHint');
+    const avatarFileInput = document.getElementById('avatarFileInput');
+    
     if (avatarEl) {
-      let initials = 'HM';
-      if (first && last) {
-        initials = (first[0] + last[0]).toUpperCase();
-      } else if (first) {
-        initials = first.slice(0, 2).toUpperCase();
-      } else if (store) {
-        initials = store.slice(0, 2).toUpperCase();
+      const avatarUrl = profile?.avatar_url;
+      if (avatarUrl) {
+        avatarEl.innerHTML = '<img src="' + avatarUrl + '" alt="Profile photo">';
       }
-      avatarEl.textContent = initials;
-      
-      // TODO: If profile has avatar_url, show image instead
-      // avatarEl.style.backgroundImage = `url(${profile.avatar_url})`;
-      // avatarEl.textContent = '';
+      // Show upload hint only for owner
+      if (isOwn && avatarHint) {
+        avatarHint.style.display = 'flex';
+        avatarEl.onclick = () => avatarFileInput?.click();
+      }
+    }
+    
+    // Handle avatar upload (for owner only)
+    if (avatarFileInput && isOwn) {
+      avatarFileInput.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        // Upload to Supabase storage
+        const ext = file.name.split('.').pop();
+        const path = sellerId + '/avatar.' + ext;
+        
+        const { data, error } = await supabaseClient.storage
+          .from('avatars')
+          .upload(path, file, { upsert: true });
+        
+        if (error) {
+          console.error('Avatar upload error:', error);
+          alert('Failed to upload photo. Please try again.');
+          return;
+        }
+        
+        // Get public URL
+        const { data: urlData } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+        const publicUrl = urlData?.publicUrl;
+        
+        // Update profile
+        await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', sellerId);
+        
+        // Update UI
+        if (avatarEl && publicUrl) {
+          avatarEl.innerHTML = '<img src="' + publicUrl + '?t=' + Date.now() + '" alt="Profile photo">';
+        }
+      };
     }
     
     // Only show "Store name:" if it's different from the owner name
@@ -881,9 +945,12 @@
     }
     
     // Display bio if available
+    console.log('[Atelier] Bio from profile:', bio);
     if (bio) {
       bioEl.textContent = bio;
       bioEl.style.display = 'block';
+      bioEl.style.color = '#6b7280';
+      bioEl.style.fontStyle = 'normal';
     } else if (isOwn) {
       bioEl.textContent = 'Add a bio in your profile to tell buyers about yourself.';
       bioEl.style.color = '#9ca3af';
@@ -896,11 +963,11 @@
     let slug = slugifyStoreName(shopDisplay);
     
     // Use pretty URL format: hemlinemarket.com/shop/afroza
-    const prettyUrl = window.location.origin + "/shop/" + (slug || sellerId);
+    const prettyUrl = "https://hemlinemarket.com/shop/" + (slug || sellerId);
     // Actual working URL for the link
     const shareUrl = window.location.origin + "/atelier.html?shop=" + encodeURIComponent(slug || sellerId);
 
-    // Show pretty URL in share input, but link to working URL
+    // Show pretty URL in share input
     shareInput.value = prettyUrl;
     copyBtn.onclick = () => {
       navigator.clipboard.writeText(prettyUrl);
@@ -914,9 +981,6 @@
       .replace(/</g,"&lt;")
       .replace(/>/g,"&gt;");
     titleEl.innerHTML = 'Atelier: <a href="'+shareUrl+'" id="atelierTitleLink">'+safeName+'</a>';
-
-    shareInput.value=shareUrl;
-    copyBtn.onclick=()=>navigator.clipboard.writeText(shareInput.value);
 
     if(isOwn){
       editBtn.style.display="inline-flex";
