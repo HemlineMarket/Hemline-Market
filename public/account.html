@@ -1146,8 +1146,13 @@
               shop_name: next.storeName || null,
               contact_email: next.contactEmail || null,
             }
-          }).then(({ error }) => {
-            if (error) console.error("User metadata sync error:", error);
+          }).then(({ data, error }) => {
+            if (error) {
+              console.error("User metadata sync error:", error);
+              alert("Error saving email: " + error.message);
+            } else {
+              console.log("[Account] User metadata saved successfully", data);
+            }
           });
         }
 
@@ -1157,6 +1162,13 @@
           displayName || (email.split("@")[0] || "Hemline member");
         profileNameEl.style.color = '';
         profileNameEl.style.fontStyle = '';
+
+        // ✅ Force update the email display immediately after save
+        if (next.contactEmail) {
+          profileEmailEl.textContent = next.contactEmail;
+          profileEmailEl.style.color = "";
+          profileEmailEl.style.fontStyle = "";
+        }
 
         // ✅ Update email display - show contact email if we have one
         if (next.contactEmail && !isRelayEmail(next.contactEmail)) {
