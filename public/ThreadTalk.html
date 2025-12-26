@@ -3,731 +3,1169 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>ThreadTalk — Hemline Market</title>
+  <title>Browse — Hemline Market</title>
 
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
-  <!-- Shared site styles (same stack as index.html) -->
+  <!-- Shared styles (universal stack) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
 
   <style>
-    /* Global vars used by the universal header/footer */
     :root{
-      /* header/footer expect these: */
+      /* Match universal tokens */
       --hm-accent:#991b1b;
       --hm-text:#111827;
       --hm-muted:#6b7280;
       --hm-border:#e5e7eb;
       --hm-bg-card:rgba(255,255,255,.96);
 
-      /* page-specific palette (ThreadTalk) */
-      --hm-brand:#991b1b;
-      --ink:#3f2f2a;
-      --muted:#7a6e68;
-      --border:#e8e0d9;
-      --card:#ffffff;
-      --bg:#fdfbf9;
-      --accent:#2d2d2d;
+      /* Browse-specific aliases */
+      --ink:#111827;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --accent:#991b1b;
+      --bg:#fafafa;
     }
 
-    body{
+    html,body{
       margin:0;
-      background:
-        radial-gradient(1200px 420px at 50% -240px, rgba(153,27,27,.06) 0%, rgba(253,251,249,0) 60%),
-        linear-gradient(180deg, var(--bg) 0%, #fff 100%);
-      color:var(--ink);
+      max-width:100%;
+      overflow-x:hidden;
+      background:var(--bg);
+      color:var(--hm-text);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
       -webkit-font-smoothing:antialiased;
     }
 
-    /* ------------------------------------------------------------------
-       THREADTALK PAGE LAYOUT
-       (Header/footer are handled ONLY by hm-shell.js)
-    ------------------------------------------------------------------ */
-    .tt-wrap{
-      max-width:1200px;
-      margin:22px auto 44px;
-      padding:0 16px;
+    /* ===== BROWSE MAIN LAYOUT ===== */
+    .browse-wrap{
+      max-width:1100px;
+      margin:18px auto 28px;
+      padding:0 12px;
     }
-
-    /* Hero + compact composer */
-    .tt-hero{
-      border:1px solid var(--border);
-      border-radius:20px;
-      padding:18px 16px;
-      text-align:left;
-      box-shadow:0 10px 20px rgba(50,38,31,.07);
-      background:radial-gradient(120% 150% at 50% 0%, #fff 0%, rgba(153,27,27,.05) 55%, #fff 100%);
-    }
-
-    .tt-hero-header{
+    .topbar{
       display:flex;
-      align-items:flex-end;
-      justify-content:space-between;
-      gap:16px;
-      flex-wrap:wrap;
-      margin-bottom:8px;
-    }
-    .tt-hero-left{
-      flex:1 1 260px;
-      min-width:220px;
-    }
-    .tt-hero-right{
-      flex:0 0 260px;
-      max-width:320px;
-    }
-
-    .tt-hero h1{
-      font-family:ui-serif,"Cormorant Garamond",Georgia,serif;
-      font-size:clamp(28px,4.2vw,44px);
-      margin:0 0 4px;
-    }
-    .tt-hero .sub{
-      color:var(--muted);
-      font-size:15px;
-      margin:6px 0 12px;
-    }
-
-    .tt-search{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      background:#fff;
-      border-radius:999px;
-      border:1px solid var(--border);
-      padding:6px 10px;
-      box-shadow:0 6px 12px rgba(50,38,31,.05);
-    }
-    .tt-search-label{
-      font-size:11px;
-      text-transform:uppercase;
-      letter-spacing:.08em;
-      color:var(--muted);
-      white-space:nowrap;
-    }
-    .tt-search-input{
-      flex:1;
-      border:none;
-      outline:none;
-      font-size:14px;
-      background:transparent;
-      color:var(--ink);
-    }
-    .tt-search-input::placeholder{
-      color:var(--muted);
-    }
-
-    .composer{
-      max-width:780px;
-      margin:10px auto 0;
-      text-align:left;
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:8px;
-      box-shadow:0 6px 14px rgba(50,38,31,.06);
-    }
-    .composer .row{
-      display:flex;
-      gap:8px;
-      margin:8px;
-      align-items:flex-start;
-    }
-    .composer select,
-    .composer textarea{
-      width:100%;
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:10px 12px;
-      font:inherit;
-      color:var(--ink);
-      background:#fff;
-    }
-    /* slimmer body box in the composer */
-    .composer textarea{
-      min-height:64px;
-      resize:vertical;
-    }
-    .composer .actions{
-      display:flex;
-      align-items:center;
       gap:10px;
-      justify-content:space-between;
-      margin:6px 8px 4px;
-    }
-    .left-actions{
-      display:flex;
-      gap:8px;
       align-items:center;
+      margin-bottom:12px;
+      flex-wrap:wrap;
     }
-    .right-actions{
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
-
-    /* Make Category narrow, text area / title wide */
-    .composer .row{display:flex;gap:10px;align-items:flex-start}
-    #composeCategory{
-      flex:0 0 240px;
-      max-width:260px;
-      width:auto !important;
-    }
-    .composer-main{
-      flex:1 1 auto;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-    }
-    .composer-title-label{
-      font-size:12px;
-      color:var(--muted);
-    }
-    .composer-title{
+    .topbar input[type="search"]{
+      flex:1;
+      min-width:0;
+      padding:10px;
       border:1px solid var(--border);
       border-radius:10px;
-      padding:8px 10px;
-      font:inherit;
-    }
-    #composeText{
-      flex:1 1 auto;
-      width:auto !important;
-      min-height:90px;
-    }
-
-    .icon-btn{
-      display:inline-grid;
-      place-items:center;
-      width:36px;
-      height:36px;
-      border-radius:10px;
-      border:1px solid var(--border);
       background:#fff;
-      cursor:pointer;
     }
-    .icon-btn svg{width:20px;height:20px}
-    .icon-photo{color:#dc2626}
-    .icon-video{color:#2563eb}
-
-    .tt-post{
-      appearance:none;
+    .topbar button{
+      padding:9px 12px;
+      border-radius:10px;
       border:1px solid var(--accent);
       background:var(--accent);
       color:#fff;
-      padding:8px 14px;
-      border-radius:10px;
       font-weight:700;
+      cursor:pointer;
+      white-space:nowrap;
     }
-    .tt-post:disabled{
-      opacity:.5;
-      cursor:not-allowed;
-    }
-
-    .preview-wrap{
-      display:flex;
-      gap:10px;
-      padding:0 8px 8px;
-    }
-    .preview-wrap img,
-    .preview-wrap video{
-      max-width:140px;
-      max-height:120px;
-      border-radius:10px;
-      border:1px solid var(--border);
-    }
-
-    /* Topics */
-    .topics{margin-top:22px}
-
-    /* Force a tidy 4x4 grid on desktop */
-    .topics-grid{
-      display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
-      gap:16px;
-    }
-
-    .topic{
-      position:relative;
-      overflow:hidden;
+    .filter-toggle{
+      border-color:var(--border);
       background:#fff;
-      display:block;
-      text-decoration:none;
-      color:var(--ink);
-      border:1px solid var(--border);
-      border-radius:16px;
-      padding:20px 18px 18px 18px;
-      box-shadow:0 10px 16px rgba(50,38,31,.06);
-      transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-    }
-    .topic:hover{
-      transform:translateY(-2px);
-      box-shadow:0 16px 28px rgba(50,38,31,.1);
-      border-color:#e2d7cf;
-    }
-    .topic .title{
-      font-weight:800;
-      letter-spacing:.2px;
-    }
-    .topic::before{
-      content:'';
-      position:absolute;
-      left:0;
-      top:0;
-      bottom:0;
-      width:4px;
-      background:var(--hm-brand);
-      opacity:.9;
-    }
-    .tile-art{
-      position:absolute;
-      right:-6px;
-      top:-6px;
-      width:84px;
-      height:84px;
-      opacity:.2;
-      pointer-events:none;
-      stroke:var(--hm-brand);
-      fill:none;
-      stroke-width:1.5;
+      color:#111827;
     }
 
-    /* Feed */
-    .feed{margin-top:24px}
-    .feed h2{
-      font-size:18px;
-      margin:4px 0 12px 4px;
-      color:#5a463d;
+    .layout{
+      display:grid;
+      grid-template-columns:280px 1fr;
+      gap:14px;
     }
-    .cards{
-      display:flex;
-      flex-direction:column;
-      gap:16px;
-      max-width:1200px;
-      margin:0 auto;
+    .layout.filters-hidden .filters{display:none;}
+    .layout.filters-hidden{grid-template-columns:1fr;}
+
+    @media(max-width:900px){
+      .layout{grid-template-columns:1fr;}
+      .topbar input[type="search"]{flex-basis:100%;}
     }
-    .card{
-      background:var(--card);
+
+    /* ---------- FILTERS ---------- */
+    .filters{
+      background:#fff;
       border:1px solid var(--border);
-      border-radius:16px;
-      padding:18px 20px;
-      box-shadow:0 12px 18px rgba(50,38,31,.07);
+      border-radius:12px;
+      padding:10px;
+      height:max-content;
     }
-    .meta{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-      color:var(--muted);
-      font-size:13px;
-      margin-bottom:6px;
-      flex-wrap:wrap;
+    .filters h3{margin:0 0 8px;}
+    .section{
+      border-top:1px solid var(--border);
+      padding-top:8px;
+      margin-top:8px;
     }
-    .meta-main{
-      display:flex;
-      align-items:center;
-      gap:6px;
-      flex-wrap:wrap;
-    }
-    /* Never show avatars on ThreadTalk cards */
-    .avatar{
-      display:none;
+    .section:first-of-type{
+      border-top:0;
+      padding-top:0;
+      margin-top:0;
     }
     .title{
-      margin:4px 0 8px;
-      line-height:1.35;
-    }
-    .cat{
-      font-weight:800;
-      margin-right:.35rem;
-      text-decoration:none;
-      color:var(--hm-brand);
-    }
-    .preview{
-      color:#5e544d;
-      font-size:14px;
-      margin-bottom:8px;
-      white-space:pre-wrap;
-    }
-    .post-img,
-    .post-video{
-      width:100%;
-      height:auto;
-      border-radius:12px;
-      margin:8px 0;
-      border:1px solid var(--border);
-      display:block;
-      max-height:560px;
-    }
-    .actions{
-      display:flex;
-      gap:14px;
-      align-items:center;
-      color:#7e6f66;
+      font-weight:700;
       font-size:13px;
-      margin-top:8px;
+      color:#374151;
+      margin:0 0 6px;
     }
-
-    /* Reactions / comments / edit */
-    .tt-react-row{
-      display:flex;
-      gap:6px;
-      margin-top:4px;
-      flex-wrap:wrap;
-    }
-    .tt-react{
+    .listbox{
+      max-height:230px;
+      overflow:auto;
       border:1px solid var(--border);
+      border-radius:10px;
+      padding:6px;
       background:#fff;
-      border-radius:999px;
-      padding:3px 8px;
+    }
+    .row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 4px;
+      border-bottom:1px dashed #f3f4f6;
+    }
+    .row:last-child{border-bottom:0;}
+    .row input{
+      width:14px;
+      height:14px;
+    }
+    .row label{
       font-size:12px;
-      cursor:pointer;
+      color:#374151;
     }
-    .tt-react span{
-      min-width:1.2em;
-      display:inline-block;
-      text-align:center;
+    .mini{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
     }
-    .tt-react-active{
-      border-color:var(--hm-accent);
-      box-shadow:0 0 0 1px rgba(153,27,27,.08);
-    }
-
-    .tt-comments{
-      margin-top:10px;
+    .mini .field{
       display:flex;
       flex-direction:column;
-      gap:10px;
+      gap:4px;
     }
-    .tt-comment{
-      border:1px solid var(--border);
-      background:#fff;
-      border-radius:10px;
-      padding:8px;
-    }
-    .tt-comment-head{
-      color:var(--muted);
+    .mini label{
       font-size:12px;
-      margin-bottom:4px;
+      color:#374151;
     }
-    .tt-comment-new{
-      display:flex;
+    .mini input{
+      padding:7px 10px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+      font-size:13px;
+      max-width:120px;
+    }
+    .selects{
+      display:grid;
       gap:8px;
     }
-    .tt-comment-input{
-      flex:1;
+    .selects select,
+    .selects input{
+      width:100%;
+      padding:8px 10px;
       border:1px solid var(--border);
       border-radius:10px;
-      padding:8px;
-    }
-    .tt-comment-send{
-      border:1px solid var(--accent);
-      background:var(--accent);
-      color:#fff;
-      border-radius:10px;
-      padding:8px 12px;
+      background:#fff;
     }
 
-    .tt-menu{
+    /* COLOR BOX */
+    #colorBox{
+      --sw:22px;
+      --gap:6px;
+      display:grid;
+      grid-template-columns:repeat(5,var(--sw));
+      grid-template-rows:repeat(3,var(--sw));
+      gap:var(--gap);
+      align-content:start;
+      justify-content:start;
+      padding:6px;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:10px;
+    }
+    #colorBox .sw{
+      width:var(--sw);
+      height:var(--sw);
+      border-radius:6px;
+      border:1px solid #d1d5db;
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);
+      cursor:pointer;
       position:relative;
     }
-    .tt-menu-btn{
-      border:1px solid var(--border);
-      background:#fff;
-      border-radius:8px;
-      padding:4px 8px;
+    #colorBox .sw[data-selected="true"]{
+      outline:2px solid var(--accent);
+      outline-offset:2px;
     }
-    .tt-menu-pop{
+    #colorBox .sw .tip{
       position:absolute;
-      right:0;
-      top:32px;
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:10px;
-      box-shadow:0 8px 18px rgba(0,0,0,.08);
-      display:grid;
-      z-index:10;
-    }
-    .tt-menu-item{
-      padding:8px 12px;
-      background:#fff;
-      border:none;
-      text-align:left;
-      cursor:pointer;
-    }
-    .tt-menu-item:hover{background:#faf7f4}
-    .tt-menu-item.danger{color:#b91c1c}
-
-    .tt-edit-area{
-      width:100%;
-      min-height:84px;
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:10px;
-    }
-    .tt-edit-actions{
-      display:flex;
-      gap:8px;
-      margin-top:8px;
-    }
-    .tt-edit-save,
-    .tt-edit-cancel{
-      border:1px solid var(--border);
-      background:#fff;
-      border-radius:10px;
-      padding:8px 12px;
-    }
-    .tt-edit-save{
-      border-color:var(--accent);
-      background:var(--accent);
-      color:#fff;
-    }
-
-    /* Toast */
-    .toast{
-      position:fixed;
+      bottom:130%;
       left:50%;
-      bottom:22px;
       transform:translateX(-50%);
-      background:#1f2937;
+      background:rgba(0,0,0,.85);
       color:#fff;
-      padding:10px 14px;
-      border-radius:10px;
-      font-size:14px;
-      box-shadow:0 6px 18px rgba(0,0,0,.18);
+      padding:2px 5px;
+      border-radius:4px;
+      font-size:10px;
+      white-space:nowrap;
       opacity:0;
       pointer-events:none;
-      transition:opacity .2s;
-      z-index:200;
     }
-    .toast.show{opacity:1}
+    #colorBox .sw:hover .tip{opacity:1}
+    #colorBox .sw[data-name="Gold"]{
+      background:linear-gradient(135deg,#d4b870 0%,#f0dc97 50%,#ceb86b 100%);
+    }
+    #colorBox .sw[data-name="Silver"]{
+      background:linear-gradient(135deg,#bfc6cf 0%,#e6eaef 50%,#a9b0ba 100%);
+    }
 
-    .sr-only{
-      position:absolute !important;
-      width:1px;
-      height:1px;
-      padding:0;
-      margin:-1px;
+    /* ---------- RESULTS ---------- */
+    .results{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px;
+      min-height:300px;
+    }
+    .results-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:10px;
+    }
+
+    .browse-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+      align-items:flex-start;
+    }
+    @media(max-width:900px){
+      .browse-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    }
+    @media(max-width:560px){
+      /* match homepage/atelier: keep 2 columns on small phones */
+      .browse-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    }
+
+    /* LISTING / ATELIER CARDS – reuse same shell */
+    .listing-card{
+      background:var(--hm-bg-card);
+      border:1px solid var(--hm-border);
+      border-radius:12px;
       overflow:hidden;
-      clip:rect(0,0,0,0);
+      display:flex;
+      flex-direction:column;
+    }
+    .listing-thumb-link{
+      display:block;
+      text-decoration:none;
+      color:inherit;
+    }
+    .listing-thumb{
+      aspect-ratio:4/3;
+      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+    }
+    .listing-thumb img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .listing-body{
+      padding:8px 10px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .listing-title-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:6px;
+    }
+    .listing-title{
+      font-weight:700;
+      font-size:14px;
       white-space:nowrap;
-      border:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      text-decoration:none;
+      color:#111827;
     }
-
-    a:focus-visible,
-    button:focus-visible{
-      outline:3px solid rgba(153,27,27,.35);
-      outline-offset:2px;
+    .listing-dept{
+      font-size:11px;
+      padding:2px 6px;
+      border-radius:999px;
+      background:#f3f4f6;
+      color:#4b5563;
+      flex:0 0 auto;
+      white-space:nowrap;
+    }
+    .listing-yards{
+      font-size:12px;
+      color:#4b5563;
+    }
+    .listing-cta-row{
+      margin-top:4px;
+    }
+    .listing-add-btn{
+      width:100%;
       border-radius:10px;
+      border:1px solid var(--hm-accent);
+      background:var(--hm-accent);
+      color:#fff;
+      font-weight:700;
+      font-size:13px;
+      padding:8px 10px;
+      cursor:pointer;
+      white-space:normal;    /* allow wrap on mobile */
+      line-height:1.25;
+      text-align:center;
+      display:inline-block;
     }
-
-    /* Tablet: 2 columns for topics */
-    @media (max-width:900px){
-      .topics-grid{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-      }
+    .listing-add-btn[disabled]{
+      opacity:.6;
+      cursor:not-allowed;
     }
-
-    /* Mobile refinements */
-    @media (max-width:640px){
-      .tt-hero{padding:14px 12px}
-      .composer{box-shadow:none}
-      #composeCategory{max-width:100%;font-size:16px}
-      #composeText{min-height:120px;font-size:16px}
-      .topics-grid{grid-template-columns:1fr}
-      .topic{padding:16px 14px}
-      .card{padding:14px 14px}
-      .actions,.reax{gap:10px}
-      .tt-post{width:100%}
-      .composer .row{flex-direction:column}
-      #composeCategory,
-      #composeText{
-        width:100% !important;
-        max-width:100%;
-        flex:0 0 auto;
-      }
-      .composer-main{
-        width:100%;
-      }
+    .listing-price-row{
+      margin-top:6px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+    }
+    .listing-price-main{
+      font-weight:700;
+      color:#111827;
+    }
+    .listing-price-orig{
+      text-decoration:line-through;
+      color:#9ca3af;
+    }
+    .listing-seller-row{
+      margin-top:4px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      font-size:12px;
+      color:#6b7280;
+    }
+    .listing-seller-name{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
   </style>
 </head>
 <body>
 
-  <!-- UNIVERSAL HEADER injected by hm-shell.js -->
+  <!-- UNIVERSAL HEADER (injected by hm-shell.js) -->
   <div id="hm-shell-header"></div>
 
-  <main class="tt-wrap" role="main">
-    <!-- HERO + search + Composer -->
-    <section class="tt-hero" aria-labelledby="tt-title">
-      <div class="tt-hero-header">
-        <div class="tt-hero-left">
-          <h1 id="tt-title">ThreadTalk</h1>
-          <p class="sub">Chat fabric, fit, and everything in between.</p>
-        </div>
+  <main class="browse-wrap">
+    <div class="topbar">
+      <input id="q" type="search" placeholder="Search fabrics…"/>
+      <button id="doSearch" type="button">Search</button>
+      <button id="toggleFilters" type="button" class="filter-toggle" aria-pressed="true">Hide filters</button>
+    </div>
 
-        <div class="tt-hero-right">
-          <form class="tt-search" role="search">
-            <span class="tt-search-label">ThreadTalk search</span>
-            <label class="sr-only" for="threadSearch">Search ThreadTalk</label>
-            <input
-              id="threadSearch"
-              class="tt-search-input"
-              type="search"
-              placeholder="Search titles &amp; posts…"
-              autocomplete="off"
-            />
-          </form>
-        </div>
-      </div>
+    <div class="layout" id="layout">
+      <aside class="filters">
+        <h3>Filters</h3>
 
-      <form class="composer" id="composer" aria-label="Create a thread">
-        <div class="row">
-          <select id="composeCategory" aria-label="Category">
-            <option value="">Category (optional) — blank defaults to Loose Threads</option>
-            <option value="showcase">Showcase</option>
-            <option value="tailoring">Tailoring</option>
-            <option value="stitch-school">Stitch School</option>
-            <option value="fabric-sos">Fabric SOS</option>
-            <option value="before-after">Before &amp; After</option>
-            <option value="pattern-hacks">Pattern Hacks</option>
-            <option value="stash-confessions">Stash Confessions</option>
-            <option value="loose-threads">Loose Threads</option>
-          </select>
+        <!-- CONTENT (KNOWN) -->
+        <section class="section">
+          <div class="title">Content</div>
+          <div class="listbox" id="contentBox"></div>
+        </section>
 
-          <div class="composer-main">
-            <label class="composer-title-label" for="composeTitle">Post title</label>
-            <input id="composeTitle" class="composer-title" type="text" maxlength="120"/>
-            <textarea id="composeText" placeholder="Share what you’re working on, stuck on, or proud of. Add #hashtags if you want."></textarea>
+        <!-- FEELS LIKE (UNKNOWN CONTENT) – dropdown -->
+        <section class="section">
+          <div class="title">
+            Fabric feels like
+            <span style="font-weight:400;font-size:11px;color:var(--muted);">
+              (for mystery / unknown content)
+            </span>
           </div>
-        </div>
-
-        <div class="preview-wrap" id="mediaPreview" hidden></div>
-
-        <div class="actions">
-          <div class="left-actions">
-            <label class="icon-btn" id="photoBtn" title="Add photo">
-              <input type="file" id="photoInput" accept="image/*" hidden>
-              <svg class="icon-photo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M4 5h3l2-2h6l2 2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm8 3a4 4 0 1 0 .001 8.001A4 4 0 0 0 12 8z"/>
-              </svg>
-            </label>
-            <label class="icon-btn" id="videoBtn" title="Add video">
-              <input type="file" id="videoInput" accept="video/*" hidden>
-              <svg class="icon-video" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M15 10.5v-2a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-2l5 3v-9l-5 3z"/>
-              </svg>
-            </label>
+          <div class="selects">
+            <select id="feelsLike">
+              <option value="">Any</option>
+              <option>cotton / poplin</option>
+              <option>linen</option>
+              <option>silk</option>
+              <option>chiffon</option>
+              <option>crepe</option>
+              <option>satin</option>
+              <option>jersey knit</option>
+              <option>denim</option>
+              <option>flannel / brushed cotton</option>
+              <option>fleece</option>
+              <option>wool suiting</option>
+              <option>tweed</option>
+              <option>velvet / velour</option>
+              <option>lace</option>
+              <option>tulle</option>
+              <option>organza</option>
+              <option>leather</option>
+              <option>faux leather</option>
+              <option>vinyl</option>
+              <option>suede</option>
+            </select>
           </div>
-          <div class="right-actions">
-            <button type="submit" class="tt-post" id="postBtn">Post</button>
+        </section>
+
+        <section class="section">
+          <div class="title">Color Family</div>
+          <div id="colorBox"></div>
+        </section>
+
+        <section class="section">
+          <div class="title">$/yard</div>
+          <div class="mini">
+            <div class="field">
+              <label>Min</label>
+              <input id="minPrice" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>Max</label>
+              <input id="maxPrice" type="number" min="0" step="1">
+            </div>
           </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Yards</div>
+          <div class="mini">
+            <div class="field" style="grid-column:1/-1">
+              <label>Min yards</label>
+              <input id="minYards" type="number" min="0" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Width (in)</div>
+          <div class="mini">
+            <div class="field">
+              <label>Min</label>
+              <input id="minWidth" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>Max</label>
+              <input id="maxWidth" type="number" min="0" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Weight (GSM)</div>
+          <div class="mini">
+            <div class="field">
+              <label>Min GSM</label>
+              <input id="minGsm" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>Max GSM</label>
+              <input id="maxGsm" type="number" min="0" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Department</div>
+          <div class="selects">
+            <select id="dept">
+              <option value="">Any</option>
+              <option>Fashion</option>
+              <option>Home</option>
+              <option>Quilting</option>
+              <option>Notions</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Fabric Type</div>
+          <div class="selects">
+            <select id="fabricType">
+              <option value="">Any</option>
+              <option>Canvas</option>
+              <option>Chiffon</option>
+              <option>Corduroy</option>
+              <option>Crepe</option>
+              <option>Denim</option>
+              <option>Flannel</option>
+              <option>Georgette</option>
+              <option>Jersey</option>
+              <option>Lace</option>
+              <option>Lawn</option>
+              <option>Organza</option>
+              <option>Poplin</option>
+              <option>Sateen</option>
+              <option>Satin</option>
+              <option>Tulle</option>
+              <option>Twill</option>
+              <option>Velvet</option>
+              <option>Voile</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Fiber Type</div>
+          <div class="selects">
+            <select id="fiberType">
+              <option value="">Any</option>
+              <option>Natural</option>
+              <option>Modified Natural</option>
+              <option>Synthetic</option>
+              <option>Blend</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Designer / Mill</div>
+          <div class="selects">
+            <input id="designer" placeholder="e.g., Loro Piana"/>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Country / Origin</div>
+          <div class="selects">
+            <select id="origin">
+              <option value="">Any</option>
+              <option>Italy</option>
+              <option>France</option>
+              <option>Japan</option>
+              <option>UK</option>
+              <option>USA</option>
+              <option>India</option>
+              <option>China</option>
+              <option>Korea</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="title">Pattern</div>
+          <div class="selects">
+            <select id="pattern">
+              <option value="">Any</option>
+              <option>Solid</option>
+              <option>Printed</option>
+            </select>
+          </div>
+        </section>
+      </aside>
+
+      <section class="results">
+        <div class="results-head">
+          <h2 id="resultsHeading" style="margin:0;font-size:18px">Browse</h2>
+          <div id="resultCount" style="color:#6b7280;font-size:13px">Loading…</div>
         </div>
-      </form>
-    </section>
-
-    <!-- TOPICS -->
-    <section class="topics" id="topics" aria-label="Popular topics">
-      <div class="topics-grid">
-        <a class="topic" href="showcase.html" aria-label="Showcase">
-          <strong class="title">Showcase</strong>
-          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M28 10c4 0 8 3 8 7s-4 7-8 7-8-3-8-7 4-7 8-7zM24 25c-2 8 16 8 14 0M28 10v-4M28 32v14M22 46h12M26 46v8M32 46v8"/>
-          </svg>
-        </a>
-
-        <a class="topic" href="tailoring.html" aria-label="Tailoring">
-          <strong class="title">Tailoring</strong>
-          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M10 46c12-10 22-10 34 0" />
-            <path d="M14 50h24M14 54h18" />
-            <circle cx="46" cy="46" r="6"/>
-          </svg>
-        </a>
-
-        <a class="topic" href="stitch-school.html" aria-label="Stitch School">
-          <strong class="title">Stitch School</strong>
-          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M18 14c20 8 28 18 28 36" />
-            <path d="M36 12l-8 40" />
-            <circle cx="36" cy="12" r="2"/>
-          </svg>
-        </a>
-
-        <a class="topic" href="fabric-sos.html" aria-label="Fabric SOS">
-          <strong class="title">Fabric SOS</strong>
-          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
-            <rect x="14" y="14" width="28" height="18" rx="2"/>
-            <rect x="18" y="18" width="28" height="18" rx="2"/>
-          </svg>
-        </a>
-
-        <a class="topic" href="before-after.html" aria-label="Before & After">
-          <strong class="title">Before &amp; After</strong>
-          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
-            <rect x="12" y="14" width="40" height="28" rx="2"/>
-            <path d="M32 14v28M20 20l6 6M38 34l6 6"/>
-          </svg>
-        </a>
-
-        <a class="topic" href="pattern-hacks.html" aria-label="Pattern Hacks">
-          <strong class="title">Pattern Hacks</strong>
-          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M18 40l10-10M18 20l10 10M34 30l12-8M34 30l12 8"/>
-            <path d="M46 18l2 2M50 22l2 2M46 26l2 2"/>
-          </svg>
-        </a>
-
-        <a class="topic" href="stash-confessions.html" aria-label="Stash Confessions">
-          <strong class="title">Stash Confessions</strong>
-          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M12 44h40M12 30h40M12 16h40"/>
-            <rect x="14" y="18" width="8" height="8" rx="1"/>
-            <rect x="24" y="18" width="10" height="8" rx="1"/>
-            <rect x="36" y="18" width="14" height="8" rx="1"/>
-          </svg>
-        </a>
-
-        <a class="topic" href="loose-threads.html" aria-label="Loose Threads">
-          <strong class="title">Loose Threads</strong>
-          <svg class="tile-art" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M16 44h14a8 8 0 0 1-8 8h-6zM18 36v8h10v-8" />
-            <rect x="38" y="36" width="6" height="12" rx="1"/>
-            <rect x="46" y="36" width="6" height="12" rx="1"/>
-          </svg>
-        </a>
-      </div>
-    </section>
-
-    <!-- FEED -->
-    <section class="feed" id="feed" aria-labelledby="feed-title">
-      <h2 id="feed-title">Latest Threads</h2>
-      <div class="cards" id="cards" aria-live="polite"></div>
-      <div id="emptyState" style="color:#7a6e68;font-size:14px;margin:12px 4px">
-        No threads yet. Be the first to post!
-      </div>
-    </section>
+        <div id="grid" class="browse-grid"></div>
+        <div id="empty" style="display:none;color:#6b7280">
+          No results yet. Listings will appear here once your marketplace is live.
+        </div>
+      </section>
+    </div>
   </main>
 
-  <!-- UNIVERSAL FOOTER injected by hm-shell.js -->
+  <!-- UNIVERSAL FOOTER (injected by hm-shell.js) -->
   <div id="hm-shell-footer"></div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">Posted</div>
-
-  <!-- Supabase JS (same as index.html) -->
+  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Shared shell: universal header/footer + menu + header session + HM.supabase -->
+  <!-- Shared shell (universal header/footer + menu + header session) -->
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    // Render shared header + footer FIRST (this also sets window.HM.supabase)
-    window.HM && window.HM.renderShell({ currentPage: "threadtalk" });
+    // Render shared header + footer
+    window.HM && window.HM.renderShell({ currentPage: "browse" });
   </script>
 
-  <!-- ThreadTalk logic (Supabase threads + reactions/comments/edit/search) -->
-  <script src="scripts/threadtalk.js"></script>
+  <script>
+    /* Supabase client + listings / ateliers */
+
+    const supabaseClient = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+    );
+
+    // "listings" (default) vs "ateliers"
+    let currentMode = "listings";
+
+    /* --- Filters state --- */
+
+    const CONTENTS = [
+      "Any",
+      "Acetate",
+      "Acrylic",
+      "Alpaca",
+      "Angora",
+      "Bamboo",
+      "Cashmere",
+      "Cotton",
+      "Cupro",
+      "Hemp",
+      "Leather",
+      "Linen",
+      "Lurex",
+      "Modal",
+      "Mohair",
+      "Nylon",
+      "Polyester",
+      "Rayon / Viscose",
+      "Silk",
+      "Spandex / Elastane",
+      "Tencel / Lyocell",
+      "Wool",
+      "Other Fibers"
+    ];
+
+    const COLORS = [
+      "Black","Grey","White","Cream","Brown",
+      "Pink","Red","Orange","Yellow","Green",
+      "Blue","Purple","Gold","Silver"
+    ];
+
+    const selectedContents = new Set();
+    let   selectedColor   = null;
+
+    function buildFiltersUI(){
+      const contentBox = document.getElementById("contentBox");
+      const colorBox   = document.getElementById("colorBox");
+
+      if(contentBox){
+        contentBox.innerHTML = "";
+        CONTENTS.forEach(label=>{
+          const row = document.createElement("div");
+          row.className = "row";
+          const cb  = document.createElement("input");
+          cb.type   = "checkbox";
+          cb.value  = label;
+          const lb  = document.createElement("label");
+          lb.textContent = label;
+          row.appendChild(cb);
+          row.appendChild(lb);
+          cb.addEventListener("change",()=>{
+            if(label === "Any"){
+              selectedContents.clear();
+              if(cb.checked) selectedContents.add("Any");
+              // uncheck others
+              contentBox.querySelectorAll("input[type=checkbox]").forEach(el=>{
+                if(el !== cb) el.checked = false;
+              });
+            }else{
+              selectedContents.delete("Any");
+              const anyBox = contentBox.querySelector('input[value="Any"]');
+              if(anyBox) anyBox.checked = false;
+              if(cb.checked) selectedContents.add(label); else selectedContents.delete(label);
+            }
+            runSearch();
+          });
+          contentBox.appendChild(row);
+        });
+      }
+
+      if(colorBox){
+        colorBox.innerHTML = "";
+        COLORS.forEach(name=>{
+          const sw = document.createElement("button");
+          sw.type = "button";
+          sw.className = "sw";
+          sw.dataset.name = name;
+          sw.setAttribute("aria-label", name);
+          const tip = document.createElement("span");
+          tip.className = "tip";
+          tip.textContent = name;
+          sw.appendChild(tip);
+          if(name !== "Gold" && name !== "Silver"){
+            sw.style.backgroundColor = name.toLowerCase();
+          }
+          sw.addEventListener("click", ()=>{
+            if(selectedColor === name){
+              selectedColor = null;
+              sw.dataset.selected = "false";
+            }else{
+              selectedColor = name;
+              colorBox.querySelectorAll(".sw").forEach(el=>{ el.dataset.selected = "false"; });
+              sw.dataset.selected = "true";
+            }
+            runSearch();
+          });
+          colorBox.appendChild(sw);
+        });
+      }
+    }
+
+    /* Toggle filters panel */
+    (function(){
+      const layout = document.getElementById('layout');
+      const toggle = document.getElementById('toggleFilters');
+      if(!layout || !toggle) return;
+
+      toggle.addEventListener('click', ()=>{
+        const hidden = layout.classList.toggle('filters-hidden');
+        toggle.textContent = hidden ? 'Show filters' : 'Hide filters';
+        toggle.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+      });
+    })();
+
+    /* --- Helpers --- */
+    function moneyFromCents(c){
+      if(c == null) return null;
+      const v = c / 100;
+      return v.toLocaleString("en-US",{
+        style:"currency",
+        currency:"USD",
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      });
+    }
+
+    function numeric(val){
+      const n = parseFloat(val);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    /* Fetch profiles for seller display names for listings */
+    async function fetchProfilesForListings(listings){
+      const map = {};
+      const ids = Array.from(new Set(
+        (listings || [])
+          .map(l => l.seller_id)
+          .filter(Boolean)
+      ));
+      if(!ids.length) return map;
+
+      try{
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("id, display_name, store_name, first_name, last_name")
+          .in("id", ids);
+
+        if(error){
+          console.error("Profile fetch error", error);
+          return map;
+        }
+        (data || []).forEach(p=>{
+          map[p.id] = p;
+        });
+      }catch(e){
+        console.error("Profile fetch exception", e);
+      }
+      return map;
+    }
+
+    /* --- Atelier search --- */
+    async function runAtelierSearch(){
+      const grid    = document.getElementById("grid");
+      const emptyEl = document.getElementById("empty");
+      const countEl = document.getElementById("resultCount");
+      const qInput  = document.getElementById("q");
+
+      if(grid) grid.innerHTML = "";
+      if(emptyEl) emptyEl.style.display = "none";
+      if(countEl) countEl.textContent = "Loading…";
+
+      const searchTerm = (qInput?.value || "").trim().toLowerCase();
+
+      let profiles = [];
+      try{
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("id, display_name, store_name, first_name, last_name, bio")
+          .order("store_name", { ascending:true });
+
+        if(error){
+          console.error("Atelier fetch error", error);
+          if(countEl) countEl.textContent = "Error loading ateliers";
+          return;
+        }
+        profiles = data || [];
+      }catch(e){
+        console.error("Atelier fetch exception", e);
+        if(countEl) countEl.textContent = "Error loading ateliers";
+        return;
+      }
+
+      let filtered = profiles;
+      if(searchTerm){
+        filtered = profiles.filter(p=>{
+          const store = (p.store_name || "").toLowerCase();
+          const disp  = (p.display_name || "").toLowerCase();
+          const full  = ((p.first_name || "") + " " + (p.last_name || "")).trim().toLowerCase();
+          return store.includes(searchTerm) || disp.includes(searchTerm) || full.includes(searchTerm);
+        });
+      }
+
+      const total = filtered.length;
+      if(countEl){
+        countEl.textContent = total === 1 ? "1 atelier" : total + " ateliers";
+      }
+
+      if(!total){
+        if(emptyEl){
+          emptyEl.textContent = "No ateliers match that search yet.";
+          emptyEl.style.display = "block";
+        }
+        return;
+      }
+
+      filtered.forEach(p=>{
+        const card = document.createElement("article");
+        card.className = "listing-card";
+
+        const storeName = p.store_name || p.display_name || "Atelier";
+        const ownerName = ((p.first_name || "") + " " + (p.last_name || "")).trim();
+        // IMPORTANT: use ?u=<id> so atelier.html opens the correct seller,
+        // not the currently logged-in user.
+        const href = "atelier.html?u=" + encodeURIComponent(p.id);
+
+        card.innerHTML = `
+          <a class="listing-thumb-link" href="${href}">
+            <div class="listing-thumb" aria-hidden="true">
+              <!-- placeholder atelier tile -->
+            </div>
+          </a>
+          <div class="listing-body">
+            <div class="listing-title-row">
+              <a class="listing-title" href="${href}">${storeName}</a>
+            </div>
+            ${ownerName ? `<div class="listing-yards">${ownerName}</div>` : ""}
+            ${p.bio ? `<div class="listing-price-row"><span class="listing-price-main">${p.bio}</span></div>` : ""}
+            <div class="listing-cta-row">
+              <a href="${href}" class="listing-add-btn">
+                View atelier
+              </a>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    /* --- Listing search + render --- */
+    async function runListingSearch(){
+      const grid       = document.getElementById("grid");
+      const emptyEl    = document.getElementById("empty");
+      const countEl    = document.getElementById("resultCount");
+      const qInput     = document.getElementById("q");
+      const minPriceEl = document.getElementById("minPrice");
+      const maxPriceEl = document.getElementById("maxPrice");
+      const minYardsEl = document.getElementById("minYards");
+      const deptEl     = document.getElementById("dept");
+      const fabricEl   = document.getElementById("fabricType");
+      const fiberEl    = document.getElementById("fiberType");
+      const patternEl  = document.getElementById("pattern");
+      const originEl   = document.getElementById("origin");
+      const designerEl = document.getElementById("designer");
+      const feelsEl    = document.getElementById("feelsLike");
+
+      if(grid) grid.innerHTML = "";
+      if(emptyEl) emptyEl.style.display = "none";
+      if(countEl) countEl.textContent = "Loading…";
+
+      let listings = [];
+      try{
+        // Fetch all listings, filter client-side (same approach as atelier.html)
+        // This ensures we don't miss listings due to DB-level filter issues
+        const { data, error } = await supabaseClient
+          .from("listings")
+          .select("*")
+          .order("published_at", { ascending:false, nullsFirst: false });
+
+        if(error){
+          console.error("Listings fetch error", error);
+          if(countEl) countEl.textContent = "Error loading listings";
+          return;
+        }
+        listings = data || [];
+      }catch(e){
+        console.error("Listings fetch exception", e);
+        if(countEl) countEl.textContent = "Error loading listings";
+        return;
+      }
+
+      /* Client-side filtering so we don't care about missing columns */
+      const searchTerm = (qInput?.value || "").trim().toLowerCase();
+      const minPrice   = numeric(minPriceEl?.value);
+      const maxPrice   = numeric(maxPriceEl?.value);
+      const minYards   = numeric(minYardsEl?.value);
+
+      const deptVal    = (deptEl?.value || "").trim();
+      const fabricVal  = (fabricEl?.value || "").trim();
+      const fiberVal   = (fiberEl?.value || "").trim();
+      const patternVal = (patternEl?.value || "").trim();
+      const originVal  = (originEl?.value || "").trim();
+      const designerVal= (designerEl?.value || "").trim().toLowerCase();
+      const feelsVal   = (feelsEl?.value || "").trim().toLowerCase();
+
+      const now = new Date();
+      
+      let filtered = listings.filter(l => {
+        // Must be published (is_published true)
+        if(l.is_published !== true) return false;
+        
+        // Status must be active (case-insensitive)
+        const status = (l.status || "active").toLowerCase();
+        if(status !== "active") return false;
+        
+        // published_at must be null or in the past
+        if(l.published_at && new Date(l.published_at) > now) return false;
+
+        if(searchTerm){
+          const hay = ((l.title || "") + " " + (l.description || "")).toLowerCase();
+          if(!hay.includes(searchTerm)) return false;
+        }
+
+        if(minPrice != null && l.price_cents != null){
+          if(l.price_cents < Math.round(minPrice * 100)) return false;
+        }
+        if(maxPrice != null && l.price_cents != null){
+          if(l.price_cents > Math.round(maxPrice * 100)) return false;
+        }
+
+        if(minYards != null && l.yards_available != null){
+          if(Number(l.yards_available) < minYards) return false;
+        }
+
+        if(deptVal && l.dept && l.dept !== deptVal) return false;
+        if(fabricVal && l.fabric_type && l.fabric_type !== fabricVal) return false;
+        if(fiberVal && l.fiber_type && l.fiber_type !== fiberVal) return false;
+        if(patternVal && l.pattern && l.pattern !== patternVal) return false;
+        if(originVal && l.origin && l.origin !== originVal) return false;
+
+        if(designerVal){
+          const dName = (l.designer || "").toLowerCase();
+          if(!dName.includes(designerVal)) return false;
+        }
+
+        // content filter
+        if(selectedContents.size){
+          if(!selectedContents.has("Any")){
+            const lc = (l.content || "").toLowerCase();
+            let hit = false;
+            for(const v of selectedContents){
+              if(lc === v.toLowerCase()){ hit = true; break; }
+            }
+            if(!hit) return false;
+          }
+        }
+
+        // feels-like dropdown
+        if(feelsVal){
+          const src = l.feels_like;
+          let arr = [];
+          if(Array.isArray(src)){
+            arr = src;
+          }else if(typeof src === "string" && src.trim().length){
+            arr = src.split(",").map(s=>s.trim());
+          }
+          const lowerSet = new Set(arr.map(v=>v.toLowerCase()));
+          if(!lowerSet.has(feelsVal)) return false;
+        }
+
+        // color family
+        if(selectedColor){
+          if(!l.color_family || l.color_family !== selectedColor) return false;
+        }
+
+        return true;
+      });
+
+      const total = filtered.length;
+      if(countEl){
+        countEl.textContent = total === 1 ? "1 result" : total + " results";
+      }
+
+      if(!total){
+        if(emptyEl) emptyEl.style.display = "block";
+        return;
+      }
+
+      const profileMap = await fetchProfilesForListings(filtered);
+
+      if(grid){
+        filtered.forEach(l => {
+          const yardsAvail = l.yards_available != null ? Number(l.yards_available) : null;
+          const priceCents = l.price_cents != null ? Number(l.price_cents) : null;
+          const origPriceCents = l.orig_price_cents != null ? Number(l.orig_price_cents) : null;
+
+          const status = (l.status || "active").toLowerCase();
+          const isSold = status === "sold";
+          const canBuy = !isSold && priceCents != null && yardsAvail != null && yardsAvail > 0;
+
+          let totalCents = null;
+          if(priceCents != null && yardsAvail != null){
+            totalCents = Math.round(priceCents * yardsAvail);
+          }
+
+          const prof = profileMap[l.seller_id] || {};
+          const displayName = (prof.first_name && prof.last_name)
+            ? (prof.first_name + " " + prof.last_name)
+            : (prof.display_name || "");
+          const storeName = prof.store_name || displayName || "Hemline Market seller";
+
+          const href = "listing.html?id=" + encodeURIComponent(l.id);
+          const safeTitle = l.title || "Untitled listing";
+          const safeAlt = safeTitle.replace(/"/g,"&quot;");
+
+          const card = document.createElement("article");
+          card.className = "listing-card";
+
+          card.innerHTML = `
+            <a class="listing-thumb-link" href="${href}">
+              <div class="listing-thumb" aria-hidden="true">
+                ${l.image_url_1 ? `<img src="${l.image_url_1}" alt="${safeAlt}">` : ""}
+              </div>
+            </a>
+            <div class="listing-body">
+              <div class="listing-title-row">
+                <a class="listing-title" href="${href}">${safeTitle}</a>
+                ${l.dept ? `<span class="listing-dept">${l.dept}</span>` : ""}
+              </div>
+              ${yardsAvail != null ? `<div class="listing-yards">${yardsAvail} yards</div>` : ""}
+              <div class="listing-cta-row">
+                <button type="button" class="listing-add-btn add-to-cart">
+                  ${
+                    canBuy && totalCents != null && yardsAvail != null
+                      ? `Add to Cart — ${moneyFromCents(totalCents)} for ${yardsAvail} yards`
+                      : (isSold ? "Sold out" : "Add to Cart")
+                  }
+                </button>
+              </div>
+              <div class="listing-price-row">
+                ${
+                  priceCents != null
+                    ? `<span class="listing-price-main">${moneyFromCents(priceCents)}/yard</span>`
+                    : `<span class="listing-price-main">Price coming soon</span>`
+                }
+                ${
+                  origPriceCents != null
+                    ? `<span class="listing-price-orig">${moneyFromCents(origPriceCents)}/yard</span>`
+                    : ""
+                }
+              </div>
+              <div class="listing-seller-row">
+                <span class="listing-seller-name">${storeName}</span>
+              </div>
+            </div>
+          `;
+
+          const btn = card.querySelector(".listing-add-btn");
+          if(btn){
+            const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
+            const firstImg = l.image_url_1 || "";
+
+            btn.dataset.id = l.id;
+            btn.dataset.name = safeTitle;
+            btn.dataset.amount = totalCents != null ? String(totalCents) : "0";
+            btn.dataset.price = perYdDollars ? perYdDollars.toFixed(2) : "0";
+            btn.dataset.yards = yardsAvail != null ? String(yardsAvail) : "0";
+            btn.dataset.sellerId = l.seller_id || "";
+            btn.dataset.sellerName = storeName || "";
+            btn.dataset.photo = firstImg;
+
+            if(!canBuy){
+              btn.disabled = true;
+              btn.textContent = isSold ? "Sold out" : "Unavailable";
+            }
+          }
+
+          grid.appendChild(card);
+        });
+      }
+    }
+
+    async function runSearch(){
+      if(currentMode === "ateliers"){
+        await runAtelierSearch();
+      }else{
+        await runListingSearch();
+      }
+    }
+
+    /* Initial boot */
+    document.addEventListener("DOMContentLoaded", ()=>{
+      buildFiltersUI();
+
+      const searchBtn = document.getElementById("doSearch");
+      const qInput    = document.getElementById("q");
+      const layout    = document.getElementById("layout");
+      const toggle    = document.getElementById("toggleFilters");
+      const heading   = document.getElementById("resultsHeading");
+
+      // Read URL params from homepage search
+      const params = new URLSearchParams(window.location.search);
+      const initialQ = params.get("q") || "";
+      const urlMode  = params.get("mode") === "ateliers" ? "ateliers" : "listings";
+      currentMode = urlMode;
+
+      if(qInput) qInput.value = initialQ;
+
+      if(currentMode === "ateliers"){
+        if(heading) heading.textContent = "Ateliers";
+        if(qInput) qInput.placeholder = "Search ateliers by name…";
+        if(layout){
+          layout.classList.add("filters-hidden");
+        }
+        if(toggle){
+          toggle.textContent = "Show filters";
+          toggle.setAttribute("aria-pressed","false");
+        }
+      }else{
+        if(heading) heading.textContent = "Browse";
+      }
+
+      if(searchBtn) searchBtn.addEventListener("click", ()=>{
+        // On mobile, hide filters after search to show results
+        if(window.innerWidth < 900 && layout && !layout.classList.contains("filters-hidden")){
+          layout.classList.add("filters-hidden");
+          if(toggle){
+            toggle.textContent = "Show filters";
+            toggle.setAttribute("aria-pressed","false");
+          }
+        }
+        runSearch();
+      });
+      if(qInput) qInput.addEventListener("keydown", e=>{
+        if(e.key === "Enter"){
+          e.preventDefault();
+          // On mobile, hide filters after search to show results
+          if(window.innerWidth < 900 && layout && !layout.classList.contains("filters-hidden")){
+            layout.classList.add("filters-hidden");
+            if(toggle){
+              toggle.textContent = "Show filters";
+              toggle.setAttribute("aria-pressed","false");
+            }
+          }
+          runSearch();
+        }
+      });
+
+      runSearch();
+    });
+  </script>
+
+  <!-- GLOBAL CART HANDLER -->
+  <script src="scripts/cart.js"></script>
+  <script src="scripts/cart-hooks.js"></script>
+  <script src="assets/add-to-cart.js" defer></script>
+
 </body>
 </html>
