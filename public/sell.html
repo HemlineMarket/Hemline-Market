@@ -272,6 +272,9 @@
 <div id="hm-shell-header"></div>
 
 <main class="sell-wrap" id="maincontent">
+  <!-- Profile completeness warning will be injected here -->
+  <div id="profileWarningContainer"></div>
+  
   <h1 id="sellHeading">Create a Listing</h1>
   <p class="subtle" id="sellSubcopy">Showcase your fabric in three quick steps.</p>
 
@@ -573,13 +576,23 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Universal shell JS -->
 <script src="scripts/hm-shell.js"></script>
+<!-- Profile completeness check -->
+<script src="scripts/profile-check.js"></script>
 
 <script>
-  const supabaseClient = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
-    { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
-  );
+  // Render shell first
+  window.HM && window.HM.renderShell({ currentPage: "sell" });
+
+  // Use shared Supabase client
+  var supabaseClient = window.supabase_client || (window.HM && window.HM.supabase);
+  if (!supabaseClient) {
+    supabaseClient = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+      { auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+    );
+  }
+  window.supabase_client = supabaseClient;
 
   const MEDIA_BUCKET = 'listing-media';
   let editingListing = null;
@@ -605,6 +618,21 @@
     }
 
     const user = session.user;
+
+    // Check if profile is complete before allowing listing creation
+    if (window.HM && window.HM.showProfileWarningBanner) {
+      const hasWarning = window.HM.showProfileWarningBanner('profileWarningContainer', {
+        message: 'Complete your profile before listing items',
+        buttonText: 'Complete Profile'
+      });
+      
+      if (hasWarning) {
+        // Disable the form if profile is incomplete
+        const publishBtn = document.getElementById('nextBtn');
+        const saveDraftBtn = document.getElementById('saveDraftBtn');
+        // We'll let them browse but show warning when they try to submit
+      }
+    }
 
     supabaseClient.auth.onAuthStateChange((_event, newSession) => {
       if (!newSession || !newSession.user){
