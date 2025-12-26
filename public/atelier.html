@@ -480,11 +480,19 @@
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-  const supabaseClient = window.supabase.createClient(
-    "https://clkizksbvxjkoatdajgd.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
-    { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
-  );
+  // Render shell first
+  window.HM && window.HM.renderShell({ currentPage: "atelier" });
+
+  // Use shared Supabase client
+  var supabaseClient = window.supabase_client || (window.HM && window.HM.supabase);
+  if (!supabaseClient) {
+    supabaseClient = window.supabase.createClient(
+      "https://clkizksbvxjkoatdajgd.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+      { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+    );
+  }
+  window.supabase_client = supabaseClient;
 
   function slugifyStoreName(raw){
     if(!raw) return "";
@@ -762,13 +770,28 @@
       return;
     }
 
-    let first = profile?.first_name || "";
-    let last  = profile?.last_name  || "";
-    let store = profile?.store_name || "";
+    let first = "";
+    let last  = "";
+    let store = profile?.shop_name || profile?.store_name || "";
     let bio   = profile?.bio || "";
     let email = profile?.email || (isOwn?loggedIn.email:"");
 
-    const fullName = (first+" "+last).trim() || (isOwn?loggedIn.email.split("@")[0]:"Hemline member");
+    // Parse full_name into first/last if available
+    if (profile?.full_name) {
+      const nameParts = profile.full_name.split(' ');
+      first = nameParts[0] || "";
+      last = nameParts.slice(1).join(' ') || "";
+    }
+    
+    // Also check user_metadata if this is the owner's own atelier
+    if (isOwn && loggedIn.user_metadata) {
+      const meta = loggedIn.user_metadata;
+      first = first || meta.first_name || "";
+      last = last || meta.last_name || "";
+      store = store || meta.shop_name || "";
+    }
+
+    const fullName = (first+" "+last).trim() || profile?.full_name || (isOwn?loggedIn.email.split("@")[0]:"Hemline member");
 
     let shopDisplay;
     if(store.trim()){
