@@ -350,14 +350,32 @@
     // Email + Password login → go to homepage
     document.getElementById("login").onsubmit = async (e)=>{
       e.preventDefault();
+      e.stopPropagation();
+      
+      const btn = e.target.querySelector('button[type="submit"]');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Logging in...";
+      
       const email = document.getElementById("li-email").value.trim();
       const password = document.getElementById("li-pass").value;
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if(!error){
-        location.href = "index.html";
-      }else{
-        alert(error.message);
+      
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if(!error && data?.session){
+          location.href = "index.html";
+        }else{
+          alert(error?.message || "Login failed. Please check your email and password.");
+          btn.disabled = false;
+          btn.textContent = origText;
+        }
+      } catch(err) {
+        alert("Login error: " + (err.message || "Please try again."));
+        btn.disabled = false;
+        btn.textContent = origText;
       }
+      
+      return false;
     };
 
     // Sign up → create user + display_name (from email local-part), with password rules
