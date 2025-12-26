@@ -89,6 +89,13 @@ export default async function handler(req, res) {
         return;
       }
 
+      // First get the shipment to find the order and buyer
+      const { data: shipment } = await supabaseAdmin
+        .from("db_shipments")
+        .select("order_id")
+        .eq("tracking_number", trackingNumber)
+        .maybeSingle();
+
       const { error } = await supabaseAdmin
         .from("db_shipments")
         .update({
@@ -108,6 +115,53 @@ export default async function handler(req, res) {
           trackingNumber,
           fields,
         });
+
+        // Send notification to buyer if we have order info
+        if (shipment?.order_id && fields.status) {
+          try {
+            const { data: order } = await supabaseAdmin
+              .from("orders")
+              .select("buyer_id, listing_title")
+              .eq("id", shipment.order_id)
+              .maybeSingle();
+
+            if (order?.buyer_id) {
+              let notifTitle, notifBody, notifType;
+              
+              if (fields.status === "IN_TRANSIT" || fields.status === "LABEL_PURCHASED") {
+                notifType = "shipped";
+                notifTitle = "Your order has shipped!";
+                notifBody = order.listing_title 
+                  ? `"${order.listing_title}" is on its way.`
+                  : "Your fabric is on its way.";
+              } else if (fields.status === "DELIVERED") {
+                notifType = "delivered";
+                notifTitle = "Your order was delivered!";
+                notifBody = order.listing_title
+                  ? `"${order.listing_title}" has been delivered.`
+                  : "Your fabric has been delivered.";
+              }
+
+              if (notifTitle) {
+                await supabaseAdmin
+                  .from("notifications")
+                  .insert({
+                    user_id: order.buyer_id,
+                    type: notifType,
+                    kind: notifType,
+                    title: notifTitle,
+                    body: notifBody,
+                    href: `/purchases.html`,
+                    link: `/purchases.html`,
+                  });
+              }
+            }
+          } catch (notifErr) {
+            await logWarn("/api/shippo/webhook", "Failed to create notification", {
+              error: notifErr?.message || notifErr,
+            });
+          }
+        }
       }
     }
 
