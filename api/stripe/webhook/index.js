@@ -159,19 +159,22 @@ export default async function handler(req, res) {
       .from("orders")
       .insert(orderData);
 
-    // If order insert succeeded, mark listing sold and notify seller
-    if (!insertError && md.listing_id) {
-      await supabaseAdmin
-        .from("listings")
-        .update({
-          status: "SOLD",
-          in_cart_by: null,
-          reserved_until: null,
-          sold_at: new Date().toISOString(),
-        })
-        .eq("id", md.listing_id);
+    // If order insert succeeded
+    if (!insertError) {
+      // Mark listing sold if we have listing_id
+      if (md.listing_id) {
+        await supabaseAdmin
+          .from("listings")
+          .update({
+            status: "SOLD",
+            in_cart_by: null,
+            reserved_until: null,
+            sold_at: new Date().toISOString(),
+          })
+          .eq("id", md.listing_id);
+      }
 
-      // Notify seller of the sale
+      // Notify seller of the sale (even without listing_id)
       if (sellerId) {
         await supabaseAdmin
           .from("notifications")
@@ -180,7 +183,7 @@ export default async function handler(req, res) {
             type: "sale",
             kind: "sale",
             title: "You made a sale!",
-            body: `Your item "${listingTitle}" sold for $${(priceCents / 100).toFixed(2)}`,
+            body: `Your item "${listingTitle || 'Fabric'}" sold for $${(priceCents / 100).toFixed(2)}`,
             href: "/sales.html",
             link: "/sales.html",
             listing_id: md.listing_id || null,
