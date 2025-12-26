@@ -145,6 +145,36 @@
       border-radius:10px;
       overflow:auto;
     }
+    .flag-card{
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:12px;
+      margin-bottom:10px;
+      background:#fff;
+    }
+    .flag-card.dismissed{
+      opacity:0.5;
+      background:#f9fafb;
+    }
+    .flag-meta{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .flag-content{
+      font-size:14px;
+      padding:8px 10px;
+      background:#f9fafb;
+      border-radius:8px;
+      margin:8px 0;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .flag-actions{
+      display:flex;
+      gap:8px;
+      margin-top:10px;
+    }
   </style>
 </head>
 <body>
@@ -230,6 +260,19 @@
   <section class="card">
     <h2 style="margin:0 0 10px">Debug</h2>
     <pre id="debug">{}</pre>
+  </section>
+
+  <!-- Flagged Comments Review -->
+  <section class="card">
+    <h2 style="margin:0 0 10px">Flagged Comments</h2>
+    <p class="muted" style="margin:0 0 12px">
+      Review comments flagged by users. Take action to dismiss or delete.
+    </p>
+    <div style="margin-bottom:12px">
+      <button id="btnLoadFlags" class="btn primary">Load Flagged Comments</button>
+      <span id="flagsMsg" class="muted" style="margin-left:10px"></span>
+    </div>
+    <div id="flaggedList"></div>
   </section>
 </main>
 
@@ -388,6 +431,141 @@
 
 <script>
   window.HM && window.HM.renderShell({ currentPage: "admin" });
+</script>
+
+<script>
+// Flagged Comments Review
+(function(){
+  const SUPABASE_URL = window.HM_ENV?.SUPABASE_URL || "https://bwxytlxdcukibnnidwgg.supabase.co";
+  const SUPABASE_ANON = window.HM_ENV?.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3eHl0bHhkY3VraWJubmlkd2dnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NjYwMjAsImV4cCI6MjA2MDI0MjAyMH0.ej8tMkwf8LQ3Tc2bbnuKB3dfvKL3BZoLUqI_hqVBb-k";
+  
+  let supabaseClient;
+  try {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  } catch(e) {
+    console.error("Supabase init failed", e);
+    return;
+  }
+
+  const loadBtn = document.getElementById("btnLoadFlags");
+  const flagsMsg = document.getElementById("flagsMsg");
+  const flaggedList = document.getElementById("flaggedList");
+
+  if(!loadBtn) return;
+
+  loadBtn.onclick = async () => {
+    flagsMsg.textContent = "Loading...";
+    flaggedList.innerHTML = "";
+
+    try {
+      // Get all comment_flagged notifications
+      const { data: flags, error } = await supabaseClient
+        .from("notifications")
+        .select("*")
+        .eq("type", "comment_flagged")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if(error) throw error;
+
+      if(!flags || !flags.length) {
+        flagsMsg.textContent = "No flagged comments found.";
+        return;
+      }
+
+      flagsMsg.textContent = `Found ${flags.length} flagged comment(s)`;
+
+      for(const flag of flags) {
+        const card = document.createElement("div");
+        card.className = "flag-card" + (flag.read ? " dismissed" : "");
+        card.dataset.id = flag.id;
+
+        // Parse metadata from body or data field
+        let commentText = flag.body || "(No comment text)";
+        let listingId = "";
+        let commentId = "";
+        let flaggedBy = "";
+
+        // Try to extract from data field if available
+        if(flag.data) {
+          try {
+            const d = typeof flag.data === "string" ? JSON.parse(flag.data) : flag.data;
+            commentText = d.comment_text || commentText;
+            listingId = d.listing_id || "";
+            commentId = d.comment_id || "";
+            flaggedBy = d.flagged_by || "";
+          } catch(e) {}
+        }
+
+        card.innerHTML = `
+          <div class="flag-meta">
+            <strong>Flagged:</strong> ${new Date(flag.created_at).toLocaleString()}
+            ${listingId ? ` | <a href="listing.html?id=${listingId}" target="_blank">View Listing</a>` : ""}
+            ${flaggedBy ? ` | Flagged by: <span class="mono">${flaggedBy.slice(0,8)}...</span>` : ""}
+          </div>
+          <div class="flag-content">${escapeHtml(commentText)}</div>
+          <div class="flag-actions">
+            <button class="btn" data-action="dismiss">Dismiss Flag</button>
+            <button class="btn danger" data-action="delete">Delete Comment</button>
+            <button class="btn" data-action="view" style="margin-left:auto">View Raw</button>
+          </div>
+        `;
+
+        // Action handlers
+        card.querySelector('[data-action="dismiss"]').onclick = async () => {
+          await supabaseClient
+            .from("notifications")
+            .update({ read: true })
+            .eq("id", flag.id);
+          card.classList.add("dismissed");
+        };
+
+        card.querySelector('[data-action="delete"]').onclick = async () => {
+          if(!commentId) {
+            alert("No comment ID found - cannot delete automatically. View raw data for details.");
+            return;
+          }
+          if(!confirm("Delete this comment permanently?")) return;
+          
+          // Delete the comment
+          const { error: delErr } = await supabaseClient
+            .from("listing_comments")
+            .delete()
+            .eq("id", commentId);
+          
+          if(delErr) {
+            alert("Failed to delete comment: " + delErr.message);
+            return;
+          }
+
+          // Mark notification as handled
+          await supabaseClient
+            .from("notifications")
+            .update({ read: true })
+            .eq("id", flag.id);
+          
+          card.remove();
+          flagsMsg.textContent = `Comment deleted. ${flaggedList.children.length} remaining.`;
+        };
+
+        card.querySelector('[data-action="view"]').onclick = () => {
+          document.getElementById("debug").textContent = JSON.stringify(flag, null, 2);
+        };
+
+        flaggedList.appendChild(card);
+      }
+    } catch(e) {
+      console.error("Failed to load flags", e);
+      flagsMsg.textContent = "Error loading flags: " + e.message;
+    }
+  };
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+})();
 </script>
 
 </body>
