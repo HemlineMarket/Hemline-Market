@@ -1396,6 +1396,28 @@
             message: `${actorName} commented on your thread "${title}"`,
           });
         }
+
+        // NEW: Notify other users who have commented on this thread (Facebook-style)
+        // "User X also commented on a thread you're following"
+        const existingComments = commentsByThread[threadId] || [];
+        const otherCommenters = new Set();
+        existingComments.forEach(c => {
+          if (c.author_id && 
+              c.author_id !== currentUser.id && 
+              c.author_id !== thread.author_id) {
+            otherCommenters.add(c.author_id);
+          }
+        });
+
+        for (const commenterId of otherCommenters) {
+          await createThreadNotification({
+            recipientId: commenterId,
+            threadId,
+            commentId: null,
+            type: "thread_activity",
+            message: `${actorName} also commented on "${title}"`,
+          });
+        }
       }
 
       // Clear UI
