@@ -394,56 +394,46 @@
     </div>
   </section>
 
-  <!-- DESKTOP/TABLET: STORE INFO IN THREE COLUMNS -->
-  <section class="atelier-store-top" aria-label="Atelier information">
+  <!-- STORE INFO - TWO COLUMNS -->
+  <section class="atelier-store-top" aria-label="Atelier information" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
     <!-- COLUMN 1: STORE / OWNER -->
     <section class="hm-card" aria-labelledby="profileHeading">
       <div class="hm-card-header" id="profileHeading">Store</div>
       <div class="hm-card-body">
         <div class="profile-panel">
           <div class="profile-main">
-            <div class="profile-name" id="atelierOwnerName">Hemline member</div>
-            <div class="profile-shop" id="atelierShopName">Store name</div>
+            <div class="profile-name" id="atelierOwnerName" style="font-size:18px;font-weight:600;">Hemline member</div>
             <div class="profile-link" id="atelierStoreLink" style="font-size:14px;margin:4px 0 8px;"></div>
-            <div class="profile-bio" id="atelierBio"></div>
+            <div class="profile-bio" id="atelierBio" style="color:#6b7280;font-size:14px;margin-bottom:12px;"></div>
+            
+            <!-- Share link row -->
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;gap:8px;">
+                <input id="shareLinkInput" type="text" readonly style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;background:#f9fafb;">
+                <button class="btn" type="button" id="btnCopyLink">Copy</button>
+              </div>
+            </div>
 
             <button class="btn btn-primary" type="button" id="btnEditShop">Edit Atelier details</button>
-            <button class="btn" type="button" id="btnMessageSeller" style="margin-top:8px;">
-              Message this seller
-            </button>
+            <button class="btn" type="button" id="btnMessageSeller" style="margin-top:8px;">Message this seller</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- COLUMN 2: SHARE LINK -->
-    <section class="hm-card" aria-labelledby="shareHeading">
-      <div class="hm-card-header" id="shareHeading">Link</div>
-      <div class="hm-card-body">
-        <p style="margin:0 0 6px;font-size:14px;">
-          Copy a link to share this shop page with buyers.
-        </p>
-        <div class="share-input-row">
-          <input id="shareLinkInput" type="text" readonly>
-          <button class="btn" type="button" id="btnCopyLink">Copy</button>
-        </div>
-        <p class="share-note">
-          Use this link in listings, messages, or on social so buyers can come straight to this Atelier.
-        </p>
-      </div>
-    </section>
-
-    <!-- COLUMN 3: RATING -->
+    <!-- COLUMN 2: RATING -->
     <section class="hm-card" aria-labelledby="ratingHeading">
       <div class="hm-card-header" id="ratingHeading">Rating</div>
       <div class="hm-card-body">
-        <p class="rating-note">
-          After at least 5 completed orders, the shop’s rating will appear here.
-        </p>
-        <div class="rating-pill">Not yet rated</div>
+        <p class="rating-note">After at least 5 completed orders, the shop's rating will appear here.</p>
+        <div class="rating-pill" id="ratingPill">Not yet rated</div>
+        <div id="ratingStars" style="display:none;margin-top:8px;"></div>
       </div>
     </section>
   </section>
+  
+  <!-- Hidden element for backwards compatibility -->
+  <div id="atelierShopName" style="display:none;"></div>
 
   <!-- LISTINGS CARD -->
   <section class="hm-card" aria-labelledby="listingsHeading">
@@ -575,10 +565,10 @@
 
       const now = new Date();
 
-      // Only consider active + is_published true rows
+      // Only consider active + is_published true rows (case-insensitive status check)
       const rows = (data || []).filter(x =>
         x.is_published === true &&
-        (x.status || "active") === "active"
+        (x.status || "active").toLowerCase() === "active"
       );
 
       const live = rows.filter(x =>
