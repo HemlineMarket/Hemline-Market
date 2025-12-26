@@ -939,11 +939,18 @@
         profileNameEl.textContent = email.split("@")[0] || "Hemline member";
       }
 
-      // Hide relay email, show prompt instead
+      // Hide relay email, show prompt instead - BUT show contact email if we have one
       if (hasRelayEmail) {
-        profileEmailEl.textContent = "Email hidden — add a contact email in your profile";
-        profileEmailEl.style.color = "#9ca3af";
-        profileEmailEl.style.fontStyle = "italic";
+        if (profile.contactEmail && !isRelayEmail(profile.contactEmail)) {
+          // Show the contact email instead
+          profileEmailEl.textContent = profile.contactEmail;
+          profileEmailEl.style.color = "";
+          profileEmailEl.style.fontStyle = "";
+        } else {
+          profileEmailEl.textContent = "Email hidden — add a contact email in your profile";
+          profileEmailEl.style.color = "#9ca3af";
+          profileEmailEl.style.fontStyle = "italic";
+        }
       }
 
       // Store slug (backfill for old profiles)
@@ -1143,6 +1150,15 @@
           (next.firstName || "") + (next.lastName ? (" " + next.lastName) : "");
         profileNameEl.textContent =
           displayName || (email.split("@")[0] || "Hemline member");
+        profileNameEl.style.color = '';
+        profileNameEl.style.fontStyle = '';
+
+        // ✅ Update email display - show contact email if we have one
+        if (next.contactEmail && !isRelayEmail(next.contactEmail)) {
+          profileEmailEl.textContent = next.contactEmail;
+          profileEmailEl.style.color = "";
+          profileEmailEl.style.fontStyle = "";
+        }
 
         // Update profile extra with clickable store link
         profileExtraEl.innerHTML = '';
