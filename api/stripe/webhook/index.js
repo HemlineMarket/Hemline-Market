@@ -1,5 +1,10 @@
 // File: api/stripe/webhook/index.js
-// Stripe webhook for Vercel - Creates order, auto-generates Shippo label, emails to seller via Postmark
+// Stripe webhook for Vercel - Full Poshmark-like flow:
+// 1. Creates order
+// 2. Auto-generates Shippo label
+// 3. Emails label to seller (Postmark)
+// 4. Emails confirmation to buyer (Postmark)
+// 5. Creates in-app notifications
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -26,9 +31,9 @@ function readRawBody(req) {
 
 // Shipping tier: <3yd=$5, 3-10yd=$8, >10yd=$15 → estimate parcel size
 function getParcelFromShippingCents(cents) {
-  if (cents <= 500) return { length: 10, width: 8, height: 1, weight: 0.5 };  // Lightweight
-  if (cents <= 800) return { length: 12, width: 10, height: 3, weight: 2 };   // Standard
-  return { length: 14, width: 12, height: 5, weight: 5 };                      // Heavy
+  if (cents <= 500) return { length: 10, width: 8, height: 1, weight: 0.5 };
+  if (cents <= 800) return { length: 12, width: 10, height: 3, weight: 2 };
+  return { length: 14, width: 12, height: 5, weight: 5 };
 }
 
 // Create label via Shippo API
@@ -36,7 +41,6 @@ async function createShippoLabel(fromAddr, toAddr, parcel) {
   const SHIPPO_KEY = process.env.SHIPPO_API_KEY;
   if (!SHIPPO_KEY) return null;
 
-  // 1. Create shipment to get rates
   const shipRes = await fetch("https://api.goshippo.com/shipments/", {
     method: "POST",
     headers: { Authorization: `ShippoToken ${SHIPPO_KEY}`, "Content-Type": "application/json" },
@@ -50,13 +54,11 @@ async function createShippoLabel(fromAddr, toAddr, parcel) {
   const shipment = await shipRes.json();
   if (!shipment.rates?.length) return null;
 
-  // 2. Pick cheapest USPS rate
   const rate = shipment.rates
     .filter(r => r.provider === "USPS")
     .sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0] 
     || shipment.rates.sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0];
 
-  // 3. Purchase label
   const txRes = await fetch("https://api.goshippo.com/transactions/", {
     method: "POST",
     headers: { Authorization: `ShippoToken ${SHIPPO_KEY}`, "Content-Type": "application/json" },
@@ -74,42 +76,85 @@ async function createShippoLabel(fromAddr, toAddr, parcel) {
   };
 }
 
-// Email label to seller via Postmark
-async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, shipTo) {
+// Send email via Postmark
+async function sendEmail(to, subject, htmlBody, textBody) {
   const POSTMARK = process.env.POSTMARK_SERVER_TOKEN;
   const FROM = process.env.FROM_EMAIL || "orders@hemlinemarket.com";
-  if (!POSTMARK || !toEmail) return;
+  if (!POSTMARK || !to) return;
 
   await fetch("https://api.postmarkapp.com/email", {
     method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      "X-Postmark-Server-Token": POSTMARK 
-    },
-    body: JSON.stringify({
-      From: FROM,
-      To: toEmail,
-      Subject: `🎉 You made a sale! Your shipping label is ready`,
-      HtmlBody: `
-        <h1>Congratulations on your sale!</h1>
-        <p>Your item <strong>"${itemTitle}"</strong> just sold.</p>
-        <h2>📦 Your Prepaid Shipping Label</h2>
-        <p><a href="${labelUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Label (PDF)</a></p>
-        <p>Tracking: <strong>${trackingNumber}</strong></p>
-        <h3>Ship To:</h3>
-        <p>${shipTo.name}<br>${shipTo.line1}<br>${shipTo.line2 ? shipTo.line2 + '<br>' : ''}${shipTo.city}, ${shipTo.state} ${shipTo.zip}</p>
-        <p><strong>Next steps:</strong> Print the label, pack securely, drop off at USPS.</p>
-      `,
-      TextBody: `You made a sale! Item: ${itemTitle}\n\nDownload label: ${labelUrl}\nTracking: ${trackingNumber}\n\nShip to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}`,
-      MessageStream: "outbound",
-    }),
+    headers: { "Content-Type": "application/json", "X-Postmark-Server-Token": POSTMARK },
+    body: JSON.stringify({ From: FROM, To: to, Subject: subject, HtmlBody: htmlBody, TextBody: textBody, MessageStream: "outbound" }),
   });
+}
+
+// Email label to seller
+async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, shipTo, priceCents) {
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
+      <h1 style="color:#991b1b;">🎉 You made a sale!</h1>
+      <p>Your item <strong>"${itemTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
+      
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
+        <h2 style="margin:0 0 12px;color:#166534;">📦 Your Prepaid Shipping Label</h2>
+        <p><a href="${labelUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Label (PDF)</a></p>
+        <p style="margin-top:12px;">Tracking: <strong>${trackingNumber}</strong></p>
+      </div>
+      
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;color:#92400e;">Ship To:</h3>
+        <p style="margin:0;">${shipTo.name}<br>${shipTo.line1}${shipTo.line2 ? '<br>' + shipTo.line2 : ''}<br>${shipTo.city}, ${shipTo.state} ${shipTo.zip}</p>
+      </div>
+      
+      <p><strong>⏰ Please ship within 5 business days.</strong> After 5 days, the buyer can cancel for a full refund.</p>
+      <p>Once delivered, your payment will be released within 3 days.</p>
+      
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+      <p style="color:#6b7280;font-size:14px;">Happy selling!<br><strong>Hemline Market</strong></p>
+    </div>
+  `;
+  const text = `You made a sale!\n\n"${itemTitle}" sold for $${(priceCents/100).toFixed(2)}.\n\nDownload label: ${labelUrl}\nTracking: ${trackingNumber}\n\nShip to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nPlease ship within 5 business days.`;
+  
+  await sendEmail(toEmail, "🎉 You made a sale! Your shipping label is ready", html, text);
+}
+
+// Email confirmation to buyer
+async function emailConfirmationToBuyer(toEmail, itemTitle, totalCents, trackingNumber, shipTo) {
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
+      <h1 style="color:#991b1b;">Order Confirmed! 🧵</h1>
+      <p>Thank you for your purchase on Hemline Market.</p>
+      
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
+        <h2 style="margin:0 0 12px;">Order Details</h2>
+        <p><strong>Item:</strong> ${itemTitle}</p>
+        <p><strong>Total:</strong> $${(totalCents/100).toFixed(2)}</p>
+        ${trackingNumber ? `<p><strong>Tracking:</strong> ${trackingNumber}</p>` : ''}
+      </div>
+      
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;">Shipping To:</h3>
+        <p style="margin:0;">${shipTo.name}<br>${shipTo.line1}${shipTo.line2 ? '<br>' + shipTo.line2 : ''}<br>${shipTo.city}, ${shipTo.state} ${shipTo.zip}</p>
+      </div>
+      
+      <p>The seller has 5 business days to ship your order. You'll receive tracking updates via email.</p>
+      <p>If the seller doesn't ship within 5 business days, you can cancel for a full refund.</p>
+      
+      <p><a href="https://hemlinemarket.com/purchases.html" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">View Your Orders</a></p>
+      
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+      <p style="color:#6b7280;font-size:14px;">Questions? <a href="https://hemlinemarket.com/contact.html" style="color:#991b1b;">Contact us</a><br><strong>Hemline Market</strong></p>
+    </div>
+  `;
+  const text = `Order Confirmed!\n\nItem: ${itemTitle}\nTotal: $${(totalCents/100).toFixed(2)}\n${trackingNumber ? 'Tracking: ' + trackingNumber + '\n' : ''}\nShipping to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nThe seller has 5 business days to ship. Visit hemlinemarket.com/purchases.html to view your orders.`;
+  
+  await sendEmail(toEmail, "✅ Order Confirmed - Hemline Market", html, text);
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-  // Verify Stripe signature
   const sig = req.headers["stripe-signature"];
   if (!sig) return res.status(400).send("Missing stripe-signature");
 
@@ -130,7 +175,6 @@ export default async function handler(req, res) {
     const session = event.data.object;
     const md = session.metadata || {};
 
-    // Get listing info
     let listing = null;
     if (md.listing_id) {
       const { data } = await supabase.from("listings").select("*").eq("id", md.listing_id).maybeSingle();
@@ -141,22 +185,22 @@ export default async function handler(req, res) {
     const listingTitle = md.title || listing?.title || "Fabric";
     const priceCents = Number(md.price_cents) || 0;
     const shippingCents = Number(md.shipping_cents) || 0;
+    const totalCents = priceCents + shippingCents;
+    const buyerEmail = session.customer_details?.email || md.buyer_email;
 
-    // Shipping address from Stripe
     const shipDetails = session.shipping_details || session.customer_details || {};
     const shipAddr = shipDetails.address || {};
 
-    // Build order
     const order = {
       stripe_checkout_session: session.id,
       stripe_payment_intent: session.payment_intent,
       buyer_id: md.buyer_id || null,
-      buyer_email: session.customer_details?.email || md.buyer_email,
+      buyer_email: buyerEmail,
       seller_id: sellerId,
       listing_id: md.listing_id || null,
       items_cents: priceCents,
       shipping_cents: shippingCents,
-      total_cents: priceCents + shippingCents,
+      total_cents: totalCents,
       listing_title: listingTitle,
       status: "PAID",
       shipping_name: shipDetails.name || session.customer_details?.name,
@@ -166,57 +210,39 @@ export default async function handler(req, res) {
       shipping_state: shipAddr.state,
       shipping_postal_code: shipAddr.postal_code,
       shipping_country: shipAddr.country || "US",
+      cancel_eligible_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
     };
 
-    // Insert order
     const { data: insertedOrder, error: insertErr } = await supabase.from("orders").insert(order).select().single();
     if (insertErr) {
       console.error("Order insert failed:", insertErr);
       return res.status(500).json({ error: "Order insert failed" });
     }
 
-    // Mark listing sold
     if (md.listing_id) {
       await supabase.from("listings").update({ status: "SOLD", sold_at: new Date().toISOString() }).eq("id", md.listing_id);
     }
 
+    let label = null;
+    let sellerEmail = null;
+
     // === AUTO-GENERATE SHIPPING LABEL ===
     if (sellerId && shipAddr.line1) {
-      // Get seller's address from user_metadata
       const { data: sellerAuth } = await supabase.auth.admin.getUserById(sellerId);
       const meta = sellerAuth?.user?.user_metadata || {};
       
-      // Get seller email from profiles
       const { data: sellerProfile } = await supabase.from("profiles").select("first_name, last_name, contact_email").eq("id", sellerId).maybeSingle();
-      const sellerEmail = sellerProfile?.contact_email || sellerAuth?.user?.email;
+      sellerEmail = sellerProfile?.contact_email || sellerAuth?.user?.email;
       const sellerName = [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || meta.ship_name || "Seller";
 
       if (meta.ship_address1 && meta.ship_city && meta.ship_state && meta.ship_postal) {
-        const fromAddr = {
-          name: sellerName,
-          street1: meta.ship_address1,
-          street2: meta.ship_address2 || "",
-          city: meta.ship_city,
-          state: meta.ship_state,
-          zip: meta.ship_postal,
-          country: "US",
-        };
-
-        const toAddr = {
-          name: order.shipping_name || "Customer",
-          street1: shipAddr.line1,
-          street2: shipAddr.line2 || "",
-          city: shipAddr.city,
-          state: shipAddr.state,
-          zip: shipAddr.postal_code,
-          country: "US",
-        };
+        const fromAddr = { name: sellerName, street1: meta.ship_address1, street2: meta.ship_address2 || "", city: meta.ship_city, state: meta.ship_state, zip: meta.ship_postal, country: "US" };
+        const toAddr = { name: order.shipping_name || "Customer", street1: shipAddr.line1, street2: shipAddr.line2 || "", city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code, country: "US" };
 
         const parcel = getParcelFromShippingCents(shippingCents);
-        const label = await createShippoLabel(fromAddr, toAddr, parcel);
+        label = await createShippoLabel(fromAddr, toAddr, parcel);
 
         if (label) {
-          // Update order with tracking
           await supabase.from("orders").update({
             tracking_number: label.tracking_number,
             tracking_url: label.tracking_url,
@@ -225,7 +251,6 @@ export default async function handler(req, res) {
             shipping_status: "LABEL_CREATED",
           }).eq("id", insertedOrder.id);
 
-          // Save to db_shipments
           await supabase.from("db_shipments").insert({
             order_id: insertedOrder.id,
             label_url: label.label_url,
@@ -236,37 +261,34 @@ export default async function handler(req, res) {
             status: "LABEL_CREATED",
           });
 
-          // Email label to seller via Postmark
+          // Email label to seller
           await emailLabelToSeller(sellerEmail, label.label_url, label.tracking_number, listingTitle, {
-            name: order.shipping_name,
-            line1: shipAddr.line1,
-            line2: shipAddr.line2,
-            city: shipAddr.city,
-            state: shipAddr.state,
-            zip: shipAddr.postal_code,
-          });
+            name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
+          }, priceCents);
         }
       }
     }
 
-    // Notify seller (in-app)
+    // Email confirmation to buyer
+    if (buyerEmail) {
+      await emailConfirmationToBuyer(buyerEmail, listingTitle, totalCents, label?.tracking_number, {
+        name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
+      });
+    }
+
+    // In-app notifications
     if (sellerId) {
       await supabase.from("notifications").insert({
-        user_id: sellerId,
-        type: "sale",
-        kind: "sale",
+        user_id: sellerId, type: "sale", kind: "sale",
         title: "You made a sale! 🎉",
-        body: `"${listingTitle}" sold. Check your email for the shipping label.`,
+        body: `"${listingTitle}" sold for $${(priceCents/100).toFixed(2)}. Check your email for the shipping label.`,
         href: "/sales.html",
       });
     }
 
-    // Notify buyer (in-app)
     if (md.buyer_id) {
       await supabase.from("notifications").insert({
-        user_id: md.buyer_id,
-        type: "order",
-        kind: "order",
+        user_id: md.buyer_id, type: "order", kind: "order",
         title: "Order confirmed!",
         body: `Your order for "${listingTitle}" is confirmed. The seller will ship it soon.`,
         href: "/purchases.html",
