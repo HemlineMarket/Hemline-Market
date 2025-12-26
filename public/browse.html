@@ -882,14 +882,12 @@
 
       let listings = [];
       try{
-        const nowIso = new Date().toISOString();
-
+        // Fetch all listings, filter client-side (same approach as atelier.html)
+        // This ensures we don't miss listings due to DB-level filter issues
         const { data, error } = await supabaseClient
           .from("listings")
           .select("*")
-          .eq("is_published", true)
-          .or(`published_at.is.null,published_at.lte.${nowIso}`)
-          .order("published_at", { ascending:false });
+          .order("published_at", { ascending:false, nullsFirst: false });
 
         if(error){
           console.error("Listings fetch error", error);
@@ -917,12 +915,18 @@
       const designerVal= (designerEl?.value || "").trim().toLowerCase();
       const feelsVal   = (feelsEl?.value || "").trim().toLowerCase();
 
+      const now = new Date();
+      
       let filtered = listings.filter(l => {
-        // Only show "active" (if status exists).
-        if(l.status && l.status !== "active") return false;
-        // already gated by is_published/published_at in the query,
-        // but keep this extra guard in case older rows are missing flags.
-        if(l.is_published === false) return false;
+        // Must be published (is_published true)
+        if(l.is_published !== true) return false;
+        
+        // Status must be active (case-insensitive)
+        const status = (l.status || "active").toLowerCase();
+        if(status !== "active") return false;
+        
+        // published_at must be null or in the past
+        if(l.published_at && new Date(l.published_at) > now) return false;
 
         if(searchTerm){
           const hay = ((l.title || "") + " " + (l.description || "")).toLowerCase();
