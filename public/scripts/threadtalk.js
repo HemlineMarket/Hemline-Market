@@ -434,95 +434,62 @@
 
       // author link → Atelier (using ?u= to match existing atelier.html)
       const authorHtml = thread.author_id
-        ? `<a class="author tt-author-link"
-               href="atelier.html?u=${encodeURIComponent(
-                 thread.author_id
-               )}">
-             ${escapeHtml(authorName)}
-           </a>`
-        : `<span class="author">${escapeHtml(authorName)}</span>`;
+        ? `<a class="card-author" href="atelier.html?u=${encodeURIComponent(thread.author_id)}">${escapeHtml(authorName)}</a>`
+        : `<span class="card-author">${escapeHtml(authorName)}</span>`;
 
-            // Get author initials for avatar
-      const authorInitials = getInitials(authorName);
-      // Get current user initials for comment input  
-      const currentUserName = currentUser ? displayNameForUserId(currentUser.id) : "";
-      const currentUserInitials = getInitials(currentUserName);
+      // SVG for user silhouette avatar
+      const avatarSvg = '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
 
       card.innerHTML = `
-        <div class="tt-head">
-          <div class="tt-line1">
-            <div class="tt-avatar" title="${escapeAttr(authorName)}">${authorInitials}</div>
-            <div class="tt-header-content">
-              <div class="tt-author-row">
-                ${authorHtml}
-              </div>
-              <div class="tt-meta-row">
-                <span>${when}</span>
-                <span>·</span>
-                <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>
-              </div>
-              ${
-                title
-                  ? `<div class="tt-title">${escapeHtml(title)}</div>`
-                  : ""
-              }
+        <div class="card-header">
+          <div class="card-avatar">${avatarSvg}</div>
+          <div class="card-meta">
+            ${authorHtml}
+            <div class="card-info">
+              <span>${when}</span> · <a href="${catLink}">${escapeHtml(catLabel)}</a>
             </div>
-            ${menuHtml}
+            ${title ? `<div class="card-title">${escapeHtml(title)}</div>` : ""}
           </div>
+          ${isMine ? `<button class="card-menu" type="button" data-tt-role="menu">···</button>` : ""}
         </div>
 
-        <div class="preview">${linkify(thread.body || "")}</div>
-        ${mediaHtml}
+        <div class="card-body">${linkify(thread.body || "")}</div>
+        ${mediaHtml ? `<div class="card-media">${mediaHtml}</div>` : ""}
 
-        ${reactionSummaryHtml}
+        ${reactionSummaryHtml ? `<div class="card-reactions">${reactionSummaryHtml}</div>` : ""}
 
-        <div class="tt-actions-row">
-          <div class="tt-like-wrapper">
-            <button class="tt-like-btn tt-like-main${
-              myType ? " tt-like-active" : ""
-            }"
-                    type="button"
-                    data-tt-role="thread-like-toggle">
-              <span class="tt-like-label">Like</span>
-            </button>
-            ${pickerHtml}
-          </div>
-          <button class="tt-reply-link" type="button" data-tt-role="focus-comment-input">
-            <span>Comment</span>
+        <div class="card-actions">
+          <button class="card-action${myType ? " active" : ""}" type="button" data-tt-role="thread-like-toggle">
+            <svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+            Like
           </button>
-          <button class="tt-share-action"
-                  type="button"
-                  data-tt-role="share-thread">
-            <span>Share</span>
+          <button class="card-action" type="button" data-tt-role="focus-comment-input">
+            <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Comment
+          </button>
+          <button class="card-action share-btn" type="button" data-tt-role="share-thread">
+            <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+            Share
           </button>
         </div>
 
-        <div class="tt-comments">
-          ${hiddenHtml}
-          <div class="tt-comments-list">
-            ${commentsHtml}
-          </div>
-          <div class="tt-comment-new">
-            <div class="tt-comment-new-avatar">${currentUserInitials || '?'}</div>
-            <input class="tt-comment-input"
-                   type="text"
-                   maxlength="500"
-                   placeholder="Write a comment…"/>
-            <label class="tt-comment-photo-btn" title="Add photo">
-              <input class="tt-comment-photo"
-                     type="file"
-                     accept="image/*"
-                     data-tt-role="comment-photo"
-                     hidden/>
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <path d="M4 5h3l2-2h6l2 2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm8 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
-              </svg>
-            </label>
-            <button class="tt-comment-send"
-                    type="button"
-                    data-tt-role="send-comment">
-              Send
-            </button>
+        <div class="card-comments">
+          ${comments.length && !isExpanded ? `<button class="view-comments" type="button" data-tt-role="show-all-comments">View all ${comments.length} comment${comments.length === 1 ? "" : "s"}</button>` : ""}
+          <div class="comments-list">${commentsHtml}</div>
+          <div class="comment-input-row">
+            <div class="comment-avatar">${avatarSvg}</div>
+            <input class="comment-input" type="text" maxlength="500" placeholder="Write a comment..."/>
+            <div class="comment-tools">
+              <label class="comment-tool photo" title="Add photo">
+                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                <input type="file" accept="image/*" data-tt-role="comment-photo" hidden>
+              </label>
+              <label class="comment-tool video" title="Add video">
+                <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                <input type="file" accept="video/*" data-tt-role="comment-video" hidden>
+              </label>
+            </div>
+            <button class="comment-send" type="button" data-tt-role="send-comment">Send</button>
           </div>
         </div>
       `;
@@ -604,78 +571,28 @@
 
     // author link → Atelier for comments (using ?u=)
     const authorHtml = c.author_id
-      ? `<a class="tt-comment-author tt-author-link"
-             href="atelier.html?u=${encodeURIComponent(
-               c.author_id
-             )}">${escapeHtml(name)}</a>`
-      : `<span class="tt-comment-author">${escapeHtml(name)}</span>`;
+      ? `<a class="comment-author" href="atelier.html?u=${encodeURIComponent(c.author_id)}">${escapeHtml(name)}</a>`
+      : `<span class="comment-author">${escapeHtml(name)}</span>`;
 
-    // Get comment author initials for avatar
-    const commentInitials = getInitials(name);
+    // SVG for user silhouette avatar
+    const avatarSvg = '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
 
     return `
-      <div class="tt-comment${
-        d > 0 ? " tt-comment-child" : ""
-      }" data-comment-id="${c.id}"
-           data-thread-id="${threadId}"
-           data-author-name="${escapeAttr(name)}"
-           data-depth="${d}">
-
-         <div class="tt-comment-avatar">${commentInitials}</div>
-         <div class="tt-comment-content">
-           <div class="tt-comment-bubble">
-             <div class="tt-comment-meta">
-               ${authorHtml}
-             </div>
-             <div class="tt-comment-body">${linkify(c.body)}</div>
-           </div>
-           ${mediaHtml}
-           
-           <div class="tt-comment-actions">
-             <div class="tt-like-wrapper tt-like-wrapper-comment">
-               <button class="tt-like-btn tt-like-main${
-                 myType ? " tt-like-active" : ""
-               }"
-                       type="button"
-                       data-tt-role="comment-like-toggle"
-                       data-comment-id="${c.id}">
-                 Like
-               </button>
-               ${pickerHtml}
-             </div>
-
-             <button class="tt-reply-link"
-                     type="button"
-                     data-tt-role="respond-comment"
-                     data-comment-id="${c.id}">
-               Reply
-             </button>
-             
-             <span class="tt-comment-time">${ts}</span>
-             ${summaryHtml}
-             ${deleteHtml}
-           </div>
-
-           <div class="tt-comment-reply-box"
-                data-parent-comment-id="${c.id}"
-                hidden>
-             <input class="tt-comment-photo"
-                    type="file"
-                    accept="image/*"
-                    data-tt-role="comment-photo"/>
-             <input class="tt-comment-input"
-                    type="text"
-                    maxlength="500"
-                    placeholder="Reply to ${escapeAttr(name)}…"/>
-             <button class="tt-comment-send"
-                     type="button"
-                     data-tt-role="send-comment-reply"
-                     data-comment-id="${c.id}">
-               Send
-             </button>
-           </div>
-         </div>
-
+      <div class="comment${d > 0 ? ' nested' : ''}${d > 1 ? ' nested-deep' : ''}" data-comment-id="${c.id}" data-thread-id="${threadId}" data-depth="${d}">
+        <div class="comment-avatar">${avatarSvg}</div>
+        <div class="comment-content">
+          <div class="comment-bubble">
+            ${authorHtml}
+            <div class="comment-text">${linkify(c.body)}</div>
+          </div>
+          ${mediaHtml}
+          <div class="comment-meta">
+            <button type="button" class="${myType ? 'active' : ''}" data-tt-role="comment-like-toggle" data-comment-id="${c.id}">Like</button>
+            <button type="button" data-tt-role="respond-comment" data-comment-id="${c.id}">Reply</button>
+            <span>${ts}</span>
+            ${chipsHtml}
+          </div>
+        </div>
       </div>`;
   }
 
@@ -1952,22 +1869,24 @@
     const now = new Date();
     const diff = (now - then) / 1000;
 
-    if (diff < 60) return "just now";
+    if (diff < 60) return "now";
     if (diff < 3600) {
       const m = Math.round(diff / 60);
-      return `${m} min${m === 1 ? "" : "s"} ago`;
+      return `${m}m`;
     }
     if (diff < 86400) {
       const h = Math.round(diff / 3600);
-      return `${h} hour${h === 1 ? "" : "s"} ago`;
+      return `${h}h`;
     }
-
-    return then.toLocaleString(undefined, {
-      year: "numeric",
+    if (diff < 604800) { // Less than 7 days
+      const d = Math.round(diff / 86400);
+      return `${d}d`;
+    }
+    
+    // More than 7 days - show short date
+    return then.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
     });
   }
 
@@ -2102,708 +2021,18 @@
     }
   }
 
-  // ---------- Styles injection ----------
+
+  // ---------- Styles injection (minimal - main styles in threadtalk.css) ----------
   function injectCompactStyles() {
     const css = `
-      /* ===== FACEBOOK-STYLE THREADTALK ===== */
-      
-      /* Global overflow fix for mobile */
-      .tt-wrap, .cards, .card, .preview, .tt-comments, .tt-comment-new {
-        max-width:100%;
-        box-sizing:border-box;
-      }
-      .preview{
-        word-wrap:break-word;
-        overflow-wrap:break-word;
-      }
-      
-      /* Cards - clean, minimal shadow */
-      .card{
-        padding:10px 14px;
-        margin-bottom:8px;
-        border-radius:8px;
-        background:#ffffff;
-        border:1px solid #dddfe2;
-        box-shadow:0 1px 2px rgba(0,0,0,0.05);
-        max-width:100%;
-        overflow:hidden;
-        box-sizing:border-box;
-      }
-      
-      /* Post header */
-      .tt-head{
-        display:flex;
-        flex-direction:column;
-        gap:2px;
-        margin-bottom:8px;
-      }
-      .tt-line1{
-        display:flex;
-        flex-wrap:wrap;
-        gap:8px;
-        align-items:center;
-        font-size:13px;
-      }
-      .tt-line2{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-      }
-      .tt-line2-main{
-        display:flex;
-        align-items:center;
-        gap:6px;
-        font-size:13px;
-        color:#65676b;
-      }
-      
-      /* Author name - FB style */
-      .tt-author-link{
-        font-weight:600;
-        color:#050505;
-        text-decoration:none;
-      }
-      .tt-author-link:hover{
-        text-decoration:underline;
-      }
-      
-      /* Category badge - subtle */
-      .cat{
-        font-size:11px;
-        font-weight:600;
-        color:#991b1b;
-        text-transform:uppercase;
-        letter-spacing:.03em;
-        text-decoration:none;
-      }
-      .cat:hover{
-        text-decoration:underline;
-      }
-      
-      /* Post title */
-      .tt-title{
-        font-weight:600;
-        color:#050505;
-        font-size:14px;
-      }
-      
-      /* Share button - subtle */
-      .tt-share-chip{
-        margin-left:auto;
-        border:none;
-        background:transparent;
-        color:#65676b;
-        font-size:12px;
-        padding:4px 8px;
-        border-radius:6px;
-        cursor:pointer;
-      }
-      .tt-share-chip:hover{
-        background:#f0f2f5;
-      }
-      
-      /* Post body text */
-      .preview{
-        font-size:14px;
-        line-height:1.35;
-        color:#050505;
-        margin-bottom:6px;
-        word-wrap:break-word;
-      }
-      .preview:empty{
-        display:none;
-        margin:0;
-      }
-      .preview a{
-        color:#216fdb;
-        text-decoration:none;
-      }
-      .preview a:hover{
-        text-decoration:underline;
-      }
-      
-      /* Media */
-      .post-media-wrap{
-        margin:8px 0;
-        max-width:500px;
-      }
-      .post-media-grid{
-        display:grid;
-        grid-template-columns:repeat(2,1fr);
-        gap:4px;
-      }
-      .post-img,
-      .post-video{
-        width:100%;
-        height:auto;
-        border-radius:8px;
-        display:block;
-      }
-      .post-img-multi{
-        aspect-ratio:1;
-        object-fit:cover;
-      }
-
-      /* Actions row - compact single line */
-      .tt-actions-row{
-        display:flex;
-        align-items:center;
-        gap:8px;
-        padding:6px 0;
-        margin-top:6px;
-        border-top:1px solid #e4e6eb;
-      }
-      
-      /* Like button wrapper */
-      .tt-like-wrapper{
-        position:relative;
-        display:inline-flex;
-        align-items:center;
-      }
-      .tt-like-btn{
-        border:none;
-        background:none;
-        color:#65676b;
-        font-size:13px;
-        font-weight:600;
-        padding:4px 8px;
-        border-radius:4px;
-        cursor:pointer;
-        display:inline-flex;
-        align-items:center;
-        gap:4px;
-      }
-      .tt-like-btn:hover{
-        background:#f0f2f5;
-      }
-      .tt-like-btn.tt-like-active{
-        color:#991b1b;
-      }
-      
-      /* Reply button - hidden since we have input */
-      .tt-reply-link{
-        display:none;
-      }
-
-      /* Reaction picker popup */
-      .tt-react-picker{
-        position:absolute;
-        bottom:100%;
-        left:0;
-        display:flex;
-        gap:2px;
-        background:#fff;
-        border-radius:20px;
-        box-shadow:0 2px 12px rgba(0,0,0,0.15);
-        padding:4px 8px;
-        margin-bottom:6px;
-        opacity:0;
-        pointer-events:none;
-        transform:translateY(4px) scale(0.95);
-        transition:all .15s ease;
-      }
-      .tt-like-wrapper.tt-picker-open .tt-react-picker{
-        opacity:1;
-        pointer-events:auto;
-        transform:translateY(0) scale(1);
-      }
-      .tt-react-pill{
-        border:none;
-        background:none;
-        font-size:20px;
-        cursor:pointer;
-        padding:4px;
-        border-radius:50%;
-        transition:transform .1s;
-      }
-      .tt-react-pill:hover{
-        transform:scale(1.2);
-      }
-
-      /* Reaction summary - inline with Like */
-      .tt-react-summary{
-        display:inline-flex;
-        align-items:center;
-        gap:4px;
-        font-size:13px;
-        color:#65676b;
-        margin:0;
-        padding:0;
-      }
-      .tt-react-chip{
-        display:inline-flex;
-        align-items:center;
-        gap:1px;
-      }
-      .tt-react-emoji{
-        font-size:14px;
-        line-height:1;
-      }
-      .tt-react-count{
-        font-size:12px;
-        color:#65676b;
-      }
-
-      /* Comments section */
-      .tt-comments{
-        margin-top:8px;
-      }
-      .tt-comments-list{
-        display:flex;
-        flex-direction:column;
-        gap:4px;
-      }
-      .tt-comments-list::before{
-        display:none;
-      }
-
-      /* Individual comment - FB bubble style */
-      .tt-comment{
-        position:relative;
-        padding:6px 12px;
-        border-radius:18px;
-        background:#f0f2f5;
-        border:none;
-        margin-left:0;
-        display:inline-block;
-        max-width:85%;
-      }
-      .tt-comment[data-depth="1"]{
-        margin-left:24px;
-      }
-      .tt-comment[data-depth="2"]{
-        margin-left:48px;
-      }
-      .tt-comment[data-depth="3"]{
-        margin-left:72px;
-      }
-
-      .tt-comment-children{
-        margin-top:4px;
-      }
-
-      .tt-comment-head-row{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        margin-bottom:2px;
-      }
-      .tt-comment-meta{
-        display:flex;
-        align-items:center;
-        gap:6px;
-        font-size:13px;
-      }
-      .tt-comment-author{
-        font-weight:600;
-        color:#050505;
-      }
-      .tt-comment-time{
-        color:#65676b;
-        font-size:12px;
-      }
-
-      .tt-comment-body{
-        font-size:14px;
-        color:#050505;
-        line-height:1.3;
-      }
-      .tt-comment-body a{
-        color:#216fdb;
-      }
-
-      .tt-comment-media{
-        margin:6px 0;
-        max-width:280px;
-      }
-      .tt-comment-media .post-img,
-      .tt-comment-media .post-video{
-        width:100%;
-        height:auto;
-        border-radius:8px;
-        display:block;
-      }
-
-      .tt-comment-actions{
-        display:flex;
-        align-items:center;
-        gap:12px;
-        font-size:12px;
-        font-weight:600;
-        margin-top:2px;
-        margin-left:12px;
-        color:#65676b;
-      }
-      .tt-comment-actions button{
-        background:none;
-        border:none;
-        color:#65676b;
-        font-size:12px;
-        font-weight:600;
-        cursor:pointer;
-        padding:0;
-      }
-      .tt-comment-actions button:hover{
-        text-decoration:underline;
-      }
-      .tt-comment-actions button.tt-like-active{
-        color:#991b1b;
-      }
-
-      /* Comment input - FB style */
-      .tt-comment-new{
-        display:flex;
-        align-items:center;
-        gap:8px;
-        margin-top:8px;
-      }
-      .tt-comment-input{
-        flex:1;
-        padding:8px 12px;
-        border-radius:20px;
-        border:none;
-        font-size:15px;
-        background:#f0f2f5;
-        outline:none;
-      }
-      .tt-comment-input:focus{
-        background:#e4e6eb;
-      }
-      .tt-comment-input::placeholder{
-        color:#65676b;
-      }
-
-      .tt-comment-photo-btn{
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        width:32px;
-        height:32px;
-        border-radius:8px;
-        border:1px solid #e8e0d9;
-        background:#fff;
-        color:#dc2626;
-        cursor:pointer;
-        transition:background 0.15s;
-      }
-      .tt-comment-photo-btn:hover{
-        background:#fef2f2;
-      }
-      .tt-comment-photo-btn svg{
-        width:16px;
-        height:16px;
-      }
-
-      .tt-comment-photo{
-        display:none;
-      }
-      .tt-comment-send{
-        padding:8px 16px;
-        font-size:14px;
-        font-weight:600;
-        border-radius:6px;
-        border:none;
-        background:#991b1b;
-        color:#fff;
-        cursor:pointer;
-      }
-      .tt-comment-send:hover{
-        background:#7f1d1d;
-      }
-
-      .tt-comment-reply-box{
-        display:flex;
-        align-items:center;
-        gap:8px;
-        margin-top:4px;
-        margin-left:24px;
-      }
-      .tt-comment-reply-box[hidden]{
-        display:none;
-      }
-
-      .tt-more-comments{
-        border:none;
-        background:none;
-        color:#65676b;
-        font-size:13px;
-        font-weight:600;
-        padding:4px 0;
-        cursor:pointer;
-        text-align:left;
-      }
-      .tt-more-comments:hover{
-        text-decoration:underline;
-      }
-
-      /* Menu */
-      .tt-menu{
-        position:relative;
-      }
-      .tt-menu-btn{
-        width:32px;
-        height:32px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:16px;
-        border-radius:50%;
-        border:none;
-        background:transparent;
-        cursor:pointer;
-        color:#65676b;
-      }
-      .tt-menu-btn:hover{
-        background:#f0f2f5;
-      }
-      .tt-menu-pop{
-        position:absolute;
-        margin-top:4px;
-        right:0;
-        background:#fff;
-        border-radius:8px;
-        box-shadow:0 2px 12px rgba(0,0,0,0.15);
-        padding:8px;
-        z-index:20;
-        min-width:120px;
-      }
-      .tt-menu-pop[hidden]{
-        display:none !important;
-      }
-      .tt-menu-item{
-        display:block;
-        width:100%;
-        text-align:left;
-        border:none;
-        background:none;
-        padding:8px 12px;
-        font-size:15px;
-        border-radius:6px;
-        cursor:pointer;
-      }
-      .tt-menu-item:hover{
-        background:#f0f2f5;
-      }
-      .tt-menu-item.danger{
-        color:#dc2626;
-      }
-
-      .tt-react-summary-comment{
-        margin-top:2px;
-        margin-left:12px;
-      }
-
-      /* Zoom modal */
-      #tt-zoom-modal{
-        position:fixed;
-        inset:0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        opacity:0;
-        pointer-events:none;
-        transition:opacity .2s ease;
-        z-index:60;
-      }
-      #tt-zoom-modal.show{
-        opacity:1;
-        pointer-events:auto;
-      }
-      .tt-zoom-backdrop{
-        position:absolute;
-        inset:0;
-        background:rgba(0,0,0,0.8);
-      }
-      .tt-zoom-inner{
-        position:relative;
-        z-index:1;
-        max-width:90vw;
-        max-height:90vh;
-      }
-      .tt-zoom-img{
-        max-width:90vw;
-        max-height:90vh;
-        border-radius:8px;
-        object-fit:contain;
-      }
-      .tt-zoom-close{
-        position:absolute;
-        top:-40px;
-        right:0;
-        border:none;
-        background:none;
-        color:#fff;
-        font-size:28px;
-        cursor:pointer;
-      }
-
-      /* Edit mode */
-      .tt-edit-area{
-        width:100%;
-        min-height:80px;
-        font-size:15px;
-        padding:10px 12px;
-        border-radius:8px;
-        border:1px solid #dddfe2;
-        background:#fff;
-        outline:none;
-        resize:vertical;
-      }
-      .tt-edit-area:focus{
-        border-color:#991b1b;
-      }
-      .tt-edit-actions{
-        margin-top:8px;
-        display:flex;
-        gap:8px;
-      }
-      .tt-edit-save,
-      .tt-edit-cancel{
-        padding:8px 16px;
-        font-size:14px;
-        font-weight:600;
-        border-radius:6px;
-        border:none;
-        cursor:pointer;
-      }
-      .tt-edit-save{
-        background:#991b1b;
-        color:#fff;
-      }
-      .tt-edit-save:hover{
-        background:#7f1d1d;
-      }
-      .tt-edit-cancel{
-        background:#e4e6eb;
-        color:#050505;
-      }
-      .tt-edit-cancel:hover{
-        background:#d8dadf;
-      }
-
-      /* Link previews */
-      .tt-link-preview-wrap{
-        margin:8px 0;
-        max-width:500px;
-      }
-      .tt-link-card{
-        display:flex;
-        text-decoration:none;
-        border-radius:8px;
-        border:1px solid #dddfe2;
-        background:#f0f2f5;
-        overflow:hidden;
-        transition:background .15s;
-      }
-      .tt-link-card:hover{
-        background:#e4e6eb;
-      }
-      .tt-link-thumb{
-        flex:0 0 120px;
-        min-height:80px;
-        background-size:cover;
-        background-position:center;
-        background-color:#e4e6eb;
-      }
-      .tt-link-meta{
-        padding:10px 12px;
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        gap:4px;
-      }
-      .tt-link-title{
-        font-size:14px;
-        font-weight:600;
-        color:#050505;
-        display:-webkit-box;
-        -webkit-line-clamp:2;
-        -webkit-box-orient:vertical;
-        overflow:hidden;
-      }
-      .tt-link-host{
-        font-size:12px;
-        color:#65676b;
-        text-transform:uppercase;
-      }
-
-      /* Mobile */
-      @media (max-width:640px){
-        .card{
-          padding:12px;
-          border-radius:0;
-          border-left:none;
-          border-right:none;
-          margin-bottom:0;
-          border-bottom:8px solid #f0f2f5;
-        }
-        .tt-comment{
-          max-width:95%;
-        }
-        .tt-comment[data-depth="1"]{
-          margin-left:16px;
-        }
-        .tt-comment[data-depth="2"]{
-          margin-left:32px;
-        }
-        .tt-link-preview-wrap{
-          max-width:100%;
-        }
-        .tt-link-thumb{
-          flex:0 0 80px;
-        }
-      }
-
-      /* Comment edit mode */
-      .tt-comment-edit-container{
-        margin-top:8px;
-      }
-      .tt-comment-edit-area{
-        width:100%;
-        min-height:60px;
-        font-size:14px;
-        padding:8px 12px;
-        border-radius:8px;
-        border:1px solid #dddfe2;
-        background:#fff;
-        outline:none;
-        resize:vertical;
-        font-family:inherit;
-      }
-      .tt-comment-edit-area:focus{
-        border-color:#991b1b;
-      }
-      .tt-comment-edit-actions{
-        margin-top:8px;
-        display:flex;
-        gap:8px;
-      }
-      .tt-comment-edit-save,
-      .tt-comment-edit-cancel{
-        padding:6px 14px;
-        font-size:13px;
-        font-weight:600;
-        border-radius:6px;
-        border:none;
-        cursor:pointer;
-      }
-      .tt-comment-edit-save{
-        background:#991b1b;
-        color:#fff;
-      }
-      .tt-comment-edit-save:hover{
-        background:#7f1d1d;
-      }
-      .tt-comment-edit-save:disabled{
-        opacity:0.6;
-        cursor:not-allowed;
-      }
-      .tt-comment-edit-cancel{
-        background:#e4e6eb;
-        color:#050505;
-      }
-      .tt-comment-edit-cancel:hover{
-        background:#d8dadf;
+      /* Minimal overrides - main styles in external CSS */
+      .tt-wrap, .cards, .card, .card-body, .card-comments, .comment-input-row {
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      .card-body {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }
     `;
     const tag = document.createElement("style");
