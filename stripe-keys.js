@@ -1,2 +1,0 @@
-// public/stripe-keys.js
-window.STRIPE_PUBLISHABLE_KEY = "pk_live_51Rx9wcFi9JRhHIdilaCZYt1NWKVQZNeG5gCMLEHmh7Wf1udmexaBQNLNv9hTZH3V3Ah2dTmuB0e6s5nT36CWqMLG003wl8DtPq";
