@@ -557,6 +557,12 @@
         <div class="tt-menu-pop"
              data-tt-role="comment-menu-pop"
              hidden>
+          <button class="tt-menu-item"
+                  type="button"
+                  data-tt-role="edit-comment"
+                  data-comment-id="${c.id}">
+            Edit
+          </button>
           <button class="tt-menu-item danger"
                   type="button"
                   data-tt-role="delete-comment"
@@ -1194,6 +1200,12 @@
           break;
         }
 
+        case "edit-comment": {
+          const commentId3 = Number(roleEl.dataset.commentId);
+          if (commentId3) handleEditComment(commentId3);
+          break;
+        }
+
         case "menu":
           toggleMenu(card);
           break;
@@ -1684,6 +1696,91 @@
       console.error("[ThreadTalk] handleDeleteComment exception", err);
       showToast("Could not delete reply.");
     }
+  }
+
+  // ---------- Edit Comment ----------
+  function handleEditComment(commentId) {
+    const commentEl = document.querySelector(`.tt-comment[data-comment-id="${commentId}"]`);
+    if (!commentEl) return;
+
+    // Close the menu
+    const menuPop = commentEl.querySelector('[data-tt-role="comment-menu-pop"]');
+    if (menuPop) menuPop.setAttribute("hidden", "true");
+
+    const bodyEl = commentEl.querySelector(".tt-comment-body");
+    if (!bodyEl) return;
+
+    // Check if already editing
+    if (commentEl.querySelector(".tt-comment-edit-container")) return;
+
+    // Get current text (strip HTML for editing)
+    const currentText = bodyEl.innerText || bodyEl.textContent || "";
+
+    // Hide the body
+    bodyEl.style.display = "none";
+
+    // Create edit container
+    const editContainer = document.createElement("div");
+    editContainer.className = "tt-comment-edit-container";
+    editContainer.innerHTML = `
+      <textarea class="tt-comment-edit-area">${escapeHtml(currentText)}</textarea>
+      <div class="tt-comment-edit-actions">
+        <button type="button" class="tt-comment-edit-save">Save</button>
+        <button type="button" class="tt-comment-edit-cancel">Cancel</button>
+      </div>
+    `;
+
+    bodyEl.parentNode.insertBefore(editContainer, bodyEl.nextSibling);
+
+    const textarea = editContainer.querySelector(".tt-comment-edit-area");
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    // Handle save
+    const saveBtn = editContainer.querySelector(".tt-comment-edit-save");
+    saveBtn.addEventListener("click", async () => {
+      const newText = textarea.value.trim();
+      if (!newText) {
+        showToast("Reply cannot be empty.");
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving...";
+
+      try {
+        const { error } = await supabase
+          .from("threadtalk_comments")
+          .update({
+            body: newText,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", commentId);
+
+        if (error) {
+          console.error("[ThreadTalk] edit comment error", error);
+          showToast("Could not save changes.");
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save";
+          return;
+        }
+
+        showToast("Reply updated!");
+        await loadThreads();
+      } catch (err) {
+        console.error("[ThreadTalk] handleEditComment save exception", err);
+        showToast("Could not save changes.");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save";
+      }
+    });
+
+    // Handle cancel
+    const cancelBtn = editContainer.querySelector(".tt-comment-edit-cancel");
+    cancelBtn.addEventListener("click", () => {
+      editContainer.remove();
+      bodyEl.style.display = "";
+    });
   }
 
   // ---------- Share ----------
@@ -2612,6 +2709,58 @@
         .tt-link-thumb{
           flex:0 0 80px;
         }
+      }
+
+      /* Comment edit mode */
+      .tt-comment-edit-container{
+        margin-top:8px;
+      }
+      .tt-comment-edit-area{
+        width:100%;
+        min-height:60px;
+        font-size:14px;
+        padding:8px 12px;
+        border-radius:8px;
+        border:1px solid #dddfe2;
+        background:#fff;
+        outline:none;
+        resize:vertical;
+        font-family:inherit;
+      }
+      .tt-comment-edit-area:focus{
+        border-color:#991b1b;
+      }
+      .tt-comment-edit-actions{
+        margin-top:8px;
+        display:flex;
+        gap:8px;
+      }
+      .tt-comment-edit-save,
+      .tt-comment-edit-cancel{
+        padding:6px 14px;
+        font-size:13px;
+        font-weight:600;
+        border-radius:6px;
+        border:none;
+        cursor:pointer;
+      }
+      .tt-comment-edit-save{
+        background:#991b1b;
+        color:#fff;
+      }
+      .tt-comment-edit-save:hover{
+        background:#7f1d1d;
+      }
+      .tt-comment-edit-save:disabled{
+        opacity:0.6;
+        cursor:not-allowed;
+      }
+      .tt-comment-edit-cancel{
+        background:#e4e6eb;
+        color:#050505;
+      }
+      .tt-comment-edit-cancel:hover{
+        background:#d8dadf;
       }
     `;
     const tag = document.createElement("style");
