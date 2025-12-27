@@ -481,15 +481,8 @@
             </button>
             ${pickerHtml}
           </div>
-
-          <button class="tt-reply-link"
-                  type="button"
-                  data-tt-role="respond">
-            Reply
-          </button>
+          ${reactionSummaryHtml}
         </div>
-
-        ${reactionSummaryHtml}
 
         <div class="tt-comments">
           <div class="tt-comments-list">
@@ -2082,6 +2075,16 @@
     const css = `
       /* ===== FACEBOOK-STYLE THREADTALK ===== */
       
+      /* Global overflow fix for mobile */
+      .tt-wrap, .cards, .card, .preview, .tt-comments, .tt-comment-new {
+        max-width:100%;
+        box-sizing:border-box;
+      }
+      .preview{
+        word-wrap:break-word;
+        overflow-wrap:break-word;
+      }
+      
       /* Cards - clean, minimal shadow */
       .card{
         padding:10px 14px;
@@ -2090,6 +2093,9 @@
         background:#ffffff;
         border:1px solid #dddfe2;
         box-shadow:0 1px 2px rgba(0,0,0,0.05);
+        max-width:100%;
+        overflow:hidden;
+        box-sizing:border-box;
       }
       
       /* Post header */
@@ -2206,13 +2212,13 @@
         object-fit:cover;
       }
 
-      /* Actions row - FB style divider */
+      /* Actions row - compact single line */
       .tt-actions-row{
         display:flex;
         align-items:center;
-        gap:4px;
-        padding-top:8px;
-        margin-top:8px;
+        gap:8px;
+        padding:6px 0;
+        margin-top:6px;
         border-top:1px solid #e4e6eb;
       }
       
@@ -2226,14 +2232,14 @@
         border:none;
         background:none;
         color:#65676b;
-        font-size:14px;
+        font-size:13px;
         font-weight:600;
-        padding:6px 12px;
+        padding:4px 8px;
         border-radius:4px;
         cursor:pointer;
         display:inline-flex;
         align-items:center;
-        gap:6px;
+        gap:4px;
       }
       .tt-like-btn:hover{
         background:#f0f2f5;
@@ -2242,19 +2248,9 @@
         color:#991b1b;
       }
       
-      /* Reply button */
+      /* Reply button - hidden since we have input */
       .tt-reply-link{
-        border:none;
-        background:none;
-        color:#65676b;
-        font-size:14px;
-        font-weight:600;
-        padding:6px 12px;
-        border-radius:4px;
-        cursor:pointer;
-      }
-      .tt-reply-link:hover{
-        background:#f0f2f5;
+        display:none;
       }
 
       /* Reaction picker popup */
@@ -2292,26 +2288,27 @@
         transform:scale(1.2);
       }
 
-      /* Reaction summary - compact */
+      /* Reaction summary - inline with Like */
       .tt-react-summary{
         display:inline-flex;
         align-items:center;
-        gap:2px;
+        gap:4px;
         font-size:13px;
         color:#65676b;
-        margin-top:4px;
+        margin:0;
+        padding:0;
       }
       .tt-react-chip{
         display:inline-flex;
         align-items:center;
+        gap:1px;
       }
       .tt-react-emoji{
-        font-size:16px;
+        font-size:14px;
         line-height:1;
       }
       .tt-react-count{
-        font-size:13px;
-        margin-left:2px;
+        font-size:12px;
         color:#65676b;
       }
 
