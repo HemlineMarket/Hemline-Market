@@ -32,7 +32,7 @@
     }
 
     main.wrap{
-      max-width:1200px;
+      max-width:700px;
       margin:0 auto;
       padding:0 12px 16px;
     }
@@ -41,19 +41,31 @@
       margin:18px 0 12px;
       font-size:24px;
       font-weight:800;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    
+    h1::before{
+      content:'';
+      width:4px;
+      height:24px;
+      background:var(--accent);
+      border-radius:2px;
     }
 
     .card{
       background:var(--bg);
       border:1px solid var(--line);
-      border-radius:12px;
-      padding:12px 0;
+      border-radius:16px;
+      overflow:hidden;
     }
 
     .notif-empty{
-      padding:16px 18px;
+      padding:32px 18px;
       font-size:14px;
       color:var(--muted);
+      text-align:center;
     }
 
     .notif-list{
@@ -62,42 +74,85 @@
       padding:0;
     }
 
+    /* Individual notification item */
     .notif-item{
       display:flex;
-      flex-direction:column;
-      gap:4px;
-      padding:12px 18px;
-      border-top:1px solid var(--line);
+      align-items:flex-start;
+      gap:12px;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      transition:background 0.15s;
+      cursor:pointer;
     }
 
-    .notif-item:first-child{
-      border-top:none;
+    .notif-item:last-child{
+      border-bottom:none;
+    }
+
+    .notif-item:hover{
+      background:#fafafa;
+    }
+
+    /* Unread indicator dot */
+    .notif-dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:#d1d5db;
+      flex-shrink:0;
+      margin-top:5px;
+    }
+
+    .notif-item.unread .notif-dot{
+      background:var(--accent);
+      box-shadow:0 0 0 3px rgba(153,27,27,0.15);
+    }
+
+    /* Content area */
+    .notif-content{
+      flex:1;
+      min-width:0;
     }
 
     .notif-title-row{
       display:flex;
-      align-items:center;
+      align-items:flex-start;
       justify-content:space-between;
-      gap:8px;
+      gap:10px;
+      margin-bottom:4px;
     }
 
     .notif-title{
       font-size:14px;
+      font-weight:400;
+      color:var(--muted);
+      line-height:1.4;
+    }
+
+    /* Unread = bold and dark */
+    .notif-item.unread .notif-title{
       font-weight:600;
       color:var(--ink);
     }
 
-    .notif-title.unread{
-      color:#b91c1c;
-    }
-
+    /* Type pill */
     .notif-pill{
-      font-size:11px;
-      padding:2px 8px;
-      border-radius:999px;
+      font-size:10px;
+      padding:3px 8px;
+      border-radius:6px;
       border:1px solid var(--line);
       color:var(--muted);
       white-space:nowrap;
+      flex-shrink:0;
+      text-transform:uppercase;
+      letter-spacing:0.3px;
+      font-weight:600;
+    }
+
+    .notif-pill.sale{
+      border-color:#dcfce7;
+      color:#15803d;
+      background:#f0fdf4;
     }
 
     .notif-pill.message{
@@ -106,34 +161,105 @@
       background:#fef2f2;
     }
 
+    .notif-pill.favorite{
+      border-color:#fce7f3;
+      color:#be185d;
+      background:#fdf2f8;
+    }
+
+    .notif-pill.comment{
+      border-color:#dbeafe;
+      color:#1d4ed8;
+      background:#eff6ff;
+    }
+
+    .notif-pill.threadtalk{
+      border-color:#f3e8ff;
+      color:#7c3aed;
+      background:#faf5ff;
+    }
+
     .notif-body{
       font-size:13px;
+      color:#6b7280;
+      line-height:1.4;
+      margin-bottom:4px;
+    }
+
+    .notif-item.unread .notif-body{
       color:#4b5563;
     }
 
     .notif-meta{
       font-size:11px;
-      color:var(--muted);
+      color:#9ca3af;
     }
 
     .notif-link{
-      margin-top:4px;
+      display:inline-block;
+      margin-top:6px;
       font-size:12px;
+      font-weight:600;
       color:var(--accent);
       text-decoration:none;
+      padding:4px 0;
     }
 
     .notif-link:hover{
       text-decoration:underline;
     }
 
+    /* Read notification = faded */
+    .notif-item:not(.unread){
+      opacity:0.7;
+    }
+
+    .notif-item:not(.unread):hover{
+      opacity:1;
+    }
+
+    /* Mobile */
     @media (max-width:640px){
-      .notif-item{
-        padding:10px 14px;
+      main.wrap{
+        padding:0 10px 16px;
       }
+      
+      h1{
+        font-size:20px;
+        margin:14px 0 10px;
+      }
+
+      .notif-item{
+        padding:12px 14px;
+        gap:10px;
+      }
+
+      .notif-dot{
+        width:8px;
+        height:8px;
+        margin-top:6px;
+      }
+
+      .notif-title{
+        font-size:13px;
+      }
+
+      .notif-pill{
+        font-size:9px;
+        padding:2px 6px;
+      }
+
+      .notif-body{
+        font-size:12px;
+      }
+
       .notif-title-row{
         flex-direction:column;
-        align-items:flex-start;
+        gap:6px;
+      }
+
+      .notif-pill{
+        align-self:flex-start;
       }
     }
   </style>
@@ -198,142 +324,123 @@
 
   async function ensureSession(maxWaitMs=3000){
     let { data:{ session } } = await supabaseClient.auth.getSession();
-    if(session?.user) return session;
+    if(session) return session;
+
     const start = Date.now();
-    while(!session?.user && Date.now() - start < maxWaitMs){
-      await new Promise(r => setTimeout(r, 120));
+    while(!session && (Date.now() - start < maxWaitMs)){
+      await new Promise(r => setTimeout(r, 200));
       ({ data:{ session } } = await supabaseClient.auth.getSession());
     }
-    return session || null;
+    return session;
   }
 
   async function loadNotifications(){
     const session = await ensureSession();
-    if(!session || !session.user){
-      window.location.href = "auth.html?view=login";
+    if(!session){
+      notifEmptyEl.textContent = "Sign in to see notifications.";
       return;
     }
 
-    const userId = session.user.id;
-
+    const uid = session.user.id;
     const { data, error } = await supabaseClient
       .from("notifications")
       .select("id, type, kind, title, body, href, link, created_at, read_at")
-      .eq("user_id", userId)
+      .eq("user_id", uid)
       .order("created_at", { ascending:false })
       .limit(50);
 
     if(error){
-      notifEmptyEl.textContent = "We couldn’t load notifications. Please refresh.";
+      console.error("Notifications error:", error);
+      notifEmptyEl.textContent = "Could not load notifications.";
       return;
     }
 
     if(!data || !data.length){
       notifEmptyEl.textContent = "No notifications yet.";
-      notifListEl.innerHTML = "";
       return;
     }
 
     notifEmptyEl.style.display = "none";
-    notifListEl.innerHTML = "";
-
     const unreadIds = [];
 
     data.forEach(n => {
       const li = document.createElement("li");
       li.className = "notif-item";
 
-      const titleRow = document.createElement("div");
-      titleRow.className = "notif-title-row";
-
-      const title = document.createElement("div");
-      title.className = "notif-title";
       const isUnread = !n.read_at;
       if(isUnread){
-        title.classList.add("unread");
+        li.classList.add("unread");
         unreadIds.push(n.id);
       }
-      title.textContent = n.title || "Notification";
 
-      const pill = document.createElement("span");
-      pill.className = "notif-pill";
-      const type = n.kind || n.type || "notice";
-      
-      // Map notification types to friendly labels
-      const typeLabels = {
-        "message": "Message",
+      const typeLabel = {
         "sale": "Sale",
-        "order": "Order",
-        "shipped": "Shipping",
-        "delivered": "Delivery",
+        "message": "Message",
         "favorite": "Favorite",
-        "listing_favorite": "Favorite",
-        "listing_favorited": "Favorite",
-        "favorite_sold": "Favorite",
-        "listing_comment": "Comment",
-        "comment_flagged": "Flag",
+        "comment": "Comment",
         "threadtalk": "ThreadTalk",
         "thread_comment": "ThreadTalk",
         "thread_reaction": "ThreadTalk",
         "thread_activity": "ThreadTalk",
         "comment_reply": "ThreadTalk",
         "comment_reaction": "ThreadTalk",
-        "payment": "Payment",
-        "payout": "Payout"
-      };
-      
-      pill.textContent = typeLabels[type] || type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ');
-      
-      // Add special styling for certain types
-      if(type === "message"){
-        pill.classList.add("message");
-      }
+        "order": "Order",
+        "shipping": "Shipping",
+        "review": "Review"
+      }[n.type || n.kind] || "Update";
 
-      titleRow.appendChild(title);
-      titleRow.appendChild(pill);
-      li.appendChild(titleRow);
+      const pillClass = {
+        "sale": "sale",
+        "message": "message",
+        "favorite": "favorite",
+        "comment": "comment",
+        "threadtalk": "threadtalk",
+        "thread_comment": "threadtalk",
+        "thread_reaction": "threadtalk",
+        "thread_activity": "threadtalk",
+        "comment_reply": "threadtalk",
+        "comment_reaction": "threadtalk"
+      }[n.type || n.kind] || "";
 
-      if(n.body){
-        const body = document.createElement("div");
-        body.className = "notif-body";
-        body.textContent = n.body;
-        li.appendChild(body);
-      }
+      const href = n.href || n.link || "#";
 
-      const meta = document.createElement("div");
-      meta.className = "notif-meta";
-      meta.textContent = formatWhen(n.created_at);
-      li.appendChild(meta);
+      li.innerHTML = `
+        <div class="notif-dot"></div>
+        <div class="notif-content">
+          <div class="notif-title-row">
+            <span class="notif-title">${n.title || "Notification"}</span>
+            <span class="notif-pill ${pillClass}">${typeLabel}</span>
+          </div>
+          ${n.body ? `<div class="notif-body">${n.body}</div>` : ""}
+          <div class="notif-meta">${formatWhen(n.created_at)}</div>
+          ${href !== "#" ? `<a class="notif-link" href="${href}">View →</a>` : ""}
+        </div>
+      `;
 
-      const href = n.href || n.link || "";
-      if(href){
-        const a = document.createElement("a");
-        a.className = "notif-link";
-        a.href = href;
-        a.textContent = "Open";
-        li.appendChild(a);
-      }
+      // Click anywhere to navigate
+      li.addEventListener("click", (e) => {
+        if(e.target.tagName !== "A" && href !== "#"){
+          window.location.href = href;
+        }
+      });
 
       notifListEl.appendChild(li);
     });
 
+    // Mark unread as read after short delay
     if(unreadIds.length){
-      const nowIso = new Date().toISOString();
-      // Mark notifications as read
-      await supabaseClient
-        .from("notifications")
-        .update({ read_at: nowIso })
-        .in("id", unreadIds);
+      setTimeout(async () => {
+        const nowIso = new Date().toISOString();
+        await supabaseClient
+          .from("notifications")
+          .update({ read_at: nowIso })
+          .in("id", unreadIds);
+      }, 2000);
     }
   }
 
-  window.addEventListener("DOMContentLoaded", () => {
-    loadNotifications();
-  });
-</script>
-
-<script>
   window.HM && window.HM.renderShell({ currentPage: "notifications" });
+  loadNotifications();
 </script>
 
 </body>
