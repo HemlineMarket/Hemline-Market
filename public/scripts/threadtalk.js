@@ -753,17 +753,16 @@
     try {
       const href = `ThreadTalk.html?thread=${threadId}`;
 
+      // Note: Only inserting columns that exist in the notifications table
+      // The thread_id and comment_id are encoded in the href URL instead
       const { error } = await supabase.from("notifications").insert({
         user_id: recipientId,          // recipient
-        actor_id: currentUser.id,      // actor / sender
         type,                          // "thread_reaction", "comment_reply", etc.
         kind: "threadtalk",            // used by notifications.html as pill label
         title: message,                // main line in notifications list
         body: message,                 // secondary line (same text for now)
         href,                          // notifications.html prefers href / link
         link: href,
-        thread_id: threadId,
-        comment_id: commentId,
       });
 
       if (error) {
