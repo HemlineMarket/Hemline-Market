@@ -276,14 +276,17 @@
     const item = buildItemFromButton(btn);
 
     // Merge behavior: if same id + same seller, bump qty; else push new line
+    // For Hemline fabric listings: items are sold as entire lots, so prevent duplicates
     const key = (it) => `${it.id}::${it.sellerId || ''}`;
     const idx = cart.findIndex(it => key(it) === key(item));
     if (idx >= 0){
-      cart[idx].qty = Number(cart[idx].qty || 1) + Number(item.qty || 1);
-      if (item.yards) cart[idx].yards = num(cart[idx].yards) + num(item.yards);
-    } else {
-      cart.push(item);
+      // Item already in cart - show message instead of adding again
+      toast(`"${item.name || 'This item'}" is already in your cart.`);
+      return;
     }
+    
+    // Add new item to cart
+    cart.push(item);
 
     writeCart(cart);
 
