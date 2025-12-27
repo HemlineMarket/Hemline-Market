@@ -497,10 +497,16 @@
           </div>
           ${hiddenHtml}
           <div class="tt-comment-new">
-            <input class="tt-comment-photo"
-                   type="file"
-                   accept="image/*"
-                   data-tt-role="comment-photo"/>
+            <label class="tt-comment-photo-btn" title="Add photo">
+              <input class="tt-comment-photo"
+                     type="file"
+                     accept="image/*"
+                     data-tt-role="comment-photo"
+                     hidden/>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <path d="M4 5h3l2-2h6l2 2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm8 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
+              </svg>
+            </label>
             <input class="tt-comment-input"
                    type="text"
                    maxlength="500"
@@ -2438,21 +2444,28 @@
         color:#65676b;
       }
 
-      .tt-comment-photo{
-        font-size:0;
-        width:auto;
-      }
-      .tt-comment-photo::file-selector-button{
-        border-radius:6px;
-        border:1px solid #dddfe2;
-        background:#fff;
-        padding:6px 10px;
-        font-size:13px;
-        cursor:pointer;
+      .tt-comment-photo-btn{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        width:32px;
+        height:32px;
+        border-radius:50%;
         color:#65676b;
+        cursor:pointer;
+        transition:background 0.15s;
       }
-      .tt-comment-photo::file-selector-button:hover{
+      .tt-comment-photo-btn:hover{
         background:#f0f2f5;
+        color:#991b1b;
+      }
+      .tt-comment-photo-btn svg{
+        width:18px;
+        height:18px;
+      }
+
+      .tt-comment-photo{
+        display:none;
       }
       .tt-comment-send{
         padding:8px 16px;
