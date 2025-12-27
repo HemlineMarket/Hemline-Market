@@ -131,7 +131,7 @@
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("id, store_name, first_name, last_name")
+        .select("id, store_name, first_name, last_name, avatar_url")
         .in("id", ids);
 
       (data || []).forEach((p) => (profilesCache[p.id] = p));
@@ -147,6 +147,34 @@
     const first = (p.first_name || "").trim();
     const last = (p.last_name || "").trim();
     return (first + " " + (last ? last[0] + "." : "")).trim() || "Unknown member";
+  }
+
+  // Get avatar HTML for a user - shows photo if available, placeholder SVG otherwise
+  function getAvatarHtml(userId) {
+    const p = profilesCache[userId];
+    
+    if (p?.avatar_url) {
+      const name = displayNameForUserId(userId);
+      return `<img src="${escapeAttr(p.avatar_url)}" alt="${escapeAttr(name)}" />`;
+    }
+    // Default placeholder SVG
+    return '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+  }
+
+  // Get avatar HTML for current user (for composer)
+  function getCurrentUserAvatarHtml() {
+    if (!currentUser) {
+      return '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+    }
+    return getAvatarHtml(currentUser.id);
+  }
+
+  // Update the composer avatar element with current user's avatar
+  function updateComposerAvatar() {
+    const composerAvatar = composerForm?.querySelector('.composer-avatar');
+    if (composerAvatar && currentUser) {
+      composerAvatar.innerHTML = getCurrentUserAvatarHtml();
+    }
   }
 
   // ---------- Load threads ----------
@@ -437,12 +465,13 @@
         ? `<a class="card-author" href="atelier.html?u=${encodeURIComponent(thread.author_id)}">${escapeHtml(authorName)}</a>`
         : `<span class="card-author">${escapeHtml(authorName)}</span>`;
 
-      // SVG for user silhouette avatar
-      const avatarSvg = '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+      // Get user avatar (photo or initials)
+      const avatarHtml = getAvatarHtml(thread.author_id);
+      const currentUserAvatar = getCurrentUserAvatarHtml();
 
       card.innerHTML = `
         <div class="card-header">
-          <div class="card-avatar">${avatarSvg}</div>
+          <div class="card-avatar">${avatarHtml}</div>
           <div class="card-meta">
             ${authorHtml}
             <div class="card-info">
@@ -477,7 +506,7 @@
           ${comments.length && !isExpanded ? `<button class="view-comments" type="button" data-tt-role="show-all-comments">View all ${comments.length} comment${comments.length === 1 ? "" : "s"}</button>` : ""}
           <div class="comments-list">${commentsHtml}</div>
           <div class="comment-input-row">
-            <div class="comment-avatar">${avatarSvg}</div>
+            <div class="comment-avatar">${currentUserAvatar}</div>
             <input class="comment-input" type="text" maxlength="500" placeholder="Write a comment..."/>
             <div class="comment-tools">
               <label class="comment-tool photo" title="Add photo">
@@ -574,12 +603,12 @@
       ? `<a class="comment-author" href="atelier.html?u=${encodeURIComponent(c.author_id)}">${escapeHtml(name)}</a>`
       : `<span class="comment-author">${escapeHtml(name)}</span>`;
 
-    // SVG for user silhouette avatar
-    const avatarSvg = '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+    // Get user avatar (photo or initials)
+    const commentAvatarHtml = getAvatarHtml(c.author_id);
 
     return `
       <div class="comment${d > 0 ? ' nested' : ''}${d > 1 ? ' nested-deep' : ''}" data-comment-id="${c.id}" data-thread-id="${threadId}" data-depth="${d}">
-        <div class="comment-avatar">${avatarSvg}</div>
+        <div class="comment-avatar">${commentAvatarHtml}</div>
         <div class="comment-content">
           <div class="comment-bubble">
             ${authorHtml}
@@ -717,6 +746,9 @@
   // ---------- Composer ----------
   function wireComposer() {
     if (!composerForm) return;
+
+    // Update composer avatar when user is logged in
+    updateComposerAvatar();
 
     composerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
