@@ -80,7 +80,80 @@
       gap:16px;
       align-items:flex-start;
     }
-    /* Hide avatar on account page */
+    
+    /* Profile Avatar Upload Section */
+    .profile-avatar-section {
+      position: relative;
+      flex-shrink: 0;
+    }
+    
+    .profile-avatar-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 3px solid rgba(153, 27, 27, 0.2);
+      box-shadow: 0 4px 12px rgba(153, 27, 27, 0.15);
+    }
+    
+    .profile-avatar-placeholder {
+      width: 40px;
+      height: 40px;
+      color: #fff;
+    }
+    
+    .profile-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .profile-avatar-img.is-hidden {
+      display: none;
+    }
+    
+    .profile-avatar-edit {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      background: var(--hm-accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: transform 0.15s, background 0.15s;
+    }
+    
+    .profile-avatar-edit:hover {
+      background: #7f1d1d;
+      transform: scale(1.1);
+    }
+    
+    .profile-avatar-edit svg {
+      width: 14px;
+      height: 14px;
+    }
+    
+    /* Avatar upload loading state */
+    .profile-avatar-section.uploading .profile-avatar-circle {
+      opacity: 0.6;
+    }
+    
+    .profile-avatar-section.uploading .profile-avatar-edit {
+      pointer-events: none;
+    }
+    
+    /* Hide old avatar on account page */
     .profile-avatar{
       display:none;
     }
@@ -346,7 +419,22 @@
       
       <div class="hm-card-body">
         <div class="profile-row">
-          <div class="profile-avatar" id="profileAvatar">HM</div>
+          <!-- Profile Photo Upload -->
+          <div class="profile-avatar-section" id="profileAvatarSection">
+            <div class="profile-avatar-circle" id="profileAvatarCircle">
+              <svg class="profile-avatar-placeholder" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+              <img class="profile-avatar-img is-hidden" id="profileAvatarImg" alt="Profile photo" />
+            </div>
+            <button class="profile-avatar-edit" type="button" id="btnEditAvatar" title="Change photo">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+              </svg>
+            </button>
+            <input type="file" id="avatarFileInput" accept="image/*" hidden />
+          </div>
+          
           <div class="profile-main">
             <div class="profile-main-name" id="profileName">Hemline member</div>
             <div class="profile-main-email" id="profileEmail">you@example.com</div>
@@ -722,6 +810,14 @@
       const storeSlugPreviewEl   = document.getElementById('storeSlugPreview');
       const storeNameErrorEl     = document.getElementById('storeNameError');
 
+      // Avatar upload elements
+      const avatarSection        = document.getElementById('profileAvatarSection');
+      const avatarCircle         = document.getElementById('profileAvatarCircle');
+      const avatarImg            = document.getElementById('profileAvatarImg');
+      const avatarPlaceholder    = avatarCircle?.querySelector('.profile-avatar-placeholder');
+      const avatarEditBtn        = document.getElementById('btnEditAvatar');
+      const avatarFileInput      = document.getElementById('avatarFileInput');
+
       const addressDisplay       = document.getElementById('addressDisplay');
       const addressEditor        = document.getElementById('addressEditor');
       const addressForm          = document.getElementById('addressForm');
@@ -732,6 +828,122 @@
       const stripeNoteEl         = document.getElementById('stripeNote');
 
       profileEmailEl.textContent = email;
+
+      // ---- Avatar Upload Functions ----
+      const AVATAR_BUCKET = 'avatars';
+
+      function showAvatar(url) {
+        if (url && avatarImg && avatarPlaceholder) {
+          avatarImg.src = url;
+          avatarImg.classList.remove('is-hidden');
+          avatarPlaceholder.style.display = 'none';
+          // Also update localStorage for header avatar
+          localStorage.setItem('avatarUrl', url);
+        }
+      }
+
+      function hideAvatar() {
+        if (avatarImg && avatarPlaceholder) {
+          avatarImg.classList.add('is-hidden');
+          avatarPlaceholder.style.display = '';
+          localStorage.removeItem('avatarUrl');
+        }
+      }
+
+      async function uploadAvatar(file) {
+        if (!file || !userId) return null;
+
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+          alert('Please select an image file.');
+          return null;
+        }
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          alert('Image must be smaller than 5MB.');
+          return null;
+        }
+
+        avatarSection?.classList.add('uploading');
+
+        try {
+          // Create unique filename
+          const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
+          const filename = `${userId}/avatar-${Date.now()}.${ext}`;
+
+          // Upload to Supabase storage
+          const { data, error: uploadError } = await supabaseClient.storage
+            .from(AVATAR_BUCKET)
+            .upload(filename, file, {
+              cacheControl: '3600',
+              upsert: true,
+              contentType: file.type
+            });
+
+          if (uploadError) {
+            console.error('Avatar upload error:', uploadError);
+            alert('Failed to upload image. Please try again.');
+            return null;
+          }
+
+          // Get public URL
+          const { data: urlData } = supabaseClient.storage
+            .from(AVATAR_BUCKET)
+            .getPublicUrl(data.path);
+
+          const publicUrl = urlData?.publicUrl;
+          if (!publicUrl) {
+            alert('Failed to get image URL. Please try again.');
+            return null;
+          }
+
+          // Save to profiles table
+          const { error: profileError } = await supabaseClient
+            .from('profiles')
+            .upsert({
+              id: userId,
+              avatar_url: publicUrl
+            }, { onConflict: 'id' });
+
+          if (profileError) {
+            console.error('Profile avatar update error:', profileError);
+          }
+
+          // Also update user_metadata
+          await supabaseClient.auth.updateUser({
+            data: { avatar_url: publicUrl }
+          });
+
+          console.log('[Account] Avatar uploaded successfully:', publicUrl);
+          return publicUrl;
+
+        } catch (err) {
+          console.error('Avatar upload exception:', err);
+          alert('Something went wrong. Please try again.');
+          return null;
+        } finally {
+          avatarSection?.classList.remove('uploading');
+        }
+      }
+
+      // Wire up avatar upload
+      if (avatarEditBtn && avatarFileInput) {
+        avatarEditBtn.addEventListener('click', () => {
+          avatarFileInput.click();
+        });
+
+        avatarFileInput.addEventListener('change', async () => {
+          const file = avatarFileInput.files?.[0];
+          if (!file) return;
+
+          const url = await uploadAvatar(file);
+          if (url) {
+            showAvatar(url);
+          }
+
+          // Reset input so same file can be selected again
+          avatarFileInput.value = '';
+        });
+      }
 
       // ---- Helper: Check if email is Apple relay or looks auto-generated ----
       function isRelayEmail(email) {
@@ -775,9 +987,15 @@
             storeName: profileData.store_name || '',
             bio: profileData.bio || '',
             storeSlug: profileData.store_slug || slugifyStoreName(profileData.store_name || ''),
-            contactEmail: profileData.contact_email || ''
+            contactEmail: profileData.contact_email || '',
+            avatarUrl: profileData.avatar_url || ''
           };
           console.log('[Account] Loaded profile from Supabase:', profile);
+          
+          // Show avatar if we have one
+          if (profile.avatarUrl) {
+            showAvatar(profile.avatarUrl);
+          }
         }
       } catch (e) {
         console.warn('Error loading profile from Supabase:', e);
@@ -791,6 +1009,11 @@
       }
       if (userMeta.shop_name) {
         profile.storeName = profile.storeName || userMeta.shop_name || '';
+      }
+      // Check user_metadata for avatar_url as fallback
+      if (userMeta.avatar_url && !profile.avatarUrl) {
+        profile.avatarUrl = userMeta.avatar_url;
+        showAvatar(profile.avatarUrl);
       }
       // ✅ Check user_metadata for contact_email - use it if profile doesn't have one
       if (userMeta.contact_email) {
