@@ -442,26 +442,30 @@
            </a>`
         : `<span class="author">${escapeHtml(authorName)}</span>`;
 
+            // Get author initials for avatar
+      const authorInitials = getInitials(authorName);
+      // Get current user initials for comment input  
+      const currentUserName = currentUser ? displayNameForUserId(currentUser.id) : "";
+      const currentUserInitials = getInitials(currentUserName);
+
       card.innerHTML = `
         <div class="tt-head">
           <div class="tt-line1">
-            <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>
-            ${
-              title
-                ? `<span class="tt-title">“${escapeHtml(title)}”</span>`
-                : ""
-            }
-            <button class="tt-share-chip"
-                    type="button"
-                    data-tt-role="share-thread">
-              Share
-            </button>
-          </div>
-          <div class="tt-line2">
-            <div class="tt-line2-main">
-              ${authorHtml}
-              <span>•</span>
-              <span>${when}</span>
+            <div class="tt-avatar" title="${escapeAttr(authorName)}">${authorInitials}</div>
+            <div class="tt-header-content">
+              <div class="tt-author-row">
+                ${authorHtml}
+              </div>
+              <div class="tt-meta-row">
+                <span>${when}</span>
+                <span>·</span>
+                <a class="cat" href="${catLink}">${escapeHtml(catLabel)}</a>
+              </div>
+              ${
+                title
+                  ? `<div class="tt-title">${escapeHtml(title)}</div>`
+                  : ""
+              }
             </div>
             ${menuHtml}
           </div>
@@ -469,6 +473,8 @@
 
         <div class="preview">${linkify(thread.body || "")}</div>
         ${mediaHtml}
+
+        ${reactionSummaryHtml}
 
         <div class="tt-actions-row">
           <div class="tt-like-wrapper">
@@ -481,15 +487,27 @@
             </button>
             ${pickerHtml}
           </div>
-          ${reactionSummaryHtml}
+          <button class="tt-reply-link" type="button" data-tt-role="focus-comment-input">
+            <span>Comment</span>
+          </button>
+          <button class="tt-share-action"
+                  type="button"
+                  data-tt-role="share-thread">
+            <span>Share</span>
+          </button>
         </div>
 
         <div class="tt-comments">
+          ${hiddenHtml}
           <div class="tt-comments-list">
             ${commentsHtml}
           </div>
-          ${hiddenHtml}
           <div class="tt-comment-new">
+            <div class="tt-comment-new-avatar">${currentUserInitials || '?'}</div>
+            <input class="tt-comment-input"
+                   type="text"
+                   maxlength="500"
+                   placeholder="Write a comment…"/>
             <label class="tt-comment-photo-btn" title="Add photo">
               <input class="tt-comment-photo"
                      type="file"
@@ -500,10 +518,6 @@
                 <path d="M4 5h3l2-2h6l2 2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm8 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
               </svg>
             </label>
-            <input class="tt-comment-input"
-                   type="text"
-                   maxlength="500"
-                   placeholder="Write a reply…"/>
             <button class="tt-comment-send"
                     type="button"
                     data-tt-role="send-comment">
@@ -596,6 +610,9 @@
              )}">${escapeHtml(name)}</a>`
       : `<span class="tt-comment-author">${escapeHtml(name)}</span>`;
 
+    // Get comment author initials for avatar
+    const commentInitials = getInitials(name);
+
     return `
       <div class="tt-comment${
         d > 0 ? " tt-comment-child" : ""
@@ -604,57 +621,59 @@
            data-author-name="${escapeAttr(name)}"
            data-depth="${d}">
 
-         <div class="tt-comment-head-row">
-           <div class="tt-comment-meta">
-             ${authorHtml}
-             <span class="tt-comment-dot">•</span>
-             <span class="tt-comment-time">${ts}</span>
+         <div class="tt-comment-avatar">${commentInitials}</div>
+         <div class="tt-comment-content">
+           <div class="tt-comment-bubble">
+             <div class="tt-comment-meta">
+               ${authorHtml}
+             </div>
+             <div class="tt-comment-body">${linkify(c.body)}</div>
            </div>
-           ${deleteHtml}
-         </div>
+           ${mediaHtml}
+           
+           <div class="tt-comment-actions">
+             <div class="tt-like-wrapper tt-like-wrapper-comment">
+               <button class="tt-like-btn tt-like-main${
+                 myType ? " tt-like-active" : ""
+               }"
+                       type="button"
+                       data-tt-role="comment-like-toggle"
+                       data-comment-id="${c.id}">
+                 Like
+               </button>
+               ${pickerHtml}
+             </div>
 
-         <div class="tt-comment-body">${linkify(c.body)}</div>
-         ${mediaHtml}
-         ${summaryHtml}
-
-         <div class="tt-comment-actions">
-           <div class="tt-like-wrapper tt-like-wrapper-comment">
-             <button class="tt-like-btn tt-like-main${
-               myType ? " tt-like-active" : ""
-             }"
+             <button class="tt-reply-link"
                      type="button"
-                     data-tt-role="comment-like-toggle"
+                     data-tt-role="respond-comment"
                      data-comment-id="${c.id}">
-               <span class="tt-like-label">Like</span>
+               Reply
              </button>
-             ${pickerHtml}
+             
+             <span class="tt-comment-time">${ts}</span>
+             ${summaryHtml}
+             ${deleteHtml}
            </div>
 
-           <button class="tt-reply-link"
-                   type="button"
-                   data-tt-role="respond-comment"
-                   data-comment-id="${c.id}">
-             Reply
-           </button>
-         </div>
-
-         <div class="tt-comment-reply-box"
-              data-parent-comment-id="${c.id}"
-              hidden>
-           <input class="tt-comment-photo"
-                  type="file"
-                  accept="image/*"
-                  data-tt-role="comment-photo"/>
-           <input class="tt-comment-input"
-                  type="text"
-                  maxlength="500"
-                  placeholder="Reply to ${escapeAttr(name)}…"/>
-           <button class="tt-comment-send"
-                   type="button"
-                   data-tt-role="send-comment-reply"
-                   data-comment-id="${c.id}">
-             Send
-           </button>
+           <div class="tt-comment-reply-box"
+                data-parent-comment-id="${c.id}"
+                hidden>
+             <input class="tt-comment-photo"
+                    type="file"
+                    accept="image/*"
+                    data-tt-role="comment-photo"/>
+             <input class="tt-comment-input"
+                    type="text"
+                    maxlength="500"
+                    placeholder="Reply to ${escapeAttr(name)}…"/>
+             <button class="tt-comment-send"
+                     type="button"
+                     data-tt-role="send-comment-reply"
+                     data-comment-id="${c.id}">
+               Send
+             </button>
+           </div>
          </div>
 
       </div>`;
@@ -1127,6 +1146,10 @@
         }
 
         case "respond":
+          focusCommentBox(card);
+          break;
+
+        case "focus-comment-input":
           focusCommentBox(card);
           break;
 
@@ -1890,6 +1913,15 @@
 
   function escapeAttr(str) {
     return escapeHtml(str).replace(/'/g, "&#39;");
+  }
+
+  // Get initials from a name (e.g. "John Doe" → "JD", "Alice" → "A")
+  function getInitials(name) {
+    if (!name || typeof name !== 'string') return '?';
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return '?';
+    if (words.length === 1) return words[0].charAt(0).toUpperCase();
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
   }
 
   // Turn raw text into safe HTML with clickable links, keeping all original text.
