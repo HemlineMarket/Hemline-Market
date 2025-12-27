@@ -2450,18 +2450,19 @@
         justify-content:center;
         width:32px;
         height:32px;
-        border-radius:50%;
-        color:#65676b;
+        border-radius:8px;
+        border:1px solid #e8e0d9;
+        background:#fff;
+        color:#dc2626;
         cursor:pointer;
         transition:background 0.15s;
       }
       .tt-comment-photo-btn:hover{
-        background:#f0f2f5;
-        color:#991b1b;
+        background:#fef2f2;
       }
       .tt-comment-photo-btn svg{
-        width:18px;
-        height:18px;
+        width:16px;
+        height:16px;
       }
 
       .tt-comment-photo{
