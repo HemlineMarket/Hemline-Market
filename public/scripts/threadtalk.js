@@ -1086,10 +1086,10 @@
         case "thread-like-toggle": {
           const ok = await ensureLoggedInFor("react");
           if (!ok) return;
-          const wrapper = roleEl.closest(".tt-like-wrapper");
-          const isOpen = wrapper.classList.contains("tt-picker-open");
-          closeAllPickers();
-          if (!isOpen) wrapper.classList.add("tt-picker-open");
+          // Simple like toggle - no reaction picker
+          if (threadId) {
+            await handleThreadReaction(threadId, "like");
+          }
           break;
         }
 
