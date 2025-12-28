@@ -578,41 +578,64 @@
       margin-top: 12px !important;
     }
 
-    /* Seller Tools Links */
-    .seller-tool-link {
+    /* V2 Features List */
+    .v2-feature {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 12px;
-      margin: 0 -12px;
-      color: var(--hm-text);
-      text-decoration: none;
-      font-size: 14px;
-      border-radius: 8px;
-      transition: background 0.15s;
-    }
-
-    a.seller-tool-link:hover {
-      background: #f9fafb;
-    }
-
-    .seller-tool-link.coming-soon {
+      padding: 8px 0;
       color: var(--hm-muted);
-      cursor: default;
+      font-size: 14px;
+      border-bottom: 1px solid #f3f4f6;
     }
 
-    .seller-tool-link span:first-child {
+    .v2-feature:last-child {
+      border-bottom: none;
+    }
+
+    .v2-feature span {
       font-size: 16px;
     }
 
-    .tool-badge {
-      margin-left: auto;
-      font-size: 10px;
-      padding: 2px 6px;
-      background: #991b1b;
+    /* Photo Modal */
+    .photo-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .photo-modal.active {
+      display: flex;
+    }
+
+    .photo-modal img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .photo-modal-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.2);
+      border: none;
       color: #fff;
-      border-radius: 4px;
-      font-weight: 600;
+      font-size: 32px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      line-height: 1;
     }
 
     @media (max-width: 640px) {
@@ -689,7 +712,7 @@
       <div class="hm-card-header" id="profileHeading">Store</div>
       <div class="hm-card-body">
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-          <div class="atelier-avatar" id="atelierAvatar">
+          <div class="atelier-avatar" id="atelierAvatar" style="cursor:pointer;" title="View larger photo">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/>
               <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
@@ -716,7 +739,7 @@
       </div>
     </section>
 
-    <!-- COLUMN 2: RATING + SELLER TOOLS -->
+    <!-- COLUMN 2: RATING -->
     <section class="hm-card" aria-labelledby="ratingHeading">
       <div class="hm-card-header" id="ratingHeading">Rating</div>
       <div class="hm-card-body" style="padding-bottom:12px;">
@@ -725,27 +748,14 @@
       </div>
     </section>
     
-    <!-- SELLER TOOLS (Owner only, in right column) -->
-    <section class="hm-card" id="sellerToolsSection" style="display:none;" aria-labelledby="sellerToolsHeading">
-      <div class="hm-card-header" id="sellerToolsHeading">Seller Tools</div>
-      <div class="hm-card-body" style="padding:12px 16px;">
-        <a href="sell.html" class="seller-tool-link">
-          <span>➕</span> Create new listing
-        </a>
-        <a href="account.html" class="seller-tool-link">
-          <span>✏️</span> Edit profile
-        </a>
-        <a href="messages.html" class="seller-tool-link">
-          <span>💬</span> Messages
-        </a>
-        <div class="seller-tool-link coming-soon">
-          <span>📦</span> Bulk listing
-          <span class="tool-badge">V2</span>
-        </div>
-        <div class="seller-tool-link coming-soon">
-          <span>📊</span> Sales analytics
-          <span class="tool-badge">V2</span>
-        </div>
+    <!-- COMING IN V2 (Owner only) -->
+    <section class="hm-card" id="sellerToolsSection" style="display:none;" aria-labelledby="v2Heading">
+      <div class="hm-card-header" id="v2Heading">Coming in Version 2</div>
+      <div class="hm-card-body" style="padding:14px 16px;">
+        <div class="v2-feature"><span>📦</span> Bulk listing</div>
+        <div class="v2-feature"><span>📊</span> Sales analytics</div>
+        <div class="v2-feature"><span>📐</span> Inventory tracking</div>
+        <div class="v2-feature"><span>🏷️</span> Promotions & coupons</div>
       </div>
     </section>
   </section>
@@ -1355,6 +1365,48 @@
 <script src="scripts/cart.js"></script>
 <script src="scripts/cart-hooks.js"></script>
 <script src="assets/add-to-cart.js" defer></script>
+
+<!-- Photo Modal -->
+<div class="photo-modal" id="photoModal">
+  <button class="photo-modal-close" id="photoModalClose">&times;</button>
+  <img id="photoModalImg" src="" alt="Profile photo">
+</div>
+
+<script>
+  // Photo modal functionality
+  (function() {
+    const avatarEl = document.getElementById('atelierAvatar');
+    const modal = document.getElementById('photoModal');
+    const modalImg = document.getElementById('photoModalImg');
+    const closeBtn = document.getElementById('photoModalClose');
+
+    if (avatarEl && modal && modalImg) {
+      avatarEl.addEventListener('click', () => {
+        const img = avatarEl.querySelector('img');
+        if (img && img.src) {
+          modalImg.src = img.src;
+          modal.classList.add('active');
+        }
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal || e.target === closeBtn) {
+          modal.classList.remove('active');
+        }
+      });
+
+      closeBtn.addEventListener('click', () => {
+        modal.classList.remove('active');
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+          modal.classList.remove('active');
+        }
+      });
+    }
+  })();
+</script>
 
 </body>
 </html>
