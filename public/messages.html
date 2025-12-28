@@ -701,7 +701,7 @@ async function loadThreads(preselectThreadId){
   if(otherIds.length){
     const { data:prof } = await supabaseClient
       .from("profiles")
-      .select("id, first_name, last_name, store_name, email, profile_photo")
+      .select("id, first_name, last_name, store_name, email, avatar_url")
       .in("id", otherIds);
     profilesById = Object.fromEntries((prof||[]).map(p=>[p.id,p]));
   }
@@ -711,7 +711,7 @@ async function loadThreads(preselectThreadId){
   if(orderIds.length){
     const { data:orders } = await supabaseClient
       .from("orders")
-      .select("id, created_at, status, item_title")
+      .select("id, created_at, status, item_title, listing_title")
       .in("id", orderIds);
     ordersById = Object.fromEntries((orders||[]).map(o=>[o.id,o]));
   }
@@ -723,7 +723,7 @@ async function loadThreads(preselectThreadId){
     const last  = prof.last_name  || "";
     const displayName = (first||last) ? `${first} ${last}`.trim() : prof.store_name || "Hemline member";
     const initials = initialsFromName(first,last,displayName);
-    const profilePhoto = prof.profile_photo || null;
+    const profilePhoto = prof.avatar_url || null;
     
     // Avatar HTML - use photo if available, otherwise initials
     const avatarHtml = profilePhoto 
@@ -772,7 +772,7 @@ async function loadThreads(preselectThreadId){
     let detailsHtml = "";
     if(hasOrder && order){
       const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : "";
-      const itemTitle = order.item_title || "Item";
+      const itemTitle = order.item_title || order.listing_title || "Item";
       detailsHtml = `
         <div class="thread-details">
           <div><strong>Order #${thread.order_id?.slice(0,8) || ""}</strong></div>
