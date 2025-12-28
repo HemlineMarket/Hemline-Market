@@ -219,11 +219,6 @@
       display:none;
     }
 
-    /* Also collapse the preview text when collapsed */
-    .thread.collapsed .thread-preview{
-      display:none;
-    }
-
     .thread-details a{
       color:var(--accent);
       text-decoration:none;
@@ -825,11 +820,13 @@ async function loadThreads(preselectThreadId){
         </div>
         <div class="thread-right">
           <div class="pill">${shortTimeLabel(thread.last_message_at || thread.created_at)}</div>
-          <button class="collapse-toggle" type="button" title="Toggle details">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </button>
+          ${hasOrder ? `
+            <button class="collapse-toggle" type="button" title="Toggle details">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          ` : ""}
         </div>
       </div>
       ${detailsHtml}
@@ -847,9 +844,18 @@ async function loadThreads(preselectThreadId){
     const collapseBtn = row.querySelector(".collapse-toggle");
     if(collapseBtn){
       collapseBtn.addEventListener("click", (e)=>{
-        e.preventDefault();
         e.stopPropagation();
         row.classList.toggle("collapsed");
+        const expandedKey = thread.id + "_expanded";
+        if(row.classList.contains("collapsed")){
+          // Going to collapsed: remove expanded marker
+          collapsedThreads.delete(expandedKey);
+          collapsedThreads.add(thread.id);
+        } else {
+          // Going to expanded: add expanded marker
+          collapsedThreads.add(expandedKey);
+          collapsedThreads.delete(thread.id);
+        }
       });
     }
 
