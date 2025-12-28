@@ -287,11 +287,11 @@
       if(order.seller_id){
         const { data: profile } = await supabaseClient
           .from("profiles")
-          .select("first_name, last_name, username")
+          .select("first_name, last_name, username, store_name")
           .eq("id", order.seller_id)
           .single();
         if(profile){
-          sellerName = profile.username || `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Seller";
+          sellerName = profile.store_name || profile.username || `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Seller";
         }
       }
 
@@ -334,6 +334,15 @@
       const canRateSeller = (order.buyer_accepted_at || order.status === "COMPLETE") && !order.reviewed;
       const hasRated = order.reviewed;
 
+      // Build thumbnail - clickable link to listing if available
+      const thumbContent = itemImg 
+        ? `<img src="${itemImg}" alt="${itemTitle}">`
+        : `<div class="thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`;
+      
+      const thumbHtml = order.listing_id 
+        ? `<a href="listing.html?id=${order.listing_id}" class="itemThumb" style="display:block;text-decoration:none;">${thumbContent}</a>`
+        : `<div class="itemThumb">${thumbContent}</div>`;
+
       contentEl.innerHTML = `
         <div class="pageHeader">
           <div>
@@ -350,14 +359,9 @@
               <div class="card-header">Item Purchased</div>
               <div class="card-body">
                 <div class="itemRow">
-                  <div class="itemThumb">
-                    ${itemImg 
-                      ? `<img src="${itemImg}" alt="${itemTitle}">`
-                      : `<div class="thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`
-                    }
-                  </div>
+                  ${thumbHtml}
                   <div class="itemInfo">
-                    <div class="itemTitle">${itemTitle}</div>
+                    <div class="itemTitle">${order.listing_id ? `<a href="listing.html?id=${order.listing_id}" style="color:inherit;text-decoration:none;">${itemTitle}</a>` : itemTitle}</div>
                     <div class="itemMeta">
                       ${itemSize ? `Size: ${itemSize} · ` : ""}
                       Seller: <a href="atelier.html?u=${order.seller_id || ''}">${sellerName}</a>
