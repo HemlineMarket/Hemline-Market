@@ -280,11 +280,11 @@ window.HM = window.HM || {};
 
         // Load avatar from localStorage or profile
         if (headerAvatar) {
-          const avatarKey = `hm-avatar-${session.user.id}`;
-          const cachedAvatar = localStorage.getItem(avatarKey);
+          // Check both possible avatar keys
+          const avatarUrl = localStorage.getItem("avatarUrl") || localStorage.getItem(`hm-avatar-${session.user.id}`);
           
-          if (cachedAvatar) {
-            headerAvatar.style.backgroundImage = `url(${cachedAvatar})`;
+          if (avatarUrl) {
+            headerAvatar.style.backgroundImage = `url(${avatarUrl})`;
             headerAvatar.textContent = "";
             accountLink.classList.add("has-avatar");
           } else {
