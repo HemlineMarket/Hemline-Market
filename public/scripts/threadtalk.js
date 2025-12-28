@@ -602,6 +602,15 @@
         </div>
       </div>`
         : "";
+    
+    // Debug: Log to console to help diagnose menu visibility
+    console.log("[ThreadTalk Debug] Comment render:", {
+      commentId: c.id,
+      commentAuthorId: c.author_id,
+      currentUserId: currentUser?.id || "NO USER",
+      isMatch: currentUser && c.author_id === currentUser.id,
+      willShowMenu: !!deleteHtml
+    });
 
     const pickerHtml =
       `<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="${c.id}">` +
@@ -2010,14 +2019,52 @@
     });
   }
 
-  // ---------- Link previews (YouTube + website cards, no iframes) ----------
+  // ---------- Link previews (YouTube embeds + website cards) ----------
   async function attachLinkPreview(card, thread) {
     const body = thread.body || "";
     const urlMatch = body.match(/https?:\/\/[^\s]+/);
     if (!urlMatch) return;
 
     const url = urlMatch[0];
+    
+    const actionsRow = card.querySelector(".card-actions");
+    if (!actionsRow) {
+      return;
+    }
 
+    // Check if this is a YouTube URL - if so, embed the video
+    if (isYoutubeUrl(url)) {
+      const videoId = extractYoutubeId(url);
+      if (videoId) {
+        const container = document.createElement("div");
+        container.className = "tt-youtube-embed";
+        container.innerHTML = `
+          <iframe 
+            src="https://www.youtube.com/embed/${videoId}" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+          </iframe>
+        `;
+        card.insertBefore(container, actionsRow);
+        
+        // Hide the raw URL in the card body
+        const cardBody = card.querySelector(".card-body");
+        if (cardBody) {
+          cardBody.innerHTML = cardBody.innerHTML.replace(
+            /<a[^>]*href="[^"]*"[^>]*>[^<]*<\/a>/gi,
+            ''
+          ).trim();
+          // If body is now empty or just whitespace, hide it
+          if (!cardBody.textContent.trim()) {
+            cardBody.style.display = 'none';
+          }
+        }
+        return;
+      }
+    }
+
+    // For non-YouTube URLs, fetch metadata and show preview card
     let previewData = null;
     try {
       previewData = await fetchLinkMetadata(url);
@@ -2026,8 +2073,8 @@
     }
 
     const rawTitle =
-      (previewData && (previewData.title || previewData.ogTitle)) || url;
-    let title = rawTitle || url;
+      (previewData && (previewData.title || previewData.ogTitle)) || "";
+    let title = rawTitle;
     if (title.length > 120) title = title.slice(0, 117) + "…";
 
     let host = "";
@@ -2046,48 +2093,49 @@
           previewData["og:image"])) ||
       null;
 
-    // Fallback to YouTube thumbnail if needed
-    if (!thumb && isYoutubeUrl(url)) {
-      const vid = extractYoutubeId(url);
-      if (vid) {
-        thumb = `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
-      }
-    }
+    // Only show preview card if we have useful metadata
+    if (title || thumb) {
+      const container = document.createElement("div");
+      container.className = "tt-link-preview-wrap";
 
-    const actionsRow = card.querySelector(".card-actions");
-    if (!actionsRow) {
-      console.log("[attachLinkPreview] Could not find .card-actions element");
-      return;
-    }
-
-    const container = document.createElement("div");
-    container.className = "tt-link-preview-wrap";
-
-    container.innerHTML = `
-      <a class="tt-link-card"
-         href="${escapeAttr(url)}"
-         target="_blank"
-         rel="noopener noreferrer">
-        ${
-          thumb
-            ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
-                thumb
-              )}');"></div>`
-            : ""
-        }
-        <div class="tt-link-meta">
-          <div class="tt-link-title">${escapeHtml(title)}</div>
+      container.innerHTML = `
+        <a class="tt-link-card"
+           href="${escapeAttr(url)}"
+           target="_blank"
+           rel="noopener noreferrer">
           ${
-            host
-              ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
+            thumb
+              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
+                  thumb
+                )}');"></div>`
               : ""
           }
-        </div>
-      </a>
-    `;
+          <div class="tt-link-meta">
+            ${title ? `<div class="tt-link-title">${escapeHtml(title)}</div>` : ""}
+            ${
+              host
+                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
+                : ""
+            }
+          </div>
+        </a>
+      `;
 
-    // Insert the preview just above the Like / Reply row
-    card.insertBefore(container, actionsRow);
+      card.insertBefore(container, actionsRow);
+      
+      // Hide the raw URL in the card body since we have a nice preview
+      const cardBody = card.querySelector(".card-body");
+      if (cardBody) {
+        cardBody.innerHTML = cardBody.innerHTML.replace(
+          /<a[^>]*href="[^"]*"[^>]*>[^<]*<\/a>/gi,
+          ''
+        ).trim();
+        // If body is now empty or just whitespace, hide it
+        if (!cardBody.textContent.trim()) {
+          cardBody.style.display = 'none';
+        }
+      }
+    }
   }
 
   function isYoutubeUrl(url) {
