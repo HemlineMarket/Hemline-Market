@@ -11,6 +11,10 @@
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  
+  <!-- Cropper.js for avatar cropping -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
   <style>
     :root{
@@ -157,6 +161,111 @@
     
     .profile-avatar-section.uploading .profile-avatar-edit {
       pointer-events: none;
+    }
+    
+    /* Crop Modal */
+    .crop-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .crop-modal.active {
+      display: flex;
+    }
+    
+    .crop-modal-content {
+      background: #fff;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .crop-modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--hm-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .crop-modal-header h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .crop-modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--hm-muted);
+      padding: 0;
+      line-height: 1;
+    }
+    
+    .crop-modal-body {
+      padding: 20px;
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0;
+    }
+    
+    .crop-container {
+      max-width: 100%;
+      max-height: 400px;
+    }
+    
+    .crop-container img {
+      max-width: 100%;
+      display: block;
+    }
+    
+    .crop-modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--hm-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    
+    .crop-modal-footer .btn {
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    
+    .crop-modal-footer .btn-cancel {
+      background: #f3f4f6;
+      border: 1px solid var(--hm-border);
+      color: var(--hm-text);
+    }
+    
+    .crop-modal-footer .btn-save {
+      background: var(--hm-accent);
+      border: none;
+      color: #fff;
+    }
+    
+    .crop-modal-footer .btn-save:hover {
+      background: #7f1d1d;
     }
     
     /* Hide old avatar on account page */
@@ -936,7 +1045,110 @@
         }
       }
 
-      // Wire up avatar upload
+      // Wire up avatar upload with crop modal
+      const cropModal = document.getElementById('cropModal');
+      const cropImage = document.getElementById('cropImage');
+      const cropModalClose = document.getElementById('cropModalClose');
+      const cropCancel = document.getElementById('cropCancel');
+      const cropSave = document.getElementById('cropSave');
+      let cropper = null;
+      let pendingFile = null;
+
+      function openCropModal(file) {
+        pendingFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          cropImage.src = e.target.result;
+          cropModal.classList.add('active');
+          
+          // Initialize cropper after image loads
+          cropImage.onload = () => {
+            if (cropper) {
+              cropper.destroy();
+            }
+            cropper = new Cropper(cropImage, {
+              aspectRatio: 1,
+              viewMode: 1,
+              dragMode: 'move',
+              autoCropArea: 1,
+              cropBoxMovable: true,
+              cropBoxResizable: true,
+              guides: false,
+              center: true,
+              background: false,
+              responsive: true,
+            });
+          };
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function closeCropModal() {
+        cropModal.classList.remove('active');
+        if (cropper) {
+          cropper.destroy();
+          cropper = null;
+        }
+        pendingFile = null;
+        cropImage.src = '';
+      }
+
+      async function saveCroppedImage() {
+        if (!cropper) return;
+        
+        // Get cropped canvas
+        const canvas = cropper.getCroppedCanvas({
+          width: 256,
+          height: 256,
+          imageSmoothingEnabled: true,
+          imageSmoothingQuality: 'high',
+        });
+        
+        if (!canvas) {
+          alert('Could not crop image. Please try again.');
+          return;
+        }
+        
+        // Convert to blob
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            alert('Could not process image. Please try again.');
+            return;
+          }
+          
+          // Create a File from the blob
+          const croppedFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+          
+          closeCropModal();
+          
+          // Upload the cropped image
+          const url = await uploadAvatar(croppedFile);
+          if (url) {
+            showAvatar(url);
+          }
+        }, 'image/jpeg', 0.9);
+      }
+
+      // Event listeners for crop modal
+      if (cropModalClose) {
+        cropModalClose.addEventListener('click', closeCropModal);
+      }
+      if (cropCancel) {
+        cropCancel.addEventListener('click', closeCropModal);
+      }
+      if (cropSave) {
+        cropSave.addEventListener('click', saveCroppedImage);
+      }
+      
+      // Close modal on backdrop click
+      if (cropModal) {
+        cropModal.addEventListener('click', (e) => {
+          if (e.target === cropModal) {
+            closeCropModal();
+          }
+        });
+      }
+
       if (avatarEditBtn && avatarFileInput) {
         avatarEditBtn.addEventListener('click', () => {
           avatarFileInput.click();
@@ -946,10 +1158,15 @@
           const file = avatarFileInput.files?.[0];
           if (!file) return;
 
-          const url = await uploadAvatar(file);
-          if (url) {
-            showAvatar(url);
+          // Validate file type
+          if (!file.type.startsWith('image/')) {
+            alert('Please select an image file.');
+            avatarFileInput.value = '';
+            return;
           }
+          
+          // Open crop modal instead of uploading directly
+          openCropModal(file);
 
           // Reset input so same file can be selected again
           avatarFileInput.value = '';
@@ -1609,6 +1826,25 @@
       });
     })();
   </script>
+
+  <!-- Crop Modal -->
+  <div class="crop-modal" id="cropModal">
+    <div class="crop-modal-content">
+      <div class="crop-modal-header">
+        <h3>Adjust Photo</h3>
+        <button type="button" class="crop-modal-close" id="cropModalClose">&times;</button>
+      </div>
+      <div class="crop-modal-body">
+        <div class="crop-container">
+          <img id="cropImage" src="" alt="Crop preview">
+        </div>
+      </div>
+      <div class="crop-modal-footer">
+        <button type="button" class="btn btn-cancel" id="cropCancel">Cancel</button>
+        <button type="button" class="btn btn-save" id="cropSave">Save Photo</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Render universal header/footer shell with current page highlighted -->
   <script>
