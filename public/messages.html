@@ -726,7 +726,18 @@ async function loadThreads(preselectThreadId){
     
     const hasOrder = !!thread.order_id;
     const order = hasOrder ? ordersById[thread.order_id] : null;
-    const isCollapsed = collapsedThreads.has(thread.id);
+    
+    // Default order threads to collapsed (details hidden), track expanded ones
+    let isCollapsed = false;
+    if(hasOrder){
+      // For order threads: collapsed by default unless user explicitly expanded
+      const expandedKey = thread.id + "_expanded";
+      if(!collapsedThreads.has(expandedKey)){
+        isCollapsed = true;
+      }
+    } else {
+      isCollapsed = collapsedThreads.has(thread.id);
+    }
 
     const row = document.createElement("div");
     row.className = "thread" + (isCollapsed ? " collapsed" : "");
@@ -735,9 +746,10 @@ async function loadThreads(preselectThreadId){
     row.dataset.otherName = displayName;
     row.dataset.orderId = thread.order_id || "";
 
-    // Build order badge HTML
+    // Build order badge HTML with order ID
     let orderBadgeHtml = "";
     if(hasOrder){
+      const orderShort = thread.order_id ? thread.order_id.slice(0,8) : "";
       orderBadgeHtml = `
         <span class="order-badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -745,7 +757,7 @@ async function loadThreads(preselectThreadId){
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <path d="M16 10a4 4 0 0 1-8 0"></path>
           </svg>
-          Order
+          #${orderShort}
         </span>
       `;
     }
@@ -754,12 +766,14 @@ async function loadThreads(preselectThreadId){
     let detailsHtml = "";
     if(hasOrder && order){
       const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : "";
+      const itemTitle = order.item_title || "Item";
       detailsHtml = `
         <div class="thread-details">
-          <div><strong>Related to order</strong></div>
+          <div><strong>Order #${thread.order_id?.slice(0,8) || ""}</strong></div>
+          <div>${itemTitle}</div>
           <div>Status: ${order.status || "Processing"}</div>
           ${orderDate ? `<div>Placed: ${orderDate}</div>` : ""}
-          <a href="order.html?id=${thread.order_id}">View order details →</a>
+          <a href="order-buyer.html?id=${thread.order_id}">View order details →</a>
         </div>
       `;
     }
@@ -802,9 +816,14 @@ async function loadThreads(preselectThreadId){
       collapseBtn.addEventListener("click", (e)=>{
         e.stopPropagation();
         row.classList.toggle("collapsed");
+        const expandedKey = thread.id + "_expanded";
         if(row.classList.contains("collapsed")){
+          // Going to collapsed: remove expanded marker
+          collapsedThreads.delete(expandedKey);
           collapsedThreads.add(thread.id);
         } else {
+          // Going to expanded: add expanded marker
+          collapsedThreads.add(expandedKey);
           collapsedThreads.delete(thread.id);
         }
       });
