@@ -19,6 +19,8 @@
       --bg:#fff;
       --accent:#991b1b;
       --bg-page:#fafafa;
+      --order-badge:#fef3c7;
+      --order-border:#f59e0b;
     }
 
     html,body{
@@ -87,19 +89,26 @@
       color:var(--muted);
     }
 
+    /* Thread item - collapsible */
     .thread{
-      display:grid;
-      grid-template-columns:auto 1fr auto;
-      gap:10px;
-      padding:12px;
+      display:flex;
+      flex-direction:column;
       border-top:1px solid var(--line);
-      cursor:pointer;
       background:#fff;
       transition:background .12s ease;
     }
 
-    .thread:hover{ background:#f9fafb; }
-    .thread.active{ background:#fef2f2; }
+    .thread-header{
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      gap:10px;
+      padding:12px;
+      cursor:pointer;
+      transition:background .12s ease;
+    }
+
+    .thread-header:hover{ background:#f9fafb; }
+    .thread.active .thread-header{ background:#fef2f2; }
 
     .avatar{
       width:36px;
@@ -114,12 +123,38 @@
 
     .thread-main{ min-width:0; }
 
+    .thread-name-row{
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+
     .thread-name{
       font-weight:700;
       font-size:14px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+    }
+
+    /* Order badge */
+    .order-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:3px;
+      font-size:10px;
+      font-weight:600;
+      padding:2px 6px;
+      border-radius:999px;
+      background:var(--order-badge);
+      border:1px solid var(--order-border);
+      color:#92400e;
+      white-space:nowrap;
+    }
+
+    .order-badge svg{
+      width:10px;
+      height:10px;
     }
 
     .thread-preview{
@@ -130,13 +165,67 @@
       text-overflow:ellipsis;
     }
 
+    .thread-right{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:4px;
+    }
+
     .pill{
       font-size:11px;
       border:1px solid var(--line);
       padding:2px 8px;
       border-radius:999px;
-      align-self:flex-start;
       white-space:nowrap;
+    }
+
+    /* Collapse/expand toggle */
+    .collapse-toggle{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:20px;
+      height:20px;
+      border:none;
+      background:transparent;
+      color:var(--muted);
+      cursor:pointer;
+      transition:transform .2s ease;
+      padding:0;
+    }
+
+    .collapse-toggle svg{
+      width:16px;
+      height:16px;
+    }
+
+    .thread.collapsed .collapse-toggle{
+      transform:rotate(-90deg);
+    }
+
+    /* Thread details (collapsible content) */
+    .thread-details{
+      padding:0 12px 12px 58px;
+      font-size:12px;
+      color:var(--muted);
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      border-bottom:1px solid var(--line);
+    }
+
+    .thread.collapsed .thread-details{
+      display:none;
+    }
+
+    .thread-details a{
+      color:var(--accent);
+      text-decoration:none;
+    }
+
+    .thread-details a:hover{
+      text-decoration:underline;
     }
 
     /* CHAT */
@@ -166,6 +255,29 @@
 
     .chat-header-name{ font-weight:700; font-size:14px; }
     .chat-header-meta{ font-size:12px; color:var(--muted); }
+
+    .chat-order-info{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      margin-left:8px;
+      padding:4px 10px;
+      background:var(--order-badge);
+      border:1px solid var(--order-border);
+      border-radius:8px;
+      font-size:12px;
+      color:#92400e;
+    }
+
+    .chat-order-info a{
+      color:#92400e;
+      font-weight:600;
+      text-decoration:none;
+    }
+
+    .chat-order-info a:hover{
+      text-decoration:underline;
+    }
 
     .btn-delete-thread{
       margin-left:auto;
@@ -293,6 +405,15 @@
           <div class="chat-header-name" id="chatName">Select a conversation</div>
           <div class="chat-header-meta" id="chatMeta">Choose a thread on the left to view messages.</div>
         </div>
+        <div class="chat-order-info" id="chatOrderInfo" style="display:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          <span>Order: </span>
+          <a href="#" id="chatOrderLink">View Order</a>
+        </div>
         <button id="deleteThreadBtn" class="btn-delete-thread" style="display:none;" title="Delete conversation">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -383,6 +504,8 @@ const chatAvatarEl = document.getElementById("chatAvatar");
 const chatNameEl   = document.getElementById("chatName");
 const chatMetaEl   = document.getElementById("chatMeta");
 const chatScrollEl = document.getElementById("chatScroll");
+const chatOrderInfoEl = document.getElementById("chatOrderInfo");
+const chatOrderLinkEl = document.getElementById("chatOrderLink");
 const msgInputEl   = document.getElementById("msgInput");
 const sendBtnEl    = document.getElementById("sendBtn");
 
@@ -395,6 +518,7 @@ let currentThreadId = null;
 let currentOtherUserId = null;
 let currentOtherName = "";
 let allThreads = [];
+let collapsedThreads = new Set(); // Track collapsed threads
 
 /* ===========================================================
    PROFILE
@@ -434,7 +558,7 @@ async function initMessagesPage(){
 
   const threadParam = params.get("thread");
   const toUserId = params.get("to") || params.get("user") || null;
-  const orderIdParam = params.get("order") || null;  // NEW
+  const orderIdParam = params.get("order") || null;
 
   let initialThreadId = null;
 
@@ -445,7 +569,7 @@ async function initMessagesPage(){
     initialThreadId = await getOrCreateThread(
       currentUser.id,
       toUserId,
-      orderIdParam   // NEW
+      orderIdParam
     );
   }
 
@@ -510,6 +634,13 @@ async function getOrCreateThread(userId, otherUserId, orderId=null){
     .maybeSingle();
 
   if(existing?.id){
+    // If we have an order ID and the existing thread doesn't have one, update it
+    if(orderId && !existing.order_id){
+      await supabaseClient
+        .from("message_threads")
+        .update({ order_id: orderId })
+        .eq("id", existing.id);
+    }
     return existing.id;
   }
 
@@ -518,7 +649,7 @@ async function getOrCreateThread(userId, otherUserId, orderId=null){
     .insert({
       user_a: userId,
       user_b: otherUserId,
-      order_id: orderId,   // NEW
+      order_id: orderId,
       last_message_at: null,
       last_message_preview: null
     })
@@ -559,9 +690,11 @@ async function loadThreads(preselectThreadId){
   threadsListEl.innerHTML = "";
 
   const otherIds = [];
+  const orderIds = [];
   allThreads.forEach(t=>{
     const other = (t.user_a===uid ? t.user_b : t.user_a);
     if(other && !otherIds.includes(other)) otherIds.push(other);
+    if(t.order_id && !orderIds.includes(t.order_id)) orderIds.push(t.order_id);
   });
 
   let profilesById = {};
@@ -573,6 +706,16 @@ async function loadThreads(preselectThreadId){
     profilesById = Object.fromEntries((prof||[]).map(p=>[p.id,p]));
   }
 
+  // Load order info if we have order IDs
+  let ordersById = {};
+  if(orderIds.length){
+    const { data:orders } = await supabaseClient
+      .from("orders")
+      .select("id, created_at, status")
+      .in("id", orderIds);
+    ordersById = Object.fromEntries((orders||[]).map(o=>[o.id,o]));
+  }
+
   allThreads.forEach(thread=>{
     const otherId = (thread.user_a===uid ? thread.user_b : thread.user_a);
     const prof = profilesById[otherId] || {};
@@ -580,24 +723,93 @@ async function loadThreads(preselectThreadId){
     const last  = prof.last_name  || "";
     const displayName = (first||last) ? `${first} ${last}`.trim() : prof.store_name || "Hemline member";
     const initials = initialsFromName(first,last,displayName);
+    
+    const hasOrder = !!thread.order_id;
+    const order = hasOrder ? ordersById[thread.order_id] : null;
+    const isCollapsed = collapsedThreads.has(thread.id);
 
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "thread";
+    const row = document.createElement("div");
+    row.className = "thread" + (isCollapsed ? " collapsed" : "");
     row.dataset.threadId = thread.id;
     row.dataset.otherUserId = otherId;
     row.dataset.otherName = displayName;
+    row.dataset.orderId = thread.order_id || "";
+
+    // Build order badge HTML
+    let orderBadgeHtml = "";
+    if(hasOrder){
+      orderBadgeHtml = `
+        <span class="order-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          Order
+        </span>
+      `;
+    }
+
+    // Build thread details (order info)
+    let detailsHtml = "";
+    if(hasOrder && order){
+      const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : "";
+      detailsHtml = `
+        <div class="thread-details">
+          <div><strong>Related to order</strong></div>
+          <div>Status: ${order.status || "Processing"}</div>
+          ${orderDate ? `<div>Placed: ${orderDate}</div>` : ""}
+          <a href="order.html?id=${thread.order_id}">View order details →</a>
+        </div>
+      `;
+    }
 
     row.innerHTML = `
-      <div class="avatar">${initials}</div>
-      <div class="thread-main">
-        <div class="thread-name">${displayName}</div>
-        <div class="thread-preview">${thread.last_message_preview||"(No messages yet)"}</div>
+      <div class="thread-header">
+        <div class="avatar">${initials}</div>
+        <div class="thread-main">
+          <div class="thread-name-row">
+            <span class="thread-name">${displayName}</span>
+            ${orderBadgeHtml}
+          </div>
+          <div class="thread-preview">${thread.last_message_preview||"(No messages yet)"}</div>
+        </div>
+        <div class="thread-right">
+          <div class="pill">${shortTimeLabel(thread.last_message_at || thread.created_at)}</div>
+          ${hasOrder ? `
+            <button class="collapse-toggle" type="button" title="Toggle details">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          ` : ""}
+        </div>
       </div>
-      <div class="pill">${shortTimeLabel(thread.last_message_at || thread.created_at)}</div>
+      ${detailsHtml}
     `;
 
-    row.addEventListener("click", ()=>openThread(thread.id, otherId, displayName, initials));
+    // Click on header to open thread
+    const header = row.querySelector(".thread-header");
+    header.addEventListener("click", (e)=>{
+      // Don't open if clicking collapse toggle
+      if(e.target.closest(".collapse-toggle")) return;
+      openThread(thread.id, otherId, displayName, initials, thread.order_id);
+    });
+
+    // Collapse toggle
+    const collapseBtn = row.querySelector(".collapse-toggle");
+    if(collapseBtn){
+      collapseBtn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        row.classList.toggle("collapsed");
+        if(row.classList.contains("collapsed")){
+          collapsedThreads.add(thread.id);
+        } else {
+          collapsedThreads.delete(thread.id);
+        }
+      });
+    }
+
     threadsListEl.appendChild(row);
   });
 
@@ -608,7 +820,7 @@ async function loadThreads(preselectThreadId){
       const prof = profilesById[otherId] || {};
       const displayName = `${prof.first_name||""} ${prof.last_name||""}`.trim() || prof.store_name || "Hemline member";
       const initials = initialsFromName(prof.first_name, prof.last_name, displayName);
-      openThread(target.id, otherId, displayName, initials);
+      openThread(target.id, otherId, displayName, initials, target.order_id);
       return;
     }
   }
@@ -629,12 +841,13 @@ function makeChatEmpty(){
   chatMetaEl.textContent = "Choose a thread on the left to view messages.";
   chatAvatarEl.textContent = "?";
   
-  // Hide delete button when no thread selected
+  // Hide delete button and order info when no thread selected
   const deleteBtn = document.getElementById("deleteThreadBtn");
   if(deleteBtn) deleteBtn.style.display = "none";
+  if(chatOrderInfoEl) chatOrderInfoEl.style.display = "none";
 }
 
-async function openThread(threadId, otherUserId, name, initials){
+async function openThread(threadId, otherUserId, name, initials, orderId){
   currentThreadId = threadId;
   currentOtherUserId = otherUserId;
   currentOtherName = name;
@@ -650,6 +863,14 @@ async function openThread(threadId, otherUserId, name, initials){
   // Show delete button when thread is selected
   const deleteBtn = document.getElementById("deleteThreadBtn");
   if(deleteBtn) deleteBtn.style.display = "block";
+
+  // Show order info if this is an order-related conversation
+  if(orderId && chatOrderInfoEl && chatOrderLinkEl){
+    chatOrderInfoEl.style.display = "flex";
+    chatOrderLinkEl.href = `order.html?id=${orderId}`;
+  } else if(chatOrderInfoEl){
+    chatOrderInfoEl.style.display = "none";
+  }
 
   const { data } = await supabaseClient
     .from("messages")
@@ -745,6 +966,7 @@ async function handleSend(){
     });
   }
 
+  sendBtnEl.disabled = false;
   loadThreads(currentThreadId);
 }
 
@@ -755,8 +977,9 @@ function applyThreadFilter(){
   threadsListEl.querySelectorAll(".thread").forEach(row=>{
     const name = row.dataset.otherName.toLowerCase();
     const preview = row.querySelector(".thread-preview").textContent.toLowerCase();
-    const show = !q || name.includes(q) || preview.includes(q);
-    row.style.display = show ? "grid" : "none";
+    const hasOrder = row.dataset.orderId ? "order" : "";
+    const show = !q || name.includes(q) || preview.includes(q) || hasOrder.includes(q);
+    row.style.display = show ? "flex" : "none";
     if(show) visible++;
   });
 
