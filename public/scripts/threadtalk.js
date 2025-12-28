@@ -648,7 +648,16 @@
           </div>
           ${mediaHtml}
           <div class="comment-meta">
-            <button type="button" class="${myType ? 'active' : ''}" data-tt-role="comment-like-toggle" data-comment-id="${c.id}">Like</button>
+            <div class="tt-like-wrapper comment-like-wrapper">
+              <button type="button" class="${myType ? 'active' : ''}" data-tt-role="comment-like-toggle" data-comment-id="${c.id}">Like</button>
+              <div class="tt-react-picker comment-react-picker">
+                <button type="button" data-tt-role="comment-react" data-comment-id="${c.id}" data-reaction="like" title="Like">👍</button>
+                <button type="button" data-tt-role="comment-react" data-comment-id="${c.id}" data-reaction="love" title="Love">❤️</button>
+                <button type="button" data-tt-role="comment-react" data-comment-id="${c.id}" data-reaction="laugh" title="Haha">😂</button>
+                <button type="button" data-tt-role="comment-react" data-comment-id="${c.id}" data-reaction="wow" title="Wow">😮</button>
+                <button type="button" data-tt-role="comment-react" data-comment-id="${c.id}" data-reaction="cry" title="Sad">😢</button>
+              </div>
+            </div>
             <button type="button" data-tt-role="respond-comment" data-comment-id="${c.id}">Reply</button>
             <span>${ts}</span>
             ${chipsHtml}
@@ -1182,8 +1191,16 @@
           if (!ok2) return;
           const commentId = Number(roleEl.dataset.commentId);
           if (commentId) {
-            // Simple toggle - just like/unlike
-            await handleCommentReaction(commentId, "like");
+            // Open picker to select reaction
+            const wrapper = roleEl.closest(".tt-like-wrapper");
+            if (!wrapper) {
+              // Fallback: just toggle like if no wrapper
+              await handleCommentReaction(commentId, "like");
+              return;
+            }
+            const isOpen = wrapper.classList.contains("tt-picker-open");
+            closeAllPickers();
+            if (!isOpen) wrapper.classList.add("tt-picker-open");
           }
           break;
         }
