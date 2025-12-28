@@ -304,7 +304,7 @@
       if(order.listing_id){
         const { data: l } = await supabaseClient
           .from("listings")
-          .select("id, title, image_url, size")
+          .select("id, title, image_url, image_url_1, size")
           .eq("id", order.listing_id)
           .single();
         listing = l;
@@ -345,7 +345,8 @@
       const statusInfo = getStatusInfo(order.status);
       const orderShort = order.id.slice(0, 8);
 
-      const itemImg = listing?.image_url || null;
+      // Try multiple image sources: order field, listing image_url, listing image_url_1
+      const itemImg = order.listing_image_url || listing?.image_url || listing?.image_url_1 || null;
       const itemTitle = listing?.title || order.item_title || order.listing_title || "Item";
       const itemSize = listing?.size || order.item_size || "";
 
