@@ -639,9 +639,11 @@
       <div class="tt-comment comment${d > 0 ? ' nested' : ''}${d > 1 ? ' nested-deep' : ''}" data-comment-id="${c.id}" data-thread-id="${threadId}" data-depth="${d}">
         <div class="comment-avatar">${commentAvatarLink}</div>
         <div class="comment-content">
-          <div class="comment-bubble">
-            ${authorHtml}
-            <div class="comment-text">${linkify(c.body)}</div>
+          <div class="comment-bubble-row">
+            <div class="comment-bubble">
+              ${authorHtml}
+              <div class="comment-text">${linkify(c.body)}</div>
+            </div>
             ${deleteHtml}
           </div>
           ${mediaHtml}
@@ -2065,7 +2067,13 @@
 
     const rawTitle =
       (previewData && (previewData.title || previewData.ogTitle)) || "";
+    // Decode HTML entities in title
     let title = rawTitle;
+    if (title) {
+      const txt = document.createElement('textarea');
+      txt.innerHTML = title;
+      title = txt.value;
+    }
     if (title.length > 120) title = title.slice(0, 117) + "…";
 
     let host = "";
