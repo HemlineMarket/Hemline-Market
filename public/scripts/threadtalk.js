@@ -642,6 +642,7 @@
           <div class="comment-bubble">
             ${authorHtml}
             <div class="comment-text">${linkify(c.body)}</div>
+            ${deleteHtml}
           </div>
           ${mediaHtml}
           <div class="comment-meta">
