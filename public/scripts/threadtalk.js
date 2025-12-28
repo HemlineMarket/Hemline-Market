@@ -484,7 +484,14 @@
             </div>
             ${title ? `<div class="card-title">${escapeHtml(title)}</div>` : ""}
           </div>
-          ${isMine ? `<button class="card-menu" type="button" data-tt-role="menu">···</button>` : ""}
+          ${isMine ? `
+            <div class="tt-menu">
+              <button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>
+              <div class="tt-menu-pop" data-tt-role="menu-pop" hidden>
+                <button class="tt-menu-item" type="button" data-tt-role="edit-thread">Edit</button>
+                <button class="tt-menu-item danger" type="button" data-tt-role="delete-thread">Delete</button>
+              </div>
+            </div>` : ""}
         </div>
 
         <div class="card-body">${linkify(thread.body || "")}</div>
