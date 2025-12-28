@@ -602,6 +602,17 @@
         </div>
       </div>`
         : "";
+    
+    // Debug: log why menu might not show
+    if (!deleteHtml && c.author_id) {
+      console.log("Comment menu not shown:", { 
+        commentId: c.id, 
+        commentAuthorId: c.author_id, 
+        currentUserId: currentUser?.id,
+        match: c.author_id === currentUser?.id,
+        depth: d
+      });
+    }
 
     const pickerHtml =
       `<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="${c.id}">` +
