@@ -3,134 +3,706 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>ThreadTalk — Hemline Market</title>
+  <title>Order Details — Hemline Market</title>
 
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
-
-  <!-- Shared site styles -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
-  <!-- ThreadTalk specific -->
-  <link rel="stylesheet" href="styles/threadtalk.css"/>
 
   <style>
-    /* Override: remove the gap between composer and topics */
-    .tt-hero {
-      margin-bottom: 12px;
+    :root{
+      --hm-accent:#991b1b;
+      --hm-border:#e5e7eb;
+      --hm-muted:#6b7280;
+      --hm-text:#111827;
+      --hm-bg:#f4f4f7;
+      --hm-card:rgba(255,255,255,.96);
+      --hm-green:#065f46;
+      --hm-green-bg:#ecfdf5;
+      --hm-blue:#1e40af;
+      --hm-blue-bg:#eff6ff;
+      --hm-yellow:#92400e;
+      --hm-yellow-bg:#fef3c7;
     }
-    .composer {
-      padding-bottom: 8px;
+    html,body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    
+    .wrap{max-width:900px;margin:0 auto;padding:18px 12px 40px}
+    
+    .back{
+      display:inline-flex;align-items:center;gap:6px;
+      color:var(--hm-accent);text-decoration:none;font-weight:600;
+      margin-bottom:16px;font-size:14px;
     }
-    .composer-actions {
-      margin-bottom: 0;
+    .back:hover{text-decoration:underline}
+    .back svg{width:18px;height:18px}
+
+    .pageHeader{
+      display:flex;justify-content:space-between;align-items:flex-start;
+      margin-bottom:20px;flex-wrap:wrap;gap:12px;
     }
-    .media-preview:empty,
-    .media-preview[hidden] {
-      display: none;
-      padding: 0;
-      margin: 0;
+    .pageHeader h1{margin:0;font-size:24px}
+    .orderNumber{color:var(--hm-muted);font-size:14px;margin-top:4px}
+
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
+    @media(max-width:800px){.grid{grid-template-columns:1fr}}
+
+    .card{
+      background:var(--hm-card);
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      overflow:hidden;
     }
+    .card-header{
+      padding:14px 16px;
+      border-bottom:1px solid var(--hm-border);
+      font-weight:700;font-size:15px;background:#fafafa;
+    }
+    .card-body{padding:16px}
+
+    .statusBadge{
+      display:inline-flex;align-items:center;gap:5px;
+      font-size:12px;font-weight:700;padding:6px 12px;
+      border-radius:999px;text-transform:uppercase;letter-spacing:0.3px;
+    }
+    .statusBadge.paid{background:var(--hm-yellow-bg);color:var(--hm-yellow);border:1px solid #fcd34d}
+    .statusBadge.shipped{background:var(--hm-blue-bg);color:var(--hm-blue);border:1px solid #93c5fd}
+    .statusBadge.delivered,.statusBadge.complete{background:var(--hm-green-bg);color:var(--hm-green);border:1px solid #6ee7b7}
+    .statusBadge.canceled{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+
+    .itemRow{
+      display:flex;gap:14px;align-items:flex-start;
+      padding-bottom:16px;margin-bottom:16px;
+      border-bottom:1px solid #f3f4f6;
+    }
+    .itemThumb{
+      width:100px;height:100px;border-radius:10px;overflow:hidden;
+      background:#f9fafb;border:1px solid var(--hm-border);flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .itemThumb img{width:100%;height:100%;object-fit:cover}
+    .thumb-placeholder{
+      width:100%;height:100%;
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    }
+    .thumb-placeholder svg{color:#9ca3af;}
+    .itemInfo{flex:1}
+    .itemTitle{font-weight:700;font-size:16px;margin-bottom:4px}
+    .itemMeta{color:var(--hm-muted);font-size:13px}
+    .itemMeta a{color:var(--hm-accent);text-decoration:none}
+    .itemMeta a:hover{text-decoration:underline}
+    .itemPrice{font-weight:700;font-size:18px;text-align:right}
+
+    .priceRow{
+      display:flex;justify-content:space-between;
+      padding:8px 0;font-size:14px;
+    }
+    .priceRow.total{
+      border-top:2px solid var(--hm-border);
+      margin-top:8px;padding-top:12px;
+      font-weight:700;font-size:16px;
+    }
+    .priceRow .label{color:var(--hm-muted)}
+    .priceRow.total .label{color:var(--hm-text)}
+
+    .timeline{padding:8px 0}
+    .timelineStep{
+      display:flex;align-items:flex-start;gap:12px;
+      padding:12px 0;position:relative;
+    }
+    .timelineStep:not(:last-child)::before{
+      content:'';position:absolute;left:11px;top:36px;
+      width:2px;height:calc(100% - 24px);background:#e5e7eb;
+    }
+    .timelineStep.complete:not(:last-child)::before{background:var(--hm-green)}
+    .timelineDot{
+      width:24px;height:24px;border-radius:50%;
+      background:#fff;border:2px solid #e5e7eb;
+      display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;font-size:12px;
+    }
+    .timelineStep.complete .timelineDot{
+      background:var(--hm-green);border-color:var(--hm-green);color:#fff;
+    }
+    .timelineStep.active .timelineDot{
+      background:var(--hm-blue);border-color:var(--hm-blue);color:#fff;
+    }
+    .timelineContent{flex:1}
+    .timelineTitle{font-weight:600;font-size:14px}
+    .timelineDate{color:var(--hm-muted);font-size:12px;margin-top:2px}
+
+    .trackingLink{
+      display:flex;align-items:center;gap:8px;
+      background:var(--hm-blue-bg);padding:12px;border-radius:8px;
+      font-size:14px;color:var(--hm-blue);margin-top:12px;
+    }
+    .trackingLink a{color:var(--hm-blue);font-weight:600}
+
+    .addressBox{
+      background:#f9fafb;padding:12px;border-radius:8px;
+      font-size:14px;line-height:1.5;
+    }
+    .addressBox .name{font-weight:600}
+
+    .actions{display:flex;flex-direction:column;gap:10px}
+    .btn{
+      padding:12px 16px;border-radius:10px;border:1px solid var(--hm-border);
+      background:#fff;font-weight:600;font-size:14px;cursor:pointer;
+      text-decoration:none;color:#374151;text-align:center;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:all 0.15s;
+    }
+    .btn:hover{background:#f9fafb;border-color:#d1d5db}
+    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff}
+    .btn-primary:hover{background:#7f1d1d}
+    .btn-success{background:var(--hm-green);border-color:var(--hm-green);color:#fff}
+    .btn-success:hover{background:#064e3b}
+    .btn-danger{background:#fff;border-color:#fca5a5;color:#991b1b}
+    .btn-danger:hover{background:#fef2f2}
+    .btn svg{width:18px;height:18px}
+
+    .cancelWarning{
+      background:var(--hm-yellow-bg);border:1px solid #fcd34d;
+      border-radius:8px;padding:12px;font-size:13px;
+      color:var(--hm-yellow);margin-bottom:12px;
+    }
+
+    .accept-highlight{
+      background:var(--hm-green-bg);
+      border:2px solid #6ee7b7;
+      border-radius:10px;
+      padding:16px;
+      margin-bottom:16px;
+    }
+    .accept-highlight p{
+      margin:0 0 12px;
+      font-size:14px;
+      color:var(--hm-green);
+    }
+
+    .loading{text-align:center;padding:60px 20px;color:var(--hm-muted)}
+    .error{
+      background:#fef2f2;border:1px solid #fecaca;
+      color:#991b1b;padding:16px;border-radius:10px;text-align:center;
+    }
+
+    .star-rating{display:flex;gap:4px;margin-bottom:12px}
+    .star-btn{background:none;border:none;font-size:28px;cursor:pointer;padding:0;color:#d1d5db;transition:color 0.15s}
+    .star-btn:hover{color:#fbbf24}
   </style>
 </head>
-<body class="tt-page">
 
+<body>
   <div id="hm-shell-header"></div>
 
-  <main class="tt-wrap" role="main">
-    
-    <!-- HERO with background image -->
-    <section class="tt-hero">
-      <div class="tt-hero-banner">
-        <h1>ThreadTalk</h1>
-        <p class="sub">Chat fabric, fit, and everything in between</p>
-      </div>
+  <main class="wrap">
+    <a class="back" href="purchases.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back to Purchases
+    </a>
 
-      <!-- COMPOSER -->
-      <form class="composer" id="composer">
-        <div class="composer-row">
-          <div class="composer-avatar">
-            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-          </div>
-          <div class="composer-input-wrap composer-title-row">
-            <div class="composer-category-inline">
-              <select id="composeCategory">
-                <option value="">Category</option>
-                <option value="showcase">Showcase</option>
-                <option value="tailoring">Tailoring</option>
-                <option value="stitch-school">Stitch School</option>
-                <option value="fabric-sos">Fabric SOS</option>
-                <option value="before-after">Before & After</option>
-                <option value="pattern-hacks">Pattern Hacks</option>
-                <option value="stash-confessions">Stash Confessions</option>
-                <option value="loose-threads">Loose Threads</option>
-              </select>
-            </div>
-            <input type="text" class="composer-title" id="composeTitle" placeholder="Add Title" maxlength="120" />
-          </div>
-        </div>
-        <div class="composer-body-row">
-          <textarea class="composer-input" id="composeText" rows="3" placeholder="Share your project, ask for fabric advice, show off your latest make, or start a discussion..."></textarea>
-        </div>
-        <div class="composer-divider"></div>
-        <div class="composer-actions">
-          <div class="composer-tools">
-            <label class="composer-tool photo">
-              <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-              <span>Photo</span>
-              <input type="file" id="photoInput" accept="image/*" multiple>
-            </label>
-            <label class="composer-tool video">
-              <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
-              <span>Video</span>
-              <input type="file" id="videoInput" accept="video/*">
-            </label>
-          </div>
-          <button type="submit" class="composer-submit" id="postBtn">Post</button>
-        </div>
-        <div id="mediaPreview" class="media-preview" hidden></div>
-      </form>
-    </section>
-
-    <!-- SEARCH BAR -->
-    <div class="tt-search">
-      <input type="text" class="tt-search-input" id="threadSearch" placeholder="Search posts and topics..." />
+    <div id="content">
+      <div class="loading">Loading order details...</div>
     </div>
-
-    <!-- TOPICS - Polished pills -->
-    <div class="topics">
-      <a class="topic" href="showcase.html">Showcase</a>
-      <a class="topic" href="tailoring.html">Tailoring</a>
-      <a class="topic" href="stitch-school.html">Stitch School</a>
-      <a class="topic" href="fabric-sos.html">Fabric SOS</a>
-      <a class="topic" href="before-after.html">Before &amp; After</a>
-      <a class="topic" href="pattern-hacks.html">Pattern Hacks</a>
-      <a class="topic" href="stash-confessions.html">Stash Confessions</a>
-      <a class="topic" href="loose-threads.html">Loose Threads</a>
-    </div>
-
-    <!-- FEED -->
-    <section class="feed" id="feed">
-      <h2 class="feed-title">Latest Threads</h2>
-      <div class="cards" id="cards"></div>
-      <div id="emptyState" style="display:none">
-        No threads yet. Be the first to post!
-      </div>
-    </section>
   </main>
 
   <div id="hm-shell-footer"></div>
-
-  <div id="toast" class="toast">Posted</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
 
   <script>
-    window.HM && window.HM.renderShell({ currentPage: "threadtalk" });
-  </script>
+    window.HM && window.HM.renderShell({ currentPage: "purchases" });
 
-  <script src="scripts/threadtalk.js"></script>
+    const supabaseClient = window.__hm_supabase || (window.__hm_supabase =
+      window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+        { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } }
+      )
+    );
+
+    const contentEl = document.getElementById("content");
+
+    function fmtPrice(cents){
+      return "$" + (cents/100).toFixed(2);
+    }
+    function fmtDateTime(iso){
+      if(!iso) return "";
+      const d = new Date(iso);
+      return d.toLocaleDateString([], { month:"short", day:"numeric", year:"numeric" }) +
+        " " + d.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
+    }
+    function minutesSince(iso){
+      if(!iso) return 9999;
+      return (Date.now() - new Date(iso).getTime()) / 60000;
+    }
+
+    async function loadOrder(){
+      const params = new URLSearchParams(window.location.search);
+      const orderId = params.get("id");
+
+      if(!orderId){
+        contentEl.innerHTML = `<div class="error">No order ID provided.</div>`;
+        return;
+      }
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if(!session?.user){
+        window.location.href = "auth.html?redirect=" + encodeURIComponent(window.location.href);
+        return;
+      }
+
+      const user = session.user;
+
+      const { data: order, error } = await supabaseClient
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .eq("buyer_id", user.id)
+        .single();
+
+      if(error || !order){
+        contentEl.innerHTML = `<div class="error">Order not found or you don't have permission to view it.</div>`;
+        return;
+      }
+
+      // Fetch listing details
+      let listing = null;
+      if(order.listing_id){
+        const { data: l } = await supabaseClient
+          .from("listings")
+          .select("id, title, images, size")
+          .eq("id", order.listing_id)
+          .single();
+        listing = l;
+      }
+
+      // Fetch seller info
+      let sellerName = "Seller";
+      if(order.seller_id){
+        const { data: profile } = await supabaseClient
+          .from("profiles")
+          .select("first_name, last_name, username")
+          .eq("id", order.seller_id)
+          .single();
+        if(profile){
+          sellerName = profile.username || `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Seller";
+        }
+      }
+
+      renderOrder(order, listing, user, sellerName);
+    }
+
+    function getStatusInfo(status){
+      const map = {
+        "PAID": { label: "Awaiting Shipment", class: "paid", step: 1 },
+        "SHIPPED": { label: "Shipped", class: "shipped", step: 2 },
+        "IN_TRANSIT": { label: "In Transit", class: "shipped", step: 2 },
+        "DELIVERED": { label: "Delivered", class: "delivered", step: 3 },
+        "COMPLETE": { label: "Complete", class: "complete", step: 4 },
+        "CANCELED": { label: "Canceled", class: "canceled", step: 0 },
+        "REFUNDED": { label: "Refunded", class: "canceled", step: 0 }
+      };
+      return map[status] || { label: status, class: "paid", step: 1 };
+    }
+
+    function renderOrder(order, listing, user, sellerName){
+      const statusInfo = getStatusInfo(order.status);
+      const orderShort = order.id.slice(0, 8);
+
+      const itemImg = listing?.images?.[0] || null;
+      const itemTitle = listing?.title || order.item_title || "Item";
+      const itemSize = listing?.size || order.item_size || "";
+
+      const subtotal = order.item_price_cents || 0;
+      const shipping = order.shipping_cost_cents || 0;
+      const tax = order.tax_cents || 0;
+      const total = order.total_cents || (subtotal + shipping + tax);
+
+      const canCancel = order.status === "PAID" && minutesSince(order.created_at) < 30;
+      
+      // Buyer can accept delivery when status is DELIVERED and not yet accepted
+      const canAcceptDelivery = order.status === "DELIVERED" && !order.buyer_accepted_at;
+      
+      // Buyer can rate seller after accepting delivery OR if order is already COMPLETE
+      const canRateSeller = (order.buyer_accepted_at || order.status === "COMPLETE') && !order.reviewed;
+      const hasRated = order.reviewed;
+
+      contentEl.innerHTML = `
+        <div class="pageHeader">
+          <div>
+            <h1>Order Details</h1>
+            <div class="orderNumber">Order #${orderShort} · ${fmtDateTime(order.created_at)}</div>
+          </div>
+          <span class="statusBadge ${statusInfo.class}">${statusInfo.label}</span>
+        </div>
+
+        <div class="grid">
+          <!-- Left column -->
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-header">Item Purchased</div>
+              <div class="card-body">
+                <div class="itemRow">
+                  <div class="itemThumb">
+                    ${itemImg 
+                      ? `<img src="${itemImg}" alt="${itemTitle}">`
+                      : `<div class="thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`
+                    }
+                  </div>
+                  <div class="itemInfo">
+                    <div class="itemTitle">${itemTitle}</div>
+                    <div class="itemMeta">
+                      ${itemSize ? `Size: ${itemSize} · ` : ""}
+                      Seller: <a href="atelier.html?u=${order.seller_id || ''}">${sellerName}</a>
+                    </div>
+                  </div>
+                  <div class="itemPrice">${fmtPrice(subtotal)}</div>
+                </div>
+
+                <div class="priceRow">
+                  <span class="label">Item price</span>
+                  <span>${fmtPrice(subtotal)}</span>
+                </div>
+                <div class="priceRow">
+                  <span class="label">Shipping</span>
+                  <span>${fmtPrice(shipping)}</span>
+                </div>
+                ${tax ? `
+                  <div class="priceRow">
+                    <span class="label">Tax</span>
+                    <span>${fmtPrice(tax)}</span>
+                  </div>
+                ` : ""}
+                <div class="priceRow total">
+                  <span class="label">Total Paid</span>
+                  <span>${fmtPrice(total)}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Order Timeline -->
+            <div class="card">
+              <div class="card-header">Order Timeline</div>
+              <div class="card-body">
+                <div class="timeline">
+                  ${renderTimeline(order, statusInfo.step)}
+                </div>
+                
+                ${order.tracking_number ? `
+                  <div class="trackingLink">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                      <rect x="1" y="3" width="15" height="13" rx="2"/>
+                      <path d="M16 8h4l3 3v5a2 2 0 0 1-2 2h-1"/>
+                      <circle cx="5.5" cy="18.5" r="2.5"/>
+                      <circle cx="18.5" cy="18.5" r="2.5"/>
+                    </svg>
+                    Tracking: <a href="https://tools.usps.com/go/TrackConfirmAction?tLabels=${order.tracking_number}" target="_blank">${order.tracking_number}</a>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right column -->
+          <div>
+            <!-- Accept Delivery Section (for buyer) -->
+            ${canAcceptDelivery ? `
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">📦 Confirm Receipt</div>
+                <div class="card-body">
+                  <div class="accept-highlight">
+                    <p><strong>Your order has been delivered!</strong></p>
+                    <p>Please confirm that you've received your item to complete the order.</p>
+                    <button class="btn btn-success" id="acceptDeliveryBtn" style="width:100%">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                        <path d="M20 6L9 17l-5-5"/>
+                      </svg>
+                      I Received My Order
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Rate Seller Section (after accepting delivery) -->
+            ${canRateSeller ? `
+              <div class="card" style="margin-bottom:16px" id="reviewCard">
+                <div class="card-header">⭐ Rate Your Purchase</div>
+                <div class="card-body">
+                  <p style="font-size:13px;color:var(--hm-muted);margin:0 0 12px;">How was your experience with this seller?</p>
+                  <div class="star-rating" id="starRating">
+                    ${[1,2,3,4,5].map(n => `
+                      <button type="button" class="star-btn" data-rating="${n}">★</button>
+                    `).join('')}
+                  </div>
+                  <textarea id="reviewComment" placeholder="Add a comment (optional)" style="width:100%;padding:10px;border:1px solid var(--hm-border);border-radius:8px;font-size:14px;min-height:60px;resize:vertical;box-sizing:border-box;"></textarea>
+                  <button id="submitReviewBtn" class="btn btn-primary" style="margin-top:10px;width:100%;" disabled>
+                    Submit Review
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Already rated -->
+            ${hasRated ? `
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">⭐ Your Review</div>
+                <div class="card-body">
+                  <div style="font-size:20px;margin-bottom:4px;">${'★'.repeat(order.review_rating || 0)}${'☆'.repeat(5-(order.review_rating || 0))}</div>
+                  ${order.review_comment ? `<p style="font-size:14px;color:var(--hm-text);margin:0;">${order.review_comment}</p>` : ''}
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Shipping Info -->
+            ${order.shipping_name ? `
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-header">Shipping To</div>
+                <div class="card-body">
+                  <div class="addressBox">
+                    <div class="name">${order.shipping_name || ''}</div>
+                    <div>${order.shipping_address_line1 || ''}</div>
+                    ${order.shipping_address_line2 ? `<div>${order.shipping_address_line2}</div>` : ''}
+                    <div>${order.shipping_city || ''}, ${order.shipping_state || ''} ${order.shipping_postal_code || ''}</div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Actions -->
+            <div class="card">
+              <div class="card-header">Actions</div>
+              <div class="card-body">
+                ${canCancel ? `
+                  <div class="cancelWarning">
+                    ⏱ You can cancel for ${Math.round(30 - minutesSince(order.created_at))} more minutes
+                  </div>
+                ` : ''}
+                <div class="actions">
+                  ${canCancel ? `<button class="btn btn-danger" id="cancelBtn">Cancel Order</button>` : ''}
+                  ${order.seller_id ? `
+                    <a href="messages.html?to=${order.seller_id}&order=${order.id}" class="btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      Message Seller
+                    </a>
+                  ` : ''}
+                  ${order.listing_id ? `
+                    <a href="listing.html?id=${order.listing_id}" class="btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      View Listing
+                    </a>
+                  ` : ''}
+                  <a href="contact.html?subject=Order%20${orderShort}" class="btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Get Help
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Cancel button handler
+      const cancelBtn = document.getElementById("cancelBtn");
+      if(cancelBtn){
+        cancelBtn.addEventListener("click", async () => {
+          if(!confirm("Cancel this order?")) return;
+          cancelBtn.disabled = true;
+          cancelBtn.textContent = "Cancelling...";
+
+          const { error } = await supabaseClient
+            .from("orders")
+            .update({
+              status: "CANCELED",
+              canceled_at: new Date().toISOString(),
+              canceled_by: user.id,
+              cancel_reason: "buyer_canceled"
+            })
+            .eq("id", order.id)
+            .eq("buyer_id", user.id);
+
+          if(error){
+            alert("Could not cancel. Please contact support.");
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = "Cancel Order";
+          } else {
+            location.reload();
+          }
+        });
+      }
+
+      // Accept Delivery button handler
+      const acceptBtn = document.getElementById("acceptDeliveryBtn");
+      if(acceptBtn){
+        acceptBtn.addEventListener("click", async () => {
+          if(!confirm("Confirm that you have received your order?")) return;
+          
+          acceptBtn.disabled = true;
+          acceptBtn.textContent = "Processing...";
+
+          const { error } = await supabaseClient
+            .from("orders")
+            .update({
+              status: "COMPLETE",
+              buyer_accepted_at: new Date().toISOString(),
+              completed_at: new Date().toISOString()
+            })
+            .eq("id", order.id)
+            .eq("buyer_id", user.id);
+
+          if(error){
+            alert("Could not confirm receipt. Please try again.");
+            acceptBtn.disabled = false;
+            acceptBtn.textContent = "I Received My Order";
+          } else {
+            location.reload();
+          }
+        });
+      }
+
+      // Star rating click handler
+      const starBtns = document.querySelectorAll('.star-btn');
+      const submitReviewBtn = document.getElementById('submitReviewBtn');
+      
+      starBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const rating = parseInt(btn.dataset.rating);
+          starBtns.forEach((star, i) => {
+            star.style.color = i < rating ? '#fbbf24' : '#d1d5db';
+          });
+          if(submitReviewBtn){
+            submitReviewBtn.disabled = false;
+            submitReviewBtn.dataset.rating = rating;
+          }
+        });
+      });
+
+      // Submit review handler
+      if(submitReviewBtn){
+        submitReviewBtn.addEventListener('click', async () => {
+          const rating = parseInt(submitReviewBtn.dataset.rating);
+          const comment = document.getElementById('reviewComment')?.value || '';
+
+          if(!rating || rating < 1 || rating > 5){
+            alert('Please select a star rating');
+            return;
+          }
+
+          submitReviewBtn.disabled = true;
+          submitReviewBtn.textContent = 'Submitting...';
+
+          try {
+            const { data: sessData } = await supabaseClient.auth.getSession();
+            const token = sessData?.session?.access_token;
+
+            const res = await fetch('/api/reviews/submit', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ order_id: order.id, rating, comment })
+            });
+
+            const result = await res.json();
+            if(res.ok){
+              location.reload();
+            } else {
+              // Fallback: update order directly if API doesn't exist
+              const { error } = await supabaseClient
+                .from("orders")
+                .update({
+                  reviewed: true,
+                  review_rating: rating,
+                  review_comment: comment,
+                  reviewed_at: new Date().toISOString()
+                })
+                .eq("id", order.id)
+                .eq("buyer_id", user.id);
+
+              if(error){
+                alert('Failed to submit review. Please try again.');
+                submitReviewBtn.disabled = false;
+                submitReviewBtn.textContent = 'Submit Review';
+              } else {
+                location.reload();
+              }
+            }
+          } catch(err){
+            // Fallback: update order directly
+            const { error } = await supabaseClient
+              .from("orders")
+              .update({
+                reviewed: true,
+                review_rating: rating,
+                review_comment: comment,
+                reviewed_at: new Date().toISOString()
+              })
+              .eq("id", order.id)
+              .eq("buyer_id", user.id);
+
+            if(error){
+              alert('Error submitting review');
+              submitReviewBtn.disabled = false;
+              submitReviewBtn.textContent = 'Submit Review';
+            } else {
+              location.reload();
+            }
+          }
+        });
+      }
+    }
+
+    function renderTimeline(order, currentStep){
+      if(currentStep === 0){
+        return `
+          <div class="timelineStep complete">
+            <div class="timelineDot">✓</div>
+            <div class="timelineContent">
+              <div class="timelineTitle">Order Placed</div>
+              <div class="timelineDate">${fmtDateTime(order.created_at)}</div>
+            </div>
+          </div>
+          <div class="timelineStep active">
+            <div class="timelineDot">✕</div>
+            <div class="timelineContent">
+              <div class="timelineTitle">Cancelled</div>
+              <div class="timelineDate">${fmtDateTime(order.canceled_at) || ''}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      const steps = [
+        { label: "Order Placed", date: order.created_at, step: 1 },
+        { label: "Shipped by Seller", date: order.shipped_at, step: 2 },
+        { label: "Delivered", date: order.delivered_at, step: 3 },
+        { label: "Order Complete", date: order.completed_at || order.buyer_accepted_at, step: 4 }
+      ];
+
+      return steps.map(s => {
+        const isComplete = currentStep >= s.step;
+        const isActive = currentStep === s.step;
+        return `
+          <div class="timelineStep ${isComplete ? 'complete' : isActive ? 'active' : ''}">
+            <div class="timelineDot">${isComplete ? '✓' : s.step}</div>
+            <div class="timelineContent">
+              <div class="timelineTitle">${s.label}</div>
+              ${s.date ? `<div class="timelineDate">${fmtDateTime(s.date)}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    loadOrder();
+  </script>
 </body>
 </html>
