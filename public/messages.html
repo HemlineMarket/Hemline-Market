@@ -813,7 +813,7 @@ async function loadThreads(preselectThreadId){
     header.addEventListener("click", (e)=>{
       // Don't open if clicking collapse toggle
       if(e.target.closest(".collapse-toggle")) return;
-      openThread(thread.id, otherId, displayName, initials, thread.order_id);
+      openThread(thread.id, otherId, displayName, initials, thread.order_id, profilePhoto);
     });
 
     // Collapse toggle
@@ -845,7 +845,8 @@ async function loadThreads(preselectThreadId){
       const prof = profilesById[otherId] || {};
       const displayName = `${prof.first_name||""} ${prof.last_name||""}`.trim() || prof.store_name || "Hemline member";
       const initials = initialsFromName(prof.first_name, prof.last_name, displayName);
-      openThread(target.id, otherId, displayName, initials, target.order_id);
+      const photo = prof.avatar_url || null;
+      openThread(target.id, otherId, displayName, initials, target.order_id, photo);
       return;
     }
   }
@@ -872,7 +873,7 @@ function makeChatEmpty(){
   if(chatOrderInfoEl) chatOrderInfoEl.style.display = "none";
 }
 
-async function openThread(threadId, otherUserId, name, initials, orderId){
+async function openThread(threadId, otherUserId, name, initials, orderId, profilePhoto){
   currentThreadId = threadId;
   currentOtherUserId = otherUserId;
   currentOtherName = name;
@@ -881,7 +882,15 @@ async function openThread(threadId, otherUserId, name, initials, orderId){
     .forEach(el=>el.classList.toggle("active", el.dataset.threadId===String(threadId)));
 
   chatPanelEl.classList.remove("empty");
-  chatAvatarEl.textContent = initials;
+  
+  // Set avatar - use photo if available, otherwise initials
+  if(profilePhoto){
+    chatAvatarEl.innerHTML = `<img src="${profilePhoto}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  } else {
+    chatAvatarEl.innerHTML = '';
+    chatAvatarEl.textContent = initials;
+  }
+  
   chatNameEl.textContent = name;
   chatMetaEl.textContent = "";
   
