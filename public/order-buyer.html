@@ -285,17 +285,13 @@
       // Fetch seller info
       let sellerName = "Seller";
       if(order.seller_id){
-        try {
-          const { data: profile, error: profileError } = await supabaseClient
-            .from("profiles")
-            .select("first_name, last_name, username")
-            .eq("id", order.seller_id)
-            .single();
-          if(profile && !profileError){
-            sellerName = profile.username || `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Seller";
-          }
-        } catch(e) {
-          console.warn("Could not fetch seller profile:", e);
+        const { data: profile, error: profileError } = await supabaseClient
+          .from("profiles")
+          .select("first_name, last_name, username, store_name")
+          .eq("id", order.seller_id)
+          .single();
+        if(profile){
+          sellerName = profile.store_name || profile.username || `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Seller";
         }
       }
 
