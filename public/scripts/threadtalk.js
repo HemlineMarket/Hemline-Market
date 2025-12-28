@@ -602,15 +602,6 @@
         </div>
       </div>`
         : "";
-    
-    // Debug: Log to console to help diagnose menu visibility
-    console.log("[ThreadTalk Debug] Comment render:", {
-      commentId: c.id,
-      commentAuthorId: c.author_id,
-      currentUserId: currentUser?.id || "NO USER",
-      isMatch: currentUser && c.author_id === currentUser.id,
-      willShowMenu: !!deleteHtml
-    });
 
     const pickerHtml =
       `<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="${c.id}">` +
@@ -648,9 +639,11 @@
       <div class="tt-comment comment${d > 0 ? ' nested' : ''}${d > 1 ? ' nested-deep' : ''}" data-comment-id="${c.id}" data-thread-id="${threadId}" data-depth="${d}">
         <div class="comment-avatar">${commentAvatarLink}</div>
         <div class="comment-content">
-          <div class="comment-bubble">
-            ${authorHtml}
-            <div class="comment-text">${linkify(c.body)}</div>
+          <div class="comment-bubble-row">
+            <div class="comment-bubble">
+              ${authorHtml}
+              <div class="comment-text">${linkify(c.body)}</div>
+            </div>
             ${deleteHtml}
           </div>
           ${mediaHtml}
@@ -2075,6 +2068,12 @@
     const rawTitle =
       (previewData && (previewData.title || previewData.ogTitle)) || "";
     let title = rawTitle;
+    // Decode HTML entities like &#x20;
+    if (title) {
+      const txt = document.createElement('textarea');
+      txt.innerHTML = title;
+      title = txt.value;
+    }
     if (title.length > 120) title = title.slice(0, 117) + "…";
 
     let host = "";
