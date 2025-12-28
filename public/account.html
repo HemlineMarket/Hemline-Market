@@ -803,7 +803,6 @@
       const profileNameEl        = document.getElementById('profileName');
       const profileEmailEl       = document.getElementById('profileEmail');
       const profileExtraEl       = document.getElementById('profileExtra');
-      const profileAvatarEl      = document.getElementById('profileAvatar');
       const profileEditor        = document.getElementById('profileEditor');
       const profileForm          = document.getElementById('profileForm');
       const storeNameInput       = document.getElementById('storeName');
@@ -881,7 +880,12 @@
 
           if (uploadError) {
             console.error('Avatar upload error:', uploadError);
-            alert('Failed to upload image. Please try again.');
+            // Check if it's a bucket/permissions error
+            if (uploadError.message?.includes('bucket') || uploadError.statusCode === 400) {
+              alert('Profile photo uploads are not yet enabled. Please contact support or try again later.');
+            } else {
+              alert('Failed to upload image: ' + (uploadError.message || 'Please try again.'));
+            }
             return null;
           }
 
@@ -1216,11 +1220,6 @@
         profileExtraEl.appendChild(bioLine);
       }
 
-      // Avatar initials based on profile/email (still computed even if hidden)
-      const avatarInitials = initialsFromProfile(profile.firstName, profile.lastName, email);
-      profileAvatarEl.style.backgroundImage = "";
-      profileAvatarEl.textContent = avatarInitials;
-
       // Prefill profile form + slug preview
       if(profileForm){
         profileForm.firstName.value = profile.firstName || "";
@@ -1446,10 +1445,6 @@
           bioLine.style.marginTop = '4px';
           profileExtraEl.appendChild(bioLine);
         }
-
-        const initials = initialsFromProfile(next.firstName, next.lastName, email);
-        profileAvatarEl.style.backgroundImage = "";
-        profileAvatarEl.textContent = initials;
 
         if(storeSlugPreviewEl){
           storeSlugPreviewEl.textContent = next.storeSlug || "your-shop";
