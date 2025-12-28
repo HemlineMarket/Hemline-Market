@@ -346,17 +346,25 @@
       const orderShort = order.id.slice(0, 8);
 
       const itemImg = listing?.images?.[0] || null;
-      const itemTitle = listing?.title || order.item_title || "Item";
+      const itemTitle = listing?.title || order.item_title || order.listing_title || "Item";
       const itemSize = listing?.size || order.item_size || "";
 
-      const subtotal = order.item_price_cents || 0;
-      const shipping = order.shipping_cost_cents || 0;
+      // Use multiple possible column names for compatibility
+      const subtotal = order.item_price_cents || order.items_cents || 0;
+      const shipping = order.shipping_cost_cents || order.shipping_cents || 0;
       const tax = order.tax_cents || 0;
       const total = order.total_cents || (subtotal + shipping + tax);
       
       // Calculate seller earnings (simple: item price minus platform fee)
       const platformFee = Math.round(subtotal * 0.10); // 10% platform fee example
       const sellerEarnings = subtotal - platformFee;
+
+      // Check if within 30-minute buyer cancel window
+      const orderCreatedMs = new Date(order.created_at).getTime();
+      const nowMs = Date.now();
+      const minutesSinceOrder = (nowMs - orderCreatedMs) / 60000;
+      const withinCancelWindow = minutesSinceOrder < 30;
+      const minutesRemaining = Math.ceil(30 - minutesSinceOrder);
 
       // Check if seller can accept delivery (status is DELIVERED and not yet accepted)
       const canAcceptDelivery = order.status === "DELIVERED" && !order.seller_accepted_at;
@@ -452,6 +460,24 @@
 
           <!-- Right column -->
           <div>
+            <!-- 30-minute cancel window warning -->
+            ${withinCancelWindow && order.status === "PAID" ? `
+              <div class="card" style="margin-bottom:16px">
+                <div class="card-body" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;">
+                  <div style="display:flex;align-items:center;gap:10px;color:#92400e;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <div>
+                      <strong>⏱️ Cancel Window Active</strong>
+                      <p style="margin:4px 0 0;font-size:13px;">The buyer can cancel for ${minutesRemaining} more minute${minutesRemaining !== 1 ? 's' : ''}. Please wait before printing your label and shipping.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
             <!-- Accept Delivery Section (for seller) -->
             ${canAcceptDelivery ? `
               <div class="card" style="margin-bottom:16px">
