@@ -1,1365 +1,2213 @@
-/* ============================================
-   THREADTALK STYLES - Facebook-inspired, Hemline branded
-   ============================================ */
+// scripts/threadtalk.js
+// ThreadTalk: threads + comments + reactions + search (Supabase-backed, FB-style UI)
 
-:root {
-  --tt-bg: #faf8f5;
-  --tt-card: #ffffff;
-  --tt-border: #ebe6e0;
-  --tt-text: #1c1e21;
-  --tt-muted: #65676b;
-  --tt-accent: #991b1b;
-  --tt-accent-hover: #7f1d1d;
-  --tt-comment-bg: #f5f2ef;
-}
+(function () {
+  const HM = window.HM || {};
+  const supabase = HM.supabase;
 
-/* ============================================
-   PAGE BACKGROUND - Warm cream with subtle image
-   ============================================ */
-body.tt-page {
-  background: 
-    linear-gradient(to bottom, rgba(250,248,245,0.95) 0%, rgba(250,248,245,0.85) 100%),
-    url('../images/studio.jpeg') center 80%/cover no-repeat fixed !important;
-  min-height: 100vh;
-}
-
-/* ============================================
-   MAIN WRAPPER - Condensed
-   ============================================ */
-.tt-wrap {
-  max-width: 620px;
-  margin: 0 auto;
-  padding: 12px;
-}
-
-/* ============================================
-   HERO BANNER - Image at bottom
-   ============================================ */
-.tt-hero {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  margin-bottom: 12px;
-  background: var(--tt-card);
-}
-
-.tt-hero-banner {
-  height: 140px;
-  background: 
-    linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.4) 100%),
-    url('../images/studio.jpeg') center 85%/cover no-repeat;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: 16px 20px;
-}
-
-.tt-hero-banner h1 {
-  font-size: 26px;
-  font-weight: 700;
-  color: #fff;
-  margin: 0;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  font-family: system-ui, -apple-system, sans-serif;
-}
-
-.tt-hero-banner .sub {
-  font-size: 14px;
-  color: rgba(255,255,255,0.9);
-  margin: 4px 0 0;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
-
-/* ============================================
-   COMPOSER - Clean Facebook style (no gap below)
-   ============================================ */
-.composer {
-  background: var(--tt-card);
-  padding: 12px 16px 8px;
-  border-top: 1px solid var(--tt-border);
-}
-
-.composer-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.composer-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 2px solid rgba(153, 27, 27, 0.2);
-}
-
-.composer-avatar svg {
-  width: 22px;
-  height: 22px;
-  fill: #fff;
-}
-
-.composer-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.composer-input-wrap {
-  flex: 1;
-}
-
-.composer-title {
-  flex: 1;
-  min-width: 150px;
-  border: none;
-  border-radius: 20px;
-  padding: 10px 16px;
-  font-size: 15px;
-  font-weight: 600;
-  background: var(--tt-bg);
-  color: var(--tt-text);
-  outline: none;
-  transition: background 0.15s;
-}
-
-.composer-title:focus {
-  background: #f0e6e6;
-}
-
-.composer-title::placeholder {
-  color: var(--tt-muted);
-  font-weight: 400;
-}
-
-/* Title row with inline category dropdown */
-.composer-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.composer-category-inline {
-  flex-shrink: 0;
-}
-
-.composer-category-inline select {
-  padding: 10px 32px 10px 12px;
-  border: 1px solid var(--tt-border);
-  border-radius: 20px;
-  background: var(--tt-bg);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--tt-text);
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2365676b'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 18px;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.composer-category-inline select:focus {
-  border-color: var(--tt-accent);
-  background-color: #f0e6e6;
-}
-
-.composer-avatar-spacer {
-  width: 40px;
-  flex-shrink: 0;
-}
-
-/* Body row - full width textarea */
-.composer-body-row {
-  padding: 8px 12px 6px;
-}
-
-.composer-input {
-  width: 100%;
-  border: 1px solid var(--tt-border);
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 15px;
-  background: var(--tt-bg);
-  color: var(--tt-text);
-  resize: none;
-  outline: none;
-  transition: background 0.15s, border-color 0.15s;
-  min-height: 80px;
-  line-height: 1.5;
-}
-
-.composer-input:focus {
-  background: #f0e6e6;
-}
-
-.composer-input::placeholder {
-  color: var(--tt-muted);
-}
-
-.composer-divider {
-  height: 1px;
-  background: var(--tt-border);
-  margin: 6px 0;
-}
-
-.composer-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0;
-}
-
-.composer-tools {
-  display: flex;
-  gap: 2px;
-}
-
-.composer-tool {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--tt-muted);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.composer-tool:hover {
-  background: var(--tt-bg);
-}
-
-.composer-tool svg {
-  width: 18px;
-  height: 18px;
-}
-
-.composer-tool.photo svg { fill: #45bd62; }
-.composer-tool.video svg { fill: #f3425f; }
-.composer-tool.category svg { fill: #f7b928; }
-
-.composer-tool select {
-  border: none;
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  outline: none;
-  padding-right: 4px;
-}
-
-.composer-submit {
-  padding: 8px 20px;
-  border-radius: 6px;
-  border: none;
-  background: var(--tt-accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.composer-submit:hover {
-  background: var(--tt-accent-hover);
-}
-
-.composer-submit:disabled {
-  background: #e4d4d4;
-  color: #a89999;
-  cursor: not-allowed;
-}
-
-.composer input[type="file"] { display: none; }
-
-/* Media Preview for composer - no gap when empty */
-.media-preview {
-  padding: 10px 16px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.media-preview:empty,
-.media-preview[hidden] {
-  display: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  height: 0 !important;
-}
-
-.media-preview img,
-.media-preview video {
-  max-height: 120px;
-  border-radius: 8px;
-  border: 1px solid var(--tt-border);
-}
-
-.media-preview-item {
-  position: relative;
-}
-
-.media-preview-remove {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: none;
-  background: var(--tt-accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-/* ============================================
-   TOPIC PILLS - Clickable category links
-   ============================================ */
-.topics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-  padding: 14px 16px;
-  background: linear-gradient(120deg, #3b1010, #991b1b);
-  border-radius: 12px;
-  border: 1px solid rgba(153,27,27,0.45);
-}
-
-.topic {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 14px;
-  background: rgba(254,243,199,0.95);
-  border: none;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #7f1d1d;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.topic::after {
-  content: '→';
-  font-size: 11px;
-  opacity: 0.6;
-  transition: transform 0.15s, opacity 0.15s;
-}
-
-.topic:hover {
-  background: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.topic:hover::after {
-  transform: translateX(2px);
-  opacity: 1;
-}
-
-.topic:active {
-  transform: translateY(0);
-}
-
-.topic.active {
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-
-/* Mobile: 2 rows of 4 pills */
-@media (max-width: 640px) {
-  .topics {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    padding: 10px 12px;
+  if (!supabase) {
+    console.warn(
+      "[ThreadTalk] Supabase client not found on window.HM.supabase; ThreadTalk disabled."
+    );
+    return;
   }
-  
-  .topic {
-    padding: 8px 6px;
-    font-size: 11px;
-    justify-content: center;
-    text-align: center;
+
+  // Optional per-page category filter: <body data-thread-category="showcase">
+  const THREAD_CATEGORY_FILTER =
+    document.body &&
+    document.body.dataset &&
+    document.body.dataset.threadCategory
+      ? document.body.dataset.threadCategory
+      : null;
+
+  // ---------- DOM ----------
+  const cardsEl = document.getElementById("cards");
+  const emptyStateEl = document.getElementById("emptyState");
+  const toastEl = document.getElementById("toast") || makeToastElement();
+
+  const composerForm = document.getElementById("composer");
+  const categorySelect = document.getElementById("composeCategory");
+  const titleInput = document.getElementById("composeTitle");
+  const textArea = document.getElementById("composeText");
+  const photoInput = document.getElementById("photoInput");
+  const videoInput = document.getElementById("videoInput");
+  const mediaPreview = document.getElementById("mediaPreview");
+  const postBtn = document.getElementById("postBtn");
+
+  const searchInput = document.getElementById("threadSearch");
+
+  // ---------- Constants ----------
+  const STORAGE_BUCKET = "threadtalk-media";
+
+  const CATEGORY_LABELS = {
+    showcase: "Showcase",
+    tailoring: "Tailoring",
+    "stitch-school": "Stitch School",
+    "fabric-sos": "Fabric SOS",
+    "before-after": "Before & After",
+    "pattern-hacks": "Pattern Hacks",
+    "stash-confessions": "Stash Confessions",
+    "loose-threads": "Loose Threads",
+  };
+
+  const CATEGORY_LINKS = {
+    showcase: "showcase.html",
+    tailoring: "tailoring.html",
+    "stitch-school": "stitch-school.html",
+    "fabric-sos": "fabric-sos.html",
+    "before-after": "before-after.html",
+    "pattern-hacks": "pattern-hacks.html",
+    "stash-confessions": "stash-confessions.html",
+    "loose-threads": "loose-threads.html",
+  };
+
+  const REACTION_TYPES = [
+    { key: "like", emoji: "👍" },
+    { key: "love", emoji: "❤️" },
+    { key: "laugh", emoji: "😂" },
+    { key: "wow", emoji: "😮" },
+    { key: "cry", emoji: "😢" },
+  ];
+
+  // ---------- State ----------
+  let currentUser = null;
+  const profilesCache = {};
+  let allThreads = [];
+  let threads = [];
+  let commentsByThread = {};
+  let reactionsByThread = {};
+  let commentReactionsByComment = {};
+  const expandedCommentsThreads = new Set();
+
+  // thread id from URL (?thread=123)
+  const urlParams = new URLSearchParams(window.location.search || "");
+  const THREAD_URL_ID = urlParams.get("thread")
+    ? Number(urlParams.get("thread"))
+    : null;
+
+  // ---------- Init ----------
+  document.addEventListener("DOMContentLoaded", init);
+
+  async function init() {
+    injectCompactStyles();
+    await refreshCurrentUser();
+    wireComposer();
+    wireMediaInputs();
+    wireCardDelegates();
+    wireSearch();
+    wireZoomClose();
+    wireGlobalPickerClose();
+    await loadThreads();
   }
-  
-  .topic::after {
-    display: none;
+
+  // ---------- Auth ----------
+  async function refreshCurrentUser() {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) return (currentUser = null);
+      currentUser = data?.user || null;
+      if (currentUser && !profilesCache[currentUser.id]) {
+        await loadProfiles([currentUser.id]);
+      }
+    } catch (_) {
+      currentUser = null;
+    }
   }
-}
 
-/* ============================================
-   SEARCH BAR - Friendly and clear
-   ============================================ */
-.tt-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 0 4px;
-}
-
-.tt-search-input {
-  flex: 1;
-  padding: 12px 16px;
-  padding-left: 44px;
-  border: 2px solid var(--tt-border);
-  border-radius: 12px;
-  background: var(--tt-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23991b1b'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") 14px center/20px no-repeat;
-  font-size: 15px;
-  color: var(--tt-text);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.tt-search-input:focus {
-  border-color: var(--tt-accent);
-  box-shadow: 0 0 0 3px rgba(153,27,27,0.1);
-}
-
-.tt-search-input::placeholder {
-  color: var(--tt-muted);
-}
-
-/* ============================================
-   FEED HEADER
-   ============================================ */
-.feed-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--tt-muted);
-  margin: 0 0 12px 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* ============================================
-   POST CARDS - Clean white on cream
-   ============================================ */
-.cards {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.card {
-  background: var(--tt-card);
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  overflow: hidden;
-}
-
-/* Card Header - Condensed */
-.card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px 0;
-}
-
-.card-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 2px solid rgba(153, 27, 27, 0.2);
-}
-
-.card-avatar-link,
-.comment-avatar-link {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  transition: opacity 0.15s;
-}
-
-.card-avatar-link:hover,
-.comment-avatar-link:hover {
-  opacity: 0.8;
-}
-
-.card-avatar svg {
-  width: 22px;
-  height: 22px;
-  fill: #fff;
-}
-
-.card-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.card-meta {
-  flex: 1;
-  min-width: 0;
-  line-height: 1.3;
-}
-
-.card-author {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--tt-text);
-  text-decoration: none;
-}
-
-.card-author:hover {
-  text-decoration: underline;
-}
-
-.card-info {
-  font-size: 12px;
-  color: var(--tt-muted);
-  margin-top: 1px;
-}
-
-.card-info a {
-  color: var(--tt-accent);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.card-info a:hover {
-  text-decoration: underline;
-}
-
-.card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--tt-text);
-  margin: 3px 0 0;
-}
-
-.card-menu {
-  padding: 4px 8px;
-  border: none;
-  background: transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--tt-muted);
-  font-size: 16px;
-  line-height: 1;
-}
-
-.card-menu:hover {
-  background: var(--tt-bg);
-}
-
-/* Card Body - Tight */
-.card-body {
-  padding: 8px 14px 10px;
-  font-size: 14px;
-  line-height: 1.4;
-  color: var(--tt-text);
-}
-
-.card-body a {
-  color: var(--tt-accent);
-}
-
-/* Card Media */
-.card-media img,
-.card-media video {
-  width: 100%;
-  display: block;
-}
-
-/* Reactions Summary */
-.card-reactions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 14px;
-  font-size: 13px;
-  color: var(--tt-muted);
-}
-
-/* Action Bar - Like, Comment, Share */
-.card-actions {
-  display: flex;
-  padding: 6px 12px;
-  border-top: 1px solid var(--tt-border);
-  gap: 4px;
-}
-
-/* Like wrapper with reaction picker */
-.tt-like-wrapper {
-  position: relative;
-}
-
-.tt-react-picker {
-  display: none;
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  margin-bottom: 8px;
-  padding: 6px 8px;
-  background: #fff;
-  border-radius: 24px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-  gap: 4px;
-  z-index: 100;
-}
-
-.tt-like-wrapper.tt-picker-open .tt-react-picker {
-  display: flex;
-}
-
-.tt-react-picker button {
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  border-radius: 50%;
-  font-size: 20px;
-  cursor: pointer;
-  transition: transform 0.15s, background 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tt-react-picker button:hover {
-  transform: scale(1.3);
-  background: #f3f4f6;
-}
-
-.card-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--tt-muted);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.card-action:hover {
-  background: var(--tt-bg);
-}
-
-.card-action.active {
-  color: var(--tt-accent);
-}
-
-.card-action svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-}
-
-.card-action.share-btn {
-  margin-left: auto;
-  padding: 8px 14px;
-  color: var(--tt-accent);
-  position: relative;
-}
-
-.card-action.share-btn:hover {
-  background: #fef7f7;
-}
-
-/* Share tooltip - appears next to button */
-.share-tooltip {
-  position: absolute;
-  right: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-right: 8px;
-  padding: 6px 12px;
-  background: #15803d;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 6px;
-  white-space: nowrap;
-  animation: tooltipFade 1.5s ease-out forwards;
-  z-index: 100;
-}
-
-.share-tooltip::after {
-  content: '';
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-  border: 6px solid transparent;
-  border-left-color: #15803d;
-}
-
-@keyframes tooltipFade {
-  0% { opacity: 0; transform: translateY(-50%) translateX(10px); }
-  15% { opacity: 1; transform: translateY(-50%) translateX(0); }
-  85% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-/* ============================================
-   COMMENTS SECTION - Tight spacing
-   ============================================ */
-.card-comments {
-  padding: 8px 14px 10px;
-  border-top: 1px solid var(--tt-border);
-}
-
-.view-comments {
-  display: block;
-  padding: 4px 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--tt-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.view-comments:hover {
-  text-decoration: underline;
-}
-
-/* Comments List */
-.comments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-/* Individual Comment - Condensed with consistent menu */
-.comment,
-.tt-comment {
-  display: flex;
-  gap: 6px;
-  padding: 3px 0;
-  position: relative;
-}
-
-.comment-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 1.5px solid rgba(153, 27, 27, 0.2);
-}
-
-.comment-avatar svg {
-  width: 16px;
-  height: 16px;
-  fill: #fff;
-}
-
-.comment-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.comment-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.comment-bubble {
-  display: inline-block;
-  background: var(--tt-comment-bg);
-  border-radius: 14px;
-  padding: 6px 10px;
-  max-width: 100%;
-  position: relative;
-}
-
-.comment-author {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--tt-text);
-  text-decoration: none;
-}
-
-.comment-author:hover {
-  text-decoration: underline;
-}
-
-.comment-text {
-  font-size: 13px;
-  color: var(--tt-text);
-  margin-top: 1px;
-  line-height: 1.3;
-}
-
-.comment-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 1px 10px;
-  font-size: 11px;
-  color: var(--tt-muted);
-}
-
-.comment-meta button {
-  background: none;
-  border: none;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--tt-muted);
-  cursor: pointer;
-  padding: 0;
-}
-
-.comment-meta button:hover {
-  text-decoration: underline;
-}
-
-.comment-meta button.active {
-  color: var(--tt-accent);
-}
-
-/* ============================================
-   COMMENT MENU - Consistent with main post menu
-   ============================================ */
-.tt-menu {
-  position: relative;
-}
-
-.tt-menu-btn {
-  padding: 4px 8px;
-  border: none;
-  background: transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--tt-muted);
-  font-size: 16px;
-  line-height: 1;
-}
-
-.tt-menu-btn:hover {
-  background: var(--tt-bg);
-}
-
-.tt-menu-pop {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  background: #fff;
-  border: 1px solid var(--tt-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 100;
-  min-width: 120px;
-  overflow: hidden;
-}
-
-.tt-menu-pop[hidden] {
-  display: none;
-}
-
-.tt-menu-item {
-  display: block;
-  width: 100%;
-  padding: 10px 14px;
-  border: none;
-  background: transparent;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--tt-text);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.tt-menu-item:hover {
-  background: var(--tt-bg);
-}
-
-.tt-menu-item.danger {
-  color: #dc2626;
-}
-
-.tt-menu-item.danger:hover {
-  background: #fef2f2;
-}
-
-/* Comment-specific menu positioning */
-.comment-bubble-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.tt-menu-comment {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.tt-menu-comment .tt-menu-btn {
-  padding: 2px 6px;
-  font-size: 14px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-/* Show menu button on hover for ALL comments including nested */
-.tt-comment:hover .tt-menu-comment .tt-menu-btn,
-.comment:hover .tt-menu-comment .tt-menu-btn,
-.comment-bubble-row:hover .tt-menu-comment .tt-menu-btn {
-  opacity: 1;
-}
-
-/* Reply box inside comments */
-.tt-comment-reply-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 0;
-}
-
-.tt-comment-reply-box[hidden] {
-  display: none;
-}
-
-.tt-comment-reply-box .reply-avatar {
-  width: 24px;
-  height: 24px;
-}
-
-.tt-comment-reply-box .tt-comment-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--tt-border);
-  border-radius: 18px;
-  font-size: 13px;
-  background: var(--tt-bg);
-  outline: none;
-}
-
-.tt-comment-reply-box .tt-comment-input:focus {
-  border-color: var(--tt-accent);
-}
-
-.tt-comment-reply-box .comment-send {
-  padding: 6px 14px;
-  border: none;
-  border-radius: 18px;
-  background: var(--tt-accent);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.tt-comment-reply-box .comment-send:hover {
-  background: #7f1d1d;
-}
-
-/* Nested comments */
-.comment.nested,
-.tt-comment.nested {
-  margin-left: 30px;
-  overflow: visible;
-}
-
-.comment.nested-deep,
-.tt-comment.nested-deep {
-  margin-left: 46px;
-  overflow: visible;
-}
-
-/* Ensure comment content and bubble don't clip the menu */
-.comment-content,
-.comment-bubble {
-  overflow: visible;
-}
-
-/* Comment Input Row */
-.comment-input-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 0 0;
-}
-
-.comment-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 18px;
-  background: var(--tt-comment-bg);
-  font-size: 13px;
-  outline: none;
-  transition: background 0.15s;
-}
-
-.comment-input:focus {
-  background: #ebe6e0;
-}
-
-.comment-input::placeholder {
-  color: var(--tt-muted);
-}
-
-.comment-tools {
-  display: flex;
-  gap: 0;
-}
-
-.comment-tool {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-
-.comment-tool:hover {
-  background: var(--tt-comment-bg);
-}
-
-.comment-tool svg {
-  width: 16px;
-  height: 16px;
-}
-
-.comment-tool.photo svg { fill: #45bd62; }
-.comment-tool.video svg { fill: #f3425f; }
-
-.comment-send {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 16px;
-  background: var(--tt-accent);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.comment-send:hover {
-  background: var(--tt-accent-hover);
-}
-
-/* ============================================
-   REACTION CHIPS (for both posts and comments)
-   ============================================ */
-.tt-react-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.tt-react-summary-comment {
-  margin-left: auto;
-}
-
-.tt-react-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 6px;
-  background: var(--tt-comment-bg);
-  border-radius: 999px;
-  font-size: 11px;
-}
-
-.tt-react-emoji {
-  font-size: 12px;
-}
-
-.tt-react-count {
-  font-weight: 600;
-  color: var(--tt-muted);
-}
-
-/* ============================================
-   EMPTY STATE
-   ============================================ */
-#emptyState {
-  text-align: center;
-  padding: 40px 20px;
-  background: var(--tt-card);
-  border-radius: 10px;
-  color: var(--tt-muted);
-  font-size: 15px;
-}
-
-/* ============================================
-   TOAST
-   ============================================ */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  background: #1c1e21;
-  color: #fff;
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s;
-  z-index: 200;
-}
-
-.toast.show {
-  opacity: 1;
-}
-
-/* ============================================
-   IMAGE ZOOM MODAL
-   ============================================ */
-.tt-zoom-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 500;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s, visibility 0.2s;
-}
-
-.tt-zoom-modal.show {
-  opacity: 1;
-  visibility: visible;
-}
-
-.tt-zoom-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-  border-radius: 50%;
-  font-size: 24px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tt-zoom-close:hover {
-  background: rgba(255,255,255,0.2);
-}
-
-.tt-zoom-img {
-  max-width: 90vw;
-  max-height: 90vh;
-  border-radius: 8px;
-}
-
-/* ============================================
-   LINK PREVIEW CARDS
-   ============================================ */
-.tt-link-preview-wrap {
-  padding: 0 14px 10px;
-}
-
-.tt-link-card {
-  display: flex;
-  border: 1px solid var(--tt-border);
-  border-radius: 10px;
-  overflow: hidden;
-  text-decoration: none;
-  color: inherit;
-  transition: background 0.15s;
-}
-
-.tt-link-card:hover {
-  background: var(--tt-bg);
-}
-
-.tt-link-thumb {
-  width: 120px;
-  min-height: 80px;
-  background-size: cover;
-  background-position: center;
-  flex-shrink: 0;
-}
-
-.tt-link-meta {
-  flex: 1;
-  padding: 10px 12px;
-  min-width: 0;
-}
-
-.tt-link-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--tt-text);
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.tt-link-host {
-  font-size: 11px;
-  color: var(--tt-muted);
-  margin-top: 4px;
-}
-
-/* ============================================
-   YOUTUBE EMBED
-   ============================================ */
-.tt-youtube-embed {
-  padding: 0 14px 10px;
-  max-width: 480px;
-}
-
-.tt-youtube-embed iframe {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 10px;
-  border: none;
-}
-
-/* ============================================
-   POST MEDIA STYLES
-   ============================================ */
-.post-media-wrap {
-  margin: 8px 0;
-}
-
-.post-img {
-  width: 100%;
-  max-height: 500px;
-  object-fit: contain;
-  cursor: pointer;
-  border-radius: 8px;
-}
-
-.post-media-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4px;
-}
-
-.post-media-grid .post-img-multi {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-}
-
-.post-video {
-  width: 100%;
-  max-height: 500px;
-  border-radius: 8px;
-}
-
-.tt-comment-media {
-  margin: 6px 0;
-}
-
-.tt-comment-media .post-img {
-  max-height: 200px;
-}
-
-/* ============================================
-   UTILITIES
-   ============================================ */
-.sr-only {
-  position: absolute !important;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0,0,0,0);
-  border: 0;
-}
-
-/* ============================================
-   MOBILE RESPONSIVE
-   ============================================ */
-@media (max-width: 640px) {
-  .tt-wrap {
-    padding: 8px;
+  async function ensureLoggedInFor(actionLabel) {
+    if (currentUser) return true;
+    await refreshCurrentUser();
+    if (!currentUser) {
+      showToast(`Please sign in to ${actionLabel || "do that"} in ThreadTalk.`);
+      return false;
+    }
+    return true;
   }
-  
-  .tt-hero-banner {
-    height: 120px;
-    padding: 12px 16px;
+
+  async function loadProfiles(userIds) {
+    const ids = Array.from(new Set(userIds.filter(Boolean)));
+    if (!ids.length) return;
+
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, store_name, first_name, last_name, avatar_url")
+        .in("id", ids);
+
+      (data || []).forEach((p) => (profilesCache[p.id] = p));
+    } catch (_) {
+      // ignore
+    }
   }
-  
-  .tt-hero-banner h1 {
-    font-size: 22px;
+
+  function displayNameForUserId(userId) {
+    const p = profilesCache[userId];
+    if (!p) return "Unknown member";
+    if (p.store_name?.trim()) return p.store_name.trim();
+    const first = (p.first_name || "").trim();
+    const last = (p.last_name || "").trim();
+    return (first + " " + (last ? last[0] + "." : "")).trim() || "Unknown member";
   }
-  
-  .composer-tool span {
-    display: none;
+
+  // Get avatar HTML for a user - shows photo if available, placeholder SVG otherwise
+  function getAvatarHtml(userId) {
+    const p = profilesCache[userId];
+    
+    if (p?.avatar_url) {
+      const name = displayNameForUserId(userId);
+      return `<img src="${escapeAttr(p.avatar_url)}" alt="${escapeAttr(name)}" />`;
+    }
+    // Default placeholder SVG
+    return '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
   }
-  
-  .topics {
-    gap: 6px;
+
+  // Get avatar HTML for current user (for composer)
+  function getCurrentUserAvatarHtml() {
+    if (!currentUser) {
+      return '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+    }
+    return getAvatarHtml(currentUser.id);
   }
-  
-  .topic {
-    padding: 6px 12px;
-    font-size: 12px;
+
+  // Update the composer avatar element with current user's avatar
+  function updateComposerAvatar() {
+    const composerAvatar = composerForm?.querySelector('.composer-avatar');
+    if (composerAvatar && currentUser) {
+      composerAvatar.innerHTML = getCurrentUserAvatarHtml();
+    }
   }
-  
-  .card-header {
-    padding: 10px 12px 0;
+
+  // ---------- Load threads ----------
+  async function loadThreads() {
+    try {
+      let query = supabase
+        .from("threadtalk_threads")
+        .select(
+          "id, author_id, category, title, body, media_url, media_type, created_at, is_deleted"
+        )
+        .eq("is_deleted", false);
+
+      // If a specific thread id is requested, ignore category filter and just fetch that one.
+      if (THREAD_URL_ID) {
+        query = query.eq("id", THREAD_URL_ID);
+      } else if (THREAD_CATEGORY_FILTER) {
+        query = query.eq("category", THREAD_CATEGORY_FILTER);
+      }
+
+      query = query.order("created_at", { ascending: false }).limit(100);
+
+      const { data: threadRows, error: threadErr } = await query;
+      if (threadErr) {
+        console.error("[ThreadTalk] loadThreads threads error", threadErr);
+        showToast("Could not load threads.");
+        return;
+      }
+
+      allThreads = threadRows || [];
+
+      if (!allThreads.length) {
+        threads = [];
+        if (cardsEl) cardsEl.innerHTML = "";
+        if (emptyStateEl) emptyStateEl.style.display = "block";
+        return;
+      }
+
+      const threadIds = allThreads.map((t) => t.id);
+      const authorIds = allThreads.map((t) => String(t.author_id)).filter(Boolean);
+
+      // normalize
+      allThreads = allThreads.map((t) => ({ ...t, author_id: String(t.author_id) }));
+
+      // Load comments (including parent_comment_id for nesting)
+      const { data: commentRows, error: commentErr } = await supabase
+        .from("threadtalk_comments")
+        .select(
+          "id, thread_id, author_id, body, media_url, media_type, created_at, is_deleted, parent_comment_id"
+        )
+        .in("thread_id", threadIds);
+
+      if (commentErr) {
+        console.error("[ThreadTalk] loadThreads comments error", commentErr);
+      }
+
+      commentsByThread = {};
+      const commentIds = [];
+
+      (commentRows || [])
+        .filter((c) => !c.is_deleted)
+        .forEach((c) => {
+          if (!commentsByThread[c.thread_id]) {
+            commentsByThread[c.thread_id] = [];
+          }
+          commentsByThread[c.thread_id].push(c);
+          commentIds.push(c.id);
+          if (c.author_id) authorIds.push(String(c.author_id));
+          c.author_id = String(c.author_id);
+        });
+
+      // Load comment reactions
+      commentReactionsByComment = {};
+      if (commentIds.length) {
+        const { data: cReactRows, error: cReactErr } = await supabase
+          .from("threadtalk_comment_reactions")
+          .select("comment_id, user_id, reaction_type")
+          .in("comment_id", commentIds);
+
+        if (cReactErr) {
+          console.error(
+            "[ThreadTalk] loadThreads comment reactions error",
+            cReactErr
+          );
+        }
+
+        (cReactRows || []).forEach((r) => {
+          if (!commentReactionsByComment[r.comment_id]) {
+            commentReactionsByComment[r.comment_id] = [];
+          }
+          commentReactionsByComment[r.comment_id].push(r);
+          authorIds.push(r.user_id);
+        });
+      }
+
+      // Thread reactions
+      const { data: reactionRows, error: reactErr } = await supabase
+        .from("threadtalk_reactions")
+        .select("thread_id, user_id, reaction_type")
+        .in("thread_id", threadIds);
+
+      if (reactErr) {
+        console.error("[ThreadTalk] loadThreads thread reactions error", reactErr);
+      }
+
+      reactionsByThread = {};
+      (reactionRows || []).forEach((r) => {
+        if (!reactionsByThread[r.thread_id]) {
+          reactionsByThread[r.thread_id] = [];
+        }
+        reactionsByThread[r.thread_id].push(r);
+        authorIds.push(r.user_id);
+      });
+
+      await loadProfiles(authorIds);
+      applySearchFilter();
+    } catch (err) {
+      console.error("[ThreadTalk] loadThreads error", err);
+      showToast("Could not load threads.");
+    }
   }
-  
-  .card-body {
-    padding: 6px 12px 8px;
+
+  // ---------- Search ----------
+  function wireSearch() {
+    if (!searchInput) return;
+    searchInput.addEventListener("input", applySearchFilter);
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        applySearchFilter();
+      }
+    });
   }
-  
-  .card-comments {
-    padding: 6px 12px 8px;
+
+  function applySearchFilter() {
+    const q = (searchInput?.value || "").trim().toLowerCase();
+
+    // Base list: full list or filtered by search text
+    let base = !q
+      ? allThreads.slice()
+      : allThreads.filter((t) => {
+          const title = (t.title || "").toLowerCase();
+          const body = (t.body || "").toLowerCase();
+          return title.includes(q) || body.includes(q);
+        });
+
+    // If ?thread=123 is present, show only that one
+    if (THREAD_URL_ID) {
+      base = base.filter((t) => Number(t.id) === THREAD_URL_ID);
+    }
+
+    threads = base;
+    renderThreads();
   }
-}
+
+  // ---------- Comment tree helpers ----------
+  function buildCommentTree(comments) {
+    if (!comments || !comments.length) return [];
+
+    const byId = {};
+    comments.forEach((c) => {
+      c.children = [];
+      byId[c.id] = c;
+    });
+
+    const roots = [];
+    comments.forEach((c) => {
+      if (c.parent_comment_id && byId[c.parent_comment_id]) {
+        byId[c.parent_comment_id].children.push(c);
+      } else {
+        roots.push(c);
+      }
+    });
+
+    const sortByCreated = (arr) => {
+      arr.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      arr.forEach((c) => c.children && sortByCreated(c.children));
+    };
+    sortByCreated(roots);
+
+    return roots;
+  }
+
+  function renderCommentTree(threadId, nodes, depth) {
+    if (!nodes || !nodes.length) return "";
+    return nodes
+      .map((c) => {
+        const selfHtml = renderCommentHtml(threadId, c, depth);
+        const childrenHtml =
+          c.children && c.children.length
+            ? `<div class="tt-comment-children">${renderCommentTree(
+                threadId,
+                c.children,
+                depth + 1
+              )}</div>`
+            : "";
+        return selfHtml + childrenHtml;
+      })
+      .join("");
+  }
+
+  // ---------- Rendering ----------
+  function renderThreads() {
+    if (!cardsEl) return;
+    cardsEl.innerHTML = "";
+    if (emptyStateEl) {
+      emptyStateEl.style.display = threads.length ? "none" : "block";
+    }
+
+    threads.forEach((thread) => {
+      const card = document.createElement("article");
+      card.className = "card";
+      card.dataset.threadId = String(thread.id);
+
+      const authorName = displayNameForUserId(thread.author_id);
+      const catSlug = thread.category || "loose-threads";
+      const catLabel = CATEGORY_LABELS[catSlug] || "Loose Threads";
+      const catLink = CATEGORY_LINKS[catSlug] || "loose-threads.html";
+      const when = timeAgo(thread.created_at);
+      const title = (thread.title || "").trim();
+
+      const threadRows = reactionsByThread[thread.id] || [];
+      const { counts: threadCounts, mine: threadMine } =
+        computeReactionState(threadRows);
+      const myType =
+        REACTION_TYPES.find((r) => threadMine[r.key])?.key || null;
+
+      const comments = commentsByThread[thread.id] || [];
+      const mediaHtml = renderMedia(thread);
+
+      // Replies collapsed by default; expand only after click
+      const isExpanded = expandedCommentsThreads.has(thread.id);
+      const commentTree = isExpanded ? buildCommentTree(comments) : [];
+      const commentsHtml = renderCommentTree(thread.id, commentTree, 0);
+
+      const isMine = currentUser && thread.author_id === currentUser.id;
+
+      const menuHtml = isMine
+        ? `
+        <div class="tt-menu">
+          <button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>
+          <div class="tt-menu-pop" data-tt-role="menu-pop" hidden>
+            <button class="tt-menu-item" data-tt-role="edit-thread" type="button">Edit</button>
+            <button class="tt-menu-item danger" data-tt-role="delete-thread" type="button">Delete</button>
+          </div>
+        </div>`
+        : "";
+
+      const showRepliesButton = comments.length && !isExpanded;
+
+      const hiddenHtml = showRepliesButton
+        ? `<button class="tt-more-comments" type="button" data-tt-role="show-all-comments">
+             View all ${comments.length} repl${
+               comments.length === 1 ? "y" : "ies"
+             }…
+           </button>`
+        : "";
+
+      let chipsHtml = "";
+      REACTION_TYPES.forEach((r) => {
+        const count = threadCounts[r.key];
+        if (count) {
+          chipsHtml += `
+            <span class="tt-react-chip">
+              <span class="tt-react-emoji">${r.emoji}</span>
+              <span class="tt-react-count">${count}</span>
+            </span>`;
+        }
+      });
+      const reactionSummaryHtml = chipsHtml
+        ? `<div class="tt-react-summary">${chipsHtml}</div>`
+        : "";
+
+      const pickerHtml =
+        '<div class="tt-react-picker" data-tt-role="thread-picker">' +
+        REACTION_TYPES.map(
+          (r) =>
+            `<button class="tt-react-pill"
+                type="button"
+                data-tt-role="thread-react"
+                data-reaction="${r.key}">
+              <span>${r.emoji}</span>
+             </button>`
+        ).join("") +
+        "</div>";
+
+      // author link → Atelier (using ?u= to match existing atelier.html)
+      const authorHtml = thread.author_id
+        ? `<a class="card-author" href="atelier.html?u=${encodeURIComponent(thread.author_id)}">${escapeHtml(authorName)}</a>`
+        : `<span class="card-author">${escapeHtml(authorName)}</span>`;
+
+      // Get user avatar (photo or initials)
+      const avatarHtml = getAvatarHtml(thread.author_id);
+      const currentUserAvatar = getCurrentUserAvatarHtml();
+      
+      // Avatar link to atelier
+      const avatarLink = thread.author_id 
+        ? `<a href="atelier.html?u=${encodeURIComponent(thread.author_id)}" class="card-avatar-link">${avatarHtml}</a>`
+        : avatarHtml;
+
+      card.innerHTML = `
+        <div class="card-header">
+          <div class="card-avatar">${avatarLink}</div>
+          <div class="card-meta">
+            ${authorHtml}
+            <div class="card-info">
+              <span>${when}</span> · <a href="${catLink}">${escapeHtml(catLabel)}</a>
+            </div>
+            ${title ? `<div class="card-title">${escapeHtml(title)}</div>` : ""}
+          </div>
+          ${isMine ? `
+            <div class="tt-menu">
+              <button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>
+              <div class="tt-menu-pop" data-tt-role="menu-pop" hidden>
+                <button class="tt-menu-item" type="button" data-tt-role="edit-thread">Edit</button>
+                <button class="tt-menu-item danger" type="button" data-tt-role="delete-thread">Delete</button>
+              </div>
+            </div>` : ""}
+        </div>
+
+        <div class="card-body">${linkify(thread.body || "")}</div>
+        ${mediaHtml ? `<div class="card-media">${mediaHtml}</div>` : ""}
+
+        ${reactionSummaryHtml ? `<div class="card-reactions">${reactionSummaryHtml}</div>` : ""}
+
+        <div class="card-actions">
+          <div class="tt-like-wrapper">
+            <button class="card-action${myType ? " active" : ""}" type="button" data-tt-role="thread-like-toggle">
+              <svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+              Like
+            </button>
+            <div class="tt-react-picker">
+              <button type="button" data-tt-role="thread-react" data-reaction="like" title="Like">👍</button>
+              <button type="button" data-tt-role="thread-react" data-reaction="love" title="Love">❤️</button>
+              <button type="button" data-tt-role="thread-react" data-reaction="laugh" title="Haha">😂</button>
+              <button type="button" data-tt-role="thread-react" data-reaction="wow" title="Wow">😮</button>
+              <button type="button" data-tt-role="thread-react" data-reaction="cry" title="Sad">😢</button>
+            </div>
+          </div>
+          <button class="card-action" type="button" data-tt-role="focus-comment-input">
+            <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Comment
+          </button>
+          <button class="card-action share-btn" type="button" data-tt-role="share-thread">
+            <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+            Share
+          </button>
+        </div>
+
+        <div class="card-comments">
+          ${comments.length && !isExpanded ? `<button class="view-comments" type="button" data-tt-role="show-all-comments">View all ${comments.length} comment${comments.length === 1 ? "" : "s"}</button>` : ""}
+          <div class="comments-list">${commentsHtml}</div>
+          <div class="comment-input-row">
+            <div class="comment-avatar">${currentUserAvatar}</div>
+            <input class="comment-input" type="text" maxlength="500" placeholder="Write a comment..."/>
+            <div class="comment-tools">
+              <label class="comment-tool photo" title="Add photo">
+                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                <input type="file" accept="image/*" data-tt-role="comment-photo" hidden>
+              </label>
+              <label class="comment-tool video" title="Add video">
+                <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                <input type="file" accept="video/*" data-tt-role="comment-video" hidden>
+              </label>
+            </div>
+            <button class="comment-send" type="button" data-tt-role="send-comment">Post</button>
+          </div>
+        </div>
+      `;
+
+      // Link preview card (YouTube + normal sites) – no iframe
+      attachLinkPreview(card, thread);
+
+      cardsEl.appendChild(card);
+    });
+  }
+
+  // ---------- Render each comment ----------
+  function renderCommentHtml(threadId, c, depth) {
+    const d = depth || 0;
+    const name = displayNameForUserId(c.author_id);
+    const ts = timeAgo(c.created_at);
+
+    const reactions = commentReactionsByComment[c.id] || [];
+    const { counts, mine } = computeReactionState(reactions);
+    const myType = REACTION_TYPES.find((r) => mine[r.key])?.key || null;
+
+    let chipsHtml = "";
+    REACTION_TYPES.forEach((r) => {
+      const count = counts[r.key];
+      if (count) {
+        chipsHtml += `
+          <span class="tt-react-chip">
+            <span class="tt-react-emoji">${r.emoji}</span>
+            <span class="tt-react-count">${count}</span>
+          </span>`;
+      }
+    });
+
+    const summaryHtml = chipsHtml
+      ? `<div class="tt-react-summary tt-react-summary-comment">${chipsHtml}</div>`
+      : "";
+
+    const deleteHtml =
+      currentUser && c.author_id === currentUser.id
+        ? `
+      <div class="tt-menu tt-menu-comment">
+        <button class="tt-menu-btn"
+                type="button"
+                data-tt-role="comment-menu">···</button>
+        <div class="tt-menu-pop"
+             data-tt-role="comment-menu-pop"
+             hidden>
+          <button class="tt-menu-item"
+                  type="button"
+                  data-tt-role="edit-comment"
+                  data-comment-id="${c.id}">
+            Edit
+          </button>
+          <button class="tt-menu-item danger"
+                  type="button"
+                  data-tt-role="delete-comment"
+                  data-comment-id="${c.id}">
+            Delete
+          </button>
+        </div>
+      </div>`
+        : "";
+    
+    // Debug: Log to console to help diagnose menu visibility
+    console.log("[ThreadTalk Debug] Comment render:", {
+      commentId: c.id,
+      commentAuthorId: c.author_id,
+      currentUserId: currentUser?.id || "NO USER",
+      isMatch: currentUser && c.author_id === currentUser.id,
+      willShowMenu: !!deleteHtml
+    });
+
+    const pickerHtml =
+      `<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="${c.id}">` +
+      REACTION_TYPES.map(
+        (r) =>
+          `<button class="tt-react-pill"
+                    type="button"
+                    data-tt-role="comment-react"
+                    data-comment-id="${c.id}"
+                    data-reaction="${r.key}">
+            <span>${r.emoji}</span>
+          </button>`
+      ).join("") +
+      "</div>";
+
+    const mediaHtml = renderCommentMedia(c);
+
+    // author link → Atelier for comments (using ?u=)
+    const authorHtml = c.author_id
+      ? `<a class="comment-author" href="atelier.html?u=${encodeURIComponent(c.author_id)}">${escapeHtml(name)}</a>`
+      : `<span class="comment-author">${escapeHtml(name)}</span>`;
+
+    // Get user avatar (photo or initials)
+    const commentAvatarHtml = getAvatarHtml(c.author_id);
+    
+    // Avatar link to atelier
+    const commentAvatarLink = c.author_id
+      ? `<a href="atelier.html?u=${encodeURIComponent(c.author_id)}" class="comment-avatar-link">${commentAvatarHtml}</a>`
+      : commentAvatarHtml;
+
+    // Get current user avatar for reply box
+    const replyAvatarHtml = getCurrentUserAvatarHtml();
+
+    return `
+      <div class="tt-comment comment${d > 0 ? ' nested' : ''}${d > 1 ? ' nested-deep' : ''}" data-comment-id="${c.id}" data-thread-id="${threadId}" data-depth="${d}">
+        <div class="comment-avatar">${commentAvatarLink}</div>
+        <div class="comment-content">
+          <div class="comment-bubble">
+            ${authorHtml}
+            <div class="comment-text">${linkify(c.body)}</div>
+            ${deleteHtml}
+          </div>
+          ${mediaHtml}
+          <div class="comment-meta">
+            <button type="button" class="${myType ? 'active' : ''}" data-tt-role="comment-like-toggle" data-comment-id="${c.id}">Like</button>
+            <button type="button" data-tt-role="respond-comment" data-comment-id="${c.id}">Reply</button>
+            <span>${ts}</span>
+            ${chipsHtml}
+          </div>
+          <div class="tt-comment-reply-box" hidden data-parent-comment-id="${c.id}">
+            <div class="comment-avatar reply-avatar">${replyAvatarHtml}</div>
+            <input class="tt-comment-input" type="text" maxlength="500" placeholder="Write a reply..." />
+            <button class="comment-send" type="button" data-tt-role="send-comment-reply">Post</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ---------- Media rendering ----------
+  function renderMedia(thread) {
+    if (!thread.media_url || !thread.media_type) return "";
+
+    // Handle multiple images
+    if (thread.media_type === "images") {
+      try {
+        const urls = JSON.parse(thread.media_url);
+        if (Array.isArray(urls) && urls.length) {
+          const imagesHtml = urls.map(url => `
+            <img class="post-img post-img-multi"
+                 src="${escapeAttr(url)}"
+                 alt="Post image"
+                 data-tt-role="zoom-img"/>
+          `).join("");
+          return `<div class="post-media-wrap post-media-grid">${imagesHtml}</div>`;
+        }
+      } catch (e) {
+        console.warn("[ThreadTalk] Could not parse multiple images", e);
+      }
+    }
+
+    const src = escapeAttr(thread.media_url);
+
+    if (thread.media_type === "image") {
+      return `
+        <div class="post-media-wrap">
+          <img class="post-img"
+               src="${src}"
+               alt="Post image"
+               data-tt-role="zoom-img"/>
+        </div>`;
+    }
+
+    if (thread.media_type === "video") {
+      return `
+        <div class="post-media-wrap">
+          <video class="post-video" controls src="${src}"></video>
+        </div>`;
+    }
+
+    return "";
+  }
+
+  function renderCommentMedia(c) {
+    if (!c.media_url || !c.media_type) return "";
+    const src = escapeAttr(c.media_url);
+
+    if (c.media_type === "image") {
+      return `
+        <div class="tt-comment-media">
+          <img class="post-img"
+               src="${src}"
+               alt="Reply image"
+               data-tt-role="zoom-img"/>
+        </div>`;
+    }
+
+    if (c.media_type === "video") {
+      return `
+        <div class="tt-comment-media">
+          <video class="post-video" controls src="${src}"></video>
+        </div>`;
+    }
+
+    return "";
+  }
+
+  // ---------- Reaction state helpers ----------
+  function computeReactionState(rows) {
+    const counts = { like: 0, love: 0, laugh: 0, wow: 0, cry: 0 };
+    const mine = { like: false, love: false, laugh: false, wow: false, cry: false };
+
+    rows.forEach((r) => {
+      if (counts[r.reaction_type] != null) {
+        counts[r.reaction_type] += 1;
+      }
+      if (currentUser && r.user_id === currentUser.id) {
+        mine[r.reaction_type] = true;
+      }
+    });
+
+    return { counts, mine };
+  }
+
+  // ---------- Notifications helper ----------
+  async function createThreadNotification({
+    recipientId,
+    threadId,
+    commentId,
+    type,
+    message,
+  }) {
+    if (!currentUser || !recipientId || recipientId === currentUser.id) return;
+
+    try {
+      const href = `ThreadTalk.html?thread=${threadId}`;
+
+      // Note: Only inserting columns that exist in the notifications table
+      // The thread_id and comment_id are encoded in the href URL instead
+      const { error } = await supabase.from("notifications").insert({
+        user_id: recipientId,          // recipient
+        type,                          // "thread_reaction", "comment_reply", etc.
+        kind: "threadtalk",            // used by notifications.html as pill label
+        title: message,                // main line in notifications list
+        body: message,                 // secondary line (same text for now)
+        href,                          // notifications.html prefers href / link
+        link: href,
+      });
+
+      if (error) {
+        console.warn("[ThreadTalk] notification insert error", error);
+      }
+    } catch (err) {
+      console.warn("[ThreadTalk] notification exception", err);
+    }
+  }
+
+  // ---------- Composer ----------
+  function wireComposer() {
+    if (!composerForm) return;
+
+    // Update composer avatar when user is logged in
+    updateComposerAvatar();
+
+    composerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      let body = (textArea.value || "").trim();
+      let title = (titleInput?.value || "").trim();
+      let cat = categorySelect?.value || "loose-threads";
+
+      const hasMedia = !!(photoInput?.files?.[0] || videoInput?.files?.[0]);
+
+      if (!title) {
+        titleInput?.focus();
+        showToast("Add a post title.");
+        return;
+      }
+
+      if (!body && !hasMedia) {
+        textArea.focus();
+        return;
+      }
+
+      const ok = await ensureLoggedInFor("post");
+      if (!ok) return;
+
+      postBtn.disabled = true;
+
+      try {
+        const mediaInfo = await maybeUploadComposerMedia();
+        if (!body && hasMedia) body = "image attached";
+
+        const payload = {
+          author_id: currentUser.id,
+          category: cat,
+          title,
+          body,
+          media_url: mediaInfo.media_url,
+          media_type: mediaInfo.media_type,
+        };
+
+        const { data, error } = await supabase
+          .from("threadtalk_threads")
+          .insert(payload)
+          .select()
+          .single();
+
+        if (error) {
+          console.error("[ThreadTalk] thread insert error", error);
+          showToast("Could not post.");
+          return;
+        }
+
+        // No notification here: it's the author's own thread.
+
+        textArea.value = "";
+        titleInput.value = "";
+        clearMediaPreview();
+
+        allThreads.unshift(data);
+        applySearchFilter();
+        showToast("Posted");
+      } catch (err) {
+        console.error("[ThreadTalk] composer exception", err);
+        showToast("Could not post.");
+      } finally {
+        postBtn.disabled = false;
+      }
+    });
+  }
+
+  async function maybeUploadComposerMedia() {
+    if (!currentUser) return { media_url: null, media_type: null };
+
+    // Check for video first (single file)
+    const videoFile = videoInput?.files?.[0];
+    if (videoFile) {
+      try {
+        const ext = videoFile.name.split(".").pop().toLowerCase();
+        const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
+
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(path, videoFile, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: videoFile.type,
+          });
+
+        if (error) {
+          console.error("[ThreadTalk] upload error", error);
+          showToast("Upload failed.");
+          return { media_url: null, media_type: null };
+        }
+
+        const { data: pub } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(data.path);
+
+        return {
+          media_url: pub?.publicUrl || null,
+          media_type: "video",
+        };
+      } catch (err) {
+        console.error("[ThreadTalk] upload exception", err);
+        showToast("Upload failed.");
+        return { media_url: null, media_type: null };
+      }
+    }
+
+    // Handle multiple images
+    const photoFiles = photoInput?.files;
+    if (!photoFiles || photoFiles.length === 0) {
+      return { media_url: null, media_type: null };
+    }
+
+    const files = Array.from(photoFiles).slice(0, 4);
+    const uploadedUrls = [];
+
+    for (const file of files) {
+      try {
+        const ext = file.name.split(".").pop().toLowerCase();
+        const path = `${currentUser.id}/thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(path, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: file.type,
+          });
+
+        if (error) {
+          console.error("[ThreadTalk] upload error", error);
+          continue;
+        }
+
+        const { data: pub } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(data.path);
+
+        if (pub?.publicUrl) {
+          uploadedUrls.push(pub.publicUrl);
+        }
+      } catch (err) {
+        console.error("[ThreadTalk] upload exception", err);
+      }
+    }
+
+    if (uploadedUrls.length === 0) {
+      showToast("Upload failed.");
+      return { media_url: null, media_type: null };
+    }
+
+    // Store multiple URLs as JSON array string for multi-image support
+    // Single image: store as plain URL for backward compatibility
+    if (uploadedUrls.length === 1) {
+      return {
+        media_url: uploadedUrls[0],
+        media_type: "image",
+      };
+    }
+
+    return {
+      media_url: JSON.stringify(uploadedUrls),
+      media_type: "images", // plural indicates multiple
+    };
+  }
+
+  async function maybeUploadCommentMedia(file) {
+    if (!currentUser || !file) return { media_url: null, media_type: null };
+
+    try {
+      const ext = file.name.split(".").pop().toLowerCase();
+      const path = `${currentUser.id}/comment-${Date.now()}.${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (error) {
+        console.error("[ThreadTalk] upload reply error", error);
+        showToast("Upload failed.");
+        return { media_url: null, media_type: null };
+      }
+
+      const { data: pub } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(data.path);
+
+      return {
+        media_url: pub?.publicUrl || null,
+        media_type: "image", // replies only allow image for now
+      };
+    } catch (err) {
+      console.error("[ThreadTalk] upload reply exception", err);
+      showToast("Upload failed.");
+      return { media_url: null, media_type: null };
+    }
+  }
+
+  // ---------- Media preview ----------
+  function wireMediaInputs() {
+    if (!photoInput || !videoInput || !mediaPreview) return;
+
+    photoInput.addEventListener("change", () => {
+      if (photoInput.files?.length) {
+        videoInput.value = "";
+        // Limit to 4 photos
+        const files = Array.from(photoInput.files).slice(0, 4);
+        showMultiplePreview(files, "image");
+      }
+    });
+
+    videoInput.addEventListener("change", () => {
+      if (videoInput.files?.[0]) {
+        photoInput.value = "";
+        showPreview(videoInput.files[0], "video");
+      }
+    });
+  }
+
+  function showMultiplePreview(files, kind) {
+    mediaPreview.hidden = false;
+    mediaPreview.innerHTML = "";
+
+    files.forEach((file, idx) => {
+      const url = URL.createObjectURL(file);
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "position:relative;display:inline-block;margin-right:8px;";
+      
+      if (kind === "image") {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = `Preview image ${idx + 1}`;
+        wrapper.appendChild(img);
+      }
+      
+      // Add remove button
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.textContent = "×";
+      removeBtn.style.cssText = "position:absolute;top:2px;right:2px;background:#000;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:14px;line-height:1;";
+      removeBtn.addEventListener("click", () => {
+        wrapper.remove();
+        if (mediaPreview.children.length === 0) {
+          mediaPreview.hidden = true;
+          photoInput.value = "";
+        }
+      });
+      wrapper.appendChild(removeBtn);
+      
+      mediaPreview.appendChild(wrapper);
+    });
+    
+    if (files.length >= 4) {
+      showToast("Maximum 4 images per post");
+    }
+  }
+
+  function showPreview(file, kind) {
+    const url = URL.createObjectURL(file);
+    mediaPreview.hidden = false;
+    mediaPreview.innerHTML = "";
+
+    if (kind === "image") {
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = "Preview image";
+      mediaPreview.appendChild(img);
+    } else {
+      const vid = document.createElement("video");
+      vid.controls = true;
+      vid.src = url;
+      mediaPreview.appendChild(vid);
+    }
+  }
+
+  function clearMediaPreview() {
+    mediaPreview.hidden = true;
+    mediaPreview.innerHTML = "";
+    if (photoInput) photoInput.value = "";
+    if (videoInput) videoInput.value = "";
+  }
+
+  // ---------- Picker closing ----------
+  function closeAllPickers() {
+    document
+      .querySelectorAll(".tt-like-wrapper.tt-picker-open")
+      .forEach((el) => el.classList.remove("tt-picker-open"));
+  }
+
+  function wireGlobalPickerClose() {
+    document.addEventListener("click", (e) => {
+      const inside =
+        e.target.closest(".tt-like-wrapper") ||
+        e.target.closest(".tt-react-picker");
+
+      if (!inside) closeAllPickers();
+
+      const menuBtn = e.target.closest(".tt-menu-btn");
+      const menuPop = e.target.closest(".tt-menu-pop");
+
+      if (!menuBtn && !menuPop) {
+        document
+          .querySelectorAll(".tt-menu-pop")
+          .forEach((el) => el.setAttribute("hidden", "true"));
+      }
+    });
+  }
+
+  // ---------- Card interaction delegation ----------
+  function wireCardDelegates() {
+    if (!cardsEl) return;
+
+    cardsEl.addEventListener("click", async (e) => {
+      const roleEl = e.target.closest("[data-tt-role]");
+      if (!roleEl) return;
+
+      const role = roleEl.dataset.ttRole;
+      const card = roleEl.closest(".card");
+      const threadId = card ? Number(card.dataset.threadId) : null;
+
+      switch (role) {
+        case "thread-like-toggle": {
+          const ok = await ensureLoggedInFor("react");
+          if (!ok) return;
+          const wrapper = roleEl.closest(".tt-like-wrapper");
+          if (!wrapper) {
+            // Fallback: just toggle like if no wrapper
+            if (threadId) await handleThreadReaction(threadId, "like");
+            return;
+          }
+          const isOpen = wrapper.classList.contains("tt-picker-open");
+          closeAllPickers();
+          if (!isOpen) wrapper.classList.add("tt-picker-open");
+          break;
+        }
+
+        case "thread-react": {
+          const type = roleEl.dataset.reaction;
+          if (threadId && type) {
+            closeAllPickers();
+            await handleThreadReaction(threadId, type);
+          }
+          break;
+        }
+
+        case "respond":
+          console.log("[ThreadTalk] respond clicked, card:", card);
+          focusCommentBox(card);
+          break;
+
+        case "focus-comment-input":
+          console.log("[ThreadTalk] focus-comment-input clicked, card:", card);
+          focusCommentBox(card);
+          break;
+
+        case "respond-comment": {
+          const commentEl = roleEl.closest(".tt-comment");
+          if (!commentEl) break;
+          const box = commentEl.querySelector(".tt-comment-reply-box");
+          if (!box) break;
+          const hidden = box.hasAttribute("hidden");
+          if (hidden) {
+            box.removeAttribute("hidden");
+          } else {
+            box.setAttribute("hidden", "true");
+          }
+          const input = box.querySelector(".tt-comment-input");
+          if (input) input.focus();
+          break;
+        }
+
+        case "show-all-comments":
+          if (threadId) {
+            expandedCommentsThreads.add(threadId);
+            renderThreads();
+          }
+          break;
+
+        case "send-comment":
+          if (threadId) await handleSendComment(roleEl, threadId);
+          break;
+
+        case "send-comment-reply":
+          if (threadId) await handleSendComment(roleEl, threadId);
+          break;
+
+        case "comment-like-toggle": {
+          const ok2 = await ensureLoggedInFor("react");
+          if (!ok2) return;
+          const commentId = Number(roleEl.dataset.commentId);
+          if (commentId) {
+            // Simple toggle - just like/unlike
+            await handleCommentReaction(commentId, "like");
+          }
+          break;
+        }
+
+        case "comment-react": {
+          const commentId = Number(roleEl.dataset.commentId);
+          const type2 = roleEl.dataset.reaction;
+          if (commentId && type2) {
+            closeAllPickers();
+            await handleCommentReaction(commentId, type2);
+          }
+          break;
+        }
+
+        case "comment-menu": {
+          const pop = roleEl
+            .closest(".tt-menu")
+            ?.querySelector('[data-tt-role="comment-menu-pop"]');
+          const hidden2 = pop.hasAttribute("hidden");
+          document
+            .querySelectorAll('[data-tt-role="comment-menu-pop"]')
+            .forEach((el) => el.setAttribute("hidden", "true"));
+          if (hidden2 && pop) pop.removeAttribute("hidden");
+          break;
+        }
+
+        case "delete-comment": {
+          const commentId2 = Number(roleEl.dataset.commentId);
+          if (commentId2) await handleDeleteComment(commentId2);
+          break;
+        }
+
+        case "edit-comment": {
+          const commentId3 = Number(roleEl.dataset.commentId);
+          if (commentId3) handleEditComment(commentId3);
+          break;
+        }
+
+        case "menu":
+          toggleMenu(card);
+          break;
+
+        case "edit-thread":
+          if (threadId) await handleEditThread(card, threadId);
+          break;
+
+        case "delete-thread":
+          if (threadId) await handleDeleteThread(threadId);
+          break;
+
+        case "share-thread":
+          if (threadId) await handleShareThread(threadId, e);
+          break;
+
+        case "zoom-img":
+          openZoomModal(roleEl.getAttribute("src"));
+          break;
+      }
+    });
+  }
+
+  // ---------- Reactions ----------
+  async function handleThreadReaction(threadId, type) {
+    if (!REACTION_TYPES.find((r) => r.key === type)) return;
+    const ok = await ensureLoggedInFor("react");
+    if (!ok) return;
+
+    const existing = (reactionsByThread[threadId] || []).filter(
+      (r) => r.user_id === currentUser.id
+    );
+
+    try {
+      if (existing.length === 1 && existing[0].reaction_type === type) {
+        const { error } = await supabase
+          .from("threadtalk_reactions")
+          .delete()
+          .match({
+            thread_id: threadId,
+            user_id: currentUser.id,
+            reaction_type: type,
+          });
+        if (error) {
+          console.warn("[ThreadTalk] reaction delete error", error);
+          showToast("Could not update reaction.");
+          return;
+        }
+      } else {
+        if (existing.length) {
+          const { error: delErr } = await supabase
+            .from("threadtalk_reactions")
+            .delete()
+            .match({
+              thread_id: threadId,
+              user_id: currentUser.id,
+            });
+          if (delErr) {
+            console.warn("[ThreadTalk] reaction switch delete error", delErr);
+            showToast("Could not update reaction.");
+            return;
+          }
+        }
+
+        const { error: insErr } = await supabase
+          .from("threadtalk_reactions")
+          .insert({
+            thread_id: threadId,
+            user_id: currentUser.id,
+            reaction_type: type,
+          });
+
+        if (insErr) {
+          console.warn("[ThreadTalk] reaction insert error", insErr);
+          showToast("Could not update reaction.");
+          return;
+        }
+
+        // Notify thread author about reaction
+        const thread = allThreads.find((t) => t.id === threadId);
+        if (
+          thread &&
+          thread.author_id &&
+          currentUser &&
+          thread.author_id !== currentUser.id
+        ) {
+          const actorName = displayNameForUserId(currentUser.id);
+          const titleText = thread.title || "";
+
+          await createThreadNotification({
+            recipientId: thread.author_id,
+            threadId,
+            commentId: null,
+            type: "thread_reaction",
+            message: `${actorName} reacted to your thread "${titleText}"`,
+          });
+        }
+      }
+
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleThreadReaction exception", err);
+      showToast("Could not update reaction.");
+    }
+  }
+
+  async function handleCommentReaction(commentId, type) {
+    if (!REACTION_TYPES.find((r) => r.key === type)) return;
+    const ok = await ensureLoggedInFor("react");
+    if (!ok) return;
+
+    const existing = (commentReactionsByComment[commentId] || []).filter(
+      (r) => r.user_id === currentUser.id
+    );
+
+    try {
+      if (existing.length === 1 && existing[0].reaction_type === type) {
+        const { error } = await supabase
+          .from("threadtalk_comment_reactions")
+          .delete()
+          .match({
+            comment_id: commentId,
+            user_id: currentUser.id,
+            reaction_type: type,
+          });
+        if (error) {
+          console.warn("[ThreadTalk] comment reaction delete error", error);
+          showToast("Could not update reaction.");
+          return;
+        }
+      } else {
+        if (existing.length) {
+          const { error: delErr } = await supabase
+            .from("threadtalk_comment_reactions")
+            .delete()
+            .match({
+              comment_id: commentId,
+              user_id: currentUser.id,
+            });
+          if (delErr) {
+            console.warn(
+              "[ThreadTalk] comment reaction switch delete error",
+              delErr
+            );
+            showToast("Could not update reaction.");
+            return;
+          }
+        }
+
+        const { error: insErr } = await supabase
+          .from("threadtalk_comment_reactions")
+          .insert({
+            comment_id: commentId,
+            user_id: currentUser.id,
+            reaction_type: type,
+          });
+
+        if (insErr) {
+          console.warn("[ThreadTalk] comment reaction insert error", insErr);
+          showToast("Could not update reaction.");
+          return;
+        }
+
+        // Notify comment author about reaction
+        let targetComment = null;
+        let parentThread = null;
+
+        for (const [tid, list] of Object.entries(commentsByThread)) {
+          const found = list.find((c) => c.id === commentId);
+          if (found) {
+            targetComment = found;
+            parentThread = allThreads.find((t) => t.id === Number(tid));
+            break;
+          }
+        }
+
+        if (
+          targetComment &&
+          parentThread &&
+          targetComment.author_id &&
+          currentUser &&
+          targetComment.author_id !== currentUser.id
+        ) {
+          const actorName = displayNameForUserId(currentUser.id);
+          const titleText = parentThread.title || "";
+
+          await createThreadNotification({
+            recipientId: targetComment.author_id,
+            threadId: parentThread.id,
+            commentId,
+            type: "comment_reaction",
+            message: `${actorName} reacted to your comment on "${titleText}"`,
+          });
+        }
+      }
+
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleCommentReaction exception", err);
+      showToast("Could not update reaction.");
+    }
+  }
+
+  // ---------- Send / reply to comments ----------
+  async function handleSendComment(row, threadId) {
+    if (!threadId) return;
+
+    const ok = await ensureLoggedInFor("comment");
+    if (!ok) return;
+
+    // Figure out which input + file input we are using
+    // Check reply box first, then main comment input row
+    let container =
+      row.closest(".tt-comment-reply-box") ||
+      row.closest(".comment-input-row") ||
+      row.closest(".tt-comment-new");
+    if (!container) {
+      console.warn("[ThreadTalk] handleSendComment: no container found");
+      return;
+    }
+
+    // Try multiple input selectors
+    const input = container.querySelector(".tt-comment-input") || 
+                  container.querySelector(".comment-input");
+    const fileInput = container.querySelector(".tt-comment-photo") ||
+                      container.querySelector("[data-tt-role='comment-photo']");
+
+    let body = (input?.value || "").trim();
+    const file = fileInput?.files?.[0] || null;
+
+    if (!body && !file) {
+      if (input) input.focus();
+      return;
+    }
+
+    // parent_comment_id for nested replies
+    let parentCommentId = null;
+    const replyBox = row.closest(".tt-comment-reply-box");
+    if (replyBox && replyBox.dataset.parentCommentId) {
+      const parsed = Number(replyBox.dataset.parentCommentId);
+      if (Number.isFinite(parsed)) {
+        parentCommentId = parsed;
+      }
+    }
+
+    // Optional media upload
+    let media = { media_url: null, media_type: null };
+    if (file) {
+      media = await maybeUploadCommentMedia(file);
+    }
+
+    if (!body && media.media_url) {
+      body = "image attached";
+    }
+
+    try {
+      const { error } = await supabase.from("threadtalk_comments").insert({
+        thread_id: threadId,
+        author_id: currentUser.id,
+        body,
+        media_url: media.media_url,
+        media_type: media.media_type,
+        parent_comment_id: parentCommentId,
+      });
+
+      if (error) {
+        console.error("[ThreadTalk] comment insert error", error);
+        showToast("Could not post reply.");
+        return;
+      }
+
+      // ---- Notifications for comments ----
+      const thread = allThreads.find((t) => t.id === threadId);
+      if (thread && currentUser) {
+        const actorName = displayNameForUserId(currentUser.id);
+        const title = thread.title || "";
+
+        if (parentCommentId) {
+          const list = commentsByThread[threadId] || [];
+          const parent = list.find((c) => c.id === parentCommentId);
+
+          // Notify parent comment author
+          if (
+            parent &&
+            parent.author_id &&
+            parent.author_id !== currentUser.id
+          ) {
+            await createThreadNotification({
+              recipientId: parent.author_id,
+              threadId,
+              commentId: parentCommentId,
+              type: "comment_reply",
+              message: `${actorName} replied to your comment on "${title}"`,
+            });
+          }
+
+          // ALSO notify thread author (if different from actor and parent)
+          if (
+            thread.author_id &&
+            thread.author_id !== currentUser.id &&
+            (!parent || thread.author_id !== parent.author_id)
+          ) {
+            await createThreadNotification({
+              recipientId: thread.author_id,
+              threadId,
+              commentId: parentCommentId,
+              type: "thread_comment",
+              message: `${actorName} replied to a comment on your thread "${title}"`,
+            });
+          }
+        } else if (
+          thread.author_id &&
+          thread.author_id !== currentUser.id
+        ) {
+          // Top-level comment → only thread author
+          await createThreadNotification({
+            recipientId: thread.author_id,
+            threadId,
+            commentId: null,
+            type: "thread_comment",
+            message: `${actorName} commented on your thread "${title}"`,
+          });
+        }
+
+        // NEW: Notify other users who have commented on this thread (Facebook-style)
+        // "User X also commented on a thread you're following"
+        const existingComments = commentsByThread[threadId] || [];
+        const otherCommenters = new Set();
+        existingComments.forEach(c => {
+          if (c.author_id && 
+              c.author_id !== currentUser.id && 
+              c.author_id !== thread.author_id) {
+            otherCommenters.add(c.author_id);
+          }
+        });
+
+        for (const commenterId of otherCommenters) {
+          await createThreadNotification({
+            recipientId: commenterId,
+            threadId,
+            commentId: null,
+            type: "thread_activity",
+            message: `${actorName} also commented on "${title}"`,
+          });
+        }
+      }
+
+      // Clear UI
+      if (input) input.value = "";
+      if (fileInput) fileInput.value = "";
+
+      expandedCommentsThreads.add(threadId);
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleSendComment exception", err);
+      showToast("Could not post reply.");
+    }
+  }
+
+  function focusCommentBox(card) {
+    if (!card) {
+      console.warn("[ThreadTalk] focusCommentBox: no card");
+      return;
+    }
+    // Try multiple selectors for the comment input
+    const input = card.querySelector(".comment-input-row .comment-input") || 
+                  card.querySelector(".comment-input") ||
+                  card.querySelector("input[placeholder*='comment']");
+    if (!input) {
+      console.warn("[ThreadTalk] focusCommentBox: no input found in card");
+      return;
+    }
+
+    // Scroll and focus
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => input.focus(), 300); // Small delay for scroll to complete
+  }
+
+  // ---------- Thread menus / edit / delete ----------
+  function toggleMenu(card) {
+    const pop = card?.querySelector('[data-tt-role="menu-pop"]');
+    if (!pop) return;
+
+    const hidden = pop.hasAttribute("hidden");
+
+    document
+      .querySelectorAll('[data-tt-role="menu-pop"]')
+      .forEach((el) => el.setAttribute("hidden", "true"));
+
+    if (hidden) pop.removeAttribute("hidden");
+  }
+
+  async function handleEditThread(card, threadId) {
+    const thread = allThreads.find((t) => t.id === threadId);
+    if (!thread) return;
+
+    if (!currentUser || thread.author_id !== currentUser.id) {
+      showToast("You can only edit your own posts.");
+      return;
+    }
+
+    const previewEl = card.querySelector(".preview");
+    if (!previewEl) return;
+
+    const original = thread.body || "";
+    previewEl.innerHTML = `
+      <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
+      <div class="tt-edit-actions">
+        <button type="button" class="tt-edit-save">Save</button>
+        <button type="button" class="tt-edit-cancel">Cancel</button>
+      </div>
+    `;
+
+    const area = previewEl.querySelector(".tt-edit-area");
+    const saveBtn = previewEl.querySelector(".tt-edit-save");
+    const cancelBtn = previewEl.querySelector(".tt-edit-cancel");
+
+    cancelBtn.addEventListener("click", () => {
+      previewEl.innerHTML = linkify(original);
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      const body = (area.value || "").trim();
+      if (!body) {
+        area.focus();
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from("threadtalk_threads")
+          .update({
+            body,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", threadId)
+          .eq("author_id", currentUser.id);
+
+        if (error) {
+          console.error("[ThreadTalk] update thread error", error);
+          showToast("Could not save edit.");
+          return;
+        }
+
+        await loadThreads();
+      } catch (err) {
+        console.error("[ThreadTalk] handleEditThread exception", err);
+        showToast("Could not save edit.");
+      }
+    });
+  }
+
+  async function handleDeleteThread(threadId) {
+    const authOk = await ensureLoggedInFor("delete a post");
+    if (!authOk) return;
+
+    const ok = confirm("Delete this thread?");
+    if (!ok) return;
+
+    try {
+      const { error } = await supabase
+        .from("threadtalk_threads")
+        .update({
+          is_deleted: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", threadId); // RLS enforces author
+
+      if (error) {
+        console.error("[ThreadTalk] delete thread error", error);
+        showToast("Could not delete post.");
+        return;
+      }
+
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleDeleteThread exception", err);
+      showToast("Could not delete post.");
+    }
+  }
+
+  async function handleDeleteComment(commentId) {
+    const authOk = await ensureLoggedInFor("delete a reply");
+    if (!authOk) return;
+
+    const ok = confirm("Delete this reply?");
+    if (!ok) return;
+
+    try {
+      const { error } = await supabase
+        .from("threadtalk_comments")
+        .update({
+          is_deleted: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", commentId); // RLS enforces author
+
+      if (error) {
+        console.error("[ThreadTalk] delete comment error", error);
+        showToast("Could not delete reply.");
+        return;
+      }
+
+      await loadThreads();
+    } catch (err) {
+      console.error("[ThreadTalk] handleDeleteComment exception", err);
+      showToast("Could not delete reply.");
+    }
+  }
+
+  // ---------- Edit Comment ----------
+  function handleEditComment(commentId) {
+    const commentEl = document.querySelector(`.tt-comment[data-comment-id="${commentId}"]`);
+    if (!commentEl) return;
+
+    // Close the menu
+    const menuPop = commentEl.querySelector('[data-tt-role="comment-menu-pop"]');
+    if (menuPop) menuPop.setAttribute("hidden", "true");
+
+    const bodyEl = commentEl.querySelector(".tt-comment-body");
+    if (!bodyEl) return;
+
+    // Check if already editing
+    if (commentEl.querySelector(".tt-comment-edit-container")) return;
+
+    // Get current text (strip HTML for editing)
+    const currentText = bodyEl.innerText || bodyEl.textContent || "";
+
+    // Hide the body
+    bodyEl.style.display = "none";
+
+    // Create edit container
+    const editContainer = document.createElement("div");
+    editContainer.className = "tt-comment-edit-container";
+    editContainer.innerHTML = `
+      <textarea class="tt-comment-edit-area">${escapeHtml(currentText)}</textarea>
+      <div class="tt-comment-edit-actions">
+        <button type="button" class="tt-comment-edit-save">Save</button>
+        <button type="button" class="tt-comment-edit-cancel">Cancel</button>
+      </div>
+    `;
+
+    bodyEl.parentNode.insertBefore(editContainer, bodyEl.nextSibling);
+
+    const textarea = editContainer.querySelector(".tt-comment-edit-area");
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    // Handle save
+    const saveBtn = editContainer.querySelector(".tt-comment-edit-save");
+    saveBtn.addEventListener("click", async () => {
+      const newText = textarea.value.trim();
+      if (!newText) {
+        showToast("Reply cannot be empty.");
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving...";
+
+      try {
+        const { error } = await supabase
+          .from("threadtalk_comments")
+          .update({
+            body: newText,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", commentId);
+
+        if (error) {
+          console.error("[ThreadTalk] edit comment error", error);
+          showToast("Could not save changes.");
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save";
+          return;
+        }
+
+        showToast("Reply updated!");
+        await loadThreads();
+      } catch (err) {
+        console.error("[ThreadTalk] handleEditComment save exception", err);
+        showToast("Could not save changes.");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save";
+      }
+    });
+
+    // Handle cancel
+    const cancelBtn = editContainer.querySelector(".tt-comment-edit-cancel");
+    cancelBtn.addEventListener("click", () => {
+      editContainer.remove();
+      bodyEl.style.display = "";
+    });
+  }
+
+  // ---------- Share ----------
+  async function handleShareThread(threadId, clickEvent) {
+    // Build link from CURRENT page path, so it works on /ThreadTalk, /ThreadTalk.html, etc.
+    const baseUrl =
+      window.location.origin + window.location.pathname.replace(/\/$/, "");
+    const url = `${baseUrl}?thread=${encodeURIComponent(threadId)}`;
+
+    // Find the share button that was clicked
+    const shareBtn = clickEvent?.target?.closest('.share-btn');
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+        showShareTooltip(shareBtn, "Copied!");
+      } else {
+        const tmp = document.createElement("input");
+        tmp.value = url;
+        document.body.appendChild(tmp);
+        tmp.select();
+        try {
+          document.execCommand("copy");
+        } catch (_) {
+          // ignore
+        }
+        document.body.removeChild(tmp);
+        showShareTooltip(shareBtn, "Copied!");
+      }
+    } catch (err) {
+      console.warn("[ThreadTalk] handleShareThread error", err);
+      showShareTooltip(shareBtn, "Failed");
+    }
+  }
+
+  // Show tooltip near the share button
+  function showShareTooltip(btn, msg) {
+    if (!btn) {
+      showToast(msg);
+      return;
+    }
+    
+    // Remove any existing tooltip
+    const existing = btn.querySelector('.share-tooltip');
+    if (existing) existing.remove();
+    
+    // Create tooltip
+    const tooltip = document.createElement('span');
+    tooltip.className = 'share-tooltip';
+    tooltip.textContent = msg;
+    btn.style.position = 'relative';
+    btn.appendChild(tooltip);
+    
+    // Remove after animation
+    setTimeout(() => {
+      tooltip.remove();
+    }, 1500);
+  }
+
+  // ---------- Zoom modal ----------
+  function openZoomModal(src) {
+    if (!src) return;
+
+    let modal = document.getElementById("tt-zoom-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "tt-zoom-modal";
+      modal.innerHTML = `
+        <div class="tt-zoom-backdrop" data-tt-role="close-zoom"></div>
+        <div class="tt-zoom-inner">
+          <button class="tt-zoom-close"
+                  type="button"
+                  data-tt-role="close-zoom">×</button>
+          <img class="tt-zoom-img"
+               src="${escapeAttr(src)}"
+               alt="Zoomed image"/>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    } else {
+      const img = modal.querySelector(".tt-zoom-img");
+      if (img) img.src = src;
+    }
+
+    modal.classList.add("show");
+  }
+
+  function closeZoomModal() {
+    const modal = document.getElementById("tt-zoom-modal");
+    if (!modal) return;
+    modal.classList.remove("show");
+  }
+
+  function wireZoomClose() {
+    document.addEventListener("click", (e) => {
+      const roleEl = e.target.closest("[data-tt-role]");
+      if (!roleEl) return;
+      if (roleEl.dataset.ttRole === "close-zoom") {
+        closeZoomModal();
+      }
+    });
+  }
+
+  // ---------- Utilities ----------
+  function makeToastElement() {
+    const el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.setAttribute("aria-atomic", "true");
+    el.textContent = "";
+    document.body.appendChild(el);
+    return el;
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastEl.classList.remove("show");
+    }, 2600);
+  }
+
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/'/g, "&#39;");
+  }
+
+  // Get initials from a name (e.g. "John Doe" → "JD", "Alice" → "A")
+  function getInitials(name) {
+    if (!name || typeof name !== 'string') return '?';
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return '?';
+    if (words.length === 1) return words[0].charAt(0).toUpperCase();
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+  }
+
+  // Turn raw text into safe HTML with clickable links, keeping all original text.
+  function linkify(text) {
+    const str = String(text || "");
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    let lastIndex = 0;
+    let html = "";
+    let match;
+
+    while ((match = urlRegex.exec(str)) !== null) {
+      const url = match[0];
+      const before = str.slice(lastIndex, match.index);
+      html += escapeHtml(before);
+      html += `<a href="${escapeAttr(
+        url
+      )}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+      lastIndex = match.index + url.length;
+    }
+
+    html += escapeHtml(str.slice(lastIndex));
+    return html;
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return "";
+    const then = new Date(iso);
+    const now = new Date();
+    const diff = (now - then) / 1000;
+
+    if (diff < 60) return "now";
+    if (diff < 3600) {
+      const m = Math.round(diff / 60);
+      return `${m}m`;
+    }
+    if (diff < 86400) {
+      const h = Math.round(diff / 3600);
+      return `${h}h`;
+    }
+    if (diff < 604800) { // Less than 7 days
+      const d = Math.round(diff / 86400);
+      return `${d}d`;
+    }
+    
+    // More than 7 days - show short date
+    return then.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  // ---------- Link previews (YouTube embeds + website cards) ----------
+  async function attachLinkPreview(card, thread) {
+    const body = thread.body || "";
+    const urlMatch = body.match(/https?:\/\/[^\s]+/);
+    if (!urlMatch) return;
+
+    const url = urlMatch[0];
+    
+    const actionsRow = card.querySelector(".card-actions");
+    if (!actionsRow) {
+      return;
+    }
+
+    // Check if this is a YouTube URL - if so, embed the video
+    if (isYoutubeUrl(url)) {
+      const videoId = extractYoutubeId(url);
+      if (videoId) {
+        const container = document.createElement("div");
+        container.className = "tt-youtube-embed";
+        container.innerHTML = `
+          <iframe 
+            src="https://www.youtube.com/embed/${videoId}" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+          </iframe>
+        `;
+        card.insertBefore(container, actionsRow);
+        
+        // Hide the raw URL in the card body
+        const cardBody = card.querySelector(".card-body");
+        if (cardBody) {
+          cardBody.innerHTML = cardBody.innerHTML.replace(
+            /<a[^>]*href="[^"]*"[^>]*>[^<]*<\/a>/gi,
+            ''
+          ).trim();
+          // If body is now empty or just whitespace, hide it
+          if (!cardBody.textContent.trim()) {
+            cardBody.style.display = 'none';
+          }
+        }
+        return;
+      }
+    }
+
+    // For non-YouTube URLs, fetch metadata and show preview card
+    let previewData = null;
+    try {
+      previewData = await fetchLinkMetadata(url);
+    } catch (_) {
+      previewData = null;
+    }
+
+    const rawTitle =
+      (previewData && (previewData.title || previewData.ogTitle)) || "";
+    let title = rawTitle;
+    if (title.length > 120) title = title.slice(0, 117) + "…";
+
+    let host = "";
+    try {
+      const u = new URL(url);
+      host = u.hostname.replace(/^www\./, "");
+    } catch (_) {
+      host = "";
+    }
+
+    let thumb =
+      (previewData &&
+        (previewData.thumbnailUrl ||
+          previewData.thumbnail_url ||
+          previewData.image ||
+          previewData["og:image"])) ||
+      null;
+
+    // Only show preview card if we have useful metadata
+    if (title || thumb) {
+      const container = document.createElement("div");
+      container.className = "tt-link-preview-wrap";
+
+      container.innerHTML = `
+        <a class="tt-link-card"
+           href="${escapeAttr(url)}"
+           target="_blank"
+           rel="noopener noreferrer">
+          ${
+            thumb
+              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
+                  thumb
+                )}');"></div>`
+              : ""
+          }
+          <div class="tt-link-meta">
+            ${title ? `<div class="tt-link-title">${escapeHtml(title)}</div>` : ""}
+            ${
+              host
+                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
+                : ""
+            }
+          </div>
+        </a>
+      `;
+
+      card.insertBefore(container, actionsRow);
+      
+      // Hide the raw URL in the card body since we have a nice preview
+      const cardBody = card.querySelector(".card-body");
+      if (cardBody) {
+        cardBody.innerHTML = cardBody.innerHTML.replace(
+          /<a[^>]*href="[^"]*"[^>]*>[^<]*<\/a>/gi,
+          ''
+        ).trim();
+        // If body is now empty or just whitespace, hide it
+        if (!cardBody.textContent.trim()) {
+          cardBody.style.display = 'none';
+        }
+      }
+    }
+  }
+
+  function isYoutubeUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+      return (
+        host === "youtube.com" ||
+        host === "m.youtube.com" ||
+        host === "youtu.be"
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function extractYoutubeId(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+
+      if (host === "youtu.be") {
+        return u.pathname.replace("/", "");
+      }
+
+      if (host === "youtube.com" || host === "m.youtube.com") {
+        return u.searchParams.get("v") || "";
+      }
+
+      return "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  async function fetchLinkMetadata(url) {
+    try {
+      const { data, error } = await HM.supabase.functions.invoke(
+        "link-metadata",
+        {
+          body: { url },
+        }
+      );
+
+      if (error) {
+        console.error("[Link Metadata Error]", error);
+        return null;
+      }
+
+      return data;
+    } catch (err) {
+      console.error("[Link Metadata Exception]", err);
+      return null;
+    }
+  }
+
+
+  // ---------- Styles injection (minimal - main styles in threadtalk.css) ----------
+  function injectCompactStyles() {
+    const css = `
+      /* Minimal overrides - main styles in external CSS */
+      .tt-wrap, .cards, .card, .card-body, .card-comments, .comment-input-row {
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      .card-body {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+    `;
+    const tag = document.createElement("style");
+    tag.textContent = css;
+    document.head.appendChild(tag);
+  }
+})();
