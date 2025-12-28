@@ -62,15 +62,15 @@ window.HM = window.HM || {};
         </svg>
       </a>
 
-      <button class="hamburger" id="openMenu" type="button"
+      <span class="hm-menu-icon" id="openMenu" role="button" tabindex="0"
         aria-label="Open menu" aria-controls="menuSheet" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
           <line x1="4" y1="6"  x2="20" y2="6"></line>
           <line x1="4" y1="12" x2="20" y2="12"></line>
           <line x1="4" y1="18" x2="20" y2="18"></line>
         </svg>
-      </button>
+      </span>
 
       <a class="hm-btn-primary" href="sell.html">Sell</a>
     </div>
