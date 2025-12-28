@@ -247,6 +247,7 @@
 
     return {
       id,
+      listing_id: id,  // Store listing_id for linking back to listing page
       name,
       photo,
       qty,                 // line item quantity (usually 1)
