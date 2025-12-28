@@ -1103,10 +1103,12 @@
         }
 
         case "respond":
+          console.log("[ThreadTalk] respond clicked, card:", card);
           focusCommentBox(card);
           break;
 
         case "focus-comment-input":
+          console.log("[ThreadTalk] focus-comment-input clicked, card:", card);
           focusCommentBox(card);
           break;
 
@@ -1144,10 +1146,11 @@
         case "comment-like-toggle": {
           const ok2 = await ensureLoggedInFor("react");
           if (!ok2) return;
-          const wrapper2 = roleEl.closest(".tt-like-wrapper");
-          const isOpen2 = wrapper2.classList.contains("tt-picker-open");
-          closeAllPickers();
-          if (!isOpen2) wrapper2.classList.add("tt-picker-open");
+          const commentId = Number(roleEl.dataset.commentId);
+          if (commentId) {
+            // Simple toggle - just like/unlike
+            await handleCommentReaction(commentId, "like");
+          }
           break;
         }
 
@@ -1537,12 +1540,22 @@
   }
 
   function focusCommentBox(card) {
-    if (!card) return;
-    const input = card.querySelector(".tt-comment-new .tt-comment-input");
-    if (!input) return;
+    if (!card) {
+      console.warn("[ThreadTalk] focusCommentBox: no card");
+      return;
+    }
+    // Try multiple selectors for the comment input
+    const input = card.querySelector(".comment-input-row .comment-input") || 
+                  card.querySelector(".comment-input") ||
+                  card.querySelector("input[placeholder*='comment']");
+    if (!input) {
+      console.warn("[ThreadTalk] focusCommentBox: no input found in card");
+      return;
+    }
 
+    // Scroll and focus
     input.scrollIntoView({ behavior: "smooth", block: "center" });
-    input.focus();
+    setTimeout(() => input.focus(), 300); // Small delay for scroll to complete
   }
 
   // ---------- Thread menus / edit / delete ----------
