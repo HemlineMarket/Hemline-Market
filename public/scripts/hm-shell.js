@@ -55,7 +55,8 @@ window.HM = window.HM || {};
         href="auth.html?view=login"
         aria-label="Sign in or manage your account">
         <span class="hm-account-badge" id="headerAccountBadge"></span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <span class="hm-avatar" id="headerAvatar"></span>
+        <svg class="hm-account-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="8" r="3.2"></circle>
           <path d="M5 19c1.4-3 4.99-4.5 7-4.5s5.6 1.5 7 4.5"></path>
         </svg>
@@ -260,8 +261,9 @@ window.HM = window.HM || {};
 
     const accountLink = document.getElementById("headerAccountLink");
     const accountBadge = document.getElementById("headerAccountBadge");
+    const headerAvatar = document.getElementById("headerAvatar");
 
-    function applyAccount(session) {
+    async function applyAccount(session) {
       if (session && session.user) {
         accountLink.href = "account.html";
         accountLink.classList.add("is-logged-in");
@@ -275,12 +277,49 @@ window.HM = window.HM || {};
           accountBadge.style.borderRadius = "999px";
           accountBadge.style.backgroundColor = "#15803d";
         }
+
+        // Load avatar from localStorage or profile
+        if (headerAvatar) {
+          const avatarKey = `hm-avatar-${session.user.id}`;
+          const cachedAvatar = localStorage.getItem(avatarKey);
+          
+          if (cachedAvatar) {
+            headerAvatar.style.backgroundImage = `url(${cachedAvatar})`;
+            headerAvatar.textContent = "";
+            accountLink.classList.add("has-avatar");
+          } else {
+            // Try to get profile for initials
+            try {
+              const { data: profile } = await shellSupabase
+                .from("profiles")
+                .select("display_name")
+                .eq("id", session.user.id)
+                .single();
+              
+              if (profile && profile.display_name) {
+                const initials = profile.display_name
+                  .split(" ")
+                  .map(n => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2);
+                headerAvatar.textContent = initials;
+                accountLink.classList.add("has-avatar");
+              }
+            } catch (_) {}
+          }
+        }
       } else {
         accountLink.href = "auth.html?view=login";
         accountLink.classList.remove("is-logged-in");
+        accountLink.classList.remove("has-avatar");
         accountLink.classList.add("is-logged-out");
         if (accountBadge) {
           accountBadge.style.display = "none";
+        }
+        if (headerAvatar) {
+          headerAvatar.style.backgroundImage = "";
+          headerAvatar.textContent = "";
         }
       }
     }
