@@ -518,7 +518,7 @@
                 <input type="file" accept="video/*" data-tt-role="comment-video" hidden>
               </label>
             </div>
-            <button class="comment-send" type="button" data-tt-role="send-comment">Send</button>
+            <button class="comment-send" type="button" data-tt-role="send-comment">Post</button>
           </div>
         </div>
       `;
@@ -606,8 +606,11 @@
     // Get user avatar (photo or initials)
     const commentAvatarHtml = getAvatarHtml(c.author_id);
 
+    // Get current user avatar for reply box
+    const replyAvatarHtml = getCurrentUserAvatarHtml();
+
     return `
-      <div class="comment${d > 0 ? ' nested' : ''}${d > 1 ? ' nested-deep' : ''}" data-comment-id="${c.id}" data-thread-id="${threadId}" data-depth="${d}">
+      <div class="tt-comment comment${d > 0 ? ' nested' : ''}${d > 1 ? ' nested-deep' : ''}" data-comment-id="${c.id}" data-thread-id="${threadId}" data-depth="${d}">
         <div class="comment-avatar">${commentAvatarHtml}</div>
         <div class="comment-content">
           <div class="comment-bubble">
@@ -620,6 +623,11 @@
             <button type="button" data-tt-role="respond-comment" data-comment-id="${c.id}">Reply</button>
             <span>${ts}</span>
             ${chipsHtml}
+          </div>
+          <div class="tt-comment-reply-box" hidden data-parent-comment-id="${c.id}">
+            <div class="comment-avatar reply-avatar">${replyAvatarHtml}</div>
+            <input class="tt-comment-input" type="text" maxlength="500" placeholder="Write a reply..." />
+            <button class="comment-send" type="button" data-tt-role="send-comment-reply">Post</button>
           </div>
         </div>
       </div>`;
@@ -1190,7 +1198,7 @@
           break;
 
         case "share-thread":
-          if (threadId) await handleShareThread(threadId);
+          if (threadId) await handleShareThread(threadId, e);
           break;
 
         case "zoom-img":
@@ -1755,16 +1763,19 @@
   }
 
   // ---------- Share ----------
-  async function handleShareThread(threadId) {
+  async function handleShareThread(threadId, clickEvent) {
     // Build link from CURRENT page path, so it works on /ThreadTalk, /ThreadTalk.html, etc.
     const baseUrl =
       window.location.origin + window.location.pathname.replace(/\/$/, "");
     const url = `${baseUrl}?thread=${encodeURIComponent(threadId)}`;
 
+    // Find the share button that was clicked
+    const shareBtn = clickEvent?.target?.closest('.share-btn');
+
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
-        showToast("Link copied");
+        showShareTooltip(shareBtn, "Copied!");
       } else {
         const tmp = document.createElement("input");
         tmp.value = url;
@@ -1776,12 +1787,36 @@
           // ignore
         }
         document.body.removeChild(tmp);
-        showToast("Link copied");
+        showShareTooltip(shareBtn, "Copied!");
       }
     } catch (err) {
       console.warn("[ThreadTalk] handleShareThread error", err);
-      showToast("Could not copy link.");
+      showShareTooltip(shareBtn, "Failed");
     }
+  }
+
+  // Show tooltip near the share button
+  function showShareTooltip(btn, msg) {
+    if (!btn) {
+      showToast(msg);
+      return;
+    }
+    
+    // Remove any existing tooltip
+    const existing = btn.querySelector('.share-tooltip');
+    if (existing) existing.remove();
+    
+    // Create tooltip
+    const tooltip = document.createElement('span');
+    tooltip.className = 'share-tooltip';
+    tooltip.textContent = msg;
+    btn.style.position = 'relative';
+    btn.appendChild(tooltip);
+    
+    // Remove after animation
+    setTimeout(() => {
+      tooltip.remove();
+    }, 1500);
   }
 
   // ---------- Zoom modal ----------
