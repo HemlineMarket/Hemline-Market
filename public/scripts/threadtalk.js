@@ -488,10 +488,19 @@
         ${reactionSummaryHtml ? `<div class="card-reactions">${reactionSummaryHtml}</div>` : ""}
 
         <div class="card-actions">
-          <button class="card-action${myType ? " active" : ""}" type="button" data-tt-role="thread-like-toggle">
-            <svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-            Like
-          </button>
+          <div class="tt-like-wrapper">
+            <button class="card-action${myType ? " active" : ""}" type="button" data-tt-role="thread-like-toggle">
+              <svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+              Like
+            </button>
+            <div class="tt-react-picker">
+              <button type="button" data-tt-role="thread-react" data-reaction="like" title="Like">👍</button>
+              <button type="button" data-tt-role="thread-react" data-reaction="love" title="Love">❤️</button>
+              <button type="button" data-tt-role="thread-react" data-reaction="laugh" title="Haha">😂</button>
+              <button type="button" data-tt-role="thread-react" data-reaction="wow" title="Wow">😮</button>
+              <button type="button" data-tt-role="thread-react" data-reaction="cry" title="Sad">😢</button>
+            </div>
+          </div>
           <button class="card-action" type="button" data-tt-role="focus-comment-input">
             <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
             Comment
@@ -1086,10 +1095,15 @@
         case "thread-like-toggle": {
           const ok = await ensureLoggedInFor("react");
           if (!ok) return;
-          // Simple like toggle - no reaction picker
-          if (threadId) {
-            await handleThreadReaction(threadId, "like");
+          const wrapper = roleEl.closest(".tt-like-wrapper");
+          if (!wrapper) {
+            // Fallback: just toggle like if no wrapper
+            if (threadId) await handleThreadReaction(threadId, "like");
+            return;
           }
+          const isOpen = wrapper.classList.contains("tt-picker-open");
+          closeAllPickers();
+          if (!isOpen) wrapper.classList.add("tt-picker-open");
           break;
         }
 
