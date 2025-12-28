@@ -1399,13 +1399,21 @@
     if (!ok) return;
 
     // Figure out which input + file input we are using
+    // Check reply box first, then main comment input row
     let container =
       row.closest(".tt-comment-reply-box") ||
+      row.closest(".comment-input-row") ||
       row.closest(".tt-comment-new");
-    if (!container) return;
+    if (!container) {
+      console.warn("[ThreadTalk] handleSendComment: no container found");
+      return;
+    }
 
-    const input = container.querySelector(".tt-comment-input");
-    const fileInput = container.querySelector(".tt-comment-photo");
+    // Try multiple input selectors
+    const input = container.querySelector(".tt-comment-input") || 
+                  container.querySelector(".comment-input");
+    const fileInput = container.querySelector(".tt-comment-photo") ||
+                      container.querySelector("[data-tt-role='comment-photo']");
 
     let body = (input?.value || "").trim();
     const file = fileInput?.files?.[0] || null;
