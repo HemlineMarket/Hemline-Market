@@ -96,6 +96,11 @@ async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, 
       <h1 style="color:#991b1b;">🎉 You made a sale!</h1>
       <p>Your item <strong>"${itemTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
       
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;color:#92400e;">⏱️ Important: 30-Minute Cancel Window</h3>
+        <p style="margin:0;color:#92400e;font-size:14px;">The buyer has <strong>30 minutes</strong> from purchase to cancel their order. Please wait until this window closes before printing your label and shipping.</p>
+      </div>
+      
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
         <h2 style="margin:0 0 12px;color:#166534;">📦 Your Prepaid Shipping Label</h2>
         <p><a href="${labelUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Label (PDF)</a></p>
@@ -114,7 +119,7 @@ async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, 
       <p style="color:#6b7280;font-size:14px;">Happy selling!<br><strong>Hemline Market</strong></p>
     </div>
   `;
-  const text = `You made a sale!\n\n"${itemTitle}" sold for $${(priceCents/100).toFixed(2)}.\n\nDownload label: ${labelUrl}\nTracking: ${trackingNumber}\n\nShip to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nPlease ship within 5 business days.`;
+  const text = `You made a sale!\n\n"${itemTitle}" sold for $${(priceCents/100).toFixed(2)}.\n\n⏱️ IMPORTANT: The buyer has 30 minutes from purchase to cancel. Please wait before printing your label.\n\nDownload label: ${labelUrl}\nTracking: ${trackingNumber}\n\nShip to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nPlease ship within 5 business days.`;
   
   await sendEmail(toEmail, "🎉 You made a sale! Your shipping label is ready", html, text);
 }
