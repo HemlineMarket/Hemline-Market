@@ -602,15 +602,6 @@
         </div>
       </div>`
         : "";
-    
-    // Debug: Log to console to help diagnose menu visibility
-    console.log("[ThreadTalk Debug] Comment render:", {
-      commentId: c.id,
-      commentAuthorId: c.author_id,
-      currentUserId: currentUser?.id || "NO USER",
-      isMatch: currentUser && c.author_id === currentUser.id,
-      willShowMenu: !!deleteHtml
-    });
 
     const pickerHtml =
       `<div class="tt-react-picker" data-tt-role="comment-picker" data-comment-id="${c.id}">` +
@@ -2093,47 +2084,45 @@
           previewData["og:image"])) ||
       null;
 
-    // Only show preview card if we have useful metadata
-    if (title || thumb) {
-      const container = document.createElement("div");
-      container.className = "tt-link-preview-wrap";
+    // Always show preview card (at minimum with hostname) and hide raw URL
+    const container = document.createElement("div");
+    container.className = "tt-link-preview-wrap";
 
-      container.innerHTML = `
-        <a class="tt-link-card"
-           href="${escapeAttr(url)}"
-           target="_blank"
-           rel="noopener noreferrer">
+    container.innerHTML = `
+      <a class="tt-link-card"
+         href="${escapeAttr(url)}"
+         target="_blank"
+         rel="noopener noreferrer">
+        ${
+          thumb
+            ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
+                thumb
+              )}');"></div>`
+            : ""
+        }
+        <div class="tt-link-meta">
+          ${title ? `<div class="tt-link-title">${escapeHtml(title)}</div>` : ""}
           ${
-            thumb
-              ? `<div class="tt-link-thumb" style="background-image:url('${escapeAttr(
-                  thumb
-                )}');"></div>`
+            host
+              ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
               : ""
           }
-          <div class="tt-link-meta">
-            ${title ? `<div class="tt-link-title">${escapeHtml(title)}</div>` : ""}
-            ${
-              host
-                ? `<div class="tt-link-host">${escapeHtml(host)}</div>`
-                : ""
-            }
-          </div>
-        </a>
-      `;
+        </div>
+      </a>
+    `;
 
-      card.insertBefore(container, actionsRow);
-      
-      // Hide the raw URL in the card body since we have a nice preview
-      const cardBody = card.querySelector(".card-body");
-      if (cardBody) {
-        cardBody.innerHTML = cardBody.innerHTML.replace(
-          /<a[^>]*href="[^"]*"[^>]*>[^<]*<\/a>/gi,
-          ''
-        ).trim();
-        // If body is now empty or just whitespace, hide it
-        if (!cardBody.textContent.trim()) {
-          cardBody.style.display = 'none';
-        }
+    card.insertBefore(container, actionsRow);
+    
+    // Always hide the raw URL in the card body since we show a preview card
+    const cardBody = card.querySelector(".card-body");
+    if (cardBody) {
+      cardBody.innerHTML = cardBody.innerHTML.replace(
+        /<a[^>]*href="[^"]*"[^>]*>[^<]*<\/a>/gi,
+        ''
+      ).trim();
+      // If body is now empty or just whitespace, hide it
+      if (!cardBody.textContent.trim()) {
+        cardBody.style.display = 'none';
       }
     }
   }
