@@ -623,6 +623,35 @@ async function initMessagesPage(){
    THREAD CREATION (supports order)
 =========================================================== */
 async function getOrCreateThread(userId, otherUserId, orderId=null){
+  // If we have an order ID, look for a thread specifically for this order
+  if(orderId){
+    const { data:orderThread } = await supabaseClient
+      .from("message_threads")
+      .select("*")
+      .eq("order_id", orderId)
+      .maybeSingle();
+    
+    if(orderThread?.id){
+      return orderThread.id;
+    }
+    
+    // Create new thread for this order
+    const { data:created } = await supabaseClient
+      .from("message_threads")
+      .insert({
+        user_a: userId,
+        user_b: otherUserId,
+        order_id: orderId,
+        last_message_at: null,
+        last_message_preview: null
+      })
+      .select("*")
+      .single();
+    
+    return created?.id || null;
+  }
+  
+  // No order - look for a general thread between these users (without an order)
   const { data:existing } = await supabaseClient
     .from("message_threads")
     .select("*")
@@ -630,26 +659,21 @@ async function getOrCreateThread(userId, otherUserId, orderId=null){
       `and(user_a.eq.${userId},user_b.eq.${otherUserId}),` +
       `and(user_a.eq.${otherUserId},user_b.eq.${userId})`
     )
+    .is("order_id", null)
     .limit(1)
     .maybeSingle();
 
   if(existing?.id){
-    // If we have an order ID and the existing thread doesn't have one, update it
-    if(orderId && !existing.order_id){
-      await supabaseClient
-        .from("message_threads")
-        .update({ order_id: orderId })
-        .eq("id", existing.id);
-    }
     return existing.id;
   }
 
+  // Create new general thread (no order)
   const { data:created } = await supabaseClient
     .from("message_threads")
     .insert({
       user_a: userId,
       user_b: otherUserId,
-      order_id: orderId,
+      order_id: null,
       last_message_at: null,
       last_message_preview: null
     })
