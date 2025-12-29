@@ -165,6 +165,7 @@
       border-top:1px solid #f3f4f6;
       padding-top:12px;
       margin-top:-2px;
+      align-items:center;
     }
     .btn{
       padding:8px 12px;
@@ -195,27 +196,31 @@
     }
     .btn-danger:hover{background:#fef2f2}
 
+    /* Poshmark-style dropdown */
+    .problemSelect{
+      padding:8px 12px;
+      border-radius:8px;
+      border:1px solid var(--hm-border);
+      background:#fff;
+      font-size:13px;
+      font-weight:600;
+      color:#374151;
+      cursor:pointer;
+      min-width:200px;
+    }
+    .problemSelect:hover{border-color:#d1d5db}
+    .problemSelect:focus{outline:none;border-color:#991b1b}
+
     /* Cancel note */
     .cancelNote{
       font-size:11px;
-      color:#b45309;
-      margin-left:auto;
-      display:flex;
-      align-items:center;
-      gap:4px;
-    }
-
-    /* Contact support link */
-    .supportLink{
-      font-size:12px;
       color:var(--hm-muted);
-      margin-left:auto;
       display:flex;
       align-items:center;
       gap:4px;
     }
-    .supportLink a{color:var(--hm-accent);text-decoration:none}
-    .supportLink a:hover{text-decoration:underline}
+    .cancelNote.warn{color:#b45309;font-weight:600}
+    .cancelNote.error{color:#991b1b}
 
     /* Empty state */
     .emptyState{
@@ -226,8 +231,115 @@
       border-radius:12px;
     }
     .emptyState h2{margin:0 0 8px;font-size:20px}
-    .emptyState p{color:var(--hm-muted);margin:0 0 16px}
-    .emptyState .btn{display:inline-flex}
+    .emptyState p{color:var(--hm-muted);margin:0 0 20px}
+
+    /* Cancel Modal */
+    .modal-overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+      opacity:0;
+      visibility:hidden;
+      transition:all 0.2s;
+    }
+    .modal-overlay.active{
+      opacity:1;
+      visibility:visible;
+    }
+    .modal{
+      background:#fff;
+      border-radius:16px;
+      max-width:480px;
+      width:90%;
+      max-height:90vh;
+      overflow:auto;
+      box-shadow:0 20px 40px rgba(0,0,0,0.2);
+      transform:scale(0.95);
+      transition:transform 0.2s;
+    }
+    .modal-overlay.active .modal{
+      transform:scale(1);
+    }
+    .modal-header{
+      padding:20px 24px;
+      border-bottom:1px solid var(--hm-border);
+    }
+    .modal-header h2{
+      margin:0;
+      font-size:18px;
+    }
+    .modal-body{
+      padding:24px;
+    }
+    .modal-footer{
+      padding:16px 24px;
+      border-top:1px solid var(--hm-border);
+      display:flex;
+      gap:12px;
+      justify-content:flex-end;
+    }
+
+    /* Radio options for cancel reason */
+    .reason-option{
+      display:flex;
+      align-items:flex-start;
+      gap:12px;
+      padding:12px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      margin-bottom:10px;
+      cursor:pointer;
+      transition:all 0.15s;
+    }
+    .reason-option:hover{
+      background:#f9fafb;
+      border-color:#d1d5db;
+    }
+    .reason-option.selected{
+      background:#fef2f2;
+      border-color:#991b1b;
+    }
+    .reason-option input[type="radio"]{
+      margin-top:2px;
+      accent-color:#991b1b;
+    }
+    .reason-option-content{
+      flex:1;
+    }
+    .reason-option-title{
+      font-weight:600;
+      font-size:14px;
+      color:#111827;
+    }
+    .reason-option-desc{
+      font-size:12px;
+      color:var(--hm-muted);
+      margin-top:2px;
+    }
+
+    /* Custom reason textarea */
+    .custom-reason{
+      width:100%;
+      padding:12px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      font-size:14px;
+      resize:vertical;
+      min-height:80px;
+      margin-top:12px;
+      display:none;
+    }
+    .custom-reason:focus{
+      outline:none;
+      border-color:#991b1b;
+    }
+    .custom-reason.visible{
+      display:block;
+    }
   </style>
 </head>
 
@@ -237,17 +349,16 @@
   <main class="wrap">
     <div class="topBar">
       <div>
-        <h1>My Sales</h1>
-        <p class="sub">Orders from buyers who purchased your listings</p>
+        <h1>Your Sales</h1>
+        <p class="sub">Items you've sold on Hemline Market.</p>
       </div>
-      <div class="pill" id="statusPill">Loading…</div>
+      <div class="pill" id="statusPill">Loading...</div>
     </div>
 
-    <!-- Search and Filter Bar -->
     <div class="filterBar">
-      <input type="text" class="searchBox" id="searchBox" placeholder="Search sales...">
+      <input type="text" class="searchBox" id="searchBox" placeholder="Search your sales...">
       <select class="filterSelect" id="statusFilter">
-        <option value="">All Statuses</option>
+        <option value="">All Status</option>
         <option value="PAID">Awaiting Shipment</option>
         <option value="SHIPPED">Shipped</option>
         <option value="DELIVERED">Delivered</option>
@@ -261,6 +372,64 @@
   </main>
 
   <div id="hm-shell-footer"></div>
+
+  <!-- Cancel Reason Modal -->
+  <div class="modal-overlay" id="cancelModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Cancel Order</h2>
+      </div>
+      <div class="modal-body">
+        <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Please select a reason for cancellation. The buyer will be notified and refunded automatically.</p>
+        
+        <label class="reason-option" data-reason="out_of_stock">
+          <input type="radio" name="cancel_reason" value="out_of_stock">
+          <div class="reason-option-content">
+            <div class="reason-option-title">Item no longer available</div>
+            <div class="reason-option-desc">The fabric has been sold elsewhere or is no longer in stock.</div>
+          </div>
+        </label>
+        
+        <label class="reason-option" data-reason="damaged">
+          <input type="radio" name="cancel_reason" value="damaged">
+          <div class="reason-option-content">
+            <div class="reason-option-title">Item damaged</div>
+            <div class="reason-option-desc">The fabric was damaged during storage or inspection.</div>
+          </div>
+        </label>
+        
+        <label class="reason-option" data-reason="pricing_error">
+          <input type="radio" name="cancel_reason" value="pricing_error">
+          <div class="reason-option-content">
+            <div class="reason-option-title">Pricing error</div>
+            <div class="reason-option-desc">The listing had an incorrect price.</div>
+          </div>
+        </label>
+        
+        <label class="reason-option" data-reason="buyer_request">
+          <input type="radio" name="cancel_reason" value="buyer_request">
+          <div class="reason-option-content">
+            <div class="reason-option-title">Buyer requested cancellation</div>
+            <div class="reason-option-desc">The buyer asked you to cancel this order.</div>
+          </div>
+        </label>
+        
+        <label class="reason-option" data-reason="other">
+          <input type="radio" name="cancel_reason" value="other">
+          <div class="reason-option-content">
+            <div class="reason-option-title">Other reason</div>
+            <div class="reason-option-desc">Please provide details below.</div>
+          </div>
+        </label>
+        
+        <textarea class="custom-reason" id="customReason" placeholder="Please describe the reason for cancellation..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="cancelModalClose">Never Mind</button>
+        <button class="btn btn-primary" id="cancelModalConfirm" disabled>Cancel Order</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="scripts/hm-shell.js"></script>
@@ -276,13 +445,92 @@
     );
 
     const elList = document.getElementById("list");
-    const elMsg = document.getElementById("msg");
+    const elMsg  = document.getElementById("msg");
     const elPill = document.getElementById("statusPill");
     const elSearch = document.getElementById("searchBox");
     const elStatusFilter = document.getElementById("statusFilter");
 
-    let allOrders = [];
+    // Modal elements
+    const cancelModal = document.getElementById("cancelModal");
+    const cancelModalClose = document.getElementById("cancelModalClose");
+    const cancelModalConfirm = document.getElementById("cancelModalConfirm");
+    const customReasonTextarea = document.getElementById("customReason");
+    const reasonOptions = document.querySelectorAll('.reason-option');
+
     let currentUser = null;
+    let currentOrderToCancel = null;
+
+    // Modal logic
+    function openCancelModal(order){
+      currentOrderToCancel = order;
+      cancelModal.classList.add("active");
+      // Reset form
+      document.querySelectorAll('input[name="cancel_reason"]').forEach(r => r.checked = false);
+      reasonOptions.forEach(opt => opt.classList.remove("selected"));
+      customReasonTextarea.classList.remove("visible");
+      customReasonTextarea.value = "";
+      cancelModalConfirm.disabled = true;
+      cancelModalConfirm.textContent = "Cancel Order";
+    }
+
+    function closeCancelModal(){
+      cancelModal.classList.remove("active");
+      currentOrderToCancel = null;
+    }
+
+    cancelModalClose.addEventListener("click", closeCancelModal);
+    cancelModal.addEventListener("click", (e) => {
+      if(e.target === cancelModal) closeCancelModal();
+    });
+
+    // Reason selection
+    reasonOptions.forEach(opt => {
+      opt.addEventListener("click", () => {
+        reasonOptions.forEach(o => o.classList.remove("selected"));
+        opt.classList.add("selected");
+        opt.querySelector("input").checked = true;
+        cancelModalConfirm.disabled = false;
+        
+        // Show custom reason textarea for "other"
+        if(opt.dataset.reason === "other"){
+          customReasonTextarea.classList.add("visible");
+        } else {
+          customReasonTextarea.classList.remove("visible");
+        }
+      });
+    });
+
+    // Confirm cancel
+    cancelModalConfirm.addEventListener("click", async () => {
+      if(!currentOrderToCancel) return;
+      
+      const selectedReason = document.querySelector('input[name="cancel_reason"]:checked');
+      if(!selectedReason) return;
+      
+      let reason = selectedReason.value;
+      if(reason === "other" && customReasonTextarea.value.trim()){
+        reason = "other: " + customReasonTextarea.value.trim();
+      }
+      
+      cancelModalConfirm.disabled = true;
+      cancelModalConfirm.textContent = "Cancelling...";
+      
+      try {
+        await cancelOrder({
+          orderId: currentOrderToCancel.id,
+          listingId: currentOrderToCancel.listing_id,
+          reason: reason,
+          userId: currentUser.id
+        });
+        closeCancelModal();
+        await loadSales();
+      } catch(err){
+        console.error(err);
+        alert("Could not cancel order: " + (err.message || "Please try again."));
+        cancelModalConfirm.disabled = false;
+        cancelModalConfirm.textContent = "Cancel Order";
+      }
+    });
 
     function showMsg(text, kind){
       elMsg.style.display = "block";
@@ -293,45 +541,37 @@
 
     function money(cents){
       const v = (Number(cents || 0) / 100);
-      return "$" + v.toFixed(2);
+      return v.toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2});
     }
     function fmtDate(iso){
-      try{ return new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+      try{ return new Date(iso).toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); }
       catch(e){ return ""; }
-    }
-    function minutesSince(iso){
-      if(!iso) return Infinity;
-      return (Date.now() - new Date(iso).getTime()) / 60000;
     }
 
     function getStatusBadgeClass(status){
-      const s = (status || "").toUpperCase();
-      if(s === "PAID" || s === "PENDING") return "paid";
-      if(s === "SHIPPED") return "shipped";
-      if(s === "DELIVERED") return "delivered";
-      if(s === "COMPLETE") return "complete";
-      if(s === "CANCELED" || s === "CANCELLED") return "canceled";
+      const s = (status || "").toLowerCase();
+      if(s === "paid" || s === "pending") return "paid";
+      if(s === "shipped") return "shipped";
+      if(s === "delivered") return "delivered";
+      if(s === "complete") return "complete";
+      if(s === "canceled" || s === "cancelled") return "canceled";
       return "default";
     }
 
     function getStatusLabel(status){
       const s = (status || "").toUpperCase();
-      if(s === "PAID") return "Awaiting Shipment";
-      if(s === "PENDING") return "Pending";
+      if(s === "PAID" || s === "PENDING") return "Awaiting Shipment";
       if(s === "SHIPPED") return "Shipped";
       if(s === "DELIVERED") return "Delivered";
-      if(s === "COMPLETE") return "Order Complete";
+      if(s === "COMPLETE") return "Complete";
       if(s === "CANCELED" || s === "CANCELLED") return "Cancelled";
-      return status || "Unknown";
+      return status || "Pending";
     }
 
     function getOrderImage(order, listing){
-      // Try multiple sources for the image
-      if(listing?.image_url_1) return listing.image_url_1;
-      if(listing?.image_url) return listing.image_url;
-      if(order?.listing_snapshot?.image_url_1) return order.listing_snapshot.image_url_1;
-      if(order?.listing_snapshot?.image_url) return order.listing_snapshot.image_url;
+      if(order?.listing_snapshot?.images?.[0]) return order.listing_snapshot.images[0];
       if(order?.listing_image_url) return order.listing_image_url;
+      if(listing?.image_url_1) return listing.image_url_1;
       return null;
     }
 
@@ -372,6 +612,103 @@
       return result;
     }
 
+    function supportMailto(order, reasonLabel){
+      const orderShort = String(order.id || "").slice(0, 8);
+      const created = order.created_at ? new Date(order.created_at).toISOString() : "";
+      const status = (order.status || "").toUpperCase();
+
+      const body =
+`Hi Hemline Market Support,
+
+I need help with my sale.
+
+Reason: ${reasonLabel}
+Order: ${orderShort} (${order.id})
+Date: ${created}
+Status: ${status}
+
+Please advise next steps.
+`;
+
+      const subject = encodeURIComponent(`Seller help: ${reasonLabel} (#${orderShort})`);
+      const mailto = `mailto:hello@hemlinemarket.com?subject=${subject}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+    }
+
+    function messageBuyerMailto(order){
+      const buyerEmail = order.buyer_email || "";
+      if(!buyerEmail){
+        alert("Buyer email not available. Please contact support.");
+        return;
+      }
+      
+      const orderShort = String(order.id || "").slice(0, 8);
+      const title = getOrderTitle(order, null);
+      
+      const subject = encodeURIComponent(`Re: Your Hemline Market order - ${title}`);
+      const body = encodeURIComponent(`Hi!\n\nRegarding your order #${orderShort} for "${title}":\n\n`);
+      
+      window.location.href = `mailto:${buyerEmail}?subject=${subject}&body=${body}`;
+    }
+
+    async function loadSales(){
+      clearMsg();
+      elList.innerHTML = "";
+      elPill.textContent = "Loading...";
+
+      const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
+      if(sessErr || !sessData?.session?.user){
+        elPill.textContent = "Not signed in";
+        showMsg("Please sign in to view your sales.", "error");
+        return;
+      }
+
+      currentUser = sessData.session.user;
+      const uid = currentUser.id;
+
+      const { data: orders, error: ordErr } = await supabaseClient
+        .from("orders")
+        .select("id, created_at, status, total_cents, items_cents, shipping_cents, listing_id, listing_title, listing_image_url, listing_snapshot, buyer_email, buyer_id, shipped_at, delivered_at, canceled_at, cancel_reason")
+        .eq("seller_id", uid)
+        .order("created_at", { ascending:false })
+        .limit(100);
+
+      if(ordErr){
+        console.error(ordErr);
+        elPill.textContent = "Error";
+        showMsg("Error loading sales.", "error");
+        return;
+      }
+
+      const list = orders || [];
+      if(!list.length){
+        elPill.textContent = "0 sales";
+        showMsg("No sales yet. When someone buys your listings, they'll appear here.", "ok");
+        return;
+      }
+
+      elPill.textContent = list.length === 1 ? "1 sale" : `${list.length} sales`;
+
+      // Fetch listing details
+      const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
+      const listingMap = {};
+      if(ids.length){
+        const { data: listings } = await supabaseClient
+          .from("listings")
+          .select("id, title, image_url_1")
+          .in("id", ids);
+
+        if(listings){
+          listings.forEach(l => listingMap[l.id] = l);
+        }
+      }
+
+      renderOrders(list.map(order => ({
+        order,
+        listing: listingMap[order.listing_id] || null
+      })));
+    }
+
     function renderOrders(orders){
       elList.innerHTML = "";
 
@@ -392,9 +729,9 @@
         const status = (order.status || "").toUpperCase();
         const isCanceled = (status === "CANCELED" || status === "CANCELLED");
         
-        // Poshmark-style: Can cancel anytime BEFORE shipping
+        // Can cancel anytime BEFORE shipping
         const isShipped = order.shipped_at || status === "SHIPPED" || status === "DELIVERED" || status === "COMPLETE";
-        const canCancel = !isCanceled && !isShipped && (status === "PAID" || status === "PENDING" || status === "");
+        const canTakeAction = !isCanceled && !isShipped && (status === "PAID" || status === "PENDING" || status === "");
 
         const itemsCents = Number(order.items_cents || order.total_cents || 0);
         const shipCents = Number(order.shipping_cents || 0);
@@ -410,9 +747,24 @@
         card.dataset.title = title.toLowerCase();
         card.dataset.status = status;
 
+        // Build the dropdown options based on order state
+        let dropdownHtml = "";
+        if(!isCanceled){
+          dropdownHtml = `
+            <select class="problemSelect" data-problem-select>
+              <option value="">Problems / Order Inquiry ▾</option>
+              ${!isShipped ? `<option value="delayed">Delayed Shipment</option>` : ""}
+              ${canTakeAction ? `<option value="cancel">Cancel Order</option>` : ""}
+              ${isShipped ? `<option value="shipped_no_tracking">Shipped, but Not Tracking</option>` : ""}
+              <option value="message_buyer">Message Buyer</option>
+              <option value="contact_support">Contact Hemline Support Center</option>
+            </select>
+          `;
+        }
+
         card.innerHTML = `
           <a class="cardLink" href="order-seller.html?id=${encodeURIComponent(order.id)}">
-            ${img ? `<div class="thumb"><img src="${img}" alt="${title}"></div>` : ``}
+            ${img ? `<div class="thumb"><img src="${img}" alt="${title}" onerror="this.parentElement.innerHTML='<div class=thumb-placeholder><svg width=32 height=32 viewBox=\\'0 0 24 24\\' fill=none stroke=#9ca3af stroke-width=1.5><rect x=3 y=3 width=18 height=18 rx=2/><circle cx=8.5 cy=8.5 r=1.5/><path d=M21 15l-5-5L5 21/></svg></div>'"></div>` : `<div class="thumb"><div class="thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div></div>`}
             <div class="cardBody">
               <div class="title">${title}</div>
               <div class="meta">
@@ -431,41 +783,36 @@
               View Details
             </a>
             ${order.listing_id ? `<a href="listing.html?id=${encodeURIComponent(order.listing_id)}" class="btn">View Listing</a>` : ""}
-            ${canCancel ? `
-              <button class="btn btn-danger" data-cancel-btn>Cancel Order</button>
-              <span class="cancelNote">Cancel anytime before shipping</span>
-            ` : ""}
-            ${isCanceled ? `
-              <span class="cancelNote" style="color:#991b1b;">Order cancelled</span>
-            ` : ""}
+            ${dropdownHtml}
+            ${isCanceled ? `<span class="cancelNote error">Order cancelled${order.cancel_reason ? ` - ${order.cancel_reason}` : ""}</span>` : ""}
           </div>
         `;
 
-        // Cancel button handler
-        const cancelBtn = card.querySelector("[data-cancel-btn]");
-        if(cancelBtn){
-          cancelBtn.addEventListener("click", async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            if(!confirm("Cancel this order? The listing will be restored to active.")) return;
-
-            cancelBtn.disabled = true;
-            cancelBtn.textContent = "Cancelling…";
-
-            try{
-              await cancelOrder({
-                orderId: order.id,
-                listingId: order.listing_id,
-                reason: "seller_canceled",
-                userId: currentUser.id
-              });
-              await loadSales();
-            }catch(err){
-              console.error(err);
-              alert("Could not cancel order. Please try again.");
-              cancelBtn.disabled = false;
-              cancelBtn.textContent = "Cancel Order";
+        // Handle dropdown selection
+        const problemSelect = card.querySelector("[data-problem-select]");
+        if(problemSelect){
+          problemSelect.addEventListener("change", (e) => {
+            const v = e.target.value;
+            if(!v) return;
+            
+            e.target.value = ""; // Reset dropdown
+            
+            switch(v){
+              case "delayed":
+                supportMailto(order, "Delayed Shipment");
+                break;
+              case "cancel":
+                openCancelModal(order);
+                break;
+              case "shipped_no_tracking":
+                supportMailto(order, "Shipped but Not Tracking");
+                break;
+              case "message_buyer":
+                messageBuyerMailto(order);
+                break;
+              case "contact_support":
+                supportMailto(order, "General Inquiry");
+                break;
             }
           });
         }
@@ -484,100 +831,27 @@
 
     function filterOrders(){
       const searchTerm = elSearch.value.toLowerCase().trim();
-      const statusFilter = elStatusFilter.value.toUpperCase();
+      const statusFilter = elStatusFilter.value;
 
-      const filtered = allOrders.filter(({ order, listing }) => {
-        const title = getOrderTitle(order, listing).toLowerCase();
-        const email = (order.buyer_email || "").toLowerCase();
-        const status = (order.status || "").toUpperCase();
+      document.querySelectorAll(".card").forEach(card => {
+        const title = card.dataset.title || "";
+        const status = card.dataset.status || "";
 
-        const matchesSearch = !searchTerm || 
-          title.includes(searchTerm) || 
-          email.includes(searchTerm) ||
-          order.id.toLowerCase().includes(searchTerm);
-
-        const matchesStatus = !statusFilter || status === statusFilter;
-
-        return matchesSearch && matchesStatus;
-      });
-
-      renderOrders(filtered);
-      elPill.textContent = filtered.length === 1 ? "1 sale" : `${filtered.length} sales`;
-    }
-
-    async function loadSales(){
-      clearMsg();
-      elList.innerHTML = '<div class="notice ok">Loading your sales...</div>';
-      elPill.textContent = "Loading…";
-
-      const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
-      if(sessErr){
-        console.error(sessErr);
-        elPill.textContent = "Error";
-        showMsg("Session error. Please refresh.", "error");
-        return;
-      }
-
-      const user = sessData?.session?.user;
-      if(!user){
-        elPill.textContent = "Not signed in";
-        showMsg("Please sign in to view your sales.", "error");
-        return;
-      }
-
-      currentUser = user;
-
-      const { data: orders, error: ordErr } = await supabaseClient
-        .from("orders")
-        .select("id, created_at, status, seller_id, buyer_id, buyer_email, listing_id, total_cents, items_cents, shipping_cents, listing_snapshot, listing_title, listing_image_url, canceled_at, cancel_reason")
-        .eq("seller_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if(ordErr){
-        console.error(ordErr);
-        elPill.textContent = "Error";
-        showMsg("Error loading sales.", "error");
-        return;
-      }
-
-      const list = orders || [];
-      
-      if(!list.length){
-        elPill.textContent = "0 sales";
-        allOrders = [];
-        renderOrders([]);
-        return;
-      }
-
-      // Fetch listing details for images/titles
-      const listingIds = [...new Set(list.map(o => o.listing_id).filter(Boolean))];
-      const listingMap = {};
-      
-      if(listingIds.length){
-        const { data: listings } = await supabaseClient
-          .from("listings")
-          .select("id, title, image_url_1, image_url")
-          .in("id", listingIds);
-
-        if(listings){
-          listings.forEach(l => listingMap[l.id] = l);
+        let show = true;
+        if(searchTerm && !title.includes(searchTerm)){
+          show = false;
         }
-      }
+        if(statusFilter && status !== statusFilter){
+          show = false;
+        }
 
-      allOrders = list.map(order => ({
-        order,
-        listing: listingMap[order.listing_id] || null
-      }));
-
-      elPill.textContent = list.length === 1 ? "1 sale" : `${list.length} sales`;
-      renderOrders(allOrders);
+        card.style.display = show ? "" : "none";
+      });
     }
 
-    // Event listeners for search and filter
     elSearch.addEventListener("input", filterOrders);
     elStatusFilter.addEventListener("change", filterOrders);
 
-    // Initial load
     loadSales();
   </script>
 </body>
