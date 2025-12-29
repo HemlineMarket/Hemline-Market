@@ -227,7 +227,7 @@ export default async function handler(req, res) {
       cancel_url: `${origin}/checkout.html?canceled=1`,
       metadata,
       shipping_address_collection: {
-        allowed_countries: ["US", "CA"],
+        allowed_countries: ["US"],
       },
       billing_address_collection: "auto",
     });
