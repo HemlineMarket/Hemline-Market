@@ -5,6 +5,7 @@
 // 3. Emails label to seller (Postmark)
 // 4. Emails confirmation to buyer (Postmark)
 // 5. Creates in-app notifications
+// 6. Handles label creation failures gracefully
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -37,43 +38,62 @@ function getParcelFromShippingCents(cents) {
 }
 
 // Create label via Shippo API
+// Returns { success: true, label: {...} } or { success: false, reason: "..." }
 async function createShippoLabel(fromAddr, toAddr, parcel) {
   const SHIPPO_KEY = process.env.SHIPPO_API_KEY;
-  if (!SHIPPO_KEY) return null;
+  if (!SHIPPO_KEY) {
+    return { success: false, reason: "Shipping system not configured" };
+  }
 
-  const shipRes = await fetch("https://api.goshippo.com/shipments/", {
-    method: "POST",
-    headers: { Authorization: `ShippoToken ${SHIPPO_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      address_from: fromAddr,
-      address_to: toAddr,
-      parcels: [{ ...parcel, distance_unit: "in", mass_unit: "lb" }],
-      async: false,
-    }),
-  });
-  const shipment = await shipRes.json();
-  if (!shipment.rates?.length) return null;
+  try {
+    const shipRes = await fetch("https://api.goshippo.com/shipments/", {
+      method: "POST",
+      headers: { Authorization: `ShippoToken ${SHIPPO_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address_from: fromAddr,
+        address_to: toAddr,
+        parcels: [{ ...parcel, distance_unit: "in", mass_unit: "lb" }],
+        async: false,
+      }),
+    });
+    const shipment = await shipRes.json();
+    
+    if (!shipment.rates?.length) {
+      console.error("Shippo: No rates returned", shipment);
+      return { success: false, reason: "No shipping rates available for this address" };
+    }
 
-  const rate = shipment.rates
-    .filter(r => r.provider === "USPS")
-    .sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0] 
-    || shipment.rates.sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0];
+    const rate = shipment.rates
+      .filter(r => r.provider === "USPS")
+      .sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0] 
+      || shipment.rates.sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0];
 
-  const txRes = await fetch("https://api.goshippo.com/transactions/", {
-    method: "POST",
-    headers: { Authorization: `ShippoToken ${SHIPPO_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ rate: rate.object_id, label_file_type: "PDF", async: false }),
-  });
-  const tx = await txRes.json();
-  if (tx.status !== "SUCCESS") return null;
+    const txRes = await fetch("https://api.goshippo.com/transactions/", {
+      method: "POST",
+      headers: { Authorization: `ShippoToken ${SHIPPO_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ rate: rate.object_id, label_file_type: "PDF", async: false }),
+    });
+    const tx = await txRes.json();
+    
+    if (tx.status !== "SUCCESS") {
+      console.error("Shippo: Label purchase failed", tx);
+      return { success: false, reason: tx.messages?.[0]?.text || "Label purchase failed" };
+    }
 
-  return {
-    label_url: tx.label_url,
-    tracking_number: tx.tracking_number,
-    tracking_url: tx.tracking_url_provider || tx.tracking_url,
-    carrier: rate.provider,
-    service: rate.servicelevel?.name,
-  };
+    return {
+      success: true,
+      label: {
+        label_url: tx.label_url,
+        tracking_number: tx.tracking_number,
+        tracking_url: tx.tracking_url_provider || tx.tracking_url,
+        carrier: rate.provider,
+        service: rate.servicelevel?.name,
+      }
+    };
+  } catch (err) {
+    console.error("Shippo: Exception", err);
+    return { success: false, reason: "Shipping service temporarily unavailable" };
+  }
 }
 
 // Send email via Postmark
@@ -82,14 +102,18 @@ async function sendEmail(to, subject, htmlBody, textBody) {
   const FROM = process.env.FROM_EMAIL || "orders@hemlinemarket.com";
   if (!POSTMARK || !to) return;
 
-  await fetch("https://api.postmarkapp.com/email", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Postmark-Server-Token": POSTMARK },
-    body: JSON.stringify({ From: FROM, To: to, Subject: subject, HtmlBody: htmlBody, TextBody: textBody, MessageStream: "outbound" }),
-  });
+  try {
+    await fetch("https://api.postmarkapp.com/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Postmark-Server-Token": POSTMARK },
+      body: JSON.stringify({ From: FROM, To: to, Subject: subject, HtmlBody: htmlBody, TextBody: textBody, MessageStream: "outbound" }),
+    });
+  } catch (err) {
+    console.error("Postmark email error:", err);
+  }
 }
 
-// Email label to seller
+// Email label to seller (when label creation succeeds)
 async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, shipTo, priceCents) {
   const html = `
     <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
@@ -122,6 +146,42 @@ async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, 
   const text = `You made a sale!\n\n"${itemTitle}" sold for $${(priceCents/100).toFixed(2)}.\n\n⏱️ IMPORTANT: The buyer has 30 minutes from purchase to cancel. Please wait before printing your label.\n\nDownload label: ${labelUrl}\nTracking: ${trackingNumber}\n\nShip to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nPlease ship within 5 business days.`;
   
   await sendEmail(toEmail, "🎉 You made a sale! Your shipping label is ready", html, text);
+}
+
+// Email seller when label creation fails - tells them to create manually
+async function emailLabelFailedToSeller(toEmail, itemTitle, shipTo, priceCents, reason, orderId) {
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
+      <h1 style="color:#991b1b;">🎉 You made a sale!</h1>
+      <p>Your item <strong>"${itemTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
+      
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;color:#92400e;">⏱️ Important: 30-Minute Cancel Window</h3>
+        <p style="margin:0;color:#92400e;font-size:14px;">The buyer has <strong>30 minutes</strong> from purchase to cancel their order. Please wait until this window closes before shipping.</p>
+      </div>
+      
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin:20px 0;">
+        <h2 style="margin:0 0 12px;color:#b91c1c;">⚠️ Action Required: Create Shipping Label</h2>
+        <p style="margin:0 0 12px;color:#7f1d1d;">We couldn't automatically generate your shipping label.</p>
+        <p style="margin:0 0 12px;color:#7f1d1d;font-size:13px;">Reason: ${reason}</p>
+        <p style="margin:0;"><a href="https://hemlinemarket.com/ship-order.html?order=${orderId}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Create Label Now →</a></p>
+      </div>
+      
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;color:#374151;">Ship To:</h3>
+        <p style="margin:0;">${shipTo.name}<br>${shipTo.line1}${shipTo.line2 ? '<br>' + shipTo.line2 : ''}<br>${shipTo.city}, ${shipTo.state} ${shipTo.zip}</p>
+      </div>
+      
+      <p><strong>⏰ Please ship within 5 business days.</strong> After 5 days, the buyer can cancel for a full refund.</p>
+      <p>Once delivered, your payment will be released within 3 days.</p>
+      
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+      <p style="color:#6b7280;font-size:14px;">Need help? <a href="https://hemlinemarket.com/contact.html" style="color:#991b1b;">Contact support</a><br><strong>Hemline Market</strong></p>
+    </div>
+  `;
+  const text = `You made a sale!\n\n"${itemTitle}" sold for $${(priceCents/100).toFixed(2)}.\n\n⏱️ IMPORTANT: The buyer has 30 minutes from purchase to cancel. Please wait before shipping.\n\n⚠️ ACTION REQUIRED: We couldn't automatically create your shipping label.\nReason: ${reason}\n\nPlease create your label at: https://hemlinemarket.com/ship-order.html?order=${orderId}\n\nShip to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nPlease ship within 5 business days.`;
+  
+  await sendEmail(toEmail, "🎉 You made a sale! Action required: Create shipping label", html, text);
 }
 
 // Email confirmation to buyer
@@ -235,7 +295,7 @@ export default async function handler(req, res) {
       }).eq("id", md.listing_id);
     }
 
-    let label = null;
+    let labelResult = { success: false, reason: "No seller address configured" };
     let sellerEmail = null;
 
     // === AUTO-GENERATE SHIPPING LABEL ===
@@ -252,9 +312,11 @@ export default async function handler(req, res) {
         const toAddr = { name: order.shipping_name || "Customer", street1: shipAddr.line1, street2: shipAddr.line2 || "", city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code, country: "US" };
 
         const parcel = getParcelFromShippingCents(shippingCents);
-        label = await createShippoLabel(fromAddr, toAddr, parcel);
+        labelResult = await createShippoLabel(fromAddr, toAddr, parcel);
 
-        if (label) {
+        if (labelResult.success) {
+          const label = labelResult.label;
+          
           await supabase.from("orders").update({
             tracking_number: label.tracking_number,
             tracking_url: label.tracking_url,
@@ -278,23 +340,41 @@ export default async function handler(req, res) {
             name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
           }, priceCents);
         }
+      } else {
+        labelResult = { success: false, reason: "Please update your shipping address in Account settings" };
       }
+    }
+
+    // If label creation failed, notify seller to create manually
+    if (!labelResult.success && sellerEmail) {
+      await supabase.from("orders").update({
+        shipping_status: "LABEL_PENDING",
+      }).eq("id", insertedOrder.id);
+
+      await emailLabelFailedToSeller(sellerEmail, listingTitle, {
+        name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
+      }, priceCents, labelResult.reason, insertedOrder.id);
     }
 
     // Email confirmation to buyer
     if (buyerEmail) {
-      await emailConfirmationToBuyer(buyerEmail, listingTitle, totalCents, label?.tracking_number, {
+      const trackingNumber = labelResult.success ? labelResult.label.tracking_number : null;
+      await emailConfirmationToBuyer(buyerEmail, listingTitle, totalCents, trackingNumber, {
         name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
       });
     }
 
     // In-app notifications
     if (sellerId) {
+      const notifBody = labelResult.success 
+        ? `"${listingTitle}" sold for $${(priceCents/100).toFixed(2)}. Check your email for the shipping label.`
+        : `"${listingTitle}" sold for $${(priceCents/100).toFixed(2)}. Action needed: Create your shipping label.`;
+      
       await supabase.from("notifications").insert({
         user_id: sellerId, type: "sale", kind: "sale",
         title: "You made a sale! 🎉",
-        body: `"${listingTitle}" sold for $${(priceCents/100).toFixed(2)}. Check your email for the shipping label.`,
-        href: "/sales.html",
+        body: notifBody,
+        href: labelResult.success ? "/sales.html" : `/ship-order.html?order=${insertedOrder.id}`,
       });
     }
 
