@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="stylesheet" href="styles/hm-badges.css"/>
 
   <style>
     :root{
@@ -533,6 +534,7 @@
         <div class="seller-lines">
           <strong id="sellerStore">Member</strong>
           <div id="sellerPerson">Member</div>
+          <div id="sellerBadges" class="seller-badges" style="margin-top:6px;"></div>
         </div>
       </div>
 
@@ -694,7 +696,7 @@
     try{
       const { data, error } = await supabaseClient
         .from("profiles")
-        .select("id, store_name, first_name, last_name, display_name")
+        .select("id, store_name, first_name, last_name, display_name, is_founder, is_early_seller, seller_number, stripe_account_id")
         .eq("id", id)
         .maybeSingle();
       if(error){
@@ -939,6 +941,36 @@
     const names = nameFromProfile(sellerProfile);
     if(sellerStoreEl) sellerStoreEl.textContent = names.store;
     if(sellerPersonEl) sellerPersonEl.textContent = names.person;
+
+    // Render seller badges
+    const sellerBadgesEl = document.getElementById("sellerBadges");
+    if(sellerBadgesEl && sellerProfile){
+      sellerBadgesEl.innerHTML = "";
+      
+      // Founder badge (highest priority)
+      if(sellerProfile.is_founder){
+        const badge = document.createElement("span");
+        badge.className = "badge-founder";
+        badge.textContent = "Founder";
+        sellerBadgesEl.appendChild(badge);
+      }
+      
+      // Early seller badge
+      if(sellerProfile.is_early_seller && sellerProfile.seller_number){
+        const badge = document.createElement("span");
+        badge.className = "badge-early-seller";
+        badge.textContent = `OG Seller #${sellerProfile.seller_number}`;
+        sellerBadgesEl.appendChild(badge);
+      }
+      
+      // Verified seller badge (only if not founder or early seller)
+      if(sellerProfile.stripe_account_id && !sellerProfile.is_founder && !sellerProfile.is_early_seller){
+        const badge = document.createElement("span");
+        badge.className = "badge-verified";
+        badge.textContent = "Verified";
+        sellerBadgesEl.appendChild(badge);
+      }
+    }
 
     const sellerId = listing.seller_id || (sellerProfile && sellerProfile.id) || "";
     function wireAtelierLink(el){
@@ -1302,7 +1334,7 @@
       if(authorIds.length){
         const { data: profiles, error: pErr } = await supabaseClient
           .from("profiles")
-          .select("id, store_name, first_name, last_name, display_name")
+          .select("id, store_name, first_name, last_name, display_name, is_founder, is_early_seller, seller_number, stripe_account_id")
           .in("id", authorIds);
         if(!pErr && profiles){
           profiles.forEach(p=>{ profileMap[p.id] = p; });
