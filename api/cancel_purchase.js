@@ -1,6 +1,6 @@
 // File: /api/cancel_purchase.js
 // Cancels an order (within 30 minutes) and re-opens the listing.
-// Includes: Stripe refund, email notifications, seller notification
+// Includes: Stripe refund, Shippo label void, email notifications, seller notification
 //
 // Called from purchases.html via POST /api/cancel_purchase
 // Body: { order_id, buyer_id }
@@ -32,6 +32,87 @@ async function sendEmail(to, subject, htmlBody, textBody) {
     });
   } catch (e) {
     console.error("[cancel_purchase] email error:", e);
+  }
+}
+
+// Void the Shippo label to get refund on label cost
+async function voidShippoLabel(orderId) {
+  const apiKey = process.env.SHIPPO_API_KEY;
+  if (!apiKey) {
+    console.log("[cancel_purchase] No SHIPPO_API_KEY, skipping label void");
+    return { voided: false, reason: "no_api_key" };
+  }
+
+  try {
+    // Look up the shipment
+    const { data: shipment, error: dbErr } = await supabaseAdmin
+      .from("db_shipments")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (dbErr || !shipment) {
+      console.log("[cancel_purchase] No shipment found for order:", orderId);
+      return { voided: false, reason: "no_shipment" };
+    }
+
+    if (!shipment.shippo_transaction_id) {
+      console.log("[cancel_purchase] Shipment has no transaction ID:", orderId);
+      return { voided: false, reason: "no_transaction_id" };
+    }
+
+    if (shipment.status === "CANCELLED") {
+      console.log("[cancel_purchase] Shipment already cancelled:", orderId);
+      return { voided: true, reason: "already_cancelled" };
+    }
+
+    // Call Shippo to void the label
+    const cancelRes = await fetch(
+      `https://api.goshippo.com/transactions/${shipment.shippo_transaction_id}/void/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `ShippoToken ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const cancelData = await cancelRes.json();
+
+    if (!cancelRes.ok || (cancelData.status && cancelData.status.toUpperCase() !== "SUCCESS")) {
+      console.error("[cancel_purchase] Shippo void failed:", cancelData);
+      return { voided: false, reason: "shippo_error", details: cancelData };
+    }
+
+    // Mark shipment as cancelled in database
+    await supabaseAdmin
+      .from("db_shipments")
+      .update({
+        status: "CANCELLED",
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq("order_id", orderId);
+
+    // Also clear label info from orders table
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        label_url: null,
+        tracking_number: null,
+        tracking_url: null,
+        shipping_status: "LABEL_VOIDED",
+      })
+      .eq("id", orderId);
+
+    console.log("[cancel_purchase] Shippo label voided successfully:", orderId);
+    return { voided: true, reason: "success", transaction_id: shipment.shippo_transaction_id };
+
+  } catch (err) {
+    console.error("[cancel_purchase] Shippo void exception:", err);
+    return { voided: false, reason: "exception", error: err.message };
   }
 }
 
@@ -111,6 +192,10 @@ export default async function handler(req, res) {
 
     const nowIso = new Date().toISOString();
 
+    // === VOID SHIPPO LABEL ===
+    const labelVoidResult = await voidShippoLabel(order.id);
+    console.log("[cancel_purchase] Label void result:", labelVoidResult);
+
     // 1) Mark order as CANCELLED
     const { data: updated, error: updateErr } = await supabaseAdmin
       .from("orders")
@@ -174,8 +259,8 @@ export default async function handler(req, res) {
         user_id: order.seller_id,
         type: "cancelled",
         kind: "cancelled",
-        title: "Order cancelled by buyer",
-        body: `The buyer cancelled their order for "${order.listing_title || 'your item'}" within 30 minutes. Your listing has been re-activated.`,
+        title: "🚫 Order cancelled - DO NOT SHIP",
+        body: `The buyer cancelled "${order.listing_title || 'your item'}" within 30 minutes. ${labelVoidResult.voided ? 'Label has been voided.' : 'Do not use the shipping label.'} Listing re-activated.`,
         href: "/sales.html",
       });
     }
@@ -221,24 +306,40 @@ export default async function handler(req, res) {
       }
 
       if (sellerEmail) {
+        const labelMessage = labelVoidResult.voided 
+          ? `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
+              <h3 style="margin:0 0 8px;color:#166534;">🏷️ Shipping Label Voided</h3>
+              <p style="margin:0;color:#166534;">The prepaid shipping label has been automatically cancelled. You will not be charged for it.</p>
+            </div>`
+          : `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
+              <h3 style="margin:0 0 8px;color:#92400e;">⚠️ About the Shipping Label</h3>
+              <p style="margin:0;color:#92400e;">If you printed a shipping label, please discard it — <strong>do not use it</strong>. We attempted to void it automatically.</p>
+            </div>`;
+
         await sendEmail(
           sellerEmail,
-          "📦 Order Cancelled - Hemline Market",
+          "📦 Order Cancelled - Do Not Ship - Hemline Market",
           `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
             <h1 style="color:#991b1b;">Order Cancelled</h1>
             <p>The buyer cancelled their order for <strong>"${order.listing_title || 'your item'}"</strong> within the 30-minute cancellation window.</p>
             
-            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
-              <h3 style="margin:0 0 8px;color:#92400e;">✅ Your Listing is Re-Activated</h3>
-              <p style="margin:0;color:#92400e;">Your listing has been automatically re-activated and is available for other buyers.</p>
+            <div style="background:#dc2626;color:white;border-radius:8px;padding:16px;margin:20px 0;text-align:center;">
+              <h2 style="margin:0;font-size:20px;">🚫 DO NOT SHIP THIS ORDER</h2>
             </div>
             
-            <p><strong>No action needed on your part.</strong> If you already printed a shipping label, you can discard it.</p>
+            ${labelMessage}
+            
+            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
+              <h3 style="margin:0 0 8px;color:#166534;">✅ Your Listing is Re-Activated</h3>
+              <p style="margin:0;color:#166534;">Your listing has been automatically re-activated and is available for other buyers.</p>
+            </div>
+            
+            <p><strong>No further action needed.</strong></p>
             
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
             <p style="color:#6b7280;font-size:14px;">Happy selling!<br><strong>Hemline Market</strong></p>
           </div>`,
-          `The buyer cancelled their order for "${order.listing_title || 'your item'}" within 30 minutes. Your listing has been re-activated.`
+          `CANCELLED: The buyer cancelled their order for "${order.listing_title || 'your item'}" within 30 minutes. DO NOT SHIP. Your listing has been re-activated.`
         );
       }
     }
