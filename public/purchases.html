@@ -246,7 +246,7 @@ Please advise next steps.
       window.location.href = mailto;
     }
 
-    async function buyerCancelIfEligible(order, user){
+    async function buyerCancelOrder(order, user){
       const status = safeUpper(order.status || "");
       const isCancelled = (status === "CANCELED" || status === "CANCELLED");
       const alreadyRequested = !!order.cancel_requested_at;
@@ -258,7 +258,7 @@ Please advise next steps.
         status: "CANCELED",
         canceled_at: new Date().toISOString(),
         canceled_by: user?.id || null,
-        cancel_reason: "accidental_purchase",
+        cancel_reason: "buyer_canceled_within_30min",
         cancel_requested_at: new Date().toISOString()
       };
 
@@ -328,9 +328,10 @@ Please advise next steps.
       const uid = user.id;
 
       // Fetch orders - exclude self-purchases in query
+      // Note: listing_image is the correct field name from webhook
       const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, total_cents, shipping_cents, listing_id, listing_title, listing_image_url, cancel_requested_at, canceled_at, canceled_by, cancel_reason, seller_id, shipped_at, tracking_number, delivered_at")
+        .select("id, created_at, status, total_cents, shipping_cents, listing_id, listing_title, listing_image, cancel_requested_at, canceled_at, canceled_by, cancel_reason, seller_id, shipped_at, tracking_number, delivered_at")
         .eq("buyer_id", uid)
         .neq("seller_id", uid)
         .order("created_at", { ascending:false })
@@ -354,6 +355,7 @@ Please advise next steps.
 
       elPill.textContent = list.length === 1 ? "1 purchase" : `${list.length} purchases`;
 
+      // Fetch listing images as fallback
       const ids = Array.from(new Set(list.map(o => o.listing_id).filter(Boolean)));
       const listingMap = {};
       if(ids.length){
@@ -376,7 +378,8 @@ Please advise next steps.
 
         // Use order fields first, fallback to listing
         const title = order.listing_title || listing?.title || "Fabric Order";
-        const img = order.listing_image_url || listing?.image_url_1 || "";
+        // FIXED: Use listing_image (from webhook), fallback to listing_image_url, then listing.image_url_1
+        const img = order.listing_image || order.listing_image_url || listing?.image_url_1 || "";
         const hasListing = !!order.listing_id;
 
         const status = safeUpper(order.status || "PAID");
@@ -393,30 +396,6 @@ Please advise next steps.
 
         const card = document.createElement("div");
         card.className = "card";
-
-        const cancelBtnHtml = canCancel
-          ? `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`
-          : (isCancelled 
-              ? `<span class="note">Order cancelled</span>` 
-              : `<a class="btn" href="contact.html?subject=Order%20${orderShort}">Contact Support</a>`);
-
-        // Only show problem dropdown for non-cancelled orders
-        const problemDropdownHtml = isCancelled ? '' : `
-              <select class="select" data-problem>
-                <option value="">Problems / Order Inquiry</option>
-                <option value="accidental_purchase">Accidental Purchase</option>
-                <option value="delayed">Order is Delayed</option>
-                <option value="not_as_described">Order Not as Described</option>
-                <option value="message_seller">Message Seller</option>
-                <option value="contact_support">Contact Support Center</option>
-              </select>
-        `;
-
-        const noteHtml = (() => {
-          if(isCancelled) return `<div class="note">Order cancelled.</div>`;
-          if(canCancel) return `<div class="note warn">Cancellation available for 30 minutes after purchase.</div>`;
-          return ``;
-        })();
 
         // Build image HTML with fallback
         let thumbHtml = '';
@@ -436,6 +415,34 @@ Please advise next steps.
               </svg>
             </div>
           </div>`;
+        }
+
+        // FIXED: Cancel within 30 min = just a button, no reason needed
+        // After 30 min = Contact Support link
+        // Problem dropdown only for non-cancelled, after 30 min
+        let cancelHtml = '';
+        let problemHtml = '';
+        let noteHtml = '';
+
+        if(isCancelled){
+          cancelHtml = `<span class="note">Order cancelled</span>`;
+          noteHtml = `<div class="note">Order cancelled.</div>`;
+        } else if(canCancel){
+          // Within 30 minutes - simple cancel button, no reason needed
+          cancelHtml = `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`;
+          noteHtml = `<div class="note warn">Cancellation available for 30 minutes after purchase.</div>`;
+        } else {
+          // After 30 minutes - show problem dropdown and contact support
+          problemHtml = `
+            <select class="select" data-problem>
+              <option value="">Problems / Order Inquiry</option>
+              <option value="delayed">Order is Delayed</option>
+              <option value="not_as_described">Order Not as Described</option>
+              <option value="message_seller">Message Seller</option>
+              <option value="contact_support">Contact Support Center</option>
+            </select>
+          `;
+          cancelHtml = `<a class="btn" href="contact.html?subject=Order%20${orderShort}">Contact Support</a>`;
         }
 
         card.innerHTML = `
@@ -470,25 +477,23 @@ Please advise next steps.
                 </a>
               ` : ``}
 
-              ${problemDropdownHtml}
+              ${problemHtml}
 
-              ${cancelBtnHtml}
+              ${cancelHtml}
             </div>
 
             ${noteHtml}
           </div>
         `;
 
+        // Handle problem dropdown (only exists after 30 min)
         const sel = card.querySelector("[data-problem]");
         if(sel){
           sel.addEventListener("change", async () => {
             const v = sel.value;
             if(!v) return;
 
-            if(v === "accidental_purchase"){
-              await buyerCancelIfEligible(order, user);
-              supportMailto(order, "Accidental Purchase");
-            } else if(v === "delayed"){
+            if(v === "delayed"){
               supportMailto(order, "Order is Delayed");
             } else if(v === "not_as_described"){
               supportMailto(order, "Order Not as Described");
@@ -502,18 +507,23 @@ Please advise next steps.
           });
         }
 
+        // Handle cancel button (only exists within 30 min)
         const cancelBtn = card.querySelector("[data-cancel-btn]");
         if(cancelBtn){
           cancelBtn.addEventListener("click", async () => {
+            // Simple confirmation
+            if(!confirm("Cancel this order? You'll receive a full refund.")) return;
+            
             cancelBtn.disabled = true;
             cancelBtn.textContent = "Cancelling...";
-            const res = await buyerCancelIfEligible(order, user);
+            const res = await buyerCancelOrder(order, user);
             if(res?.ok){
               loadPurchases();
               return;
             }
             cancelBtn.textContent = "Cancel";
             cancelBtn.disabled = false;
+            alert("Could not cancel order. Please contact support.");
           });
         }
 
