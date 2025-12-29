@@ -1198,29 +1198,27 @@
     subEl.textContent= profileIncomplete ? "Complete your profile to set up your shop." : "";
     ownerNameEl.textContent=fullName;
     
-    // Render seller badges
+    // Render seller badges - only for verified sellers
     const atelierBadgesEl = document.getElementById("atelierBadges");
-    if(atelierBadgesEl && profile){
+    if(atelierBadgesEl && profile && profile.stripe_account_id){
       atelierBadgesEl.innerHTML = "";
       
-      // Founder badge
+      // Founder badge (red with star) - highest priority
       if(profile.is_founder){
         const badge = document.createElement("span");
         badge.className = "badge-founder";
         badge.textContent = "Founder";
         atelierBadgesEl.appendChild(badge);
       }
-      
-      // Early seller badge
-      if(profile.is_early_seller && profile.seller_number){
+      // OG Seller badge (gold with crown) - first 300 verified sellers
+      else if(profile.is_early_seller){
         const badge = document.createElement("span");
-        badge.className = "badge-early-seller";
-        badge.textContent = `OG Seller #${profile.seller_number}`;
+        badge.className = "badge-og-seller";
+        badge.textContent = "OG Seller";
         atelierBadgesEl.appendChild(badge);
       }
-      
-      // Verified seller badge
-      if(profile.stripe_account_id && !profile.is_founder && !profile.is_early_seller){
+      // Verified seller badge (green) - all other verified sellers
+      else {
         const badge = document.createElement("span");
         badge.className = "badge-verified";
         badge.textContent = "Verified";
