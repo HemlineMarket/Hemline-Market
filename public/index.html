@@ -1303,6 +1303,13 @@
           const key = "hm_cart";
           const existing = JSON.parse(localStorage.getItem(key) || "[]");
           const arr = Array.isArray(existing) ? existing : [];
+          
+          // Check for duplicate - fabric is sold as whole lot, no duplicates allowed
+          const isDuplicate = arr.some(it => String(it.id) === String(item.id));
+          if(isDuplicate){
+            return "duplicate";
+          }
+          
           arr.push(item);
           localStorage.setItem(key, JSON.stringify(arr));
           window.dispatchEvent(new CustomEvent("hm:cart-updated", { detail: { source: "index" } }));
@@ -1328,8 +1335,16 @@
         // If disabled, do nothing
         if(btn.disabled) return;
 
-        const ok = addToCartFromDataset(btn.dataset || {});
-        if(ok){
+        const result = addToCartFromDataset(btn.dataset || {});
+        if(result === "duplicate"){
+          const old = btn.textContent;
+          btn.textContent = "Already in cart";
+          btn.disabled = true;
+          setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = old;
+          }, 1500);
+        } else if(result === true){
           const old = btn.textContent;
           btn.textContent = "Added ✓";
           btn.disabled = true;
