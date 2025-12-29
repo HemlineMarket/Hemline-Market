@@ -406,6 +406,34 @@
       color:#4b5563;
       margin-top:4px;
     }
+    .browse-controls{
+      display:flex;
+      align-items:center;
+      gap:20px;
+      margin-top:8px;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+    .sort-control{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:14px;
+      color:#4b5563;
+    }
+    .sort-control select{
+      padding:6px 12px;
+      border:1px solid #e5e7eb;
+      border-radius:6px;
+      font-size:14px;
+      color:#374151;
+      background:#fff;
+      cursor:pointer;
+    }
+    .sort-control select:focus{
+      outline:none;
+      border-color:#991b1b;
+    }
 
     /* Empty State - matches homepage */
     .home-empty{
@@ -655,8 +683,19 @@
 
       <section class="results">
         <div class="section-header">
-          <h2>Browse</h2>
-          <div id="resultCount" class="section-header-subtitle">Loading…</div>
+          <h2>New Arrivals</h2>
+          <div class="browse-controls">
+            <div id="resultCount" class="section-header-subtitle">Loading…</div>
+            <div class="sort-control">
+              <label for="sortBy">Sort by:</label>
+              <select id="sortBy">
+                <option value="newest">Newest</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="yards-high">Most Yards</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div id="grid" class="browse-grid"></div>
         
@@ -1095,7 +1134,7 @@
       }
 
       // Check if any filters are applied
-      const hasFilters = searchTerm || minPrice || maxPrice || minYards || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || selectedColor;
+      const hasFilters = searchTerm || minPrice || maxPrice || minYards || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || selectedColor || (selectedContents.size > 0 && !selectedContents.has("Any"));
 
       if(!total){
         if(hasFilters){
@@ -1112,6 +1151,22 @@
         if(emptyEl) emptyEl.style.display = "none";
         if(emptyFilteredEl) emptyFilteredEl.style.display = "none";
       }
+
+      // Sort results based on dropdown selection
+      const sortBy = document.getElementById("sortBy")?.value || "newest";
+      filtered.sort((a, b) => {
+        switch(sortBy) {
+          case "price-low":
+            return (a.price_cents || 0) - (b.price_cents || 0);
+          case "price-high":
+            return (b.price_cents || 0) - (a.price_cents || 0);
+          case "yards-high":
+            return (b.yards_available || 0) - (a.yards_available || 0);
+          case "newest":
+          default:
+            return new Date(b.published_at || 0) - new Date(a.published_at || 0);
+        }
+      });
 
       const profileMap = await fetchProfilesForListings(filtered);
 
@@ -1274,6 +1329,9 @@
       });
 
       runSearch();
+      
+      // Sort dropdown change listener
+      document.getElementById("sortBy")?.addEventListener("change", runSearch);
     });
     
     // Clear all filters and re-run search
