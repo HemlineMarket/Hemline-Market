@@ -344,28 +344,32 @@
     }
 
     async function cancelOrder({ orderId, listingId, reason, userId }){
-      const { error } = await supabaseClient
-        .from("orders")
-        .update({
-          status: "CANCELED",
-          canceled_at: new Date().toISOString(),
-          canceled_by: userId,
-          cancel_reason: reason
-        })
-        .eq("id", orderId)
-        .eq("seller_id", userId);
-
-      if(error) throw error;
-
-      // Try to restore listing to ACTIVE
-      if(listingId){
-        try{
-          await supabaseClient
-            .from("listings")
-            .update({ status: "ACTIVE" })
-            .eq("id", listingId);
-        }catch(e){}
+      // Call the seller-cancel API to handle refund and buyer notification
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error("Not authenticated");
       }
+
+      const response = await fetch('/api/orders/seller-cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ 
+          order_id: orderId, 
+          reason: reason || "seller_canceled" 
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to cancel order");
+      }
+
+      return result;
     }
 
     function renderOrders(orders){
@@ -387,8 +391,10 @@
         const title = getOrderTitle(order, listing);
         const status = (order.status || "").toUpperCase();
         const isCanceled = (status === "CANCELED" || status === "CANCELLED");
-        const within30Min = minutesSince(order.created_at) <= 30;
-        const canCancel = within30Min && !isCanceled && (status === "PAID" || status === "PENDING" || status === "");
+        
+        // Poshmark-style: Can cancel anytime BEFORE shipping
+        const isShipped = order.shipped_at || status === "SHIPPED" || status === "DELIVERED" || status === "COMPLETE";
+        const canCancel = !isCanceled && !isShipped && (status === "PAID" || status === "PENDING" || status === "");
 
         const itemsCents = Number(order.items_cents || order.total_cents || 0);
         const shipCents = Number(order.shipping_cents || 0);
@@ -427,10 +433,10 @@
             ${order.listing_id ? `<a href="listing.html?id=${encodeURIComponent(order.listing_id)}" class="btn">View Listing</a>` : ""}
             ${canCancel ? `
               <button class="btn btn-danger" data-cancel-btn>Cancel Order</button>
-              <span class="cancelNote">⏱ ${Math.round(30 - minutesSince(order.created_at))} min left</span>
+              <span class="cancelNote">Cancel anytime before shipping</span>
             ` : ""}
-            ${!canCancel && !isCanceled && (status === "PAID" || status === "PENDING") ? `
-              <span class="supportLink">Need help? <a href="contact.html?subject=Order ${orderShort}">Contact Support</a></span>
+            ${isCanceled ? `
+              <span class="cancelNote" style="color:#991b1b;">Order cancelled</span>
             ` : ""}
           </div>
         `;
