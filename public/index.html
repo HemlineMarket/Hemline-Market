@@ -612,32 +612,45 @@
     .home-listings-grid .listing-card{
       background:var(--hm-bg-card);
       border:1px solid var(--hm-border);
-      border-radius:12px;
+      border-radius:14px;
       overflow:hidden;
       display:flex;
       flex-direction:column;
       height:100%;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .home-listings-grid .listing-card:hover{
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(153, 27, 27, 0.12), 0 4px 8px rgba(0,0,0,0.06);
+      border-color: rgba(153, 27, 27, 0.2);
     }
     .home-listings-grid .listing-thumb-link{
       display:block;
       text-decoration:none;
       color:inherit;
+      overflow:hidden;
     }
     .home-listings-grid .listing-thumb{
       aspect-ratio:1/1;
-      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      background:linear-gradient(135deg,#fdf2f8,#f8fafc);
       display:grid;
       place-items:center;
       overflow:hidden;
+      position:relative;
     }
     .home-listings-grid .listing-thumb img{
       width:100%;
       height:100%;
       object-fit:cover;
       display:block;
+      transition: transform 0.4s ease;
+    }
+    .home-listings-grid .listing-card:hover .listing-thumb img{
+      transform: scale(1.05);
     }
     .home-listings-grid .listing-body{
-      padding:8px 10px 10px;
+      padding:10px 12px 12px;
       display:flex;
       flex-direction:column;
       gap:4px;
@@ -657,13 +670,18 @@
       text-overflow:ellipsis;
       text-decoration:none;
       color:#111827;
+      transition: color 0.2s;
+    }
+    .home-listings-grid .listing-card:hover .listing-title{
+      color:#991b1b;
     }
     .home-listings-grid .listing-dept{
-      font-size:11px;
-      padding:2px 6px;
+      font-size:10px;
+      padding:3px 8px;
       border-radius:999px;
-      background:#f3f4f6;
-      color:#4b5563;
+      background:linear-gradient(135deg, #fef3f2, #fce7f3);
+      color:#991b1b;
+      font-weight:600;
       flex:0 0 auto;
       white-space:nowrap;
     }
@@ -672,23 +690,34 @@
       color:#4b5563;
     }
     .home-listings-grid .listing-cta-row{
-      margin-top:4px;
+      margin-top:6px;
     }
     .home-listings-grid .listing-add-btn{
       width:100%;
       border-radius:10px;
-      border:1px solid var(--hm-accent);
-      background:var(--hm-accent);
+      border:none;
+      background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
       color:#fff;
-      font-weight:700;
-      font-size:13px;
-      padding:8px 10px;
+      font-weight:600;
+      font-size:12px;
+      padding:10px 8px;
       cursor:pointer;
-      white-space:nowrap;
+      white-space:normal;
+      line-height:1.3;
+      min-height:40px;
+      text-align:center;
+      box-shadow: 0 2px 8px rgba(153, 27, 27, 0.25);
+      transition: all 0.2s ease;
+    }
+    .home-listings-grid .listing-add-btn:hover:not([disabled]){
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(153, 27, 27, 0.35);
     }
     .home-listings-grid .listing-add-btn[disabled]{
-      opacity:.6;
+      opacity:.55;
       cursor:not-allowed;
+      background: #9ca3af;
+      box-shadow: none;
     }
     .home-listings-grid .listing-price-row{
       margin-top:6px;
@@ -1069,11 +1098,15 @@
         }
         
         const now = new Date();
-        // Client-side filtering: is_published true, status active, published_at in past or null
+        // Client-side filtering: is_published true, status active (not sold), has yards available
         listings = (data || []).filter(l => {
           if(l.is_published !== true) return false;
           const status = (l.status || "active").toLowerCase();
+          // Hide sold listings
+          if(status === "sold") return false;
           if(status !== "active") return false;
+          // Hide listings with no yards available
+          if(l.yards_available != null && l.yards_available <= 0) return false;
           if(l.published_at && new Date(l.published_at) > now) return false;
           return true;
         }).slice(0, 12); // Limit to 12 for homepage
@@ -1154,8 +1187,8 @@
                 data-seller-name="${String(storeName).replace(/"/g,'&quot;')}"
               >
                 ${
-                  canBuy && totalMoney && yards
-                    ? `Add to Cart — ${totalMoney} for ${yards} yards`
+                  canBuy && totalMoney
+                    ? `Add to Cart — ${totalMoney}`
                     : (isSold ? "Sold out" : "Add to Cart")
                 }
               </button>
