@@ -188,6 +188,7 @@ export default async function handler(req, res) {
 
     const sellerId = md.seller_id || listing?.seller_id;
     const listingTitle = md.title || listing?.title || "Fabric";
+    const listingImage = md.image_url || listing?.image_url_1 || "";
     const priceCents = Number(md.price_cents) || 0;
     const shippingCents = Number(md.shipping_cents) || 0;
     const totalCents = priceCents + shippingCents;
@@ -207,6 +208,7 @@ export default async function handler(req, res) {
       shipping_cents: shippingCents,
       total_cents: totalCents,
       listing_title: listingTitle,
+      listing_image: listingImage,
       status: "PAID",
       shipping_name: shipDetails.name || session.customer_details?.name,
       shipping_address_line1: shipAddr.line1,
@@ -224,8 +226,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Order insert failed" });
     }
 
+    // FIXED: Mark listing as SOLD and set yards_available to 0
     if (md.listing_id) {
-      await supabase.from("listings").update({ status: "SOLD", sold_at: new Date().toISOString() }).eq("id", md.listing_id);
+      await supabase.from("listings").update({ 
+        status: "SOLD", 
+        yards_available: 0,
+        sold_at: new Date().toISOString() 
+      }).eq("id", md.listing_id);
     }
 
     let label = null;
