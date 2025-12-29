@@ -131,6 +131,37 @@ Questions? ${support}`;
     return { subject, html, text };
   }
 
+  if (type === 'label_ready') {
+    const tpl = await loadTemplate('label-ready');
+    const html = render(tpl, {
+      order_id: data.order_id || 'HM-000000',
+      item_title: data.item_title || 'Your item',
+      yards: data.yards || '',
+      total: fmtUSD(Number(data.total_cents || 0)),
+      label_url: data.label_url || '#',
+      carrier: data.carrier || 'USPS',
+      support_url: support,
+      site_origin: site,
+    });
+    const subject = `Your shipping label is ready — ${data.order_id || 'Hemline Market'} 🏷️`;
+    const text = `Your shipping label for order ${data.order_id || ''} is ready!
+
+Item: ${data.item_title || 'Your item'}
+Carrier: ${data.carrier || 'USPS'}
+
+Print your label: ${data.label_url || ''}
+
+Next steps:
+1. Print the prepaid shipping label
+2. Package your fabric carefully
+3. Drop off at any ${data.carrier || 'USPS'} location
+
+You'll receive payment 3 days after delivery confirmation.
+
+Need help? ${support}`;
+    return { subject, html, text };
+  }
+
   throw new Error(`Unsupported email type: ${type}`);
 }
 
