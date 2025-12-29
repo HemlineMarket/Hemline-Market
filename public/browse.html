@@ -921,9 +921,13 @@
         // Must be published (is_published true)
         if(l.is_published !== true) return false;
         
-        // Status must be active (case-insensitive)
+        // Status must be active (case-insensitive), hide sold listings
         const status = (l.status || "active").toLowerCase();
+        if(status === "sold") return false;
         if(status !== "active") return false;
+        
+        // Hide listings with no yards available
+        if(l.yards_available != null && Number(l.yards_available) <= 0) return false;
         
         // published_at must be null or in the past
         if(l.published_at && new Date(l.published_at) > now) return false;
