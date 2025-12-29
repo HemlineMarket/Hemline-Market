@@ -254,24 +254,29 @@ Please advise next steps.
 
       if(!within || isCancelled || alreadyRequested) return { ok:false, skipped:true };
 
-      const patch = {
-        status: "CANCELED",
-        canceled_at: new Date().toISOString(),
-        canceled_by: user?.id || null,
-        cancel_reason: "buyer_canceled_within_30min",
-        cancel_requested_at: new Date().toISOString()
-      };
+      // Call the API to handle Stripe refund, emails, and notifications
+      try {
+        const response = await fetch("/api/cancel_purchase", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order_id: order.id,
+            buyer_id: user?.id
+          })
+        });
 
-      const { error } = await supabaseClient
-        .from("orders")
-        .update(patch)
-        .eq("id", order.id);
+        const data = await response.json();
 
-      if(error){
-        console.error("[purchases] cancel failed:", error);
-        return { ok:false, error };
+        if(!response.ok){
+          console.error("[purchases] cancel API error:", data);
+          return { ok:false, error: data.error || "Cancel failed" };
+        }
+
+        return { ok:true, refund_id: data.refund_id };
+      } catch(err){
+        console.error("[purchases] cancel failed:", err);
+        return { ok:false, error: err.message };
       }
-      return { ok:true };
     }
 
     function showLoadingSkeleton(){
