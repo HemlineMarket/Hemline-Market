@@ -745,7 +745,6 @@
     /* --- Filters state --- */
 
     const CONTENTS = [
-      "Any",
       "Acetate",
       "Acrylic",
       "Alpaca",
@@ -777,7 +776,7 @@
     ];
 
     const selectedContents = new Set();
-    let   selectedColor   = null;
+    const selectedColors = new Set();
 
     function buildFiltersUI(){
       const contentBox = document.getElementById("contentBox");
@@ -790,25 +789,14 @@
           row.className = "row";
           const cb  = document.createElement("input");
           cb.type   = "checkbox";
+          cb.name   = "content";
           cb.value  = label;
           const lb  = document.createElement("label");
           lb.textContent = label;
           row.appendChild(cb);
           row.appendChild(lb);
           cb.addEventListener("change",()=>{
-            if(label === "Any"){
-              selectedContents.clear();
-              if(cb.checked) selectedContents.add("Any");
-              // uncheck others
-              contentBox.querySelectorAll("input[type=checkbox]").forEach(el=>{
-                if(el !== cb) el.checked = false;
-              });
-            }else{
-              selectedContents.delete("Any");
-              const anyBox = contentBox.querySelector('input[value="Any"]');
-              if(anyBox) anyBox.checked = false;
-              if(cb.checked) selectedContents.add(label); else selectedContents.delete(label);
-            }
+            if(cb.checked) selectedContents.add(label); else selectedContents.delete(label);
             runSearch();
           });
           contentBox.appendChild(row);
@@ -831,12 +819,11 @@
             sw.style.backgroundColor = name.toLowerCase();
           }
           sw.addEventListener("click", ()=>{
-            if(selectedColor === name){
-              selectedColor = null;
+            if(selectedColors.has(name)){
+              selectedColors.delete(name);
               sw.dataset.selected = "false";
             }else{
-              selectedColor = name;
-              colorBox.querySelectorAll(".sw").forEach(el=>{ el.dataset.selected = "false"; });
+              selectedColors.add(name);
               sw.dataset.selected = "true";
             }
             runSearch();
@@ -1120,9 +1107,9 @@
           if(!lowerSet.has(feelsVal)) return false;
         }
 
-        // color family
-        if(selectedColor){
-          if(!l.color_family || l.color_family !== selectedColor) return false;
+        // color family - now supports multiple colors
+        if(selectedColors.size > 0){
+          if(!l.color_family || !selectedColors.has(l.color_family)) return false;
         }
 
         return true;
@@ -1130,11 +1117,17 @@
 
       const total = filtered.length;
       if(countEl){
-        countEl.textContent = total === 1 ? "1 result" : total + " results";
+        // Hide count when 0 results
+        if(total === 0){
+          countEl.style.display = "none";
+        } else {
+          countEl.style.display = "block";
+          countEl.textContent = total === 1 ? "1 result" : total + " results";
+        }
       }
 
       // Check if any filters are applied
-      const hasFilters = searchTerm || minPrice || maxPrice || minYards || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || selectedColor || (selectedContents.size > 0 && !selectedContents.has("Any"));
+      const hasFilters = searchTerm || minPrice || maxPrice || minYards || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || selectedColors.size > 0 || selectedContents.size > 0;
 
       if(!total){
         if(hasFilters){
@@ -1348,9 +1341,13 @@
       document.getElementById("designer").value = "";
       document.getElementById("feelsLike").value = "";
       
-      // Clear color selection
-      document.querySelectorAll(".color-swatch").forEach(sw => sw.classList.remove("selected"));
+      // Clear color selection (update data attribute and clear Set)
+      document.querySelectorAll("#colorBox .sw").forEach(sw => sw.dataset.selected = "false");
+      selectedColors.clear();
+      
+      // Clear content checkboxes and Set
       document.querySelectorAll("input[name='content']").forEach(cb => cb.checked = false);
+      selectedContents.clear();
       
       // Clear URL params
       window.history.replaceState({}, "", window.location.pathname);
