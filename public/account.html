@@ -1055,7 +1055,7 @@
           avatarImg.classList.remove('is-hidden');
           avatarPlaceholder.style.display = 'none';
           // Also update localStorage for header avatar
-          localStorage.setItem('avatarUrl', url);
+          if (userId) { localStorage.setItem(`hm-avatar-${userId}`, url); }
         }
       }
 
@@ -1063,7 +1063,7 @@
         if (avatarImg && avatarPlaceholder) {
           avatarImg.classList.add('is-hidden');
           avatarPlaceholder.style.display = '';
-          localStorage.removeItem('avatarUrl');
+          if (userId) { localStorage.removeItem(`hm-avatar-${userId}`); }
         }
       }
 
@@ -1673,71 +1673,76 @@
       profileForm.addEventListener('submit', async (e)=>{
         e.preventDefault();
 
-        const rawStoreName = (storeNameInput ? storeNameInput.value : "").trim();
-        
-        // Check if user already has a store name set - if so, they can't change it
-        const existingStoreName = (profile.storeName || "").trim();
-        if(existingStoreName && rawStoreName !== existingStoreName){
-          if(storeNameErrorEl) storeNameErrorEl.textContent = "Store names are permanent and cannot be changed. Contact support if you need help.";
-          if(storeNameInput){
-            storeNameInput.value = existingStoreName; // Reset to original
-            storeNameInput.setAttribute("aria-invalid","true");
-          }
-          return;
-        }
-        
-        const storeCheck = validateStoreName(rawStoreName);
+        // FIX: Get submit button reference and original text for proper reset
+        const submitBtn = profileForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn ? submitBtn.textContent : "Save profile";
 
-        if(!storeCheck.ok){
-          if(storeNameErrorEl) storeNameErrorEl.textContent = storeCheck.message;
-          if(storeSlugPreviewEl) storeSlugPreviewEl.textContent = storeCheck.slug || "your-shop";
-          if(storeNameInput){
-            storeNameInput.setAttribute("aria-invalid","true");
-            storeNameInput.focus();
+        try {
+          const rawStoreName = (storeNameInput ? storeNameInput.value : "").trim();
+          
+          // Check if user already has a store name set - if so, they can't change it
+          const existingStoreName = (profile.storeName || "").trim();
+          if(existingStoreName && rawStoreName !== existingStoreName){
+            if(storeNameErrorEl) storeNameErrorEl.textContent = "Store names are permanent and cannot be changed. Contact support if you need help.";
+            if(storeNameInput){
+              storeNameInput.value = existingStoreName; // Reset to original
+              storeNameInput.setAttribute("aria-invalid","true");
+            }
+            return;
           }
-          return;
-        }else{
-          if(storeNameErrorEl) storeNameErrorEl.textContent = "";
-          if(storeNameInput) storeNameInput.removeAttribute("aria-invalid");
-        }
+          
+          const storeCheck = validateStoreName(rawStoreName);
 
-        // Check uniqueness if this is a new store name
-        if(storeCheck.needsUniquenessCheck && rawStoreName && !existingStoreName){
-          const submitBtn = profileForm.querySelector('button[type="submit"]');
-          if(submitBtn){
-            submitBtn.disabled = true;
-            submitBtn.textContent = "Checking...";
-          }
-          
-          const uniqueCheck = await checkStoreNameUnique(rawStoreName, storeCheck.slug, userId);
-          
-          if(submitBtn){
-            submitBtn.disabled = false;
-            submitBtn.textContent = "Save profile";
-          }
-          
-          if(!uniqueCheck.unique){
-            if(storeNameErrorEl) storeNameErrorEl.textContent = uniqueCheck.reason;
+          if(!storeCheck.ok){
+            if(storeNameErrorEl) storeNameErrorEl.textContent = storeCheck.message;
+            if(storeSlugPreviewEl) storeSlugPreviewEl.textContent = storeCheck.slug || "your-shop";
             if(storeNameInput){
               storeNameInput.setAttribute("aria-invalid","true");
               storeNameInput.focus();
             }
             return;
+          }else{
+            if(storeNameErrorEl) storeNameErrorEl.textContent = "";
+            if(storeNameInput) storeNameInput.removeAttribute("aria-invalid");
           }
-        }
 
-        const contactEmailInput = document.getElementById('contactEmail');
-        const contactEmailValue = contactEmailInput ? contactEmailInput.value.trim() : '';
+          // Check uniqueness if this is a new store name
+          if(storeCheck.needsUniquenessCheck && rawStoreName && !existingStoreName){
+            if(submitBtn){
+              submitBtn.disabled = true;
+              submitBtn.textContent = "Checking...";
+            }
+            
+            const uniqueCheck = await checkStoreNameUnique(rawStoreName, storeCheck.slug, userId);
+            
+            // FIX: Reset button immediately after check completes
+            if(submitBtn){
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalBtnText;
+            }
+            
+            if(!uniqueCheck.unique){
+              if(storeNameErrorEl) storeNameErrorEl.textContent = uniqueCheck.reason;
+              if(storeNameInput){
+                storeNameInput.setAttribute("aria-invalid","true");
+                storeNameInput.focus();
+              }
+              return;
+            }
+          }
 
-        const next = {
-          firstName: profileForm.firstName.value.trim(),
-          lastName:  profileForm.lastName.value.trim(),
-          storeName: rawStoreName,
-          storeSlug: storeCheck.slug,
-          bio:       (profileForm.bio?.value || '').trim(),
-          contactEmail: contactEmailValue
-        };
-        localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+          const contactEmailInput = document.getElementById('contactEmail');
+          const contactEmailValue = contactEmailInput ? contactEmailInput.value.trim() : '';
+
+          const next = {
+            firstName: profileForm.firstName.value.trim(),
+            lastName:  profileForm.lastName.value.trim(),
+            storeName: rawStoreName,
+            storeSlug: storeCheck.slug,
+            bio:       (profileForm.bio?.value || '').trim(),
+            contactEmail: contactEmailValue
+          };
+          localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
         profile = next;
 
         // ✅ Also update Supabase profiles table so atelier reflects changes
@@ -1845,6 +1850,18 @@
             if (profileWarning) profileWarning.classList.add('is-hidden');
           } else {
             console.log('[Account] Still need address. Banner stays visible.');
+          }
+        }
+        
+        } catch (err) {
+          // FIX: Handle any unexpected errors
+          console.error('[Account] Profile save error:', err);
+          alert('Something went wrong. Please try again.');
+        } finally {
+          // FIX: Always reset button state, no matter what
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
           }
         }
       });
@@ -1963,6 +1980,22 @@
 
       // ---- Logout + password info ----
       document.getElementById('btnLogout').addEventListener('click', async ()=>{
+        // FIX: Clear all user-specific localStorage data to prevent data leakage
+        const keysToRemove = [
+          PROFILE_KEY,
+          ADDRESS_KEY,
+          VAC_KEY,
+          `hm-avatar-${userId}`,
+          `hm_checkout_address_${userId}`,
+          'avatarUrl',  // Legacy global key
+          'hm_profile_complete',
+          'hm_checkout_address',
+          'hm_cart'
+        ];
+        keysToRemove.forEach(key => {
+          try { localStorage.removeItem(key); } catch(e) {}
+        });
+        
         await supabaseClient.auth.signOut();
         window.location.href = "auth.html?view=login";
       });
