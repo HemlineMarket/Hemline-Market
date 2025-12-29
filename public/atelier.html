@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="stylesheet" href="styles/hm-badges.css"/>
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
 
   <style>
@@ -700,6 +701,7 @@
             </svg>
           </div>
           <div class="profile-name" id="atelierOwnerName" style="font-size:18px;font-weight:600;">Hemline member</div>
+          <div id="atelierBadges" class="seller-badges" style="margin-top:8px;"></div>
         </div>
         
         <!-- Bio section -->
@@ -1195,6 +1197,36 @@
     titleEl.textContent="Atelier: "+shopDisplay;
     subEl.textContent= profileIncomplete ? "Complete your profile to set up your shop." : "";
     ownerNameEl.textContent=fullName;
+    
+    // Render seller badges
+    const atelierBadgesEl = document.getElementById("atelierBadges");
+    if(atelierBadgesEl && profile){
+      atelierBadgesEl.innerHTML = "";
+      
+      // Founder badge
+      if(profile.is_founder){
+        const badge = document.createElement("span");
+        badge.className = "badge-founder";
+        badge.textContent = "Founder";
+        atelierBadgesEl.appendChild(badge);
+      }
+      
+      // Early seller badge
+      if(profile.is_early_seller && profile.seller_number){
+        const badge = document.createElement("span");
+        badge.className = "badge-early-seller";
+        badge.textContent = `OG Seller #${profile.seller_number}`;
+        atelierBadgesEl.appendChild(badge);
+      }
+      
+      // Verified seller badge
+      if(profile.stripe_account_id && !profile.is_founder && !profile.is_early_seller){
+        const badge = document.createElement("span");
+        badge.className = "badge-verified";
+        badge.textContent = "Verified";
+        atelierBadgesEl.appendChild(badge);
+      }
+    }
     
     // Display bio if available
     const bioSection = document.getElementById("atelierBioSection");
