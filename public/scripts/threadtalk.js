@@ -145,17 +145,21 @@
     const p = profilesCache[userId];
     if (!p) return "";
     
+    // Only show badges for verified sellers (has stripe_account_id)
+    if (!p.stripe_account_id) return "";
+    
     let badges = "";
     
+    // Founder badge (red with star) - highest priority
     if (p.is_founder) {
       badges += '<span class="badge-founder badge-sm">Founder</span>';
     }
-    
-    if (p.is_early_seller && p.seller_number) {
-      badges += `<span class="badge-early-seller badge-sm">OG #${p.seller_number}</span>`;
+    // OG Seller badge (gold with crown) - first 300 verified sellers
+    else if (p.is_early_seller) {
+      badges += '<span class="badge-og-seller badge-sm">OG Seller</span>';
     }
-    
-    if (p.stripe_account_id && !p.is_founder && !p.is_early_seller) {
+    // Verified badge (green) - all other verified sellers
+    else {
       badges += '<span class="badge-verified badge-sm">Verified</span>';
     }
     
