@@ -369,52 +369,84 @@
       text-overflow:ellipsis;
     }
 
-    /* Friendly Empty State - matches homepage */
-    .browse-empty{
+    /* Section Header - matches homepage */
+    .section-header{
       display:flex;
       flex-direction:column;
       align-items:center;
       text-align:center;
-      padding:60px 20px;
-      background:rgba(255,255,255,0.96);
+      margin:0 0 28px;
+      padding:24px 20px;
+      background:linear-gradient(135deg, rgba(255,255,255,0.95), rgba(254,243,242,0.9));
+      border-radius:16px;
+      border:1px solid rgba(153,27,27,0.15);
+      box-shadow:0 8px 24px rgba(153,27,27,0.08);
+    }
+    .section-header h2{
+      margin:0 0 8px;
+      font-size:36px;
+      font-weight:700;
+      color:#991b1b;
+      font-family: Georgia, 'Times New Roman', serif;
+      letter-spacing: 2px;
+      text-transform:uppercase;
+      position:relative;
+    }
+    .section-header h2::after{
+      content:"";
+      display:block;
+      width:60px;
+      height:3px;
+      background:#991b1b;
+      margin:12px auto 0;
+      border-radius:2px;
+    }
+    .section-header-subtitle{
+      font-size:15px;
+      color:#4b5563;
+      margin-top:4px;
+    }
+
+    /* Empty State - matches homepage */
+    .home-empty{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+      padding:40px 20px;
+      background:#fff;
       border-radius:14px;
       border:1px solid #e5e7eb;
-      box-shadow:0 2px 8px rgba(0,0,0,0.04);
-      margin-top:20px;
     }
-    .browse-empty .empty-illustration{
-      margin-bottom:20px;
+    .empty-illustration{
+      margin-bottom:16px;
       opacity:0.9;
-      width:200px;
-      height:160px;
     }
-    .browse-empty .empty-title{
-      margin:0 0 12px;
-      font-size:20px;
+    .empty-title{
+      margin:0 0 8px;
+      font-size:18px;
       font-weight:700;
       color:#111827;
     }
-    .browse-empty .empty-text{
-      margin:0 0 20px;
-      font-size:15px;
+    .empty-text{
+      margin:0 0 16px;
+      font-size:14px;
       color:#6b7280;
-      max-width:350px;
-      line-height:1.5;
+      max-width:300px;
     }
-    .browse-empty .empty-cta{
-      padding:12px 24px;
+    .empty-cta{
+      padding:10px 20px;
       background:#991b1b;
       color:#fff;
       font-weight:600;
       font-size:14px;
       border-radius:8px;
       text-decoration:none;
-      box-shadow:0 4px 12px rgba(153,27,27,0.25);
-      transition:all 0.2s;
+      border:none;
+      cursor:pointer;
     }
-    .browse-empty .empty-cta:hover{
+    .empty-cta:hover{
       filter:brightness(1.1);
-      transform:translateY(-1px);
     }
   </style>
 </head>
@@ -622,16 +654,26 @@
       </aside>
 
       <section class="results">
-        <div class="results-head">
-          <h2 id="resultsHeading" style="margin:0;font-size:18px">Browse</h2>
-          <div id="resultCount" style="color:#6b7280;font-size:13px">Loading…</div>
+        <div class="section-header">
+          <h2>Browse</h2>
+          <div id="resultCount" class="section-header-subtitle">Loading…</div>
         </div>
         <div id="grid" class="browse-grid"></div>
-        <div id="empty" class="browse-empty" style="display:none;">
+        
+        <!-- Empty state - no filters applied -->
+        <div id="empty" class="home-empty" style="display:none;">
           <img src="images/empty-state.svg" alt="" class="empty-illustration" width="200" height="160" loading="lazy"/>
-          <h3 class="empty-title">No listings found</h3>
-          <p class="empty-text">Try adjusting your filters or search terms, or be the first to list!</p>
-          <a href="sell.html" class="empty-cta">List your fabric →</a>
+          <h3 class="empty-title">No listings yet</h3>
+          <p class="empty-text">Once sellers start listing fabric, new cards will appear here.</p>
+          <a href="sell.html" class="empty-cta">Be the first to list fabric →</a>
+        </div>
+        
+        <!-- Empty state - filters applied but no results -->
+        <div id="emptyFiltered" class="home-empty" style="display:none;">
+          <img src="images/empty-state.svg" alt="" class="empty-illustration" width="200" height="160" loading="lazy"/>
+          <h3 class="empty-title">No matches found</h3>
+          <p class="empty-text">We couldn't find fabrics matching your filters. Try broadening your search!</p>
+          <button onclick="clearAllFilters()" class="empty-cta">Clear all filters →</button>
         </div>
       </section>
     </div>
@@ -916,6 +958,7 @@
     async function runListingSearch(){
       const grid       = document.getElementById("grid");
       const emptyEl    = document.getElementById("empty");
+      const emptyFilteredEl = document.getElementById("emptyFiltered");
       const countEl    = document.getElementById("resultCount");
       const qInput     = document.getElementById("q");
       const minPriceEl = document.getElementById("minPrice");
@@ -931,6 +974,7 @@
 
       if(grid) grid.innerHTML = "";
       if(emptyEl) emptyEl.style.display = "none";
+      if(emptyFilteredEl) emptyFilteredEl.style.display = "none";
       if(countEl) countEl.textContent = "Loading…";
 
       let listings = [];
@@ -1050,9 +1094,23 @@
         countEl.textContent = total === 1 ? "1 result" : total + " results";
       }
 
+      // Check if any filters are applied
+      const hasFilters = searchTerm || minPrice || maxPrice || minYards || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || selectedColor;
+
       if(!total){
-        if(emptyEl) emptyEl.style.display = "block";
+        if(hasFilters){
+          // Show "no matches" empty state
+          if(emptyEl) emptyEl.style.display = "none";
+          if(emptyFilteredEl) emptyFilteredEl.style.display = "flex";
+        } else {
+          // Show "no listings yet" empty state
+          if(emptyEl) emptyEl.style.display = "flex";
+          if(emptyFilteredEl) emptyFilteredEl.style.display = "none";
+        }
         return;
+      } else {
+        if(emptyEl) emptyEl.style.display = "none";
+        if(emptyFilteredEl) emptyFilteredEl.style.display = "none";
       }
 
       const profileMap = await fetchProfilesForListings(filtered);
@@ -1217,6 +1275,31 @@
 
       runSearch();
     });
+    
+    // Clear all filters and re-run search
+    function clearAllFilters(){
+      document.getElementById("q").value = "";
+      document.getElementById("minPrice").value = "";
+      document.getElementById("maxPrice").value = "";
+      document.getElementById("minYards").value = "";
+      document.getElementById("dept").value = "";
+      document.getElementById("fabricType").value = "";
+      document.getElementById("fiberType").value = "";
+      document.getElementById("pattern").value = "";
+      document.getElementById("origin").value = "";
+      document.getElementById("designer").value = "";
+      document.getElementById("feelsLike").value = "";
+      
+      // Clear color selection
+      document.querySelectorAll(".color-swatch").forEach(sw => sw.classList.remove("selected"));
+      document.querySelectorAll("input[name='content']").forEach(cb => cb.checked = false);
+      
+      // Clear URL params
+      window.history.replaceState({}, "", window.location.pathname);
+      
+      // Re-run search
+      if(typeof runSearch === "function") runSearch();
+    }
   </script>
 
   <!-- GLOBAL CART HANDLER -->
