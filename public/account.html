@@ -823,14 +823,69 @@
     }
 
     // Validate store name for use as a link
+    // Blocked words list
+    const BLOCKED_STORE_WORDS = [
+      // Profanity
+      'fuck', 'shit', 'ass', 'bitch', 'damn', 'crap', 'piss', 'cunt', 'dick', 'cock', 'bastard', 'whore', 'slut',
+      // Slurs and hate
+      'nazi', 'hitler', 'kkk', 'nigger', 'nigga', 'faggot', 'fag', 'retard', 'chink', 'spic', 'kike',
+      // Explicit
+      'porn', 'xxx', 'sex', 'nude', 'naked', 'penis', 'vagina', 'dildo', 'horny', 'onlyfans',
+      // Platform impersonation
+      'hemline', 'hemlinemarket', 'hemline-market', 'official', 'admin', 'administrator', 'support', 'moderator', 'staff', 'helpdesk', 'customer-service',
+      // Trust manipulation
+      'verified', 'authentic', 'legit', 'trusted', 'real', 'official'
+    ];
+
+    function containsBlockedWord(text) {
+      const lower = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (const word of BLOCKED_STORE_WORDS) {
+        if (lower.includes(word.replace(/[^a-z0-9]/g, ''))) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function containsContactInfo(text) {
+      // Check for phone numbers (3+ consecutive digits)
+      if (/\d{3,}/.test(text)) return 'phone number';
+      // Check for email pattern
+      if (/@/.test(text)) return 'email address';
+      // Check for URLs
+      if (/\.(com|net|org|io|co|shop|store|market)/i.test(text)) return 'website URL';
+      if (/https?:\/\//i.test(text)) return 'website URL';
+      if (/www\./i.test(text)) return 'website URL';
+      return null;
+    }
+
     function validateStoreName(raw){
       raw = (raw || "").trim();
       if(!raw){
         // Store name is optional; empty is allowed
-        return { ok:true, slug:"" };
+        return { ok:true, slug:"", needsUniquenessCheck: false };
       }
 
-      // 1) Raw name must only have letters, numbers, spaces, apostrophes, and hyphens
+      // 1) Check for blocked words
+      if(containsBlockedWord(raw)){
+        return {
+          ok:false,
+          slug:slugifyStoreName(raw),
+          message:"This store name contains prohibited words. Please choose a different name."
+        };
+      }
+
+      // 2) Check for contact info (phone, email, URL)
+      const contactType = containsContactInfo(raw);
+      if(contactType){
+        return {
+          ok:false,
+          slug:slugifyStoreName(raw),
+          message:`Store names cannot contain a ${contactType}. Please remove it.`
+        };
+      }
+
+      // 3) Raw name must only have letters, numbers, spaces, apostrophes, and hyphens
       if(!/^[A-Za-z0-9\s'\-]+$/.test(raw)){
         return {
           ok:false,
@@ -839,7 +894,7 @@
         };
       }
 
-      // 2) Slug must be a sane, URL-safe link
+      // 4) Slug must be a sane, URL-safe link
       const slug = slugifyStoreName(raw);
       if(slug.length < 3){
         return {
@@ -862,7 +917,44 @@
           message:"Use only letters, numbers, and hyphens for your store link."
         };
       }
-      return { ok:true, slug };
+      return { ok:true, slug, needsUniquenessCheck: true };
+    }
+
+    // Check if store name is unique in database
+    async function checkStoreNameUnique(storeName, storeSlug, currentUserId) {
+      if (!storeName && !storeSlug) return { unique: true };
+      
+      try {
+        // Check by exact store_name (case-insensitive)
+        const { data: byName, error: nameErr } = await supabaseClient
+          .from('profiles')
+          .select('id, store_name')
+          .ilike('store_name', storeName)
+          .neq('id', currentUserId)
+          .limit(1);
+        
+        if (!nameErr && byName && byName.length > 0) {
+          return { unique: false, reason: 'This store name is already taken. Please choose a different name.' };
+        }
+
+        // Check by store_slug
+        const { data: bySlug, error: slugErr } = await supabaseClient
+          .from('profiles')
+          .select('id, store_slug')
+          .eq('store_slug', storeSlug)
+          .neq('id', currentUserId)
+          .limit(1);
+        
+        if (!slugErr && bySlug && bySlug.length > 0) {
+          return { unique: false, reason: 'This store link is already taken. Please choose a different name.' };
+        }
+
+        return { unique: true };
+      } catch (e) {
+        console.error('Uniqueness check error:', e);
+        // Allow save but log error - don't block user if DB check fails
+        return { unique: true };
+      }
     }
 
     async function ensureSession({maxWaitMs=3000} = {}){
@@ -1570,7 +1662,7 @@
         profileEditor.classList.add('is-hidden');
       });
 
-      profileForm.addEventListener('submit', (e)=>{
+      profileForm.addEventListener('submit', async (e)=>{
         e.preventDefault();
 
         const rawStoreName = (storeNameInput ? storeNameInput.value : "").trim();
@@ -1599,6 +1691,31 @@
         }else{
           if(storeNameErrorEl) storeNameErrorEl.textContent = "";
           if(storeNameInput) storeNameInput.removeAttribute("aria-invalid");
+        }
+
+        // Check uniqueness if this is a new store name
+        if(storeCheck.needsUniquenessCheck && rawStoreName && !existingStoreName){
+          const submitBtn = profileForm.querySelector('button[type="submit"]');
+          if(submitBtn){
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Checking...";
+          }
+          
+          const uniqueCheck = await checkStoreNameUnique(rawStoreName, storeCheck.slug, userId);
+          
+          if(submitBtn){
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Save profile";
+          }
+          
+          if(!uniqueCheck.unique){
+            if(storeNameErrorEl) storeNameErrorEl.textContent = uniqueCheck.reason;
+            if(storeNameInput){
+              storeNameInput.setAttribute("aria-invalid","true");
+              storeNameInput.focus();
+            }
+            return;
+          }
         }
 
         const contactEmailInput = document.getElementById('contactEmail');
