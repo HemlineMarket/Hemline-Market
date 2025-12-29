@@ -1748,7 +1748,8 @@
         // ✅ Also update Supabase profiles table so atelier reflects changes
         const fullName = ((next.firstName || "") + " " + (next.lastName || "")).trim();
         if (userId) {
-          supabaseClient
+          // FIX: Use await instead of .then() to properly handle errors
+          const { error: profileError } = await supabaseClient
             .from("profiles")
             .upsert({
               id: userId,
@@ -1759,14 +1760,17 @@
               store_slug: next.storeSlug || null,
               bio: next.bio || null,
               contact_email: next.contactEmail || null,
-            }, { onConflict: 'id' })
-            .then(({ error }) => {
-              if (error) console.error("Profile sync error:", error);
-              else console.log("[Account] Profile saved to Supabase");
-            });
+            }, { onConflict: 'id' });
+          
+          if (profileError) {
+            console.error("Profile sync error:", profileError);
+            // Don't block - profile data is also in localStorage
+          } else {
+            console.log("[Account] Profile saved to Supabase");
+          }
           
           // Also update user_metadata for address and cross-device sync
-          supabaseClient.auth.updateUser({
+          const { error: metaError } = await supabaseClient.auth.updateUser({
             data: {
               first_name: next.firstName || null,
               last_name: next.lastName || null,
@@ -1774,14 +1778,14 @@
               shop_name: next.storeName || null,
               contact_email: next.contactEmail || null,
             }
-          }).then(({ data, error }) => {
-            if (error) {
-              console.error("User metadata sync error:", error);
-              alert("Error saving email: " + error.message);
-            } else {
-              console.log("[Account] User metadata saved successfully", data);
-            }
           });
+          
+          if (metaError) {
+            console.error("User metadata sync error:", metaError);
+            alert("Error saving email: " + metaError.message);
+          } else {
+            console.log("[Account] User metadata saved successfully");
+          }
         }
 
         const displayName =
