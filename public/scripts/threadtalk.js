@@ -131,13 +131,35 @@
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("id, store_name, first_name, last_name, avatar_url")
+        .select("id, store_name, first_name, last_name, avatar_url, is_founder, is_early_seller, seller_number, stripe_account_id")
         .in("id", ids);
 
       (data || []).forEach((p) => (profilesCache[p.id] = p));
     } catch (_) {
       // ignore
     }
+  }
+
+  // Generate badge HTML for a user
+  function getBadgeHtml(userId) {
+    const p = profilesCache[userId];
+    if (!p) return "";
+    
+    let badges = "";
+    
+    if (p.is_founder) {
+      badges += '<span class="badge-founder badge-sm">Founder</span>';
+    }
+    
+    if (p.is_early_seller && p.seller_number) {
+      badges += `<span class="badge-early-seller badge-sm">OG #${p.seller_number}</span>`;
+    }
+    
+    if (p.stripe_account_id && !p.is_founder && !p.is_early_seller) {
+      badges += '<span class="badge-verified badge-sm">Verified</span>';
+    }
+    
+    return badges ? `<span class="seller-badges-inline">${badges}</span>` : "";
   }
 
   function displayNameForUserId(userId) {
@@ -461,8 +483,9 @@
         "</div>";
 
       // author link → Atelier (using ?u= to match existing atelier.html)
+      const badgeHtml = getBadgeHtml(thread.author_id);
       const authorHtml = thread.author_id
-        ? `<a class="card-author" href="atelier.html?u=${encodeURIComponent(thread.author_id)}">${escapeHtml(authorName)}</a>`
+        ? `<a class="card-author" href="atelier.html?u=${encodeURIComponent(thread.author_id)}">${escapeHtml(authorName)}</a>${badgeHtml}`
         : `<span class="card-author">${escapeHtml(authorName)}</span>`;
 
       // Get user avatar (photo or initials)
@@ -620,8 +643,9 @@
     const mediaHtml = renderCommentMedia(c);
 
     // author link → Atelier for comments (using ?u=)
+    const commentBadgeHtml = getBadgeHtml(c.author_id);
     const authorHtml = c.author_id
-      ? `<a class="comment-author" href="atelier.html?u=${encodeURIComponent(c.author_id)}">${escapeHtml(name)}</a>`
+      ? `<a class="comment-author" href="atelier.html?u=${encodeURIComponent(c.author_id)}">${escapeHtml(name)}</a>${commentBadgeHtml}`
       : `<span class="comment-author">${escapeHtml(name)}</span>`;
 
     // Get user avatar (photo or initials)
