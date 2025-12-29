@@ -321,51 +321,59 @@ export default async function handler(req, res) {
 
     let labelResult = { success: false, reason: "No seller address configured" };
     let sellerEmail = null;
+    let sellerName = "Seller";
 
-    // === AUTO-GENERATE SHIPPING LABEL ===
-    if (sellerId && shipAddr.line1) {
-      const { data: sellerAuth } = await supabase.auth.admin.getUserById(sellerId);
-      const meta = sellerAuth?.user?.user_metadata || {};
-      
-      const { data: sellerProfile } = await supabase.from("profiles").select("first_name, last_name, contact_email").eq("id", sellerId).maybeSingle();
-      sellerEmail = sellerProfile?.contact_email || sellerAuth?.user?.email;
-      const sellerName = [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || meta.ship_name || "Seller";
+    // ALWAYS fetch seller email so they get notified even if label creation fails
+    if (sellerId) {
+      try {
+        const { data: sellerAuth } = await supabase.auth.admin.getUserById(sellerId);
+        const meta = sellerAuth?.user?.user_metadata || {};
+        
+        const { data: sellerProfile } = await supabase.from("profiles").select("first_name, last_name, contact_email").eq("id", sellerId).maybeSingle();
+        sellerEmail = sellerProfile?.contact_email || sellerAuth?.user?.email;
+        sellerName = [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || meta.ship_name || "Seller";
 
-      if (meta.ship_address1 && meta.ship_city && meta.ship_state && meta.ship_postal) {
-        const fromAddr = { name: sellerName, street1: meta.ship_address1, street2: meta.ship_address2 || "", city: meta.ship_city, state: meta.ship_state, zip: meta.ship_postal, country: "US" };
-        const toAddr = { name: order.shipping_name || "Customer", street1: shipAddr.line1, street2: shipAddr.line2 || "", city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code, country: "US" };
+        // === AUTO-GENERATE SHIPPING LABEL ===
+        if (shipAddr.line1 && meta.ship_address1 && meta.ship_city && meta.ship_state && meta.ship_postal) {
+          const fromAddr = { name: sellerName, street1: meta.ship_address1, street2: meta.ship_address2 || "", city: meta.ship_city, state: meta.ship_state, zip: meta.ship_postal, country: "US" };
+          const toAddr = { name: order.shipping_name || "Customer", street1: shipAddr.line1, street2: shipAddr.line2 || "", city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code, country: "US" };
 
-        const parcel = getParcelFromShippingCents(shippingCents);
-        labelResult = await createShippoLabel(fromAddr, toAddr, parcel);
+          const parcel = getParcelFromShippingCents(shippingCents);
+          labelResult = await createShippoLabel(fromAddr, toAddr, parcel);
 
-        if (labelResult.success) {
-          const label = labelResult.label;
-          
-          await supabase.from("orders").update({
-            tracking_number: label.tracking_number,
-            tracking_url: label.tracking_url,
-            label_url: label.label_url,
-            shipping_carrier: label.carrier,
-            shipping_status: "LABEL_CREATED",
-          }).eq("id", insertedOrder.id);
+          if (labelResult.success) {
+            const label = labelResult.label;
+            
+            await supabase.from("orders").update({
+              tracking_number: label.tracking_number,
+              tracking_url: label.tracking_url,
+              label_url: label.label_url,
+              shipping_carrier: label.carrier,
+              shipping_status: "LABEL_CREATED",
+            }).eq("id", insertedOrder.id);
 
-          await supabase.from("db_shipments").insert({
-            order_id: insertedOrder.id,
-            label_url: label.label_url,
-            tracking_number: label.tracking_number,
-            tracking_url: label.tracking_url,
-            carrier: label.carrier,
-            service: label.service,
-            status: "LABEL_CREATED",
-          });
+            await supabase.from("db_shipments").insert({
+              order_id: insertedOrder.id,
+              label_url: label.label_url,
+              tracking_number: label.tracking_number,
+              tracking_url: label.tracking_url,
+              carrier: label.carrier,
+              service: label.service,
+              status: "LABEL_CREATED",
+            });
 
-          // Email label to seller
-          await emailLabelToSeller(sellerEmail, label.label_url, label.tracking_number, displayTitle, {
-            name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
-          }, priceCents);
+            // Email label to seller
+            await emailLabelToSeller(sellerEmail, label.label_url, label.tracking_number, displayTitle, {
+              name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
+            }, priceCents);
+          }
+        } else if (!meta.ship_address1) {
+          labelResult = { success: false, reason: "Please update your shipping address in Account settings" };
+        } else if (!shipAddr.line1) {
+          labelResult = { success: false, reason: "Buyer shipping address incomplete" };
         }
-      } else {
-        labelResult = { success: false, reason: "Please update your shipping address in Account settings" };
+      } catch (sellerFetchErr) {
+        console.error("Error fetching seller info:", sellerFetchErr);
       }
     }
 
