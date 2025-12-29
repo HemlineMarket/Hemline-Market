@@ -1,9 +1,9 @@
 // File: /api/stripe/create_session.js
 // Creates a Stripe Checkout Session from the client cart payload.
-// Defensive: works for (a) single-listing carts and (b) generic multi-item carts
-// without crashing (no 500s).
+// Includes server-side vacation check to prevent purchases from sellers on vacation.
 
 import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2024-06-20",
@@ -31,6 +31,14 @@ function safeJsonStringify(obj, maxLen = 450) {
   }
 }
 
+// Get Supabase admin client
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -54,6 +62,53 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
+    // =========================================================
+    // SERVER-SIDE VACATION CHECK
+    // Block checkout if any seller is on vacation
+    // =========================================================
+    const supabase = getSupabaseAdmin();
+    
+    if (supabase) {
+      // Collect all seller IDs from cart
+      const sellerIds = cart
+        .map(item => item.seller_id || item.sellerId)
+        .filter(Boolean);
+      
+      // Also check body-level seller_id
+      const bodySellerId = (body.seller_id || "").toString().trim();
+      if (bodySellerId && !sellerIds.includes(bodySellerId)) {
+        sellerIds.push(bodySellerId);
+      }
+
+      if (sellerIds.length > 0) {
+        const uniqueSellerIds = [...new Set(sellerIds)];
+        
+        const { data: sellers, error: sellerError } = await supabase
+          .from("profiles")
+          .select("id, vacation_mode, store_name, first_name")
+          .in("id", uniqueSellerIds);
+
+        if (!sellerError && sellers) {
+          const vacationSellers = sellers.filter(s => s.vacation_mode === true);
+          
+          if (vacationSellers.length > 0) {
+            const sellerNames = vacationSellers
+              .map(s => s.store_name || `${s.first_name}'s Shop` || "This seller")
+              .join(", ");
+            
+            return res.status(400).json({ 
+              error: "Seller on vacation",
+              message: `Unable to checkout: ${sellerNames} ${vacationSellers.length === 1 ? "is" : "are"} currently on vacation hold and not accepting orders. Please try again later.`,
+              vacation_sellers: vacationSellers.map(s => s.id)
+            });
+          }
+        }
+      }
+    }
+    // =========================================================
+    // END VACATION CHECK
+    // =========================================================
+
     // Compute subtotal from cart items (expects cents in it.amount)
     const currency = "usd";
     let itemsCents = 0;
@@ -69,8 +124,6 @@ export default async function handler(req, res) {
     }
 
     // Build Stripe line_items
-    // Keep it simple + robust: represent each cart line as its own line item.
-    // If any item lacks name, fall back gracefully.
     const line_items = cart.map((it) => {
       const qty = Math.max(1, asInt(it?.qty, 1));
       const name = (it?.name || it?.title || "Fabric").toString();
@@ -87,7 +140,7 @@ export default async function handler(req, res) {
       };
     });
 
-    // Add shipping as a separate line item so it never disappears
+    // Add shipping as a separate line item
     if (shippingCents > 0) {
       line_items.push({
         quantity: 1,
@@ -99,7 +152,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // If this is a single-listing style checkout, carry metadata for webhook compatibility
+    // If this is a single-listing style checkout, carry metadata for webhook
     const first = cart[0] || {};
     const listingId =
       (first.listing_id || first.listingId || body.listing_id || "").toString().trim();
@@ -113,12 +166,10 @@ export default async function handler(req, res) {
       buyer_id: buyerId || "",
       shipping_cents: String(shippingCents),
       price_cents: String(itemsCents),
-      // keep these for your existing webhook (safe if blank)
       listing_id: listingId,
       seller_id: sellerId,
       title: title,
       image_url: imageUrl,
-      // for debugging / future multi-item support
       cart_json: safeJsonStringify(cart),
     };
 
@@ -129,11 +180,9 @@ export default async function handler(req, res) {
       success_url: `${origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout.html?canceled=1`,
       metadata,
-      // Collect shipping address for physical goods
       shipping_address_collection: {
         allowed_countries: ["US", "CA"],
       },
-      // optional: helps Stripe receipts & address capture
       billing_address_collection: "auto",
     });
 
