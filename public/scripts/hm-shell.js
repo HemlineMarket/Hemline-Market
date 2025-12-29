@@ -1,4 +1,5 @@
 // Hemline Market — Universal Header + Footer + Menu + Session + Cart + Notifications
+// FIXED VERSION - Fixes profile photo persisting across accounts
 window.HM = window.HM || {};
 
 (function () {
@@ -278,25 +279,37 @@ window.HM = window.HM || {};
           accountBadge.style.backgroundColor = "#15803d";
         }
 
-        // Load avatar from localStorage or profile
+        // Load avatar from localStorage - FIX: Only use user-specific key
         if (headerAvatar) {
-          // Check both possible avatar keys
-          const avatarUrl = localStorage.getItem("avatarUrl") || localStorage.getItem(`hm-avatar-${session.user.id}`);
+          // FIX: Only check user-specific key, not the global 'avatarUrl' key
+          const avatarUrl = localStorage.getItem(`hm-avatar-${session.user.id}`);
           
           if (avatarUrl) {
             headerAvatar.style.backgroundImage = `url(${avatarUrl})`;
             headerAvatar.textContent = "";
             accountLink.classList.add("has-avatar");
           } else {
+            // Clear any existing avatar (in case of account switch)
+            headerAvatar.style.backgroundImage = "";
+            headerAvatar.textContent = "";
+            accountLink.classList.remove("has-avatar");
+            
             // Try to get profile for initials
             try {
               const { data: profile } = await shellSupabase
                 .from("profiles")
-                .select("display_name")
+                .select("display_name, avatar_url")
                 .eq("id", session.user.id)
                 .single();
               
-              if (profile && profile.display_name) {
+              // Check if profile has avatar_url from database
+              if (profile && profile.avatar_url) {
+                headerAvatar.style.backgroundImage = `url(${profile.avatar_url})`;
+                headerAvatar.textContent = "";
+                accountLink.classList.add("has-avatar");
+                // Cache it for next time
+                localStorage.setItem(`hm-avatar-${session.user.id}`, profile.avatar_url);
+              } else if (profile && profile.display_name) {
                 const initials = profile.display_name
                   .split(" ")
                   .map(n => n[0])
@@ -426,5 +439,14 @@ window.HM = window.HM || {};
     wireMenu();
     wireSupabaseSession();
     syncCartStateFromStorage();
+  };
+  
+  // FIX: Add function to refresh notifications bell on demand
+  window.HM.refreshNotificationsBell = function() {
+    if (shellSupabase) {
+      shellSupabase.auth.getSession().then(({ data }) => {
+        refreshNotificationsBell(data.session);
+      });
+    }
   };
 })();
