@@ -1,4 +1,6 @@
 // File: api/stripe/webhook/index.js
+// FIXED VERSION - Handles multiple items in cart
+//
 // Stripe webhook for Vercel - Full Poshmark-like flow:
 // 1. Creates order
 // 2. Auto-generates Shippo label
@@ -6,6 +8,7 @@
 // 4. Emails confirmation to buyer (Postmark)
 // 5. Creates in-app notifications
 // 6. Handles label creation failures gracefully
+// 7. FIX: Marks ALL listings as SOLD (not just first one)
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -240,9 +243,16 @@ export default async function handler(req, res) {
     const session = event.data.object;
     const md = session.metadata || {};
 
+    // FIX: Get ALL listing IDs from metadata (supports multi-item carts)
+    const allListingIds = (md.listing_ids || md.listing_id || "")
+      .split(",")
+      .map(id => id.trim())
+      .filter(Boolean);
+    
+    // Get first listing for display purposes
     let listing = null;
-    if (md.listing_id) {
-      const { data } = await supabase.from("listings").select("*").eq("id", md.listing_id).maybeSingle();
+    if (allListingIds.length > 0) {
+      const { data } = await supabase.from("listings").select("*").eq("id", allListingIds[0]).maybeSingle();
       listing = data;
     }
 
@@ -253,9 +263,15 @@ export default async function handler(req, res) {
     const shippingCents = Number(md.shipping_cents) || 0;
     const totalCents = priceCents + shippingCents;
     const buyerEmail = session.customer_details?.email || md.buyer_email;
+    const itemCount = Number(md.item_count) || allListingIds.length || 1;
 
     const shipDetails = session.shipping_details || session.customer_details || {};
     const shipAddr = shipDetails.address || {};
+
+    // For multi-item orders, update the title to show count
+    const displayTitle = itemCount > 1 
+      ? `${listingTitle} + ${itemCount - 1} more item${itemCount > 2 ? 's' : ''}`
+      : listingTitle;
 
     const order = {
       stripe_checkout_session: session.id,
@@ -263,11 +279,12 @@ export default async function handler(req, res) {
       buyer_id: md.buyer_id || null,
       buyer_email: buyerEmail,
       seller_id: sellerId,
-      listing_id: md.listing_id || null,
+      listing_id: allListingIds[0] || null,  // Primary listing ID
+      listing_ids: allListingIds.length > 0 ? allListingIds : null,  // FIX: Store ALL listing IDs
       items_cents: priceCents,
       shipping_cents: shippingCents,
       total_cents: totalCents,
-      listing_title: listingTitle,
+      listing_title: displayTitle,
       listing_image: listingImage,
       status: "PAID",
       shipping_name: shipDetails.name || session.customer_details?.name,
@@ -278,6 +295,7 @@ export default async function handler(req, res) {
       shipping_postal_code: shipAddr.postal_code,
       shipping_country: shipAddr.country || "US",
       cancel_eligible_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+      item_count: itemCount,
     };
 
     const { data: insertedOrder, error: insertErr } = await supabase.from("orders").insert(order).select().single();
@@ -286,13 +304,19 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Order insert failed" });
     }
 
-    // FIXED: Mark listing as SOLD and set yards_available to 0
-    if (md.listing_id) {
-      await supabase.from("listings").update({ 
+    // FIX: Mark ALL listings as SOLD (not just the first one)
+    if (allListingIds.length > 0) {
+      const { error: updateErr } = await supabase.from("listings").update({ 
         status: "SOLD", 
         yards_available: 0,
         sold_at: new Date().toISOString() 
-      }).eq("id", md.listing_id);
+      }).in("id", allListingIds);
+      
+      if (updateErr) {
+        console.error("Failed to mark listings as SOLD:", updateErr);
+      } else {
+        console.log(`Marked ${allListingIds.length} listing(s) as SOLD:`, allListingIds);
+      }
     }
 
     let labelResult = { success: false, reason: "No seller address configured" };
@@ -336,7 +360,7 @@ export default async function handler(req, res) {
           });
 
           // Email label to seller
-          await emailLabelToSeller(sellerEmail, label.label_url, label.tracking_number, listingTitle, {
+          await emailLabelToSeller(sellerEmail, label.label_url, label.tracking_number, displayTitle, {
             name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
           }, priceCents);
         }
@@ -351,7 +375,7 @@ export default async function handler(req, res) {
         shipping_status: "LABEL_PENDING",
       }).eq("id", insertedOrder.id);
 
-      await emailLabelFailedToSeller(sellerEmail, listingTitle, {
+      await emailLabelFailedToSeller(sellerEmail, displayTitle, {
         name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
       }, priceCents, labelResult.reason, insertedOrder.id);
     }
@@ -359,7 +383,7 @@ export default async function handler(req, res) {
     // Email confirmation to buyer
     if (buyerEmail) {
       const trackingNumber = labelResult.success ? labelResult.label.tracking_number : null;
-      await emailConfirmationToBuyer(buyerEmail, listingTitle, totalCents, trackingNumber, {
+      await emailConfirmationToBuyer(buyerEmail, displayTitle, totalCents, trackingNumber, {
         name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
       });
     }
@@ -367,8 +391,8 @@ export default async function handler(req, res) {
     // In-app notifications
     if (sellerId) {
       const notifBody = labelResult.success 
-        ? `"${listingTitle}" sold for $${(priceCents/100).toFixed(2)}. Check your email for the shipping label.`
-        : `"${listingTitle}" sold for $${(priceCents/100).toFixed(2)}. Action needed: Create your shipping label.`;
+        ? `"${displayTitle}" sold for $${(priceCents/100).toFixed(2)}. Check your email for the shipping label.`
+        : `"${displayTitle}" sold for $${(priceCents/100).toFixed(2)}. Action needed: Create your shipping label.`;
       
       await supabase.from("notifications").insert({
         user_id: sellerId, type: "sale", kind: "sale",
@@ -382,7 +406,7 @@ export default async function handler(req, res) {
       await supabase.from("notifications").insert({
         user_id: md.buyer_id, type: "order", kind: "order",
         title: "Order confirmed!",
-        body: `Your order for "${listingTitle}" is confirmed. The seller will ship it soon.`,
+        body: `Your order for "${displayTitle}" is confirmed. The seller will ship it soon.`,
         href: "/purchases.html",
       });
     }
