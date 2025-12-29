@@ -408,6 +408,7 @@
 <!-- Shell + checkout logic -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="scripts/hm-shell.js"></script>
+<script src="scripts/vacation-check.js"></script>
 
 <script>
   // Render universal header/footer
@@ -828,6 +829,33 @@
       } catch (e) {
         // If the sold-check fails, we *do not* block payment, but we warn (devil’s advocate: you may want to block)
         console.warn("Pre-payment sold-check failed:", e);
+      }
+
+      // VACATION CHECK: Block checkout if any seller is on vacation
+      try {
+        if (window.HM && window.HM.vacation) {
+          const cartItems = readCart().map(item => ({
+            sellerId: item.sellerId || item.seller_id,
+            name: item.name || item.title
+          }));
+          
+          const vacationResult = await window.HM.vacation.validateCart(cartItems);
+          
+          if (!vacationResult.canCheckout) {
+            const sellerNames = vacationResult.blockedSellers
+              .map(s => s.storeName)
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .join(", ");
+            
+            showBanner(
+              `Unable to checkout: ${sellerNames} ${vacationResult.blockedSellers.length === 1 ? "is" : "are"} currently on vacation hold. Please remove ${vacationResult.blockedSellers.length === 1 ? "their item" : "their items"} from your cart or check back later.`,
+              "err"
+            );
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Vacation check failed:", e);
       }
 
       const cart = readCart();
