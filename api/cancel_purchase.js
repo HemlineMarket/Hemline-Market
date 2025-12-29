@@ -1,10 +1,14 @@
 // File: /api/cancel_purchase.js
 // Cancels an order (within 30 minutes) and re-opens the listing.
+// Includes: Stripe refund, email notifications, seller notification
 //
 // Called from purchases.html via POST /api/cancel_purchase
 // Body: { order_id, buyer_id }
 
+import Stripe from "stripe";
 import supabaseAdmin from "./_supabaseAdmin";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
 export const config = {
   api: {
@@ -13,6 +17,23 @@ export const config = {
     },
   },
 };
+
+// Send email via Postmark
+async function sendEmail(to, subject, htmlBody, textBody) {
+  const POSTMARK = process.env.POSTMARK_SERVER_TOKEN;
+  const FROM = process.env.FROM_EMAIL || "orders@hemlinemarket.com";
+  if (!POSTMARK || !to) return;
+
+  try {
+    await fetch("https://api.postmarkapp.com/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Postmark-Server-Token": POSTMARK },
+      body: JSON.stringify({ From: FROM, To: to, Subject: subject, HtmlBody: htmlBody, TextBody: textBody, MessageStream: "outbound" }),
+    });
+  } catch (e) {
+    console.error("[cancel_purchase] email error:", e);
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -31,10 +52,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing buyer_id" });
     }
 
-    // Load the order
+    // Load the full order
     const { data: order, error: selectErr } = await supabaseAdmin
       .from("orders")
-      .select("id, buyer_id, buyer_email, listing_id, status, created_at")
+      .select("*")
       .eq("id", order_id)
       .maybeSingle();
 
@@ -47,8 +68,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Basic ownership check:
-    // if the order has a buyer_id set, it must match the logged-in buyer.
+    // Basic ownership check
     if (order.buyer_id && order.buyer_id !== buyer_id) {
       return res
         .status(403)
@@ -68,12 +88,25 @@ export default async function handler(req, res) {
       }
     }
 
-    // If already cancelled, just return OK so the UI can update gracefully
-    if (
-      order.status &&
-      order.status.toString().toUpperCase() === "CANCELLED"
-    ) {
+    // If already cancelled, just return OK
+    if (order.status && order.status.toString().toUpperCase() === "CANCELLED") {
       return res.status(200).json({ status: "CANCELLED" });
+    }
+
+    // === STRIPE REFUND ===
+    let refundId = null;
+    if (order.stripe_payment_intent) {
+      try {
+        const refund = await stripe.refunds.create({
+          payment_intent: order.stripe_payment_intent,
+          reason: "requested_by_customer",
+        });
+        refundId = refund.id;
+        console.log("[cancel_purchase] Stripe refund created:", refundId);
+      } catch (stripeErr) {
+        console.error("[cancel_purchase] Stripe refund error:", stripeErr);
+        // Continue with cancellation even if refund fails - admin can handle manually
+      }
     }
 
     const nowIso = new Date().toISOString();
@@ -81,7 +114,13 @@ export default async function handler(req, res) {
     // 1) Mark order as CANCELLED
     const { data: updated, error: updateErr } = await supabaseAdmin
       .from("orders")
-      .update({ status: "CANCELLED", updated_at: nowIso })
+      .update({ 
+        status: "CANCELLED", 
+        cancelled_at: nowIso,
+        cancelled_by: buyer_id,
+        stripe_refund_id: refundId,
+        updated_at: nowIso 
+      })
       .eq("id", order.id)
       .select("id, status, listing_id")
       .maybeSingle();
@@ -91,21 +130,124 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Failed to cancel order" });
     }
 
-    // 2) Re-open listing, if we know which one it is
+    // 2) Re-open listing with yards_available restored
     if (updated?.listing_id) {
+      // Get the original listing to restore yards
+      const { data: listing } = await supabaseAdmin
+        .from("listings")
+        .select("yards_available")
+        .eq("id", updated.listing_id)
+        .maybeSingle();
+
+      // Restore yards - use order yards if listing has 0
+      const yardsToRestore = order.yardage || order.yards || 1;
+
       const { error: listingErr } = await supabaseAdmin
         .from("listings")
-        .update({ status: "ACTIVE", updated_at: nowIso })
+        .update({ 
+          status: "ACTIVE", 
+          yards_available: yardsToRestore,
+          sold_at: null,
+          updated_at: nowIso 
+        })
         .eq("id", updated.listing_id)
         .is("deleted_at", null);
 
       if (listingErr) {
-        // Don't block cancellation if this fails; just log it.
         console.warn("[cancel_purchase] listing update error:", listingErr);
       }
     }
 
-    return res.status(200).json({ status: updated?.status || "CANCELLED" });
+    // 3) Create in-app notification for buyer
+    await supabaseAdmin.from("notifications").insert({
+      user_id: buyer_id,
+      type: "refund",
+      kind: "refund",
+      title: "Order cancelled & refund initiated",
+      body: `Your order for "${order.listing_title || 'this item'}" has been cancelled. Refund of $${((order.total_cents || 0) / 100).toFixed(2)} is being processed.`,
+      href: "/purchases.html",
+    });
+
+    // 4) Create in-app notification for seller
+    if (order.seller_id) {
+      await supabaseAdmin.from("notifications").insert({
+        user_id: order.seller_id,
+        type: "cancelled",
+        kind: "cancelled",
+        title: "Order cancelled by buyer",
+        body: `The buyer cancelled their order for "${order.listing_title || 'your item'}" within 30 minutes. Your listing has been re-activated.`,
+        href: "/sales.html",
+      });
+    }
+
+    // 5) Email buyer confirmation
+    if (order.buyer_email) {
+      const totalDollars = ((order.total_cents || 0) / 100).toFixed(2);
+      await sendEmail(
+        order.buyer_email,
+        "✅ Order Cancelled & Refund Initiated - Hemline Market",
+        `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
+          <h1 style="color:#991b1b;">Order Cancelled</h1>
+          <p>Your order for <strong>"${order.listing_title || 'this item'}"</strong> has been cancelled.</p>
+          
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
+            <h3 style="margin:0 0 8px;color:#166534;">💳 Refund Details</h3>
+            <p style="margin:0;">A full refund of <strong>$${totalDollars}</strong> is being processed to your original payment method.</p>
+            <p style="margin:8px 0 0;font-size:14px;color:#6b7280;">Refunds typically appear within 5-10 business days.</p>
+          </div>
+          
+          <p>We're sorry this order didn't work out. <a href="https://hemlinemarket.com/browse.html" style="color:#991b1b;">Continue shopping</a></p>
+          
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+          <p style="color:#6b7280;font-size:14px;">Questions? <a href="https://hemlinemarket.com/contact.html" style="color:#991b1b;">Contact us</a><br><strong>Hemline Market</strong></p>
+        </div>`,
+        `Your order for "${order.listing_title || 'this item'}" has been cancelled. Refund of $${totalDollars} is being processed to your original payment method.`
+      );
+    }
+
+    // 6) Email seller notification
+    if (order.seller_id) {
+      const { data: sellerProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("contact_email")
+        .eq("id", order.seller_id)
+        .maybeSingle();
+
+      // Also try to get email from auth
+      let sellerEmail = sellerProfile?.contact_email;
+      if (!sellerEmail) {
+        const { data: sellerAuth } = await supabaseAdmin.auth.admin.getUserById(order.seller_id);
+        sellerEmail = sellerAuth?.user?.email;
+      }
+
+      if (sellerEmail) {
+        await sendEmail(
+          sellerEmail,
+          "📦 Order Cancelled - Hemline Market",
+          `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
+            <h1 style="color:#991b1b;">Order Cancelled</h1>
+            <p>The buyer cancelled their order for <strong>"${order.listing_title || 'your item'}"</strong> within the 30-minute cancellation window.</p>
+            
+            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
+              <h3 style="margin:0 0 8px;color:#92400e;">✅ Your Listing is Re-Activated</h3>
+              <p style="margin:0;color:#92400e;">Your listing has been automatically re-activated and is available for other buyers.</p>
+            </div>
+            
+            <p><strong>No action needed on your part.</strong> If you already printed a shipping label, you can discard it.</p>
+            
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+            <p style="color:#6b7280;font-size:14px;">Happy selling!<br><strong>Hemline Market</strong></p>
+          </div>`,
+          `The buyer cancelled their order for "${order.listing_title || 'your item'}" within 30 minutes. Your listing has been re-activated.`
+        );
+      }
+    }
+
+    return res.status(200).json({ 
+      status: "CANCELLED",
+      refund_id: refundId 
+    });
+
   } catch (err) {
     console.error("[cancel_purchase] handler error:", err);
     return res
