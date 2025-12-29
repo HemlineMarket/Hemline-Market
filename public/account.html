@@ -925,6 +925,7 @@
       const storeNameInput       = document.getElementById('storeName');
       const storeSlugPreviewEl   = document.getElementById('storeSlugPreview');
       const storeNameErrorEl     = document.getElementById('storeNameError');
+      const storeNameHintEl      = document.getElementById('storeNameHint');
 
       // Avatar upload elements
       const avatarSection        = document.getElementById('profileAvatarSection');
@@ -1456,6 +1457,16 @@
         }
         if(storeNameInput){
           storeNameInput.value = profile.storeName || "";
+          // If store name is already set, disable the field and show lock message
+          if(profile.storeName && profile.storeName.trim()){
+            storeNameInput.disabled = true;
+            storeNameInput.style.background = "#f3f4f6";
+            storeNameInput.style.cursor = "not-allowed";
+            if(storeNameHintEl){
+              storeNameHintEl.innerHTML = '🔒 <strong>Store name is locked.</strong> Store names are permanent once set. Contact support if you need to change it.';
+              storeNameHintEl.style.color = "#6b7280";
+            }
+          }
         }
         if(storeSlugPreviewEl){
           storeSlugPreviewEl.textContent = existingSlug || "your-shop";
@@ -1563,7 +1574,19 @@
         e.preventDefault();
 
         const rawStoreName = (storeNameInput ? storeNameInput.value : "").trim();
-        const storeCheck   = validateStoreName(rawStoreName);
+        
+        // Check if user already has a store name set - if so, they can't change it
+        const existingStoreName = (profile.storeName || "").trim();
+        if(existingStoreName && rawStoreName !== existingStoreName){
+          if(storeNameErrorEl) storeNameErrorEl.textContent = "Store names are permanent and cannot be changed. Contact support if you need help.";
+          if(storeNameInput){
+            storeNameInput.value = existingStoreName; // Reset to original
+            storeNameInput.setAttribute("aria-invalid","true");
+          }
+          return;
+        }
+        
+        const storeCheck = validateStoreName(rawStoreName);
 
         if(!storeCheck.ok){
           if(storeNameErrorEl) storeNameErrorEl.textContent = storeCheck.message;
