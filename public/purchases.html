@@ -115,8 +115,40 @@
       font-size:12px;line-height:1;
     }
 
+    /* Loading skeleton */
+    .skeleton-card{
+      background:var(--hm-card);
+      border:1px solid var(--hm-border);
+      border-radius:12px;
+      padding:12px;
+      display:flex;
+      gap:12px;
+      align-items:start;
+    }
+    .skeleton-thumb{
+      width:110px;height:110px;border-radius:12px;
+      background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);
+      background-size:200% 100%;
+      animation:skeleton-shimmer 1.5s ease-in-out infinite;
+      flex-shrink:0;
+    }
+    .skeleton-lines{flex:1;display:flex;flex-direction:column;gap:8px;padding:8px 0}
+    .skeleton-line{
+      height:14px;border-radius:6px;
+      background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);
+      background-size:200% 100%;
+      animation:skeleton-shimmer 1.5s ease-in-out infinite;
+    }
+    .skeleton-line.w80{width:80%}
+    .skeleton-line.w60{width:60%}
+    .skeleton-line.w40{width:40%}
+    @keyframes skeleton-shimmer{
+      0%{background-position:200% 0}
+      100%{background-position:-200% 0}
+    }
+
     @media(max-width:640px){
-      .card{grid-template-columns:1fr}
+      .card{flex-direction:column}
       .thumb{width:100%;height:180px}
       .right{text-align:left;margin-left:0}
       .row1{flex-wrap:wrap}
@@ -132,9 +164,9 @@
     <div class="bar">
       <div>
         <h1>Your Purchases</h1>
-        <p class="sub">Fabric you’ve purchased on Hemline Market.</p>
+        <p class="sub">Fabric you've purchased on Hemline Market.</p>
       </div>
-      <div class="pill" id="statusPill">Loading…</div>
+      <div class="pill" id="statusPill">Loading...</div>
     </div>
 
     <div id="msg" class="notice"></div>
@@ -242,15 +274,45 @@ Please advise next steps.
       return { ok:true };
     }
 
+    function showLoadingSkeleton(){
+      elList.innerHTML = `
+        <div class="skeleton-card">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-lines">
+            <div class="skeleton-line w80"></div>
+            <div class="skeleton-line w60"></div>
+            <div class="skeleton-line w40"></div>
+          </div>
+        </div>
+        <div class="skeleton-card" style="opacity:0.7">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-lines">
+            <div class="skeleton-line w60"></div>
+            <div class="skeleton-line w80"></div>
+            <div class="skeleton-line w40"></div>
+          </div>
+        </div>
+        <div class="skeleton-card" style="opacity:0.4">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-lines">
+            <div class="skeleton-line w80"></div>
+            <div class="skeleton-line w40"></div>
+            <div class="skeleton-line w60"></div>
+          </div>
+        </div>
+      `;
+    }
+
     async function loadPurchases(){
       clearMsg();
-      elList.innerHTML = "";
-      elPill.textContent = "Checking session…";
+      elPill.textContent = "Loading...";
+      showLoadingSkeleton();
 
       const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
       if(sessErr){
         console.error(sessErr);
         elPill.textContent = "Not ready";
+        elList.innerHTML = "";
         showMsg("Session error. Please refresh.", "error");
         return;
       }
@@ -258,35 +320,35 @@ Please advise next steps.
       const user = sessData?.session?.user;
       if(!user){
         elPill.textContent = "Not signed in";
+        elList.innerHTML = "";
         showMsg("Please sign in to view your purchases.", "error");
         return;
       }
 
-      elPill.textContent = "Signed in";
-
       const uid = user.id;
 
-      // ✅ ONLY CHANGE: exclude self-sales so your Sales don't appear in Purchases
+      // Fetch orders - exclude self-purchases in query
       const { data: orders, error: ordErr } = await supabaseClient
         .from("orders")
-        .select("id, created_at, status, total_cents, shipping_cents, listing_id, listing_title, listing_image_url, cancel_requested_at, canceled_at, canceled_by, cancel_reason, seller_id")
+        .select("id, created_at, status, total_cents, shipping_cents, listing_id, listing_title, listing_image_url, cancel_requested_at, canceled_at, canceled_by, cancel_reason, seller_id, shipped_at, tracking_number, delivered_at")
         .eq("buyer_id", uid)
-        .order("created_at", { ascending:false });
-      
-      // Filter out self-purchases (where you're both buyer and seller)
-      const filteredOrders = (orders || []).filter(o => o.seller_id !== uid);
+        .neq("seller_id", uid)
+        .order("created_at", { ascending:false })
+        .limit(100);
 
       if(ordErr){
-        console.error(ordErr);
+        console.error("Orders fetch error:", ordErr);
         elPill.textContent = "Error";
-        showMsg("Error loading purchases.", "error");
+        elList.innerHTML = "";
+        showMsg("Error loading purchases. Please try again.", "error");
         return;
       }
 
-      const list = filteredOrders;
+      const list = orders || [];
       if(!list.length){
         elPill.textContent = "0 purchases";
-        showMsg("You haven’t purchased anything yet.", "ok");
+        elList.innerHTML = "";
+        showMsg("You haven't purchased anything yet.", "ok");
         return;
       }
 
@@ -356,18 +418,30 @@ Please advise next steps.
           return ``;
         })();
 
-        card.innerHTML = `
-          ${img ? `
-            ${hasListing ? `
-              <a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
-                <div class="thumb"><img src="${img}" alt=""></div>
-              </a>
-            ` : `
-              <div class="thumb"><img src="${img}" alt=""></div>
-            `}
-          ` : ``}
+        // Build image HTML with fallback
+        let thumbHtml = '';
+        if(img){
+          thumbHtml = hasListing 
+            ? `<a class="thumbLink" href="${listingHref(order.listing_id)}" aria-label="Open listing">
+                <div class="thumb"><img src="${img}" alt="" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=thumb-placeholder><svg width=40 height=40 viewBox=0 0 24 24 fill=none stroke=#9ca3af stroke-width=1.5><rect x=3 y=3 width=18 height=18 rx=2/><circle cx=8.5 cy=8.5 r=1.5/><path d=M21 15l-5-5L5 21/></svg></div>'"></div>
+              </a>`
+            : `<div class="thumb"><img src="${img}" alt="" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=thumb-placeholder><svg width=40 height=40 viewBox=0 0 24 24 fill=none stroke=#9ca3af stroke-width=1.5><rect x=3 y=3 width=18 height=18 rx=2/><circle cx=8.5 cy=8.5 r=1.5/><path d=M21 15l-5-5L5 21/></svg></div>'"></div>`;
+        } else {
+          thumbHtml = `<div class="thumb">
+            <div class="thumb-placeholder">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="M21 15l-5-5L5 21"/>
+              </svg>
+            </div>
+          </div>`;
+        }
 
-          <div>
+        card.innerHTML = `
+          ${thumbHtml}
+
+          <div style="flex:1;min-width:0;">
             <div class="row1">
               <div>
                 <a href="${orderHref(order.id)}" class="title" style="text-decoration:none;color:inherit">${title}</a>
@@ -406,31 +480,33 @@ Please advise next steps.
         `;
 
         const sel = card.querySelector("[data-problem]");
-        sel.addEventListener("change", async () => {
-          const v = sel.value;
-          if(!v) return;
+        if(sel){
+          sel.addEventListener("change", async () => {
+            const v = sel.value;
+            if(!v) return;
 
-          if(v === "accidental_purchase"){
-            await buyerCancelIfEligible(order, user);
-            supportMailto(order, "Accidental Purchase");
-          } else if(v === "delayed"){
-            supportMailto(order, "Order is Delayed");
-          } else if(v === "not_as_described"){
-            supportMailto(order, "Order Not as Described");
-          } else if(v === "message_seller"){
-            supportMailto(order, "Message Seller");
-          } else {
-            supportMailto(order, "Contact Support Center");
-          }
+            if(v === "accidental_purchase"){
+              await buyerCancelIfEligible(order, user);
+              supportMailto(order, "Accidental Purchase");
+            } else if(v === "delayed"){
+              supportMailto(order, "Order is Delayed");
+            } else if(v === "not_as_described"){
+              supportMailto(order, "Order Not as Described");
+            } else if(v === "message_seller"){
+              supportMailto(order, "Message Seller");
+            } else {
+              supportMailto(order, "Contact Support Center");
+            }
 
-          sel.value = "";
-        });
+            sel.value = "";
+          });
+        }
 
         const cancelBtn = card.querySelector("[data-cancel-btn]");
         if(cancelBtn){
           cancelBtn.addEventListener("click", async () => {
             cancelBtn.disabled = true;
-            cancelBtn.textContent = "Cancelling…";
+            cancelBtn.textContent = "Cancelling...";
             const res = await buyerCancelIfEligible(order, user);
             if(res?.ok){
               loadPurchases();
