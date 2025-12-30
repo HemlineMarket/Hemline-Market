@@ -309,14 +309,16 @@
       z-index:10;
     }
     #colorBox .sw:hover .tip{opacity:1}
+    #colorBox .sw[data-name="Brown"]{
+      background:#8B4513;
+    }
     #colorBox .sw[data-name="Gold"]{
-      background:linear-gradient(135deg,#d4b870 0%,#f0dc97 50%,#ceb86b 100%);
+      background:linear-gradient(145deg,#ffd700 0%,#ffec8b 25%,#daa520 50%,#ffd700 75%,#b8860b 100%);
+      border-color:#b8860b;
     }
     #colorBox .sw[data-name="Silver"]{
-      background:linear-gradient(135deg,#bfc6cf 0%,#e6eaef 50%,#a9b0ba 100%);
-    }
-    #colorBox .sw[data-name="Multicolor"]{
-      background:linear-gradient(135deg,#ff6b6b 0%,#feca57 25%,#48dbfb 50%,#ff9ff3 75%,#54a0ff 100%);
+      background:linear-gradient(145deg,#e8e8e8 0%,#ffffff 25%,#c0c0c0 50%,#e8e8e8 75%,#a8a8a8 100%);
+      border-color:#a0a0a0;
     }
 
     @media(max-width:768px){body{background-position:20% center;}}}
@@ -557,15 +559,11 @@
             </div>
             <div id="feelsLikeGroup" class="feels-grid">
               <label><input type="checkbox" name="feelsLike" value="cotton"> cotton</label>
-              <label><input type="checkbox" name="feelsLike" value="crisp"> crisp</label>
-              <label><input type="checkbox" name="feelsLike" value="denim"> denim</label>
-              <label><input type="checkbox" name="feelsLike" value="drapey"> drapey</label>
-              <label><input type="checkbox" name="feelsLike" value="knit"> knit</label>
               <label><input type="checkbox" name="feelsLike" value="linen"> linen</label>
               <label><input type="checkbox" name="feelsLike" value="silk"> silk</label>
-              <label><input type="checkbox" name="feelsLike" value="soft"> soft</label>
-              <label><input type="checkbox" name="feelsLike" value="stiff"> stiff</label>
               <label><input type="checkbox" name="feelsLike" value="wool"> wool</label>
+              <label><input type="checkbox" name="feelsLike" value="polyester"> polyester</label>
+              <label><input type="checkbox" name="feelsLike" value="rayon"> rayon</label>
             </div>
           </div>
         </div>
@@ -603,6 +601,7 @@
           <button class="btn" id="backBtn" type="button" disabled>Back</button>
           <button class="btn primary" id="nextBtn" type="button" disabled>Next</button>
           <button class="btn" id="saveDraftBtn" type="button">Save Draft</button>
+          <button class="btn" id="cancelBtn" type="button" style="color:#6b7280;">Cancel</button>
         </div>
         <p class="subtle" id="actionNote" style="margin-top:8px">
           We’ll guide you through each step.
@@ -750,7 +749,7 @@
     const COLORS = [
       "Black","Grey","White","Cream","Brown",
       "Pink","Red","Orange","Yellow","Green",
-      "Blue","Purple","Gold","Silver","Multicolor"
+      "Blue","Purple","Gold","Silver"
     ];
     const selectedColors = new Set();
 
@@ -1125,6 +1124,22 @@
     saveDraft.addEventListener('click', ()=>{
       alert('Draft saving is not wired yet. For now, publish when you are ready.');
     });
+
+    const cancelBtn = document.getElementById('cancelBtn');
+    if(cancelBtn){
+      cancelBtn.addEventListener('click', ()=>{
+        const msg = isEditMode 
+          ? 'Discard changes and go back to your listing?' 
+          : 'Cancel this listing? Your progress will be lost.';
+        if(confirm(msg)){
+          if(isEditMode && editId){
+            window.location.href = 'listing.html?id=' + encodeURIComponent(editId);
+          } else {
+            window.location.href = 'atelier.html';
+          }
+        }
+      });
+    }
 
     async function uploadListingPhotos(user){
       const bucket = supabaseClient.storage.from(MEDIA_BUCKET);
