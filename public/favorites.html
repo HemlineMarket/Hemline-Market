@@ -156,6 +156,9 @@
     <h1>Favorites</h1>
     <p class="subtle">Your saved fabrics.</p>
 
+    <div id="signInPrompt" class="empty" style="display:none;">
+      Sign in to see your favorites.
+    </div>
     <div id="empty" class="empty" style="display:none;">
       No favorites yet. Browse listings and tap the heart to save fabrics.
     </div>
@@ -173,10 +176,32 @@
 
   <!-- Page-specific JS: favorites store/rendering only -->
   <script>
-  (function(){
+  (async function(){
     const STORAGE_KEY = 'hm_favs';
     const grid  = document.getElementById('grid');
     const empty = document.getElementById('empty');
+    const signInPrompt = document.getElementById('signInPrompt');
+
+    // Check if user is signed in
+    const supabase = window.HM?.supabase;
+    let isSignedIn = false;
+    
+    if (supabase) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        isSignedIn = !!session?.user;
+      } catch (e) {
+        console.error('[favorites] Auth check failed:', e);
+      }
+    }
+
+    // If not signed in, show sign-in prompt
+    if (!isSignedIn) {
+      if (signInPrompt) signInPrompt.style.display = 'block';
+      if (empty) empty.style.display = 'none';
+      if (grid) grid.style.display = 'none';
+      return;
+    }
 
     function getFavs(){
       try{
