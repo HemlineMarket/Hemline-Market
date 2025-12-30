@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
 
   <style>
     :root{
@@ -266,9 +268,19 @@
 
     const fmt = c => '$' + (Math.max(0, c) / 100).toFixed(2);
 
+    // XSS protection - escape HTML entities
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
     const read = () => {
       try{
-        return JSON.parse(localStorage.getItem(LS) || '[]');
+        const data = JSON.parse(localStorage.getItem(LS) || '[]');
+        // Validate that data is actually an array
+        return Array.isArray(data) ? data : [];
       }catch(_){
         return [];
       }
@@ -371,13 +383,13 @@
           ? (per ? ' · ' : '') + Number(it.yards) + ' yd'
           : '';
 
-        // options (size, color, etc.) if present
+        // options (size, color, etc.) if present - escape all user data
         const optionBits = [];
-        if(it.color) optionBits.push(it.color);
-        if(it.size) optionBits.push('Size ' + it.size);
-        if(it.optionLabel) optionBits.push(it.optionLabel);
+        if(it.color) optionBits.push(escapeHtml(it.color));
+        if(it.size) optionBits.push('Size ' + escapeHtml(it.size));
+        if(it.optionLabel) optionBits.push(escapeHtml(it.optionLabel));
         if(Array.isArray(it.options) && it.options.length){
-          optionBits.push(it.options.join(' · '));
+          optionBits.push(it.options.map(o => escapeHtml(o)).join(' · '));
         }
         const optionsHtml = optionBits.length
           ? '<div class="t2">' + optionBits.join(' · ') + '</div>'
@@ -392,16 +404,23 @@
         const listingUrl = itemListingId ? ('listing.html?id=' + encodeURIComponent(itemListingId)) : '#';
         const canLink = !!itemListingId;
 
+        // Escape user-provided data to prevent XSS
+        const safeName = escapeHtml(it.name || 'Fabric');
+        const safePhoto = escapeHtml(it.photo || '');
+        const safeColor = escapeHtml(it.color || '');
+        const safeSize = escapeHtml(it.size || '');
+        const safeOptionLabel = escapeHtml(it.optionLabel || '');
+
         row.innerHTML =
           '<div class="thumb">' +
             (canLink ? '<a href="'+listingUrl+'" style="display:block;width:100%;height:100%">' : '') +
-            (it.photo ? '<img alt="" src="'+it.photo+'">' : '<span>—</span>') +
+            (safePhoto ? '<img alt="" src="'+safePhoto+'">' : '<span>—</span>') +
             (canLink ? '</a>' : '') +
           '</div>' +
           '<div>' +
             '<div class="t1">' +
               (canLink ? '<a href="'+listingUrl+'" class="link" style="color:inherit;text-decoration:none">' : '') +
-              (it.name || 'Fabric') +
+              safeName +
               (canLink ? '</a>' : '') +
             '</div>' +
             '<div class="t2">'+(per + yardsLabel)+'</div>' +
