@@ -543,6 +543,7 @@
         <div class="owner-actions-label">Seller tools (only you can see this)</div>
         <div class="owner-actions-buttons">
           <button type="button" class="btn" id="editListingBtn">Edit listing</button>
+          <button type="button" class="btn" id="toggleForSaleBtn">Mark as not for sale</button>
           <button type="button" class="btn" id="deleteListingBtn">Archive listing</button>
         </div>
       </div>
@@ -769,15 +770,9 @@
       ["Pattern", listing.pattern],
       ["Width", listing.width_in ? listing.width_in + "″" : null],
       ["Weight", listing.weight_gsm ? listing.weight_gsm + " GSM" : null],
-      ["Weight Category", listing.weight_category],
-      ["Stretch", listing.stretch],
-      ["Transparency", listing.transparency],
-      ["Condition", listing.condition],
       ["Origin", listing.country_of_origin],
       ["Fiber type", listing.fiber_type],
       ["Designer / Mill", listing.designer],
-      ["Care", listing.care_instructions],
-      ["Best for", listing.suggested_projects],
       ["Feels like", listing.feels_like]
     ];
 
@@ -797,10 +792,9 @@
 
     table.innerHTML = "";
     rows.forEach(([label, val])=>{
-      // Skip rows with no value
-      if(val === null || val === undefined || String(val).trim()==="") return;
       const tr = document.createElement("tr");
-      tr.innerHTML = `<th>${label}</th><td>${String(val)}</td>`;
+      const safeVal = (val === null || val === undefined || String(val).trim()==="") ? "—" : String(val);
+      tr.innerHTML = `<th>${label}</th><td>${safeVal}</td>`;
       table.appendChild(tr);
     });
   }
@@ -809,6 +803,7 @@
     const ownerBox = document.getElementById("ownerActions");
     const editBtn  = document.getElementById("editListingBtn");
     const delBtn   = document.getElementById("deleteListingBtn");
+    const toggleBtn = document.getElementById("toggleForSaleBtn");
 
     if (!ownerBox || !listing || !currentSession || !currentSession.user) {
       if (ownerBox) ownerBox.style.display = "none";
@@ -834,7 +829,50 @@
       }
       if (editBtn) editBtn.style.display = "none";
       if (delBtn)  delBtn.style.display  = "none";
+      if (toggleBtn) toggleBtn.style.display = "none";
       return;
+    }
+
+    // Check if listing is currently not for sale
+    const isNotForSale = status === "not_for_sale";
+    if (toggleBtn) {
+      toggleBtn.textContent = isNotForSale ? "Mark as for sale" : "Mark as not for sale";
+      
+      toggleBtn.onclick = async () => {
+        const newStatus = isNotForSale ? "ACTIVE" : "NOT_FOR_SALE";
+        const newPublished = isNotForSale ? true : false;
+        
+        toggleBtn.disabled = true;
+        toggleBtn.textContent = "Updating…";
+
+        try {
+          const { error } = await supabaseClient
+            .from("listings")
+            .update({
+              status: newStatus,
+              is_published: newPublished
+            })
+            .eq("id", listing.id)
+            .eq("seller_id", currentSession.user.id);
+
+          if (error) {
+            console.warn("Toggle for sale error", error);
+            showToast("Could not update listing");
+            toggleBtn.disabled = false;
+            toggleBtn.textContent = isNotForSale ? "Mark as for sale" : "Mark as not for sale";
+          } else {
+            showToast(isNotForSale ? "Listing is now for sale" : "Listing marked as not for sale");
+            setTimeout(() => {
+              window.location.reload();
+            }, 700);
+          }
+        } catch (e) {
+          console.warn("Toggle for sale exception", e);
+          showToast("Could not update listing");
+          toggleBtn.disabled = false;
+          toggleBtn.textContent = isNotForSale ? "Mark as for sale" : "Mark as not for sale";
+        }
+      };
     }
 
     // Active listing: seller can still edit / archive
