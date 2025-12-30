@@ -92,8 +92,8 @@
         outline: none;
       }
       
-      /* Ensure buttons and links have sufficient touch target size */
-      button, a, [role="button"] {
+      /* Ensure buttons and links have sufficient touch target size - only in main content */
+      main button, main a, main [role="button"] {
         min-height: 44px;
         min-width: 44px;
       }
