@@ -48,12 +48,10 @@
       margin:0 0 6px;
       font-size:28px;
       font-weight:800;
-      color:#fff;
-      text-shadow:0 2px 8px rgba(0,0,0,.5);
+      color:#111827;
     }
     .subtle{
-      color:#fff;
-      text-shadow:0 1px 4px rgba(0,0,0,.5);
+      color:#374151;
       margin:0 0 12px;
       font-size:14px;
     }
@@ -181,18 +179,31 @@
     const empty = document.getElementById('empty');
     const signInPrompt = document.getElementById('signInPrompt');
 
-    // Check if user is signed in
-    const supabase = window.HM?.supabase;
-    let isSignedIn = false;
-    
-    if (supabase) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        isSignedIn = !!session?.user;
-      } catch (e) {
-        console.error('[favorites] Auth check failed:', e);
+    // Wait for HM.supabase to be ready (with timeout)
+    async function ensureSession(maxWaitMs = 3000) {
+      const start = Date.now();
+      
+      // Wait for window.HM.supabase to exist
+      while (!window.HM?.supabase && (Date.now() - start < maxWaitMs)) {
+        await new Promise(r => setTimeout(r, 100));
       }
+      
+      const supabase = window.HM?.supabase;
+      if (!supabase) return null;
+      
+      let { data: { session } } = await supabase.auth.getSession();
+      if (session) return session;
+      
+      // Retry a few times in case session is loading
+      while (!session && (Date.now() - start < maxWaitMs)) {
+        await new Promise(r => setTimeout(r, 200));
+        ({ data: { session } } = await supabase.auth.getSession());
+      }
+      return session;
     }
+
+    const session = await ensureSession();
+    const isSignedIn = !!session?.user;
 
     // If not signed in, show sign-in prompt
     if (!isSignedIn) {
@@ -201,6 +212,9 @@
       if (grid) grid.style.display = 'none';
       return;
     }
+
+    // User is signed in - show favorites
+    if (signInPrompt) signInPrompt.style.display = 'none';
 
     function getFavs(){
       try{
