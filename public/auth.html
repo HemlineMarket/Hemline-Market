@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Sign In — Hemline Market</title>
 
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+
   <!-- Shared site styles (match homepage) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
@@ -234,6 +239,13 @@
 </head>
 <body>
 
+  <noscript>
+    <div style="padding:40px;text-align:center;background:#fef2f2;color:#991b1b;">
+      <h2>JavaScript Required</h2>
+      <p>Please enable JavaScript to use Hemline Market.</p>
+    </div>
+  </noscript>
+
   <!-- UNIVERSAL HEADER injected by hm-shell.js -->
   <div id="hm-shell-header"></div>
 
@@ -335,6 +347,12 @@
 
   <!-- Shared shell: universal header/footer + menu + header session + HM.supabase -->
   <script src="scripts/hm-shell.js"></script>
+  
+  <!-- Rate limiting for security -->
+  <script src="scripts/rate-limit.js"></script>
+  
+  <!-- Accessibility improvements -->
+  <script src="scripts/accessibility.js"></script>
 
   <script>
     // Render shared header + footer (also sets window.HM.supabase)
@@ -422,8 +440,9 @@
       pwNumber.className = 'pw-rule ' + (hasNumber ? 'valid' : (pw.length > 0 ? 'invalid' : ''));
       pwNumber.querySelector('.pw-icon').textContent = hasNumber ? '' : (pw.length > 0 ? '' : '○');
       
-      // Enable/disable signup button
-      const emailValid = suEmail.value.includes('@');
+      // Enable/disable signup button - use proper email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const emailValid = emailRegex.test(suEmail.value);
       signupBtn.disabled = !(hasLength && hasLetter && hasNumber && emailValid);
     }
 
@@ -447,8 +466,16 @@
       
       // Check if already processing
       if (btn.disabled) {
-        console.log("[Auth] Login already in progress, ignoring duplicate submit");
         return false;
+      }
+      
+      // Check rate limit
+      if (window.HM_checkRateLimit) {
+        const rateCheck = window.HM_checkRateLimit();
+        if (!rateCheck.allowed) {
+          alert(`Too many login attempts. Please wait ${rateCheck.waitSeconds} seconds and try again.`);
+          return false;
+        }
       }
       
       btn.disabled = true;
@@ -457,33 +484,44 @@
       const email = document.getElementById("li-email").value.trim();
       const password = document.getElementById("li-pass").value;
       
-      console.log("[Auth] Attempting login for:", email);
-      
       try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         
-        console.log("[Auth] Response received", { hasSession: !!data?.session, error: error?.message });
-        
         if (error) {
-          console.error("[Auth] Login error:", error);
-          alert(error.message || "Login failed. Please check your email and password.");
+          // Record failed attempt for rate limiting
+          if (window.HM_recordFailedAttempt) {
+            window.HM_recordFailedAttempt();
+            const remaining = window.HM_getRemainingAttempts ? window.HM_getRemainingAttempts() : null;
+            if (remaining !== null && remaining <= 2) {
+              alert(error.message + `\n\n${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before temporary lockout.`);
+            } else {
+              alert(error.message || "Login failed. Please check your email and password.");
+            }
+          } else {
+            alert(error.message || "Login failed. Please check your email and password.");
+          }
           btn.disabled = false;
           btn.textContent = origText;
           return false;
         }
         
         if (data && data.session) {
-          console.log("[Auth] Login successful, redirecting...");
+          // Clear rate limit on successful login
+          if (window.HM_clearRateLimit) {
+            window.HM_clearRateLimit();
+          }
+          // Announce for screen readers
+          if (window.HM_announce) {
+            window.HM_announce('Login successful. Redirecting...', 'polite');
+          }
           // Use replace to prevent back button issues
           window.location.replace("index.html");
         } else {
-          console.warn("[Auth] No session returned");
           alert("Login failed. Please try again.");
           btn.disabled = false;
           btn.textContent = origText;
         }
       } catch(err) {
-        console.error("[Auth] Login exception:", err);
         alert("Login error: " + (err.message || "Please try again."));
         btn.disabled = false;
         btn.textContent = origText;
@@ -495,6 +533,9 @@
     // Sign up → create user + display_name (from email local-part), with password rules
     document.getElementById("signup").onsubmit = async (e)=>{
       e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      const origText = btn.textContent;
+      
       const email = document.getElementById("su-email").value.trim();
       const password = document.getElementById("su-pass").value;
 
@@ -502,6 +543,9 @@
         alert("Password must be at least 8 characters and include at least one letter and one number.");
         return;
       }
+
+      btn.disabled = true;
+      btn.textContent = "Creating account...";
 
       const local = email.split("@")[0] || "";
       const display_name = local || "Hemline sewist";
@@ -512,6 +556,8 @@
         options:{ data:{ display_name } }
       });
 
+      btn.disabled = false;
+      btn.textContent = origText;
       alert(error ? error.message : "Check your email to confirm.");
       hide('card-signup');
       show('card-login');
@@ -520,10 +566,19 @@
     // Forgot password
     document.getElementById("reset").onsubmit = async (e)=>{
       e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      const origText = btn.textContent;
+      
+      btn.disabled = true;
+      btn.textContent = "Sending...";
+      
       const email = document.getElementById("rp-email").value.trim();
       const { error } = await supabase.auth.resetPasswordForEmail(email,{
         redirectTo: location.origin + "/auth.html"
       });
+      
+      btn.disabled = false;
+      btn.textContent = origText;
       alert(error ? error.message : "Reset link sent.");
       hide('card-forgot');
       show('card-login');
@@ -532,11 +587,20 @@
     // OTP
     document.getElementById("otp").onsubmit = async (e)=>{
       e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      const origText = btn.textContent;
+      
+      btn.disabled = true;
+      btn.textContent = "Sending...";
+      
       const email = document.getElementById("otp-email").value.trim();
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options:{ emailRedirectTo: location.origin + "/auth.html" }
       });
+      
+      btn.disabled = false;
+      btn.textContent = origText;
       alert(error ? error.message : "Code sent!");
       hide('card-otp');
       show('card-login');
