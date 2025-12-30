@@ -191,6 +191,11 @@
     <div class="breadcrumb"><b>Cart</b> › Checkout › Payment</div>
     <h1>Your Cart</h1>
 
+    <!-- Sign-in prompt for logged-out users -->
+    <div id="signInPrompt" class="card" style="display:none;padding:24px;text-align:center;">
+      <a href="auth.html?view=login" style="color:#991b1b;text-decoration:none;font-weight:600;">Sign in</a> to access your cart.
+    </div>
+
     <!-- Status banner -->
     <div id="cartBanner" class="banner" role="status" aria-live="polite" style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -504,8 +509,49 @@
       window.location.href = 'checkout.html';
     });
 
-    // init: clean SOLD items based on Supabase, then render cart
+    // Wait for HM.supabase to be ready (with timeout)
+    async function ensureSession(maxWaitMs = 3000) {
+      const start = Date.now();
+      
+      // Wait for window.HM.supabase to exist
+      while (!window.HM?.supabase && (Date.now() - start < maxWaitMs)) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+      
+      const supabase = window.HM?.supabase;
+      if (!supabase) return null;
+      
+      let { data: { session } } = await supabase.auth.getSession();
+      if (session) return session;
+      
+      // Retry a few times in case session is loading
+      while (!session && (Date.now() - start < maxWaitMs)) {
+        await new Promise(r => setTimeout(r, 200));
+        ({ data: { session } } = await supabase.auth.getSession());
+      }
+      return session;
+    }
+
+    // init: check auth, clean SOLD items, then render cart
     (async function init(){
+      const session = await ensureSession();
+      const isSignedIn = !!session?.user;
+      
+      const signInPrompt = document.getElementById('signInPrompt');
+      const cartGrid = document.querySelector('.grid');
+      const cartBanner = document.getElementById('cartBanner');
+      
+      if (!isSignedIn) {
+        // Show sign-in prompt, hide cart content
+        if (signInPrompt) signInPrompt.style.display = 'block';
+        if (cartGrid) cartGrid.style.display = 'none';
+        if (cartBanner) cartBanner.style.display = 'none';
+        return;
+      }
+      
+      // User is signed in - show cart
+      if (signInPrompt) signInPrompt.style.display = 'none';
+      
       try{
         await cleanSoldFromCart();
       }catch(_){}
