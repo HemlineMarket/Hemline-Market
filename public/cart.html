@@ -77,6 +77,15 @@
       font-weight:700;
       margin-bottom:2px;
     }
+    .banner.hold-timer{
+      background:#fef3c7;
+      border-color:#fcd34d;
+      color:#92400e;
+    }
+    #holdTimerCountdown{
+      font-family: monospace;
+      font-size: 16px;
+    }
 
     /* GRID + CARDS */
     .grid{
@@ -209,6 +218,18 @@
       </div>
     </div>
 
+    <!-- Hold timer banner -->
+    <div id="holdTimerBanner" class="banner hold-timer" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 6v6l4 2"></path>
+      </svg>
+      <div>
+        <div class="banner-title">⏱️ Items reserved for <span id="holdTimerCountdown">60:00</span></div>
+        <div>Complete checkout to secure your items. After time expires, others may add them to their cart.</div>
+      </div>
+    </div>
+
     <div class="grid">
       <!-- Items -->
       <section class="card">
@@ -279,6 +300,21 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    // Remove cart hold from database
+    async function removeHold(listingId) {
+      if (!listingId) return;
+      try {
+        const userId = window.HM?.supabase?.auth?.getUser?.()?.then(r => r.data?.user?.id) || null;
+        await fetch("/api/cart/hold", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ listing_id: listingId, user_id: await userId })
+        });
+      } catch(e) {
+        console.error("[cart] removeHold failed:", e);
+      }
     }
 
     const read = () => {
@@ -495,13 +531,26 @@
       const cart = read();
       if(idx < 0 || idx >= cart.length) return;
 
+      // Get listing ID before removing
+      const removedItem = cart[idx];
+      const listingId = removedItem?.id || removedItem?.listing_id;
+      
       cart.splice(idx, 1);
       write(cart);
       render();
+      
+      // Remove hold from database
+      if (listingId) removeHold(listingId);
     });
 
     document.getElementById('clearCart').addEventListener('click', e=>{
       e.preventDefault();
+      // Remove all holds
+      const cart = read();
+      cart.forEach(item => {
+        const listingId = item?.id || item?.listing_id;
+        if (listingId) removeHold(listingId);
+      });
       write([]);
       render();
     });
@@ -557,7 +606,100 @@
         await cleanSoldFromCart();
       }catch(_){}
       render();
+      
+      // Start hold timer
+      startHoldTimer();
     })();
+    
+    // Hold timer functionality
+    const holdTimerBanner = document.getElementById('holdTimerBanner');
+    const holdTimerCountdown = document.getElementById('holdTimerCountdown');
+    let holdTimerInterval = null;
+    let holdExpiresAt = null;
+    
+    async function fetchHoldExpiry() {
+      const cart = read();
+      if (!cart.length) return null;
+      
+      const listingIds = cart.map(it => it.id || it.listing_id).filter(Boolean);
+      if (!listingIds.length) return null;
+      
+      try {
+        const res = await fetch(`/api/cart/hold?listings=${listingIds.join(',')}`);
+        if (res.ok) {
+          const data = await res.json();
+          // Find the earliest expiry
+          let earliest = null;
+          Object.values(data.holds || {}).forEach(h => {
+            if (h.held) {
+              // We don't have expires_at in the response, so estimate from now
+              // This is approximate - ideally API would return expires_at
+            }
+          });
+        }
+      } catch(e) {
+        console.error("Hold expiry fetch error", e);
+      }
+      return null;
+    }
+    
+    function startHoldTimer() {
+      const cart = read();
+      if (!cart.length) {
+        if (holdTimerBanner) holdTimerBanner.style.display = 'none';
+        return;
+      }
+      
+      // Show timer banner
+      if (holdTimerBanner) holdTimerBanner.style.display = 'flex';
+      
+      // Get hold start time from localStorage, or set it now
+      let holdStart = localStorage.getItem('hm_cart_hold_start');
+      if (!holdStart) {
+        holdStart = Date.now().toString();
+        localStorage.setItem('hm_cart_hold_start', holdStart);
+      }
+      
+      const startTime = parseInt(holdStart, 10);
+      const holdDuration = 60 * 60 * 1000; // 60 minutes
+      holdExpiresAt = startTime + holdDuration;
+      
+      // Clear any existing interval
+      if (holdTimerInterval) clearInterval(holdTimerInterval);
+      
+      function updateTimer() {
+        const now = Date.now();
+        const remaining = Math.max(0, holdExpiresAt - now);
+        
+        if (remaining <= 0) {
+          // Timer expired
+          if (holdTimerCountdown) holdTimerCountdown.textContent = '0:00';
+          clearInterval(holdTimerInterval);
+          // Could optionally clear cart or show warning here
+          return;
+        }
+        
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        if (holdTimerCountdown) {
+          holdTimerCountdown.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+      }
+      
+      updateTimer();
+      holdTimerInterval = setInterval(updateTimer, 1000);
+    }
+    
+    // Reset hold timer when cart is cleared
+    const origWrite = write;
+    write = function(list) {
+      origWrite(list);
+      if (!list || list.length === 0) {
+        localStorage.removeItem('hm_cart_hold_start');
+        if (holdTimerBanner) holdTimerBanner.style.display = 'none';
+        if (holdTimerInterval) clearInterval(holdTimerInterval);
+      }
+    };
   })();
   </script>
 
