@@ -235,10 +235,10 @@
 
     /* ---------- RESULTS ---------- */
     .results{
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:12px;
-      padding:12px;
+      background:transparent;
+      border:none;
+      border-radius:0;
+      padding:0;
       min-height:300px;
     }
     .results-head{
@@ -391,7 +391,8 @@
       margin:0 0 8px;
       font-size:36px;
       font-weight:700;
-      color:#991b1b;
+      color:#fff;
+      text-shadow:0 2px 8px rgba(0,0,0,.5);
       font-family: Georgia, 'Times New Roman', serif;
       letter-spacing: 2px;
       text-transform:uppercase;
@@ -402,14 +403,20 @@
       display:block;
       width:60px;
       height:3px;
-      background:#991b1b;
+      background:#fff;
       margin:12px auto 0;
       border-radius:2px;
+      box-shadow:0 1px 4px rgba(0,0,0,.3);
     }
     .section-header-subtitle{
       font-size:15px;
-      color:#4b5563;
+      color:#fff;
+      text-shadow:0 1px 4px rgba(0,0,0,.5);
       margin-top:4px;
+      background:rgba(0,0,0,.3);
+      padding:4px 12px;
+      border-radius:6px;
+      display:inline-block;
     }
     .browse-controls{
       display:flex;
@@ -689,6 +696,24 @@
               <option>Printed</option>
             </select>
           </div>
+        </section>
+
+        <!-- Reset Filters Button -->
+        <section class="section" style="border-top:none;padding-top:4px;">
+          <button type="button" onclick="clearAllFilters()" style="
+            width:100%;
+            padding:10px 14px;
+            background:#fff;
+            border:1px solid #991b1b;
+            border-radius:10px;
+            color:#991b1b;
+            font-weight:600;
+            font-size:13px;
+            cursor:pointer;
+            transition:all 0.2s;
+          " onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
+            Reset All Filters
+          </button>
         </section>
       </aside>
 
@@ -1002,6 +1027,10 @@
       const minPriceEl = document.getElementById("minPrice");
       const maxPriceEl = document.getElementById("maxPrice");
       const minYardsEl = document.getElementById("minYards");
+      const minWidthEl = document.getElementById("minWidth");
+      const maxWidthEl = document.getElementById("maxWidth");
+      const minGsmEl   = document.getElementById("minGsm");
+      const maxGsmEl   = document.getElementById("maxGsm");
       const deptEl     = document.getElementById("dept");
       const fabricEl   = document.getElementById("fabricType");
       const fiberEl    = document.getElementById("fiberType");
@@ -1041,6 +1070,10 @@
       const minPrice   = numeric(minPriceEl?.value);
       const maxPrice   = numeric(maxPriceEl?.value);
       const minYards   = numeric(minYardsEl?.value);
+      const minWidth   = numeric(minWidthEl?.value);
+      const maxWidth   = numeric(maxWidthEl?.value);
+      const minGsm     = numeric(minGsmEl?.value);
+      const maxGsm     = numeric(maxGsmEl?.value);
 
       const deptVal    = (deptEl?.value || "").trim();
       const fabricVal  = (fabricEl?.value || "").trim();
@@ -1083,11 +1116,31 @@
           if(Number(l.yards_available) < minYards) return false;
         }
 
-        if(deptVal && l.dept && l.dept !== deptVal) return false;
-        if(fabricVal && l.fabric_type && l.fabric_type !== fabricVal) return false;
-        if(fiberVal && l.fiber_type && l.fiber_type !== fiberVal) return false;
-        if(patternVal && l.pattern && l.pattern !== patternVal) return false;
-        if(originVal && l.origin && l.origin !== originVal) return false;
+        // Width filters
+        if(minWidth != null && l.width_in != null){
+          if(Number(l.width_in) < minWidth) return false;
+        }
+        if(maxWidth != null && l.width_in != null){
+          if(Number(l.width_in) > maxWidth) return false;
+        }
+
+        // GSM (weight) filters
+        if(minGsm != null && l.weight_gsm != null){
+          if(Number(l.weight_gsm) < minGsm) return false;
+        }
+        if(maxGsm != null && l.weight_gsm != null){
+          if(Number(l.weight_gsm) > maxGsm) return false;
+        }
+
+        // Filter by dropdown values - if filter is set, listing must match (or have the field)
+        if(deptVal && l.dept !== deptVal) return false;
+        if(fabricVal && l.fabric_type !== fabricVal) return false;
+        if(fiberVal && l.fiber_type !== fiberVal) return false;
+        if(patternVal && l.pattern !== patternVal) return false;
+        if(originVal) {
+          const listingOrigin = l.country_of_origin || l.origin;
+          if(listingOrigin !== originVal) return false;
+        }
 
         if(designerVal){
           const dName = (l.designer || "").toLowerCase();
@@ -1139,7 +1192,7 @@
       }
 
       // Check if any filters are applied
-      const hasFilters = searchTerm || minPrice || maxPrice || minYards || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || selectedColors.size > 0 || selectedContents.size > 0;
+      const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || selectedColors.size > 0 || selectedContents.size > 0;
 
       if(!total){
         if(hasFilters){
@@ -1206,7 +1259,7 @@
           card.innerHTML = `
             <a class="listing-thumb-link" href="${href}">
               <div class="listing-thumb" aria-hidden="true">
-                ${l.image_url_1 ? `<img src="${l.image_url_1}" alt="${safeAlt}">` : ""}
+                ${l.image_url_1 ? `<img src="${l.image_url_1}" alt="${safeAlt}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
               </div>
             </a>
             <div class="listing-body">
@@ -1345,6 +1398,10 @@
       document.getElementById("minPrice").value = "";
       document.getElementById("maxPrice").value = "";
       document.getElementById("minYards").value = "";
+      document.getElementById("minWidth").value = "";
+      document.getElementById("maxWidth").value = "";
+      document.getElementById("minGsm").value = "";
+      document.getElementById("maxGsm").value = "";
       document.getElementById("dept").value = "";
       document.getElementById("fabricType").value = "";
       document.getElementById("fiberType").value = "";
