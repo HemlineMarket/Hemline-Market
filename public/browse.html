@@ -278,10 +278,16 @@
     }
     .listing-thumb{
       aspect-ratio:4/3;
-      background:linear-gradient(180deg,#f8fafc,#eef2f7);
+      background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);
+      background-size:200% 100%;
+      animation:shimmer 1.5s infinite;
       display:grid;
       place-items:center;
       overflow:hidden;
+    }
+    @keyframes shimmer{
+      0%{background-position:200% 0;}
+      100%{background-position:-200% 0;}
     }
     .listing-thumb img{
       width:100%;
@@ -1253,13 +1259,21 @@
           const safeTitle = l.title || "Untitled listing";
           const safeAlt = safeTitle.replace(/"/g,"&quot;");
 
+          // Optimize image URL for thumbnails - add size transform if Supabase storage
+          let thumbUrl = l.image_url_1 || "";
+          if(thumbUrl && thumbUrl.includes("supabase.co/storage")){
+            // Add render transform for smaller thumbnail (400px wide)
+            thumbUrl = thumbUrl.replace("/object/public/", "/render/image/public/") + "?width=400&quality=75";
+          }
+
           const card = document.createElement("article");
           card.className = "listing-card";
 
+          // Use data-src for deferred loading, show placeholder initially
           card.innerHTML = `
             <a class="listing-thumb-link" href="${href}">
               <div class="listing-thumb" aria-hidden="true">
-                ${l.image_url_1 ? `<img src="${l.image_url_1}" alt="${safeAlt}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
+                ${thumbUrl ? `<img data-src="${thumbUrl}" alt="${safeAlt}" class="lazy-img" style="opacity:0;transition:opacity 0.3s;" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
               </div>
             </a>
             <div class="listing-body">
@@ -1326,6 +1340,36 @@
       }else{
         await runListingSearch();
       }
+      // After rendering, observe images for lazy loading
+      observeLazyImages();
+    }
+
+    // Intersection Observer for lazy loading images
+    let lazyObserver;
+    function observeLazyImages(){
+      if(!lazyObserver){
+        lazyObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if(entry.isIntersecting){
+              const img = entry.target;
+              if(img.dataset.src){
+                img.src = img.dataset.src;
+                img.onload = () => { img.style.opacity = "1"; };
+                delete img.dataset.src;
+                lazyObserver.unobserve(img);
+              }
+            }
+          });
+        }, {
+          rootMargin: "200px 0px", // Start loading 200px before visible
+          threshold: 0.01
+        });
+      }
+      
+      // Observe all lazy images
+      document.querySelectorAll("img.lazy-img[data-src]").forEach(img => {
+        lazyObserver.observe(img);
+      });
     }
 
     /* Initial boot */
