@@ -186,14 +186,30 @@ export default async function handler(req, res) {
     let refundId = null;
     if (order.stripe_payment_intent) {
       try {
-        const refund = await stripe.refunds.create({
+        // First check if already refunded
+        const existingRefunds = await stripe.refunds.list({
           payment_intent: order.stripe_payment_intent,
-          reason: "requested_by_customer",
+          limit: 1,
         });
-        refundId = refund.id;
-        console.log("[cancel_purchase] Stripe refund created:", refundId);
+        
+        if (existingRefunds.data.length > 0) {
+          refundId = existingRefunds.data[0].id;
+          console.log("[cancel_purchase] Refund already exists:", refundId);
+        } else {
+          const refund = await stripe.refunds.create({
+            payment_intent: order.stripe_payment_intent,
+            reason: "requested_by_customer",
+          });
+          refundId = refund.id;
+          console.log("[cancel_purchase] Stripe refund created:", refundId);
+        }
       } catch (stripeErr) {
-        console.error("[cancel_purchase] Stripe refund error:", stripeErr);
+        // Handle "already refunded" error gracefully
+        if (stripeErr.code === 'charge_already_refunded') {
+          console.log("[cancel_purchase] Charge already refunded, continuing...");
+        } else {
+          console.error("[cancel_purchase] Stripe refund error:", stripeErr);
+        }
         // Continue with cancellation even if refund fails - admin can handle manually
       }
     }
@@ -204,12 +220,13 @@ export default async function handler(req, res) {
     const labelVoidResult = await voidShippoLabel(order.id);
     console.log("[cancel_purchase] Label void result:", labelVoidResult);
 
-    // 1) Mark order as CANCELLED
+    // 1) Mark order as CANCELED
     const { data: updated, error: updateErr } = await supabaseAdmin
       .from("orders")
       .update({ 
         status: "CANCELED", 
-        cancelled_at: nowIso,
+        canceled_at: nowIso,
+        cancelled_at: nowIso,  // support both spellings
         cancelled_by: buyer_id,
         stripe_refund_id: refundId,
         updated_at: nowIso 
