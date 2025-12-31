@@ -133,6 +133,50 @@
     }
   }
 
+  // --- CART HOLD API (for "In someone's cart" feature) ---
+  
+  async function getUserId() {
+    try {
+      const supabase = window.HM?.supabase;
+      if (!supabase) return null;
+      const { data } = await supabase.auth.getSession();
+      return data?.session?.user?.id || null;
+    } catch(_) {
+      return null;
+    }
+  }
+
+  async function createHold(listingId) {
+    if (!listingId) return;
+    try {
+      const userId = await getUserId();
+      const res = await fetch("/api/cart/hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listing_id: listingId, user_id: userId })
+      });
+      if (!res.ok) {
+        console.error("[add-to-cart] hold create failed:", await res.text());
+      }
+    } catch(e) {
+      console.error("[add-to-cart] hold create failed:", e);
+    }
+  }
+
+  async function removeHold(listingId) {
+    if (!listingId) return;
+    try {
+      const userId = await getUserId();
+      await fetch("/api/cart/hold", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listing_id: listingId, user_id: userId })
+      });
+    } catch(e) {
+      console.error("[add-to-cart] hold remove failed:", e);
+    }
+  }
+
   // Helpers
   const num   = v => parseFloat(String(v ?? '').replace(/[^\d.]/g,'')) || 0;
   const cents = d => Math.round(Number(d || 0) * 100);
@@ -290,6 +334,9 @@
     cart.push(item);
 
     writeCart(cart);
+    
+    // Create hold in database (for "In someone's cart" feature)
+    createHold(item.id);
 
     const totalItems = cart.reduce((sum, it) => sum + (Number(it.qty) || 1), 0);
     const baseName   = item.name || 'item';
