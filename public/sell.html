@@ -581,6 +581,26 @@
               <label><input type="checkbox" name="feelsLike" value="wool suiting"> wool suiting</label>
             </div>
           </div>
+
+          <div class="field">
+            <div class="label-row">
+              <label>Burn test</label>
+              <span class="subtle" style="font-size:12px">
+                (for mystery / unknown content)
+              </span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:8px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="burnTest" value="" checked> Not performed
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="burnTest" value="melts"> Melts (synthetic)
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="burnTest" value="burns"> Burns (natural)
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- STEP 3 -->
@@ -1009,6 +1029,9 @@
 
       const colors = Array.from(selectedColors);
 
+      const burnTestRadio = document.querySelector('input[name="burnTest"]:checked');
+      const burnTest = burnTestRadio ? burnTestRadio.value : null;
+
       state.details = {
         title: titleInput.value.trim(),
         price: priceInput.value ? parseFloat(priceInput.value) : null,
@@ -1025,7 +1048,8 @@
         width: widthInput.value ? parseFloat(widthInput.value) : null,
         gsm:   gsmInput.value ? parseFloat(gsmInput.value)     : null,
         designer: designerInput.value.trim() || null,
-        feelsLike: feels
+        feelsLike: feels,
+        burnTest: burnTest || null
       };
     }
 
@@ -1090,6 +1114,7 @@
       addRow('gsm', d.gsm);
       addRow('designer', d.designer);
       addRow('feels like', d.feelsLike);
+      addRow('burn test', d.burnTest === 'melts' ? 'Melts (synthetic)' : d.burnTest === 'burns' ? 'Burns (natural)' : null);
     }
 
     backBtn.addEventListener('click', ()=>{
@@ -1264,6 +1289,7 @@
           country_of_origin: d.origin,
           designer: d.designer,
           feels_like: d.feelsLike?.join(", ") || null,
+          burn_test: d.burnTest || null,
 
           // IMAGES
           ...imageFields
@@ -1403,6 +1429,12 @@
           document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]').forEach(cb=>{
             cb.checked = selectedFeels.includes(cb.value);
           });
+        }
+
+        // Burn test radio buttons
+        if(data.burn_test){
+          const radio = document.querySelector(`input[name="burnTest"][value="${data.burn_test}"]`);
+          if(radio) radio.checked = true;
         }
 
         // Content checkboxes (stored as comma-separated string)
