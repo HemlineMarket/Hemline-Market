@@ -217,6 +217,20 @@
       return ms / 60000;
     }
 
+    function minutesRemaining(iso){
+      if(!iso) return 0;
+      const elapsed = minutesSince(iso);
+      return Math.max(0, 30 - elapsed);
+    }
+
+    function formatTimeRemaining(iso){
+      const mins = minutesRemaining(iso);
+      if(mins <= 0) return null;
+      const m = Math.floor(mins);
+      const s = Math.floor((mins - m) * 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
     function listingHref(listingId){
       return "listing.html?id=" + encodeURIComponent(listingId);
     }
@@ -437,9 +451,10 @@ Please advise next steps.
           cancelHtml = `<span class="note">Order cancelled</span>`;
           noteHtml = `<div class="note">Order cancelled.</div>`;
         } else if(canCancel){
-          // Within 30 minutes - simple cancel button, no reason needed
+          // Within 30 minutes - simple cancel button with countdown
+          const timeLeft = formatTimeRemaining(order.created_at);
           cancelHtml = `<button class="btn btn-danger" data-cancel-btn>Cancel</button>`;
-          noteHtml = `<div class="note warn">Cancellation available for 30 minutes after purchase.</div>`;
+          noteHtml = `<div class="note warn" data-countdown="${order.created_at}">⏱️ Cancel window: <strong>${timeLeft || '0:00'}</strong> remaining</div>`;
         } else {
           // After 30 minutes - show problem dropdown and contact support
           problemHtml = `
@@ -538,6 +553,30 @@ Please advise next steps.
 
         elList.appendChild(card);
       });
+
+      // Start countdown timer updates
+      startCountdownTimers();
+    }
+
+    // Update countdown timers every second
+    let countdownInterval = null;
+    function startCountdownTimers(){
+      if(countdownInterval) clearInterval(countdownInterval);
+      
+      countdownInterval = setInterval(() => {
+        const countdowns = document.querySelectorAll('[data-countdown]');
+        countdowns.forEach(el => {
+          const iso = el.dataset.countdown;
+          const timeLeft = formatTimeRemaining(iso);
+          if(timeLeft){
+            el.innerHTML = `⏱️ Cancel window: <strong>${timeLeft}</strong> remaining`;
+          } else {
+            // Time expired - reload to update UI
+            clearInterval(countdownInterval);
+            loadPurchases();
+          }
+        });
+      }, 1000);
     }
 
     loadPurchases();
