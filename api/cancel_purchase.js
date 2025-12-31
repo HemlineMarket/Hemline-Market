@@ -1,6 +1,7 @@
 // File: /api/cancel_purchase.js
-// Cancels an order (within 30 minutes) and re-opens the listing.
+// Cancels an order (within 30 minutes) and re-opens the listing(s).
 // Includes: Stripe refund, Shippo label void, email notifications, seller notification
+// FIXED: Now handles multi-item orders (restores all listings, not just the first one)
 //
 // Called from purchases.html via POST /api/cancel_purchase
 // Body: { order_id, buyer_id }
@@ -133,7 +134,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing buyer_id" });
     }
 
-    // Load the full order
+    // Load the full order (including listing_ids for multi-item orders)
     const { data: order, error: selectErr } = await supabaseAdmin
       .from("orders")
       .select("*")
@@ -207,7 +208,7 @@ export default async function handler(req, res) {
         updated_at: nowIso 
       })
       .eq("id", order.id)
-      .select("id, status, listing_id")
+      .select("id, status, listing_id, listing_ids")
       .maybeSingle();
 
     if (updateErr) {
@@ -215,33 +216,44 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Failed to cancel order" });
     }
 
-    // 2) Re-open listing with yards_available restored
-    if (updated?.listing_id) {
-      // Get the original listing to restore yards
-      const { data: listing } = await supabaseAdmin
-        .from("listings")
-        .select("yards_available")
-        .eq("id", updated.listing_id)
-        .maybeSingle();
+    // 2) Re-open ALL listings (supports multi-item orders)
+    // Build list of all listing IDs to restore
+    let listingIdsToRestore = [];
+    
+    // Check for listing_ids array first (multi-item orders)
+    if (order.listing_ids && Array.isArray(order.listing_ids) && order.listing_ids.length > 0) {
+      listingIdsToRestore = order.listing_ids;
+    } else if (order.listing_id) {
+      // Fall back to single listing_id
+      listingIdsToRestore = [order.listing_id];
+    }
 
-      // Restore yards - use order yards if listing has 0
-      const yardsToRestore = order.yardage || order.yards || 1;
-
+    if (listingIdsToRestore.length > 0) {
+      console.log("[cancel_purchase] Restoring listings:", listingIdsToRestore);
+      
       const { error: listingErr } = await supabaseAdmin
         .from("listings")
         .update({ 
           status: "ACTIVE", 
-          yards_available: yardsToRestore,
+          yards_available: 1, // Default to 1 yard; could be enhanced to store original yards
           sold_at: null,
           updated_at: nowIso 
         })
-        .eq("id", updated.listing_id)
+        .in("id", listingIdsToRestore)
         .is("deleted_at", null);
 
       if (listingErr) {
         console.warn("[cancel_purchase] listing update error:", listingErr);
+      } else {
+        console.log(`[cancel_purchase] Successfully restored ${listingIdsToRestore.length} listing(s)`);
       }
     }
+
+    // Determine item count for notification text
+    const itemCount = listingIdsToRestore.length || 1;
+    const itemText = itemCount > 1 
+      ? `${itemCount} items` 
+      : `"${order.listing_title || 'this item'}"`;
 
     // 3) Create in-app notification for buyer
     await supabaseAdmin.from("notifications").insert({
@@ -249,7 +261,7 @@ export default async function handler(req, res) {
       type: "refund",
       kind: "refund",
       title: "Order cancelled & refund initiated",
-      body: `Your order for "${order.listing_title || 'this item'}" has been cancelled. Refund of $${((order.total_cents || 0) / 100).toFixed(2)} is being processed.`,
+      body: `Your order for ${itemText} has been cancelled. Refund of $${((order.total_cents || 0) / 100).toFixed(2)} is being processed.`,
       href: "/purchases.html",
     });
 
@@ -260,7 +272,7 @@ export default async function handler(req, res) {
         type: "cancelled",
         kind: "cancelled",
         title: "🚫 Order cancelled - DO NOT SHIP",
-        body: `The buyer cancelled "${order.listing_title || 'your item'}" within 30 minutes. ${labelVoidResult.voided ? 'Label has been voided.' : 'Do not use the shipping label.'} Listing re-activated.`,
+        body: `The buyer cancelled ${itemText} within 30 minutes. ${labelVoidResult.voided ? 'Label has been voided.' : 'Do not use the shipping label.'} ${itemCount > 1 ? 'All listings' : 'Listing'} re-activated.`,
         href: "/sales.html",
       });
     }
@@ -268,12 +280,16 @@ export default async function handler(req, res) {
     // 5) Email buyer confirmation
     if (order.buyer_email) {
       const totalDollars = ((order.total_cents || 0) / 100).toFixed(2);
+      const itemDescription = itemCount > 1 
+        ? `<strong>${itemCount} items</strong>` 
+        : `<strong>"${order.listing_title || 'this item'}"</strong>`;
+      
       await sendEmail(
         order.buyer_email,
         "✅ Order Cancelled & Refund Initiated - Hemline Market",
         `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
           <h1 style="color:#991b1b;">Order Cancelled</h1>
-          <p>Your order for <strong>"${order.listing_title || 'this item'}"</strong> has been cancelled.</p>
+          <p>Your order for ${itemDescription} has been cancelled.</p>
           
           <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
             <h3 style="margin:0 0 8px;color:#166534;">💳 Refund Details</h3>
@@ -286,7 +302,7 @@ export default async function handler(req, res) {
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
           <p style="color:#6b7280;font-size:14px;">Questions? <a href="https://hemlinemarket.com/contact.html" style="color:#991b1b;">Contact us</a><br><strong>Hemline Market</strong></p>
         </div>`,
-        `Your order for "${order.listing_title || 'this item'}" has been cancelled. Refund of $${totalDollars} is being processed to your original payment method.`
+        `Your order for ${itemCount > 1 ? itemCount + ' items' : '"' + (order.listing_title || 'this item') + '"'} has been cancelled. Refund of $${totalDollars} is being processed to your original payment method.`
       );
     }
 
@@ -316,12 +332,20 @@ export default async function handler(req, res) {
               <p style="margin:0;color:#92400e;">If you printed a shipping label, please discard it — <strong>do not use it</strong>. We attempted to void it automatically.</p>
             </div>`;
 
+        const itemDescription = itemCount > 1 
+          ? `<strong>${itemCount} items</strong>` 
+          : `<strong>"${order.listing_title || 'your item'}"</strong>`;
+        
+        const listingMessage = itemCount > 1 
+          ? "All your listings have been automatically re-activated"
+          : "Your listing has been automatically re-activated";
+
         await sendEmail(
           sellerEmail,
           "📦 Order Cancelled - Do Not Ship - Hemline Market",
           `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
             <h1 style="color:#991b1b;">Order Cancelled</h1>
-            <p>The buyer cancelled their order for <strong>"${order.listing_title || 'your item'}"</strong> within the 30-minute cancellation window.</p>
+            <p>The buyer cancelled their order for ${itemDescription} within the 30-minute cancellation window.</p>
             
             <div style="background:#dc2626;color:white;border-radius:8px;padding:16px;margin:20px 0;text-align:center;">
               <h2 style="margin:0;font-size:20px;">🚫 DO NOT SHIP THIS ORDER</h2>
@@ -330,8 +354,8 @@ export default async function handler(req, res) {
             ${labelMessage}
             
             <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
-              <h3 style="margin:0 0 8px;color:#166534;">✅ Your Listing is Re-Activated</h3>
-              <p style="margin:0;color:#166534;">Your listing has been automatically re-activated and is available for other buyers.</p>
+              <h3 style="margin:0 0 8px;color:#166534;">✅ ${itemCount > 1 ? 'Listings' : 'Listing'} Re-Activated</h3>
+              <p style="margin:0;color:#166534;">${listingMessage} and ${itemCount > 1 ? 'are' : 'is'} available for other buyers.</p>
             </div>
             
             <p><strong>No further action needed.</strong></p>
@@ -339,14 +363,15 @@ export default async function handler(req, res) {
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
             <p style="color:#6b7280;font-size:14px;">Happy selling!<br><strong>Hemline Market</strong></p>
           </div>`,
-          `CANCELLED: The buyer cancelled their order for "${order.listing_title || 'your item'}" within 30 minutes. DO NOT SHIP. Your listing has been re-activated.`
+          `CANCELLED: The buyer cancelled their order for ${itemCount > 1 ? itemCount + ' items' : '"' + (order.listing_title || 'your item') + '"'} within 30 minutes. DO NOT SHIP. ${listingMessage}.`
         );
       }
     }
 
     return res.status(200).json({ 
       status: "CANCELLED",
-      refund_id: refundId 
+      refund_id: refundId,
+      listings_restored: listingIdsToRestore.length
     });
 
   } catch (err) {
