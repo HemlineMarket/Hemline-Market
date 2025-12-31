@@ -1184,6 +1184,13 @@
       const newFiles = state.photos.filter(p=>p.file);
       const existingFiles = state.photos.filter(p=>!p.file && p.publicUrl);
       
+      console.log('[uploadListingPhotos] Debug:', {
+        totalPhotos: state.photos.length,
+        newFilesCount: newFiles.length,
+        existingFilesCount: existingFiles.length,
+        existingUrls: existingFiles.map(p => p.publicUrl)
+      });
+      
       // If no photos at all
       if(!state.photos.length){
         return { coverUrl: null, items: [] };
@@ -1252,19 +1259,35 @@
         nextBtn.textContent = isEditMode ? 'Saving…' : 'Publishing…';
         backBtn.disabled = true;
 
-        const d = state.details;
         const priceCents      = d.price     != null ? Math.round(d.price * 100)     : null;
         const origPriceCents  = d.origPrice != null ? Math.round(d.origPrice * 100) : null;
 
         const { coverUrl, items } = await uploadListingPhotos(user);
 
         // Build image_url fields for up to 8 images
+        // Preserve order from state.photos (existing + new)
         const imageFields = {};
+        
+        // First, explicitly clear all 8 slots if in edit mode (to handle removed images)
+        if(isEditMode){
+          for(let i = 1; i <= 8; i++){
+            imageFields[`image_url_${i}`] = null;
+          }
+        }
+        
+        // Then fill in the actual images
         items.forEach((item, idx) => {
           const fieldNum = idx + 1;
           if(fieldNum <= 8 && item.publicUrl){
             imageFields[`image_url_${fieldNum}`] = item.publicUrl;
           }
+        });
+        
+        console.log('[sell.html] Image save debug:', {
+          statePhotosCount: state.photos.length,
+          itemsCount: items.length,
+          imageFields: imageFields,
+          isEditMode: isEditMode
         });
 
         const payload = {
