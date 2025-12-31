@@ -1149,6 +1149,20 @@
       });
     }
 
+    // Optimize Supabase images with resize transform for faster loading
+    function thumbUrl(url, width = 400) {
+      if (!url) return "";
+      // Check if it's a Supabase storage URL
+      if (url.includes("supabase.co/storage/v1/object/public/")) {
+        // Transform to render endpoint with resize
+        return url.replace(
+          "/storage/v1/object/public/",
+          `/storage/v1/render/image/public/`
+        ) + `?width=${width}&quality=75`;
+      }
+      return url;
+    }
+
     function computeYards(row){
       const y1 = row.yards_available;
       const y2 = row.yardage;
@@ -1282,7 +1296,7 @@
         card.innerHTML = `
           <a class="listing-thumb-link" href="${href}">
             <div class="listing-thumb" aria-hidden="true">
-              ${item.image_url_1 ? `<img src="${item.image_url_1}" alt="${safeAlt}" loading="lazy">` : ""}
+              ${item.image_url_1 ? `<img src="${thumbUrl(item.image_url_1, 400)}" alt="${safeAlt}" loading="lazy">` : ""}
             </div>
           </a>
           <div class="listing-body">
