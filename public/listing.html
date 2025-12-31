@@ -6,6 +6,9 @@
   <title>Listing — Hemline Market</title>
 
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+  <link rel="apple-touch-icon" href="/images/icon.png">
 
   <!-- Shared styles (universal stack) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
@@ -195,28 +198,47 @@
       padding-top:10px;
     }
     .specs h3{
-      margin:0 0 8px;
-      font-size:13px;
-      color:#374151;
+      margin:0 0 12px;
+      font-size:14px;
+      font-weight:700;
+      color:#111827;
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+    .specs h3::before{
+      content:"📋";
+      font-size:16px;
     }
     .spec-table{
       width:100%;
       border-collapse:collapse;
+      background:#fafafa;
+      border-radius:8px;
+      overflow:hidden;
     }
     .spec-table th,.spec-table td{
-      padding:8px 6px;
-      border-bottom:1px solid #f3f4f6;
+      padding:10px 12px;
+      border-bottom:1px solid #e5e7eb;
       font-size:13px;
       text-align:left;
     }
     .spec-table th{
-      color:#6b7280;
+      color:#374151;
       font-weight:600;
-      width:32%;
+      width:40%;
+      background:#f3f4f6;
+    }
+    .spec-table td{
+      color:#111827;
+      font-weight:500;
     }
     .spec-table tr:last-child th,
     .spec-table tr:last-child td{
       border-bottom:0;
+    }
+    .spec-table tr:hover{
+      background:#f0f9ff;
     }
 
     .trust{
@@ -728,6 +750,12 @@
 
     hero.style.objectFit = "contain";
     hero.style.background = "#f3f4f6";
+    
+    // Add error handling for hero image
+    hero.onerror = function() {
+      this.style.display = "none";
+      this.parentElement.insertAdjacentHTML('beforeend', '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;color:#9ca3af;font-size:14px;background:#f3f4f6;">Image unavailable</div>');
+    };
 
     const urls = [];
     for(let i=1;i<=8;i++){
@@ -745,9 +773,20 @@
         const img = document.createElement("img");
         img.src = src;
         img.alt = "";
+        img.loading = "lazy";
+        // Add error handling for thumbnails
+        img.onerror = function() {
+          this.style.display = "none";
+          btn.style.background = "#f3f4f6";
+          btn.innerHTML = '<span style="font-size:9px;color:#9ca3af;">N/A</span>';
+        };
         btn.appendChild(img);
         btn.addEventListener("click", ()=>{
           hero.src = src;
+          hero.style.display = "block";
+          // Remove any error placeholder
+          const placeholder = hero.parentElement.querySelector('div[style*="Image unavailable"]');
+          if(placeholder) placeholder.remove();
           thumbs.querySelectorAll(".thumb").forEach(el=>el.classList.remove("active"));
           btn.classList.add("active");
         });
@@ -763,17 +802,22 @@
     const table = document.getElementById("specTable");
     if(!table) return;
 
+    // Get origin from either field name (database might use either)
+    const originValue = listing.country_of_origin || listing.origin || null;
+
+    // Build rows with clearer labels and tooltips
+    // Format: [Display Label, Value, Tooltip/Description]
     const rows = [
-      ["Content", listing.content],
-      ["Fabric", listing.fabric_type],
-      ["Color", listing.color_family],
-      ["Pattern", listing.pattern],
-      ["Width", listing.width_in ? listing.width_in + "″" : null],
-      ["Weight", listing.weight_gsm ? listing.weight_gsm + " GSM" : null],
-      ["Origin", listing.country_of_origin],
-      ["Fiber type", listing.fiber_type],
-      ["Designer / Mill", listing.designer],
-      ["Feels like", listing.feels_like]
+      ["Fiber Content", listing.content, "What the fabric is made of (e.g., 100% Cotton, Silk/Wool blend)"],
+      ["Fabric Type", listing.fabric_type, "The weave or knit structure (e.g., Twill, Jersey, Satin)"],
+      ["Color Family", listing.color_family, "Primary color(s) of the fabric"],
+      ["Pattern", listing.pattern, "Solid, Printed, Striped, etc."],
+      ["Width", listing.width_in ? listing.width_in + "″" : null, "Fabric width in inches"],
+      ["Weight", listing.weight_gsm ? listing.weight_gsm + " GSM" : null, "Grams per square meter"],
+      ["Country of Origin", originValue, "Where the fabric was manufactured"],
+      ["Fiber Category", listing.fiber_type, "Natural, Synthetic, or Blend"],
+      ["Designer / Mill", listing.designer, "Brand or manufacturer name"],
+      ["Feels Like", listing.feels_like, "Texture comparison for unknown content"]
     ];
 
     if(listing.description){
@@ -791,12 +835,31 @@
     }
 
     table.innerHTML = "";
-    rows.forEach(([label, val])=>{
+    rows.forEach(([label, val, tooltip])=>{
+      // Skip rows with no value (don't show "—" for everything)
+      if(val === null || val === undefined || String(val).trim() === "") return;
+      
       const tr = document.createElement("tr");
-      const safeVal = (val === null || val === undefined || String(val).trim()==="") ? "—" : String(val);
-      tr.innerHTML = `<th>${label}</th><td>${safeVal}</td>`;
+      const th = document.createElement("th");
+      th.textContent = label;
+      if(tooltip){
+        th.title = tooltip;
+        th.style.cursor = "help";
+      }
+      const td = document.createElement("td");
+      td.textContent = String(val);
+      tr.appendChild(th);
+      tr.appendChild(td);
       table.appendChild(tr);
     });
+
+    // If no specs at all, show a helpful message
+    if(table.children.length === 0){
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td colspan="2" style="color:#9ca3af;font-style:italic;text-align:center;padding:16px;">No specifications provided yet</td>';
+      table.appendChild(tr);
+    }
+  }
   }
 
   function showOwnerControls(listing){
