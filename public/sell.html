@@ -633,6 +633,8 @@
 <script src="scripts/hm-shell.js"></script>
 <!-- Profile completeness check -->
 <script src="scripts/profile-check.js"></script>
+<!-- Content filter for descriptions -->
+<script src="scripts/content-filter.js"></script>
 
 <script>
   // Render shell first
@@ -1208,6 +1210,19 @@
 
     async function publishListing(user){
       try{
+        // Check description for prohibited content
+        const d = state.details;
+        if(d.desc && window.HMContentFilter){
+          const descCheck = window.HMContentFilter.check(d.desc);
+          if(descCheck.blocked){
+            alert("Your listing description contains prohibited content: " + descCheck.reason + "\n\nPlease remove any contact info, external links, or off-platform promotions.");
+            nextBtn.disabled = false;
+            nextBtn.textContent = isEditMode ? 'Save changes' : 'Publish listing';
+            backBtn.disabled = false;
+            return;
+          }
+        }
+
         nextBtn.disabled = true;
         nextBtn.textContent = isEditMode ? 'Saving…' : 'Publishing…';
         backBtn.disabled = true;
