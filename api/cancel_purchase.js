@@ -71,7 +71,7 @@ async function voidShippoLabel(orderId) {
       return { voided: false, reason: "no_transaction_id" };
     }
 
-    if (shipment.status === "CANCELLED") {
+    if (shipment.status === "CANCELED") {
       console.log("[cancel_purchase] Shipment already cancelled:", orderId);
       return { voided: true, reason: "already_cancelled" };
     }
@@ -99,7 +99,7 @@ async function voidShippoLabel(orderId) {
     await supabaseAdmin
       .from("db_shipments")
       .update({
-        status: "CANCELLED",
+        status: "CANCELED",
         cancelled_at: new Date().toISOString(),
       })
       .eq("order_id", orderId);
@@ -178,8 +178,8 @@ export default async function handler(req, res) {
     }
 
     // If already cancelled, just return OK
-    if (order.status && order.status.toString().toUpperCase() === "CANCELLED") {
-      return res.status(200).json({ status: "CANCELLED" });
+    if (order.status && order.status.toString().toUpperCase() === "CANCELED") {
+      return res.status(200).json({ status: "CANCELED" });
     }
 
     // === STRIPE REFUND ===
@@ -208,7 +208,7 @@ export default async function handler(req, res) {
     const { data: updated, error: updateErr } = await supabaseAdmin
       .from("orders")
       .update({ 
-        status: "CANCELLED", 
+        status: "CANCELED", 
         cancelled_at: nowIso,
         cancelled_by: buyer_id,
         stripe_refund_id: refundId,
@@ -376,7 +376,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ 
-      status: "CANCELLED",
+      status: "CANCELED",
       refund_id: refundId,
       listings_restored: listingIdsToRestore.length
     });
