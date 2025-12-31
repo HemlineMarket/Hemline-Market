@@ -8,7 +8,7 @@ import Stripe from 'stripe';
 export const config = { api: { bodyParser: false } };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-07-30.basil',
+  apiVersion: '2024-06-20',
 });
 
 export default async function handler(req, res) {
