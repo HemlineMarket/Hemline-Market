@@ -91,6 +91,7 @@ async function createShippoLabel(fromAddr, toAddr, parcel) {
         tracking_url: tx.tracking_url_provider || tx.tracking_url,
         carrier: rate.provider,
         service: rate.servicelevel?.name,
+        shippo_transaction_id: tx.object_id,  // Needed for voiding labels on cancellation
       }
     };
   } catch (err) {
@@ -380,6 +381,7 @@ export default async function handler(req, res) {
               carrier: label.carrier,
               service: label.service,
               status: "LABEL_CREATED",
+              shippo_transaction_id: label.shippo_transaction_id,  // For voiding labels
             });
 
             // Email label to seller
