@@ -16,7 +16,7 @@ function auth(req, res) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-07-30.basil',
+  apiVersion: '2024-06-20',
 });
 
 function asCents(n) { return Number(n || 0); }
