@@ -32,29 +32,28 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Missing listing_id" });
       }
 
-      // Upsert hold - create new or refresh expiry
+      // Delete any existing hold for this listing first
+      await supabaseAdmin
+        .from("cart_holds")
+        .delete()
+        .eq("listing_id", listing_id);
+
+      // Create new hold
       const expires_at = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 min from now
       
       const { data, error } = await supabaseAdmin
         .from("cart_holds")
-        .upsert(
-          { 
-            listing_id, 
-            user_id: user_id || null,
-            expires_at,
-            created_at: new Date().toISOString()
-          },
-          { 
-            onConflict: "listing_id,user_id",
-            ignoreDuplicates: false 
-          }
-        )
+        .insert({ 
+          listing_id, 
+          user_id: user_id || null,
+          expires_at
+        })
         .select()
         .single();
 
       if (error) {
         console.error("[cart/hold] POST error:", error);
-        return res.status(500).json({ error: "Failed to create hold" });
+        return res.status(500).json({ error: "Failed to create hold", details: error.message });
       }
 
       return res.status(200).json({ ok: true, hold: data });
