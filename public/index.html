@@ -121,6 +121,30 @@
       background:var(--hm-accent-soft);
       box-shadow:0 3px 10px rgba(148,27,27,.05);
     }
+    .hero-search-type-wrap{
+      display:flex;
+      align-items:center;
+    }
+    .hero-search-type{
+      padding:9px 12px;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      font-size:14px;
+      font-weight:600;
+      color:var(--hm-text);
+      cursor:pointer;
+      appearance:none;
+      -webkit-appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;
+      background-position:right 10px center;
+      padding-right:28px;
+    }
+    .hero-search-type:focus{
+      outline:none;
+      border-color:var(--hm-accent);
+    }
     .hero-search-input-wrap{
       position:relative;
       flex:1;
@@ -137,7 +161,7 @@
     }
     .hero-search-input{
       width:100%;
-      padding:9px 12px 9px 30px;
+      padding:9px 12px;
       border-radius:999px;
       border:none;
       font-size:14px;
@@ -986,8 +1010,13 @@
       </div>
 
       <form id="homeSearchForm" class="hero-search-row" role="search">
+        <div class="hero-search-type-wrap">
+          <select id="searchType" class="hero-search-type">
+            <option value="fabrics">Fabrics</option>
+            <option value="sellers">Sellers</option>
+          </select>
+        </div>
         <div class="hero-search-input-wrap">
-          <span class="hero-search-icon" aria-hidden="true">🔍</span>
           <input
             id="homeSearchInput"
             class="hero-search-input"
@@ -1311,14 +1340,32 @@
     document.addEventListener("DOMContentLoaded", () => {
       const form = document.getElementById("homeSearchForm");
       const input = document.getElementById("homeSearchInput");
+      const searchType = document.getElementById("searchType");
+
+      // Update placeholder based on search type
+      if(searchType && input){
+        searchType.addEventListener("change", () => {
+          if(searchType.value === "sellers"){
+            input.placeholder = "Search by store name or seller name...";
+          } else {
+            input.placeholder = "Search fabrics by color, content, type, weight, yards, price, and more!";
+          }
+        });
+      }
 
       if(form && input){
         form.addEventListener("submit", (e) => {
           e.preventDefault();
           const q = input.value.trim();
+          const type = searchType?.value || "fabrics";
 
           const params = new URLSearchParams();
           if(q) params.set("q", q);
+          
+          // If searching sellers, go to browse with ateliers mode
+          if(type === "sellers"){
+            params.set("mode", "ateliers");
+          }
 
           const qs = params.toString();
           const url = "browse.html" + (qs ? "?" + qs : "");
