@@ -235,18 +235,67 @@ export default async function handler(req, res) {
       item_count: String(cart.length),
     };
 
-    const session = await stripe.checkout.sessions.create({
+    // Build shipping address for pre-fill (if provided)
+    const shippingAddr = body.shipping_address || {};
+    const hasShippingAddress = !!(shippingAddr.line1 && shippingAddr.city && shippingAddr.state && shippingAddr.postal_code);
+
+    // Add shipping address to metadata so webhook can access it
+    if (hasShippingAddress) {
+      metadata.ship_name = (shippingAddr.name || "").slice(0, 100);
+      metadata.ship_line1 = (shippingAddr.line1 || "").slice(0, 100);
+      metadata.ship_line2 = (shippingAddr.line2 || "").slice(0, 100);
+      metadata.ship_city = (shippingAddr.city || "").slice(0, 50);
+      metadata.ship_state = (shippingAddr.state || "").slice(0, 20);
+      metadata.ship_postal = (shippingAddr.postal_code || "").slice(0, 20);
+      metadata.ship_country = "US";
+    }
+
+    const sessionParams = {
       mode: "payment",
       line_items,
       customer_email: buyerEmail || undefined,
       success_url: `${origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout.html?canceled=1`,
       metadata,
-      shipping_address_collection: {
-        allowed_countries: ["US"],
-      },
       billing_address_collection: "auto",
-    });
+    };
+
+    // If we have shipping address from our checkout, use shipping_options instead of collection
+    // This shows a fixed shipping rate and skips Stripe's address form
+    if (hasShippingAddress) {
+      sessionParams.shipping_options = [{
+        shipping_rate_data: {
+          type: 'fixed_amount',
+          fixed_amount: { amount: shippingCents, currency: 'usd' },
+          display_name: 'Standard Shipping',
+          delivery_estimate: {
+            minimum: { unit: 'business_day', value: 3 },
+            maximum: { unit: 'business_day', value: 7 },
+          },
+        },
+      }];
+      // Record the shipping address with the payment intent
+      sessionParams.payment_intent_data = {
+        shipping: {
+          name: shippingAddr.name || "Customer",
+          address: {
+            line1: shippingAddr.line1,
+            line2: shippingAddr.line2 || "",
+            city: shippingAddr.city,
+            state: shippingAddr.state,
+            postal_code: shippingAddr.postal_code,
+            country: "US",
+          },
+        },
+      };
+    } else {
+      // No address provided - let Stripe collect it
+      sessionParams.shipping_address_collection = {
+        allowed_countries: ["US"],
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     return res.status(200).json({ url: session.url, id: session.id });
   } catch (err) {
