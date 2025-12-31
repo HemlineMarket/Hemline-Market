@@ -920,6 +920,32 @@
     .empty-cta:hover{
       filter:brightness(1.1);
     }
+
+    /* Cart hold badges */
+    .cart-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      z-index: 2;
+    }
+    .cart-badge.yours {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+    .cart-badge.others {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    .listing-thumb {
+      position: relative;
+    }
+
   @media(max-width:768px){body{background-position:20% center;}}
   </style>
 </head>
@@ -1202,6 +1228,23 @@
       return map;
     }
 
+    // Fetch active cart holds for listings
+    async function fetchCartHolds(listingIds) {
+      const map = {};
+      if (!listingIds || !listingIds.length) return map;
+      
+      try {
+        const res = await fetch(`/api/cart/hold?listings=${listingIds.join(',')}`);
+        if (res.ok) {
+          const data = await res.json();
+          return data.holds || {};
+        }
+      } catch(e) {
+        console.error("Cart holds fetch error", e);
+      }
+      return map;
+    }
+
     async function loadHomeListings(){
       const grid  = document.getElementById("homeListingsGrid");
       const empty = document.getElementById("homeListingsEmpty");
@@ -1268,6 +1311,13 @@
 
       const profileMap = await fetchProfilesForListings(listings);
 
+      // Fetch cart holds to show "In someone's cart" badges
+      const holdMap = await fetchCartHolds(listings.map(l => l.id));
+      
+      // Get current user's cart to show "In your cart" 
+      const myCart = JSON.parse(localStorage.getItem('hm_cart') || '[]');
+      const myCartIds = new Set(myCart.map(it => it.id || it.listing_id));
+
       listings.forEach(item=>{
         const yards = computeYards(item);
         const priceCents = item.price_cents != null ? Number(item.price_cents) : null;
@@ -1282,6 +1332,19 @@
         const status = (item.status || "active").toLowerCase();
         const isSold = status === "sold" || (yards != null && yards <= 0) || item.yards_available === 0;
         const canBuy = !isSold && priceCents != null && yards != null && yards > 0;
+
+        // Check if item is in someone's cart
+        const hold = holdMap[item.id];
+        const inMyCart = myCartIds.has(item.id);
+        const inSomeoneElsesCart = hold?.held && !inMyCart;
+        
+        // Badge HTML
+        let cartBadgeHtml = '';
+        if (inMyCart) {
+          cartBadgeHtml = '<span class="cart-badge yours">✓ In your cart</span>';
+        } else if (inSomeoneElsesCart) {
+          cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
+        }
 
         const card = document.createElement("article");
         card.className = "listing-card";
@@ -1300,6 +1363,7 @@
           <a class="listing-thumb-link" href="${href}">
             <div class="listing-thumb" aria-hidden="true">
               ${item.image_url_1 ? `<img src="${thumbUrl(item.image_url_1, 400)}" alt="${safeAlt}" loading="lazy">` : ""}
+              ${cartBadgeHtml}
             </div>
           </a>
           <div class="listing-body">
@@ -1406,6 +1470,29 @@
     (function(){
       function toNum(x){ const n = Number(x); return Number.isFinite(n) ? n : 0; }
 
+      // Create hold in database for "In someone's cart" feature
+      async function createHoldForListing(listingId) {
+        if (!listingId) return;
+        try {
+          let userId = null;
+          try {
+            const supabase = window.HM?.supabase;
+            if (supabase) {
+              const { data } = await supabase.auth.getSession();
+              userId = data?.session?.user?.id || null;
+            }
+          } catch(_) {}
+          
+          await fetch("/api/cart/hold", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ listing_id: listingId, user_id: userId })
+          });
+        } catch(e) {
+          console.error("[index] createHold failed:", e);
+        }
+      }
+
       function addToCartFromDataset(ds){
         // supports both dataset variants: data-* OR your older btn.dataset.*
         const id = ds.listingId || ds.id || "";
@@ -1456,6 +1543,10 @@
           arr.push(item);
           localStorage.setItem(key, JSON.stringify(arr));
           window.dispatchEvent(new CustomEvent("hm:cart-updated", { detail: { source: "index" } }));
+          
+          // Create hold in database for "In someone's cart" feature
+          createHoldForListing(item.id);
+          
           return true;
         }catch(e){
           console.error("[index] cart fallback failed", e);
