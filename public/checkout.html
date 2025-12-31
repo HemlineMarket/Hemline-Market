@@ -315,6 +315,13 @@
         <div id="addrFormWrap" style="display:none; margin-top:10px;">
           <div class="checkout-row">
             <div>
+              <label class="checkout-label" for="shipName">Full name</label>
+              <input id="shipName" class="checkout-input" placeholder="Full name" autocomplete="name">
+            </div>
+          </div>
+
+          <div class="checkout-row" style="margin-top:10px">
+            <div>
               <label class="checkout-label" for="addr1">Address line 1</label>
               <input id="addr1" class="checkout-input" placeholder="Street address" autocomplete="address-line1">
             </div>
@@ -597,12 +604,14 @@
 
     function buildSummaryLines(addr) {
       const lines = [];
+      const name = (addr?.name || addr?.shipName || "").trim();
       const l1 = (addr?.addrLine1 || addr?.line1 || "").trim();
       const l2 = (addr?.addrLine2 || addr?.line2 || "").trim();
       const city = (addr?.addrCity || addr?.city || "").trim();
       const st   = (addr?.addrState || addr?.state || "").trim();
       const zip  = (addr?.addrZip || addr?.zip || "").trim();
 
+      if (name) lines.push(name);
       if (l1) lines.push(l1);
       if (l2) lines.push(l2);
 
@@ -628,6 +637,8 @@
     }
 
     function setFormFromAddress(addr) {
+      const shipNameEl = document.getElementById("shipName");
+      if (shipNameEl) shipNameEl.value = (addr?.name || addr?.shipName || addr?.ship_name || "").trim();
       addr1El.value = (addr?.addrLine1 || addr?.line1 || "").trim();
       addr2El.value = (addr?.addrLine2 || addr?.line2 || "").trim();
       cityEl.value  = (addr?.addrCity  || addr?.city  || "").trim();
@@ -636,7 +647,11 @@
     }
 
     function getAddressFromForm() {
+      const shipNameEl = document.getElementById("shipName");
+      const name = shipNameEl?.value?.trim() || "";
       return {
+        name: name,
+        shipName: name,
         addrLine1: addr1El.value.trim(),
         addrLine2: addr2El.value.trim(),
         addrCity:  cityEl.value.trim(),
@@ -674,6 +689,7 @@
 
       // Save to checkout snapshot (for this order)
       writeLS("hm_checkout_address", {
+        name: nextAddr.name,
         email: emailEl?.value?.trim() || "",
         phone: phoneEl?.value?.trim() || "",
         line1: nextAddr.line1,
@@ -690,6 +706,7 @@
         const existing = safeParse(ADDRESS_KEY, {});
         writeLS(ADDRESS_KEY, {
           ...existing,
+          name: nextAddr.name,
           addrLine1: nextAddr.addrLine1,
           addrLine2: nextAddr.addrLine2,
           addrCity:  nextAddr.addrCity,
@@ -925,6 +942,15 @@
               id: window.__hm_user_id_for_address_key || ""
             },
             shipping_cents: ship,
+            shipping_address: {
+              name: document.getElementById("shipName")?.value?.trim() || "",
+              line1: addr.line1,
+              line2: addr.line2 || "",
+              city: addr.city,
+              state: addr.state,
+              postal_code: addr.zip,
+              country: "US"
+            }
           }),
         });
 
