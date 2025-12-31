@@ -914,6 +914,20 @@
       });
     }
 
+    // Optimize Supabase images with resize transform for faster loading
+    function thumbUrl(url, width = 400) {
+      if (!url) return "";
+      // Check if it's a Supabase storage URL
+      if (url.includes("supabase.co/storage/v1/object/public/")) {
+        // Transform to render endpoint with resize
+        return url.replace(
+          "/storage/v1/object/public/",
+          `/storage/v1/render/image/public/`
+        ) + `?width=${width}&quality=75`;
+      }
+      return url;
+    }
+
     function numeric(val){
       const n = parseFloat(val);
       return Number.isFinite(n) ? n : null;
@@ -1277,7 +1291,7 @@
           card.innerHTML = `
             <a class="listing-thumb-link" href="${href}">
               <div class="listing-thumb" aria-hidden="true">
-                ${l.image_url_1 ? `<img src="${l.image_url_1}" alt="${safeAlt}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
+                ${l.image_url_1 ? `<img src="${thumbUrl(l.image_url_1, 400)}" alt="${safeAlt}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
               </div>
             </a>
             <div class="listing-body">
