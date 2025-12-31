@@ -150,13 +150,27 @@ export default async function handler(req, res) {
     }
 
     // COMPUTE TOTALS
+    // amount is per-yard price in cents, must multiply by yards
     const currency = "usd";
     let itemsCents = 0;
 
-    for (const it of cart) {
+    // Helper to calculate line total for an item
+    const calcLineTotal = (it) => {
       const qty = Math.max(1, asInt(it?.qty, 1));
-      const amount = Math.max(0, asInt(it?.amount, 0));
-      itemsCents += amount * qty;
+      const amount = Math.max(0, asInt(it?.amount, 0)); // cents per yard
+      const yards = Math.max(1, parseFloat(it?.yards) || 1);
+      
+      // If price_total is explicitly set, use it
+      if (it?.price_total && asInt(it.price_total, 0) > 0) {
+        return asInt(it.price_total, 0) * qty;
+      }
+      
+      // Otherwise: amount (cents/yd) × yards × qty
+      return Math.round(amount * yards * qty);
+    };
+
+    for (const it of cart) {
+      itemsCents += calcLineTotal(it);
     }
 
     if (itemsCents <= 0) {
@@ -167,7 +181,9 @@ export default async function handler(req, res) {
     const line_items = cart.map((it) => {
       const qty = Math.max(1, asInt(it?.qty, 1));
       const name = (it?.name || it?.title || "Fabric").toString();
-      const unitAmount = Math.max(0, asInt(it?.amount, 0));
+      const lineTotal = calcLineTotal(it);
+      // Stripe wants unit_amount, so we divide by qty to get per-item price
+      const unitAmount = Math.round(lineTotal / qty);
       return {
         quantity: qty,
         price_data: {
