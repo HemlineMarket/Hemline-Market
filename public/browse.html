@@ -552,6 +552,22 @@
         </section>
 
         <section class="section">
+          <div class="title">
+            Burn test
+            <span style="font-weight:400;font-size:11px;color:var(--muted);">
+              (for mystery / unknown content)
+            </span>
+          </div>
+          <div class="selects">
+            <select id="burnTest">
+              <option value="">Any</option>
+              <option value="melts">Melts (synthetic)</option>
+              <option value="burns">Burns (natural)</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="section">
           <div class="title">Color Family</div>
           <div id="colorBox"></div>
         </section>
@@ -1040,6 +1056,7 @@
       const originEl   = document.getElementById("origin");
       const designerEl = document.getElementById("designer");
       const feelsEl    = document.getElementById("feelsLike");
+      const burnTestEl = document.getElementById("burnTest");
 
       if(grid) grid.innerHTML = "";
       if(emptyEl) emptyEl.style.display = "none";
@@ -1084,6 +1101,7 @@
       const originVal  = (originEl?.value || "").trim();
       const designerVal= (designerEl?.value || "").trim().toLowerCase();
       const feelsVal   = (feelsEl?.value || "").trim().toLowerCase();
+      const burnTestVal = (burnTestEl?.value || "").trim().toLowerCase();
 
       const now = new Date();
       
@@ -1174,6 +1192,12 @@
           if(!lowerSet.has(feelsVal)) return false;
         }
 
+        // burn test filter
+        if(burnTestVal){
+          const bt = (l.burn_test || "").toLowerCase();
+          if(bt !== burnTestVal) return false;
+        }
+
         // color family - now supports multiple colors
         if(selectedColors.size > 0){
           if(!l.color_family || !selectedColors.has(l.color_family)) return false;
@@ -1185,7 +1209,7 @@
       const total = filtered.length;
 
       // Check if any filters are applied
-      const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || selectedColors.size > 0 || selectedContents.size > 0;
+      const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || burnTestVal || selectedColors.size > 0 || selectedContents.size > 0;
 
       if(!total){
         if(hasFilters){
@@ -1391,6 +1415,7 @@
       document.getElementById("pattern")?.addEventListener("change", runSearch);
       document.getElementById("origin")?.addEventListener("change", runSearch);
       document.getElementById("feelsLike")?.addEventListener("change", runSearch);
+      document.getElementById("burnTest")?.addEventListener("change", runSearch);
       
       // Add change/input listeners to numeric inputs (with debounce for typing)
       let debounceTimer;
@@ -1426,6 +1451,7 @@
       document.getElementById("origin").value = "";
       document.getElementById("designer").value = "";
       document.getElementById("feelsLike").value = "";
+      document.getElementById("burnTest").value = "";
       
       // Clear color selection (update data attribute and clear Set)
       document.querySelectorAll("#colorBox .sw").forEach(sw => sw.dataset.selected = "false");
