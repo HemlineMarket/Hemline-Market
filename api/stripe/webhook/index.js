@@ -265,8 +265,28 @@ export default async function handler(req, res) {
     const buyerEmail = session.customer_details?.email || md.buyer_email;
     const itemCount = Number(md.item_count) || allListingIds.length || 1;
 
-    const shipDetails = session.shipping_details || session.customer_details || {};
-    const shipAddr = shipDetails.address || {};
+    // Get shipping address - check multiple sources:
+    // 1. session.shipping_details (if Stripe collected it)
+    // 2. session.shipping (from shipping_options)
+    // 3. payment_intent.shipping (if we passed it via payment_intent_data)
+    // 4. metadata (our fallback)
+    let shipDetails = session.shipping_details || session.shipping || {};
+    let shipAddr = shipDetails.address || {};
+    let shipName = shipDetails.name || session.customer_details?.name || "";
+
+    // If no address from Stripe session, check metadata (we stored it there as backup)
+    if (!shipAddr.line1 && md.ship_line1) {
+      shipAddr = {
+        line1: md.ship_line1 || "",
+        line2: md.ship_line2 || "",
+        city: md.ship_city || "",
+        state: md.ship_state || "",
+        postal_code: md.ship_postal || "",
+        country: md.ship_country || "US",
+      };
+      shipName = md.ship_name || shipName || "Customer";
+      console.log("[webhook] Using shipping address from metadata");
+    }
 
     // For multi-item orders, update the title to show count
     const displayTitle = itemCount > 1 
@@ -287,7 +307,7 @@ export default async function handler(req, res) {
       listing_title: displayTitle,
       listing_image: listingImage,
       status: "PAID",
-      shipping_name: shipDetails.name || session.customer_details?.name,
+      shipping_name: shipName,
       shipping_address_line1: shipAddr.line1,
       shipping_address_line2: shipAddr.line2,
       shipping_city: shipAddr.city,
