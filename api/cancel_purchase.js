@@ -7,9 +7,16 @@
 // Body: { order_id, buyer_id }
 
 import Stripe from "stripe";
-import supabaseAdmin from "./_supabaseAdmin";
+import { createClient } from "@supabase/supabase-js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+
+// Create Supabase admin client inline (avoids module resolution issues)
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
 
 export const config = {
   api: {
