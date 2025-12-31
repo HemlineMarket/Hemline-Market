@@ -788,6 +788,9 @@
 
   <!-- Universal shell JS -->
   <script src="scripts/hm-shell.js"></script>
+  
+  <!-- Content filter for bio/descriptions -->
+  <script src="scripts/content-filter.js"></script>
 
   <!-- Account page logic -->
   <script>
@@ -1682,6 +1685,17 @@
         const originalBtnText = submitBtn ? submitBtn.textContent : "Save profile";
 
         try {
+          // Check bio for prohibited content
+          const bioInput = document.getElementById('bio');
+          if(bioInput && window.HMContentFilter){
+            const bioCheck = window.HMContentFilter.check(bioInput.value);
+            if(bioCheck.blocked){
+              alert("Your bio contains prohibited content: " + bioCheck.reason + "\n\nPlease remove any contact info, external links, or off-platform promotions.");
+              bioInput.focus();
+              return;
+            }
+          }
+
           const rawStoreName = (storeNameInput ? storeNameInput.value : "").trim();
           
           // Check if user already has a store name set - if so, they can't change it
