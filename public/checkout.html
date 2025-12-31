@@ -523,12 +523,26 @@
     const sellerKey = it =>
       it.sellerId || it.seller || it.seller_id || it.seller_name || "default";
 
+    // Calculate line total: amount is per-yard price in cents, multiply by yards
+    function lineAmount(it) {
+      const qty = Number(it.qty || 1);
+      const amount = Number(it.amount || 0); // cents per yard
+      const yards = Number(it.yards || 1);
+      
+      // If price_total is explicitly set, use it
+      if (it.price_total && Number(it.price_total) > 0) {
+        return Number(it.price_total) * qty;
+      }
+      
+      // Otherwise: amount (cents/yd) × yards × qty
+      return amount * yards * qty;
+    }
+
     function totals(cart) {
       let sub = 0;
       const yardsBySeller = {};
       for (const it of cart) {
-        const qty = Number(it.qty || 1);
-        const line = Number(it.amount || 0) * qty;
+        const line = lineAmount(it);
         sub += line;
 
         const key = sellerKey(it);
@@ -782,7 +796,7 @@
       showBanner("Cart has items — ready to check out.", "ok");
 
       for (const it of cart) {
-        const line = Number(it.amount || 0) * Number(it.qty || 1);
+        const line = lineAmount(it);
         const row = document.createElement("div");
         row.className = "summary-item";
         row.innerHTML =
