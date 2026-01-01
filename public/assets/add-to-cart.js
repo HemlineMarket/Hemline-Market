@@ -335,6 +335,9 @@
 
     writeCart(cart);
     
+    // Reset hold timer start time
+    localStorage.setItem('hm_cart_hold_start', Date.now().toString());
+    
     // Create hold in database (for "In someone's cart" feature)
     createHold(item.id);
 
