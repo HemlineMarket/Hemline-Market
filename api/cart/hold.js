@@ -38,15 +38,12 @@ export default async function handler(req, res) {
         .delete()
         .eq("listing_id", listing_id);
 
-      // Create new hold
-      const expires_at = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 min from now
-      
+      // Create new hold (no expiry - lasts until item removed from cart or purchased)
       const { data, error } = await supabaseAdmin
         .from("cart_holds")
         .insert({ 
           listing_id, 
-          user_id: user_id || null,
-          expires_at
+          user_id: user_id || null
         })
         .select()
         .single();
@@ -98,12 +95,11 @@ export default async function handler(req, res) {
         return res.status(200).json({ holds: {} });
       }
 
-      // Get active (non-expired) holds for these listings
+      // Get all holds for these listings (no expiry check)
       const { data: holds, error } = await supabaseAdmin
         .from("cart_holds")
-        .select("listing_id, user_id, expires_at")
-        .in("listing_id", listingIds)
-        .gt("expires_at", new Date().toISOString());
+        .select("listing_id, user_id")
+        .in("listing_id", listingIds);
 
       if (error) {
         console.error("[cart/hold] GET error:", error);
