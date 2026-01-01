@@ -12,6 +12,17 @@ import { createClient } from "@supabase/supabase-js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
+// HTML escape function to prevent XSS/injection in emails
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getSupabaseAdmin() {
   return createClient(
     process.env.SUPABASE_URL,
@@ -115,12 +126,21 @@ export default async function handler(req, res) {
       stripe_refund_id: refund.id,
     }).eq("id", order_id);
 
-    // Re-list the item if applicable
-    if (order.listing_id) {
-      await supabase.from("listings").update({
+    // Re-list ALL items if applicable (handles multi-item orders)
+    // listing_ids is an array for multi-item orders, listing_id is for single-item orders
+    const listingIdsToRestore = order.listing_ids && order.listing_ids.length > 0
+      ? order.listing_ids
+      : (order.listing_id ? [order.listing_id] : []);
+    
+    if (listingIdsToRestore.length > 0) {
+      const { error: restoreError } = await supabase.from("listings").update({
         status: "active",
         sold_at: null,
-      }).eq("id", order.listing_id);
+      }).in("id", listingIdsToRestore);
+      
+      if (restoreError) {
+        console.error("Failed to restore listings:", restoreError);
+      }
     }
 
     // Notify buyer
@@ -152,11 +172,12 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (sellerProfile?.contact_email) {
+        const safeTitle = escapeHtml(order.listing_title);
         await sendEmail(
           sellerProfile.contact_email,
           "⚠️ Order Cancelled - Hemline Market",
           `<h2>Order Cancelled</h2>
-          <p>Your order for <strong>"${order.listing_title}"</strong> was cancelled because it wasn't shipped within 5 days.</p>
+          <p>Your order for <strong>"${safeTitle}"</strong> was cancelled because it wasn't shipped within 5 days.</p>
           <p>The buyer has been refunded and your listing has been automatically relisted.</p>
           <p>To avoid cancellations, please ship orders within 5 business days of purchase.</p>
           <p>Hemline Market</p>`,
@@ -167,11 +188,12 @@ export default async function handler(req, res) {
 
     // Email buyer
     if (order.buyer_email) {
+      const safeTitle = escapeHtml(order.listing_title);
       await sendEmail(
         order.buyer_email,
         "✅ Order Cancelled & Refunded - Hemline Market",
         `<h2>Order Cancelled</h2>
-        <p>Your order for <strong>"${order.listing_title}"</strong> has been cancelled.</p>
+        <p>Your order for <strong>"${safeTitle}"</strong> has been cancelled.</p>
         <p>A full refund of <strong>$${(order.total_cents / 100).toFixed(2)}</strong> is being processed to your original payment method.</p>
         <p>Refunds typically appear within 5-10 business days.</p>
         <p>We're sorry this order didn't work out. <a href="https://hemlinemarket.com/browse.html">Continue shopping</a></p>
