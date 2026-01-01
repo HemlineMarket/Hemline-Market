@@ -13,7 +13,10 @@ window.HM = window.HM || {};
     return `
 <header class="hm-header" role="banner">
   <div class="wrap">
-    <a class="hm-brand" href="index.html">Hemline Market</a>
+    <a class="hm-brand" href="index.html">
+      <img src="/images/icon.png" alt="" class="hm-brand-logo">
+      Hemline Market
+    </a>
 
     <div class="right">
       <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
