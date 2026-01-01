@@ -690,16 +690,26 @@
       holdTimerInterval = setInterval(updateTimer, 1000);
     }
     
-    // Reset hold timer when cart is cleared
-    const origWrite = write;
-    write = function(list) {
-      origWrite(list);
-      if (!list || list.length === 0) {
+    // Reset hold timer when cart is cleared - listen for storage changes
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'hm_cart') {
+        const cart = JSON.parse(e.newValue || '[]');
+        if (!cart || cart.length === 0) {
+          localStorage.removeItem('hm_cart_hold_start');
+          if (holdTimerBanner) holdTimerBanner.style.display = 'none';
+          if (holdTimerInterval) clearInterval(holdTimerInterval);
+        }
+      }
+    });
+    
+    // Also check on Clear cart click
+    document.getElementById('clearCart')?.addEventListener('click', () => {
+      setTimeout(() => {
         localStorage.removeItem('hm_cart_hold_start');
         if (holdTimerBanner) holdTimerBanner.style.display = 'none';
         if (holdTimerInterval) clearInterval(holdTimerInterval);
-      }
-    };
+      }, 100);
+    });
   })();
   </script>
 
