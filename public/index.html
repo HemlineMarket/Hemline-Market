@@ -1472,7 +1472,11 @@
 
       // Create hold in database for "In someone's cart" feature
       async function createHoldForListing(listingId) {
-        if (!listingId) return;
+        if (!listingId) {
+          console.log("[index] createHold: no listingId");
+          return;
+        }
+        console.log("[index] createHold: starting for", listingId);
         try {
           let userId = null;
           try {
@@ -1483,11 +1487,14 @@
             }
           } catch(_) {}
           
-          await fetch("/api/cart/hold", {
+          console.log("[index] createHold: calling API with", { listing_id: listingId, user_id: userId });
+          const res = await fetch("/api/cart/hold", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ listing_id: listingId, user_id: userId })
           });
+          const data = await res.json();
+          console.log("[index] createHold: response", res.status, data);
         } catch(e) {
           console.error("[index] createHold failed:", e);
         }
