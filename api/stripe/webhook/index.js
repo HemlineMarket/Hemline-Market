@@ -17,6 +17,17 @@ export const config = { api: { bodyParser: false } };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
+// HTML escape function to prevent XSS/injection in emails
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -119,10 +130,19 @@ async function sendEmail(to, subject, htmlBody, textBody) {
 
 // Email label to seller (when label creation succeeds)
 async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, shipTo, priceCents) {
+  // Escape all user-provided content to prevent HTML injection
+  const safeTitle = escapeHtml(itemTitle);
+  const safeName = escapeHtml(shipTo.name);
+  const safeLine1 = escapeHtml(shipTo.line1);
+  const safeLine2 = escapeHtml(shipTo.line2 || '');
+  const safeCity = escapeHtml(shipTo.city);
+  const safeState = escapeHtml(shipTo.state);
+  const safeZip = escapeHtml(shipTo.zip);
+  
   const html = `
     <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
       <h1 style="color:#991b1b;">🎉 You made a sale!</h1>
-      <p>Your item <strong>"${itemTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
+      <p>Your item <strong>"${safeTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
       
       <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
         <h3 style="margin:0 0 8px;color:#92400e;">⏱️ Important: 30-Minute Cancel Window</h3>
@@ -132,12 +152,12 @@ async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, 
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
         <h2 style="margin:0 0 12px;color:#166534;">📦 Your Prepaid Shipping Label</h2>
         <p><a href="${labelUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Label (PDF)</a></p>
-        <p style="margin-top:12px;">Tracking: <strong>${trackingNumber}</strong></p>
+        <p style="margin-top:12px;">Tracking: <strong>${escapeHtml(trackingNumber)}</strong></p>
       </div>
       
       <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
         <h3 style="margin:0 0 8px;color:#92400e;">Ship To:</h3>
-        <p style="margin:0;">${shipTo.name}<br>${shipTo.line1}${shipTo.line2 ? '<br>' + shipTo.line2 : ''}<br>${shipTo.city}, ${shipTo.state} ${shipTo.zip}</p>
+        <p style="margin:0;">${safeName}<br>${safeLine1}${safeLine2 ? '<br>' + safeLine2 : ''}<br>${safeCity}, ${safeState} ${safeZip}</p>
       </div>
       
       <p><strong>⏰ Please ship within 5 business days.</strong> After 5 days, the buyer can cancel for a full refund.</p>
@@ -154,10 +174,20 @@ async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, 
 
 // Email seller when label creation fails - tells them to create manually
 async function emailLabelFailedToSeller(toEmail, itemTitle, shipTo, priceCents, reason, orderId) {
+  // Escape all user-provided content to prevent HTML injection
+  const safeTitle = escapeHtml(itemTitle);
+  const safeName = escapeHtml(shipTo.name);
+  const safeLine1 = escapeHtml(shipTo.line1);
+  const safeLine2 = escapeHtml(shipTo.line2 || '');
+  const safeCity = escapeHtml(shipTo.city);
+  const safeState = escapeHtml(shipTo.state);
+  const safeZip = escapeHtml(shipTo.zip);
+  const safeReason = escapeHtml(reason);
+  
   const html = `
     <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
       <h1 style="color:#991b1b;">🎉 You made a sale!</h1>
-      <p>Your item <strong>"${itemTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
+      <p>Your item <strong>"${safeTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
       
       <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
         <h3 style="margin:0 0 8px;color:#92400e;">⏱️ Important: 30-Minute Cancel Window</h3>
@@ -167,13 +197,13 @@ async function emailLabelFailedToSeller(toEmail, itemTitle, shipTo, priceCents, 
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin:20px 0;">
         <h2 style="margin:0 0 12px;color:#b91c1c;">⚠️ Action Required: Create Shipping Label</h2>
         <p style="margin:0 0 12px;color:#7f1d1d;">We couldn't automatically generate your shipping label.</p>
-        <p style="margin:0 0 12px;color:#7f1d1d;font-size:13px;">Reason: ${reason}</p>
-        <p style="margin:0;"><a href="https://hemlinemarket.com/ship-order.html?order=${orderId}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Create Label Now →</a></p>
+        <p style="margin:0 0 12px;color:#7f1d1d;font-size:13px;">Reason: ${safeReason}</p>
+        <p style="margin:0;"><a href="https://hemlinemarket.com/ship-order.html?order=${encodeURIComponent(orderId)}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Create Label Now →</a></p>
       </div>
       
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
         <h3 style="margin:0 0 8px;color:#374151;">Ship To:</h3>
-        <p style="margin:0;">${shipTo.name}<br>${shipTo.line1}${shipTo.line2 ? '<br>' + shipTo.line2 : ''}<br>${shipTo.city}, ${shipTo.state} ${shipTo.zip}</p>
+        <p style="margin:0;">${safeName}<br>${safeLine1}${safeLine2 ? '<br>' + safeLine2 : ''}<br>${safeCity}, ${safeState} ${safeZip}</p>
       </div>
       
       <p><strong>⏰ Please ship within 5 business days.</strong> After 5 days, the buyer can cancel for a full refund.</p>
@@ -190,6 +220,16 @@ async function emailLabelFailedToSeller(toEmail, itemTitle, shipTo, priceCents, 
 
 // Email confirmation to buyer
 async function emailConfirmationToBuyer(toEmail, itemTitle, totalCents, trackingNumber, shipTo) {
+  // Escape all user-provided content to prevent HTML injection
+  const safeTitle = escapeHtml(itemTitle);
+  const safeName = escapeHtml(shipTo.name);
+  const safeLine1 = escapeHtml(shipTo.line1);
+  const safeLine2 = escapeHtml(shipTo.line2 || '');
+  const safeCity = escapeHtml(shipTo.city);
+  const safeState = escapeHtml(shipTo.state);
+  const safeZip = escapeHtml(shipTo.zip);
+  const safeTracking = escapeHtml(trackingNumber || '');
+  
   const html = `
     <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
       <h1 style="color:#991b1b;">Order Confirmed! 🧵</h1>
@@ -197,14 +237,14 @@ async function emailConfirmationToBuyer(toEmail, itemTitle, totalCents, tracking
       
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
         <h2 style="margin:0 0 12px;">Order Details</h2>
-        <p><strong>Item:</strong> ${itemTitle}</p>
+        <p><strong>Item:</strong> ${safeTitle}</p>
         <p><strong>Total:</strong> $${(totalCents/100).toFixed(2)}</p>
-        ${trackingNumber ? `<p><strong>Tracking:</strong> ${trackingNumber}</p>` : ''}
+        ${safeTracking ? `<p><strong>Tracking:</strong> ${safeTracking}</p>` : ''}
       </div>
       
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
         <h3 style="margin:0 0 8px;">Shipping To:</h3>
-        <p style="margin:0;">${shipTo.name}<br>${shipTo.line1}${shipTo.line2 ? '<br>' + shipTo.line2 : ''}<br>${shipTo.city}, ${shipTo.state} ${shipTo.zip}</p>
+        <p style="margin:0;">${safeName}<br>${safeLine1}${safeLine2 ? '<br>' + safeLine2 : ''}<br>${safeCity}, ${safeState} ${safeZip}</p>
       </div>
       
       <p>The seller has 5 business days to ship your order. You'll receive tracking updates via email.</p>
