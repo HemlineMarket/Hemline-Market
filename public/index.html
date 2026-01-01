@@ -1,1502 +1,489 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Hemline Market — Buy & Sell Fabric from Makers</title>
+// File: api/stripe/webhook/index.js
+// FIXED VERSION - Handles multiple items in cart
+//
+// Stripe webhook for Vercel - Full Poshmark-like flow:
+// 1. Creates order
+// 2. Auto-generates Shippo label
+// 3. Emails label to seller (Postmark)
+// 4. Emails confirmation to buyer (Postmark)
+// 5. Creates in-app notifications
+// 6. Handles label creation failures gracefully
+// 7. FIX: Marks ALL listings as SOLD (not just first one)
 
-  <!-- SEO Meta Tags -->
-  <meta name="description" content="Buy and sell fabric from makers. Sustainable peer-to-peer fabric marketplace for sewists who care about slow fashion. Secure payments, prepaid shipping labels."/>
-  <meta name="keywords" content="fabric marketplace, buy fabric, sell fabric, sustainable sewing, slow fashion, deadstock fabric, quilting cotton, silk, wool, linen"/>
-  <meta name="author" content="Hemline Market"/>
-  <meta name="robots" content="index, follow"/>
-  <link rel="canonical" href="https://hemlinemarket.com/"/>
+import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 
-  <!-- Open Graph / Social Sharing -->
-  <meta property="og:type" content="website"/>
-  <meta property="og:url" content="https://hemlinemarket.com/"/>
-  <meta property="og:title" content="Hemline Market — Buy & Sell Fabric from Makers"/>
-  <meta property="og:description" content="Sustainable peer-to-peer fabric marketplace. Buy and sell fabric from fellow sewists. Secure payments, prepaid shipping."/>
-  <meta property="og:image" content="https://hemlinemarket.com/images/og-image.png"/>
-  <meta property="og:image:width" content="1200"/>
-  <meta property="og:image:height" content="630"/>
+export const config = { api: { bodyParser: false } };
 
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image"/>
-  <meta name="twitter:title" content="Hemline Market — Buy & Sell Fabric from Makers"/>
-  <meta name="twitter:description" content="Sustainable peer-to-peer fabric marketplace for sewists."/>
-  <meta name="twitter:image" content="https://hemlinemarket.com/images/og-image.png"/>
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
-  <!-- Theme Color -->
-  <meta name="theme-color" content="#991b1b"/>
+// HTML escape function to prevent XSS/injection in emails
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
-  <!-- Favicon -->
-  <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
-  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png"/>
-  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png"/>
-  <link rel="apple-touch-icon" href="/images/logo-mark.svg"/>
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!url || !serviceKey) throw new Error("Missing Supabase env vars");
+  return createClient(url, serviceKey, { auth: { persistSession: false } });
+}
 
-  <!-- Shared styles -->
-  <link rel="stylesheet" href="styles/hm-modern.css"/>
-  <link rel="stylesheet" href="styles/hm-header.css"/>
-  <link rel="stylesheet" href="styles/hm-typography.css"/>
-  <link rel="stylesheet" href="styles/hm-footer.css"/>
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
 
-  <style>
-    :root{
-      /* Brand palette */
-      --hm-accent:#991b1b;        /* Hemline Bordeaux */
-      --hm-accent-soft:#fef3f2;   /* Soft blush */
-      --hm-border:#e5e7eb;
-      --hm-muted:#6b7280;
-      --hm-text:#111827;
-      --hm-bg:#f4f4f7;
+// Shipping tier: <3yd=$5, 3-10yd=$8, >10yd=$15 → estimate parcel size
+function getParcelFromShippingCents(cents) {
+  if (cents <= 500) return { length: 10, width: 8, height: 1, weight: 0.5 };
+  if (cents <= 800) return { length: 12, width: 10, height: 3, weight: 2 };
+  return { length: 14, width: 12, height: 5, weight: 5 };
+}
 
-      --hm-eco:#246b4a;           /* Deep eco green (for future use) */
-      --hm-eco-soft:#e4f5ec;
-      --hm-sand:#fffbf7;          /* Warm sand card bg */
-
-      --hm-bg-card:rgba(255,255,255,.96);
-    }
-
-    html,body{
-      margin:0;
-      max-width:100%;
-      overflow-x:hidden;
-      color:var(--hm-text);
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-      -webkit-font-smoothing:antialiased;
-    }
-
-    /* background photo */
-    body{
-      background:
-        url("images/homepage.jpeg") center/cover fixed no-repeat,
-        var(--hm-bg);
-    }
-
-    main img, main svg, main canvas, main video{max-width:100%;height:auto;display:block}
-
-    /* PAGE WRAP */
-    main.hm-home{
-      max-width:1200px;
-      margin:18px auto 28px;
-      padding:0 12px 24px;
-    }
-
-    /* HERO */
-    .hero{
-      background:rgba(255,255,255,.96);
-      border-radius:18px;
-      border:1px solid var(--hm-border);
-      box-shadow:0 10px 30px rgba(15,23,42,.08);
-      padding:16px 16px 16px;
-      margin-bottom:16px;
-    }
-    .hero-header{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:8px 12px;
-      margin-bottom:10px;
-    }
-    .hero-slogan{
-      font-size:22px;
-      font-weight:800;
-      color:var(--hm-text);
-      margin:0;
-      max-width:720px;
-    }
-
-    /* SOFTER SEARCH BAR */
-    .hero-search-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      margin-top:10px;
-      padding:4px;
-      border-radius:999px;
-      border:1px solid #f3d6c9;
-      background:var(--hm-accent-soft);
-      box-shadow:0 3px 10px rgba(148,27,27,.05);
-    }
-    .hero-search-type-wrap{
-      display:flex;
-      align-items:center;
-    }
-    .hero-search-type{
-      padding:9px 12px;
-      border-radius:999px;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      font-size:14px;
-      font-weight:600;
-      color:var(--hm-text);
-      cursor:pointer;
-      appearance:none;
-      -webkit-appearance:none;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
-      background-repeat:no-repeat;
-      background-position:right 10px center;
-      padding-right:28px;
-    }
-    .hero-search-type:focus{
-      outline:none;
-      border-color:var(--hm-accent);
-    }
-    .hero-search-input-wrap{
-      position:relative;
-      flex:1;
-      min-width:0;
-    }
-    .hero-search-icon{
-      position:absolute;
-      left:10px;
-      top:50%;
-      transform:translateY(-50%);
-      font-size:14px;
-      color:var(--hm-muted);
-      pointer-events:none;
-    }
-    .hero-search-input{
-      width:100%;
-      padding:9px 12px;
-      border-radius:999px;
-      border:none;
-      font-size:14px;
-      background:transparent;
-      color:var(--hm-text);
-    }
-    .hero-search-input::placeholder{
-      color:#9ca3af;
-    }
-    .hero-search-input:focus{
-      outline:none;
-    }
-    .hero-search-row:focus-within{
-      box-shadow:0 0 0 2px rgba(153,27,27,.18);
-    }
-    .hero-search-btn{
-      padding:9px 16px;
-      border-radius:999px;
-      border:none;
-      background:var(--hm-accent);
-      color:#fff;
-      font-weight:700;
-      font-size:14px;
-      cursor:pointer;
-      white-space:nowrap;
-      box-shadow:0 4px 12px rgba(153,27,27,.25);
-    }
-    .hero-search-btn:hover{
-      filter:brightness(1.02);
-    }
-
-    /* HOW IT WORKS CARD */
-    .how-card{
-      margin-top:14px;
-      background:#fff7f3; /* soft peach */
-      border-radius:14px;
-      border:1px solid #f2c9b4;
-      padding:14px 16px;
-      font-size:13px;
-      color:#374151;
-      box-shadow:0 6px 16px rgba(15,23,42,.03);
-    }
-
-    .how-text{
-      min-width:0;
-    }
-    .how-title{
-      margin:0 0 8px;
-      font-size:15px;
-      font-weight:700;
-      color:var(--hm-accent);
-    }
-    .how-card ul{
-      margin:0 0 6px 0;
-      padding:0;
-      list-style:none;
-    }
-    .how-card li{
-      margin-bottom:4px;
-      position:relative;
-      padding-left:18px;
-    }
-    .how-card li::before{
-      content:"✓";
-      position:absolute;
-      left:0;
-      top:0;
-      font-size:11px;
-      color:var(--hm-accent);
-    }
-
-    /* How It Works - Visual Steps WITH ARROWS */
-    .how-steps{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      margin:12px 0;
-      flex-wrap:wrap;
-    }
-    .how-step{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      text-align:center;
-      gap:6px;
-      padding:10px 12px;
-      background:#fff;
-      border-radius:10px;
-      border:1px solid #fde2d9;
-      min-width:80px;
-      flex:1;
-      max-width:140px;
-    }
-    .how-step-arrow{
-      color:var(--hm-accent);
-      font-size:24px;
-      font-weight:bold;
-      opacity:0.7;
-      flex-shrink:0;
-    }
-    .how-step-icon{
-      width:48px;
-      height:48px;
-    }
-    .how-step-text{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-    .how-step-text strong{
-      font-size:13px;
-      color:var(--hm-accent);
-    }
-    .how-step-text span{
-      font-size:11px;
-      color:#6b7280;
-    }
-    
-    /* Tablet: 2x2 grid */
-    @media(max-width:700px){
-      .how-steps{
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        gap:12px;
-        justify-items:stretch;
-        align-items:stretch;
-      }
-      .how-step{
-        max-width:none;
-        width:100%;
-        height:100%;
-        min-height:140px;
-        justify-content:flex-start;
-      }
-      .how-step-arrow{
-        display:none;
-      }
-    }
-    
-    /* Mobile: single column */
-    @media(max-width:400px){
-      .how-steps{
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        gap:10px;
-      }
-      .how-step{
-        max-width:none;
-        width:100%;
-        min-height:130px;
-      }
-      .how-step-arrow{
-        display:none;
-      }
-    }
-
-    /* grid so text + image share the same height */
-    .how-inner{
-      display:grid;
-      grid-template-columns:minmax(0,2fr) minmax(0,1.3fr);
-      align-items:stretch;
-      gap:16px;
-    }
-
-    .how-text{
-      min-width:0;
-    }
-
-    .how-image{
-      border-radius:12px;
-      overflow:hidden;
-      background:#f3f4f6;
-      box-shadow:0 6px 16px rgba(15,23,42,.08);
-      height:100%;
-      max-height:180px;
-    }
-    .how-image img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-    }
-
-    @media(max-width:800px){
-      .how-inner{
-        grid-template-columns:1fr;
-      }
-      .how-image{
-        max-height:240px;
-      }
-    }
-
-    /* ABOUT HEMLINE MARKET CARD */
-    .about-card{
-      margin-top:14px;
-      background:var(--hm-sand); /* warm sand */
-      border-radius:14px;
-      border:1px solid #f3e2c8;
-      padding:16px;
-      font-size:13px;
-      color:#374151;
-      line-height:1.55;
-      box-shadow:0 6px 16px rgba(15,23,42,.03);
-    }
-    .about-card-inner{
-      max-width:100%;
-    }
-    .about-header{
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom:14px;
-    }
-    .about-title{
-      margin:0;
-      font-size:16px;
-      font-weight:700;
-      color:var(--hm-accent);
-    }
-    .about-cta-btn{
-      text-decoration:none;
-      font-size:13px;
-      font-weight:700;
-      padding:10px 20px;
-      border-radius:999px;
-      background:var(--hm-accent);
-      color:#fff;
-      border:none;
-      transition:all .15s;
-      box-shadow:0 4px 12px rgba(153,27,27,.25);
-    }
-    .about-cta-btn:hover{
-      filter:brightness(1.1);
-      transform:translateY(-1px);
-    }
-    
-    /* Feature cards grid */
-    .about-features{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:12px;
-      margin-bottom:14px;
-    }
-    .about-feature{
-      background:#fff;
-      border-radius:12px;
-      padding:14px;
-      border:1px solid #f3e2c8;
-      transition:all .2s;
-      cursor:default;
-    }
-    .about-feature:hover{
-      transform:translateY(-2px);
-      box-shadow:0 6px 20px rgba(153,27,27,.1);
-      border-color:var(--hm-accent);
-    }
-    .about-feature-icon{
-      font-size:24px;
-      margin-bottom:8px;
-    }
-    .about-feature-title{
-      font-weight:700;
-      color:var(--hm-text);
-      margin-bottom:4px;
-      font-size:13px;
-    }
-    .about-feature-text{
-      font-size:12px;
-      color:#6b7280;
-      line-height:1.4;
-    }
-    @media(max-width:700px){
-      .about-features{
-        grid-template-columns:1fr;
-      }
-    }
-    
-    /* Early supporter banner */
-    .about-banner{
-      background:linear-gradient(135deg,#fef3f2,#fff7ed);
-      border:1px solid #fecaca;
-      border-radius:10px;
-      padding:12px 14px;
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-size:13px;
-    }
-    .about-banner-icon{
-      font-size:20px;
-      flex-shrink:0;
-    }
-    .about-banner-text{
-      color:#374151;
-    }
-    .about-banner-text strong{
-      color:var(--hm-accent);
-    }
-
-    .about-link{
-      color:var(--hm-accent);
-      font-weight:600;
-      text-decoration:none;
-    }
-    .about-link:hover{
-      text-decoration:underline;
-    }
-    
-    .about-note{
-      font-size:13px;
-      color:#4b5563;
-      margin:0 0 14px;
-      line-height:1.5;
-    }
-
-    /* Trust badges */
-    .trust-badges{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      margin:12px 0 6px;
-    }
-    .trust-badge{
-      display:flex;
-      align-items:center;
-      gap:6px;
-      padding:6px 12px;
-      background:#fff;
-      border:1px solid #e5e7eb;
-      border-radius:8px;
-      font-size:12px;
-      font-weight:500;
-      color:#374151;
-    }
-    .trust-icon{
-      font-size:14px;
-    }
-
-    @media(max-width:640px){
-      .about-cta-row{
-        flex-direction:column;
-        align-items:flex-start;
-      }
-    }
-
-    /* THREADTALK PROMO – burgundy */
-    .threadtalk-promo{
-      margin-top:12px;
-      padding:12px 14px;
-      border-radius:14px;
-      border:1px solid rgba(153,27,27,.45);
-      background:linear-gradient(120deg,#3b1010,#991b1b);
-      color:#fef9f5;
-      display:flex;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px 14px;
-    }
-    .tt-promo-main{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-      min-width:0;
-    }
-    .tt-promo-eyebrow{
-      font-size:11px;
-      letter-spacing:.12em;
-      text-transform:uppercase;
-      opacity:.9;
-    }
-    .tt-promo-title{
-      font-size:16px;
-      font-weight:700;
-      white-space:nowrap;
-    }
-    .tt-promo-sub{
-      font-size:13px;
-      opacity:.95;
-      margin:0;
-    }
-
-    .tt-promo-tags{
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px;
-      margin-top:4px;
-    }
-    .tt-promo-tag{
-      font-size:11px;
-      padding:3px 8px;
-      border-radius:999px;
-      border:1px solid rgba(254,249,195,.25);
-      background:rgba(15,23,42,.16);
-      color:#fefce8;
-      text-decoration:none;
-      white-space:nowrap;
-    }
-    .tt-promo-tag:hover{
-      background:rgba(15,23,42,.26);
-    }
-
-    .tt-promo-link{
-      flex:0 0 auto;
-      text-decoration:none;
-      font-size:15px;
-      font-weight:700;
-      padding:10px 26px;
-      border-radius:999px;
-      border:1px solid #fef3c7;
-      background:#fef3c7;
-      color:#7f1d1d;
-      white-space:nowrap;
-      box-shadow:0 8px 18px rgba(15,23,42,.24);
-    }
-    .tt-promo-link:hover{
-      background:#fde68a;
-      border-color:#fde68a;
-    }
-
-    @media(max-width:640px){
-      .threadtalk-promo{
-        align-items:flex-start;
-      }
-      .tt-promo-main{
-        width:100%;
-      }
-      .tt-promo-title{
-        white-space:normal;
-      }
-      .tt-promo-tags{
-        width:100%;
-        margin-top:6px;
-        display:grid;
-        grid-template-columns:repeat(4,1fr);
-        row-gap:6px;
-        column-gap:6px;
-      }
-      .tt-promo-tag{
-        font-size:9px;
-        padding:6px 2px;
-        text-align:center;
-        white-space:normal;
-        line-height:1.2;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-      }
-      .tt-promo-link{
-        width:100%;
-        text-align:center;
-        justify-content:center;
-        margin-top:10px;
-      }
-    }
-
-    /* SECTION HEADER - New Arrivals */
-    .section-header{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      text-align:center;
-      margin:40px 0 28px;
-      padding:24px 20px;
-      background:linear-gradient(135deg, rgba(255,255,255,0.95), rgba(254,243,242,0.9));
-      border-radius:16px;
-      border:1px solid rgba(153,27,27,0.15);
-      box-shadow:0 8px 24px rgba(153,27,27,0.08);
-    }
-    .section-header h2{
-      margin:0 0 8px;
-      font-size:36px;
-      font-weight:700;
-      color:var(--hm-accent);
-      font-family: Georgia, 'Times New Roman', serif;
-      letter-spacing: 2px;
-      text-transform:uppercase;
-      position:relative;
-    }
-    .section-header h2::after{
-      content:"";
-      display:block;
-      width:60px;
-      height:3px;
-      background:var(--hm-accent);
-      margin:12px auto 0;
-      border-radius:2px;
-    }
-    .section-header span{
-      font-size:14px;
-      color:#6b7280;
-      font-weight:500;
-    }
-    .section-header-subtitle{
-      font-size:15px;
-      color:#4b5563;
-      margin-top:4px;
-      max-width:500px;
-    }
-
-    /* NEW LISTINGS GRID */
-    .home-listings-wrapper{
-      background:transparent;
-    }
-
-    .home-listings-grid{
-      display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:12px;
-      align-items:stretch;
-      grid-auto-rows:1fr;
-    }
-    @media(max-width:900px){
-      .home-listings-grid{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-      }
-    }
-    @media(max-width:560px){
-      .home-listings-grid{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-      }
-    }
-    @media(max-width:400px){
-      .home-listings-grid{
-        grid-template-columns:1fr;
-      }
-    }
-
-    .home-empty{
-      font-size:13px;
-      color:#6b7280;
-      padding:10px 2px;
-    }
-
-    /* LISTING CARDS */
-    .home-listings-grid .listing-card{
-      background:var(--hm-bg-card);
-      border:1px solid var(--hm-border);
-      border-radius:14px;
-      overflow:hidden;
-      display:flex;
-      flex-direction:column;
-      height:100%;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-    .home-listings-grid .listing-card:hover{
-      transform: translateY(-4px);
-      box-shadow: 0 12px 24px rgba(153, 27, 27, 0.12), 0 4px 8px rgba(0,0,0,0.06);
-      border-color: rgba(153, 27, 27, 0.2);
-    }
-    .home-listings-grid .listing-thumb-link{
-      display:block;
-      text-decoration:none;
-      color:inherit;
-      overflow:hidden;
-    }
-    .home-listings-grid .listing-thumb{
-      aspect-ratio:1/1;
-      background:linear-gradient(135deg,#fdf2f8,#f8fafc);
-      display:grid;
-      place-items:center;
-      overflow:hidden;
-      position:relative;
-    }
-    .home-listings-grid .listing-thumb img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-      transition: transform 0.4s ease;
-    }
-    .home-listings-grid .listing-card:hover .listing-thumb img{
-      transform: scale(1.05);
-    }
-    .home-listings-grid .listing-body{
-      padding:10px 12px 12px;
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-      flex:1;
-    }
-    .home-listings-grid .listing-title-row{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:6px;
-    }
-    .home-listings-grid .listing-title{
-      font-weight:700;
-      font-size:14px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      text-decoration:none;
-      color:#111827;
-      transition: color 0.2s;
-    }
-    .home-listings-grid .listing-card:hover .listing-title{
-      color:#991b1b;
-    }
-    .home-listings-grid .listing-dept{
-      font-size:10px;
-      padding:3px 8px;
-      border-radius:999px;
-      background:linear-gradient(135deg, #fef3f2, #fce7f3);
-      color:#991b1b;
-      font-weight:600;
-      flex:0 0 auto;
-      white-space:nowrap;
-    }
-    .home-listings-grid .listing-yards{
-      font-size:12px;
-      color:#4b5563;
-    }
-    .home-listings-grid .listing-cta-row{
-      margin-top:6px;
-    }
-    .home-listings-grid .listing-add-btn{
-      width:100%;
-      border-radius:10px;
-      border:none;
-      background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
-      color:#fff;
-      font-weight:600;
-      font-size:12px;
-      padding:10px 8px;
-      cursor:pointer;
-      white-space:normal;
-      line-height:1.3;
-      min-height:40px;
-      text-align:center;
-      box-shadow: 0 2px 8px rgba(153, 27, 27, 0.25);
-      transition: all 0.2s ease;
-    }
-    .home-listings-grid .listing-add-btn:hover:not([disabled]){
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(153, 27, 27, 0.35);
-    }
-    .home-listings-grid .listing-add-btn[disabled]{
-      opacity:.55;
-      cursor:not-allowed;
-      background: #9ca3af;
-      box-shadow: none;
-    }
-    .home-listings-grid .listing-price-row{
-      margin-top:6px;
-      display:flex;
-      align-items:center;
-      gap:6px;
-      font-size:12px;
-      margin-top:auto;
-    }
-    .home-listings-grid .listing-price-main{
-      font-weight:700;
-      color:#111827;
-    }
-    .home-listings-grid .listing-price-orig{
-      text-decoration:line-through;
-      color:#9ca3af;
-    }
-    .home-listings-grid .listing-seller-row{
-      margin-top:4px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      font-size:12px;
-      color:#6b7280;
-    }
-    .home-listings-grid .listing-seller-name{
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    /* Skeleton Loading */
-    .skeleton-grid{
-      display:grid;
-      grid-template-columns:repeat(4,minmax(180px,1fr));
-      gap:14px;
-    }
-    .skeleton-card{
-      background:#fff;
-      border-radius:14px;
-      border:1px solid var(--hm-border);
-      overflow:hidden;
-    }
-    .skeleton-thumb{
-      height:160px;
-      background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);
-      background-size:200% 100%;
-      animation:skeleton-shimmer 1.5s ease-in-out infinite;
-    }
-    .skeleton-body{
-      padding:12px;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
-    .skeleton-line{
-      height:12px;
-      border-radius:6px;
-      background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);
-      background-size:200% 100%;
-      animation:skeleton-shimmer 1.5s ease-in-out infinite;
-    }
-    .skeleton-line.w80{width:80%}
-    .skeleton-line.w60{width:60%}
-    .skeleton-line.w40{width:40%}
-    @keyframes skeleton-shimmer{
-      0%{background-position:200% 0}
-      100%{background-position:-200% 0}
-    }
-    @media(max-width:900px){
-      .skeleton-grid{grid-template-columns:repeat(2,1fr)}
-    }
-    @media(max-width:480px){
-      .skeleton-grid{grid-template-columns:1fr}
-    }
-
-    /* Empty State */
-    .home-empty{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      text-align:center;
-      padding:40px 20px;
-      background:#fff;
-      border-radius:14px;
-      border:1px solid var(--hm-border);
-    }
-    .empty-illustration{
-      margin-bottom:16px;
-      opacity:0.9;
-    }
-    .empty-title{
-      margin:0 0 8px;
-      font-size:18px;
-      font-weight:700;
-      color:var(--hm-text);
-    }
-    .empty-text{
-      margin:0 0 16px;
-      font-size:14px;
-      color:var(--hm-muted);
-      max-width:300px;
-    }
-    .empty-cta{
-      padding:10px 20px;
-      background:var(--hm-accent);
-      color:#fff;
-      font-weight:600;
-      font-size:14px;
-      border-radius:8px;
-      text-decoration:none;
-    }
-    .empty-cta:hover{
-      filter:brightness(1.1);
-    }
-
-    /* Cart hold badges */
-    .cart-badge {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      z-index: 2;
-    }
-    .cart-badge.yours {
-      background: #d1fae5;
-      color: #065f46;
-      border: 1px solid #6ee7b7;
-    }
-    .cart-badge.others {
-      background: #fef3c7;
-      color: #92400e;
-      border: 1px solid #fcd34d;
-    }
-
-  @media(max-width:768px){
-    body{background-position:20% center;}
-    .cart-badge {
-      top: 4px;
-      left: 4px;
-      padding: 3px 6px;
-      font-size: 9px;
-    }
+// Create label via Shippo API
+// Returns { success: true, label: {...} } or { success: false, reason: "..." }
+async function createShippoLabel(fromAddr, toAddr, parcel) {
+  const SHIPPO_KEY = process.env.SHIPPO_API_KEY;
+  if (!SHIPPO_KEY) {
+    return { success: false, reason: "Shipping system not configured" };
   }
-  </style>
-</head>
-<body>
 
-  <noscript>
-    <div style="padding:40px;text-align:center;background:#fef2f2;color:#991b1b;">
-      <h2>JavaScript Required</h2>
-      <p>Please enable JavaScript to use Hemline Market.</p>
-    </div>
-  </noscript>
-
-  <div id="hm-shell-header"></div>
-
-  <main class="hm-home" id="maincontent">
-    <section class="hero" aria-label="Search fabrics">
-      <div class="hero-header">
-        <div>
-          <div class="hero-slogan">
-            Welcome to Hemline Market, where sewing meets sustainability.
-          </div>
-        </div>
-      </div>
-
-      <div class="how-card" aria-label="How Hemline Market works">
-        <div class="how-inner">
-          <div class="how-text">
-            <div class="how-title">How Hemline Market works</div>
-            
-            <!-- Visual steps with icons AND ARROWS -->
-            <div class="how-steps">
-              <div class="how-step">
-                <img src="images/icon-list.svg" alt="" class="how-step-icon" width="48" height="48" loading="lazy"/>
-                <div class="how-step-text">
-                  <strong>List</strong>
-                  <span>Photograph & list your fabric</span>
-                </div>
-              </div>
-              
-              <span class="how-step-arrow" aria-hidden="true">→</span>
-              
-              <div class="how-step">
-                <img src="images/icon-sell.svg" alt="" class="how-step-icon" width="48" height="48" loading="lazy"/>
-                <div class="how-step-text">
-                  <strong>Sell</strong>
-                  <span>Buyer purchases securely</span>
-                </div>
-              </div>
-              
-              <span class="how-step-arrow" aria-hidden="true">→</span>
-              
-              <div class="how-step">
-                <img src="images/icon-ship.svg" alt="" class="how-step-icon" width="48" height="48" loading="lazy"/>
-                <div class="how-step-text">
-                  <strong>Ship</strong>
-                  <span>We provide prepaid labels</span>
-                </div>
-              </div>
-              
-              <span class="how-step-arrow" aria-hidden="true">→</span>
-              
-              <div class="how-step">
-                <img src="images/icon-paid.svg" alt="" class="how-step-icon" width="48" height="48" loading="lazy"/>
-                <div class="how-step-text">
-                  <strong>Get Paid</strong>
-                  <span>Funds transfer to your bank</span>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Trust badges -->
-            <div class="trust-badges">
-              <div class="trust-badge">
-                <span class="trust-icon">🔒</span>
-                <span>Secure checkout via Stripe</span>
-              </div>
-              <div class="trust-badge">
-                <span class="trust-icon">📦</span>
-                <span>Prepaid shipping labels</span>
-              </div>
-              <div class="trust-badge">
-                <span class="trust-icon">✓</span>
-                <span>Purchase protection</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <form id="homeSearchForm" class="hero-search-row" role="search">
-        <div class="hero-search-type-wrap">
-          <select id="searchType" class="hero-search-type">
-            <option value="fabrics">Fabrics</option>
-            <option value="sellers">Sellers</option>
-          </select>
-        </div>
-        <div class="hero-search-input-wrap">
-          <input
-            id="homeSearchInput"
-            class="hero-search-input"
-            type="search"
-            placeholder="Search fabrics by color, content, type, weight, yards, price, and more!"
-          />
-        </div>
-        <button class="hero-search-btn" type="submit">
-          Search
-        </button>
-      </form>
-
-      <div class="about-card" aria-label="About Hemline Market">
-        <div class="about-card-inner">
-          <div class="about-header">
-            <h2 class="about-title">About Hemline Market</h2>
-            <a class="about-cta-btn" href="account.html" id="createAccountBtn">Create a free account →</a>
-          </div>
-          
-          <div class="about-features">
-            <div class="about-feature">
-              <div class="about-feature-icon">🌱</div>
-              <div class="about-feature-title">Slow Fashion First</div>
-              <div class="about-feature-text">Created for sewists who care about sustainability. Whether it's quilting cotton, silk charmeuse, or wool gabardine,  pass fabric along, reduce waste, spark creativity.</div>
-            </div>
-            <div class="about-feature">
-              <div class="about-feature-icon">🛡️</div>
-              <div class="about-feature-title">Safe & Secure</div>
-              <div class="about-feature-text">Think of us as eBay or Poshmark, but for sewists, with prepaid shipping labels, secure Stripe payments, built-in purchase protection, and transparent pricing, what you see is for the full yardage, no swatch bait and switch.</div>
-            </div>
-            <div class="about-feature">
-              <div class="about-feature-icon">💬</div>
-              <div class="about-feature-title">Community Powered</div>
-              <div class="about-feature-text"><a href="ThreadTalk.html" class="about-link">ThreadTalk</a>, our sewing forum, is a place to connect, share ideas, and grow together as makers.</div>
-            </div>
-          </div>
-          
-          <p class="about-note">This is the first version of Hemline Market, and we're just getting started. More tools and features are on the way, and we're genuinely excited to receive your <a href="contact.html" class="about-link">feedback</a> as we improve together.</p>
-          
-          <div class="about-banner" style="margin-top:12px;margin-bottom:8px;">
-            <span class="about-banner-icon">🎁</span>
-            <span class="about-banner-text"><strong>First 300 verified sellers</strong> lock in reduced selling fees for life. Early supporters deserve perks!</span>
-          </div>
-          
-          <div class="about-banner" style="margin-bottom:8px;background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);border:1px solid #f59e0b;">
-            <span class="about-banner-icon">🚀</span>
-            <span class="about-banner-text"><strong>Coming in Version 2:</strong> Marketplace for sewing patterns, handmade goods, sewing equipment, and multi-quantity listings.</span>
-          </div>
-          
-          <div class="about-banner" style="margin-bottom:16px;background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);border:1px solid #f59e0b;">
-            <span class="about-banner-icon">✨</span>
-            <span class="about-banner-text"><strong>Coming in Version 3: <span style="color:#991b1b;">Custom Orders</span></strong> request custom items, such as pillows, costumes, garments, or embroidery. Post your project, and a vetted maker will handle the rest. Clear pricing, set timeline, delivered to your door.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="threadtalk-promo" aria-label="ThreadTalk community">
-        <div class="tt-promo-main">
-          <div class="tt-promo-eyebrow">NEW · COMMUNITY</div>
-          <div class="tt-promo-title">ThreadTalk: Hemline Market's sewing forum</div>
-          <p class="tt-promo-sub">
-            Ask for fabric advice, share works in progress, and get feedback from other sewists.
-          </p>
-          <div class="tt-promo-tags">
-            <a class="tt-promo-tag" href="/showcase.html">Showcase</a>
-            <a class="tt-promo-tag" href="/tailoring.html">Tailoring</a>
-            <a class="tt-promo-tag" href="/stitch-school.html">Stitch School</a>
-            <a class="tt-promo-tag" href="/fabric-sos.html">Fabric SOS</a>
-            <a class="tt-promo-tag" href="/before-after.html">Before &amp; After</a>
-            <a class="tt-promo-tag" href="/pattern-hacks.html">Pattern Hacks</a>
-            <a class="tt-promo-tag" href="/stash-confessions.html">Stash Confessions</a>
-            <a class="tt-promo-tag" href="/loose-threads.html">Loose Threads</a>
-          </div>
-        </div>
-        <a class="tt-promo-link" href="ThreadTalk.html">Open ThreadTalk</a>
-      </div>
-    </section>
-
-    <section class="home-listings-wrapper" aria-label="New listings">
-      <div class="section-header">
-        <h2>New Arrivals</h2>
-        
-      </div>
-      <div id="homeListingsGrid" class="home-listings-grid"></div>
-      
-      <!-- Skeleton loading state -->
-      <div id="homeListingsSkeleton" class="home-listings-grid skeleton-grid">
-        <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div></div>
-        <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div></div>
-        <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div></div>
-        <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-body"><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div></div>
-      </div>
-      
-      <!-- Empty state with illustration -->
-      <div id="homeListingsEmpty" class="home-empty" style="display:none;">
-        <img src="images/empty-state.svg" alt="" class="empty-illustration" width="200" height="160" loading="lazy"/>
-        <h3 class="empty-title">No listings yet</h3>
-        <p class="empty-text">Once sellers start listing fabric, new cards will appear here.</p>
-        <a href="sell.html" class="empty-cta">Be the first to list fabric →</a>
-      </div>
-      </div>
-    </section>
-  </main>
-
-  <div id="hm-shell-footer"></div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="scripts/hm-shell.js"></script>
-
-  <script>
-    window.HM && window.HM.renderShell({ currentPage: "home" });
-    
-    // Hide "Create a free account" button if user is logged in
-    (async function() {
-      try {
-        const supabase = window.HM?.supabase;
-        if (supabase) {
-          const { data } = await supabase.auth.getSession();
-          if (data?.session?.user) {
-            const btn = document.getElementById('createAccountBtn');
-            if (btn) btn.style.display = 'none';
-          }
-        }
-      } catch(_) {}
-    })();
-  </script>
-
-  <script>
-    const HM = window.HM || {};
-    const supabaseClient = HM.supabase;
-
-    if (!supabaseClient) {
-      console.warn("[Home] Supabase client not found on window.HM.supabase; listings disabled for now.");
-    }
-
-    function moneyFromCents(c){
-      if(c == null) return "";
-      const v = Number(c) / 100;
-      return v.toLocaleString("en-US",{
-        style:"currency",
-        currency:"USD",
-        minimumFractionDigits:2,
-        maximumFractionDigits:2
-      });
-    }
-
-    // Optimize Supabase images with resize transform for faster loading
-    // NOTE: Disabled for now - Supabase image transforms may not be enabled
-    function thumbUrl(url, width = 400) {
-      if (!url) return "";
-      // Return original URL for now
-      return url;
-      
-      // To enable optimization later, uncomment below:
-      // if (url.includes("supabase.co/storage/v1/object/public/")) {
-      //   return url.replace(
-      //     "/storage/v1/object/public/",
-      //     `/storage/v1/render/image/public/`
-      //   ) + `?width=${width}&quality=75`;
-      // }
-      // return url;
-    }
-
-    function computeYards(row){
-      const y1 = row.yards_available;
-      const y2 = row.yardage;
-      const raw = (y1 != null ? Number(y1) : (y2 != null ? Number(y2) : null));
-      if(!Number.isFinite(raw) || raw <= 0) return null;
-      return raw;
-    }
-
-    async function fetchProfilesForListings(listings){
-      const map = {};
-      const ids = Array.from(new Set(
-        (listings || [])
-          .map(l => l.seller_id)
-          .filter(Boolean)
-      ));
-      if(!ids.length) return map;
-
-      try{
-        const { data, error } = await supabaseClient
-          .from("profiles")
-          .select("id, display_name, store_name, first_name, last_name")
-          .in("id", ids);
-
-        if(error){
-          console.error("Profile fetch error", error);
-          return map;
-        }
-        (data || []).forEach(p=>{
-          map[p.id] = p;
-        });
-      }catch(e){
-        console.error("Profile fetch exception", e);
-      }
-      return map;
-    }
-
-    // Fetch active cart holds for listings
-    async function fetchCartHolds(listingIds) {
-      const map = {};
-      if (!listingIds || !listingIds.length) return map;
-      
-      try {
-        const res = await fetch(`/api/cart/hold?listings=${listingIds.join(',')}`);
-        if (res.ok) {
-          const data = await res.json();
-          return data.holds || {};
-        }
-      } catch(e) {
-        console.error("Cart holds fetch error", e);
-      }
-      return map;
-    }
-
-    async function loadHomeListings(){
-      const grid  = document.getElementById("homeListingsGrid");
-      const empty = document.getElementById("homeListingsEmpty");
-      const count = document.getElementById("homeListingsCount");
-      const skeleton = document.getElementById("homeListingsSkeleton");
-
-      if(grid) grid.innerHTML = "";
-      if(empty) empty.style.display = "none";
-      if(skeleton) skeleton.style.display = "grid";
-      if(count) count.textContent = "Loading…";
-
-      if (!supabaseClient) {
-        if (count) count.textContent = "Listings coming soon";
-        return;
-      }
-
-      let listings = [];
-      try{
-        // Fetch all listings, filter client-side (same approach as atelier.html)
-        const { data, error } = await supabaseClient
-          .from("listings")
-          .select("*")
-          .order("published_at", { ascending:false, nullsFirst: false })
-          .limit(50);
-
-        if(error){
-          console.error("Home listings error", error);
-          if(count) count.textContent = "Error loading listings";
-          return;
-        }
-        
-        const now = new Date();
-        // Client-side filtering: is_published true, status active (not sold), has yards available
-        listings = (data || []).filter(l => {
-          if(l.is_published !== true) return false;
-          const status = (l.status || "active").toLowerCase();
-          // Hide sold listings
-          if(status === "sold") return false;
-          if(status !== "active") return false;
-          // Hide listings with no yards available
-          if(l.yards_available != null && l.yards_available <= 0) return false;
-          if(l.published_at && new Date(l.published_at) > now) return false;
-          return true;
-        }).slice(0, 12); // Limit to 12 for homepage
-      }catch(e){
-        console.error("Home listings exception", e);
-        if(count) count.textContent = "Error loading listings";
-        return;
-      }
-
-      const total = listings.length;
-      
-      // Hide skeleton
-      if(skeleton) skeleton.style.display = "none";
-      
-      if(count){
-        count.textContent = total === 1 ? "1 listing" : total + " listings";
-      }
-
-      if(!total){
-        if(empty) empty.style.display = "flex";
-        return;
-      }
-
-      const profileMap = await fetchProfilesForListings(listings);
-
-      // Fetch cart holds to show "In someone's cart" badges
-      const holdMap = await fetchCartHolds(listings.map(l => l.id));
-      
-      // Get current user's cart to show "In your cart" 
-      const myCart = JSON.parse(localStorage.getItem('hm_cart') || '[]');
-      const myCartIds = new Set(myCart.map(it => it.id || it.listing_id));
-
-      listings.forEach(item=>{
-        const yards = computeYards(item);
-        const priceCents = item.price_cents != null ? Number(item.price_cents) : null;
-        const origPriceCents = item.orig_price_cents != null ? Number(item.orig_price_cents) : null;
-
-        const perYdMoney = priceCents != null ? moneyFromCents(priceCents) : "";
-        const origPerMoney = origPriceCents != null ? moneyFromCents(origPriceCents) : "";
-
-        const totalCents = (priceCents != null && yards != null) ? priceCents * yards : null;
-        const totalMoney = totalCents != null ? moneyFromCents(totalCents) : "";
-
-        const status = (item.status || "active").toLowerCase();
-        const isSold = status === "sold" || (yards != null && yards <= 0) || item.yards_available === 0;
-        const canBuy = !isSold && priceCents != null && yards != null && yards > 0;
-
-        // Check if item is in someone's cart
-        const hold = holdMap[item.id];
-        const inMyCart = myCartIds.has(item.id);
-        const inSomeoneElsesCart = hold?.held && !inMyCart;
-        
-        // Badge HTML
-        let cartBadgeHtml = '';
-        if (inMyCart) {
-          cartBadgeHtml = '<span class="cart-badge yours">✓ In your cart</span>';
-        } else if (inSomeoneElsesCart) {
-          cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
-        }
-
-        const card = document.createElement("article");
-        card.className = "listing-card";
-
-        const href = "listing.html?id=" + encodeURIComponent(item.id);
-        const safeTitle = item.title || "Untitled listing";
-        const safeAlt = safeTitle.replace(/"/g,"&quot;");
-
-        const prof = profileMap[item.seller_id] || {};
-        const displayName = (prof.first_name && prof.last_name)
-          ? (prof.first_name + " " + prof.last_name)
-          : (prof.display_name || "");
-        const storeName = prof.storeName || prof.store_name || displayName || "Hemline Market seller";
-
-        card.innerHTML = `
-          <a class="listing-thumb-link" href="${href}">
-            <div class="listing-thumb" aria-hidden="true">
-              ${item.image_url_1 ? `<img src="${thumbUrl(item.image_url_1, 400)}" alt="${safeAlt}" loading="lazy">` : ""}
-              ${cartBadgeHtml}
-            </div>
-          </a>
-          <div class="listing-body">
-            <div class="listing-title-row">
-              <a class="listing-title" href="${href}">${safeTitle}</a>
-              ${item.dept ? `<span class="listing-dept">${item.dept}</span>` : ""}
-            </div>
-            ${yards != null ? `<div class="listing-yards">${yards} yards</div>` : ""}
-            <div class="listing-cta-row">
-              <button
-                type="button"
-                class="listing-add-btn add-to-cart"
-                data-add-to-cart="1"
-                data-listing-id="${String(item.id)}"
-                data-name="${String(safeTitle).replace(/"/g,'&quot;')}"
-                data-photo="${String(item.image_url_1 || "")}"
-                data-yards="${yards != null ? String(yards) : "0"}"
-                data-price="${priceCents != null ? (priceCents/100).toFixed(2) : "0"}"
-                data-amount="${priceCents != null ? String(priceCents) : "0"}"
-                data-seller-id="${String(item.seller_id || "")}"
-                data-seller-name="${String(storeName).replace(/"/g,'&quot;')}"
-              >
-                ${
-                  canBuy && totalMoney && yards
-                    ? `Add to Cart — ${totalMoney} for ${yards} yards`
-                    : (isSold ? "Sold out" : "Add to Cart")
-                }
-              </button>
-            </div>
-            <div class="listing-price-row">
-              ${
-                perYdMoney
-                  ? `<span class="listing-price-main">${perYdMoney}/yard</span>`
-                  : `<span class="listing-price-main">Price coming soon</span>`
-              }
-              ${
-                origPerMoney
-                  ? `<span class="listing-price-orig">${origPerMoney}/yard</span>`
-                  : ""
-              }
-            </div>
-            <div class="listing-seller-row">
-              <span class="listing-seller-name">${storeName}</span>
-            </div>
-          </div>
-        `;
-
-        const btn = card.querySelector(".listing-add-btn");
-        if(btn){
-          if(!canBuy){
-            btn.disabled = true;
-            btn.textContent = isSold ? "Sold out" : "Unavailable";
-          }
-        }
-
-        grid.appendChild(card);
-      });
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      const form = document.getElementById("homeSearchForm");
-      const input = document.getElementById("homeSearchInput");
-      const searchType = document.getElementById("searchType");
-
-      // Update placeholder based on search type
-      if(searchType && input){
-        searchType.addEventListener("change", () => {
-          if(searchType.value === "sellers"){
-            input.placeholder = "Search by store name or seller name...";
-          } else {
-            input.placeholder = "Search fabrics by color, content, type, weight, yards, price, and more!";
-          }
-        });
-      }
-
-      if(form && input){
-        form.addEventListener("submit", (e) => {
-          e.preventDefault();
-          const q = input.value.trim();
-          const type = searchType?.value || "fabrics";
-
-          const params = new URLSearchParams();
-          if(q) params.set("q", q);
-          
-          // If searching sellers, go to browse with ateliers mode
-          if(type === "sellers"){
-            params.set("mode", "ateliers");
-          }
-
-          const qs = params.toString();
-          const url = "browse.html" + (qs ? "?" + qs : "");
-          window.location.href = url;
-        });
-      }
-
-      loadHomeListings();
+  try {
+    const shipRes = await fetch("https://api.goshippo.com/shipments/", {
+      method: "POST",
+      headers: { Authorization: `ShippoToken ${SHIPPO_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address_from: fromAddr,
+        address_to: toAddr,
+        parcels: [{ ...parcel, distance_unit: "in", mass_unit: "lb" }],
+        async: false,
+      }),
     });
-  </script>
+    const shipment = await shipRes.json();
+    
+    if (!shipment.rates?.length) {
+      console.error("Shippo: No rates returned", shipment);
+      return { success: false, reason: "No shipping rates available for this address" };
+    }
 
-  <!-- Use shared add-to-cart.js for nice popup and hold creation -->
-  <script src="assets/add-to-cart.js"></script>
+    const rate = shipment.rates
+      .filter(r => r.provider === "USPS")
+      .sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0] 
+      || shipment.rates.sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount))[0];
 
-  <!-- Accessibility improvements -->
-  <script src="scripts/accessibility.js"></script>
+    const txRes = await fetch("https://api.goshippo.com/transactions/", {
+      method: "POST",
+      headers: { Authorization: `ShippoToken ${SHIPPO_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ rate: rate.object_id, label_file_type: "PDF", async: false }),
+    });
+    const tx = await txRes.json();
+    
+    if (tx.status !== "SUCCESS") {
+      console.error("Shippo: Label purchase failed", tx);
+      return { success: false, reason: tx.messages?.[0]?.text || "Label purchase failed" };
+    }
+
+    return {
+      success: true,
+      label: {
+        label_url: tx.label_url,
+        tracking_number: tx.tracking_number,
+        tracking_url: tx.tracking_url_provider || tx.tracking_url,
+        carrier: rate.provider,
+        service: rate.servicelevel?.name,
+        shippo_transaction_id: tx.object_id,  // Needed for voiding labels on cancellation
+      }
+    };
+  } catch (err) {
+    console.error("Shippo: Exception", err);
+    return { success: false, reason: "Shipping service temporarily unavailable" };
+  }
+}
+
+// Send email via Postmark
+async function sendEmail(to, subject, htmlBody, textBody) {
+  const POSTMARK = process.env.POSTMARK_SERVER_TOKEN;
+  const FROM = process.env.FROM_EMAIL || "orders@hemlinemarket.com";
+  if (!POSTMARK || !to) return;
+
+  try {
+    await fetch("https://api.postmarkapp.com/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Postmark-Server-Token": POSTMARK },
+      body: JSON.stringify({ From: FROM, To: to, Subject: subject, HtmlBody: htmlBody, TextBody: textBody, MessageStream: "outbound" }),
+    });
+  } catch (err) {
+    console.error("Postmark email error:", err);
+  }
+}
+
+// Email label to seller (when label creation succeeds)
+async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, shipTo, priceCents) {
+  // Escape all user-provided content to prevent HTML injection
+  const safeTitle = escapeHtml(itemTitle);
+  const safeName = escapeHtml(shipTo.name);
+  const safeLine1 = escapeHtml(shipTo.line1);
+  const safeLine2 = escapeHtml(shipTo.line2 || '');
+  const safeCity = escapeHtml(shipTo.city);
+  const safeState = escapeHtml(shipTo.state);
+  const safeZip = escapeHtml(shipTo.zip);
   
-  <!-- Structured data for SEO -->
-  <script src="scripts/structured-data.js"></script>
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
+      <h1 style="color:#991b1b;">🎉 You made a sale!</h1>
+      <p>Your item <strong>"${safeTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
+      
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;color:#92400e;">⏱️ Important: 30-Minute Cancel Window</h3>
+        <p style="margin:0;color:#92400e;font-size:14px;">The buyer has <strong>30 minutes</strong> from purchase to cancel their order. Please wait until this window closes before printing your label and shipping.</p>
+      </div>
+      
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
+        <h2 style="margin:0 0 12px;color:#166534;">📦 Your Prepaid Shipping Label</h2>
+        <p><a href="${labelUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Label (PDF)</a></p>
+        <p style="margin-top:12px;">Tracking: <strong>${escapeHtml(trackingNumber)}</strong></p>
+      </div>
+      
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;color:#92400e;">Ship To:</h3>
+        <p style="margin:0;">${safeName}<br>${safeLine1}${safeLine2 ? '<br>' + safeLine2 : ''}<br>${safeCity}, ${safeState} ${safeZip}</p>
+      </div>
+      
+      <p><strong>⏰ Please ship within 5 business days.</strong> After 5 days, the buyer can cancel for a full refund.</p>
+      <p>Once delivered, your payment will be released within 3 days.</p>
+      
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+      <p style="color:#6b7280;font-size:14px;">Happy selling!<br><strong>Hemline Market</strong></p>
+    </div>
+  `;
+  const text = `You made a sale!\n\n"${itemTitle}" sold for $${(priceCents/100).toFixed(2)}.\n\n⏱️ IMPORTANT: The buyer has 30 minutes from purchase to cancel. Please wait before printing your label.\n\nDownload label: ${labelUrl}\nTracking: ${trackingNumber}\n\nShip to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nPlease ship within 5 business days.`;
   
-  <!-- Service worker for offline support -->
-  <script src="scripts/sw-register.js"></script>
+  await sendEmail(toEmail, "🎉 You made a sale! Your shipping label is ready", html, text);
+}
 
-</body>
-</html>
+// Email seller when label creation fails - tells them to create manually
+async function emailLabelFailedToSeller(toEmail, itemTitle, shipTo, priceCents, reason, orderId) {
+  // Escape all user-provided content to prevent HTML injection
+  const safeTitle = escapeHtml(itemTitle);
+  const safeName = escapeHtml(shipTo.name);
+  const safeLine1 = escapeHtml(shipTo.line1);
+  const safeLine2 = escapeHtml(shipTo.line2 || '');
+  const safeCity = escapeHtml(shipTo.city);
+  const safeState = escapeHtml(shipTo.state);
+  const safeZip = escapeHtml(shipTo.zip);
+  const safeReason = escapeHtml(reason);
+  
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
+      <h1 style="color:#991b1b;">🎉 You made a sale!</h1>
+      <p>Your item <strong>"${safeTitle}"</strong> just sold for <strong>$${(priceCents/100).toFixed(2)}</strong>.</p>
+      
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;color:#92400e;">⏱️ Important: 30-Minute Cancel Window</h3>
+        <p style="margin:0;color:#92400e;font-size:14px;">The buyer has <strong>30 minutes</strong> from purchase to cancel their order. Please wait until this window closes before shipping.</p>
+      </div>
+      
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin:20px 0;">
+        <h2 style="margin:0 0 12px;color:#b91c1c;">⚠️ Action Required: Create Shipping Label</h2>
+        <p style="margin:0 0 12px;color:#7f1d1d;">We couldn't automatically generate your shipping label.</p>
+        <p style="margin:0 0 12px;color:#7f1d1d;font-size:13px;">Reason: ${safeReason}</p>
+        <p style="margin:0;"><a href="https://hemlinemarket.com/ship-order.html?order=${encodeURIComponent(orderId)}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Create Label Now →</a></p>
+      </div>
+      
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;color:#374151;">Ship To:</h3>
+        <p style="margin:0;">${safeName}<br>${safeLine1}${safeLine2 ? '<br>' + safeLine2 : ''}<br>${safeCity}, ${safeState} ${safeZip}</p>
+      </div>
+      
+      <p><strong>⏰ Please ship within 5 business days.</strong> After 5 days, the buyer can cancel for a full refund.</p>
+      <p>Once delivered, your payment will be released within 3 days.</p>
+      
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+      <p style="color:#6b7280;font-size:14px;">Need help? <a href="https://hemlinemarket.com/contact.html" style="color:#991b1b;">Contact support</a><br><strong>Hemline Market</strong></p>
+    </div>
+  `;
+  const text = `You made a sale!\n\n"${itemTitle}" sold for $${(priceCents/100).toFixed(2)}.\n\n⏱️ IMPORTANT: The buyer has 30 minutes from purchase to cancel. Please wait before shipping.\n\n⚠️ ACTION REQUIRED: We couldn't automatically create your shipping label.\nReason: ${reason}\n\nPlease create your label at: https://hemlinemarket.com/ship-order.html?order=${orderId}\n\nShip to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nPlease ship within 5 business days.`;
+  
+  await sendEmail(toEmail, "🎉 You made a sale! Action required: Create shipping label", html, text);
+}
+
+// Email confirmation to buyer
+async function emailConfirmationToBuyer(toEmail, itemTitle, totalCents, trackingNumber, shipTo) {
+  // Escape all user-provided content to prevent HTML injection
+  const safeTitle = escapeHtml(itemTitle);
+  const safeName = escapeHtml(shipTo.name);
+  const safeLine1 = escapeHtml(shipTo.line1);
+  const safeLine2 = escapeHtml(shipTo.line2 || '');
+  const safeCity = escapeHtml(shipTo.city);
+  const safeState = escapeHtml(shipTo.state);
+  const safeZip = escapeHtml(shipTo.zip);
+  const safeTracking = escapeHtml(trackingNumber || '');
+  
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
+      <h1 style="color:#991b1b;">Order Confirmed! 🧵</h1>
+      <p>Thank you for your purchase on Hemline Market.</p>
+      
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
+        <h2 style="margin:0 0 12px;">Order Details</h2>
+        <p><strong>Item:</strong> ${safeTitle}</p>
+        <p><strong>Total:</strong> $${(totalCents/100).toFixed(2)}</p>
+        ${safeTracking ? `<p><strong>Tracking:</strong> ${safeTracking}</p>` : ''}
+      </div>
+      
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
+        <h3 style="margin:0 0 8px;">Shipping To:</h3>
+        <p style="margin:0;">${safeName}<br>${safeLine1}${safeLine2 ? '<br>' + safeLine2 : ''}<br>${safeCity}, ${safeState} ${safeZip}</p>
+      </div>
+      
+      <p>The seller has 5 business days to ship your order. You'll receive tracking updates via email.</p>
+      <p>If the seller doesn't ship within 5 business days, you can cancel for a full refund.</p>
+      
+      <p><a href="https://hemlinemarket.com/purchases.html" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">View Your Orders</a></p>
+      
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+      <p style="color:#6b7280;font-size:14px;">Questions? <a href="https://hemlinemarket.com/contact.html" style="color:#991b1b;">Contact us</a><br><strong>Hemline Market</strong></p>
+    </div>
+  `;
+  const text = `Order Confirmed!\n\nItem: ${itemTitle}\nTotal: $${(totalCents/100).toFixed(2)}\n${trackingNumber ? 'Tracking: ' + trackingNumber + '\n' : ''}\nShipping to:\n${shipTo.name}\n${shipTo.line1}\n${shipTo.city}, ${shipTo.state} ${shipTo.zip}\n\nThe seller has 5 business days to ship. Visit hemlinemarket.com/purchases.html to view your orders.`;
+  
+  await sendEmail(toEmail, "✅ Order Confirmed - Hemline Market", html, text);
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
+
+  const sig = req.headers["stripe-signature"];
+  if (!sig) return res.status(400).send("Missing stripe-signature");
+
+  let event;
+  try {
+    const rawBody = await readRawBody(req);
+    event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    return res.status(400).send(`Webhook error: ${err.message}`);
+  }
+
+  if (event.type !== "checkout.session.completed") {
+    return res.status(200).json({ received: true, ignored: event.type });
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+    const session = event.data.object;
+    const md = session.metadata || {};
+
+    // FIX: Get ALL listing IDs from metadata (supports multi-item carts)
+    const allListingIds = (md.listing_ids || md.listing_id || "")
+      .split(",")
+      .map(id => id.trim())
+      .filter(Boolean);
+    
+    // Get first listing for display purposes
+    let listing = null;
+    if (allListingIds.length > 0) {
+      const { data } = await supabase.from("listings").select("*").eq("id", allListingIds[0]).maybeSingle();
+      listing = data;
+    }
+
+    const sellerId = md.seller_id || listing?.seller_id;
+    const listingTitle = md.title || listing?.title || "Fabric";
+    const listingImage = md.image_url || listing?.image_url_1 || "";
+    const priceCents = Number(md.price_cents) || 0;
+    const shippingCents = Number(md.shipping_cents) || 0;
+    const totalCents = priceCents + shippingCents;
+    const buyerEmail = session.customer_details?.email || md.buyer_email;
+    const itemCount = Number(md.item_count) || allListingIds.length || 1;
+
+    // Get shipping address - check multiple sources:
+    // 1. session.shipping_details (if Stripe collected it)
+    // 2. session.shipping (from shipping_options)
+    // 3. payment_intent.shipping (if we passed it via payment_intent_data)
+    // 4. metadata (our fallback)
+    let shipDetails = session.shipping_details || session.shipping || {};
+    let shipAddr = shipDetails.address || {};
+    let shipName = shipDetails.name || session.customer_details?.name || "";
+
+    // If no address from Stripe session, check metadata (we stored it there as backup)
+    if (!shipAddr.line1 && md.ship_line1) {
+      shipAddr = {
+        line1: md.ship_line1 || "",
+        line2: md.ship_line2 || "",
+        city: md.ship_city || "",
+        state: md.ship_state || "",
+        postal_code: md.ship_postal || "",
+        country: md.ship_country || "US",
+      };
+      shipName = md.ship_name || shipName || "Customer";
+      console.log("[webhook] Using shipping address from metadata");
+    }
+
+    // For multi-item orders, update the title to show count
+    const displayTitle = itemCount > 1 
+      ? `${listingTitle} + ${itemCount - 1} more item${itemCount > 2 ? 's' : ''}`
+      : listingTitle;
+
+    const order = {
+      stripe_checkout_session: session.id,
+      stripe_payment_intent: session.payment_intent,
+      buyer_id: md.buyer_id || null,
+      buyer_email: buyerEmail,
+      seller_id: sellerId,
+      listing_id: allListingIds[0] || null,  // Primary listing ID
+      listing_ids: allListingIds.length > 0 ? allListingIds : null,  // FIX: Store ALL listing IDs
+      items_cents: priceCents,
+      shipping_cents: shippingCents,
+      total_cents: totalCents,
+      listing_title: displayTitle,
+      listing_image: listingImage,
+      status: "PAID",
+      shipping_name: shipName,
+      shipping_address_line1: shipAddr.line1,
+      shipping_address_line2: shipAddr.line2,
+      shipping_city: shipAddr.city,
+      shipping_state: shipAddr.state,
+      shipping_postal_code: shipAddr.postal_code,
+      shipping_country: shipAddr.country || "US",
+      cancel_eligible_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+      item_count: itemCount,
+    };
+
+    const { data: insertedOrder, error: insertErr } = await supabase.from("orders").insert(order).select().single();
+    if (insertErr) {
+      console.error("Order insert failed:", insertErr);
+      return res.status(500).json({ error: "Order insert failed" });
+    }
+
+    // FIX: Mark ALL listings as SOLD (not just the first one)
+    if (allListingIds.length > 0) {
+      const { error: updateErr } = await supabase.from("listings").update({ 
+        status: "SOLD", 
+        yards_available: 0,
+        sold_at: new Date().toISOString() 
+      }).in("id", allListingIds);
+      
+      if (updateErr) {
+        console.error("Failed to mark listings as SOLD:", updateErr);
+      } else {
+        console.log(`Marked ${allListingIds.length} listing(s) as SOLD:`, allListingIds);
+      }
+    }
+
+    let labelResult = { success: false, reason: "No seller address configured" };
+    let sellerEmail = null;
+    let sellerName = "Seller";
+
+    // ALWAYS fetch seller email so they get notified even if label creation fails
+    if (sellerId) {
+      try {
+        const { data: sellerAuth } = await supabase.auth.admin.getUserById(sellerId);
+        const meta = sellerAuth?.user?.user_metadata || {};
+        
+        const { data: sellerProfile } = await supabase.from("profiles").select("first_name, last_name, contact_email").eq("id", sellerId).maybeSingle();
+        sellerEmail = sellerProfile?.contact_email || sellerAuth?.user?.email;
+        sellerName = [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || meta.ship_name || "Seller";
+
+        // === AUTO-GENERATE SHIPPING LABEL ===
+        if (shipAddr.line1 && meta.ship_address1 && meta.ship_city && meta.ship_state && meta.ship_postal) {
+          const fromAddr = { name: sellerName, street1: meta.ship_address1, street2: meta.ship_address2 || "", city: meta.ship_city, state: meta.ship_state, zip: meta.ship_postal, country: "US" };
+          const toAddr = { name: order.shipping_name || "Customer", street1: shipAddr.line1, street2: shipAddr.line2 || "", city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code, country: "US" };
+
+          const parcel = getParcelFromShippingCents(shippingCents);
+          labelResult = await createShippoLabel(fromAddr, toAddr, parcel);
+
+          if (labelResult.success) {
+            const label = labelResult.label;
+            
+            await supabase.from("orders").update({
+              tracking_number: label.tracking_number,
+              tracking_url: label.tracking_url,
+              label_url: label.label_url,
+              shipping_carrier: label.carrier,
+              shipping_status: "LABEL_CREATED",
+            }).eq("id", insertedOrder.id);
+
+            await supabase.from("db_shipments").insert({
+              order_id: insertedOrder.id,
+              label_url: label.label_url,
+              tracking_number: label.tracking_number,
+              tracking_url: label.tracking_url,
+              carrier: label.carrier,
+              service: label.service,
+              status: "LABEL_CREATED",
+              shippo_transaction_id: label.shippo_transaction_id,  // For voiding labels
+            });
+
+            // Email label to seller
+            await emailLabelToSeller(sellerEmail, label.label_url, label.tracking_number, displayTitle, {
+              name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
+            }, priceCents);
+          }
+        } else if (!meta.ship_address1) {
+          labelResult = { success: false, reason: "Please update your shipping address in Account settings" };
+        } else if (!shipAddr.line1) {
+          labelResult = { success: false, reason: "Buyer shipping address incomplete" };
+        }
+      } catch (sellerFetchErr) {
+        console.error("Error fetching seller info:", sellerFetchErr);
+      }
+    }
+
+    // If label creation failed, notify seller to create manually
+    if (!labelResult.success && sellerEmail) {
+      await supabase.from("orders").update({
+        shipping_status: "LABEL_PENDING",
+      }).eq("id", insertedOrder.id);
+
+      await emailLabelFailedToSeller(sellerEmail, displayTitle, {
+        name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
+      }, priceCents, labelResult.reason, insertedOrder.id);
+    }
+
+    // Email confirmation to buyer
+    if (buyerEmail) {
+      const trackingNumber = labelResult.success ? labelResult.label.tracking_number : null;
+      await emailConfirmationToBuyer(buyerEmail, displayTitle, totalCents, trackingNumber, {
+        name: order.shipping_name, line1: shipAddr.line1, line2: shipAddr.line2, city: shipAddr.city, state: shipAddr.state, zip: shipAddr.postal_code,
+      });
+    }
+
+    // In-app notifications
+    if (sellerId) {
+      const notifBody = labelResult.success 
+        ? `"${displayTitle}" sold for $${(priceCents/100).toFixed(2)}. Check your email for the shipping label.`
+        : `"${displayTitle}" sold for $${(priceCents/100).toFixed(2)}. Action needed: Create your shipping label.`;
+      
+      await supabase.from("notifications").insert({
+        user_id: sellerId, type: "sale", kind: "sale",
+        title: "You made a sale! 🎉",
+        body: notifBody,
+        href: labelResult.success ? "/sales.html" : `/ship-order.html?order=${insertedOrder.id}`,
+      });
+    }
+
+    if (md.buyer_id) {
+      await supabase.from("notifications").insert({
+        user_id: md.buyer_id, type: "order", kind: "order",
+        title: "Order confirmed!",
+        body: `Your order for "${displayTitle}" is confirmed. The seller will ship it soon.`,
+        href: "/purchases.html",
+      });
+    }
+
+    return res.status(200).json({ received: true });
+  } catch (e) {
+    console.error("Webhook error:", e);
+    return res.status(500).json({ error: e.message });
+  }
+}
