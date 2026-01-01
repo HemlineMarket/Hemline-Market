@@ -262,7 +262,7 @@
 
   function buildItemFromButton(btn){
     // Primary source: data-* attributes on the button
-    const id    = btn.dataset.id    || ('sku-' + Date.now());
+    const id    = btn.dataset.listingId || btn.dataset.id || ('sku-' + Date.now());
     const name  = btn.dataset.name  || btn.getAttribute('aria-label') || 'Fabric';
     const photo = btn.dataset.photo || '';
     const sellerId   = btn.dataset.sellerId   || btn.dataset.sellerid   || '';
