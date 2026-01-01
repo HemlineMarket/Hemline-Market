@@ -1177,6 +1177,55 @@
       });
     }
 
+    // Compress and resize image before upload
+    async function compressImage(file, maxWidth = 1200, quality = 0.8) {
+      return new Promise((resolve) => {
+        // If not an image, return original
+        if (!file.type.startsWith('image/')) {
+          resolve(file);
+          return;
+        }
+        
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          
+          // Only resize if larger than maxWidth
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              // Create new file with same name
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              console.log(`[compress] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(compressedFile.size/1024).toFixed(0)}KB`);
+              resolve(compressedFile);
+            } else {
+              resolve(file); // Fallback to original
+            }
+          }, 'image/jpeg', quality);
+        };
+        
+        img.onerror = () => resolve(file); // Fallback to original on error
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
     async function uploadListingPhotos(user){
       const bucket = supabaseClient.storage.from(MEDIA_BUCKET);
 
@@ -1205,7 +1254,8 @@
 
         for(let i=0;i<newFiles.length;i++){
           const fileObj = newFiles[i];
-          const file = fileObj.file;
+          // Compress image before upload
+          const file = await compressImage(fileObj.file, 1200, 0.8);
           const name = file.name || `photo_${i}.jpg`;
           const parts = name.split('.');
           const ext = parts.length > 1 ? parts.pop() : 'jpg';
