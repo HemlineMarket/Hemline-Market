@@ -13,9 +13,20 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUUID(str) {
+  return str && typeof str === "string" && UUID_REGEX.test(str);
+}
+
 export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  // CORS headers - restrict to your domain in production
+  const allowedOrigin = process.env.SITE_URL || "https://hemlinemarket.com";
+  const origin = req.headers.origin;
+  if (origin === allowedOrigin || origin?.endsWith(".hemlinemarket.com") || process.env.NODE_ENV === "development") {
+    res.setHeader("Access-Control-Allow-Origin", origin || allowedOrigin);
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   
@@ -30,6 +41,11 @@ export default async function handler(req, res) {
       
       if (!listing_id) {
         return res.status(400).json({ error: "Missing listing_id" });
+      }
+      
+      // Validate UUID format to prevent injection
+      if (!isValidUUID(listing_id)) {
+        return res.status(400).json({ error: "Invalid listing_id format" });
       }
 
       // Delete any existing hold for this listing first
@@ -63,15 +79,21 @@ export default async function handler(req, res) {
       if (!listing_id) {
         return res.status(400).json({ error: "Missing listing_id" });
       }
+      
+      // Validate UUID format
+      if (!isValidUUID(listing_id)) {
+        return res.status(400).json({ error: "Invalid listing_id format" });
+      }
 
-      const query = supabaseAdmin
+      // Build query - must reassign since .eq() returns a new query object
+      let query = supabaseAdmin
         .from("cart_holds")
         .delete()
         .eq("listing_id", listing_id);
       
       // If user_id provided, only delete that user's hold
-      if (user_id) {
-        query.eq("user_id", user_id);
+      if (user_id && isValidUUID(user_id)) {
+        query = query.eq("user_id", user_id);
       }
 
       const { error } = await query;
