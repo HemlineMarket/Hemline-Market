@@ -149,16 +149,23 @@
   }
 
   async function createHold(listingId) {
-    if (!listingId) return;
+    console.log("[add-to-cart] createHold called with:", listingId);
+    if (!listingId) {
+      console.log("[add-to-cart] createHold: no listingId, skipping");
+      return;
+    }
     try {
       const userId = await getUserId();
+      console.log("[add-to-cart] createHold: userId=", userId);
       const res = await fetch("/api/cart/hold", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ listing_id: listingId, user_id: userId })
       });
+      const data = await res.json();
+      console.log("[add-to-cart] createHold response:", res.status, data);
       if (!res.ok) {
-        console.error("[add-to-cart] hold create failed:", await res.text());
+        console.error("[add-to-cart] hold create failed:", data);
       }
     } catch(e) {
       console.error("[add-to-cart] hold create failed:", e);
@@ -334,6 +341,7 @@
     
     // Add new item to cart
     cart.push(item);
+    console.log("[add-to-cart] Added item:", item);
 
     writeCart(cart);
     
