@@ -131,6 +131,8 @@
     if (window.HM_CART_BADGE_UPDATE){
       try{ window.HM_CART_BADGE_UPDATE(list); }catch(_){}
     }
+    // Dispatch event for any listeners
+    window.dispatchEvent(new CustomEvent("hm:cart-updated", { detail: { cart: list } }));
   }
 
   // --- CART HOLD API (for "In someone's cart" feature) ---
