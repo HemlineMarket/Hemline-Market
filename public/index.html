@@ -1059,7 +1059,7 @@
         <div class="about-card-inner">
           <div class="about-header">
             <h2 class="about-title">About Hemline Market</h2>
-            <a class="about-cta-btn" href="account.html">Create a free account →</a>
+            <a class="about-cta-btn" href="account.html" id="createAccountBtn">Create a free account →</a>
           </div>
           
           <div class="about-features">
@@ -1094,7 +1094,7 @@
           
           <div class="about-banner" style="margin-bottom:16px;background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);border:1px solid #f59e0b;">
             <span class="about-banner-icon">✨</span>
-            <span class="about-banner-text"><strong>Coming in Version 3: <span style="color:#991b1b;">Custom Orders</span></strong> request custom pillows, costumes, garments, or embroidery. Post your project, and a vetted maker will handle the rest. Clear pricing, set timeline, delivered to your door.</span>
+            <span class="about-banner-text"><strong>Coming in Version 3: <span style="color:#991b1b;">Custom Orders</span></strong> request custom items, such as pillows, costumes, garments, or embroidery. Post your project, and a vetted maker will handle the rest. Clear pricing, set timeline, delivered to your door.</span>
           </div>
         </div>
       </div>
@@ -1154,6 +1154,20 @@
 
   <script>
     window.HM && window.HM.renderShell({ currentPage: "home" });
+    
+    // Hide "Create a free account" button if user is logged in
+    (async function() {
+      try {
+        const supabase = window.HM?.supabase;
+        if (supabase) {
+          const { data } = await supabase.auth.getSession();
+          if (data?.session?.user) {
+            const btn = document.getElementById('createAccountBtn');
+            if (btn) btn.style.display = 'none';
+          }
+        }
+      } catch(_) {}
+    })();
   </script>
 
   <script>
@@ -1550,6 +1564,9 @@
           arr.push(item);
           localStorage.setItem(key, JSON.stringify(arr));
           window.dispatchEvent(new CustomEvent("hm:cart-updated", { detail: { source: "index" } }));
+          
+          // Reset hold timer start time when adding to cart
+          localStorage.setItem('hm_cart_hold_start', Date.now().toString());
           
           // Create hold in database for "In someone's cart" feature
           createHoldForListing(item.id);
