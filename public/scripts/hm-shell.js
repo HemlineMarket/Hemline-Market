@@ -424,6 +424,16 @@ window.HM = window.HM || {};
     } catch (_) {}
   }
 
+  // Listen for cart updates from other scripts
+  window.addEventListener("hm:cart-updated", syncCartStateFromStorage);
+  
+  // Listen for storage changes (from other tabs)
+  window.addEventListener("storage", (e) => {
+    if (e.key === "hm_cart") {
+      syncCartStateFromStorage();
+    }
+  });
+
   // ------------------------------------------------------------
   // PUBLIC API
   // ------------------------------------------------------------
