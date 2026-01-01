@@ -956,6 +956,49 @@
       font-size: 9px;
     }
   }
+
+  /* Floating Share Button */
+  .hm-share-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--hm-accent);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(153, 27, 27, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .hm-share-fab:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 20px rgba(153, 27, 27, 0.5);
+  }
+  .hm-share-fab svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+  }
+  @media(max-width:640px){
+    .hm-share-fab {
+      bottom: 16px;
+      right: 16px;
+      width: 48px;
+      height: 48px;
+    }
+    .hm-share-fab svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
   </style>
 </head>
 <body>
@@ -1497,6 +1540,50 @@
   
   <!-- Service worker for offline support -->
   <script src="scripts/sw-register.js"></script>
+
+  <!-- Floating Share Button -->
+  <button class="hm-share-fab" id="shareFab" aria-label="Share Hemline Market">
+    <svg viewBox="0 0 24 24">
+      <circle cx="18" cy="5" r="3"></circle>
+      <circle cx="6" cy="12" r="3"></circle>
+      <circle cx="18" cy="19" r="3"></circle>
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+    </svg>
+  </button>
+
+  <script>
+    // Share functionality
+    document.getElementById('shareFab').addEventListener('click', async () => {
+      const shareData = {
+        title: 'Hemline Market',
+        text: 'A marketplace for sewists to buy and sell fabric. Sustainable, peer-to-peer, community-powered.',
+        url: 'https://hemlinemarket.com'
+      };
+
+      try {
+        if (navigator.share) {
+          await navigator.share(shareData);
+        } else {
+          // Fallback: copy to clipboard
+          await navigator.clipboard.writeText(shareData.url);
+          
+          // Show quick toast
+          const fab = document.getElementById('shareFab');
+          const originalHTML = fab.innerHTML;
+          fab.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          fab.style.background = '#16a34a';
+          
+          setTimeout(() => {
+            fab.innerHTML = originalHTML;
+            fab.style.background = '';
+          }, 1500);
+        }
+      } catch (err) {
+        console.log('Share failed:', err);
+      }
+    });
+  </script>
 
 </body>
 </html>
