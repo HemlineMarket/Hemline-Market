@@ -14,7 +14,7 @@ window.HM = window.HM || {};
 <header class="hm-header" role="banner">
   <div class="wrap">
     <a class="hm-brand" href="index.html">
-      <img src="/images/icon.png" alt="" class="hm-brand-logo">
+      <img src="/images/logo.png" alt="" class="hm-brand-logo">
       Hemline Market
     </a>
 
