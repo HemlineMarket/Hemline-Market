@@ -284,6 +284,7 @@
       display:grid;
       place-items:center;
       overflow:hidden;
+      position:relative;
     }
     @keyframes shimmer{
       0%{background-position:200% 0;}
@@ -491,7 +492,38 @@
     .empty-cta:hover{
       filter:brightness(1.1);
     }
-  @media(max-width:768px){body{background-position:20% center;}}
+
+    /* Cart hold badges */
+    .cart-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      z-index: 2;
+    }
+    .cart-badge.yours {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+    .cart-badge.others {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+
+  @media(max-width:768px){
+    body{background-position:20% center;}
+    .cart-badge {
+      top: 4px;
+      left: 4px;
+      padding: 3px 6px;
+      font-size: 9px;
+    }
+  }
   </style>
 </head>
 <body>
@@ -956,6 +988,23 @@
       return map;
     }
 
+    // Fetch active cart holds for listings
+    async function fetchCartHolds(listingIds) {
+      const map = {};
+      if (!listingIds || !listingIds.length) return map;
+      
+      try {
+        const res = await fetch(`/api/cart/hold?listings=${listingIds.join(',')}`);
+        if (res.ok) {
+          const data = await res.json();
+          return data.holds || {};
+        }
+      } catch(e) {
+        console.error("Cart holds fetch error", e);
+      }
+      return map;
+    }
+
     /* --- Atelier search --- */
     async function runAtelierSearch(){
       const grid    = document.getElementById("grid");
@@ -1254,6 +1303,13 @@
 
       const profileMap = await fetchProfilesForListings(filtered);
 
+      // Fetch cart holds to show "In someone's cart" badges
+      const holdMap = await fetchCartHolds(filtered.map(l => l.id));
+      
+      // Get current user's cart to show "In your cart"
+      const myCart = JSON.parse(localStorage.getItem('hm_cart') || '[]');
+      const myCartIds = new Set(myCart.map(it => it.id || it.listing_id));
+
       if(grid){
         filtered.forEach(l => {
           const yardsAvail = l.yards_available != null ? Number(l.yards_available) : null;
@@ -1263,6 +1319,19 @@
           const status = (l.status || "active").toLowerCase();
           const isSold = status === "sold" || (yardsAvail != null && yardsAvail <= 0) || l.yards_available === 0;
           const canBuy = !isSold && priceCents != null && yardsAvail != null && yardsAvail > 0;
+
+          // Check if item is in someone's cart
+          const hold = holdMap[l.id];
+          const inMyCart = myCartIds.has(l.id);
+          const inSomeoneElsesCart = hold?.held && !inMyCart;
+          
+          // Badge HTML
+          let cartBadgeHtml = '';
+          if (inMyCart) {
+            cartBadgeHtml = '<span class="cart-badge yours">✓ In your cart</span>';
+          } else if (inSomeoneElsesCart) {
+            cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
+          }
 
           let totalCents = null;
           if(priceCents != null && yardsAvail != null){
@@ -1286,6 +1355,7 @@
             <a class="listing-thumb-link" href="${href}">
               <div class="listing-thumb" aria-hidden="true">
                 ${l.image_url_1 ? `<img src="${thumbUrl(l.image_url_1, 400)}" alt="${safeAlt}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
+                ${cartBadgeHtml}
               </div>
             </a>
             <div class="listing-body">
