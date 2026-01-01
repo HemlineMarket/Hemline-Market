@@ -193,8 +193,40 @@
     })();
 
     // 🔑 SUCCESS SIDE EFFECTS (CART CLEANUP)
-    (function(){
+    (async function(){
       try{
+        // Read cart BEFORE clearing (need listing IDs to remove holds)
+        let cart = [];
+        try {
+          cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
+        } catch(_) {}
+
+        // Get user ID for hold deletion
+        let userId = null;
+        try {
+          const supabase = window.HM?.supabase;
+          if (supabase) {
+            const { data } = await supabase.auth.getSession();
+            userId = data?.session?.user?.id || null;
+          }
+        } catch(_) {}
+
+        // Remove cart holds from database for all purchased items
+        for (const item of cart) {
+          const listingId = item.listing_id || item.id;
+          if (listingId) {
+            try {
+              await fetch("/api/cart/hold", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ listing_id: listingId, user_id: userId })
+              });
+            } catch(e) {
+              console.warn("Failed to remove hold for", listingId, e);
+            }
+          }
+        }
+
         // Clear cart + shipping cache
         localStorage.removeItem("hm_cart");
         localStorage.removeItem("hm_cart_shipping");
