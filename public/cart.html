@@ -480,19 +480,23 @@
 
       const { data, error } = await supabase
         .from('listings')
-        .select('id, status')
+        .select('id, status, is_published')
         .in('id', listingIds);
 
       if(error || !data) return;
 
-      const soldIds = new Set(
+      // Filter out sold items AND not-for-sale items (is_published = false)
+      const unavailableIds = new Set(
         data
-          .filter(row => (row.status || '').toUpperCase() === 'SOLD')
+          .filter(row => 
+            (row.status || '').toUpperCase() === 'SOLD' || 
+            row.is_published === false
+          )
           .map(row => row.id)
       );
-      if(!soldIds.size) return;
+      if(!unavailableIds.size) return;
 
-      const filtered = cart.filter(it => !soldIds.has(it.listing_id));
+      const filtered = cart.filter(it => !unavailableIds.has(it.listing_id));
       if(filtered.length !== cart.length){
         write(filtered);
       }
