@@ -196,16 +196,8 @@ export default async function handler(req, res) {
       };
     });
 
-    if (shippingCents > 0) {
-      line_items.push({
-        quantity: 1,
-        price_data: {
-          currency,
-          unit_amount: shippingCents,
-          product_data: { name: "Shipping" },
-        },
-      });
-    }
+    // NOTE: Shipping is added via shipping_options below (when hasShippingAddress is true)
+    // or collected by Stripe. Do NOT add shipping as a line_item here to avoid double-charging.
 
     // STORE ALL ITEM IDS (not just first one)
     const first = cart[0] || {};
@@ -293,6 +285,18 @@ export default async function handler(req, res) {
       sessionParams.shipping_address_collection = {
         allowed_countries: ["US"],
       };
+      // When Stripe collects the address, we need to add shipping as a line item
+      // since shipping_options isn't being used
+      if (shippingCents > 0) {
+        sessionParams.line_items.push({
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: shippingCents,
+            product_data: { name: "Shipping" },
+          },
+        });
+      }
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
