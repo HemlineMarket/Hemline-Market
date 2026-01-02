@@ -911,8 +911,10 @@
       toggleBtn.textContent = isNotForSale ? "Mark as for sale" : "Mark as not for sale";
       
       toggleBtn.onclick = async () => {
-        const newStatus = isNotForSale ? "ACTIVE" : "NOT_FOR_SALE";
-        const newPublished = isNotForSale ? true : false;
+        // Re-check current status from the button text to handle toggle correctly
+        const currentlyNotForSale = toggleBtn.textContent.includes("Mark as for sale");
+        const newStatus = currentlyNotForSale ? "ACTIVE" : "NOT_FOR_SALE";
+        const newPublished = currentlyNotForSale ? true : false;
         
         toggleBtn.disabled = true;
         toggleBtn.textContent = "Updating…";
@@ -928,21 +930,21 @@
             .eq("seller_id", currentSession.user.id);
 
           if (error) {
-            console.warn("Toggle for sale error", error);
-            showToast("Could not update listing");
+            console.error("Toggle for sale error", error);
+            showToast("Could not update listing: " + (error.message || "Unknown error"));
             toggleBtn.disabled = false;
-            toggleBtn.textContent = isNotForSale ? "Mark as for sale" : "Mark as not for sale";
+            toggleBtn.textContent = currentlyNotForSale ? "Mark as for sale" : "Mark as not for sale";
           } else {
-            showToast(isNotForSale ? "Listing is now for sale" : "Listing marked as not for sale");
+            showToast(currentlyNotForSale ? "Listing is now for sale" : "Listing marked as not for sale");
             setTimeout(() => {
               window.location.reload();
             }, 700);
           }
         } catch (e) {
-          console.warn("Toggle for sale exception", e);
-          showToast("Could not update listing");
+          console.error("Toggle for sale exception", e);
+          showToast("Could not update listing: " + (e.message || "Unknown error"));
           toggleBtn.disabled = false;
-          toggleBtn.textContent = isNotForSale ? "Mark as for sale" : "Mark as not for sale";
+          toggleBtn.textContent = currentlyNotForSale ? "Mark as for sale" : "Mark as not for sale";
         }
       };
     }
