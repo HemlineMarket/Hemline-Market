@@ -2097,6 +2097,52 @@
       }
     }
 
+    // Check if this is a TikTok URL - if so, embed the video
+    if (isTiktokUrl(url)) {
+      const videoId = extractTiktokId(url);
+      if (videoId) {
+        const container = document.createElement("div");
+        container.className = "tt-tiktok-embed";
+        container.innerHTML = `
+          <blockquote 
+            class="tiktok-embed" 
+            cite="${escapeAttr(url)}" 
+            data-video-id="${escapeAttr(videoId)}"
+            style="max-width: 605px; min-width: 325px;">
+            <section></section>
+          </blockquote>
+        `;
+        card.insertBefore(container, actionsRow);
+        
+        // Load TikTok embed script if not already loaded
+        if (!document.querySelector('script[src*="tiktok.com/embed.js"]')) {
+          const script = document.createElement("script");
+          script.src = "https://www.tiktok.com/embed.js";
+          script.async = true;
+          document.body.appendChild(script);
+        } else {
+          // If script already loaded, tell TikTok to re-scan for new embeds
+          if (window.tiktokEmbed && window.tiktokEmbed.lib && window.tiktokEmbed.lib.render) {
+            window.tiktokEmbed.lib.render();
+          }
+        }
+        
+        // Hide the raw URL in the card body
+        const cardBody = card.querySelector(".card-body");
+        if (cardBody) {
+          cardBody.innerHTML = cardBody.innerHTML.replace(
+            /<a[^>]*href="[^"]*"[^>]*>[^<]*<\/a>/gi,
+            ''
+          ).trim();
+          // If body is now empty or just whitespace, hide it
+          if (!cardBody.textContent.trim()) {
+            cardBody.style.display = 'none';
+          }
+        }
+        return;
+      }
+    }
+
     // For non-YouTube URLs, fetch metadata and show preview card
     let previewData = null;
     try {
@@ -2204,6 +2250,51 @@
         return u.searchParams.get("v") || "";
       }
 
+      return "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function isTiktokUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+      return (
+        host === "tiktok.com" ||
+        host === "m.tiktok.com" ||
+        host === "vm.tiktok.com" ||
+        host === "vt.tiktok.com"
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function extractTiktokId(url) {
+    try {
+      const u = new URL(url);
+      const path = u.pathname;
+      
+      // Handle various TikTok URL formats:
+      // https://www.tiktok.com/@username/video/1234567890
+      // https://vm.tiktok.com/ABC123/
+      // https://vt.tiktok.com/ABC123/
+      
+      // Standard format: /@username/video/VIDEO_ID
+      const videoMatch = path.match(/\/video\/(\d+)/);
+      if (videoMatch) {
+        return videoMatch[1];
+      }
+      
+      // Short URL format: /ABC123 (the whole path is the short code)
+      // For short URLs, we return the full URL as the ID since TikTok embed handles it
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+      if (host === "vm.tiktok.com" || host === "vt.tiktok.com") {
+        // Return a placeholder - the embed will use the full URL
+        return path.replace(/^\//, "").replace(/\/$/, "") || "short";
+      }
+      
       return "";
     } catch (_) {
       return "";
