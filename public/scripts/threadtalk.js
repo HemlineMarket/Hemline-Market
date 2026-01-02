@@ -1663,11 +1663,11 @@
       return;
     }
 
-    const previewEl = card.querySelector(".preview");
-    if (!previewEl) return;
+    const bodyEl = card.querySelector(".card-body");
+    if (!bodyEl) return;
 
     const original = thread.body || "";
-    previewEl.innerHTML = `
+    bodyEl.innerHTML = `
       <textarea class="tt-edit-area">${escapeHtml(original)}</textarea>
       <div class="tt-edit-actions">
         <button type="button" class="tt-edit-save">Save</button>
@@ -1675,12 +1675,14 @@
       </div>
     `;
 
-    const area = previewEl.querySelector(".tt-edit-area");
-    const saveBtn = previewEl.querySelector(".tt-edit-save");
-    const cancelBtn = previewEl.querySelector(".tt-edit-cancel");
+    const area = bodyEl.querySelector(".tt-edit-area");
+    const saveBtn = bodyEl.querySelector(".tt-edit-save");
+    const cancelBtn = bodyEl.querySelector(".tt-edit-cancel");
+
+    area.focus();
 
     cancelBtn.addEventListener("click", () => {
-      previewEl.innerHTML = linkify(original);
+      bodyEl.innerHTML = linkify(original);
     });
 
     saveBtn.addEventListener("click", async () => {
