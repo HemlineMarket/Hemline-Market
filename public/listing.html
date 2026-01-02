@@ -1053,11 +1053,12 @@
 
     const isPublished = listing.is_published !== false;
     const status = (listing.status || "active").toLowerCase();
+    const isNotForSale = !isPublished && status === "active";
     const isSold = status === "sold" || (yards != null && yards <= 0) || listing.yards_available === 0;
 
     if(statusRow){
       statusRow.textContent = (isPublished ? "Published" : "Draft") +
-        " · " + (isSold ? "Sold" : "Active");
+        " · " + (isNotForSale ? "Not for Sale" : (isSold ? "Sold" : "Active"));
       if(isSold){
         const pill = document.createElement("span");
         pill.className = "sold-pill";
@@ -1147,7 +1148,10 @@
       const firstImg = listing.image_url_1 || "";
       addBtn.dataset.photo = firstImg;
 
-      if(isSold || priceCents == null || yards == null || yards <= 0){
+      if(isNotForSale){
+        addBtn.disabled = true;
+        addBtn.textContent = "Not for Sale";
+      }else if(isSold || priceCents == null || yards == null || yards <= 0){
         addBtn.disabled = true;
         addBtn.textContent = isSold ? "Sold out" : "Unavailable";
       }else{
