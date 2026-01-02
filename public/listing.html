@@ -913,25 +913,31 @@
       toggleBtn.onclick = async () => {
         // Re-check current status from the button text to handle toggle correctly
         const currentlyNotForSale = toggleBtn.textContent.includes("Mark as for sale");
-        const newStatus = currentlyNotForSale ? "ACTIVE" : "NOT_FOR_SALE";
+        const newStatus = currentlyNotForSale ? "active" : "not_for_sale";
         const newPublished = currentlyNotForSale ? true : false;
         
         toggleBtn.disabled = true;
         toggleBtn.textContent = "Updating…";
 
         try {
-          const { error } = await supabaseClient
+          const { data, error } = await supabaseClient
             .from("listings")
             .update({
               status: newStatus,
               is_published: newPublished
             })
             .eq("id", listing.id)
-            .eq("seller_id", currentSession.user.id);
+            .eq("seller_id", currentSession.user.id)
+            .select();
 
           if (error) {
             console.error("Toggle for sale error", error);
             showToast("Could not update listing: " + (error.message || "Unknown error"));
+            toggleBtn.disabled = false;
+            toggleBtn.textContent = currentlyNotForSale ? "Mark as for sale" : "Mark as not for sale";
+          } else if (!data || data.length === 0) {
+            console.error("Toggle for sale: no rows updated");
+            showToast("Could not update listing: you may not have permission");
             toggleBtn.disabled = false;
             toggleBtn.textContent = currentlyNotForSale ? "Mark as for sale" : "Mark as not for sale";
           } else {
