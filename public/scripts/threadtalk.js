@@ -1663,7 +1663,7 @@
       return;
     }
 
-    // Hide the entire card content and show edit UI
+    // Get card elements
     const cardBody = card.querySelector(".card-body");
     const cardMedia = card.querySelector(".card-media");
     const cardReactions = card.querySelector(".card-reactions");
@@ -1671,6 +1671,7 @@
     
     if (!cardBody) return;
 
+    // Get original data from the thread object (not from DOM which may be hidden)
     const originalBody = thread.body || "";
     const originalMediaUrl = thread.media_url;
     const originalMediaType = thread.media_type;
@@ -1681,10 +1682,8 @@
     let keepOriginalMedia = !!(originalMediaUrl && originalMediaType);
     let removeLinkPreview = false;
 
-    // Store original display states
-    const originalCardBodyHtml = cardBody.innerHTML;
-    const originalCardMediaDisplay = cardMedia ? cardMedia.style.display : null;
-    const originalLinkPreviewDisplay = linkPreview ? linkPreview.style.display : null;
+    // Check if there's a link in the body (for link preview)
+    const hasLinkInBody = /https?:\/\/[^\s]+/.test(originalBody);
 
     // Build the edit UI
     let editHtml = `
@@ -1724,12 +1723,12 @@
       }
     }
 
-    // Show link preview info if exists (so user can remove it)
-    if (linkPreview) {
+    // Show link preview notice if there's a link in the body
+    if (hasLinkInBody) {
       editHtml += `
         <div class="tt-edit-link-preview-notice">
           <span>📎 Link preview attached</span>
-          <button type="button" class="tt-edit-remove-link-preview">Remove preview</button>
+          <button type="button" class="tt-edit-remove-link-preview">Remove link</button>
         </div>
       `;
     }
@@ -1759,16 +1758,16 @@
       </div>
     `;
 
-    // Hide existing elements
+    // Hide other card elements while editing
     if (cardMedia) cardMedia.style.display = "none";
     if (linkPreview) linkPreview.style.display = "none";
     if (cardReactions) cardReactions.style.display = "none";
 
-    // Insert edit UI
+    // Make card-body visible and show edit UI
+    cardBody.style.display = "";
     cardBody.innerHTML = editHtml;
 
     // Get references
-    const editContainer = cardBody.querySelector(".tt-edit-container");
     const textarea = cardBody.querySelector(".tt-edit-area");
     const saveBtn = cardBody.querySelector(".tt-edit-save-btn");
     const cancelBtn = cardBody.querySelector(".tt-edit-cancel-btn");
@@ -1791,10 +1790,12 @@
       });
     });
 
-    // Remove link preview
+    // Remove link preview (removes URL from text)
     if (removeLinkPreviewBtn) {
       removeLinkPreviewBtn.addEventListener("click", () => {
         removeLinkPreview = true;
+        // Remove URLs from textarea
+        textarea.value = textarea.value.replace(/https?:\/\/[^\s]+/g, "").trim();
         if (linkPreviewNotice) linkPreviewNotice.style.display = "none";
       });
     }
@@ -1849,23 +1850,14 @@
       });
     });
 
-    // Cancel
-    cancelBtn.addEventListener("click", () => {
-      cardBody.innerHTML = originalCardBodyHtml;
-      if (cardMedia) cardMedia.style.display = originalCardMediaDisplay || "";
-      if (linkPreview) linkPreview.style.display = originalLinkPreviewDisplay || "";
-      if (cardReactions) cardReactions.style.display = "";
+    // Cancel - reload threads to restore original state
+    cancelBtn.addEventListener("click", async () => {
+      await loadThreads();
     });
 
     // Save
     saveBtn.addEventListener("click", async () => {
       let body = (textarea.value || "").trim();
-      
-      // If removing link preview, also remove the URL from body
-      if (removeLinkPreview && linkPreview) {
-        // Remove URLs from body text
-        body = body.replace(/https?:\/\/[^\s]+/g, "").trim();
-      }
 
       // Validate - need either text or media
       const willHaveMedia = newMediaFile || keepOriginalMedia;
