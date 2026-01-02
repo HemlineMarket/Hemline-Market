@@ -2132,8 +2132,8 @@
         return;
       }
       
-      // For photo posts or other TikTok content, show a nice preview card
-      if (tiktokInfo.type === "photo" || tiktokInfo.id) {
+      // For photo posts, short URLs, or other TikTok content, show a nice preview card
+      if (tiktokInfo.type === "photo" || tiktokInfo.type === "short" || tiktokInfo.id) {
         const container = document.createElement("div");
         container.className = "tt-link-preview-wrap";
         
@@ -2307,6 +2307,7 @@
       // Handle various TikTok URL formats:
       // https://www.tiktok.com/@username/video/1234567890
       // https://www.tiktok.com/@username/photo/1234567890
+      // https://www.tiktok.com/t/ZP8ytAnkg/ (short URL on main domain)
       // https://vm.tiktok.com/ABC123/
       
       // Check for video format: /@username/video/VIDEO_ID
@@ -2321,11 +2322,19 @@
         return { type: "photo", id: photoMatch[1] };
       }
       
-      // Short URL format: /ABC123 (can't tell type without fetching)
+      // Short URL formats (can't tell type without fetching, show preview card)
       const host = u.hostname.replace(/^www\./, "").toLowerCase();
+      
+      // Handle /t/SHORTCODE format on main tiktok.com domain
+      const shortTMatch = path.match(/^\/t\/([A-Za-z0-9_-]+)/);
+      if (shortTMatch) {
+        return { type: "short", id: shortTMatch[1] };
+      }
+      
+      // Handle vm.tiktok.com and vt.tiktok.com short URLs
       if (host === "vm.tiktok.com" || host === "vt.tiktok.com") {
         const shortCode = path.replace(/^\//, "").replace(/\/$/, "");
-        return { type: "unknown", id: shortCode };
+        return { type: "short", id: shortCode };
       }
       
       return { type: null, id: null };
