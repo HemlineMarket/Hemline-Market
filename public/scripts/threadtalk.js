@@ -2097,18 +2097,19 @@
       }
     }
 
-    // Check if this is a TikTok URL - if so, embed the video
+    // Check if this is a TikTok URL - if so, embed the video (only works for /video/ posts, not /photo/)
     if (isTiktokUrl(url)) {
-      const videoId = extractTiktokId(url);
-      if (videoId) {
+      const tiktokInfo = extractTiktokInfo(url);
+      
+      // Only embed actual videos, not photo slideshows
+      if (tiktokInfo.type === "video" && tiktokInfo.id) {
         const container = document.createElement("div");
         container.className = "tt-tiktok-embed";
         
         // Use iframe embed which is more reliable than blockquote method
         container.innerHTML = `
           <iframe
-            src="https://www.tiktok.com/embed/v2/${escapeAttr(videoId)}"
-            style="width: 100%; height: 740px; display: block; visibility: unset; max-height: 740px;"
+            src="https://www.tiktok.com/embed/v2/${escapeAttr(tiktokInfo.id)}"
             frameborder="0"
             allow="autoplay; encrypted-media"
             allowfullscreen>
@@ -2124,6 +2125,44 @@
             ''
           ).trim();
           // If body is now empty or just whitespace, hide it
+          if (!cardBody.textContent.trim()) {
+            cardBody.style.display = 'none';
+          }
+        }
+        return;
+      }
+      
+      // For photo posts or other TikTok content, show a nice preview card
+      if (tiktokInfo.type === "photo" || tiktokInfo.id) {
+        const container = document.createElement("div");
+        container.className = "tt-link-preview-wrap";
+        
+        container.innerHTML = `
+          <a class="tt-link-card tt-tiktok-card"
+             href="${escapeAttr(url)}"
+             target="_blank"
+             rel="noopener noreferrer">
+            <div class="tt-link-thumb tt-tiktok-thumb">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M34.1451 16.3362C33.1954 16.3362 32.2948 16.0987 31.5 15.6766V24.8571C31.5 29.0667 28.0667 32.5 23.8571 32.5C19.6476 32.5 16.2143 29.0667 16.2143 24.8571C16.2143 20.6476 19.6476 17.2143 23.8571 17.2143C24.1879 17.2143 24.5118 17.2398 24.8286 17.2857V20.7857C24.5118 20.7398 24.1879 20.7143 23.8571 20.7143C21.5699 20.7143 19.7143 22.5699 19.7143 24.8571C19.7143 27.1444 21.5699 29 23.8571 29C26.1444 29 28 27.1444 28 24.8571V8H31.5C31.5 11.0376 33.9624 13.5 37 13.5V17C35.9572 17 34.9731 16.7649 34.1451 16.3362Z" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="tt-link-meta">
+              <div class="tt-link-title">View on TikTok</div>
+              <div class="tt-link-host">tiktok.com${tiktokInfo.type === "photo" ? " • Photo" : ""}</div>
+            </div>
+          </a>
+        `;
+        
+        card.insertBefore(container, actionsRow);
+        
+        // Hide the raw URL in the card body
+        const cardBody = card.querySelector(".card-body");
+        if (cardBody) {
+          cardBody.innerHTML = cardBody.innerHTML.replace(
+            /<a[^>]*href="[^"]*"[^>]*>[^<]*<\/a>/gi,
+            ''
+          ).trim();
           if (!cardBody.textContent.trim()) {
             cardBody.style.display = 'none';
           }
@@ -2260,34 +2299,45 @@
     }
   }
 
-  function extractTiktokId(url) {
+  function extractTiktokInfo(url) {
     try {
       const u = new URL(url);
       const path = u.pathname;
       
       // Handle various TikTok URL formats:
       // https://www.tiktok.com/@username/video/1234567890
+      // https://www.tiktok.com/@username/photo/1234567890
       // https://vm.tiktok.com/ABC123/
-      // https://vt.tiktok.com/ABC123/
       
-      // Standard format: /@username/video/VIDEO_ID
+      // Check for video format: /@username/video/VIDEO_ID
       const videoMatch = path.match(/\/video\/(\d+)/);
       if (videoMatch) {
-        return videoMatch[1];
+        return { type: "video", id: videoMatch[1] };
       }
       
-      // Short URL format: /ABC123 (the whole path is the short code)
-      // For short URLs, we return the full URL as the ID since TikTok embed handles it
+      // Check for photo format: /@username/photo/PHOTO_ID
+      const photoMatch = path.match(/\/photo\/(\d+)/);
+      if (photoMatch) {
+        return { type: "photo", id: photoMatch[1] };
+      }
+      
+      // Short URL format: /ABC123 (can't tell type without fetching)
       const host = u.hostname.replace(/^www\./, "").toLowerCase();
       if (host === "vm.tiktok.com" || host === "vt.tiktok.com") {
-        // Return a placeholder - the embed will use the full URL
-        return path.replace(/^\//, "").replace(/\/$/, "") || "short";
+        const shortCode = path.replace(/^\//, "").replace(/\/$/, "");
+        return { type: "unknown", id: shortCode };
       }
       
-      return "";
+      return { type: null, id: null };
     } catch (_) {
-      return "";
+      return { type: null, id: null };
     }
+  }
+
+  // Keep old function for backwards compatibility but have it use new one
+  function extractTiktokId(url) {
+    const info = extractTiktokInfo(url);
+    return info.id || "";
   }
 
   async function fetchLinkMetadata(url) {
