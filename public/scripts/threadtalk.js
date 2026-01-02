@@ -851,7 +851,6 @@
 
       try {
         const mediaInfo = await maybeUploadComposerMedia();
-        if (!body && hasMedia) body = "image attached";
 
         const payload = {
           author_id: currentUser.id,
@@ -1516,10 +1515,6 @@
     let media = { media_url: null, media_type: null };
     if (file) {
       media = await maybeUploadCommentMedia(file);
-    }
-
-    if (!body && media.media_url) {
-      body = "image attached";
     }
 
     try {
