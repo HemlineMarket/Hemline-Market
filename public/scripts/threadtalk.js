@@ -2103,29 +2103,18 @@
       if (videoId) {
         const container = document.createElement("div");
         container.className = "tt-tiktok-embed";
+        
+        // Use iframe embed which is more reliable than blockquote method
         container.innerHTML = `
-          <blockquote 
-            class="tiktok-embed" 
-            cite="${escapeAttr(url)}" 
-            data-video-id="${escapeAttr(videoId)}"
-            style="max-width: 605px; min-width: 325px;">
-            <section></section>
-          </blockquote>
+          <iframe
+            src="https://www.tiktok.com/embed/v2/${escapeAttr(videoId)}"
+            style="width: 100%; height: 740px; display: block; visibility: unset; max-height: 740px;"
+            frameborder="0"
+            allow="autoplay; encrypted-media"
+            allowfullscreen>
+          </iframe>
         `;
         card.insertBefore(container, actionsRow);
-        
-        // Load TikTok embed script if not already loaded
-        if (!document.querySelector('script[src*="tiktok.com/embed.js"]')) {
-          const script = document.createElement("script");
-          script.src = "https://www.tiktok.com/embed.js";
-          script.async = true;
-          document.body.appendChild(script);
-        } else {
-          // If script already loaded, tell TikTok to re-scan for new embeds
-          if (window.tiktokEmbed && window.tiktokEmbed.lib && window.tiktokEmbed.lib.render) {
-            window.tiktokEmbed.lib.render();
-          }
-        }
         
         // Hide the raw URL in the card body
         const cardBody = card.querySelector(".card-body");
