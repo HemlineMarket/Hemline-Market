@@ -905,15 +905,14 @@
       return;
     }
 
-    // Check if listing is currently not for sale
-    const isNotForSale = status === "not_for_sale";
+    // Check if listing is currently not for sale (unpublished but active)
+    const isNotForSale = !listing.is_published && status === "active";
     if (toggleBtn) {
       toggleBtn.textContent = isNotForSale ? "Mark as for sale" : "Mark as not for sale";
       
       toggleBtn.onclick = async () => {
         // Re-check current status from the button text to handle toggle correctly
         const currentlyNotForSale = toggleBtn.textContent.includes("Mark as for sale");
-        const newStatus = currentlyNotForSale ? "active" : "not_for_sale";
         const newPublished = currentlyNotForSale ? true : false;
         
         toggleBtn.disabled = true;
@@ -923,7 +922,6 @@
           const { data, error } = await supabaseClient
             .from("listings")
             .update({
-              status: newStatus,
               is_published: newPublished
             })
             .eq("id", listing.id)
