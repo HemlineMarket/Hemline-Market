@@ -210,12 +210,36 @@
       display:grid;
       place-items:center;
       overflow:hidden;
+      position:relative;
     }
     .listing-thumb img{
       width:100%;
       height:100%;
       object-fit:cover;
       display:block;
+    }
+    /* Not for sale badge and styling */
+    .not-for-sale-badge{
+      position:absolute;
+      top:8px;
+      left:8px;
+      background:rgba(107,114,128,0.9);
+      color:#fff;
+      font-size:11px;
+      font-weight:600;
+      padding:4px 8px;
+      border-radius:4px;
+      z-index:2;
+    }
+    .listing-card.not-for-sale{
+      opacity:0.7;
+    }
+    .listing-card.not-for-sale .listing-thumb img{
+      filter:grayscale(50%);
+    }
+    .listing-card.not-for-sale .listing-add-btn{
+      background:#9ca3af;
+      cursor:not-allowed;
     }
     .listing-body{
       padding:8px 10px 10px;
@@ -970,11 +994,20 @@
 
       const now = new Date();
 
-      // Only consider active + is_published true rows (case-insensitive status check)
-      const rows = (data || []).filter(x =>
-        x.is_published === true &&
-        (x.status || "active").toLowerCase() === "active"
-      );
+      // Filter listings based on whether viewing own shop or someone else's
+      // Own shop: show ACTIVE + NOT_FOR_SALE listings
+      // Other shops: only show ACTIVE + is_published true
+      const rows = (data || []).filter(x => {
+        const status = (x.status || "active").toLowerCase();
+        
+        if (isOwn) {
+          // Owner sees active listings AND not-for-sale listings
+          return status === "active" || status === "not_for_sale";
+        } else {
+          // Public visitors only see published active listings
+          return x.is_published === true && status === "active";
+        }
+      });
 
       const live = rows.filter(x =>
         !x.published_at || new Date(x.published_at) <= now
@@ -1001,11 +1034,12 @@
         const totalMoney = totalCents != null ? moneyFromCents(totalCents) : "";
 
         const status = (item.status || "active").toLowerCase();
+        const isNotForSale = status === "not_for_sale";
         const isSold = status === "sold" || yards === null || yards <= 0;
-        const canBuy = !isSold && priceCents != null && yards != null && yards > 0;
+        const canBuy = !isSold && !isNotForSale && priceCents != null && yards != null && yards > 0;
 
         const card = document.createElement("article");
-        card.className = "listing-card";
+        card.className = "listing-card" + (isNotForSale ? " not-for-sale" : "");
 
         const href = "listing.html?id=" + encodeURIComponent(item.id);
         const safeTitle = item.title || "Untitled listing";
@@ -1014,6 +1048,7 @@
         card.innerHTML = `
           <a class="listing-thumb-link" href="${href}">
             <div class="listing-thumb" aria-hidden="true">
+              ${isNotForSale ? '<div class="not-for-sale-badge">Not for Sale</div>' : ''}
               ${item.image_url_1 ? `<img src="${item.image_url_1}" alt="${safeAlt}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
             </div>
           </a>
@@ -1024,11 +1059,13 @@
             </div>
             ${yards != null ? `<div class="listing-yards">${yards} yards</div>` : ""}
             <div class="listing-cta-row">
-              <button type="button" class="listing-add-btn add-to-cart">
+              <button type="button" class="listing-add-btn add-to-cart" ${isNotForSale ? 'disabled' : ''}>
                 ${
-                  canBuy && totalMoney && yards
-                    ? `Add to Cart — ${totalMoney} for ${yards} yards`
-                    : (isSold ? "Sold out" : "Add to Cart")
+                  isNotForSale
+                    ? "Not for Sale"
+                    : (canBuy && totalMoney && yards
+                      ? `Add to Cart — ${totalMoney} for ${yards} yards`
+                      : (isSold ? "Sold out" : "Add to Cart"))
                 }
               </button>
             </div>
