@@ -41,23 +41,23 @@
 
   const CATEGORY_LABELS = {
     showcase: "Showcase",
-    tailoring: "Tailoring",
+    cosplay: "Cosplay",
     "stitch-school": "Stitch School",
     "fabric-sos": "Fabric SOS",
     "before-after": "Before & After",
     "pattern-hacks": "Pattern Hacks",
-    "stash-confessions": "Stash Confessions",
+    tailoring: "Tailoring",
     "loose-threads": "Loose Threads",
   };
 
   const CATEGORY_LINKS = {
     showcase: "showcase.html",
-    tailoring: "tailoring.html",
+    cosplay: "cosplay.html",
     "stitch-school": "stitch-school.html",
     "fabric-sos": "fabric-sos.html",
     "before-after": "before-after.html",
     "pattern-hacks": "pattern-hacks.html",
-    "stash-confessions": "stash-confessions.html",
+    tailoring: "tailoring.html",
     "loose-threads": "loose-threads.html",
   };
 
