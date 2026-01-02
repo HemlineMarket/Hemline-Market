@@ -1663,9 +1663,13 @@
       return;
     }
 
-    const bodyEl = card.querySelector(".card-body");
-    const mediaEl = card.querySelector(".card-media");
-    if (!bodyEl) return;
+    // Hide the entire card content and show edit UI
+    const cardBody = card.querySelector(".card-body");
+    const cardMedia = card.querySelector(".card-media");
+    const cardReactions = card.querySelector(".card-reactions");
+    const linkPreview = card.querySelector(".tt-link-preview-wrap, .tt-youtube-embed, .tt-tiktok-embed");
+    
+    if (!cardBody) return;
 
     const originalBody = thread.body || "";
     const originalMediaUrl = thread.media_url;
@@ -1673,149 +1677,201 @@
 
     // Track edit state
     let newMediaFile = null;
-    let newMediaType = null;
-    let removeMedia = false;
+    let newMediaType = null; 
+    let keepOriginalMedia = !!(originalMediaUrl && originalMediaType);
+    let removeLinkPreview = false;
 
-    // Build current media preview HTML
-    let currentMediaHtml = "";
+    // Store original display states
+    const originalCardBodyHtml = cardBody.innerHTML;
+    const originalCardMediaDisplay = cardMedia ? cardMedia.style.display : null;
+    const originalLinkPreviewDisplay = linkPreview ? linkPreview.style.display : null;
+
+    // Build the edit UI
+    let editHtml = `
+      <div class="tt-edit-container">
+        <textarea class="tt-edit-area" placeholder="What's on your mind?">${escapeHtml(originalBody)}</textarea>
+    `;
+
+    // Show current uploaded media if exists
     if (originalMediaUrl && originalMediaType) {
-      if (originalMediaType === "image" || originalMediaType === "images") {
+      if (originalMediaType === "video") {
+        editHtml += `
+          <div class="tt-edit-current-media" data-has-media="true">
+            <div class="tt-edit-media-item">
+              <video src="${escapeAttr(originalMediaUrl)}" controls></video>
+              <button type="button" class="tt-edit-remove-media" title="Remove">✕</button>
+            </div>
+          </div>
+        `;
+      } else {
+        // image or images
         let urls = [];
         try {
           urls = originalMediaType === "images" ? JSON.parse(originalMediaUrl) : [originalMediaUrl];
         } catch {
           urls = [originalMediaUrl];
         }
-        currentMediaHtml = `
-          <div class="tt-edit-media-preview">
-            ${urls.map(u => `<img src="${escapeAttr(u)}" alt="Current image" />`).join("")}
-            <button type="button" class="tt-edit-media-remove">✕ Remove media</button>
-          </div>
-        `;
-      } else if (originalMediaType === "video") {
-        currentMediaHtml = `
-          <div class="tt-edit-media-preview">
-            <video src="${escapeAttr(originalMediaUrl)}" controls></video>
-            <button type="button" class="tt-edit-media-remove">✕ Remove media</button>
+        editHtml += `
+          <div class="tt-edit-current-media" data-has-media="true">
+            ${urls.map((u, i) => `
+              <div class="tt-edit-media-item">
+                <img src="${escapeAttr(u)}" alt="Image ${i + 1}" />
+                <button type="button" class="tt-edit-remove-media" title="Remove">✕</button>
+              </div>
+            `).join("")}
           </div>
         `;
       }
     }
 
-    // Hide existing media element while editing
-    if (mediaEl) mediaEl.style.display = "none";
+    // Show link preview info if exists (so user can remove it)
+    if (linkPreview) {
+      editHtml += `
+        <div class="tt-edit-link-preview-notice">
+          <span>📎 Link preview attached</span>
+          <button type="button" class="tt-edit-remove-link-preview">Remove preview</button>
+        </div>
+      `;
+    }
 
-    bodyEl.innerHTML = `
-      <textarea class="tt-edit-area">${escapeHtml(originalBody)}</textarea>
-      <div class="tt-edit-media-section">
-        ${currentMediaHtml}
-        <div class="tt-edit-media-new" ${originalMediaUrl && !removeMedia ? 'style="display:none"' : ''}>
-          <div class="tt-edit-media-buttons">
-            <label class="tt-edit-media-btn">
-              📷 Add Photo
+    // New media upload section
+    editHtml += `
+        <div class="tt-edit-new-media">
+          <div class="tt-edit-new-media-preview"></div>
+        </div>
+        
+        <div class="tt-edit-toolbar">
+          <div class="tt-edit-add-media">
+            <label class="tt-edit-add-btn" title="Add photo">
+              <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
               <input type="file" accept="image/*" class="tt-edit-photo-input" hidden />
             </label>
-            <label class="tt-edit-media-btn">
-              🎬 Add Video
+            <label class="tt-edit-add-btn" title="Add video">
+              <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
               <input type="file" accept="video/*" class="tt-edit-video-input" hidden />
             </label>
           </div>
-          <div class="tt-edit-media-new-preview"></div>
+          <div class="tt-edit-buttons">
+            <button type="button" class="tt-edit-cancel-btn">Cancel</button>
+            <button type="button" class="tt-edit-save-btn">Save</button>
+          </div>
         </div>
-      </div>
-      <div class="tt-edit-actions">
-        <button type="button" class="tt-edit-save">Save</button>
-        <button type="button" class="tt-edit-cancel">Cancel</button>
       </div>
     `;
 
-    const area = bodyEl.querySelector(".tt-edit-area");
-    const saveBtn = bodyEl.querySelector(".tt-edit-save");
-    const cancelBtn = bodyEl.querySelector(".tt-edit-cancel");
-    const removeMediaBtn = bodyEl.querySelector(".tt-edit-media-remove");
-    const mediaPreviewEl = bodyEl.querySelector(".tt-edit-media-preview");
-    const mediaNewSection = bodyEl.querySelector(".tt-edit-media-new");
-    const mediaNewPreview = bodyEl.querySelector(".tt-edit-media-new-preview");
-    const photoInput = bodyEl.querySelector(".tt-edit-photo-input");
-    const videoInput = bodyEl.querySelector(".tt-edit-video-input");
+    // Hide existing elements
+    if (cardMedia) cardMedia.style.display = "none";
+    if (linkPreview) linkPreview.style.display = "none";
+    if (cardReactions) cardReactions.style.display = "none";
 
-    area.focus();
+    // Insert edit UI
+    cardBody.innerHTML = editHtml;
 
-    // Handle remove media button
-    if (removeMediaBtn) {
-      removeMediaBtn.addEventListener("click", () => {
-        removeMedia = true;
-        if (mediaPreviewEl) mediaPreviewEl.style.display = "none";
-        if (mediaNewSection) mediaNewSection.style.display = "block";
+    // Get references
+    const editContainer = cardBody.querySelector(".tt-edit-container");
+    const textarea = cardBody.querySelector(".tt-edit-area");
+    const saveBtn = cardBody.querySelector(".tt-edit-save-btn");
+    const cancelBtn = cardBody.querySelector(".tt-edit-cancel-btn");
+    const currentMediaContainer = cardBody.querySelector(".tt-edit-current-media");
+    const removeMediaBtns = cardBody.querySelectorAll(".tt-edit-remove-media");
+    const removeLinkPreviewBtn = cardBody.querySelector(".tt-edit-remove-link-preview");
+    const linkPreviewNotice = cardBody.querySelector(".tt-edit-link-preview-notice");
+    const newMediaPreview = cardBody.querySelector(".tt-edit-new-media-preview");
+    const photoInput = cardBody.querySelector(".tt-edit-photo-input");
+    const videoInput = cardBody.querySelector(".tt-edit-video-input");
+
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    // Remove uploaded media
+    removeMediaBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        keepOriginalMedia = false;
+        if (currentMediaContainer) currentMediaContainer.style.display = "none";
       });
-    }
-
-    // Handle new photo selection
-    if (photoInput) {
-      photoInput.addEventListener("change", () => {
-        if (photoInput.files?.[0]) {
-          newMediaFile = photoInput.files[0];
-          newMediaType = "image";
-          removeMedia = true;
-          if (mediaPreviewEl) mediaPreviewEl.style.display = "none";
-          
-          const url = URL.createObjectURL(newMediaFile);
-          mediaNewPreview.innerHTML = `
-            <div class="tt-edit-new-media-item">
-              <img src="${url}" alt="New image" />
-              <button type="button" class="tt-edit-new-media-remove">✕</button>
-            </div>
-          `;
-          mediaNewPreview.querySelector(".tt-edit-new-media-remove").addEventListener("click", () => {
-            newMediaFile = null;
-            newMediaType = null;
-            mediaNewPreview.innerHTML = "";
-            photoInput.value = "";
-          });
-        }
-      });
-    }
-
-    // Handle new video selection
-    if (videoInput) {
-      videoInput.addEventListener("change", () => {
-        if (videoInput.files?.[0]) {
-          newMediaFile = videoInput.files[0];
-          newMediaType = "video";
-          removeMedia = true;
-          if (mediaPreviewEl) mediaPreviewEl.style.display = "none";
-          
-          const url = URL.createObjectURL(newMediaFile);
-          mediaNewPreview.innerHTML = `
-            <div class="tt-edit-new-media-item">
-              <video src="${url}" controls></video>
-              <button type="button" class="tt-edit-new-media-remove">✕</button>
-            </div>
-          `;
-          mediaNewPreview.querySelector(".tt-edit-new-media-remove").addEventListener("click", () => {
-            newMediaFile = null;
-            newMediaType = null;
-            mediaNewPreview.innerHTML = "";
-            videoInput.value = "";
-          });
-        }
-      });
-    }
-
-    // Cancel editing
-    cancelBtn.addEventListener("click", () => {
-      bodyEl.innerHTML = linkify(originalBody);
-      if (mediaEl) mediaEl.style.display = "";
     });
 
-    // Save changes
-    saveBtn.addEventListener("click", async () => {
-      const body = (area.value || "").trim();
+    // Remove link preview
+    if (removeLinkPreviewBtn) {
+      removeLinkPreviewBtn.addEventListener("click", () => {
+        removeLinkPreview = true;
+        if (linkPreviewNotice) linkPreviewNotice.style.display = "none";
+      });
+    }
+
+    // Add new photo
+    photoInput.addEventListener("change", () => {
+      const file = photoInput.files?.[0];
+      if (!file) return;
       
-      // Need either body or media
-      if (!body && !newMediaFile && (removeMedia || !originalMediaUrl)) {
-        showToast("Post cannot be empty.");
-        area.focus();
+      newMediaFile = file;
+      newMediaType = "image";
+      keepOriginalMedia = false;
+      if (currentMediaContainer) currentMediaContainer.style.display = "none";
+
+      const url = URL.createObjectURL(file);
+      newMediaPreview.innerHTML = `
+        <div class="tt-edit-media-item">
+          <img src="${url}" alt="New image" />
+          <button type="button" class="tt-edit-remove-new-media" title="Remove">✕</button>
+        </div>
+      `;
+      newMediaPreview.querySelector(".tt-edit-remove-new-media").addEventListener("click", () => {
+        newMediaFile = null;
+        newMediaType = null;
+        newMediaPreview.innerHTML = "";
+        photoInput.value = "";
+      });
+    });
+
+    // Add new video
+    videoInput.addEventListener("change", () => {
+      const file = videoInput.files?.[0];
+      if (!file) return;
+      
+      newMediaFile = file;
+      newMediaType = "video";
+      keepOriginalMedia = false;
+      if (currentMediaContainer) currentMediaContainer.style.display = "none";
+
+      const url = URL.createObjectURL(file);
+      newMediaPreview.innerHTML = `
+        <div class="tt-edit-media-item">
+          <video src="${url}" controls></video>
+          <button type="button" class="tt-edit-remove-new-media" title="Remove">✕</button>
+        </div>
+      `;
+      newMediaPreview.querySelector(".tt-edit-remove-new-media").addEventListener("click", () => {
+        newMediaFile = null;
+        newMediaType = null;
+        newMediaPreview.innerHTML = "";
+        videoInput.value = "";
+      });
+    });
+
+    // Cancel
+    cancelBtn.addEventListener("click", () => {
+      cardBody.innerHTML = originalCardBodyHtml;
+      if (cardMedia) cardMedia.style.display = originalCardMediaDisplay || "";
+      if (linkPreview) linkPreview.style.display = originalLinkPreviewDisplay || "";
+      if (cardReactions) cardReactions.style.display = "";
+    });
+
+    // Save
+    saveBtn.addEventListener("click", async () => {
+      let body = (textarea.value || "").trim();
+      
+      // If removing link preview, also remove the URL from body
+      if (removeLinkPreview && linkPreview) {
+        // Remove URLs from body text
+        body = body.replace(/https?:\/\/[^\s]+/g, "").trim();
+      }
+
+      // Validate - need either text or media
+      const willHaveMedia = newMediaFile || keepOriginalMedia;
+      if (!body && !willHaveMedia) {
+        showToast("Post cannot be empty");
+        textarea.focus();
         return;
       }
 
@@ -1823,12 +1879,11 @@
       saveBtn.textContent = "Saving...";
 
       try {
-        let finalMediaUrl = originalMediaUrl;
-        let finalMediaType = originalMediaType;
+        let finalMediaUrl = keepOriginalMedia ? originalMediaUrl : null;
+        let finalMediaType = keepOriginalMedia ? originalMediaType : null;
 
-        // Handle media changes
+        // Upload new media if selected
         if (newMediaFile) {
-          // Upload new media
           const ext = newMediaFile.name.split(".").pop().toLowerCase();
           const path = `${currentUser.id}/thread-${Date.now()}.${ext}`;
 
@@ -1841,8 +1896,8 @@
             });
 
           if (uploadErr) {
-            console.error("[ThreadTalk] edit upload error", uploadErr);
-            showToast("Could not upload media.");
+            console.error("[ThreadTalk] upload error", uploadErr);
+            showToast("Upload failed");
             saveBtn.disabled = false;
             saveBtn.textContent = "Save";
             return;
@@ -1854,10 +1909,6 @@
 
           finalMediaUrl = pub?.publicUrl || null;
           finalMediaType = newMediaType;
-        } else if (removeMedia) {
-          // Just remove media, no new upload
-          finalMediaUrl = null;
-          finalMediaType = null;
         }
 
         const { error } = await supabase
@@ -1872,18 +1923,18 @@
           .eq("author_id", currentUser.id);
 
         if (error) {
-          console.error("[ThreadTalk] update thread error", error);
-          showToast("Could not save edit.");
+          console.error("[ThreadTalk] update error", error);
+          showToast("Could not save");
           saveBtn.disabled = false;
           saveBtn.textContent = "Save";
           return;
         }
 
-        showToast("Post updated!");
+        showToast("Saved!");
         await loadThreads();
       } catch (err) {
-        console.error("[ThreadTalk] handleEditThread exception", err);
-        showToast("Could not save edit.");
+        console.error("[ThreadTalk] save exception", err);
+        showToast("Could not save");
         saveBtn.disabled = false;
         saveBtn.textContent = "Save";
       }
