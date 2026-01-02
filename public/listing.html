@@ -568,7 +568,7 @@
         <div class="owner-actions-buttons">
           <button type="button" class="btn" id="editListingBtn">Edit listing</button>
           <button type="button" class="btn" id="toggleForSaleBtn">Mark as not for sale</button>
-          <button type="button" class="btn" id="deleteListingBtn">Archive listing</button>
+          <button type="button" class="btn" id="deleteListingBtn">Delete listing</button>
         </div>
       </div>
     </aside>
@@ -966,38 +966,35 @@
     if (delBtn) {
       delBtn.onclick = async () => {
         const ok = window.confirm(
-          "Archive this listing? Buyers will no longer see it, but it will stay in your records."
+          "Delete this listing permanently? This cannot be undone."
         );
         if (!ok) return;
 
         delBtn.disabled = true;
         const originalText = delBtn.textContent;
-        delBtn.textContent = "Archiving…";
+        delBtn.textContent = "Deleting…";
 
         try {
           const { error } = await supabaseClient
             .from("listings")
-            .update({
-              is_published: false,
-              status: "DELETED"
-            })
+            .delete()
             .eq("id", listing.id)
             .eq("seller_id", currentSession.user.id);
 
           if (error) {
-            console.warn("Archive listing error", error);
-            showToast("Could not archive listing");
+            console.warn("Delete listing error", error);
+            showToast("Could not delete listing");
             delBtn.disabled = false;
             delBtn.textContent = originalText;
           } else {
-            showToast("Listing archived");
+            showToast("Listing deleted");
             setTimeout(() => {
               window.location.href = "atelier.html";
             }, 700);
           }
         } catch (e) {
-          console.warn("Archive listing exception", e);
-          showToast("Could not archive listing");
+          console.warn("Delete listing exception", e);
+          showToast("Could not delete listing");
           delBtn.disabled = false;
           delBtn.textContent = originalText;
         }
