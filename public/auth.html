@@ -607,10 +607,18 @@
     };
 
     // OAuth → homepage
+    // NOTE: For automatic account linking to work, you must enable it in Supabase Dashboard:
+    // Authentication > Providers > (scroll down) > "Automatic Linking" = ON
     document.getElementById("login-google").onclick = async ()=>{
       const { error } = await supabase.auth.signInWithOAuth({
         provider:"google",
-        options:{ redirectTo: location.origin + "/index.html" }
+        options:{ 
+          redirectTo: location.origin + "/index.html",
+          // This helps with account linking - query existing identities
+          queryParams: {
+            prompt: 'select_account'
+          }
+        }
       });
       if(error) alert(error.message);
     };
@@ -622,6 +630,24 @@
       });
       if(error) alert(error.message);
     };
+
+    // Check URL params for OAuth errors or account linking issues
+    (function checkOAuthReturn() {
+      const params = new URLSearchParams(window.location.search);
+      const error = params.get('error');
+      const errorDesc = params.get('error_description');
+      
+      if (error) {
+        console.error('OAuth error:', error, errorDesc);
+        if (errorDesc && errorDesc.includes('already registered')) {
+          alert('This email is already registered with a different sign-in method. Please use your original sign-in method (email/password, Google, or Apple) to access your account.');
+        } else if (errorDesc) {
+          alert('Sign-in error: ' + errorDesc);
+        }
+        // Clear the error from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    })();
   </script>
 </body>
 </html>
