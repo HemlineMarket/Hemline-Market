@@ -517,31 +517,49 @@
         </div>
       `;
 
-      // Cancel button handler
+      // Cancel button handler - FIXED: Now calls API for proper refund, label void, notifications
       const cancelBtn = document.getElementById("cancelBtn");
       if(cancelBtn){
         cancelBtn.addEventListener("click", async () => {
-          if(!confirm("Cancel this order?")) return;
+          if(!confirm("Cancel this order? You will receive a full refund.")) return;
           cancelBtn.disabled = true;
           cancelBtn.textContent = "Cancelling...";
 
-          const { error } = await supabaseClient
-            .from("orders")
-            .update({
-              status: "CANCELED",
-              canceled_at: new Date().toISOString(),
-              canceled_by: user.id,
-              cancel_reason: "buyer_canceled"
-            })
-            .eq("id", order.id)
-            .eq("buyer_id", user.id);
+          try {
+            // Call the cancel_purchase API which handles:
+            // - Stripe refund
+            // - Shippo label void
+            // - Email notifications to buyer and seller
+            // - In-app notifications
+            // - Restoring listings to ACTIVE
+            const response = await fetch("/api/cancel_purchase", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                order_id: order.id,
+                buyer_id: user.id
+              })
+            });
 
-          if(error){
-            alert("Could not cancel. Please contact support.");
+            const data = await response.json();
+
+            if(!response.ok){
+              console.error("[order-buyer] cancel API error:", data);
+              alert(data.error || "Could not cancel order. Please contact support.");
+              cancelBtn.disabled = false;
+              cancelBtn.textContent = "Cancel Order";
+              return;
+            }
+
+            // Success - show message and reload
+            alert("Order cancelled successfully. Your refund is being processed.");
+            location.reload();
+
+          } catch(err){
+            console.error("[order-buyer] cancel failed:", err);
+            alert("Could not cancel order. Please contact support.");
             cancelBtn.disabled = false;
             cancelBtn.textContent = "Cancel Order";
-          } else {
-            location.reload();
           }
         });
       }
