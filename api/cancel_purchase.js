@@ -2,9 +2,11 @@
 // Cancels an order (within 30 minutes) and re-opens the listing(s).
 // Includes: Stripe refund, Shippo label void, email notifications, seller notification
 // FIXED: Now handles multi-item orders (restores all listings, not just the first one)
+// SECURITY FIX: Now requires JWT authentication - buyer_id comes from token, not body
 //
 // Called from purchases.html via POST /api/cancel_purchase
-// Body: { order_id, buyer_id }
+// Body: { order_id }
+// Headers: Authorization: Bearer <token>
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -12,11 +14,13 @@ import { createClient } from "@supabase/supabase-js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
 // Create Supabase admin client inline (avoids module resolution issues)
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 export const config = {
   api: {
@@ -25,6 +29,23 @@ export const config = {
     },
   },
 };
+
+// SECURITY FIX: Verify JWT token and return user
+async function verifyAuth(req, supabase) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 // Send email via Postmark
 async function sendEmail(to, subject, htmlBody, textBody) {
@@ -44,7 +65,7 @@ async function sendEmail(to, subject, htmlBody, textBody) {
 }
 
 // Void the Shippo label to get refund on label cost
-async function voidShippoLabel(orderId) {
+async function voidShippoLabel(supabase, orderId) {
   const apiKey = process.env.SHIPPO_API_KEY;
   if (!apiKey) {
     console.log("[cancel_purchase] No SHIPPO_API_KEY, skipping label void");
@@ -53,7 +74,7 @@ async function voidShippoLabel(orderId) {
 
   try {
     // Look up the shipment
-    const { data: shipment, error: dbErr } = await supabaseAdmin
+    const { data: shipment, error: dbErr } = await supabase
       .from("db_shipments")
       .select("*")
       .eq("order_id", orderId)
@@ -96,7 +117,7 @@ async function voidShippoLabel(orderId) {
     }
 
     // Mark shipment as cancelled in database
-    await supabaseAdmin
+    await supabase
       .from("db_shipments")
       .update({
         status: "CANCELED",
@@ -105,7 +126,7 @@ async function voidShippoLabel(orderId) {
       .eq("order_id", orderId);
 
     // Also clear label info from orders table
-    await supabaseAdmin
+    await supabase
       .from("orders")
       .update({
         label_url: null,
@@ -130,15 +151,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
+  const supabaseAdmin = getSupabaseAdmin();
+
   try {
-    const { order_id, buyer_id } = req.body || {};
+    // SECURITY FIX: Require authentication
+    const user = await verifyAuth(req, supabaseAdmin);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized - please sign in" });
+    }
+
+    // SECURITY FIX: Get buyer_id from authenticated user, not from request body
+    const buyer_id = user.id;
+    const { order_id } = req.body || {};
 
     if (!order_id) {
       return res.status(400).json({ error: "Missing order_id" });
-    }
-
-    if (!buyer_id) {
-      return res.status(400).json({ error: "Missing buyer_id" });
     }
 
     // Load the full order (including listing_ids for multi-item orders)
@@ -157,11 +184,9 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Basic ownership check
-    if (order.buyer_id && order.buyer_id !== buyer_id) {
-      return res
-        .status(403)
-        .json({ error: "This order does not belong to the current user." });
+    // SECURITY FIX: Verify the authenticated user is the buyer
+    if (order.buyer_id !== buyer_id) {
+      return res.status(403).json({ error: "You can only cancel your own orders" });
     }
 
     // 30-minute server-side cancellation window
@@ -217,7 +242,7 @@ export default async function handler(req, res) {
     const nowIso = new Date().toISOString();
 
     // === VOID SHIPPO LABEL ===
-    const labelVoidResult = await voidShippoLabel(order.id);
+    const labelVoidResult = await voidShippoLabel(supabaseAdmin, order.id);
     console.log("[cancel_purchase] Label void result:", labelVoidResult);
 
     // 1) Mark order as CANCELED
