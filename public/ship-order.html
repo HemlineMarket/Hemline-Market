@@ -602,6 +602,15 @@
       purchaseBtn.textContent = "Creating label...";
 
       try {
+        // Get auth token for API call
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session?.access_token) {
+          alert("Please sign in to continue.");
+          purchaseBtn.disabled = false;
+          purchaseBtn.textContent = "Purchase Label";
+          return;
+        }
+
         // Get seller address again
         const sellerAddr = getSellerAddress(currentUser.id);
         
@@ -627,7 +636,10 @@
         // Call create_label API
         const res = await fetch("/api/shippo/create_label", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`
+          },
           body: JSON.stringify({
             orderId: currentOrder.id,
             address_from: sellerAddr,
