@@ -1,42 +1,72 @@
-// Returns the seller’s Stripe Connect account status for the Payouts page.
-// ENV required: STRIPE_SECRET_KEY
+// FILE: api/stripe/account_status.js
+// FIX: Added JWT authentication - users can only access their own account status (BUG #14)
+// Returns the seller's Stripe Connect account status for the Payouts page.
 //
-// How it finds the account to look up (any one works):
-//  1) Query string:   /api/stripe/account_status?account=acct_123
-//  2) Header:         x-stripe-account: acct_123
-//  3) Body (POST/GET w/ JSON): { "account": "acct_123" }
-// If none provided, we return a helpful “not connected” payload (200).
+// CHANGE: Now requires valid JWT token, account derived from user's profile
+//
+// ENV required: STRIPE_SECRET_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 import Stripe from 'stripe';
+import { createClient } from "@supabase/supabase-js";
 
 export const config = {
   api: { bodyParser: { sizeLimit: '1mb' } },
 };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20', // keep consistent with your other files
+  apiVersion: '2024-06-20',
 });
 
-function getAccountId(req) {
-  // Accept from query, header, or JSON body
-  const q = (req.query?.account || '').toString().trim();
-  if (q) return q;
-  const h = (req.headers['x-stripe-account'] || '').toString().trim();
-  if (h) return h;
-  try {
-    if (req.body && typeof req.body === 'object') {
-      const b = (req.body.account || '').toString().trim();
-      if (b) return b;
-    }
-  } catch {}
-  return '';
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
 }
 
 export default async function handler(req, res) {
   try {
-    const accountId = getAccountId(req);
+    // FIX: Require authentication
+    const user = await verifyAuth(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
-    // If we weren't given an account id, respond with a friendly “not connected”.
+    const supabase = getSupabaseAdmin();
+
+    // FIX: Get account from user's profile, not query/header/body
+    const { data: profile, error: profErr } = await supabase
+      .from("profiles")
+      .select("stripe_account_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profErr) {
+      console.error("[stripe/account_status] profiles error:", profErr);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    const accountId = profile?.stripe_account_id;
+
+    // If no account linked, respond with "not connected"
     if (!accountId) {
       return res.status(200).json({
         account: null,
@@ -66,7 +96,7 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('account_status error:', err);
-    // Don’t leak details; return a safe payload so UI can still render
+    // Don't leak details; return a safe payload so UI can still render
     return res.status(200).json({
       account: null,
       charges_enabled: false,
