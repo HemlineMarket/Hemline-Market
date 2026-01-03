@@ -1,5 +1,10 @@
+// FILE: api/email/send.js
+// FIX: Added JWT/internal secret authentication (BUG #18)
 // Sends transactional emails via Postmark.
-// ENV required: POSTMARK_SERVER_TOKEN
+//
+// CHANGE: Now requires valid JWT token OR internal secret
+//
+// ENV required: POSTMARK_SERVER_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //
 // POST /api/email/send
 // { "to": "buyer@email.com",
@@ -8,8 +13,41 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createClient } from "@supabase/supabase-js";
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  // Allow internal server-to-server calls
+  const internalSecret = req.headers["x-internal-secret"];
+  if (internalSecret && internalSecret === process.env.INTERNAL_API_SECRET) {
+    return { internal: true };
+  }
+
+  // Verify JWT token
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 function fmtUSD(cents = 0) {
   const v = Math.max(0, Number(cents || 0)) / 100;
@@ -170,6 +208,12 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST');
       return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    // FIX: Require authentication
+    const user = await verifyAuth(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
     const token = process.env.POSTMARK_SERVER_TOKEN;
