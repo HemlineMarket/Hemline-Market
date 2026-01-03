@@ -1,20 +1,58 @@
-// File: api/listings/comment.js
+// FILE: api/listings/comment.js
+// FIX: Added JWT authentication and author_id validation (BUG #7)
 // Insert a listing comment + notify seller
+//
+// CHANGE: Now requires valid JWT token, and author_id must match authenticated user
 
 import { createClient } from "@supabase/supabase-js";
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  // FIX: Require authentication
+  const user = await verifyAuth(req);
+  if (!user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const supabase = getSupabaseAdmin();
 
   try {
-    const { listing_id, author_id, body } = JSON.parse(req.body);
+    const { listing_id, author_id, body } = typeof req.body === "string" 
+      ? JSON.parse(req.body) 
+      : req.body;
+
+    // FIX: Validate author_id matches authenticated user
+    if (author_id !== user.id) {
+      return res.status(403).json({ error: "Cannot post comments as another user" });
+    }
 
     // ---------------------------------
     // 1. Insert comment into table
