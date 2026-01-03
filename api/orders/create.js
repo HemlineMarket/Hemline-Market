@@ -1,5 +1,6 @@
 // File: api/orders/create.js
 // FIXED VERSION — always sets buyer_id, seller_id, listing_id, status.
+// SECURITY FIX: Now requires internal secret (only called from webhook/server)
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -8,12 +9,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // SECURITY FIX: Require internal secret for server-to-server calls
+  const internalSecret = req.headers["x-internal-secret"];
+  if (!internalSecret || internalSecret !== process.env.INTERNAL_API_SECRET) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
   try {
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     const {
       order_id,
       items,
@@ -22,7 +30,7 @@ export default async function handler(req, res) {
       total_cents,
       buyer,
       source
-    } = JSON.parse(req.body);
+    } = body;
 
     const firstItem = items?.[0] || {};
     const listing_id = firstItem.listing_id || null;
