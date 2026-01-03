@@ -1,6 +1,9 @@
-// File: /api/shippo/purchase_label.js
+// FILE: api/shippo/purchase_label.js
+// FIX: Added JWT authentication - only seller can purchase labels for their orders (BUG #16)
 // Buys a Shippo label for a specific rate and stores it in db_shipments.
 // Then automatically emails the seller with the label link.
+//
+// CHANGE: Now requires valid JWT token, and user must be the seller of the order
 //
 // Expected POST body:
 //   {
@@ -15,13 +18,38 @@
 //   POSTMARK_SERVER_TOKEN
 
 import fetch from "node-fetch";
-import supabaseAdmin from "../_supabaseAdmin";
+import { createClient } from "@supabase/supabase-js";
 import { rateLimit } from "../_rateLimit";
 import { logError, logInfo } from "../_logger";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "1mb" } },
 };
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 // Helper to send label-ready email to seller
 async function sendLabelEmail(req, { sellerEmail, orderId, itemTitle, yards, totalCents, labelUrl, carrier }) {
@@ -32,7 +60,10 @@ async function sendLabelEmail(req, { sellerEmail, orderId, itemTitle, yards, tot
 
     const resp = await fetch(`${origin}/api/email/send`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
+      },
       body: JSON.stringify({
         to: sellerEmail,
         type: 'label_ready',
@@ -74,12 +105,35 @@ export default async function handler(req, res) {
   }
 
   try {
+    // FIX: Require authentication
+    const user = await verifyAuth(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+
     const { orderId, rateObjectId } = req.body || {};
 
     if (!orderId || !rateObjectId) {
       return res
         .status(400)
         .json({ error: "Missing orderId or rateObjectId" });
+    }
+
+    // FIX: Verify user is the seller of this order
+    const { data: orderCheck, error: orderCheckErr } = await supabaseAdmin
+      .from("orders")
+      .select("seller_id")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderCheckErr || !orderCheck) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (orderCheck.seller_id !== user.id) {
+      return res.status(403).json({ error: "Only the seller can purchase labels for this order" });
     }
 
     const apiKey = process.env.SHIPPO_API_KEY;
