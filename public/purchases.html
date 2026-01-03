@@ -272,14 +272,22 @@ Please advise next steps.
 
       if(!within || isCancelled || alreadyRequested) return { ok:false, skipped:true };
 
+      // Get auth token for API call
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token) {
+        return { ok:false, error: "Please sign in to cancel orders" };
+      }
+
       // Call the API to handle Stripe refund, emails, and notifications
       try {
         const response = await fetch("/api/cancel_purchase", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`
+          },
           body: JSON.stringify({
-            order_id: order.id,
-            buyer_id: user?.id
+            order_id: order.id
           })
         });
 
