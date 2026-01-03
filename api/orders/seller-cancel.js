@@ -1,6 +1,11 @@
 // File: api/orders/seller-cancel.js
 // Seller-initiated order cancellation with Stripe refund and buyer notification
 // Allows cancellation any time before shipping (Poshmark-style policy)
+//
+// FIXED:
+// - Now restores ALL listings for multi-item orders (not just the first one)
+// - Now voids Shippo shipping labels
+// - Better email formatting for multi-item orders
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -20,21 +25,106 @@ async function sendEmail(to, subject, htmlBody, textBody) {
   const FROM = process.env.FROM_EMAIL || "orders@hemlinemarket.com";
   if (!POSTMARK || !to) return;
 
-  await fetch("https://api.postmarkapp.com/email", {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json", 
-      "X-Postmark-Server-Token": POSTMARK 
-    },
-    body: JSON.stringify({ 
-      From: FROM, 
-      To: to, 
-      Subject: subject, 
-      HtmlBody: htmlBody, 
-      TextBody: textBody, 
-      MessageStream: "outbound" 
-    }),
-  });
+  try {
+    await fetch("https://api.postmarkapp.com/email", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json", 
+        "X-Postmark-Server-Token": POSTMARK 
+      },
+      body: JSON.stringify({ 
+        From: FROM, 
+        To: to, 
+        Subject: subject, 
+        HtmlBody: htmlBody, 
+        TextBody: textBody, 
+        MessageStream: "outbound" 
+      }),
+    });
+  } catch (e) {
+    console.error("[seller-cancel] email error:", e);
+  }
+}
+
+// Void the Shippo label to get refund on label cost
+async function voidShippoLabel(supabase, orderId) {
+  const apiKey = process.env.SHIPPO_API_KEY;
+  if (!apiKey) {
+    console.log("[seller-cancel] No SHIPPO_API_KEY, skipping label void");
+    return { voided: false, reason: "no_api_key" };
+  }
+
+  try {
+    // Look up the shipment
+    const { data: shipment, error: dbErr } = await supabase
+      .from("db_shipments")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (dbErr || !shipment) {
+      console.log("[seller-cancel] No shipment found for order:", orderId);
+      return { voided: false, reason: "no_shipment" };
+    }
+
+    if (!shipment.shippo_transaction_id) {
+      console.log("[seller-cancel] Shipment has no transaction ID:", orderId);
+      return { voided: false, reason: "no_transaction_id" };
+    }
+
+    if (shipment.status === "CANCELED") {
+      console.log("[seller-cancel] Shipment already cancelled:", orderId);
+      return { voided: true, reason: "already_cancelled" };
+    }
+
+    // Call Shippo to void the label
+    const cancelRes = await fetch(
+      `https://api.goshippo.com/transactions/${shipment.shippo_transaction_id}/void/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `ShippoToken ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const cancelData = await cancelRes.json();
+
+    if (!cancelRes.ok || (cancelData.status && cancelData.status.toUpperCase() !== "SUCCESS")) {
+      console.error("[seller-cancel] Shippo void failed:", cancelData);
+      return { voided: false, reason: "shippo_error", details: cancelData };
+    }
+
+    // Mark shipment as cancelled in database
+    await supabase
+      .from("db_shipments")
+      .update({
+        status: "CANCELED",
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq("order_id", orderId);
+
+    // Also clear label info from orders table
+    await supabase
+      .from("orders")
+      .update({
+        label_url: null,
+        tracking_number: null,
+        tracking_url: null,
+        shipping_status: "LABEL_VOIDED",
+      })
+      .eq("id", orderId);
+
+    console.log("[seller-cancel] Shippo label voided successfully:", orderId);
+    return { voided: true, reason: "success", transaction_id: shipment.shippo_transaction_id };
+
+  } catch (err) {
+    console.error("[seller-cancel] Shippo void exception:", err);
+    return { voided: false, reason: "exception", error: err.message };
+  }
 }
 
 export default async function handler(req, res) {
@@ -94,36 +184,88 @@ export default async function handler(req, res) {
     let refundId = null;
     if (order.stripe_payment_intent) {
       try {
-        const refund = await stripe.refunds.create({
+        // First check if already refunded
+        const existingRefunds = await stripe.refunds.list({
           payment_intent: order.stripe_payment_intent,
-          reason: "requested_by_customer",
+          limit: 1,
         });
-        refundId = refund.id;
+        
+        if (existingRefunds.data.length > 0) {
+          refundId = existingRefunds.data[0].id;
+          console.log("[seller-cancel] Refund already exists:", refundId);
+        } else {
+          const refund = await stripe.refunds.create({
+            payment_intent: order.stripe_payment_intent,
+            reason: "requested_by_customer",
+          });
+          refundId = refund.id;
+          console.log("[seller-cancel] Stripe refund created:", refundId);
+        }
       } catch (stripeError) {
-        console.error("Stripe refund error:", stripeError);
+        if (stripeError.code === 'charge_already_refunded') {
+          console.log("[seller-cancel] Charge already refunded, continuing...");
+        } else {
+          console.error("Stripe refund error:", stripeError);
+        }
         // Continue with cancellation even if refund fails - can be manually processed
       }
     }
 
-    // Update order status
     const now = new Date().toISOString();
+
+    // Void Shippo label if exists
+    const labelVoidResult = await voidShippoLabel(supabase, order.id);
+    console.log("[seller-cancel] Label void result:", labelVoidResult);
+
+    // Update order status
     await supabase.from("orders").update({
       status: "CANCELED",
       canceled_at: now,
+      cancelled_at: now,  // support both spellings
       canceled_by: user.id,
       cancel_reason: reason || "seller_canceled",
       stripe_refund_id: refundId,
       refund_status: refundId ? "PROCESSED" : "PENDING",
-      refund_amount_cents: order.total_cents
+      refund_amount_cents: order.total_cents,
+      updated_at: now
     }).eq("id", order_id);
 
-    // Restore listing to active status
-    if (order.listing_id) {
-      await supabase.from("listings").update({
-        status: "ACTIVE",
-        sold_at: null
-      }).eq("id", order.listing_id);
+    // FIX: Restore ALL listings (handles multi-item orders)
+    let listingIdsToRestore = [];
+    
+    // Check for listing_ids array first (multi-item orders)
+    if (order.listing_ids && Array.isArray(order.listing_ids) && order.listing_ids.length > 0) {
+      listingIdsToRestore = order.listing_ids;
+    } else if (order.listing_id) {
+      // Fall back to single listing_id
+      listingIdsToRestore = [order.listing_id];
     }
+
+    if (listingIdsToRestore.length > 0) {
+      console.log("[seller-cancel] Restoring listings:", listingIdsToRestore);
+      
+      const { error: listingErr } = await supabase
+        .from("listings")
+        .update({ 
+          status: "ACTIVE", 
+          sold_at: null,
+          updated_at: now 
+        })
+        .in("id", listingIdsToRestore)
+        .is("deleted_at", null);
+
+      if (listingErr) {
+        console.warn("[seller-cancel] listing update error:", listingErr);
+      } else {
+        console.log(`[seller-cancel] Successfully restored ${listingIdsToRestore.length} listing(s)`);
+      }
+    }
+
+    // Determine item count for notification text
+    const itemCount = listingIdsToRestore.length || 1;
+    const itemText = itemCount > 1 
+      ? `${itemCount} items` 
+      : `"${order.listing_title || 'Fabric'}"`;
 
     // Create in-app notification for buyer
     if (order.buyer_id) {
@@ -132,7 +274,7 @@ export default async function handler(req, res) {
         type: "order_cancelled",
         kind: "cancelled",
         title: "Order Cancelled by Seller",
-        body: `Your order for "${order.listing_title || 'Fabric'}" has been cancelled by the seller. A refund of $${(order.total_cents / 100).toFixed(2)} will be processed to your original payment method.`,
+        body: `Your order for ${itemText} has been cancelled by the seller. A refund of $${(order.total_cents / 100).toFixed(2)} will be processed to your original payment method.`,
         href: "/purchases.html",
         created_at: now
       });
@@ -141,6 +283,10 @@ export default async function handler(req, res) {
     // Email buyer about cancellation
     if (order.buyer_email) {
       const refundAmount = (order.total_cents / 100).toFixed(2);
+      const itemDescription = itemCount > 1 
+        ? `<strong>${itemCount} items</strong>` 
+        : `<strong>"${order.listing_title || 'Fabric'}"</strong>`;
+      
       await sendEmail(
         order.buyer_email,
         "📦 Order Cancelled - Hemline Market",
@@ -169,7 +315,7 @@ export default async function handler(req, res) {
                 Hi there,
               </p>
               <p style="margin: 0 0 20px; color: #374151; font-size: 16px; line-height: 1.6;">
-                The seller has cancelled your order for <strong>"${order.listing_title || 'Fabric'}"</strong>.
+                The seller has cancelled your order for ${itemDescription}.
               </p>
               
               <!-- Refund Box -->
@@ -217,13 +363,15 @@ export default async function handler(req, res) {
   </table>
 </body>
 </html>`,
-        `Your order for "${order.listing_title || 'Fabric'}" has been cancelled by the seller. A refund of $${refundAmount} is being processed to your original payment method. Refunds typically appear within 5-10 business days.`
+        `Your order for ${itemCount > 1 ? itemCount + ' items' : '"' + (order.listing_title || 'Fabric') + '"'} has been cancelled by the seller. A refund of $${refundAmount} is being processed to your original payment method. Refunds typically appear within 5-10 business days.`
       );
     }
 
     return res.status(200).json({ 
       success: true,
       refund_id: refundId,
+      listings_restored: listingIdsToRestore.length,
+      label_voided: labelVoidResult.voided,
       message: "Order cancelled successfully"
     });
 
