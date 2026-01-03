@@ -1,9 +1,24 @@
-// File: /api/notify/support.js
+// FILE: api/notify/support.js
+// FIX: Added HTML escaping to prevent XSS (BUG #11)
 // Sends support/contact form messages to your support inbox via Postmark
+//
+// NOTE: This endpoint stays public (no auth) because contact forms need to work
+// for non-logged-in users. The fix is HTML escaping user input.
 
 import Postmark from "postmark";
 
 const client = new Postmark.ServerClient(process.env.POSTMARK_SERVER_TOKEN);
+
+// FIX: HTML escape function to prevent XSS/injection
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -18,13 +33,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const subject = `New support request from ${from_name || from_email}`;
+    // FIX: Escape all user input to prevent XSS
+    const safeEmail = escapeHtml(from_email);
+    const safeName = escapeHtml(from_name);
+    const safeMessage = escapeHtml(message);
+
+    const subject = `New support request from ${safeName || safeEmail}`;
 
     const htmlBody = `
       <h2>New Support Request</h2>
-      <p><strong>From:</strong> ${from_name || "—"} (${from_email})</p>
+      <p><strong>From:</strong> ${safeName || "—"} (${safeEmail})</p>
       <p><strong>Message:</strong></p>
-      <p>${message}</p>
+      <p>${safeMessage}</p>
     `;
 
     const textBody = `
