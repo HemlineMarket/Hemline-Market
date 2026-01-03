@@ -636,7 +636,7 @@
         </div>
       `;
 
-      // Mark as Shipped button handler
+      // Mark as Shipped button handler - FIXED: Now sends notifications to buyer
       const shippedBtn = document.getElementById("markShippedBtn");
       if(shippedBtn){
         shippedBtn.addEventListener("click", async () => {
@@ -645,22 +645,58 @@
           shippedBtn.disabled = true;
           shippedBtn.textContent = "Updating...";
 
-          const { error } = await supabaseClient
-            .from("orders")
-            .update({
-              status: "SHIPPED",
-              shipped_at: new Date().toISOString(),
-              tracking_number: trackingNumber || null
-            })
-            .eq("id", order.id)
-            .eq("seller_id", user.id);
+          try {
+            // Update order in database
+            const { error } = await supabaseClient
+              .from("orders")
+              .update({
+                status: "SHIPPED",
+                shipped_at: new Date().toISOString(),
+                tracking_number: trackingNumber || null,
+                shipping_status: "SHIPPED"
+              })
+              .eq("id", order.id)
+              .eq("seller_id", user.id);
 
-          if(error){
+            if(error){
+              throw new Error("Database update failed");
+            }
+
+            // Create in-app notification for buyer
+            if(order.buyer_id){
+              await supabaseClient.from("notifications").insert({
+                user_id: order.buyer_id,
+                type: "shipped",
+                kind: "shipped",
+                title: "Your order has shipped! 📦",
+                body: `"${order.listing_title || 'Your order'}" is on its way.${trackingNumber ? ' Tracking: ' + trackingNumber : ''}`,
+                href: "/purchases.html",
+                link: "/purchases.html"
+              });
+            }
+
+            // Optionally send email via API (fire and forget)
+            if(order.buyer_email){
+              fetch("/api/notify/shipped", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  order_id: order.id,
+                  buyer_email: order.buyer_email,
+                  listing_title: order.listing_title,
+                  tracking_number: trackingNumber || null,
+                  tracking_url: trackingNumber ? `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}` : null
+                })
+              }).catch(e => console.warn("Shipped email notification failed:", e));
+            }
+
+            location.reload();
+
+          } catch(err){
+            console.error("Mark shipped error:", err);
             alert("Could not update order. Please try again.");
             shippedBtn.disabled = false;
             shippedBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5a2 2 0 0 1-2 2h-1"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Mark as Shipped`;
-          } else {
-            location.reload();
           }
         });
       }
