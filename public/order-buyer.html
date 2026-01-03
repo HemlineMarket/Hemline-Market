@@ -526,6 +526,15 @@
           cancelBtn.textContent = "Cancelling...";
 
           try {
+            // Get auth token
+            const { data: { session: cancelSession } } = await supabaseClient.auth.getSession();
+            if (!cancelSession?.access_token) {
+              alert("Please sign in to cancel orders.");
+              cancelBtn.disabled = false;
+              cancelBtn.textContent = "Cancel Order";
+              return;
+            }
+
             // Call the cancel_purchase API which handles:
             // - Stripe refund
             // - Shippo label void
@@ -534,10 +543,12 @@
             // - Restoring listings to ACTIVE
             const response = await fetch("/api/cancel_purchase", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${cancelSession.access_token}`
+              },
               body: JSON.stringify({
-                order_id: order.id,
-                buyer_id: user.id
+                order_id: order.id
               })
             });
 
