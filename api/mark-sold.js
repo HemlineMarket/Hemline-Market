@@ -1,23 +1,52 @@
-// File: /api/mark-sold.js
+// FILE: api/mark-sold.js
+// FIX: Added JWT/webhook secret authentication (BUG #19)
 // Marks a listing as SOLD after successful checkout.
 // Called by your Stripe webhook OR by the checkout flow immediately before transfers.
+//
+// CHANGE: Now requires valid JWT token OR internal secret
+// Only the seller of the listing can mark it as sold (or internal calls)
 //
 // ENV REQUIRED:
 // SUPABASE_URL
 // SUPABASE_SERVICE_ROLE_KEY
 // SITE_URL
+// INTERNAL_API_SECRET (for server-to-server calls)
 //
 // This endpoint uses service-role to bypass RLS, but writes only safe, controlled values.
 
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: { persistSession: false, autoRefreshToken: false },
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  // Allow internal server-to-server calls (from webhook, etc.)
+  const internalSecret = req.headers["x-internal-secret"];
+  if (internalSecret && internalSecret === process.env.INTERNAL_API_SECRET) {
+    return { internal: true };
   }
-);
+
+  // Verify JWT token
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 // Notification helper
 function site() {
@@ -28,7 +57,10 @@ async function notify(payload) {
   try {
     await fetch(`${site()}/api/notify`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
+      },
       body: JSON.stringify(payload),
     });
   } catch (err) {
@@ -43,6 +75,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // FIX: Require authentication
+    const user = await verifyAuth(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const supabase = getSupabaseAdmin();
+
     const {
       listing_id,
       buyer_id,
@@ -56,6 +96,11 @@ export default async function handler(req, res) {
       return res.status(400).json({
         error: "Missing listing_id, buyer_id, or seller_id",
       });
+    }
+
+    // FIX: If not an internal call, verify the user is the seller
+    if (!user.internal && user.id !== seller_id) {
+      return res.status(403).json({ error: "Only the seller can mark their listing as sold" });
     }
 
     // 1) Mark listing SOLD
@@ -103,7 +148,7 @@ export default async function handler(req, res) {
 
     // 3) Send notifications
 
-    // Seller: “Your item sold!”
+    // Seller: "Your item sold!"
     await notify({
       user_id: seller_id,
       kind: "sale",
