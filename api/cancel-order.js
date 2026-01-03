@@ -1,5 +1,8 @@
-// File: /api/cancel-order.js
+// FILE: api/cancel-order.js
+// FIX: Uses JWT to verify buyer instead of trusting body parameter (BUG #20)
 // Buyer-initiated order cancellation (within 30 min window)
+//
+// CHANGE: Now requires valid JWT token, buyer_id derived from token (not body)
 //
 // ENV REQUIRED:
 // STRIPE_SECRET_KEY
@@ -18,14 +21,30 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2024-06-20",
 });
 
-// Supabase (service role)
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: { persistSession: false, autoRefreshToken: false },
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
   }
-);
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 // Base URL
 function site() {
@@ -50,7 +69,7 @@ async function sendEmail(to, subject, htmlBody, textBody) {
 }
 
 // Create in-app notification directly (more reliable than calling /api/notify)
-async function createNotification(userId, kind, title, body, href) {
+async function createNotification(supabase, userId, kind, title, body, href) {
   if (!userId) return;
   
   try {
@@ -76,11 +95,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { order_id, buyer_id } = req.body || {};
-
-    if (!order_id || !buyer_id) {
-      return res.status(400).json({ error: "Missing order_id or buyer_id" });
+    // FIX: Require authentication
+    const user = await verifyAuth(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
+
+    // FIX: Use authenticated user's ID instead of trusting body parameter
+    const buyer_id = user.id;
+    const { order_id } = req.body || {};
+
+    if (!order_id) {
+      return res.status(400).json({ error: "Missing order_id" });
+    }
+
+    const supabase = getSupabaseAdmin();
 
     // 1) Load order
     const { data: order, error } = await supabase
@@ -93,7 +122,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // 2) Validate buyer
+    // 2) Validate buyer - FIX: Compare against authenticated user
     if (order.buyer_id !== buyer_id) {
       return res.status(403).json({
         error: "This order does not belong to you.",
@@ -158,6 +187,7 @@ export default async function handler(req, res) {
 
     // 8) Notify seller (in-app)
     await createNotification(
+      supabase,
       order.seller_id,
       "warning",
       "⚠️ Order Canceled",
@@ -167,6 +197,7 @@ export default async function handler(req, res) {
 
     // 9) Notify buyer (in-app)
     await createNotification(
+      supabase,
       order.buyer_id,
       "order",
       "Order Canceled",
