@@ -1,9 +1,40 @@
-// api/listings/create.js
+// FILE: api/listings/create.js
+// FIX: Added JWT authentication and seller_id validation (BUG #6)
 // Creates a listing in Supabase using the service role (server-only).
+// 
+// CHANGE: Now requires valid JWT token, and seller_id must match authenticated user
+//
 // Supports:
 //  - Form POST (application/x-www-form-urlencoded) from public/create-listing.html
 //  - JSON POST (application/json)
 // Saves required shipping fields: weight_oz, handling_days_min/max, and optional dims.
+
+import { createClient } from "@supabase/supabase-js";
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 function sendJSON(res, status, data) {
   res.statusCode = status;
@@ -62,6 +93,16 @@ module.exports = async (req, res) => {
     return sendHTML(res, 405, "<h1>405</h1><p>POST only.</p>");
   }
 
+  // FIX: Require authentication
+  const user = await verifyAuth(req);
+  if (!user) {
+    const ct = String(req.headers["content-type"] || "").toLowerCase();
+    if (ct.includes("application/json")) {
+      return sendJSON(res, 401, { ok: false, error: "Unauthorized" });
+    }
+    return sendHTML(res, 401, "<h1>401</h1><p>Unauthorized. Please log in.</p>");
+  }
+
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return sendHTML(res, 500, "<h1>500</h1><p>Server missing Supabase env vars.</p>");
@@ -101,8 +142,17 @@ module.exports = async (req, res) => {
   const height_in = body.height_in == null || body.height_in === ""
     ? null : toNumber(body.height_in);
 
-  // Validate basics
-  if (!seller_id) return sendHTML(res, 400, "<h1>400</h1><p>Missing seller_id.</p>");
+  // FIX: Validate seller_id matches authenticated user
+  if (!seller_id) {
+    return sendHTML(res, 400, "<h1>400</h1><p>Missing seller_id.</p>");
+  }
+  if (seller_id !== user.id) {
+    if (ct.includes("application/json")) {
+      return sendJSON(res, 403, { ok: false, error: "Cannot create listings for other users" });
+    }
+    return sendHTML(res, 403, "<h1>403</h1><p>Cannot create listings for other users.</p>");
+  }
+
   if (!title) return sendHTML(res, 400, "<h1>400</h1><p>Title is required.</p>");
   if (!Number.isFinite(price) || price < 0) {
     return sendHTML(res, 400, "<h1>400</h1><p>Price must be a non-negative number.</p>");
