@@ -1,20 +1,49 @@
-// File: /api/shippo/create_label.js
+// FILE: api/shippo/create_label.js
+// FIX: Added JWT authentication - only seller can create labels for their orders (BUG #15)
 // Creates a shipping label via Shippo for a given order
 // Persists the label + tracking to Supabase (db_shipments)
 // Also nudges buyer + seller via notifications.
+//
+// CHANGE: Now requires valid JWT token, and user must be the seller of the order
+//
 // Env required:
 //   SHIPPO_API_KEY
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
 
 import fetch from "node-fetch";
-import supabaseAdmin from "../_supabaseAdmin";
+import { createClient } from "@supabase/supabase-js";
 import { logError } from "../_logger";
 import { rateLimit } from "../_rateLimit";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "1mb" } },
 };
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 export default async function handler(req, res) {
   // Basic rate-limit
@@ -26,9 +55,32 @@ export default async function handler(req, res) {
   }
 
   try {
+    // FIX: Require authentication
+    const user = await verifyAuth(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+
     const { orderId, address_from, address_to, parcel } = req.body || {};
     if (!orderId || !address_from || !address_to || !parcel) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // FIX: Verify user is the seller of this order
+    const { data: order, error: orderCheckErr } = await supabaseAdmin
+      .from("orders")
+      .select("seller_id")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderCheckErr || !order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (order.seller_id !== user.id) {
+      return res.status(403).json({ error: "Only the seller can create labels for this order" });
     }
 
     const apiKey = process.env.SHIPPO_API_KEY;
@@ -157,14 +209,14 @@ export default async function handler(req, res) {
     // -----------------------------------------------------------------------
     let orderRow = null;
     try {
-      const { data: order, error: orderErr } = await supabaseAdmin
+      const { data: orderData, error: orderErr } = await supabaseAdmin
         .from("orders")
         .select("id, buyer_id, seller_id, short_id, created_at")
         .eq("id", orderId)
         .maybeSingle();
 
-      if (!orderErr && order) {
-        orderRow = order;
+      if (!orderErr && orderData) {
+        orderRow = orderData;
 
         // Soft update of order with tracking info; ignore if columns don't exist
         await supabaseAdmin
