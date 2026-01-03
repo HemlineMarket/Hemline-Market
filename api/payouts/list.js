@@ -1,6 +1,9 @@
-// File: /api/payouts/list.js
+// FILE: api/payouts/list.js
+// FIX: Added JWT authentication - users can only see their own payouts (BUG #12)
 // Returns recent Stripe Payouts for a seller's connected account.
-// GET /api/payouts/list?user_id=<profiles.id>&limit=10
+// GET /api/payouts/list?limit=10
+//
+// CHANGE: Now requires valid JWT token, user_id derived from token (not query param)
 //
 // Env required: STRIPE_SECRET_KEY, SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY
 
@@ -9,10 +12,30 @@ import { createClient } from "@supabase/supabase-js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+}
+
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabase = getSupabaseAdmin();
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -21,12 +44,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const user_id = String(req.query.user_id || "").trim();
+    // FIX: Require authentication
+    const user = await verifyAuth(req);
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // FIX: Use authenticated user's ID instead of query param
+    const user_id = user.id;
     const limit = Math.min(50, Math.max(1, Number(req.query.limit || 10)));
 
-    if (!user_id) {
-      return res.status(400).json({ error: "Missing user_id" });
-    }
+    const supabase = getSupabaseAdmin();
 
     // Look up the seller's connected account id
     const { data: profile, error: profErr } = await supabase
