@@ -36,6 +36,8 @@ export default async function handler(req, res) {
     if (parsedUrl.hostname.includes('moodfabrics.com')) {
       try {
         const jsonUrl = url.split('?')[0] + '.json';
+        console.log("Trying Mood JSON:", jsonUrl);
+        
         const jsonResp = await fetch(jsonUrl, {
           headers: {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -43,15 +45,24 @@ export default async function handler(req, res) {
           }
         });
         
+        console.log("Mood JSON response status:", jsonResp.status);
+        
         if (jsonResp.ok) {
           const data = await jsonResp.json();
           const product = data.product;
           
+          console.log("Got Mood product:", product?.title);
+          console.log("Product tags:", product?.tags?.slice(0, 10));
+          console.log("Product body_html length:", product?.body_html?.length);
+          
           if (product) {
             // Parse Mood's product data directly
             const result = parseMoodProduct(product);
+            console.log("Parsed result:", result);
             return res.status(200).json(result);
           }
+        } else {
+          console.log("Mood JSON failed with status:", jsonResp.status);
         }
       } catch (e) {
         console.log("Mood JSON failed, falling back to AI:", e.message);
@@ -204,14 +215,20 @@ function parseMoodProduct(product) {
     }
   }
 
-  // Parse tags for additional metadata
-  const tags = product.tags || [];
+  // Parse tags - handle both array and comma-separated string
+  let tags = product.tags || [];
+  if (typeof tags === 'string') {
+    tags = tags.split(',').map(t => t.trim());
+  }
   
-  // Width - look for pattern like "60" (152.4cm)"
+  console.log("Processing tags:", tags.length, "tags");
+  
+  // Width - look for pattern like "60" (152.4cm)" or just "60""
   for (const tag of tags) {
-    const widthMatch = tag.match(/^(\d+)["'']?\s*\(/);
-    if (widthMatch) {
+    const widthMatch = tag.match(/^(\d+)["'']?\s*\(?/);
+    if (widthMatch && parseInt(widthMatch[1]) >= 36 && parseInt(widthMatch[1]) <= 120) {
       result.width = parseInt(widthMatch[1]);
+      console.log("Found width:", result.width);
       break;
     }
   }
@@ -221,6 +238,7 @@ function parseMoodProduct(product) {
     const gsmMatch = tag.match(/^(\d+)\s*GSM$/i);
     if (gsmMatch) {
       result.gsm = parseInt(gsmMatch[1]);
+      console.log("Found GSM:", result.gsm);
       break;
     }
   }
@@ -231,6 +249,7 @@ function parseMoodProduct(product) {
     for (const p of patternTags) {
       if (tag.toLowerCase().includes(p.toLowerCase())) {
         result.pattern = p === 'Miscellaneous' ? 'Other' : p;
+        console.log("Found pattern:", result.pattern);
         break;
       }
     }
@@ -241,8 +260,9 @@ function parseMoodProduct(product) {
   const colorTags = ['Black', 'Gray', 'Grey', 'White', 'Cream', 'Brown', 'Pink', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Gold', 'Silver', 'Copper'];
   for (const tag of tags) {
     for (const c of colorTags) {
-      if (tag.toLowerCase().includes(c.toLowerCase())) {
-        result.colorFamily = c === 'Grey' ? 'Grey' : c;
+      if (tag.toLowerCase() === c.toLowerCase() || tag.toLowerCase().startsWith(c.toLowerCase() + ',')) {
+        result.colorFamily = c === 'Grey' ? 'Grey' : (c === 'Copper' ? 'Brown' : c);
+        console.log("Found color:", result.colorFamily);
         break;
       }
     }
@@ -259,12 +279,13 @@ function parseMoodProduct(product) {
       }
     }
     // Check for Metallic / Lame
-    if (tag.toLowerCase().includes('lame') || tag.toLowerCase().includes('metallic')) {
+    if (tag.toLowerCase().includes('lame') || (tag.toLowerCase().includes('metallic') && !tag.toLowerCase().includes('non-metallic'))) {
       foundTypes.push('Metallic / Lame');
     }
   }
   if (foundTypes.length > 0) {
     result.fabricType = [...new Set(foundTypes)];
+    console.log("Found fabric types:", result.fabricType);
   }
 
   // Fiber type
@@ -302,13 +323,16 @@ function parseMoodProduct(product) {
     }
   }
 
-  // Generate description from body_html
+  // Generate description from body_html - get first paragraph
   const descMatch = bodyHtml.match(/<p>([^<]+)/);
   if (descMatch) {
     // Take first sentence or two
-    const fullDesc = descMatch[1].replace(/&[^;]+;/g, ' ').trim();
+    const fullDesc = descMatch[1].replace(/&[^;]+;/g, ' ').replace(/\s+/g, ' ').trim();
     const sentences = fullDesc.split(/\.\s+/).slice(0, 2);
-    result.description = sentences.join('. ') + '.';
+    result.description = sentences.join('. ').trim();
+    if (!result.description.endsWith('.')) {
+      result.description += '.';
+    }
   }
 
   // Clean up null values
@@ -319,5 +343,6 @@ function parseMoodProduct(product) {
     }
   }
 
+  console.log("Final parsed result keys:", Object.keys(cleanResult));
   return cleanResult;
 }
