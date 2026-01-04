@@ -583,10 +583,14 @@
           <div class="selects">
             <select id="feelsLike">
               <option value="">Any</option>
+              <option>brocade</option>
+              <option>canvas</option>
+              <option>charmeuse</option>
               <option>chiffon</option>
               <option>cotton / poplin</option>
               <option>crepe</option>
               <option>denim</option>
+              <option>faux fur</option>
               <option>faux leather</option>
               <option>flannel / brushed cotton</option>
               <option>fleece</option>
@@ -594,9 +598,15 @@
               <option>lace</option>
               <option>leather</option>
               <option>linen</option>
+              <option>mesh</option>
+              <option>metallic / lame</option>
+              <option>minky</option>
               <option>organza</option>
+              <option>ponte</option>
               <option>satin</option>
+              <option>scuba</option>
               <option>silk</option>
+              <option>spandex / lycra</option>
               <option>suede</option>
               <option>tulle</option>
               <option>tweed</option>
@@ -700,11 +710,15 @@
             <select id="fabricType">
               <option value="">Any</option>
               <option>Brocade</option>
+              <option>Canvas</option>
+              <option>Charmeuse</option>
               <option>Chiffon</option>
               <option>Corduroy</option>
               <option>Crepe</option>
               <option>Denim</option>
               <option>Double Knit</option>
+              <option>Faux Fur</option>
+              <option>Faux Leather</option>
               <option>Flannel</option>
               <option>Fleece</option>
               <option>Gabardine</option>
@@ -712,14 +726,21 @@
               <option>Knit</option>
               <option>Lace</option>
               <option>Lining</option>
+              <option>Mesh</option>
+              <option>Metallic / Lame</option>
+              <option>Minky</option>
               <option>Organza</option>
+              <option>Ponte</option>
               <option>Satin</option>
+              <option>Scuba</option>
               <option>Shirting</option>
+              <option>Spandex / Lycra</option>
               <option>Suiting</option>
               <option>Tulle</option>
               <option>Tweed</option>
               <option>Twill</option>
               <option>Velvet</option>
+              <option>Vinyl</option>
               <option>Voile</option>
               <option>Woven</option>
             </select>
@@ -771,6 +792,23 @@
               <option>Solid</option>
               <option>Printed</option>
             </select>
+          </div>
+        </section>
+
+        <!-- COSPLAY-FRIENDLY FILTER -->
+        <section class="section">
+          <div class="title">Quick Filters</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+            <label id="cosplayLabel" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;transition:all 0.2s;">
+              <input type="checkbox" id="cosplayFilter" style="width:18px;height:18px;accent-color:var(--accent);">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-size:13px;font-weight:700;color:#111827;">🎭 Cosplay / Costume Friendly</span>
+                <span style="font-size:11px;color:var(--muted);">Satin, velvet, spandex, faux leather, fleece & more</span>
+              </div>
+            </label>
+            <div id="cosplayHint" style="display:none;font-size:11px;color:#92400e;padding:8px 10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;line-height:1.4;">
+              <strong>Includes:</strong> Satin, charmeuse, chiffon, organza, tulle, velvet, lace, brocade, faux leather, vinyl, spandex/lycra, jersey, ponte, scuba, fleece, faux fur, minky, mesh, metallic/lame, canvas, twill
+            </div>
           </div>
         </section>
 
@@ -885,6 +923,27 @@
       "Black","Grey","White","Cream","Brown",
       "Pink","Red","Orange","Yellow","Green",
       "Blue","Purple","Gold","Silver"
+    ];
+
+    // Cosplay-friendly fabric definitions
+    // These are fabrics commonly used for costumes, cosplay, and theater
+    const COSPLAY_FABRIC_TYPES = [
+      "Brocade", "Canvas", "Charmeuse", "Chiffon", "Double Knit",
+      "Faux Fur", "Faux Leather", "Fleece", "Jersey", "Knit",
+      "Lace", "Mesh", "Metallic / Lame", "Minky", "Organza",
+      "Ponte", "Satin", "Scuba", "Spandex / Lycra", "Tulle",
+      "Twill", "Velvet", "Vinyl"
+    ];
+
+    const COSPLAY_FEELS_LIKE = [
+      "brocade", "canvas", "charmeuse", "chiffon", "faux fur",
+      "faux leather", "fleece", "jersey knit", "lace", "mesh",
+      "metallic / lame", "minky", "organza", "ponte", "satin",
+      "scuba", "spandex / lycra", "tulle", "velvet / velour", "vinyl"
+    ];
+
+    const COSPLAY_CONTENTS = [
+      "polyester", "spandex / elastane", "nylon", "acrylic", "lurex"
     ];
 
     const selectedContents = new Set();
@@ -1285,13 +1344,51 @@
           if(!l.color_family || !selectedColors.has(l.color_family)) return false;
         }
 
+        // Cosplay-friendly filter
+        const cosplayFilterEl = document.getElementById("cosplayFilter");
+        const isCosplayFilterOn = cosplayFilterEl?.checked;
+
+        if(isCosplayFilterOn){
+          // Check if listing matches any cosplay-friendly criteria
+          const fabricType = (l.fabric_type || "").trim().toLowerCase();
+          const content = (l.content || "").toLowerCase();
+          
+          // Check fabric type (satin, velvet, etc.)
+          const matchesFabricType = COSPLAY_FABRIC_TYPES.some(t => 
+            fabricType === t.toLowerCase()
+          );
+          
+          // Check "feels like" (can be array or comma-separated string)
+          const feelsLikeSrc = l.feels_like;
+          let feelsLikeArr = [];
+          if(Array.isArray(feelsLikeSrc)){
+            feelsLikeArr = feelsLikeSrc.map(s => s.toLowerCase());
+          }else if(typeof feelsLikeSrc === "string" && feelsLikeSrc.trim()){
+            feelsLikeArr = feelsLikeSrc.split(",").map(s => s.trim().toLowerCase());
+          }
+          const matchesFeelsLike = feelsLikeArr.some(f => 
+            COSPLAY_FEELS_LIKE.includes(f)
+          );
+          
+          // Check content (for spandex, polyester, lurex, etc.)
+          const matchesContent = COSPLAY_CONTENTS.some(c => 
+            content.includes(c)
+          );
+          
+          // Must match at least one criteria
+          if(!matchesFabricType && !matchesFeelsLike && !matchesContent){
+            return false;
+          }
+        }
+
         return true;
       });
 
       const total = filtered.length;
 
       // Check if any filters are applied
-      const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || burnTestVal || selectedColors.size > 0 || selectedContents.size > 0;
+      const isCosplayOn = document.getElementById("cosplayFilter")?.checked;
+      const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || burnTestVal || selectedColors.size > 0 || selectedContents.size > 0 || isCosplayOn;
 
       if(!total){
         if(hasFilters){
@@ -1535,6 +1632,18 @@
       document.getElementById("minGsm")?.addEventListener("input", debounceSearch);
       document.getElementById("maxGsm")?.addEventListener("input", debounceSearch);
       document.getElementById("designer")?.addEventListener("input", debounceSearch);
+      
+      // Cosplay-friendly filter change listener
+      document.getElementById("cosplayFilter")?.addEventListener("change", (e) => {
+        const hint = document.getElementById("cosplayHint");
+        const label = document.getElementById("cosplayLabel");
+        if(hint) hint.style.display = e.target.checked ? "block" : "none";
+        if(label) {
+          label.style.borderColor = e.target.checked ? "var(--accent)" : "var(--border)";
+          label.style.background = e.target.checked ? "#fef2f2" : "#fff";
+        }
+        runSearch();
+      });
     });
     
     // Clear all filters and re-run search
@@ -1563,6 +1672,17 @@
       // Clear content checkboxes and Set
       document.querySelectorAll("input[name='content']").forEach(cb => cb.checked = false);
       selectedContents.clear();
+      
+      // Clear cosplay filter
+      const cosplayEl = document.getElementById("cosplayFilter");
+      if(cosplayEl) cosplayEl.checked = false;
+      const cosplayHint = document.getElementById("cosplayHint");
+      if(cosplayHint) cosplayHint.style.display = "none";
+      const cosplayLabel = document.getElementById("cosplayLabel");
+      if(cosplayLabel) {
+        cosplayLabel.style.borderColor = "var(--border)";
+        cosplayLabel.style.background = "#fff";
+      }
       
       // Clear URL params
       window.history.replaceState({}, "", window.location.pathname);
