@@ -36,23 +36,40 @@ export default async function handler(req, res) {
     const content = [];
     
     for (const img of imageArray) {
-      const matches = img.match(/^data:([^;]+);base64,(.+)$/);
+      // More flexible regex to handle various base64 formats
+      let matches = img.match(/^data:([^;,]+)[^,]*,(.+)$/);
+      
       if (!matches) {
-        continue; // Skip invalid images
+        // Try without data: prefix (raw base64)
+        if (img.length > 100 && /^[A-Za-z0-9+/=]+$/.test(img.substring(0, 100))) {
+          matches = [null, 'image/jpeg', img];
+        } else {
+          console.log("Skipping invalid image format, length:", img?.length, "start:", img?.substring(0, 50));
+          continue;
+        }
+      }
+      
+      const mediaType = matches[1] || 'image/jpeg';
+      const base64Data = matches[2];
+      
+      // Validate it looks like base64
+      if (!base64Data || base64Data.length < 100) {
+        console.log("Skipping image with insufficient data");
+        continue;
       }
       
       content.push({
         type: "image",
         source: {
           type: "base64",
-          media_type: matches[1],
-          data: matches[2]
+          media_type: mediaType,
+          data: base64Data
         }
       });
     }
     
     if (content.length === 0) {
-      return res.status(400).json({ error: "No valid images provided" });
+      return res.status(400).json({ error: "Could not process images. Please try again or use a different image format." });
     }
 
     const prompt = `You are looking at ${content.length} screenshot${content.length > 1 ? 's' : ''} of a fabric product page (likely from Mood Fabrics, Fabric.com, or similar).
