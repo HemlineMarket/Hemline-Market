@@ -927,6 +927,7 @@
 
     // Cosplay-friendly fabric definitions
     // These are fabrics commonly used for costumes, cosplay, and theater
+    // Only match on Fabric Type and Feels Like - not fiber content
     const COSPLAY_FABRIC_TYPES = [
       "Brocade", "Charmeuse", "Chiffon", "Faux Fur", "Faux Leather",
       "Fleece", "Jersey", "Lace", "Mesh", "Metallic / Lame", "Minky",
@@ -939,10 +940,6 @@
       "fleece", "jersey knit", "lace", "mesh", "metallic / lame", "minky",
       "organza", "ponte", "satin", "scuba", "spandex / lycra", "tulle",
       "velvet / velour", "vinyl"
-    ];
-
-    const COSPLAY_CONTENTS = [
-      "spandex / elastane", "nylon", "acrylic", "lurex"
     ];
 
     const selectedContents = new Set();
@@ -1350,7 +1347,6 @@
         if(isCosplayFilterOn){
           // Check if listing matches any cosplay-friendly criteria
           const fabricType = (l.fabric_type || "").trim().toLowerCase();
-          const content = (l.content || "").toLowerCase();
           
           // Check fabric type (satin, velvet, etc.)
           const matchesFabricType = COSPLAY_FABRIC_TYPES.some(t => 
@@ -1369,13 +1365,8 @@
             COSPLAY_FEELS_LIKE.includes(f)
           );
           
-          // Check content (for spandex, polyester, lurex, etc.)
-          const matchesContent = COSPLAY_CONTENTS.some(c => 
-            content.includes(c)
-          );
-          
-          // Must match at least one criteria
-          if(!matchesFabricType && !matchesFeelsLike && !matchesContent){
+          // Must match fabric type OR feels like
+          if(!matchesFabricType && !matchesFeelsLike){
             return false;
           }
         }
