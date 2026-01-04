@@ -801,10 +801,7 @@
           <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
             <label id="cosplayLabel" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;transition:all 0.2s;">
               <input type="checkbox" id="cosplayFilter" style="width:18px;height:18px;accent-color:var(--accent);">
-              <div style="display:flex;flex-direction:column;gap:2px;">
-                <span style="font-size:13px;font-weight:700;color:#111827;">🎭 Cosplay / Costume Friendly</span>
-                <span style="font-size:11px;color:var(--muted);">Satin, velvet, spandex, faux leather & more</span>
-              </div>
+              <span style="font-size:13px;font-weight:700;color:#111827;">🎭 Cosplay / Costume Friendly</span>
             </label>
             <div id="cosplayHint" style="display:none;font-size:11px;color:#92400e;padding:8px 10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;line-height:1.4;">
               <strong>Includes:</strong> Satin, charmeuse, chiffon, organza, tulle, velvet, lace, brocade, faux leather, vinyl, spandex/lycra, jersey, ponte, scuba, fleece, faux fur, minky, mesh, metallic/lame
@@ -1294,7 +1291,11 @@
 
         // Filter by dropdown values - if filter is set, listing must match (or have the field)
         if(deptVal && l.dept !== deptVal) return false;
-        if(fabricVal && l.fabric_type !== fabricVal) return false;
+        // Fabric type can now be comma-separated (multi-select), check if filter value is in the list
+        if(fabricVal){
+          const fabricTypes = (l.fabric_type || "").split(",").map(s => s.trim());
+          if(!fabricTypes.includes(fabricVal)) return false;
+        }
         if(fiberVal && l.fiber_type !== fiberVal) return false;
         if(patternVal && l.pattern !== patternVal) return false;
         if(originVal) {
@@ -1349,12 +1350,16 @@
 
         if(isCosplayFilterOn){
           // Check if listing matches any cosplay-friendly criteria
-          const fabricType = (l.fabric_type || "").trim().toLowerCase();
+          const fabricTypeSrc = l.fabric_type || "";
           const content = (l.content || "").toLowerCase();
           
-          // Check fabric type (satin, velvet, etc.)
-          const matchesFabricType = COSPLAY_FABRIC_TYPES.some(t => 
-            fabricType === t.toLowerCase()
+          // Check fabric type - can now be comma-separated (multi-select)
+          let fabricTypeArr = [];
+          if(typeof fabricTypeSrc === "string" && fabricTypeSrc.trim()){
+            fabricTypeArr = fabricTypeSrc.split(",").map(s => s.trim().toLowerCase());
+          }
+          const matchesFabricType = fabricTypeArr.some(ft =>
+            COSPLAY_FABRIC_TYPES.some(t => ft === t.toLowerCase())
           );
           
           // Check "feels like" (can be array or comma-separated string)
