@@ -1,6 +1,5 @@
-// api/autofill-fabric.js
-// Fetches a fabric product page and extracts structured fabric details
-// Tries Shopify JSON endpoint first (for Mood, etc.), falls back to AI parsing
+// api/autofill-screenshot.js
+// Extracts fabric details from a screenshot using Claude's vision
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
@@ -18,152 +17,72 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { url, debug } = req.body || {};
+  const { image } = req.body || {};
 
-  if (!url) {
-    return res.status(400).json({ error: "URL is required" });
+  if (!image) {
+    return res.status(400).json({ error: "Image is required" });
   }
 
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(url);
-  } catch (e) {
-    return res.status(400).json({ error: "Invalid URL format" });
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: "AI extraction not configured" });
   }
 
   try {
-    // Special handling for Mood Fabrics - try their JSON endpoint
-    if (parsedUrl.hostname.includes('moodfabrics.com')) {
-      try {
-        const jsonUrl = url.split('?')[0] + '.json';
-        console.log("Trying Mood JSON:", jsonUrl);
-        
-        const jsonResp = await fetch(jsonUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-            "Accept": "application/json"
-          }
-        });
-        
-        console.log("Mood JSON response status:", jsonResp.status);
-        
-        if (jsonResp.ok) {
-          const text = await jsonResp.text();
-          console.log("Mood JSON response length:", text.length);
-          
-          // Debug mode - return raw response
-          if (debug) {
-            let productKeys = [];
-            let parsedData = null;
-            try {
-              parsedData = JSON.parse(text);
-              productKeys = Object.keys(parsedData.product || {});
-            } catch(e) {}
-            
-            return res.status(200).json({ 
-              debug: true, 
-              jsonUrl,
-              status: jsonResp.status,
-              responseLength: text.length,
-              productKeys,
-              responsePreview: text.substring(0, 3000)
-            });
-          }
-          
-          if (text.length > 0) {
-            const data = JSON.parse(text);
-            const product = data.product;
-            
-            console.log("Got Mood product:", product?.title);
-            console.log("Product tags type:", typeof product?.tags);
-            console.log("Product tags:", product?.tags?.substring ? product.tags.substring(0, 200) : product?.tags?.slice(0, 10));
-            console.log("Product body_html length:", product?.body_html?.length);
-            
-            if (product) {
-              const result = parseMoodProduct(product);
-              console.log("Parsed result:", JSON.stringify(result));
-              return res.status(200).json(result);
-            }
-          }
-        } else {
-          console.log("Mood JSON failed with status:", jsonResp.status);
-          if (debug) {
-            return res.status(200).json({ 
-              debug: true, 
-              error: "JSON endpoint failed",
-              status: jsonResp.status
-            });
-          }
-        }
-      } catch (e) {
-        console.log("Mood JSON error:", e.message);
-        if (debug) {
-          return res.status(200).json({ debug: true, error: e.message });
-        }
-      }
+    // Extract base64 data and media type
+    const matches = image.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({ error: "Invalid image format" });
     }
+    
+    const mediaType = matches[1];
+    const base64Data = matches[2];
 
-    // Fallback: Fetch HTML and use AI
-    const pageResp = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-        "Accept": "text/html"
-      }
-    });
+    const prompt = `You are looking at a screenshot of a fabric product page (likely from Mood Fabrics, Fabric.com, or similar).
 
-    if (!pageResp.ok) {
-      return res.status(400).json({ error: `Could not fetch page (${pageResp.status})` });
-    }
+Extract ALL fabric details you can see and return them as JSON. Be accurate - only include fields you can clearly see.
 
-    const html = await pageResp.text();
-
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "AI extraction not configured" });
-    }
-
-    // Build context for Claude
-    let context = "";
-
-    // Extract JSON-LD
-    const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-    if (jsonLdMatches) {
-      context += "=== JSON-LD DATA ===\n" + jsonLdMatches.join("\n").substring(0, 10000) + "\n\n";
-    }
-
-    // Extract meta tags
-    const metaMatches = html.match(/<meta[^>]*(property|name)=["'][^"']*["'][^>]*>/gi);
-    if (metaMatches) {
-      context += "=== META TAGS ===\n" + metaMatches.slice(0, 30).join("\n") + "\n\n";
-    }
-
-    context += "=== RAW HTML (truncated) ===\n" + html.substring(0, 30000);
-
-    const prompt = `Extract fabric product details. ACCURACY IS CRITICAL. Return ONLY valid JSON.
-
+Return ONLY valid JSON in this format (include only fields you find):
 {
-  "title": "product title",
+  "title": "product name if visible",
   "content": ["Lurex", "Polyester"],
-  "fabricType": ["Brocade"],
+  "fabricType": ["Brocade", "Charmeuse"],
   "width": 60,
   "gsm": 62,
-  "price": 49.99,
-  "pattern": "Geometric",
-  "department": "Apparel",
+  "origPrice": 49.99,
+  "pattern": "Solid or Printed",
+  "department": "Fashion",
   "fiberType": "Synthetic",
-  "colorFamily": "Brown",
-  "suggestedDescription": "2-3 sentence description"
+  "colorFamily": ["Brown", "Gold"],
+  "description": "Brief description of the fabric",
+  "designer": "Designer or mill name if shown",
+  "origin": "Italy"
 }
 
-VALID content: Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
-VALID fabricType: Brocade, Canvas, Charmeuse, Chiffon, Corduroy, Crepe, Denim, Double Knit, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Jersey, Knit, Lace, Lining, Mesh, Metallic / Lame, Minky, Organza, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
-VALID pattern: Abstract, Animal, Camouflage, Check, Damask, Floral, Geometric, Houndstooth, Paisley, Plaid, Polka Dot, Solid, Stripes, Tie Dye, Toile, Other
-VALID department: Apparel, Home Dec, Bridal, Costume
-VALID fiberType: Natural, Synthetic, Blend
-VALID colorFamily: Black, Grey, White, Cream, Brown, Pink, Red, Orange, Yellow, Green, Blue, Purple, Gold, Silver
+IMPORTANT FIELD MAPPINGS:
+- content: The fiber composition (e.g., "60% Lurex, 40% Polyester" → ["Lurex", "Polyester"])
+  Valid: Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
 
-PAGE DATA:
-${context}`;
+- fabricType: The type of weave/fabric
+  Valid: Brocade, Canvas, Charmeuse, Chiffon, Corduroy, Crepe, Denim, Double Knit, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Jersey, Knit, Lace, Mesh, Metallic / Lame, Minky, Organza, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
+
+- pattern: Use "Solid" only if explicitly solid. Everything else (geometric, floral, stripes, etc.) → "Printed"
+
+- department: Valid values are Fashion, Home, Quilting, Notions
+
+- fiberType: Natural, Modified Natural (rayon/viscose/modal/tencel), Synthetic, or Blend
+
+- colorFamily: Valid values are Black, Grey, White, Cream, Brown, Pink, Red, Orange, Yellow, Green, Blue, Purple, Gold, Silver
+
+- origin: Valid values are Italy, France, Japan, UK, USA, Spain, Portugal, Germany, Belgium, Switzerland, Netherlands, Korea, Australia, Canada, Brazil, Other
+
+- width: Just the number in inches (e.g., 60 not "60 inches")
+
+- gsm: Just the number (e.g., 62 not "62 GSM")
+
+- origPrice: The retail price per yard as a number (e.g., 49.99 not "$49.99/yard")
+
+Return ONLY the JSON object, no other text.`;
 
     const claudeResp = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
@@ -175,11 +94,29 @@ ${context}`;
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }]
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mediaType,
+                data: base64Data
+              }
+            },
+            {
+              type: "text",
+              text: prompt
+            }
+          ]
+        }]
       })
     });
 
     if (!claudeResp.ok) {
+      const errorData = await claudeResp.text();
+      console.error("Claude API error:", errorData);
       return res.status(500).json({ error: "AI extraction failed" });
     }
 
@@ -188,216 +125,60 @@ ${context}`;
 
     let fabricData;
     try {
+      // Extract JSON from response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         fabricData = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error("No JSON found");
+        throw new Error("No JSON found in response");
       }
     } catch (e) {
+      console.error("Parse error:", e, "Response:", responseText);
       return res.status(500).json({ error: "Could not parse fabric details" });
     }
 
-    const cleanData = {};
-    for (const [key, value] of Object.entries(fabricData)) {
-      if (value !== null && value !== undefined && value !== "") {
-        if (key === "suggestedDescription") {
-          cleanData.description = value;
-        } else {
-          cleanData[key] = value;
-        }
-      }
-    }
-
-    return res.status(200).json(cleanData);
-
-  } catch (err) {
-    console.error("Autofill error:", err);
-    return res.status(500).json({ error: "Failed to extract fabric details" });
-  }
-}
-
-// Parse Mood Fabrics product JSON directly
-function parseMoodProduct(product) {
-  const result = {
-    title: product.title || null
-  };
-
-  // Get the HTML body content - this has all the specs!
-  const bodyHtml = product.body_html || "";
-  
-  // Decode unicode escapes like \u003c to <
-  const decodedHtml = bodyHtml.replace(/\\u003c/g, '<').replace(/\\u003e/g, '>').replace(/\\n/g, '\n');
-  
-  console.log("Parsing body_html, length:", decodedHtml.length);
-
-  // Extract Content (e.g., "60% Lurex, 40% Polyester")
-  const contentMatch = decodedHtml.match(/Content:?\s*<\/strong>\s*([^<]+)/i) ||
-                       decodedHtml.match(/Content:?\s*([^<\n]+)/i);
-  if (contentMatch) {
-    const contentStr = contentMatch[1].trim();
-    console.log("Found content string:", contentStr);
-    // Parse fibers from percentage string
-    const validFibers = ['Acetate', 'Acrylic', 'Alpaca', 'Bamboo', 'Camel', 'Cashmere', 'Cotton', 'Cupro', 'Hemp', 'Jute', 'Leather', 'Linen', 'Lurex', 'Lyocell', 'Merino', 'Modal', 'Mohair', 'Nylon', 'Polyester', 'Ramie', 'Rayon', 'Silk', 'Spandex', 'Elastane', 'Tencel', 'Triacetate', 'Viscose', 'Wool', 'Yak'];
-    const foundFibers = [];
-    for (const fiber of validFibers) {
-      if (contentStr.toLowerCase().includes(fiber.toLowerCase())) {
-        if (fiber === 'Elastane') {
-          foundFibers.push('Spandex / Elastane');
-        } else if (fiber === 'Spandex' && !foundFibers.includes('Spandex / Elastane')) {
-          foundFibers.push('Spandex / Elastane');
-        } else if (fiber !== 'Spandex' && fiber !== 'Elastane') {
-          foundFibers.push(fiber);
-        }
-      }
-    }
-    if (foundFibers.length > 0) {
-      result.content = [...new Set(foundFibers)];
-    }
-  }
-
-  // Extract Width (e.g., "60" (152.4cm)")
-  const widthMatch = decodedHtml.match(/Width:?\s*<\/strong>\s*:?\s*(\d+)[""]?\s*\(?/i) ||
-                     decodedHtml.match(/Width:?\s*:?\s*(\d+)[""]?\s*\(?/i);
-  if (widthMatch) {
-    result.width = parseInt(widthMatch[1]);
-    console.log("Found width:", result.width);
-  }
-
-  // Extract Weight/GSM (e.g., "62 GSM")
-  const gsmMatch = decodedHtml.match(/(?:Industry\s*)?Weight:?\s*<\/strong>\s*:?\s*(\d+)\s*GSM/i) ||
-                   decodedHtml.match(/(\d+)\s*GSM/i);
-  if (gsmMatch) {
-    result.gsm = parseInt(gsmMatch[1]);
-    console.log("Found GSM:", result.gsm);
-  }
-
-  // Extract Fiber Type - options: Natural, Modified Natural, Synthetic, Blend
-  const fiberTypeMatch = decodedHtml.match(/Fiber\s*Type:?\s*<\/strong>\s*:?\s*([^<\n]+)/i) ||
-                         decodedHtml.match(/Fiber\s*Type:?\s*:?\s*(\w+)/i);
-  if (fiberTypeMatch) {
-    const ft = fiberTypeMatch[1].trim().toLowerCase();
-    if (ft.includes('synthetic')) result.fiberType = 'Synthetic';
-    else if (ft.includes('natural') && ft.includes('modified')) result.fiberType = 'Modified Natural';
-    else if (ft.includes('natural')) result.fiberType = 'Natural';
-    else if (ft.includes('blend')) result.fiberType = 'Blend';
-    console.log("Found fiber type:", result.fiberType);
-  }
-  
-  // If no explicit fiber type, infer from content
-  if (!result.fiberType && result.content) {
-    const natural = ['Cotton', 'Silk', 'Wool', 'Linen', 'Cashmere', 'Alpaca', 'Hemp', 'Jute', 'Ramie'];
-    const modifiedNatural = ['Rayon', 'Viscose', 'Modal', 'Tencel', 'Lyocell', 'Cupro', 'Acetate', 'Triacetate', 'Bamboo'];
-    const synthetic = ['Polyester', 'Nylon', 'Acrylic', 'Spandex / Elastane', 'Lurex'];
+    // Clean up and validate the response
+    const cleanResult = {};
     
-    const hasNatural = result.content.some(c => natural.includes(c));
-    const hasModified = result.content.some(c => modifiedNatural.includes(c));
-    const hasSynthetic = result.content.some(c => synthetic.includes(c));
+    if (fabricData.title) cleanResult.title = fabricData.title;
+    if (fabricData.description) cleanResult.description = fabricData.description;
+    if (fabricData.designer) cleanResult.designer = fabricData.designer;
     
-    const count = [hasNatural, hasModified, hasSynthetic].filter(Boolean).length;
-    if (count > 1) {
-      result.fiberType = 'Blend';
-    } else if (hasSynthetic) {
-      result.fiberType = 'Synthetic';
-    } else if (hasModified) {
-      result.fiberType = 'Modified Natural';
-    } else if (hasNatural) {
-      result.fiberType = 'Natural';
+    if (fabricData.content && Array.isArray(fabricData.content)) {
+      cleanResult.content = fabricData.content;
     }
-  }
-
-  // Extract Pattern - only Solid or Printed
-  const patternMatch = decodedHtml.match(/Pattern:?\s*<\/strong>\s*:?\s*([^<\n]+)/i) ||
-                       decodedHtml.match(/Pattern:?\s*:?\s*([^<\n]+)/i);
-  if (patternMatch) {
-    const patternStr = patternMatch[1].trim().toLowerCase();
-    // Only "Solid" stays as Solid, everything else is "Printed"
-    if (patternStr === 'solid') {
-      result.pattern = 'Solid';
-    } else {
-      result.pattern = 'Printed';
+    
+    if (fabricData.fabricType && Array.isArray(fabricData.fabricType)) {
+      cleanResult.fabricType = fabricData.fabricType;
     }
-    console.log("Found pattern:", result.pattern);
-  }
-
-  // Extract Color Family
-  const colorMatch = decodedHtml.match(/Color\s*Family:?\s*<\/strong>\s*:?\s*([^<\n]+)/i) ||
-                     decodedHtml.match(/Color\s*Family:?\s*:?\s*(\w+)/i);
-  if (colorMatch) {
-    const colorStr = colorMatch[1].trim();
-    const validColors = ['Black', 'Grey', 'Gray', 'White', 'Cream', 'Brown', 'Pink', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Gold', 'Silver'];
-    for (const c of validColors) {
-      if (colorStr.toLowerCase().includes(c.toLowerCase())) {
-        result.colorFamily = c === 'Gray' ? 'Grey' : c;
-        break;
-      }
+    
+    if (fabricData.width && typeof fabricData.width === 'number') {
+      cleanResult.width = fabricData.width;
     }
-    console.log("Found color:", result.colorFamily);
-  }
-
-  // Get price from variants - put in origPrice (original retail), not price (user's selling price)
-  if (product.variants && product.variants.length > 0) {
-    const price = parseFloat(product.variants[0].price);
-    if (price > 0) {
-      result.origPrice = price;
-      console.log("Found original price:", result.origPrice);
+    
+    if (fabricData.gsm && typeof fabricData.gsm === 'number') {
+      cleanResult.gsm = fabricData.gsm;
     }
-  }
-
-  // Detect fabric type from TITLE ONLY (not body, which has words like "lining recommended")
-  const fabricTypes = ['Brocade', 'Canvas', 'Charmeuse', 'Chiffon', 'Corduroy', 'Crepe', 'Denim', 'Flannel', 'Fleece', 'Gabardine', 'Jersey', 'Knit', 'Lace', 'Mesh', 'Organza', 'Ponte', 'Satin', 'Scuba', 'Suiting', 'Tulle', 'Tweed', 'Twill', 'Velvet', 'Vinyl', 'Voile', 'Woven'];
-  const foundTypes = [];
-  const titleLower = (product.title || '').toLowerCase();
-  
-  for (const ft of fabricTypes) {
-    if (titleLower.includes(ft.toLowerCase())) {
-      foundTypes.push(ft);
+    
+    if (fabricData.origPrice && typeof fabricData.origPrice === 'number') {
+      cleanResult.origPrice = fabricData.origPrice;
     }
-  }
-  // Check for Metallic / Lame in title
-  if (titleLower.includes('lame') || titleLower.includes('metallic')) {
-    foundTypes.push('Metallic / Lame');
-  }
-  if (foundTypes.length > 0) {
-    result.fabricType = [...new Set(foundTypes)];
-    console.log("Found fabric types:", result.fabricType);
-  }
-
-  // Department from product_type - options are: Fashion, Home, Quilting, Notions
-  if (product.product_type) {
-    const pt = product.product_type.toLowerCase();
-    if (pt.includes('fashion') || pt.includes('apparel') || pt.includes('fabric') || pt.includes('brocade')) result.department = 'Fashion';
-    else if (pt.includes('home') || pt.includes('decor')) result.department = 'Home';
-    else if (pt.includes('quilt')) result.department = 'Quilting';
-    else if (pt.includes('notion')) result.department = 'Notions';
-  }
-  // Fallback: if it's from moodfabrics and no department set, default to Fashion
-  if (!result.department) {
-    result.department = 'Fashion';
-  }
-
-  // Generate description - get first paragraph from body
-  const descMatch = decodedHtml.match(/<p>([^<]+)/i) || 
-                    decodedHtml.match(/^([^<]{50,300})/);
-  if (descMatch) {
-    let desc = descMatch[1].replace(/&[^;]+;/g, ' ').replace(/\s+/g, ' ').trim();
-    // Take first 2 sentences
-    const sentences = desc.split(/\.\s+/).slice(0, 2);
-    result.description = sentences.join('. ').trim();
-    if (result.description && !result.description.endsWith('.')) {
-      result.description += '.';
+    
+    if (fabricData.pattern) cleanResult.pattern = fabricData.pattern;
+    if (fabricData.department) cleanResult.department = fabricData.department;
+    if (fabricData.fiberType) cleanResult.fiberType = fabricData.fiberType;
+    if (fabricData.origin) cleanResult.origin = fabricData.origin;
+    
+    if (fabricData.colorFamily) {
+      cleanResult.colorFamily = Array.isArray(fabricData.colorFamily) 
+        ? fabricData.colorFamily 
+        : [fabricData.colorFamily];
     }
-  }
 
-  // Clean up null/empty values
-  const cleanResult = {};
-  for (const [key, value] of Object.entries(result)) {
-    if (value !== null && value !== undefined && value !== "" && 
-        !(Array.isArray(value) && value.length === 0)) {
-      cleanResult[key] = value;
-    }
-  }
+    return res.status(200).json(cleanResult);
 
-  console.log("Final parsed result:", JSON.stringify(cleanResult));
-  return cleanResult;
+  } catch (error) {
+    console.error("Screenshot autofill error:", error);
+    return res.status(500).json({ error: "Failed to process screenshot" });
+  }
 }
