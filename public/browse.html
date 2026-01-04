@@ -572,54 +572,15 @@
           <div class="listbox" id="contentBox"></div>
         </section>
 
-        <!-- FABRIC TYPE -->
+        <!-- FABRIC TYPE - multi-select checkboxes -->
         <section class="section">
           <div class="title">Fabric Type</div>
-          <div class="selects">
-            <select id="fabricType">
-              <option value="">Any</option>
-              <option>Brocade</option>
-              <option>Canvas</option>
-              <option>Charmeuse</option>
-              <option>Chiffon</option>
-              <option>Corduroy</option>
-              <option>Crepe</option>
-              <option>Denim</option>
-              <option>Double Knit</option>
-              <option>Faux Fur</option>
-              <option>Faux Leather</option>
-              <option>Flannel</option>
-              <option>Fleece</option>
-              <option>Gabardine</option>
-              <option>Jersey</option>
-              <option>Knit</option>
-              <option>Lace</option>
-              <option>Lining</option>
-              <option>Mesh</option>
-              <option>Metallic / Lame</option>
-              <option>Minky</option>
-              <option>Organza</option>
-              <option>Ponte</option>
-              <option>Satin</option>
-              <option>Scuba</option>
-              <option>Shirting</option>
-              <option>Spandex / Lycra</option>
-              <option>Suiting</option>
-              <option>Tulle</option>
-              <option>Tweed</option>
-              <option>Twill</option>
-              <option>Velvet</option>
-              <option>Vinyl</option>
-              <option>Voile</option>
-              <option>Woven</option>
-            </select>
-          </div>
+          <div class="listbox" id="fabricTypeBox"></div>
         </section>
 
         <!-- COSPLAY-FRIENDLY FILTER -->
         <section class="section">
-          <div class="title">Quick Filters</div>
-          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
             <label id="cosplayLabel" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;transition:all 0.2s;">
               <input type="checkbox" id="cosplayFilter" style="width:18px;height:18px;accent-color:var(--accent);">
               <span style="font-size:13px;font-weight:700;color:#111827;">🎭 Cosplay / Costume</span>
@@ -937,6 +898,14 @@
       "Blue","Purple","Gold","Silver"
     ];
 
+    const FABRIC_TYPES = [
+      "Brocade", "Canvas", "Charmeuse", "Chiffon", "Corduroy", "Crepe",
+      "Denim", "Double Knit", "Faux Fur", "Faux Leather", "Flannel", "Fleece",
+      "Gabardine", "Jersey", "Knit", "Lace", "Lining", "Mesh", "Metallic / Lame",
+      "Minky", "Organza", "Ponte", "Satin", "Scuba", "Shirting", "Spandex / Lycra",
+      "Suiting", "Tulle", "Tweed", "Twill", "Velvet", "Vinyl", "Voile", "Woven"
+    ];
+
     // Cosplay-friendly fabric definitions
     // These are fabrics commonly used for costumes, cosplay, and theater
     // Match on Fabric Type, Feels Like, and Lurex content (metallic fiber)
@@ -959,10 +928,12 @@
 
     const selectedContents = new Set();
     const selectedColors = new Set();
+    const selectedFabricTypes = new Set();
 
     function buildFiltersUI(){
       const contentBox = document.getElementById("contentBox");
       const colorBox   = document.getElementById("colorBox");
+      const fabricTypeBox = document.getElementById("fabricTypeBox");
 
       if(contentBox){
         contentBox.innerHTML = "";
@@ -982,6 +953,28 @@
             runSearch();
           });
           contentBox.appendChild(row);
+        });
+      }
+
+      // Build Fabric Type checkboxes
+      if(fabricTypeBox){
+        fabricTypeBox.innerHTML = "";
+        FABRIC_TYPES.forEach(label=>{
+          const row = document.createElement("div");
+          row.className = "row";
+          const cb  = document.createElement("input");
+          cb.type   = "checkbox";
+          cb.name   = "fabricType";
+          cb.value  = label;
+          const lb  = document.createElement("label");
+          lb.textContent = label;
+          row.appendChild(cb);
+          row.appendChild(lb);
+          cb.addEventListener("change",()=>{
+            if(cb.checked) selectedFabricTypes.add(label); else selectedFabricTypes.delete(label);
+            runSearch();
+          });
+          fabricTypeBox.appendChild(row);
         });
       }
 
@@ -1202,7 +1195,6 @@
       const minGsmEl   = document.getElementById("minGsm");
       const maxGsmEl   = document.getElementById("maxGsm");
       const deptEl     = document.getElementById("dept");
-      const fabricEl   = document.getElementById("fabricType");
       const fiberEl    = document.getElementById("fiberType");
       const patternEl  = document.getElementById("pattern");
       const originEl   = document.getElementById("origin");
@@ -1247,7 +1239,6 @@
       const maxGsm     = numeric(maxGsmEl?.value);
 
       const deptVal    = (deptEl?.value || "").trim();
-      const fabricVal  = (fabricEl?.value || "").trim();
       const fiberVal   = (fiberEl?.value || "").trim();
       const patternVal = (patternEl?.value || "").trim();
       const originVal  = (originEl?.value || "").trim();
@@ -1306,11 +1297,22 @@
 
         // Filter by dropdown values - if filter is set, listing must match (or have the field)
         if(deptVal && l.dept !== deptVal) return false;
-        // Fabric type can now be comma-separated (multi-select), check if filter value is in the list
-        if(fabricVal){
-          const fabricTypes = (l.fabric_type || "").split(",").map(s => s.trim());
-          if(!fabricTypes.includes(fabricVal)) return false;
+        
+        // Fabric type multi-select filter
+        // Listing fabric_type can be comma-separated (e.g., "Brocade, Metallic / Lame")
+        // Check if ANY selected filter matches ANY of the listing's fabric types
+        if(selectedFabricTypes.size > 0){
+          const listingFabricTypes = (l.fabric_type || "").split(",").map(s => s.trim().toLowerCase());
+          let fabricMatch = false;
+          for(const selected of selectedFabricTypes){
+            if(listingFabricTypes.some(ft => ft === selected.toLowerCase())){
+              fabricMatch = true;
+              break;
+            }
+          }
+          if(!fabricMatch) return false;
         }
+        
         if(fiberVal && l.fiber_type !== fiberVal) return false;
         if(patternVal && l.pattern !== patternVal) return false;
         if(originVal) {
@@ -1409,7 +1411,7 @@
 
       // Check if any filters are applied
       const isCosplayOn = document.getElementById("cosplayFilter")?.checked;
-      const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fabricVal || fiberVal || patternVal || originVal || designerVal || feelsVal || burnTestVal || selectedColors.size > 0 || selectedContents.size > 0 || isCosplayOn;
+      const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fiberVal || patternVal || originVal || designerVal || feelsVal || burnTestVal || selectedColors.size > 0 || selectedContents.size > 0 || selectedFabricTypes.size > 0 || isCosplayOn;
 
       if(!total){
         if(hasFilters){
@@ -1631,7 +1633,6 @@
       
       // Add change listeners to ALL filter dropdowns
       document.getElementById("dept")?.addEventListener("change", runSearch);
-      document.getElementById("fabricType")?.addEventListener("change", runSearch);
       document.getElementById("fiberType")?.addEventListener("change", runSearch);
       document.getElementById("pattern")?.addEventListener("change", runSearch);
       document.getElementById("origin")?.addEventListener("change", runSearch);
@@ -1678,7 +1679,6 @@
       document.getElementById("minGsm").value = "";
       document.getElementById("maxGsm").value = "";
       document.getElementById("dept").value = "";
-      document.getElementById("fabricType").value = "";
       document.getElementById("fiberType").value = "";
       document.getElementById("pattern").value = "";
       document.getElementById("origin").value = "";
@@ -1693,6 +1693,10 @@
       // Clear content checkboxes and Set
       document.querySelectorAll("input[name='content']").forEach(cb => cb.checked = false);
       selectedContents.clear();
+      
+      // Clear fabric type checkboxes and Set
+      document.querySelectorAll("input[name='fabricType']").forEach(cb => cb.checked = false);
+      selectedFabricTypes.clear();
       
       // Clear cosplay filter
       const cosplayEl = document.getElementById("cosplayFilter");
