@@ -448,46 +448,10 @@
 
             <div class="field">
               <div class="label-row">
-                <label for="fabric">Fabric type</label>
+                <label>Fabric type</label>
                 <span class="subtle" style="font-size:12px">(helps with search filters, including cosplay/costume)</span>
               </div>
-              <select id="fabric">
-                <option value="">Select…</option>
-                <option>Brocade</option>
-                <option>Canvas</option>
-                <option>Charmeuse</option>
-                <option>Chiffon</option>
-                <option>Corduroy</option>
-                <option>Crepe</option>
-                <option>Denim</option>
-                <option>Double Knit</option>
-                <option>Faux Fur</option>
-                <option>Faux Leather</option>
-                <option>Flannel</option>
-                <option>Fleece</option>
-                <option>Gabardine</option>
-                <option>Jersey</option>
-                <option>Knit</option>
-                <option>Lace</option>
-                <option>Lining</option>
-                <option>Mesh</option>
-                <option>Metallic / Lame</option>
-                <option>Minky</option>
-                <option>Organza</option>
-                <option>Ponte</option>
-                <option>Satin</option>
-                <option>Scuba</option>
-                <option>Shirting</option>
-                <option>Spandex / Lycra</option>
-                <option>Suiting</option>
-                <option>Tulle</option>
-                <option>Tweed</option>
-                <option>Twill</option>
-                <option>Velvet</option>
-                <option>Vinyl</option>
-                <option>Voile</option>
-                <option>Woven</option>
-              </select>
+              <div id="fabricTypeBox" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
             </div>
 
             <div class="field">
@@ -792,7 +756,6 @@
     const reviewMedia = document.getElementById('reviewMedia');
     const reviewKv    = document.getElementById('reviewKv');
 
-    const fabricSelect     = document.getElementById('fabric');
     const patternSelect    = document.getElementById('pattern');
     const deptSelect       = document.getElementById('dept');
     const fiberTypeSelect  = document.getElementById('fiberType');
@@ -842,6 +805,47 @@
       });
     }
     buildColorSwatches();
+
+    // Fabric Type multi-select chips
+    const FABRIC_TYPES = [
+      "Brocade", "Canvas", "Charmeuse", "Chiffon", "Corduroy", "Crepe",
+      "Denim", "Double Knit", "Faux Fur", "Faux Leather", "Flannel",
+      "Fleece", "Gabardine", "Jersey", "Knit", "Lace", "Lining", "Mesh",
+      "Metallic / Lame", "Minky", "Organza", "Ponte", "Satin", "Scuba",
+      "Shirting", "Spandex / Lycra", "Suiting", "Tulle", "Tweed", "Twill",
+      "Velvet", "Vinyl", "Voile", "Woven"
+    ];
+    const selectedFabricTypes = new Set();
+    const fabricTypeBox = document.getElementById('fabricTypeBox');
+
+    function buildFabricTypeChips(){
+      if(!fabricTypeBox) return;
+      fabricTypeBox.innerHTML = "";
+      FABRIC_TYPES.forEach(name => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.textContent = name;
+        chip.dataset.selected = "false";
+        chip.style.cssText = "padding:6px 12px;border-radius:16px;border:1px solid #d1d5db;background:#fff;font-size:13px;cursor:pointer;transition:all 0.15s;";
+        chip.addEventListener("click", () => {
+          if(selectedFabricTypes.has(name)){
+            selectedFabricTypes.delete(name);
+            chip.dataset.selected = "false";
+            chip.style.background = "#fff";
+            chip.style.borderColor = "#d1d5db";
+            chip.style.color = "#374151";
+          } else {
+            selectedFabricTypes.add(name);
+            chip.dataset.selected = "true";
+            chip.style.background = "#991b1b";
+            chip.style.borderColor = "#991b1b";
+            chip.style.color = "#fff";
+          }
+        });
+        fabricTypeBox.appendChild(chip);
+      });
+    }
+    buildFabricTypeChips();
 
     // oz/yd² to GSM conversion (1 oz/yd² = 33.906 GSM)
     if(convertOzBtn && weightOzInput && gsmInput){
@@ -1063,7 +1067,7 @@
         yards: yardsInput.value ? parseFloat(yardsInput.value) : null,
         desc: descInput.value.trim() || null,
         content: contents,
-        fabric: fabricSelect.value || null,
+        fabric: selectedFabricTypes.size > 0 ? Array.from(selectedFabricTypes).join(', ') : null,
         colorFamily: colors,
         pattern: patternSelect.value || null,
         dept: deptSelect.value || null,
@@ -1497,7 +1501,25 @@
           yardsInput.value = String(yards);
         }
 
-        if(fabricSelect)      fabricSelect.value      = data.fabric_type || '';
+        // Fabric type multi-select (stored as comma-separated string)
+        if(data.fabric_type){
+          const savedTypes = data.fabric_type.split(',')
+            .map(s=>s.trim())
+            .filter(Boolean);
+          savedTypes.forEach(ft => {
+            selectedFabricTypes.add(ft);
+            const chips = fabricTypeBox?.querySelectorAll('button');
+            chips?.forEach(chip => {
+              if(chip.textContent === ft){
+                chip.dataset.selected = "true";
+                chip.style.background = "#991b1b";
+                chip.style.borderColor = "#991b1b";
+                chip.style.color = "#fff";
+              }
+            });
+          });
+        }
+
         if(patternSelect)     patternSelect.value     = data.pattern || '';
         if(deptSelect)        deptSelect.value        = data.dept || '';
         if(fiberTypeSelect)   fiberTypeSelect.value   = data.fiber_type || '';
