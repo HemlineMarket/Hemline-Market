@@ -1,6 +1,6 @@
 // api/autofill-fabric.js
-// Fetches a fabric product page and uses Claude to extract structured fabric details
-// Tries Shopify JSON endpoint first (for Mood, etc.), falls back to HTML parsing
+// Fetches a fabric product page and extracts structured fabric details
+// Tries Shopify JSON endpoint first (for Mood, etc.), falls back to AI parsing
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
@@ -24,7 +24,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "URL is required" });
   }
 
-  // Validate URL
   let parsedUrl;
   try {
     parsedUrl = new URL(url);
@@ -33,14 +32,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    let shopifyProduct = null;
-    let html = "";
-
-    // Try Shopify JSON endpoint first (works for Mood and many fabric stores)
-    const isShopify = parsedUrl.hostname.includes('moodfabrics.com') || 
-                      parsedUrl.pathname.includes('/products/');
-    
-    if (isShopify) {
+    // Special handling for Mood Fabrics - try their JSON endpoint
+    if (parsedUrl.hostname.includes('moodfabrics.com')) {
       try {
         const jsonUrl = url.split('?')[0] + '.json';
         const jsonResp = await fetch(jsonUrl, {
@@ -49,19 +42,26 @@ export default async function handler(req, res) {
             "Accept": "application/json"
           }
         });
+        
         if (jsonResp.ok) {
           const data = await jsonResp.json();
-          shopifyProduct = data.product;
+          const product = data.product;
+          
+          if (product) {
+            // Parse Mood's product data directly
+            const result = parseMoodProduct(product);
+            return res.status(200).json(result);
+          }
         }
       } catch (e) {
-        console.log("Shopify JSON not available, using HTML");
+        console.log("Mood JSON failed, falling back to AI:", e.message);
       }
     }
 
-    // Fetch HTML page
+    // Fallback: Fetch HTML and use AI
     const pageResp = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         "Accept": "text/html"
       }
     });
@@ -70,9 +70,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Could not fetch page (${pageResp.status})` });
     }
 
-    html = await pageResp.text();
+    const html = await pageResp.text();
 
-    // Check for API key
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: "AI extraction not configured" });
@@ -81,84 +80,42 @@ export default async function handler(req, res) {
     // Build context for Claude
     let context = "";
 
-    // Include Shopify data if we got it
-    if (shopifyProduct) {
-      context += "=== SHOPIFY PRODUCT DATA (PRIMARY SOURCE) ===\n";
-      context += JSON.stringify(shopifyProduct, null, 2).substring(0, 20000);
-      context += "\n\n";
-    }
-
     // Extract JSON-LD
     const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
     if (jsonLdMatches) {
-      context += "=== JSON-LD DATA ===\n" + jsonLdMatches.join("\n").substring(0, 5000) + "\n\n";
+      context += "=== JSON-LD DATA ===\n" + jsonLdMatches.join("\n").substring(0, 10000) + "\n\n";
     }
 
-    // Extract specific patterns from HTML
-    let extracted = "";
-    
-    const widthMatch = html.match(/width\s*:\s*(\d+)["']?\s*\(?\d*\.?\d*\s*cm\)?/i) ||
-                       html.match(/(\d+)["']\s*\(\d+\.?\d*\s*cm\)/i);
-    if (widthMatch) extracted += `Width: ${widthMatch[1]} inches\n`;
-
-    const contentMatch = html.match(/content\s*:\s*([^<\n]{5,100})/i);
-    if (contentMatch) extracted += `Content: ${contentMatch[1]}\n`;
-
-    const weightMatch = html.match(/(?:industry\s*)?weight\s*:\s*(\d+)\s*GSM/i) ||
-                        html.match(/(\d+)\s*GSM/i);
-    if (weightMatch) extracted += `Weight: ${weightMatch[1]} GSM\n`;
-
-    const patternMatch = html.match(/pattern\s*:\s*([^<\n]{3,50})/i);
-    if (patternMatch) extracted += `Pattern: ${patternMatch[1]}\n`;
-
-    const fiberMatch = html.match(/fiber\s*type\s*:\s*([^<\n]{3,30})/i);
-    if (fiberMatch) extracted += `Fiber Type: ${fiberMatch[1]}\n`;
-
-    const colorMatch = html.match(/color\s*family\s*:\s*([^<\n]{3,30})/i);
-    if (colorMatch) extracted += `Color Family: ${colorMatch[1]}\n`;
-
-    if (extracted) {
-      context += "=== EXTRACTED FROM HTML ===\n" + extracted + "\n";
+    // Extract meta tags
+    const metaMatches = html.match(/<meta[^>]*(property|name)=["'][^"']*["'][^>]*>/gi);
+    if (metaMatches) {
+      context += "=== META TAGS ===\n" + metaMatches.slice(0, 30).join("\n") + "\n\n";
     }
 
-    // Add truncated HTML
-    context += "=== RAW HTML (truncated) ===\n" + html.substring(0, 25000);
+    context += "=== RAW HTML (truncated) ===\n" + html.substring(0, 30000);
 
-    // Claude prompt
-    const prompt = `Extract fabric product details from this webpage data. ACCURACY IS CRITICAL.
+    const prompt = `Extract fabric product details. ACCURACY IS CRITICAL. Return ONLY valid JSON.
 
-RULES:
-1. Use SHOPIFY PRODUCT DATA as primary source if available
-2. Look for explicit field values like "Width: 60", "Content: 60% Lurex, 40% Polyester", "Industry Weight: 62 GSM"
-3. For content, parse percentages into an array of fiber names
-4. DO NOT guess - use null if not confident
-5. DO NOT include price
-6. Write a FRESH 2-3 sentence description - do not copy
-
-Return ONLY valid JSON:
 {
   "title": "product title",
   "content": ["Lurex", "Polyester"],
-  "fabricType": ["Brocade", "Metallic / Lame"],
+  "fabricType": ["Brocade"],
   "width": 60,
   "gsm": 62,
-  "origin": "Italy",
-  "designer": "Mood Fabrics",
+  "price": 49.99,
   "pattern": "Geometric",
   "department": "Apparel",
   "fiberType": "Synthetic",
   "colorFamily": "Brown",
-  "suggestedDescription": "A luxurious metallic brocade with ornate chandelier pattern. Features a tactile hand with voluminous drape, ideal for evening gowns, jackets, and formal skirts."
+  "suggestedDescription": "2-3 sentence description"
 }
 
-VALID VALUES:
-- content: Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
-- fabricType: Brocade, Canvas, Charmeuse, Chiffon, Corduroy, Crepe, Denim, Double Knit, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Jersey, Knit, Lace, Lining, Mesh, Metallic / Lame, Minky, Organza, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
-- origin: Italy, France, Japan, UK, USA, Spain, Portugal, Germany, Belgium, Switzerland, Netherlands, Korea, Australia, Canada, Brazil
-- pattern: Abstract, Animal, Camouflage, Check, Damask, Floral, Geometric, Houndstooth, Paisley, Plaid, Polka Dot, Solid, Stripes, Tie Dye, Toile, Other
-- department: Apparel, Home Dec, Bridal, Costume
-- fiberType: Natural, Synthetic, Blend
-- colorFamily: Black, Grey, White, Cream, Brown, Pink, Red, Orange, Yellow, Green, Blue, Purple, Gold, Silver
+VALID content: Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
+VALID fabricType: Brocade, Canvas, Charmeuse, Chiffon, Corduroy, Crepe, Denim, Double Knit, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Jersey, Knit, Lace, Lining, Mesh, Metallic / Lame, Minky, Organza, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
+VALID pattern: Abstract, Animal, Camouflage, Check, Damask, Floral, Geometric, Houndstooth, Paisley, Plaid, Polka Dot, Solid, Stripes, Tie Dye, Toile, Other
+VALID department: Apparel, Home Dec, Bridal, Costume
+VALID fiberType: Natural, Synthetic, Blend
+VALID colorFamily: Black, Grey, White, Cream, Brown, Pink, Red, Orange, Yellow, Green, Blue, Purple, Gold, Silver
 
 PAGE DATA:
 ${context}`;
@@ -178,14 +135,12 @@ ${context}`;
     });
 
     if (!claudeResp.ok) {
-      console.error("Claude API error:", await claudeResp.text());
       return res.status(500).json({ error: "AI extraction failed" });
     }
 
     const claudeData = await claudeResp.json();
     const responseText = claudeData.content?.[0]?.text || "";
 
-    // Parse JSON
     let fabricData;
     try {
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -195,11 +150,9 @@ ${context}`;
         throw new Error("No JSON found");
       }
     } catch (e) {
-      console.error("Parse error:", e, "Response:", responseText);
       return res.status(500).json({ error: "Could not parse fabric details" });
     }
 
-    // Clean response
     const cleanData = {};
     for (const [key, value] of Object.entries(fabricData)) {
       if (value !== null && value !== undefined && value !== "") {
@@ -217,4 +170,154 @@ ${context}`;
     console.error("Autofill error:", err);
     return res.status(500).json({ error: "Failed to extract fabric details" });
   }
+}
+
+// Parse Mood Fabrics product JSON directly
+function parseMoodProduct(product) {
+  const result = {
+    title: product.title || null
+  };
+
+  // Get the HTML body content for parsing
+  const bodyHtml = product.body_html || "";
+
+  // Extract content/composition from body
+  const contentMatch = bodyHtml.match(/Content:\s*([^<]+)/i);
+  if (contentMatch) {
+    const contentStr = contentMatch[1].trim();
+    // Parse "60% Lurex, 40% Polyester" into ["Lurex", "Polyester"]
+    const fibers = contentStr.match(/(\d+%?\s*)?(Acetate|Acrylic|Alpaca|Bamboo|Camel|Cashmere|Cotton|Cupro|Hemp|Jute|Leather|Linen|Lurex|Lyocell|Merino|Modal|Mohair|Nylon|Polyester|Ramie|Rayon|Silk|Spandex|Elastane|Tencel|Triacetate|Viscose|Wool|Yak)/gi);
+    if (fibers) {
+      result.content = [...new Set(fibers.map(f => {
+        const clean = f.replace(/\d+%?\s*/g, '').trim();
+        if (clean.toLowerCase() === 'elastane') return 'Spandex / Elastane';
+        return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+      }))];
+    }
+  }
+
+  // Get price from variants
+  if (product.variants && product.variants.length > 0) {
+    const price = parseFloat(product.variants[0].price);
+    if (price > 0) {
+      result.price = price;
+    }
+  }
+
+  // Parse tags for additional metadata
+  const tags = product.tags || [];
+  
+  // Width - look for pattern like "60" (152.4cm)"
+  for (const tag of tags) {
+    const widthMatch = tag.match(/^(\d+)["'']?\s*\(/);
+    if (widthMatch) {
+      result.width = parseInt(widthMatch[1]);
+      break;
+    }
+  }
+
+  // GSM - look for "62 GSM" pattern
+  for (const tag of tags) {
+    const gsmMatch = tag.match(/^(\d+)\s*GSM$/i);
+    if (gsmMatch) {
+      result.gsm = parseInt(gsmMatch[1]);
+      break;
+    }
+  }
+
+  // Pattern
+  const patternTags = ['Abstract', 'Animal', 'Camouflage', 'Check', 'Damask', 'Floral', 'Geometric', 'Houndstooth', 'Paisley', 'Plaid', 'Polka Dot', 'Solid', 'Stripes', 'Tie Dye', 'Toile', 'Miscellaneous'];
+  for (const tag of tags) {
+    for (const p of patternTags) {
+      if (tag.toLowerCase().includes(p.toLowerCase())) {
+        result.pattern = p === 'Miscellaneous' ? 'Other' : p;
+        break;
+      }
+    }
+    if (result.pattern) break;
+  }
+
+  // Color family
+  const colorTags = ['Black', 'Gray', 'Grey', 'White', 'Cream', 'Brown', 'Pink', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Gold', 'Silver', 'Copper'];
+  for (const tag of tags) {
+    for (const c of colorTags) {
+      if (tag.toLowerCase().includes(c.toLowerCase())) {
+        result.colorFamily = c === 'Grey' ? 'Grey' : c;
+        break;
+      }
+    }
+    if (result.colorFamily) break;
+  }
+
+  // Fabric type from tags
+  const fabricTypes = ['Brocade', 'Canvas', 'Charmeuse', 'Chiffon', 'Corduroy', 'Crepe', 'Denim', 'Flannel', 'Fleece', 'Gabardine', 'Jersey', 'Knit', 'Lace', 'Lining', 'Mesh', 'Organza', 'Ponte', 'Satin', 'Scuba', 'Suiting', 'Tulle', 'Tweed', 'Twill', 'Velvet', 'Vinyl', 'Voile', 'Woven'];
+  const foundTypes = [];
+  for (const tag of tags) {
+    for (const ft of fabricTypes) {
+      if (tag.toLowerCase().includes(ft.toLowerCase())) {
+        foundTypes.push(ft);
+      }
+    }
+    // Check for Metallic / Lame
+    if (tag.toLowerCase().includes('lame') || tag.toLowerCase().includes('metallic')) {
+      foundTypes.push('Metallic / Lame');
+    }
+  }
+  if (foundTypes.length > 0) {
+    result.fabricType = [...new Set(foundTypes)];
+  }
+
+  // Fiber type
+  if (result.content) {
+    const natural = ['Cotton', 'Silk', 'Wool', 'Linen', 'Cashmere', 'Alpaca', 'Hemp', 'Jute', 'Ramie'];
+    const synthetic = ['Polyester', 'Nylon', 'Acrylic', 'Spandex / Elastane', 'Lurex'];
+    const hasNatural = result.content.some(c => natural.includes(c));
+    const hasSynthetic = result.content.some(c => synthetic.includes(c));
+    if (hasNatural && hasSynthetic) {
+      result.fiberType = 'Blend';
+    } else if (hasNatural) {
+      result.fiberType = 'Natural';
+    } else {
+      result.fiberType = 'Synthetic';
+    }
+  }
+
+  // Department - Fashion Fabrics = Apparel
+  for (const tag of tags) {
+    if (tag.toLowerCase().includes('fashion fabric')) {
+      result.department = 'Apparel';
+      break;
+    }
+    if (tag.toLowerCase().includes('home')) {
+      result.department = 'Home Dec';
+      break;
+    }
+    if (tag.toLowerCase().includes('bridal')) {
+      result.department = 'Bridal';
+      break;
+    }
+    if (tag.toLowerCase().includes('costume') || tag.toLowerCase().includes('cosplay')) {
+      result.department = 'Costume';
+      break;
+    }
+  }
+
+  // Generate description from body_html
+  const descMatch = bodyHtml.match(/<p>([^<]+)/);
+  if (descMatch) {
+    // Take first sentence or two
+    const fullDesc = descMatch[1].replace(/&[^;]+;/g, ' ').trim();
+    const sentences = fullDesc.split(/\.\s+/).slice(0, 2);
+    result.description = sentences.join('. ') + '.';
+  }
+
+  // Clean up null values
+  const cleanResult = {};
+  for (const [key, value] of Object.entries(result)) {
+    if (value !== null && value !== undefined && value !== "") {
+      cleanResult[key] = value;
+    }
+  }
+
+  return cleanResult;
 }
