@@ -404,20 +404,24 @@
 
         <!-- STEP 2 -->
         <div class="step step-2" hidden>
-          <!-- AUTO-FILL FROM URL -->
+          <!-- AUTO-FILL FROM SCREENSHOT -->
           <div class="field" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:20px;">
             <div class="label-row">
-              <label style="font-weight:600;">🔗 Have a link to the original fabric?</label>
+              <label style="font-weight:600;">📷 Auto-fill from screenshot</label>
               <span class="subtle" style="font-size:12px">(optional)</span>
             </div>
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <input id="autofillUrl" type="url" placeholder="Paste URL from Mood, Fabric.com, B&J, etc." style="flex:1;">
-              <button type="button" id="autofillBtn" class="btn" style="white-space:nowrap;">
-                Auto-fill
-              </button>
+            <p style="font-size:13px;color:#6b7280;margin:8px 0 12px 0;">
+              Screenshot the product specs from Mood, Fabric.com, etc. and drop it here.
+            </p>
+            <div id="screenshotDropZone" style="border:2px dashed #d1d5db;border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;">
+              <input type="file" id="screenshotInput" accept="image/*" style="display:none;">
+              <span style="color:#6b7280;">Drop screenshot here or <span style="color:#991b1b;cursor:pointer;">click to upload</span></span>
+            </div>
+            <div id="screenshotPreview" style="display:none;margin-top:12px;position:relative;">
+              <img id="screenshotImg" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid #e5e7eb;">
+              <button type="button" id="removeScreenshot" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;cursor:pointer;font-size:14px;">×</button>
             </div>
             <div id="autofillStatus" style="margin-top:8px;font-size:12px;display:none;"></div>
-            <div class="subtle" style="margin-top:6px;">We'll extract fabric details from the page to save you time.</div>
           </div>
 
           <div class="field">
@@ -945,195 +949,229 @@
       });
     }
 
-    // Auto-fill from URL
-    const autofillBtn = document.getElementById('autofillBtn');
-    const autofillUrlInput = document.getElementById('autofillUrl');
+    // Auto-fill from screenshot
+    const screenshotDropZone = document.getElementById('screenshotDropZone');
+    const screenshotInput = document.getElementById('screenshotInput');
+    const screenshotPreview = document.getElementById('screenshotPreview');
+    const screenshotImg = document.getElementById('screenshotImg');
+    const removeScreenshot = document.getElementById('removeScreenshot');
     const autofillStatus = document.getElementById('autofillStatus');
     
-    if(autofillBtn && autofillUrlInput){
-      autofillBtn.addEventListener('click', async ()=>{
-        const url = autofillUrlInput.value.trim();
-        if(!url){
-          autofillStatus.textContent = '⚠️ Please paste a URL first';
-          autofillStatus.style.color = '#b45309';
-          autofillStatus.style.display = 'block';
-          return;
-        }
-        
-        // Validate URL format
-        try {
-          new URL(url);
-        } catch(e) {
-          autofillStatus.textContent = '⚠️ Please enter a valid URL';
-          autofillStatus.style.color = '#b45309';
-          autofillStatus.style.display = 'block';
-          return;
-        }
-        
-        autofillBtn.disabled = true;
-        autofillBtn.textContent = 'Fetching...';
-        autofillStatus.innerHTML = '⏳ Extracting fabric details from page...';
-        autofillStatus.style.color = '#6b7280';
-        autofillStatus.style.display = 'block';
-        
-        try {
-          const resp = await fetch('/api/autofill-fabric', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
-          });
-          
-          const data = await resp.json();
-          
-          if(!resp.ok || data.error){
-            throw new Error(data.error || 'Failed to extract fabric details');
-          }
-          
-          // Fill in the form fields
-          let filledCount = 0;
-          
-          if(data.title && !titleInput.value){
-            titleInput.value = data.title;
-            filledCount++;
-          }
-          
-          if(data.description && !descInput.value){
-            descInput.value = data.description;
-            filledCount++;
-          }
-          
-          // NOTE: We do NOT auto-fill price (user's selling price) - that's their decision
-          // But we DO fill origPrice (original retail) as a reference
-          if(data.origPrice && !origPriceInp.value){
-            origPriceInp.value = data.origPrice;
-            filledCount++;
-          }
-          
-          if(data.width && !widthInput.value){
-            widthInput.value = data.width;
-            filledCount++;
-          }
-          
-          if(data.gsm && !gsmInput.value){
-            gsmInput.value = data.gsm;
-            filledCount++;
-          }
-          
-          if(data.designer && !designerInput.value){
-            designerInput.value = data.designer;
-            filledCount++;
-          }
-          
-          if(data.origin){
-            const originSelect = document.getElementById('origin');
-            if(originSelect){
-              const opt = Array.from(originSelect.options).find(o => 
-                o.value.toLowerCase() === data.origin.toLowerCase() ||
-                o.text.toLowerCase() === data.origin.toLowerCase()
-              );
-              if(opt) {
-                originSelect.value = opt.value;
-                filledCount++;
-              }
-            }
-          }
-          
-          // Content checkboxes
-          if(data.content && Array.isArray(data.content)){
-            data.content.forEach(c => {
-              const cb = document.querySelector(`#contentGroup input[value="${c}"]`) ||
-                         document.querySelector(`#contentGroup input[value*="${c}"]`);
-              if(cb && !cb.checked){
-                cb.checked = true;
-                filledCount++;
-              }
-            });
-          }
-          
-          // Fabric type checkboxes
-          if(data.fabricType && Array.isArray(data.fabricType)){
-            data.fabricType.forEach(ft => {
-              const cb = document.querySelector(`#fabricTypeGroup input[value="${ft}"]`) ||
-                         document.querySelector(`#fabricTypeGroup input[value*="${ft}"]`);
-              if(cb && !cb.checked){
-                cb.checked = true;
-                filledCount++;
-              }
-            });
-          }
-          
-          // Pattern dropdown
-          if(data.pattern){
-            const patternSelect = document.getElementById('pattern');
-            if(patternSelect){
-              const opt = Array.from(patternSelect.options).find(o => 
-                o.value.toLowerCase() === data.pattern.toLowerCase() ||
-                o.text.toLowerCase() === data.pattern.toLowerCase()
-              );
-              if(opt && !patternSelect.value) {
-                patternSelect.value = opt.value;
-                filledCount++;
-              }
-            }
-          }
-          
-          // Department dropdown
-          if(data.department){
-            const deptSelect = document.getElementById('dept');
-            if(deptSelect){
-              const opt = Array.from(deptSelect.options).find(o => 
-                o.value.toLowerCase() === data.department.toLowerCase() ||
-                o.text.toLowerCase().includes(data.department.toLowerCase())
-              );
-              if(opt && !deptSelect.value) {
-                deptSelect.value = opt.value;
-                filledCount++;
-              }
-            }
-          }
-          
-          // Fiber Type dropdown
-          if(data.fiberType){
-            const fiberSelect = document.getElementById('fiberType');
-            if(fiberSelect){
-              const opt = Array.from(fiberSelect.options).find(o => 
-                o.value.toLowerCase() === data.fiberType.toLowerCase() ||
-                o.text.toLowerCase() === data.fiberType.toLowerCase()
-              );
-              if(opt && !fiberSelect.value) {
-                fiberSelect.value = opt.value;
-                filledCount++;
-              }
-            }
-          }
-          
-          // Color swatches
-          if(data.colorFamily){
-            const colorName = data.colorFamily;
-            // Find the color swatch button and click it
-            const colorBox = document.getElementById('colorBox');
-            if(colorBox){
-              const swatch = colorBox.querySelector(`button[data-name="${colorName}"]`) ||
-                             colorBox.querySelector(`button[data-name="${colorName.toLowerCase()}"]`);
-              if(swatch && swatch.dataset.selected !== "true"){
-                swatch.click();
-                filledCount++;
-              }
-            }
-          }
-          
-          autofillStatus.innerHTML = `✅ Filled ${filledCount} field${filledCount !== 1 ? 's' : ''}! Review and adjust as needed.`;
-          autofillStatus.style.color = '#059669';
-          
-        } catch(err) {
-          console.error('Autofill error:', err);
-          autofillStatus.innerHTML = `❌ ${err.message || 'Could not extract details. Try filling manually.'}`;
-          autofillStatus.style.color = '#dc2626';
-        } finally {
-          autofillBtn.disabled = false;
-          autofillBtn.textContent = 'Auto-fill';
+    let screenshotBase64 = null;
+    
+    if(screenshotDropZone && screenshotInput){
+      // Click to upload
+      screenshotDropZone.addEventListener('click', () => screenshotInput.click());
+      
+      // Drag and drop styling
+      screenshotDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        screenshotDropZone.style.borderColor = '#991b1b';
+        screenshotDropZone.style.background = '#fef2f2';
+      });
+      screenshotDropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        screenshotDropZone.style.borderColor = '#d1d5db';
+        screenshotDropZone.style.background = 'transparent';
+      });
+      screenshotDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        screenshotDropZone.style.borderColor = '#d1d5db';
+        screenshotDropZone.style.background = 'transparent';
+        const files = e.dataTransfer.files;
+        if(files.length > 0 && files[0].type.startsWith('image/')){
+          handleScreenshot(files[0]);
         }
       });
+      
+      // File input change
+      screenshotInput.addEventListener('change', (e) => {
+        if(e.target.files.length > 0){
+          handleScreenshot(e.target.files[0]);
+        }
+      });
+      
+      // Remove screenshot
+      if(removeScreenshot){
+        removeScreenshot.addEventListener('click', () => {
+          screenshotBase64 = null;
+          screenshotPreview.style.display = 'none';
+          screenshotDropZone.style.display = 'block';
+          screenshotInput.value = '';
+          autofillStatus.style.display = 'none';
+        });
+      }
+      
+      async function handleScreenshot(file){
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          screenshotBase64 = e.target.result;
+          screenshotImg.src = screenshotBase64;
+          screenshotPreview.style.display = 'block';
+          screenshotDropZone.style.display = 'none';
+          
+          // Auto-extract
+          autofillStatus.innerHTML = '⏳ Reading fabric details from screenshot...';
+          autofillStatus.style.color = '#6b7280';
+          autofillStatus.style.display = 'block';
+          
+          try {
+            const resp = await fetch('/api/autofill-screenshot', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: screenshotBase64 })
+            });
+            
+            const data = await resp.json();
+            
+            if(!resp.ok || data.error){
+              throw new Error(data.error || 'Failed to extract fabric details');
+            }
+            
+            // Fill in the form fields
+            let filledCount = 0;
+            
+            if(data.title && !titleInput.value){
+              titleInput.value = data.title;
+              filledCount++;
+            }
+            
+            if(data.description && !descInput.value){
+              descInput.value = data.description;
+              filledCount++;
+            }
+            
+            if(data.origPrice && !origPriceInp.value){
+              origPriceInp.value = data.origPrice;
+              filledCount++;
+            }
+            
+            if(data.width && !widthInput.value){
+              widthInput.value = data.width;
+              filledCount++;
+            }
+            
+            if(data.gsm && !gsmInput.value){
+              gsmInput.value = data.gsm;
+              filledCount++;
+            }
+            
+            if(data.designer && !designerInput.value){
+              designerInput.value = data.designer;
+              filledCount++;
+            }
+            
+            if(data.origin){
+              const originSelect = document.getElementById('origin');
+              if(originSelect && !originSelect.value){
+                const opt = Array.from(originSelect.options).find(o => 
+                  o.value.toLowerCase() === data.origin.toLowerCase() ||
+                  o.text.toLowerCase() === data.origin.toLowerCase()
+                );
+                if(opt) {
+                  originSelect.value = opt.value;
+                  filledCount++;
+                }
+              }
+            }
+            
+            // Content checkboxes
+            if(data.content && Array.isArray(data.content)){
+              data.content.forEach(c => {
+                const cb = document.querySelector(`#contentGroup input[value="${c}"]`) ||
+                           document.querySelector(`#contentGroup input[value*="${c}"]`);
+                if(cb && !cb.checked){
+                  cb.checked = true;
+                  filledCount++;
+                }
+              });
+            }
+            
+            // Fabric type checkboxes
+            if(data.fabricType && Array.isArray(data.fabricType)){
+              data.fabricType.forEach(ft => {
+                const cb = document.querySelector(`#fabricTypeGroup input[value="${ft}"]`) ||
+                           document.querySelector(`#fabricTypeGroup input[value*="${ft}"]`);
+                if(cb && !cb.checked){
+                  cb.checked = true;
+                  filledCount++;
+                }
+              });
+            }
+            
+            // Pattern dropdown
+            if(data.pattern){
+              const patternSelect = document.getElementById('pattern');
+              if(patternSelect && !patternSelect.value){
+                const opt = Array.from(patternSelect.options).find(o => 
+                  o.value.toLowerCase() === data.pattern.toLowerCase() ||
+                  o.text.toLowerCase() === data.pattern.toLowerCase()
+                );
+                if(opt) {
+                  patternSelect.value = opt.value;
+                  filledCount++;
+                }
+              }
+            }
+            
+            // Department dropdown
+            if(data.department){
+              const deptSelect = document.getElementById('dept');
+              if(deptSelect && !deptSelect.value){
+                const opt = Array.from(deptSelect.options).find(o => 
+                  o.value.toLowerCase() === data.department.toLowerCase() ||
+                  o.text.toLowerCase().includes(data.department.toLowerCase())
+                );
+                if(opt) {
+                  deptSelect.value = opt.value;
+                  filledCount++;
+                }
+              }
+            }
+            
+            // Fiber Type dropdown
+            if(data.fiberType){
+              const fiberSelect = document.getElementById('fiberType');
+              if(fiberSelect && !fiberSelect.value){
+                const opt = Array.from(fiberSelect.options).find(o => 
+                  o.value.toLowerCase() === data.fiberType.toLowerCase() ||
+                  o.text.toLowerCase() === data.fiberType.toLowerCase()
+                );
+                if(opt) {
+                  fiberSelect.value = opt.value;
+                  filledCount++;
+                }
+              }
+            }
+            
+            // Color swatches
+            if(data.colorFamily){
+              const colors = Array.isArray(data.colorFamily) ? data.colorFamily : [data.colorFamily];
+              colors.forEach(colorName => {
+                const colorBox = document.getElementById('colorBox');
+                if(colorBox){
+                  const swatch = colorBox.querySelector(`button[data-name="${colorName}"]`) ||
+                                 colorBox.querySelector(`button[data-name="${colorName.toLowerCase()}"]`);
+                  if(swatch && swatch.dataset.selected !== "true"){
+                    swatch.click();
+                    filledCount++;
+                  }
+                }
+              });
+            }
+            
+            autofillStatus.innerHTML = `✅ Filled ${filledCount} field${filledCount !== 1 ? 's' : ''}! Review and adjust as needed.`;
+            autofillStatus.style.color = '#059669';
+            
+          } catch(err) {
+            console.error('Autofill error:', err);
+            autofillStatus.innerHTML = `❌ ${err.message || 'Could not read screenshot. Try a clearer image.'}`;
+            autofillStatus.style.color = '#dc2626';
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
 
     function setStep(newStep){
