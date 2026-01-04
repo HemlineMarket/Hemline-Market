@@ -64,13 +64,6 @@ export default async function handler(req, res) {
     // Look for common product info patterns
     let productSection = "";
     
-    // Try to find price
-    const priceMatch = html.match(/["']price["']\s*:\s*["']?(\d+\.?\d*)["']?/i) ||
-                       html.match(/\$(\d+\.?\d*)\s*(?:\/\s*yard|per\s*yard)/i);
-    if (priceMatch) {
-      productSection += `PRICE FOUND: $${priceMatch[1]}\n`;
-    }
-
     // Try to find product specs/details section
     const specsMatch = html.match(/(?:product[- ]?details|specifications|product[- ]?info|fabric[- ]?details)[^<]*<[^>]*>([\s\S]{0,5000})/i);
     if (specsMatch) {
@@ -110,26 +103,27 @@ I've provided structured data (if found), meta tags, and extracted patterns, plu
 EXTRACTION RULES:
 1. ONLY extract information that is EXPLICITLY and CLEARLY stated
 2. If you cannot find a value with HIGH CONFIDENCE, use null - don't guess!
-3. For PRICE: Look for the main product price PER YARD. Mood Fabrics prices are typically $15-150/yard. If you see a price, verify it makes sense for fabric.
-4. For WIDTH: Usually 44", 45", 54", 58", 60" for fashion fabrics. Look for "Width: XX" or "XX inches wide"
-5. For CONTENT: Look for fiber percentages like "100% Polyester" or "60% Nylon, 40% Metallic"
-6. For WEIGHT: Look for GSM, g/m², oz/yd², or descriptions like "light/medium/heavy weight"
-7. DO NOT copy descriptions verbatim - write a fresh description
+3. DO NOT extract price - we will leave that for the user to fill in
+4. For WIDTH: Look for "Width:" followed by a number, usually 44", 45", 54", 58", 60" for fashion fabrics
+5. For CONTENT: Look for "Content:" followed by percentages like "60% Lurex, 40% Polyester"
+6. For WEIGHT: Look for "Weight:" or "GSM" or "Industry Weight:" followed by a number
+7. For PATTERN: Look for "Pattern:" field
+8. DO NOT copy descriptions verbatim - write a fresh description based on the facts
 
 Return ONLY valid JSON (no markdown, no explanation):
 {
   "title": "exact product title",
-  "content": ["Polyester", "Nylon", "Lurex"] or null,
+  "content": ["Lurex", "Polyester"] or null,
   "fabricType": ["Brocade", "Metallic / Lame"] or null,
-  "width": 54 or null,
-  "gsm": 200 or null,
+  "width": 60 or null,
+  "gsm": 62 or null,
   "origin": "Italy" or null,
   "designer": "brand name" or null,
-  "price": 49.98 or null,
-  "pattern": "Damask" or null,
+  "pattern": "Geometric" or null,
   "department": "Apparel" or null,
   "fiberType": "Synthetic" or null,
-  "suggestedDescription": "1-2 sentence original description of this fabric"
+  "colorFamily": "Brown" or null,
+  "suggestedDescription": "1-2 sentence original description based on the fabric's characteristics and suggested uses"
 }
 
 VALID content values: Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
