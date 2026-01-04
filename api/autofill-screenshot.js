@@ -17,10 +17,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { image } = req.body || {};
+  const { image, images } = req.body || {};
 
-  if (!image) {
-    return res.status(400).json({ error: "Image is required" });
+  // Support both single image and array of images
+  const imageArray = images || (image ? [image] : []);
+  
+  if (imageArray.length === 0) {
+    return res.status(400).json({ error: "At least one image is required" });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -29,18 +32,32 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Extract base64 data and media type
-    const matches = image.match(/^data:([^;]+);base64,(.+)$/);
-    if (!matches) {
-      return res.status(400).json({ error: "Invalid image format" });
+    // Build content array with all images
+    const content = [];
+    
+    for (const img of imageArray) {
+      const matches = img.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) {
+        continue; // Skip invalid images
+      }
+      
+      content.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: matches[1],
+          data: matches[2]
+        }
+      });
     }
     
-    const mediaType = matches[1];
-    const base64Data = matches[2];
+    if (content.length === 0) {
+      return res.status(400).json({ error: "No valid images provided" });
+    }
 
-    const prompt = `You are looking at a screenshot of a fabric product page (likely from Mood Fabrics, Fabric.com, or similar).
+    const prompt = `You are looking at ${content.length} screenshot${content.length > 1 ? 's' : ''} of a fabric product page (likely from Mood Fabrics, Fabric.com, or similar).
 
-Extract ALL fabric details you can see and return them as JSON. Be accurate - only include fields you can clearly see.
+Extract ALL fabric details you can see across all images and return them as JSON. Be accurate - only include fields you can clearly see.
 
 Return ONLY valid JSON in this format (include only fields you find):
 {
@@ -84,6 +101,12 @@ IMPORTANT FIELD MAPPINGS:
 
 Return ONLY the JSON object, no other text.`;
 
+    // Add the prompt to the content array
+    content.push({
+      type: "text",
+      text: prompt
+    });
+
     const claudeResp = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: {
@@ -96,20 +119,7 @@ Return ONLY the JSON object, no other text.`;
         max_tokens: 1024,
         messages: [{
           role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType,
-                data: base64Data
-              }
-            },
-            {
-              type: "text",
-              text: prompt
-            }
-          ]
+          content: content
         }]
       })
     });
