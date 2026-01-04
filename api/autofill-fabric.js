@@ -272,31 +272,50 @@ function parseMoodProduct(product) {
     console.log("Found GSM:", result.gsm);
   }
 
-  // Extract Fiber Type
+  // Extract Fiber Type - options: Natural, Modified Natural, Synthetic, Blend
   const fiberTypeMatch = decodedHtml.match(/Fiber\s*Type:?\s*<\/strong>\s*:?\s*([^<\n]+)/i) ||
                          decodedHtml.match(/Fiber\s*Type:?\s*:?\s*(\w+)/i);
   if (fiberTypeMatch) {
-    const ft = fiberTypeMatch[1].trim();
-    if (ft.toLowerCase().includes('synthetic')) result.fiberType = 'Synthetic';
-    else if (ft.toLowerCase().includes('natural')) result.fiberType = 'Natural';
-    else if (ft.toLowerCase().includes('blend')) result.fiberType = 'Blend';
+    const ft = fiberTypeMatch[1].trim().toLowerCase();
+    if (ft.includes('synthetic')) result.fiberType = 'Synthetic';
+    else if (ft.includes('natural') && ft.includes('modified')) result.fiberType = 'Modified Natural';
+    else if (ft.includes('natural')) result.fiberType = 'Natural';
+    else if (ft.includes('blend')) result.fiberType = 'Blend';
     console.log("Found fiber type:", result.fiberType);
   }
+  
+  // If no explicit fiber type, infer from content
+  if (!result.fiberType && result.content) {
+    const natural = ['Cotton', 'Silk', 'Wool', 'Linen', 'Cashmere', 'Alpaca', 'Hemp', 'Jute', 'Ramie'];
+    const modifiedNatural = ['Rayon', 'Viscose', 'Modal', 'Tencel', 'Lyocell', 'Cupro', 'Acetate', 'Triacetate', 'Bamboo'];
+    const synthetic = ['Polyester', 'Nylon', 'Acrylic', 'Spandex / Elastane', 'Lurex'];
+    
+    const hasNatural = result.content.some(c => natural.includes(c));
+    const hasModified = result.content.some(c => modifiedNatural.includes(c));
+    const hasSynthetic = result.content.some(c => synthetic.includes(c));
+    
+    const count = [hasNatural, hasModified, hasSynthetic].filter(Boolean).length;
+    if (count > 1) {
+      result.fiberType = 'Blend';
+    } else if (hasSynthetic) {
+      result.fiberType = 'Synthetic';
+    } else if (hasModified) {
+      result.fiberType = 'Modified Natural';
+    } else if (hasNatural) {
+      result.fiberType = 'Natural';
+    }
+  }
 
-  // Extract Pattern
+  // Extract Pattern - only Solid or Printed
   const patternMatch = decodedHtml.match(/Pattern:?\s*<\/strong>\s*:?\s*([^<\n]+)/i) ||
                        decodedHtml.match(/Pattern:?\s*:?\s*([^<\n]+)/i);
   if (patternMatch) {
-    const patternStr = patternMatch[1].trim();
-    const validPatterns = ['Abstract', 'Animal', 'Camouflage', 'Check', 'Damask', 'Floral', 'Geometric', 'Houndstooth', 'Paisley', 'Plaid', 'Polka Dot', 'Solid', 'Stripes', 'Tie Dye', 'Toile'];
-    for (const p of validPatterns) {
-      if (patternStr.toLowerCase().includes(p.toLowerCase())) {
-        result.pattern = p;
-        break;
-      }
-    }
-    if (!result.pattern && patternStr.toLowerCase().includes('miscellaneous')) {
-      result.pattern = 'Other';
+    const patternStr = patternMatch[1].trim().toLowerCase();
+    // Only "Solid" stays as Solid, everything else is "Printed"
+    if (patternStr === 'solid') {
+      result.pattern = 'Solid';
+    } else {
+      result.pattern = 'Printed';
     }
     console.log("Found pattern:", result.pattern);
   }
@@ -316,27 +335,27 @@ function parseMoodProduct(product) {
     console.log("Found color:", result.colorFamily);
   }
 
-  // Get price from variants
+  // Get price from variants - put in origPrice (original retail), not price (user's selling price)
   if (product.variants && product.variants.length > 0) {
     const price = parseFloat(product.variants[0].price);
     if (price > 0) {
-      result.price = price;
-      console.log("Found price:", result.price);
+      result.origPrice = price;
+      console.log("Found original price:", result.origPrice);
     }
   }
 
-  // Detect fabric type from title and body
-  const fabricTypes = ['Brocade', 'Canvas', 'Charmeuse', 'Chiffon', 'Corduroy', 'Crepe', 'Denim', 'Flannel', 'Fleece', 'Gabardine', 'Jersey', 'Knit', 'Lace', 'Lining', 'Mesh', 'Organza', 'Ponte', 'Satin', 'Scuba', 'Suiting', 'Tulle', 'Tweed', 'Twill', 'Velvet', 'Vinyl', 'Voile', 'Woven'];
+  // Detect fabric type from TITLE ONLY (not body, which has words like "lining recommended")
+  const fabricTypes = ['Brocade', 'Canvas', 'Charmeuse', 'Chiffon', 'Corduroy', 'Crepe', 'Denim', 'Flannel', 'Fleece', 'Gabardine', 'Jersey', 'Knit', 'Lace', 'Mesh', 'Organza', 'Ponte', 'Satin', 'Scuba', 'Suiting', 'Tulle', 'Tweed', 'Twill', 'Velvet', 'Vinyl', 'Voile', 'Woven'];
   const foundTypes = [];
-  const searchText = (product.title + ' ' + decodedHtml).toLowerCase();
+  const titleLower = (product.title || '').toLowerCase();
   
   for (const ft of fabricTypes) {
-    if (searchText.includes(ft.toLowerCase())) {
+    if (titleLower.includes(ft.toLowerCase())) {
       foundTypes.push(ft);
     }
   }
-  // Check for Metallic / Lame
-  if (searchText.includes('lame') || searchText.includes('metallic')) {
+  // Check for Metallic / Lame in title
+  if (titleLower.includes('lame') || titleLower.includes('metallic')) {
     foundTypes.push('Metallic / Lame');
   }
   if (foundTypes.length > 0) {
@@ -344,16 +363,17 @@ function parseMoodProduct(product) {
     console.log("Found fabric types:", result.fabricType);
   }
 
-  // Department from product_type or body
+  // Department from product_type - options are: Fashion, Home, Quilting, Notions
   if (product.product_type) {
     const pt = product.product_type.toLowerCase();
-    if (pt.includes('fashion') || pt.includes('apparel')) result.department = 'Apparel';
-    else if (pt.includes('home')) result.department = 'Home Dec';
-    else if (pt.includes('bridal')) result.department = 'Bridal';
-    else if (pt.includes('costume')) result.department = 'Costume';
+    if (pt.includes('fashion') || pt.includes('apparel') || pt.includes('fabric') || pt.includes('brocade')) result.department = 'Fashion';
+    else if (pt.includes('home') || pt.includes('decor')) result.department = 'Home';
+    else if (pt.includes('quilt')) result.department = 'Quilting';
+    else if (pt.includes('notion')) result.department = 'Notions';
   }
-  if (!result.department && searchText.includes('fashion fabric')) {
-    result.department = 'Apparel';
+  // Fallback: if it's from moodfabrics and no department set, default to Fashion
+  if (!result.department) {
+    result.department = 'Fashion';
   }
 
   // Generate description - get first paragraph from body
