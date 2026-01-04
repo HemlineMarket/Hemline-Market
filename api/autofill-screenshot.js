@@ -71,10 +71,19 @@ Return ONLY valid JSON in this format (include only fields you find):
   "department": "Fashion",
   "fiberType": "Synthetic",
   "colorFamily": ["Brown", "Gold"],
-  "description": "Brief description of the fabric",
+  "description": "FULL description - see instructions below",
+  "stretch": "None or 2-way or 4-way",
+  "opacity": "Opaque or Semi-opaque or Translucent or Sheer",
+  "suggestedProjects": "Gowns, Jackets, Skirts",
   "designer": "Designer or mill name if shown",
   "origin": "Italy"
 }
+
+DESCRIPTION FIELD - IMPORTANT:
+- Extract the COMPLETE description text from the page
+- Include ALL paragraphs - the full product description
+- Include details about hand feel, drape, suggested uses, etc.
+- This should be multiple sentences capturing everything written about the fabric
 
 IMPORTANT FIELD MAPPINGS:
 - content: The fiber composition (e.g., "60% Lurex, 40% Polyester" → ["Lurex", "Polyester"])
