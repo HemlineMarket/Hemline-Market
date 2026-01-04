@@ -4,6 +4,28 @@
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
+// Rate limiting - stricter for contact form to prevent spam
+// 5 requests per IP per minute
+const WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS = 5;
+const rateBuckets = new Map();
+
+function checkRateLimit(req) {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket?.remoteAddress || "unknown";
+  const now = Date.now();
+  const bucket = rateBuckets.get(ip) || { count: 0, expires: now + WINDOW_MS };
+
+  if (now > bucket.expires) {
+    bucket.count = 0;
+    bucket.expires = now + WINDOW_MS;
+  }
+
+  bucket.count++;
+  rateBuckets.set(ip, bucket);
+
+  return bucket.count <= MAX_REQUESTS;
+}
+
 // Basic email check (good enough for form validation)
 function looksLikeEmail(s) {
   return typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -44,6 +66,11 @@ module.exports = async (req, res) => {
 
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
+
+  // Rate limit check - prevent spam
+  if (!checkRateLimit(req)) {
+    return res.status(429).json({ ok: false, error: "Too many requests. Please try again later." });
   }
 
   try {
