@@ -108,6 +108,12 @@
     @media (max-width:980px){
       .grid{grid-template-columns:1fr;}
     }
+    @media (max-width:600px){
+      .step{padding:12px !important;}
+      .field{margin-bottom:16px;}
+      #screenshotDropZone{padding:16px 12px;}
+      #autofillActions{flex-wrap:wrap;}
+    }
 
     .card{
       background:#fff;
@@ -1127,8 +1133,47 @@
         files.forEach(file => {
           const reader = new FileReader();
           reader.onload = (e) => {
-            screenshots.push(e.target.result);
-            renderPreviews();
+            // Compress image to reduce payload size (especially for mobile)
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const maxSize = 1500; // Max dimension
+              let width = img.width;
+              let height = img.height;
+              
+              // Scale down if needed
+              if (width > maxSize || height > maxSize) {
+                if (width > height) {
+                  height = Math.round(height * maxSize / width);
+                  width = maxSize;
+                } else {
+                  width = Math.round(width * maxSize / height);
+                  height = maxSize;
+                }
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              
+              // Convert to JPEG at 85% quality
+              const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+              screenshots.push(compressedBase64);
+              renderPreviews();
+            };
+            img.onerror = () => {
+              // Fallback: use original if compression fails
+              screenshots.push(e.target.result);
+              renderPreviews();
+            };
+            img.src = e.target.result;
+          };
+          reader.onerror = () => {
+            console.error('Error reading file:', file.name);
+            autofillStatus.innerHTML = '❌ Error reading image file. Please try again.';
+            autofillStatus.style.color = '#dc2626';
+            autofillStatus.style.display = 'block';
           };
           reader.readAsDataURL(file);
         });
@@ -1180,7 +1225,12 @@
             body: JSON.stringify({ images: screenshots })
           });
           
-          const data = await resp.json();
+          let data;
+          try {
+            data = await resp.json();
+          } catch(parseErr) {
+            throw new Error('Server returned invalid response. The image may be too large - try a smaller screenshot.');
+          }
           
           if(!resp.ok || data.error){
             throw new Error(data.error || 'Failed to extract fabric details');
