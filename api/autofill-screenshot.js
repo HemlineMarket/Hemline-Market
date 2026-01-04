@@ -71,7 +71,7 @@ Return ONLY valid JSON in this format (include only fields you find):
   "department": "Fashion",
   "fiberType": "Synthetic",
   "colorFamily": ["Brown", "Gold"],
-  "description": "FULL description - see instructions below",
+  "description": "YOUR ORIGINAL rewritten description - see instructions below",
   "stretch": "None or 2-way or 4-way",
   "opacity": "Opaque or Semi-opaque or Translucent or Sheer",
   "suggestedProjects": "Gowns, Jackets, Skirts",
@@ -79,11 +79,14 @@ Return ONLY valid JSON in this format (include only fields you find):
   "origin": "Italy"
 }
 
-DESCRIPTION FIELD - IMPORTANT:
-- Extract the COMPLETE description text from the page
-- Include ALL paragraphs - the full product description
-- Include details about hand feel, drape, suggested uses, etc.
-- This should be multiple sentences capturing everything written about the fabric
+DESCRIPTION FIELD - CRITICAL COPYRIGHT REQUIREMENT:
+- Do NOT copy text from the screenshots verbatim
+- REWRITE the description in your own words while preserving all the key information
+- Include: hand feel, drape, weight, stretch, opacity, and best project uses
+- Make it sound natural and original, like a seller describing their own fabric
+- Keep it 3-5 sentences
+- Example input: "This luxurious brocade features ornate chandeliers with a tactile hand and voluminous drape"
+- Example output: "A stunning brocade with an intricate chandelier motif. The fabric has excellent body with a soft, textured hand and flows beautifully. No stretch, semi-sheer - consider lining for structured garments. Perfect for evening jackets, formal skirts, and statement pieces."
 
 IMPORTANT FIELD MAPPINGS:
 - content: The fiber composition (e.g., "60% Lurex, 40% Polyester" → ["Lurex", "Polyester"])
