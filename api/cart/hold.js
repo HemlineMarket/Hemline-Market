@@ -48,19 +48,21 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Invalid listing_id format" });
       }
 
-      // Delete any existing hold for this listing first
-      await supabaseAdmin
-        .from("cart_holds")
-        .delete()
-        .eq("listing_id", listing_id);
-
-      // Create new hold (no expiry - lasts until item removed from cart or purchased)
+      // Use upsert to atomically create or update hold (prevents race condition)
+      // This requires a unique constraint on listing_id in the cart_holds table
       const { data, error } = await supabaseAdmin
         .from("cart_holds")
-        .insert({ 
-          listing_id, 
-          user_id: user_id || null
-        })
+        .upsert(
+          { 
+            listing_id, 
+            user_id: user_id || null,
+            created_at: new Date().toISOString()
+          },
+          { 
+            onConflict: "listing_id",
+            ignoreDuplicates: false  // Update if exists
+          }
+        )
         .select()
         .single();
 
