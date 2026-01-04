@@ -927,7 +927,7 @@
 
     // Cosplay-friendly fabric definitions
     // These are fabrics commonly used for costumes, cosplay, and theater
-    // Only match on Fabric Type and Feels Like - not fiber content
+    // Match on Fabric Type, Feels Like, and Lurex content (metallic fiber)
     const COSPLAY_FABRIC_TYPES = [
       "Brocade", "Charmeuse", "Chiffon", "Faux Fur", "Faux Leather",
       "Fleece", "Jersey", "Lace", "Mesh", "Metallic / Lame", "Minky",
@@ -941,6 +941,9 @@
       "organza", "ponte", "satin", "scuba", "spandex / lycra", "tulle",
       "velvet / velour", "vinyl"
     ];
+
+    // Only Lurex - specifically a costume/metallic fiber
+    const COSPLAY_CONTENTS = ["lurex"];
 
     const selectedContents = new Set();
     const selectedColors = new Set();
@@ -1347,6 +1350,7 @@
         if(isCosplayFilterOn){
           // Check if listing matches any cosplay-friendly criteria
           const fabricType = (l.fabric_type || "").trim().toLowerCase();
+          const content = (l.content || "").toLowerCase();
           
           // Check fabric type (satin, velvet, etc.)
           const matchesFabricType = COSPLAY_FABRIC_TYPES.some(t => 
@@ -1365,8 +1369,13 @@
             COSPLAY_FEELS_LIKE.includes(f)
           );
           
-          // Must match fabric type OR feels like
-          if(!matchesFabricType && !matchesFeelsLike){
+          // Check content for Lurex (metallic fiber)
+          const matchesContent = COSPLAY_CONTENTS.some(c => 
+            content.includes(c)
+          );
+          
+          // Must match fabric type OR feels like OR lurex content
+          if(!matchesFabricType && !matchesFeelsLike && !matchesContent){
             return false;
           }
         }
