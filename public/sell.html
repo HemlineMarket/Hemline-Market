@@ -379,6 +379,22 @@
 
         <!-- STEP 2 -->
         <div class="step step-2" hidden>
+          <!-- AUTO-FILL FROM URL -->
+          <div class="field" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div class="label-row">
+              <label style="font-weight:600;">🔗 Have a link to the original fabric?</label>
+              <span class="subtle" style="font-size:12px">(optional)</span>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <input id="autofillUrl" type="url" placeholder="Paste URL from Mood, Joann, Fabric.com, etc." style="flex:1;">
+              <button type="button" id="autofillBtn" class="btn" style="white-space:nowrap;">
+                Auto-fill
+              </button>
+            </div>
+            <div id="autofillStatus" style="margin-top:8px;font-size:12px;display:none;"></div>
+            <div class="subtle" style="margin-top:6px;">We'll extract fabric details from the page to save you time.</div>
+          </div>
+
           <div class="field">
             <div class="label-row"><label for="title">Title</label><span class="req">Required</span></div>
             <input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy">
@@ -403,6 +419,11 @@
           <div class="field">
             <div class="label-row"><label for="yards">Yards</label><span class="req">Required</span></div>
             <input id="yards" type="number" min="0" step="0.25" placeholder="1.5">
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+              <input id="yardsInches" type="number" min="0" step="1" placeholder="inches" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
+              <button type="button" class="btn" id="convertInchesBtn" style="padding:8px 12px;font-size:12px;">in → yards</button>
+            </div>
+            <div class="subtle" style="margin-top:4px;font-size:11px;">36 inches = 1 yard</div>
             <div id="err_yards" class="help-error" style="display:none">Enter yards greater than 0.</div>
           </div>
 
@@ -562,6 +583,11 @@
             <div class="field">
               <label for="width">Width (in)</label>
               <input id="width" type="number" min="0" step="1">
+              <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+                <input id="widthCm" type="number" min="0" step="1" placeholder="cm" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
+                <button type="button" class="btn" id="convertCmBtn" style="padding:8px 12px;font-size:12px;">cm → in</button>
+              </div>
+              <div class="subtle" style="margin-top:4px;font-size:11px;">1 inch = 2.54 cm</div>
             </div>
 
             <div class="field">
@@ -864,6 +890,161 @@
         if(!isNaN(ozVal) && ozVal > 0){
           gsmInput.value = Math.round(ozVal * 33.906);
           weightOzInput.value = '';
+        }
+      });
+    }
+
+    // Inches to Yards conversion (36 inches = 1 yard)
+    const convertInchesBtn = document.getElementById('convertInchesBtn');
+    const yardsInchesInput = document.getElementById('yardsInches');
+    if(convertInchesBtn && yardsInchesInput && yardsInput){
+      convertInchesBtn.addEventListener('click', ()=>{
+        const inchVal = parseFloat(yardsInchesInput.value);
+        if(!isNaN(inchVal) && inchVal > 0){
+          yardsInput.value = (inchVal / 36).toFixed(2);
+          yardsInchesInput.value = '';
+        }
+      });
+    }
+
+    // CM to Inches conversion (1 inch = 2.54 cm)
+    const convertCmBtn = document.getElementById('convertCmBtn');
+    const widthCmInput = document.getElementById('widthCm');
+    if(convertCmBtn && widthCmInput && widthInput){
+      convertCmBtn.addEventListener('click', ()=>{
+        const cmVal = parseFloat(widthCmInput.value);
+        if(!isNaN(cmVal) && cmVal > 0){
+          widthInput.value = Math.round(cmVal / 2.54);
+          widthCmInput.value = '';
+        }
+      });
+    }
+
+    // Auto-fill from URL
+    const autofillBtn = document.getElementById('autofillBtn');
+    const autofillUrlInput = document.getElementById('autofillUrl');
+    const autofillStatus = document.getElementById('autofillStatus');
+    
+    if(autofillBtn && autofillUrlInput){
+      autofillBtn.addEventListener('click', async ()=>{
+        const url = autofillUrlInput.value.trim();
+        if(!url){
+          autofillStatus.textContent = '⚠️ Please paste a URL first';
+          autofillStatus.style.color = '#b45309';
+          autofillStatus.style.display = 'block';
+          return;
+        }
+        
+        // Validate URL format
+        try {
+          new URL(url);
+        } catch(e) {
+          autofillStatus.textContent = '⚠️ Please enter a valid URL';
+          autofillStatus.style.color = '#b45309';
+          autofillStatus.style.display = 'block';
+          return;
+        }
+        
+        autofillBtn.disabled = true;
+        autofillBtn.textContent = 'Fetching...';
+        autofillStatus.innerHTML = '⏳ Extracting fabric details from page...';
+        autofillStatus.style.color = '#6b7280';
+        autofillStatus.style.display = 'block';
+        
+        try {
+          const resp = await fetch('/api/autofill-fabric', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          });
+          
+          const data = await resp.json();
+          
+          if(!resp.ok || data.error){
+            throw new Error(data.error || 'Failed to extract fabric details');
+          }
+          
+          // Fill in the form fields
+          let filledCount = 0;
+          
+          if(data.title && !titleInput.value){
+            titleInput.value = data.title;
+            filledCount++;
+          }
+          
+          if(data.description && !descInput.value){
+            descInput.value = data.description;
+            filledCount++;
+          }
+          
+          if(data.price && !document.getElementById('origPrice').value){
+            document.getElementById('origPrice').value = data.price;
+            filledCount++;
+          }
+          
+          if(data.width && !widthInput.value){
+            widthInput.value = data.width;
+            filledCount++;
+          }
+          
+          if(data.gsm && !gsmInput.value){
+            gsmInput.value = data.gsm;
+            filledCount++;
+          }
+          
+          if(data.designer && !designerInput.value){
+            designerInput.value = data.designer;
+            filledCount++;
+          }
+          
+          if(data.origin){
+            const originSelect = document.getElementById('origin');
+            if(originSelect){
+              const opt = Array.from(originSelect.options).find(o => 
+                o.value.toLowerCase() === data.origin.toLowerCase() ||
+                o.text.toLowerCase() === data.origin.toLowerCase()
+              );
+              if(opt) {
+                originSelect.value = opt.value;
+                filledCount++;
+              }
+            }
+          }
+          
+          // Content checkboxes
+          if(data.content && Array.isArray(data.content)){
+            data.content.forEach(c => {
+              const cb = document.querySelector(`#contentGroup input[value="${c}"]`) ||
+                         document.querySelector(`#contentGroup input[value*="${c}"]`);
+              if(cb && !cb.checked){
+                cb.checked = true;
+                filledCount++;
+              }
+            });
+          }
+          
+          // Fabric type checkboxes
+          if(data.fabricType && Array.isArray(data.fabricType)){
+            data.fabricType.forEach(ft => {
+              const cb = document.querySelector(`#fabricTypeGroup input[value="${ft}"]`) ||
+                         document.querySelector(`#fabricTypeGroup input[value*="${ft}"]`);
+              if(cb && !cb.checked){
+                cb.checked = true;
+                filledCount++;
+              }
+            });
+          }
+          
+          autofillStatus.innerHTML = `✅ Filled ${filledCount} field${filledCount !== 1 ? 's' : ''}! Review and adjust as needed.`;
+          autofillStatus.style.color = '#059669';
+          
+        } catch(err) {
+          console.error('Autofill error:', err);
+          autofillStatus.innerHTML = `❌ ${err.message || 'Could not extract details. Try filling manually.'}`;
+          autofillStatus.style.color = '#dc2626';
+        } finally {
+          autofillBtn.disabled = false;
+          autofillBtn.textContent = 'Auto-fill';
         }
       });
     }
