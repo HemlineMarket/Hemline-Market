@@ -1,10 +1,20 @@
 // FILE: api/listings/comment.js
 // FIX: Added JWT authentication and author_id validation (BUG #7)
+// FIX: Added server-side HTML sanitization for XSS prevention
 // Insert a listing comment + notify seller
 //
 // CHANGE: Now requires valid JWT token, and author_id must match authenticated user
 
 import { createClient } from "@supabase/supabase-js";
+
+// Sanitize HTML to prevent XSS - removes < and > characters
+function sanitizeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .trim();
+}
 
 function getSupabaseAdmin() {
   return createClient(
@@ -54,6 +64,17 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "Cannot post comments as another user" });
     }
 
+    // FIX: Sanitize comment body to prevent stored XSS
+    const sanitizedBody = sanitizeHtml(body);
+    
+    if (!sanitizedBody || sanitizedBody.length === 0) {
+      return res.status(400).json({ error: "Comment body is required" });
+    }
+    
+    if (sanitizedBody.length > 2000) {
+      return res.status(400).json({ error: "Comment too long (max 2000 characters)" });
+    }
+
     // ---------------------------------
     // 1. Insert comment into table
     // ---------------------------------
@@ -62,7 +83,7 @@ export default async function handler(req, res) {
       .insert({
         listing_id,
         author_id,
-        body
+        body: sanitizedBody
       })
       .select("*")
       .single();
@@ -97,7 +118,7 @@ export default async function handler(req, res) {
         type: "listing_comment",
         kind: "comment",
         title: "New comment on your listing",
-        body,
+        body: sanitizedBody,
         href: `listing.html?id=${listing_id}`,
         link: `listing.html?id=${listing_id}`,
         metadata: {
