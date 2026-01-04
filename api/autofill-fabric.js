@@ -1,6 +1,6 @@
 // api/autofill-fabric.js
 // Fetches a fabric product page and uses Claude to extract structured fabric details
-// Returns: { title, content[], fabricType[], width, gsm, origin, designer, price, description }
+// Returns: { title, content[], fabricType[], width, gsm, origin, designer, price, description, pattern, department }
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
@@ -46,8 +46,52 @@ export default async function handler(req, res) {
 
     const html = await pageResp.text();
 
-    // Truncate HTML to avoid token limits (keep first ~60k chars which should include product details)
-    const truncatedHtml = html.substring(0, 60000);
+    // Try to extract JSON-LD structured data first (most reliable)
+    let structuredData = "";
+    const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    if (jsonLdMatches) {
+      structuredData = "STRUCTURED DATA (JSON-LD) FOUND:\n" + jsonLdMatches.join("\n") + "\n\n";
+    }
+
+    // Extract meta tags
+    let metaTags = "";
+    const metaMatches = html.match(/<meta[^>]*(property|name)=["'][^"']*["'][^>]*>/gi);
+    if (metaMatches) {
+      metaTags = "META TAGS:\n" + metaMatches.slice(0, 30).join("\n") + "\n\n";
+    }
+
+    // Extract product-related sections more intelligently
+    // Look for common product info patterns
+    let productSection = "";
+    
+    // Try to find price
+    const priceMatch = html.match(/["']price["']\s*:\s*["']?(\d+\.?\d*)["']?/i) ||
+                       html.match(/\$(\d+\.?\d*)\s*(?:\/\s*yard|per\s*yard)/i);
+    if (priceMatch) {
+      productSection += `PRICE FOUND: $${priceMatch[1]}\n`;
+    }
+
+    // Try to find product specs/details section
+    const specsMatch = html.match(/(?:product[- ]?details|specifications|product[- ]?info|fabric[- ]?details)[^<]*<[^>]*>([\s\S]{0,5000})/i);
+    if (specsMatch) {
+      productSection += "PRODUCT SPECS SECTION:\n" + specsMatch[0].substring(0, 3000) + "\n\n";
+    }
+
+    // Look for width pattern
+    const widthMatch = html.match(/width[:\s]*(\d+(?:\.\d+)?)\s*(?:inches|in|")/i) ||
+                       html.match(/(\d+)["']\s*wide/i);
+    if (widthMatch) {
+      productSection += `WIDTH FOUND: ${widthMatch[1]} inches\n`;
+    }
+
+    // Look for content/composition
+    const contentMatch = html.match(/(?:content|composition|material)[:\s]*([^<]{10,200})/i);
+    if (contentMatch) {
+      productSection += `CONTENT FOUND: ${contentMatch[1]}\n`;
+    }
+
+    // Truncate main HTML but keep important parts
+    const truncatedHtml = html.substring(0, 40000);
 
     // Check for Anthropic API key
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -55,39 +99,53 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "AI extraction not configured" });
     }
 
+    // Build context for Claude
+    const context = structuredData + metaTags + productSection + "\n\nRAW HTML (truncated):\n" + truncatedHtml;
+
     // Use Claude to extract fabric details
-    const prompt = `You are extracting fabric product information from a webpage HTML. This is for a fabric marketplace - accuracy is critical.
+    const prompt = `You are extracting fabric product information from a webpage. This is for a fabric resale marketplace - ACCURACY IS CRITICAL. Wrong data causes real problems.
 
-IMPORTANT RULES:
-1. Only extract information that is EXPLICITLY stated on the page
-2. If you cannot find a value with high confidence, use null
-3. For price: Look for the MAIN product price per yard (not shipping, not sale prices unless clearly marked). If price is per meter, multiply by 0.9144 to convert to per yard.
-4. For width: Usually shown as "Width: XX inches" or "XX in wide" or in centimeters (divide by 2.54)
-5. For content/fiber: Look for "Content:", "Composition:", "Material:", or fiber percentages like "100% Polyester"
-6. For weight: Look for GSM, g/m², oz/yd², or weight descriptions
-7. DO NOT make up or guess values - only extract what you can clearly see
+I've provided structured data (if found), meta tags, and extracted patterns, plus the raw HTML.
 
-Return ONLY a valid JSON object (no markdown, no explanation):
+EXTRACTION RULES:
+1. ONLY extract information that is EXPLICITLY and CLEARLY stated
+2. If you cannot find a value with HIGH CONFIDENCE, use null - don't guess!
+3. For PRICE: Look for the main product price PER YARD. Mood Fabrics prices are typically $15-150/yard. If you see a price, verify it makes sense for fabric.
+4. For WIDTH: Usually 44", 45", 54", 58", 60" for fashion fabrics. Look for "Width: XX" or "XX inches wide"
+5. For CONTENT: Look for fiber percentages like "100% Polyester" or "60% Nylon, 40% Metallic"
+6. For WEIGHT: Look for GSM, g/m², oz/yd², or descriptions like "light/medium/heavy weight"
+7. DO NOT copy descriptions verbatim - write a fresh description
+
+Return ONLY valid JSON (no markdown, no explanation):
 {
-  "title": "exact product title from page",
-  "content": ["Polyester", "Nylon"] or null if not found,
-  "fabricType": ["Brocade", "Metallic / Lame"] or null if not found,
-  "width": 54 (number in inches) or null,
-  "gsm": 200 (number) or null,
+  "title": "exact product title",
+  "content": ["Polyester", "Nylon", "Lurex"] or null,
+  "fabricType": ["Brocade", "Metallic / Lame"] or null,
+  "width": 54 or null,
+  "gsm": 200 or null,
   "origin": "Italy" or null,
-  "designer": "brand/mill name" or null,
-  "price": 49.98 (number per yard) or null,
-  "suggestedDescription": "A brief 1-2 sentence description of the fabric's characteristics and suggested uses - write this FRESH, do not copy from the page"
+  "designer": "brand name" or null,
+  "price": 49.98 or null,
+  "pattern": "Damask" or null,
+  "department": "Apparel" or null,
+  "fiberType": "Synthetic" or null,
+  "suggestedDescription": "1-2 sentence original description of this fabric"
 }
 
-VALID content values (match to these exactly): Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
+VALID content values: Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
 
-VALID fabricType values (match to these exactly): Brocade, Canvas, Charmeuse, Chiffon, Corduroy, Crepe, Denim, Double Knit, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Jersey, Knit, Lace, Lining, Mesh, Metallic / Lame, Minky, Organza, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
+VALID fabricType values: Brocade, Canvas, Charmeuse, Chiffon, Corduroy, Crepe, Denim, Double Knit, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Jersey, Knit, Lace, Lining, Mesh, Metallic / Lame, Minky, Organza, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
 
-VALID origin values: Italy, France, Japan, UK, USA, Spain, Portugal, Germany, Belgium, Switzerland, Netherlands, Korea, Australia, Canada, Brazil
+VALID origin: Italy, France, Japan, UK, USA, Spain, Portugal, Germany, Belgium, Switzerland, Netherlands, Korea, Australia, Canada, Brazil
 
-HTML to analyze:
-${truncatedHtml}`;
+VALID pattern: Abstract, Animal, Camouflage, Check, Damask, Floral, Geometric, Houndstooth, Paisley, Plaid, Polka Dot, Solid, Stripes, Tie Dye, Toile, Other
+
+VALID department: Apparel, Home Dec, Bridal, Costume
+
+VALID fiberType: Natural, Synthetic, Blend
+
+PAGE DATA:
+${context}`;
 
     const claudeResp = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
@@ -117,7 +175,6 @@ ${truncatedHtml}`;
     // Parse the JSON from Claude's response
     let fabricData;
     try {
-      // Try to extract JSON from the response (in case there's any wrapper text)
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         fabricData = JSON.parse(jsonMatch[0]);
@@ -129,7 +186,7 @@ ${truncatedHtml}`;
       return res.status(500).json({ error: "Could not parse fabric details" });
     }
 
-    // Clean up the response - remove null values and rename suggestedDescription to description
+    // Clean up the response
     const cleanData = {};
     for (const [key, value] of Object.entries(fabricData)) {
       if (value !== null && value !== undefined && value !== "") {
