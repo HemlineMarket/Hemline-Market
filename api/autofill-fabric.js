@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { url } = req.body || {};
+  const { url, debug } = req.body || {};
 
   if (!url) {
     return res.status(400).json({ error: "URL is required" });
@@ -48,24 +48,50 @@ export default async function handler(req, res) {
         console.log("Mood JSON response status:", jsonResp.status);
         
         if (jsonResp.ok) {
-          const data = await jsonResp.json();
-          const product = data.product;
+          const text = await jsonResp.text();
+          console.log("Mood JSON response length:", text.length);
           
-          console.log("Got Mood product:", product?.title);
-          console.log("Product tags:", product?.tags?.slice(0, 10));
-          console.log("Product body_html length:", product?.body_html?.length);
+          // Debug mode - return raw response
+          if (debug) {
+            return res.status(200).json({ 
+              debug: true, 
+              jsonUrl,
+              status: jsonResp.status,
+              responseLength: text.length,
+              responsePreview: text.substring(0, 2000)
+            });
+          }
           
-          if (product) {
-            // Parse Mood's product data directly
-            const result = parseMoodProduct(product);
-            console.log("Parsed result:", result);
-            return res.status(200).json(result);
+          if (text.length > 0) {
+            const data = JSON.parse(text);
+            const product = data.product;
+            
+            console.log("Got Mood product:", product?.title);
+            console.log("Product tags type:", typeof product?.tags);
+            console.log("Product tags:", product?.tags?.substring ? product.tags.substring(0, 200) : product?.tags?.slice(0, 10));
+            console.log("Product body_html length:", product?.body_html?.length);
+            
+            if (product) {
+              const result = parseMoodProduct(product);
+              console.log("Parsed result:", JSON.stringify(result));
+              return res.status(200).json(result);
+            }
           }
         } else {
           console.log("Mood JSON failed with status:", jsonResp.status);
+          if (debug) {
+            return res.status(200).json({ 
+              debug: true, 
+              error: "JSON endpoint failed",
+              status: jsonResp.status
+            });
+          }
         }
       } catch (e) {
-        console.log("Mood JSON failed, falling back to AI:", e.message);
+        console.log("Mood JSON error:", e.message);
+        if (debug) {
+          return res.status(200).json({ debug: true, error: e.message });
+        }
       }
     }
 
