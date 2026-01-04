@@ -223,22 +223,97 @@ function parseMoodProduct(product) {
     title: product.title || null
   };
 
-  // Get the HTML body content for parsing
+  // Get the HTML body content - this has all the specs!
   const bodyHtml = product.body_html || "";
+  
+  // Decode unicode escapes like \u003c to <
+  const decodedHtml = bodyHtml.replace(/\\u003c/g, '<').replace(/\\u003e/g, '>').replace(/\\n/g, '\n');
+  
+  console.log("Parsing body_html, length:", decodedHtml.length);
 
-  // Extract content/composition from body
-  const contentMatch = bodyHtml.match(/Content:\s*([^<]+)/i);
+  // Extract Content (e.g., "60% Lurex, 40% Polyester")
+  const contentMatch = decodedHtml.match(/Content:?\s*<\/strong>\s*([^<]+)/i) ||
+                       decodedHtml.match(/Content:?\s*([^<\n]+)/i);
   if (contentMatch) {
     const contentStr = contentMatch[1].trim();
-    // Parse "60% Lurex, 40% Polyester" into ["Lurex", "Polyester"]
-    const fibers = contentStr.match(/(\d+%?\s*)?(Acetate|Acrylic|Alpaca|Bamboo|Camel|Cashmere|Cotton|Cupro|Hemp|Jute|Leather|Linen|Lurex|Lyocell|Merino|Modal|Mohair|Nylon|Polyester|Ramie|Rayon|Silk|Spandex|Elastane|Tencel|Triacetate|Viscose|Wool|Yak)/gi);
-    if (fibers) {
-      result.content = [...new Set(fibers.map(f => {
-        const clean = f.replace(/\d+%?\s*/g, '').trim();
-        if (clean.toLowerCase() === 'elastane') return 'Spandex / Elastane';
-        return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
-      }))];
+    console.log("Found content string:", contentStr);
+    // Parse fibers from percentage string
+    const validFibers = ['Acetate', 'Acrylic', 'Alpaca', 'Bamboo', 'Camel', 'Cashmere', 'Cotton', 'Cupro', 'Hemp', 'Jute', 'Leather', 'Linen', 'Lurex', 'Lyocell', 'Merino', 'Modal', 'Mohair', 'Nylon', 'Polyester', 'Ramie', 'Rayon', 'Silk', 'Spandex', 'Elastane', 'Tencel', 'Triacetate', 'Viscose', 'Wool', 'Yak'];
+    const foundFibers = [];
+    for (const fiber of validFibers) {
+      if (contentStr.toLowerCase().includes(fiber.toLowerCase())) {
+        if (fiber === 'Elastane') {
+          foundFibers.push('Spandex / Elastane');
+        } else if (fiber === 'Spandex' && !foundFibers.includes('Spandex / Elastane')) {
+          foundFibers.push('Spandex / Elastane');
+        } else if (fiber !== 'Spandex' && fiber !== 'Elastane') {
+          foundFibers.push(fiber);
+        }
+      }
     }
+    if (foundFibers.length > 0) {
+      result.content = [...new Set(foundFibers)];
+    }
+  }
+
+  // Extract Width (e.g., "60" (152.4cm)")
+  const widthMatch = decodedHtml.match(/Width:?\s*<\/strong>\s*:?\s*(\d+)[""]?\s*\(?/i) ||
+                     decodedHtml.match(/Width:?\s*:?\s*(\d+)[""]?\s*\(?/i);
+  if (widthMatch) {
+    result.width = parseInt(widthMatch[1]);
+    console.log("Found width:", result.width);
+  }
+
+  // Extract Weight/GSM (e.g., "62 GSM")
+  const gsmMatch = decodedHtml.match(/(?:Industry\s*)?Weight:?\s*<\/strong>\s*:?\s*(\d+)\s*GSM/i) ||
+                   decodedHtml.match(/(\d+)\s*GSM/i);
+  if (gsmMatch) {
+    result.gsm = parseInt(gsmMatch[1]);
+    console.log("Found GSM:", result.gsm);
+  }
+
+  // Extract Fiber Type
+  const fiberTypeMatch = decodedHtml.match(/Fiber\s*Type:?\s*<\/strong>\s*:?\s*([^<\n]+)/i) ||
+                         decodedHtml.match(/Fiber\s*Type:?\s*:?\s*(\w+)/i);
+  if (fiberTypeMatch) {
+    const ft = fiberTypeMatch[1].trim();
+    if (ft.toLowerCase().includes('synthetic')) result.fiberType = 'Synthetic';
+    else if (ft.toLowerCase().includes('natural')) result.fiberType = 'Natural';
+    else if (ft.toLowerCase().includes('blend')) result.fiberType = 'Blend';
+    console.log("Found fiber type:", result.fiberType);
+  }
+
+  // Extract Pattern
+  const patternMatch = decodedHtml.match(/Pattern:?\s*<\/strong>\s*:?\s*([^<\n]+)/i) ||
+                       decodedHtml.match(/Pattern:?\s*:?\s*([^<\n]+)/i);
+  if (patternMatch) {
+    const patternStr = patternMatch[1].trim();
+    const validPatterns = ['Abstract', 'Animal', 'Camouflage', 'Check', 'Damask', 'Floral', 'Geometric', 'Houndstooth', 'Paisley', 'Plaid', 'Polka Dot', 'Solid', 'Stripes', 'Tie Dye', 'Toile'];
+    for (const p of validPatterns) {
+      if (patternStr.toLowerCase().includes(p.toLowerCase())) {
+        result.pattern = p;
+        break;
+      }
+    }
+    if (!result.pattern && patternStr.toLowerCase().includes('miscellaneous')) {
+      result.pattern = 'Other';
+    }
+    console.log("Found pattern:", result.pattern);
+  }
+
+  // Extract Color Family
+  const colorMatch = decodedHtml.match(/Color\s*Family:?\s*<\/strong>\s*:?\s*([^<\n]+)/i) ||
+                     decodedHtml.match(/Color\s*Family:?\s*:?\s*(\w+)/i);
+  if (colorMatch) {
+    const colorStr = colorMatch[1].trim();
+    const validColors = ['Black', 'Grey', 'Gray', 'White', 'Cream', 'Brown', 'Pink', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Gold', 'Silver'];
+    for (const c of validColors) {
+      if (colorStr.toLowerCase().includes(c.toLowerCase())) {
+        result.colorFamily = c === 'Gray' ? 'Grey' : c;
+        break;
+      }
+    }
+    console.log("Found color:", result.colorFamily);
   }
 
   // Get price from variants
@@ -246,137 +321,63 @@ function parseMoodProduct(product) {
     const price = parseFloat(product.variants[0].price);
     if (price > 0) {
       result.price = price;
+      console.log("Found price:", result.price);
     }
   }
 
-  // Parse tags - handle both array and comma-separated string
-  let tags = product.tags || [];
-  if (typeof tags === 'string') {
-    tags = tags.split(',').map(t => t.trim());
-  }
-  
-  console.log("Processing tags:", tags.length, "tags");
-  
-  // Width - look for pattern like "60" (152.4cm)" or just "60""
-  for (const tag of tags) {
-    const widthMatch = tag.match(/^(\d+)["'']?\s*\(?/);
-    if (widthMatch && parseInt(widthMatch[1]) >= 36 && parseInt(widthMatch[1]) <= 120) {
-      result.width = parseInt(widthMatch[1]);
-      console.log("Found width:", result.width);
-      break;
-    }
-  }
-
-  // GSM - look for "62 GSM" pattern
-  for (const tag of tags) {
-    const gsmMatch = tag.match(/^(\d+)\s*GSM$/i);
-    if (gsmMatch) {
-      result.gsm = parseInt(gsmMatch[1]);
-      console.log("Found GSM:", result.gsm);
-      break;
-    }
-  }
-
-  // Pattern
-  const patternTags = ['Abstract', 'Animal', 'Camouflage', 'Check', 'Damask', 'Floral', 'Geometric', 'Houndstooth', 'Paisley', 'Plaid', 'Polka Dot', 'Solid', 'Stripes', 'Tie Dye', 'Toile', 'Miscellaneous'];
-  for (const tag of tags) {
-    for (const p of patternTags) {
-      if (tag.toLowerCase().includes(p.toLowerCase())) {
-        result.pattern = p === 'Miscellaneous' ? 'Other' : p;
-        console.log("Found pattern:", result.pattern);
-        break;
-      }
-    }
-    if (result.pattern) break;
-  }
-
-  // Color family
-  const colorTags = ['Black', 'Gray', 'Grey', 'White', 'Cream', 'Brown', 'Pink', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Gold', 'Silver', 'Copper'];
-  for (const tag of tags) {
-    for (const c of colorTags) {
-      if (tag.toLowerCase() === c.toLowerCase() || tag.toLowerCase().startsWith(c.toLowerCase() + ',')) {
-        result.colorFamily = c === 'Grey' ? 'Grey' : (c === 'Copper' ? 'Brown' : c);
-        console.log("Found color:", result.colorFamily);
-        break;
-      }
-    }
-    if (result.colorFamily) break;
-  }
-
-  // Fabric type from tags
+  // Detect fabric type from title and body
   const fabricTypes = ['Brocade', 'Canvas', 'Charmeuse', 'Chiffon', 'Corduroy', 'Crepe', 'Denim', 'Flannel', 'Fleece', 'Gabardine', 'Jersey', 'Knit', 'Lace', 'Lining', 'Mesh', 'Organza', 'Ponte', 'Satin', 'Scuba', 'Suiting', 'Tulle', 'Tweed', 'Twill', 'Velvet', 'Vinyl', 'Voile', 'Woven'];
   const foundTypes = [];
-  for (const tag of tags) {
-    for (const ft of fabricTypes) {
-      if (tag.toLowerCase().includes(ft.toLowerCase())) {
-        foundTypes.push(ft);
-      }
+  const searchText = (product.title + ' ' + decodedHtml).toLowerCase();
+  
+  for (const ft of fabricTypes) {
+    if (searchText.includes(ft.toLowerCase())) {
+      foundTypes.push(ft);
     }
-    // Check for Metallic / Lame
-    if (tag.toLowerCase().includes('lame') || (tag.toLowerCase().includes('metallic') && !tag.toLowerCase().includes('non-metallic'))) {
-      foundTypes.push('Metallic / Lame');
-    }
+  }
+  // Check for Metallic / Lame
+  if (searchText.includes('lame') || searchText.includes('metallic')) {
+    foundTypes.push('Metallic / Lame');
   }
   if (foundTypes.length > 0) {
     result.fabricType = [...new Set(foundTypes)];
     console.log("Found fabric types:", result.fabricType);
   }
 
-  // Fiber type
-  if (result.content) {
-    const natural = ['Cotton', 'Silk', 'Wool', 'Linen', 'Cashmere', 'Alpaca', 'Hemp', 'Jute', 'Ramie'];
-    const synthetic = ['Polyester', 'Nylon', 'Acrylic', 'Spandex / Elastane', 'Lurex'];
-    const hasNatural = result.content.some(c => natural.includes(c));
-    const hasSynthetic = result.content.some(c => synthetic.includes(c));
-    if (hasNatural && hasSynthetic) {
-      result.fiberType = 'Blend';
-    } else if (hasNatural) {
-      result.fiberType = 'Natural';
-    } else {
-      result.fiberType = 'Synthetic';
-    }
+  // Department from product_type or body
+  if (product.product_type) {
+    const pt = product.product_type.toLowerCase();
+    if (pt.includes('fashion') || pt.includes('apparel')) result.department = 'Apparel';
+    else if (pt.includes('home')) result.department = 'Home Dec';
+    else if (pt.includes('bridal')) result.department = 'Bridal';
+    else if (pt.includes('costume')) result.department = 'Costume';
+  }
+  if (!result.department && searchText.includes('fashion fabric')) {
+    result.department = 'Apparel';
   }
 
-  // Department - Fashion Fabrics = Apparel
-  for (const tag of tags) {
-    if (tag.toLowerCase().includes('fashion fabric')) {
-      result.department = 'Apparel';
-      break;
-    }
-    if (tag.toLowerCase().includes('home')) {
-      result.department = 'Home Dec';
-      break;
-    }
-    if (tag.toLowerCase().includes('bridal')) {
-      result.department = 'Bridal';
-      break;
-    }
-    if (tag.toLowerCase().includes('costume') || tag.toLowerCase().includes('cosplay')) {
-      result.department = 'Costume';
-      break;
-    }
-  }
-
-  // Generate description from body_html - get first paragraph
-  const descMatch = bodyHtml.match(/<p>([^<]+)/);
+  // Generate description - get first paragraph from body
+  const descMatch = decodedHtml.match(/<p>([^<]+)/i) || 
+                    decodedHtml.match(/^([^<]{50,300})/);
   if (descMatch) {
-    // Take first sentence or two
-    const fullDesc = descMatch[1].replace(/&[^;]+;/g, ' ').replace(/\s+/g, ' ').trim();
-    const sentences = fullDesc.split(/\.\s+/).slice(0, 2);
+    let desc = descMatch[1].replace(/&[^;]+;/g, ' ').replace(/\s+/g, ' ').trim();
+    // Take first 2 sentences
+    const sentences = desc.split(/\.\s+/).slice(0, 2);
     result.description = sentences.join('. ').trim();
-    if (!result.description.endsWith('.')) {
+    if (result.description && !result.description.endsWith('.')) {
       result.description += '.';
     }
   }
 
-  // Clean up null values
+  // Clean up null/empty values
   const cleanResult = {};
   for (const [key, value] of Object.entries(result)) {
-    if (value !== null && value !== undefined && value !== "") {
+    if (value !== null && value !== undefined && value !== "" && 
+        !(Array.isArray(value) && value.length === 0)) {
       cleanResult[key] = value;
     }
   }
 
-  console.log("Final parsed result keys:", Object.keys(cleanResult));
+  console.log("Final parsed result:", JSON.stringify(cleanResult));
   return cleanResult;
 }
