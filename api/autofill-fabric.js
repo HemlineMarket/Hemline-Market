@@ -53,12 +53,20 @@ export default async function handler(req, res) {
           
           // Debug mode - return raw response
           if (debug) {
+            let productKeys = [];
+            let parsedData = null;
+            try {
+              parsedData = JSON.parse(text);
+              productKeys = Object.keys(parsedData.product || {});
+            } catch(e) {}
+            
             return res.status(200).json({ 
               debug: true, 
               jsonUrl,
               status: jsonResp.status,
               responseLength: text.length,
-              responsePreview: text.substring(0, 2000)
+              productKeys,
+              responsePreview: text.substring(0, 3000)
             });
           }
           
