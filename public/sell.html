@@ -1555,15 +1555,30 @@
         if(data.description) html += `<div style="margin-bottom:12px;"><strong>Description:</strong> ${data.description}</div>`;
         if(data.suggestedUses) html += `<div><strong>Best for:</strong> ${data.suggestedUses}</div>`;
         
-        html += `<button type="button" id="applyIdentifyBtn" class="btn" style="margin-top:12px;background:#059669;border-color:#059669;">✅ Apply to Listing</button>`;
+        html += `<button type="button" id="useIdentifyPhotoBtn" class="btn" style="margin-top:12px;background:#059669;border-color:#059669;">📷 Use This Photo in Listing</button>`;
         
         identifyResultsContent.innerHTML = html;
         identifyResults.style.display = 'block';
         identifyStatus.style.display = 'none';
         
-        // Add click handler for apply button
-        document.getElementById('applyIdentifyBtn').addEventListener('click', () => {
-          applyIdentifyData(data);
+        // Add click handler for use photo button
+        document.getElementById('useIdentifyPhotoBtn').addEventListener('click', () => {
+          if(identifyImageBase64 && state.photos.length < 8){
+            fetch(identifyImageBase64)
+              .then(res => res.blob())
+              .then(blob => {
+                const file = new File([blob], 'fabric-photo.jpg', { type: 'image/jpeg' });
+                state.photos.push(file);
+                renderPhotoThumbs();
+                identifyStatus.innerHTML = '✅ Photo added to your listing!';
+                identifyStatus.style.color = '#059669';
+                identifyStatus.style.display = 'block';
+              });
+          } else if(state.photos.length >= 8){
+            identifyStatus.innerHTML = '⚠️ You already have 8 photos (maximum).';
+            identifyStatus.style.color = '#d97706';
+            identifyStatus.style.display = 'block';
+          }
         });
         
       } catch(err) {
@@ -1576,109 +1591,6 @@
       }
     }
     
-    function applyIdentifyData(data){
-      console.log('Applying identify data:', data);
-      let filledCount = 0;
-      
-      // Description - always apply if we have data
-      const descInput = document.getElementById('desc');
-      if(data.description && descInput){
-        descInput.value = data.description;
-        filledCount++;
-        console.log('Applied description');
-      }
-      
-      // Pattern
-      if(data.pattern){
-        const patternSelect = document.getElementById('pattern');
-        if(patternSelect){
-          const patternLower = data.pattern.toLowerCase();
-          if(patternLower.includes('solid')){
-            patternSelect.value = 'Solid';
-            filledCount++;
-          } else if(patternLower.includes('print') || patternLower.includes('pattern') || patternLower !== 'solid'){
-            patternSelect.value = 'Printed';
-            filledCount++;
-          }
-          console.log('Applied pattern:', patternSelect.value);
-        }
-      }
-      
-      // Stretch
-      if(data.stretch){
-        const stretchSelect = document.getElementById('stretch');
-        if(stretchSelect){
-          const stretchLower = data.stretch.toLowerCase();
-          if(stretchLower.includes('no') || stretchLower.includes('none') || stretchLower.includes('0')){
-            stretchSelect.value = 'None';
-            filledCount++;
-          } else if(stretchLower.includes('4') || stretchLower.includes('four')){
-            stretchSelect.value = '4-way';
-            filledCount++;
-          } else if(stretchLower.includes('2') || stretchLower.includes('two')){
-            stretchSelect.value = '2-way';
-            filledCount++;
-          }
-          console.log('Applied stretch:', stretchSelect.value);
-        }
-      }
-      
-      // Opacity
-      if(data.opacity){
-        const opacitySelect = document.getElementById('opacity');
-        if(opacitySelect){
-          const opacityLower = data.opacity.toLowerCase();
-          if(opacityLower.includes('opaque') && !opacityLower.includes('semi')){
-            opacitySelect.value = 'Opaque';
-            filledCount++;
-          } else if(opacityLower.includes('semi-opaque') || opacityLower.includes('semi opaque')){
-            opacitySelect.value = 'Semi-opaque';
-            filledCount++;
-          } else if(opacityLower.includes('translucent') || opacityLower.includes('semi-sheer')){
-            opacitySelect.value = 'Translucent';
-            filledCount++;
-          } else if(opacityLower.includes('sheer')){
-            opacitySelect.value = 'Sheer';
-            filledCount++;
-          }
-          console.log('Applied opacity:', opacitySelect.value);
-        }
-      }
-      
-      // Fabric Type - try to match feels like checkboxes
-      if(data.fabricType){
-        const fabricTypeLower = data.fabricType.toLowerCase();
-        const feelsLikeGroup = document.getElementById('feelsLikeGroup');
-        if(feelsLikeGroup){
-          const checkboxes = feelsLikeGroup.querySelectorAll('input[type="checkbox"]');
-          checkboxes.forEach(cb => {
-            if(fabricTypeLower.includes(cb.value.toLowerCase())){
-              cb.checked = true;
-              filledCount++;
-              console.log('Checked feels like:', cb.value);
-            }
-          });
-        }
-      }
-      
-      // Show success message
-      identifyStatus.innerHTML = `✅ Applied ${filledCount} field${filledCount !== 1 ? 's' : ''} to your listing!`;
-      identifyStatus.style.color = '#059669';
-      identifyStatus.style.display = 'block';
-      
-      // Also add the image to photos if not already there
-      if(identifyImageBase64 && state.photos.length < 8){
-        fetch(identifyImageBase64)
-          .then(res => res.blob())
-          .then(blob => {
-            const file = new File([blob], 'fabric-photo.jpg', { type: 'image/jpeg' });
-            state.photos.push(file);
-            renderPhotoThumbs();
-            console.log('Added image to photos');
-          });
-      }
-    }
-
     function setStep(newStep){
       step = newStep;
       document.querySelectorAll('.step').forEach((el, idx)=>{
