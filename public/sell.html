@@ -2250,17 +2250,18 @@
       }
     }
 
-    if(isEditMode){
-      await loadListingForEdit();
-    }
-
     // Check if coming from fabric identifier with image
     const urlParams = new URLSearchParams(window.location.search);
+    let identifyData = null;
+    
     if(urlParams.get('fromIdentify') === '1'){
+      console.log('Loading from fabric identifier...');
+      
       // Load image from localStorage
       try {
         const savedImage = localStorage.getItem('identifyFabricImage');
         if(savedImage){
+          console.log('Found saved image, converting to file...');
           // Convert base64 to File object
           const response = await fetch(savedImage);
           const blob = await response.blob();
@@ -2268,29 +2269,57 @@
           state.photos.push(file);
           renderPhotoThumbs();
           localStorage.removeItem('identifyFabricImage'); // Clean up
+          console.log('Image loaded successfully');
         }
       } catch(e) {
         console.warn('Could not load image from identifier:', e);
       }
       
-      // Pre-fill fields from URL params
-      const descInput = document.getElementById('desc');
-      const patternSelect = document.getElementById('pattern');
-      
-      if(urlParams.get('description') && descInput && !descInput.value){
-        descInput.value = urlParams.get('description');
-      }
-      if(urlParams.get('pattern') && patternSelect && !patternSelect.value){
-        const patternVal = urlParams.get('pattern');
-        const opt = Array.from(patternSelect.options).find(o => 
-          o.value.toLowerCase() === patternVal.toLowerCase() ||
-          o.text.toLowerCase().includes(patternVal.toLowerCase())
-        );
-        if(opt) patternSelect.value = opt.value;
-      }
+      // Store the identify data to apply on step 2
+      identifyData = {
+        description: urlParams.get('description'),
+        pattern: urlParams.get('pattern'),
+        content: urlParams.get('content'),
+        fabricType: urlParams.get('fabricType'),
+        stretch: urlParams.get('stretch'),
+        opacity: urlParams.get('opacity')
+      };
       
       // Clean URL
       window.history.replaceState({}, document.title, 'sell.html');
+    }
+
+    // Override setStep to apply identify data when moving to step 2
+    const originalSetStep = setStep;
+    setStep = function(newStep) {
+      originalSetStep(newStep);
+      
+      // Apply identify data when entering step 2
+      if(newStep === 2 && identifyData){
+        console.log('Applying identify data to step 2:', identifyData);
+        
+        const descInput = document.getElementById('desc');
+        const patternSelect = document.getElementById('pattern');
+        
+        if(identifyData.description && descInput && !descInput.value){
+          descInput.value = identifyData.description;
+        }
+        if(identifyData.pattern && patternSelect && !patternSelect.value){
+          const patternVal = identifyData.pattern;
+          const opt = Array.from(patternSelect.options).find(o => 
+            o.value.toLowerCase() === patternVal.toLowerCase() ||
+            o.text.toLowerCase().includes(patternVal.toLowerCase())
+          );
+          if(opt) patternSelect.value = opt.value;
+        }
+        
+        // Clear so it doesn't re-apply
+        identifyData = null;
+      }
+    };
+
+    if(isEditMode){
+      await loadListingForEdit();
     }
 
     setStep(1);
