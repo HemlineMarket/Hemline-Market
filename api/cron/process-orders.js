@@ -1,8 +1,8 @@
 // File: api/cron/process-orders.js
 // Vercel Cron Job - runs daily to:
-// 1. Mark orders as cancel-eligible after 5 days if not shipped
-// 2. Auto-release payment to seller 3 days after delivery confirmed
-// 3. Send reminder emails to sellers who haven't shipped
+// 1. Send reminder emails to sellers who haven't shipped (Day 3)
+// 2. Notify buyers they can cancel if order not shipped (Day 5)
+// 3. Auto-release payment to seller 3 days after delivery confirmed
 //
 // Add to vercel.json:
 // { "crons": [{ "path": "/api/cron/process-orders", "schedule": "0 9 * * *" }] }
@@ -43,14 +43,14 @@ export default async function handler(req, res) {
 
   const supabase = getSupabaseAdmin();
   const now = new Date();
-  const results = { reminders: 0, payouts: 0, errors: [] };
+  const results = { reminders: 0, buyerNotifications: 0, payouts: 0, errors: [] };
 
   try {
     // =========================================================
     // 1. SEND REMINDERS TO SELLERS WHO HAVEN'T SHIPPED (Day 3)
     // =========================================================
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: unshippedOrders } = await supabase
+    const { data: unshippedOrders3Days } = await supabase
       .from("orders")
       .select("*, seller:profiles!seller_id(first_name, last_name, contact_email)")
       .eq("status", "PAID")
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       .lt("created_at", threeDaysAgo)
       .is("reminder_sent_at", null);
 
-    for (const order of unshippedOrders || []) {
+    for (const order of unshippedOrders3Days || []) {
       try {
         const sellerEmail = order.seller?.contact_email;
         if (sellerEmail) {
@@ -82,7 +82,44 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // 2. AUTO-RELEASE PAYMENT 3 DAYS AFTER DELIVERY
+    // 2. NOTIFY BUYERS THEY CAN CANCEL (Day 5, not shipped)
+    // =========================================================
+    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: unshippedOrders5Days } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("status", "PAID")
+      .is("shipped_at", null)
+      .lt("created_at", fiveDaysAgo)
+      .is("buyer_cancel_notified_at", null);
+
+    for (const order of unshippedOrders5Days || []) {
+      try {
+        if (order.buyer_id) {
+          // In-app notification to buyer
+          await supabase.from("notifications").insert({
+            user_id: order.buyer_id,
+            type: "order",
+            kind: "order",
+            title: "Your order hasn't shipped yet",
+            body: `"${order.listing_title}" hasn't shipped in 5 days. You can cancel for a full refund if you'd like.`,
+            href: `/order-buyer.html?id=${order.id}`,
+          });
+
+          // Mark that we notified the buyer (so we don't spam them daily)
+          await supabase.from("orders").update({ 
+            buyer_cancel_notified_at: now.toISOString() 
+          }).eq("id", order.id);
+
+          results.buyerNotifications++;
+        }
+      } catch (e) {
+        results.errors.push({ type: "buyerNotification", orderId: order.id, error: e.message });
+      }
+    }
+
+    // =========================================================
+    // 3. AUTO-RELEASE PAYMENT 3 DAYS AFTER DELIVERY
     // =========================================================
     const threeDaysAfterDelivery = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
     const { data: deliveredOrders } = await supabase
