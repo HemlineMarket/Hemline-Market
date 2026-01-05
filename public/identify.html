@@ -201,24 +201,6 @@
       background:linear-gradient(90deg, #991b1b, #dc2626);
       border-radius:2px;
     }
-    .list-btn{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      margin-top:24px;
-      padding:12px 24px;
-      background:#1e293b;
-      color:#fff;
-      border:none;
-      border-radius:8px;
-      font-size:14px;
-      font-weight:600;
-      cursor:pointer;
-      text-decoration:none;
-    }
-    .list-btn:hover{
-      background:#334155;
-    }
     .status-msg{
       text-align:center;
       padding:16px;
@@ -288,9 +270,6 @@
     <div class="results-section" id="resultsSection">
       <div class="results-title">✅ Fabric Analysis</div>
       <div class="results-grid" id="resultsGrid"></div>
-      <a href="sell.html" class="list-btn" id="listBtn">
-        📦 List This Fabric for Sale
-      </a>
     </div>
   </div>
   
@@ -494,31 +473,17 @@ function displayResults(data){
     resultsGrid.appendChild(div);
   }
   
-  resultsSection.classList.add('show');
+  // Add warning
+  const warningDiv = document.createElement('div');
+  warningDiv.className = 'result-item result-description';
+  warningDiv.innerHTML = `
+    <div style="padding:12px;background:#fef3c7;border-radius:8px;font-size:13px;color:#92400e;">
+      <strong>⚠️ AI is a guide, not a guarantee.</strong> If you're listing this fabric, only add information you're confident about. If unsure about fiber content, select "Not sure" or perform a burn test.
+    </div>
+  `;
+  resultsGrid.appendChild(warningDiv);
   
-  // Update list button with query params and save image for sell page
-  if(identifiedData){
-    const params = new URLSearchParams();
-    if(data.fabricType) params.set('fabricType', data.fabricType);
-    if(data.pattern) params.set('pattern', data.pattern);
-    if(data.color) params.set('color', data.color);
-    if(data.likelyContent) params.set('content', data.likelyContent);
-    if(data.description) params.set('description', data.description);
-    if(data.weight) params.set('weight', data.weight);
-    if(data.stretch) params.set('stretch', data.stretch);
-    if(data.opacity) params.set('opacity', data.opacity);
-    params.set('fromIdentify', '1');
-    listBtn.href = 'sell.html?' + params.toString();
-    
-    // Save the image to localStorage so sell page can use it
-    if(currentImageBase64){
-      try {
-        localStorage.setItem('identifyFabricImage', currentImageBase64);
-      } catch(e) {
-        console.warn('Could not save image to localStorage:', e);
-      }
-    }
-  }
+  resultsSection.classList.add('show');
 }
 </script>
 </body>
