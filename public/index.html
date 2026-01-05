@@ -1574,14 +1574,32 @@
       const input = document.getElementById("homeSearchInput");
       const searchType = document.getElementById("searchType");
 
+      // Mobile-aware placeholders
+      function getPlaceholder(type) {
+        const isMobile = window.innerWidth < 500;
+        if (type === "sellers") {
+          return isMobile ? "Search sellers..." : "Search by store or seller name";
+        } else {
+          return isMobile ? "Search fabrics..." : "Search by color, type, weight, price, and more";
+        }
+      }
+
+      // Set initial placeholder based on screen size
+      if (input) {
+        input.placeholder = getPlaceholder(searchType?.value || "fabrics");
+      }
+
+      // Update placeholder on resize
+      window.addEventListener("resize", () => {
+        if (input && searchType) {
+          input.placeholder = getPlaceholder(searchType.value);
+        }
+      });
+
       // Update placeholder based on search type
       if(searchType && input){
         searchType.addEventListener("change", () => {
-          if(searchType.value === "sellers"){
-            input.placeholder = "Search by store or seller name";
-          } else {
-            input.placeholder = "Search by color, type, weight, price, and more";
-          }
+          input.placeholder = getPlaceholder(searchType.value);
         });
       }
 
