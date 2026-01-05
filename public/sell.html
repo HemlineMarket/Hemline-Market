@@ -2254,6 +2254,45 @@
       await loadListingForEdit();
     }
 
+    // Check if coming from fabric identifier with image
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get('fromIdentify') === '1'){
+      // Load image from localStorage
+      try {
+        const savedImage = localStorage.getItem('identifyFabricImage');
+        if(savedImage){
+          // Convert base64 to File object
+          const response = await fetch(savedImage);
+          const blob = await response.blob();
+          const file = new File([blob], 'identified-fabric.jpg', { type: 'image/jpeg' });
+          state.photos.push(file);
+          renderPhotoThumbs();
+          localStorage.removeItem('identifyFabricImage'); // Clean up
+        }
+      } catch(e) {
+        console.warn('Could not load image from identifier:', e);
+      }
+      
+      // Pre-fill fields from URL params
+      const descInput = document.getElementById('desc');
+      const patternSelect = document.getElementById('pattern');
+      
+      if(urlParams.get('description') && descInput && !descInput.value){
+        descInput.value = urlParams.get('description');
+      }
+      if(urlParams.get('pattern') && patternSelect && !patternSelect.value){
+        const patternVal = urlParams.get('pattern');
+        const opt = Array.from(patternSelect.options).find(o => 
+          o.value.toLowerCase() === patternVal.toLowerCase() ||
+          o.text.toLowerCase().includes(patternVal.toLowerCase())
+        );
+        if(opt) patternSelect.value = opt.value;
+      }
+      
+      // Clean URL
+      window.history.replaceState({}, document.title, 'sell.html');
+    }
+
     setStep(1);
   })();
 </script>
