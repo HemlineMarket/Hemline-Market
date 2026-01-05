@@ -163,6 +163,44 @@ export default async function handler(req, res) {
       reason: "requested_by_customer",
     });
 
+    // 5b) Void Shippo shipping label if exists
+    const shippoTransactionId = order.shippo_transaction_id;
+    if (shippoTransactionId) {
+      const SHIPPO_KEY = process.env.SHIPPO_API_KEY;
+      if (SHIPPO_KEY) {
+        try {
+          const voidRes = await fetch(`https://api.goshippo.com/transactions/${shippoTransactionId}`, {
+            method: "PUT",
+            headers: {
+              "Authorization": `ShippoToken ${SHIPPO_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ is_return: false, async: false }),
+          });
+          
+          // Shippo uses POST to /refunds endpoint to void/refund a label
+          const refundRes = await fetch("https://api.goshippo.com/refunds/", {
+            method: "POST",
+            headers: {
+              "Authorization": `ShippoToken ${SHIPPO_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ transaction: shippoTransactionId }),
+          });
+          
+          const refundData = await refundRes.json();
+          if (refundData.status === "QUEUED" || refundData.status === "SUCCESS") {
+            console.log(`[cancel-order] Shippo label refund requested: ${refundData.status}`);
+          } else {
+            console.error("[cancel-order] Shippo refund issue:", refundData);
+          }
+        } catch (shippoErr) {
+          // Log but don't fail the cancellation - the Stripe refund already went through
+          console.error("[cancel-order] Shippo void error:", shippoErr);
+        }
+      }
+    }
+
     // 6) Update order status
     await supabase
       .from("orders")
