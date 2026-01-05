@@ -14,7 +14,13 @@
         "name": "Hemline Market",
         "url": "https://hemlinemarket.com",
         "logo": "https://hemlinemarket.com/images/logo_square_compressed.png",
-        "description": "Sustainable peer-to-peer fabric marketplace for sewists",
+        "description": "Sustainable peer-to-peer fabric marketplace for sewists, cosplayers, and quilters",
+        "foundingDate": "2024",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer service",
+          "url": "https://hemlinemarket.com/contact.html"
+        },
         "sameAs": [
           // Add social media URLs when available
         ]
@@ -28,6 +34,7 @@
         "@type": "WebSite",
         "name": "Hemline Market",
         "url": "https://hemlinemarket.com",
+        "description": "Buy and sell fabric from fellow sewists. Secure checkout, prepaid shipping labels, and a community forum.",
         "potentialAction": {
           "@type": "SearchAction",
           "target": {
@@ -36,6 +43,69 @@
           },
           "query-input": "required name=search_term_string"
         }
+      };
+    },
+
+    // Generate LocalBusiness/OnlineStore schema for homepage
+    onlineStore: function() {
+      return {
+        "@context": "https://schema.org",
+        "@type": "OnlineStore",
+        "name": "Hemline Market",
+        "url": "https://hemlinemarket.com",
+        "logo": "https://hemlinemarket.com/images/logo_square_compressed.png",
+        "image": "https://hemlinemarket.com/images/og-image.jpg",
+        "description": "Peer-to-peer fabric marketplace for sewists, cosplayers, and quilters. Buy and sell quality fabrics with secure checkout and prepaid shipping labels.",
+        "priceRange": "$$",
+        "currenciesAccepted": "USD",
+        "paymentAccepted": "Credit Card, Debit Card",
+        "areaServed": {
+          "@type": "Country",
+          "name": "United States"
+        },
+        "hasOfferCatalog": {
+          "@type": "OfferCatalog",
+          "name": "Fabric Listings",
+          "itemListElement": [
+            {
+              "@type": "OfferCatalog",
+              "name": "Silk Fabric"
+            },
+            {
+              "@type": "OfferCatalog",
+              "name": "Wool Fabric"
+            },
+            {
+              "@type": "OfferCatalog",
+              "name": "Cotton Fabric"
+            },
+            {
+              "@type": "OfferCatalog",
+              "name": "Linen Fabric"
+            },
+            {
+              "@type": "OfferCatalog",
+              "name": "Cosplay Fabric"
+            }
+          ]
+        }
+      };
+    },
+
+    // Generate FAQPage schema
+    faqPage: function(faqs) {
+      // faqs = [{ question: "...", answer: "..." }, ...]
+      return {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faqs.map(faq => ({
+          "@type": "Question",
+          "name": faq.question,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": faq.answer
+          }
+        }))
       };
     },
     
@@ -180,5 +250,10 @@
   document.addEventListener('DOMContentLoaded', () => {
     window.HM_StructuredData.inject(window.HM_StructuredData.organization());
     window.HM_StructuredData.inject(window.HM_StructuredData.website());
+    
+    // Add OnlineStore schema on homepage
+    if (window.location.pathname === '/' || window.location.pathname === '/index.html' || window.location.pathname.endsWith('/index.html')) {
+      window.HM_StructuredData.inject(window.HM_StructuredData.onlineStore());
+    }
   });
 })();
