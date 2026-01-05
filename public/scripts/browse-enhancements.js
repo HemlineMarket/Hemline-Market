@@ -334,7 +334,10 @@
         const idx = parseInt(btn.dataset.filterIndex, 10);
         if (filters[idx] && filters[idx].clear) {
           filters[idx].clear();
-          if (typeof onFilterRemove === 'function') {
+          // Call runSearch directly from window
+          if (typeof window.runSearch === 'function') {
+            window.runSearch();
+          } else if (typeof onFilterRemove === 'function') {
             onFilterRemove();
           }
         }
@@ -349,7 +352,10 @@
           window.clearAllFilters();
         } else {
           filters.forEach(f => f.clear && f.clear());
-          if (typeof onFilterRemove === 'function') {
+          // Call runSearch directly from window
+          if (typeof window.runSearch === 'function') {
+            window.runSearch();
+          } else if (typeof onFilterRemove === 'function') {
             onFilterRemove();
           }
         }
