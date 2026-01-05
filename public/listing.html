@@ -5,6 +5,25 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Listing — Hemline Market</title>
 
+  <!-- SEO Meta Tags (dynamically updated by JS for individual listings) -->
+  <meta name="description" content="View fabric listing details on Hemline Market. Secure checkout, prepaid shipping labels, and transparent pricing."/>
+  <meta name="robots" content="index, follow"/>
+
+  <!-- Open Graph / Social Sharing (dynamically updated by JS) -->
+  <meta property="og:type" content="product"/>
+  <meta property="og:url" content="https://hemlinemarket.com/listing.html"/>
+  <meta property="og:title" content="Fabric Listing — Hemline Market"/>
+  <meta property="og:description" content="View fabric listing details on Hemline Market. Secure checkout, prepaid shipping labels."/>
+  <meta property="og:image" content="https://hemlinemarket.com/images/og-image.jpg"/>
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/>
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="Fabric Listing — Hemline Market"/>
+  <meta name="twitter:description" content="View fabric listing details on Hemline Market."/>
+  <meta name="twitter:image" content="https://hemlinemarket.com/images/og-image.jpg"/>
+
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
@@ -672,6 +691,58 @@
     });
   }
 
+  // Dynamically update meta tags for SEO and social sharing
+  function updateMetaTags(listing) {
+    if (!listing) return;
+    
+    const title = listing.title || "Fabric Listing";
+    const fullTitle = `${title} — Hemline Market`;
+    const description = listing.description 
+      ? listing.description.substring(0, 155) + (listing.description.length > 155 ? '...' : '')
+      : `Buy ${title} on Hemline Market. Secure checkout and prepaid shipping.`;
+    const imageUrl = listing.image_url_1 || 'https://hemlinemarket.com/images/og-image.jpg';
+    const pageUrl = `https://hemlinemarket.com/listing.html?id=${listing.id}`;
+    
+    // Update page title
+    document.title = fullTitle;
+    
+    // Update meta description
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', description);
+    
+    // Update Open Graph tags
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', fullTitle);
+    
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', description);
+    
+    const ogImage = document.querySelector('meta[property="og:image"]');
+    if (ogImage) ogImage.setAttribute('content', imageUrl);
+    
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) ogUrl.setAttribute('content', pageUrl);
+    
+    // Update Twitter Card tags
+    const twTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twTitle) twTitle.setAttribute('content', fullTitle);
+    
+    const twDesc = document.querySelector('meta[name="twitter:description"]');
+    if (twDesc) twDesc.setAttribute('content', description);
+    
+    const twImage = document.querySelector('meta[name="twitter:image"]');
+    if (twImage) twImage.setAttribute('content', imageUrl);
+    
+    // Update canonical URL
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = pageUrl;
+  }
+
   function nameFromProfile(p){
     if(!p){
       return { store:"Member", person:"Member" };
@@ -1004,6 +1075,10 @@
 
   function renderListing(listing, sellerProfile){
     currentListing = listing;
+    
+    // Update meta tags for SEO and social sharing
+    updateMetaTags(listing);
+    
     const shell = document.getElementById("listingShell");
     const descCard = document.getElementById("descCard");
     const qaCard = document.getElementById("qaCard");
