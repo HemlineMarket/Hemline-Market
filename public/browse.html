@@ -35,6 +35,7 @@
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
+  <link rel="stylesheet" href="styles/hm-browse-enhancements.css"/>
 
   <style>
     :root{
@@ -839,6 +840,10 @@
             </div>
           </div>
         </div>
+        
+        <!-- Applied Filters Chip Bar -->
+        <div id="appliedFilters" class="applied-filters"></div>
+        
         <div id="grid" class="browse-grid"></div>
         
         <!-- Empty state - no filters applied -->
@@ -867,6 +872,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Shared shell (universal header/footer + menu + header session) -->
   <script src="scripts/hm-shell.js"></script>
+  <!-- Browse page enhancements (skeleton loaders, filter chips) -->
+  <script src="scripts/browse-enhancements.js"></script>
 
   <script>
     // Render shared header + footer
@@ -1125,9 +1132,16 @@
       const countEl = document.getElementById("resultCount");
       const qInput  = document.getElementById("q");
 
-      if(grid) grid.innerHTML = "";
+      if(grid) {
+        // Show skeleton loading cards
+        if(typeof window.generateSkeletonCards === 'function') {
+          grid.innerHTML = window.generateSkeletonCards(6);
+        } else {
+          grid.innerHTML = '';
+        }
+      }
       if(emptyEl) emptyEl.style.display = "none";
-      if(countEl) countEl.textContent = "Loading…";
+      if(countEl) countEl.textContent = "";
 
       const searchTerm = (qInput?.value || "").trim().toLowerCase();
 
@@ -1228,10 +1242,17 @@
       const feelsEl    = document.getElementById("feelsLike");
       const burnTestEl = document.getElementById("burnTest");
 
-      if(grid) grid.innerHTML = "";
+      if(grid) {
+        // Show skeleton loading cards instead of empty grid
+        if(typeof window.generateSkeletonCards === 'function') {
+          grid.innerHTML = window.generateSkeletonCards(6);
+        } else {
+          grid.innerHTML = '';
+        }
+      }
       if(emptyEl) emptyEl.style.display = "none";
       if(emptyFilteredEl) emptyFilteredEl.style.display = "none";
-      if(countEl) countEl.textContent = "Loading…";
+      if(countEl) countEl.textContent = "";
 
       let listings = [];
       try{
@@ -1244,13 +1265,19 @@
 
         if(error){
           console.error("Listings fetch error", error);
-          if(countEl) countEl.textContent = "Error loading listings";
+          if(grid && typeof window.generateErrorState === 'function') {
+            grid.innerHTML = window.generateErrorState('Unable to load listings. Please check your connection and try again.');
+          }
+          if(countEl) countEl.textContent = "";
           return;
         }
         listings = data || [];
       }catch(e){
         console.error("Listings fetch exception", e);
-        if(countEl) countEl.textContent = "Error loading listings";
+        if(grid && typeof window.generateErrorState === 'function') {
+          grid.innerHTML = window.generateErrorState('Something went wrong. Please try again.');
+        }
+        if(countEl) countEl.textContent = "";
         return;
       }
 
@@ -1591,6 +1618,10 @@
         await runAtelierSearch();
       }else{
         await runListingSearch();
+      }
+      // Update applied filters chip bar
+      if(typeof window.renderAppliedFilters === 'function') {
+        window.renderAppliedFilters(runSearch);
       }
     }
 
