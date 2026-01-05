@@ -560,6 +560,35 @@
             <div id="autofillStatus" style="margin-top:8px;font-size:12px;display:none;"></div>
           </div>
 
+          <!-- AI FABRIC IDENTIFIER -->
+          <div class="field" style="background:linear-gradient(135deg, #faf5ff 0%, #fdf2f8 100%);border:1px solid #e9d5ff;border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div class="label-row">
+              <label style="font-weight:600;color:#7c3aed;">✨ AI Fabric Identifier</label>
+              <span class="subtle" style="font-size:12px">(optional)</span>
+            </div>
+            <p style="font-size:13px;color:#6b7280;margin:8px 0 12px 0;">
+              Not sure what your fabric is? Upload a photo and let AI analyze it.
+            </p>
+            <div id="identifyDropZone" style="border:2px dashed #c4b5fd;border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(255,255,255,0.5);">
+              <input type="file" id="identifyInput" accept="image/*" style="display:none;">
+              <span style="color:#6b7280;">Drop a fabric photo or <span style="color:#7c3aed;cursor:pointer;">click to upload</span></span>
+            </div>
+            <div id="identifyPreview" style="margin-top:12px;display:none;">
+              <div style="position:relative;display:inline-block;">
+                <img id="identifyImg" src="" alt="Fabric to identify" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e5e7eb;">
+                <button type="button" id="identifyRemove" style="position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#dc2626;color:#fff;border:none;cursor:pointer;font-size:14px;">×</button>
+              </div>
+            </div>
+            <div id="identifyActions" style="margin-top:12px;display:none;">
+              <button type="button" id="identifyBtn" class="btn" style="background:linear-gradient(135deg, #7c3aed 0%, #db2777 100%);border:none;color:#fff;">✨ Identify This Fabric</button>
+            </div>
+            <div id="identifyStatus" style="margin-top:8px;font-size:12px;display:none;"></div>
+            <div id="identifyResults" style="margin-top:12px;display:none;background:#fff;border-radius:8px;padding:12px;border:1px solid #e9d5ff;">
+              <div style="font-weight:600;margin-bottom:8px;color:#7c3aed;">🔍 AI Analysis</div>
+              <div id="identifyResultsContent" style="font-size:13px;color:#374151;"></div>
+            </div>
+          </div>
+
           <div class="field">
             <div class="label-row"><label for="title">Title</label><span class="req">Required</span></div>
             <input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy">
@@ -1398,6 +1427,224 @@
           extractBtn.disabled = false;
           extractBtn.textContent = 'Extract Details';
         }
+      }
+    }
+
+    // AI Fabric Identifier
+    const identifyDropZone = document.getElementById('identifyDropZone');
+    const identifyInput = document.getElementById('identifyInput');
+    const identifyPreview = document.getElementById('identifyPreview');
+    const identifyImg = document.getElementById('identifyImg');
+    const identifyRemove = document.getElementById('identifyRemove');
+    const identifyActions = document.getElementById('identifyActions');
+    const identifyBtn = document.getElementById('identifyBtn');
+    const identifyStatus = document.getElementById('identifyStatus');
+    const identifyResults = document.getElementById('identifyResults');
+    const identifyResultsContent = document.getElementById('identifyResultsContent');
+    
+    let identifyImageBase64 = null;
+    
+    if(identifyDropZone && identifyInput){
+      identifyDropZone.addEventListener('click', () => identifyInput.click());
+      identifyDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        identifyDropZone.style.borderColor = '#7c3aed';
+        identifyDropZone.style.background = '#f3e8ff';
+      });
+      identifyDropZone.addEventListener('dragleave', () => {
+        identifyDropZone.style.borderColor = '#c4b5fd';
+        identifyDropZone.style.background = 'rgba(255,255,255,0.5)';
+      });
+      identifyDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        identifyDropZone.style.borderColor = '#c4b5fd';
+        identifyDropZone.style.background = 'rgba(255,255,255,0.5)';
+        const files = e.dataTransfer.files;
+        if(files.length && files[0].type.startsWith('image/')){
+          loadIdentifyImage(files[0]);
+        }
+      });
+      identifyInput.addEventListener('change', (e) => {
+        if(e.target.files.length){
+          loadIdentifyImage(e.target.files[0]);
+        }
+      });
+      
+      identifyRemove.addEventListener('click', () => {
+        identifyImageBase64 = null;
+        identifyPreview.style.display = 'none';
+        identifyActions.style.display = 'none';
+        identifyResults.style.display = 'none';
+        identifyDropZone.style.display = 'block';
+        identifyInput.value = '';
+      });
+      
+      identifyBtn.addEventListener('click', runFabricIdentify);
+    }
+    
+    function loadIdentifyImage(file){
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSize = 1200;
+          let width = img.width;
+          let height = img.height;
+          
+          if(width > maxSize || height > maxSize){
+            if(width > height){
+              height = Math.round(height * maxSize / width);
+              width = maxSize;
+            } else {
+              width = Math.round(width * maxSize / height);
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          identifyImageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+          identifyImg.src = identifyImageBase64;
+          identifyDropZone.style.display = 'none';
+          identifyPreview.style.display = 'block';
+          identifyActions.style.display = 'block';
+          identifyResults.style.display = 'none';
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    async function runFabricIdentify(){
+      if(!identifyImageBase64) return;
+      
+      identifyBtn.disabled = true;
+      identifyBtn.textContent = '🔄 Analyzing...';
+      identifyStatus.textContent = 'AI is examining your fabric...';
+      identifyStatus.style.color = '#6b7280';
+      identifyStatus.style.display = 'block';
+      identifyResults.style.display = 'none';
+      
+      try {
+        const resp = await fetch('/api/identify-fabric', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: identifyImageBase64 })
+        });
+        
+        const data = await resp.json();
+        
+        if(!resp.ok || data.error){
+          throw new Error(data.error || 'Failed to identify fabric');
+        }
+        
+        // Display results
+        let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
+        if(data.fabricType) html += `<div><strong>Type:</strong> ${data.fabricType}</div>`;
+        if(data.weight) html += `<div><strong>Weight:</strong> ${data.weight}</div>`;
+        if(data.pattern) html += `<div><strong>Pattern:</strong> ${data.pattern}</div>`;
+        if(data.color) html += `<div><strong>Color:</strong> ${data.color}</div>`;
+        if(data.stretch) html += `<div><strong>Stretch:</strong> ${data.stretch}</div>`;
+        if(data.opacity) html += `<div><strong>Opacity:</strong> ${data.opacity}</div>`;
+        if(data.likelyContent) html += `<div style="grid-column:1/-1;"><strong>Likely Content:</strong> ${data.likelyContent}</div>`;
+        html += '</div>';
+        if(data.description) html += `<div style="margin-bottom:12px;"><strong>Description:</strong> ${data.description}</div>`;
+        if(data.suggestedUses) html += `<div><strong>Best for:</strong> ${data.suggestedUses}</div>`;
+        
+        html += `<button type="button" id="applyIdentifyBtn" class="btn" style="margin-top:12px;background:#059669;border-color:#059669;">✅ Apply to Listing</button>`;
+        
+        identifyResultsContent.innerHTML = html;
+        identifyResults.style.display = 'block';
+        identifyStatus.style.display = 'none';
+        
+        // Add click handler for apply button
+        document.getElementById('applyIdentifyBtn').addEventListener('click', () => {
+          applyIdentifyData(data);
+        });
+        
+      } catch(err) {
+        console.error('Identify error:', err);
+        identifyStatus.textContent = '❌ ' + (err.message || 'Could not identify fabric');
+        identifyStatus.style.color = '#dc2626';
+      } finally {
+        identifyBtn.disabled = false;
+        identifyBtn.textContent = '✨ Identify This Fabric';
+      }
+    }
+    
+    function applyIdentifyData(data){
+      let filledCount = 0;
+      
+      // Description
+      const descInput = document.getElementById('desc');
+      if(data.description && descInput && !descInput.value){
+        descInput.value = data.description;
+        filledCount++;
+      }
+      
+      // Pattern
+      if(data.pattern){
+        const patternSelect = document.getElementById('pattern');
+        if(patternSelect && !patternSelect.value){
+          const opt = Array.from(patternSelect.options).find(o => 
+            o.text.toLowerCase().includes(data.pattern.toLowerCase())
+          );
+          if(opt){
+            patternSelect.value = opt.value;
+            filledCount++;
+          }
+        }
+      }
+      
+      // Stretch
+      if(data.stretch){
+        const stretchSelect = document.getElementById('stretch');
+        if(stretchSelect && !stretchSelect.value){
+          const stretchLower = data.stretch.toLowerCase();
+          let val = '';
+          if(stretchLower.includes('no') || stretchLower.includes('none')) val = 'None';
+          else if(stretchLower.includes('4') || stretchLower.includes('four')) val = '4-way';
+          else if(stretchLower.includes('2') || stretchLower.includes('two')) val = '2-way';
+          if(val){
+            stretchSelect.value = val;
+            filledCount++;
+          }
+        }
+      }
+      
+      // Opacity
+      if(data.opacity){
+        const opacitySelect = document.getElementById('opacity');
+        if(opacitySelect && !opacitySelect.value){
+          const opt = Array.from(opacitySelect.options).find(o => 
+            o.text.toLowerCase().includes(data.opacity.toLowerCase().split('-')[0]) ||
+            data.opacity.toLowerCase().includes(o.text.toLowerCase().split('-')[0])
+          );
+          if(opt){
+            opacitySelect.value = opt.value;
+            filledCount++;
+          }
+        }
+      }
+      
+      // Show success message
+      identifyStatus.innerHTML = `✅ Applied ${filledCount} field${filledCount !== 1 ? 's' : ''} to your listing!`;
+      identifyStatus.style.color = '#059669';
+      identifyStatus.style.display = 'block';
+      
+      // Also add the image to photos if not already there
+      if(identifyImageBase64 && state.photos.length < 8){
+        fetch(identifyImageBase64)
+          .then(res => res.blob())
+          .then(blob => {
+            const file = new File([blob], 'fabric-photo.jpg', { type: 'image/jpeg' });
+            state.photos.push(file);
+            renderPhotoThumbs();
+          });
       }
     }
 
