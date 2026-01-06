@@ -311,9 +311,9 @@
 
       card.innerHTML = `
         <a class="listing-thumb-link" href="${href}">
-          <div class="listing-thumb" aria-hidden="true" style="${!avatarUrl ? 'background:#f3f4f6;' : ''}">
+          <div class="listing-thumb" aria-hidden="true" style="background:#f3f4f6;">
             ${avatarUrl 
-              ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center center;">` 
+              ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%;height:100%;object-fit:contain;">` 
               : ``
             }
           </div>
