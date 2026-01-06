@@ -744,6 +744,7 @@
     const layout = document.getElementById("layout");
     const toggle = document.getElementById("toggleFilters");
     const heading = document.getElementById("resultsHeading");
+    const searchModeSelect = document.getElementById("searchMode");
 
     // Read URL params from homepage search
     const params = new URLSearchParams(window.location.search);
@@ -752,17 +753,41 @@
     currentMode = urlMode;
 
     if (qInput) qInput.value = initialQ;
+    
+    // Set dropdown to match URL mode
+    if (searchModeSelect) {
+      searchModeSelect.value = currentMode === "ateliers" ? "sellers" : "fabrics";
+    }
 
-    if (currentMode === "ateliers") {
-      if (heading) heading.textContent = "Ateliers";
-      if (qInput) qInput.placeholder = "Search ateliers by name…";
-      if (layout) layout.classList.add("filters-hidden");
-      if (toggle) {
-        toggle.textContent = "Show filters";
-        toggle.setAttribute("aria-pressed", "false");
+    // Update UI based on mode
+    function updateModeUI() {
+      if (currentMode === "ateliers") {
+        if (heading) heading.textContent = "Ateliers";
+        if (qInput) qInput.placeholder = "Search sellers by name…";
+        if (layout) layout.classList.add("filters-hidden");
+        if (toggle) {
+          toggle.textContent = "Show filters";
+          toggle.setAttribute("aria-pressed", "false");
+          toggle.style.display = "none"; // Hide filter toggle for sellers
+        }
+      } else {
+        if (heading) heading.textContent = "Browse";
+        if (qInput) qInput.placeholder = "Search fabrics…";
+        if (toggle) {
+          toggle.style.display = ""; // Show filter toggle for fabrics
+        }
       }
-    } else {
-      if (heading) heading.textContent = "Browse";
+    }
+    
+    updateModeUI();
+
+    // Handle mode dropdown change
+    if (searchModeSelect) {
+      searchModeSelect.addEventListener("change", () => {
+        currentMode = searchModeSelect.value === "sellers" ? "ateliers" : "listings";
+        updateModeUI();
+        runSearch();
+      });
     }
 
     if (searchBtn) {
