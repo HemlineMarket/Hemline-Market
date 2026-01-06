@@ -33,7 +33,7 @@ window.HM = window.HM || {};
           name="q" 
           class="hm-header-search-input" 
           id="headerSearchInput"
-          placeholder="Search by color, type, weight, price, and more"
+          placeholder="Search fabrics..."
         />
       </div>
       <button type="submit" class="hm-header-search-btn" aria-label="Search">
@@ -208,7 +208,7 @@ window.HM = window.HM || {};
       searchType.addEventListener("change", function() {
         searchInput.placeholder = searchType.value === "sellers"
           ? "Search by store or seller name"
-          : "Search by color, type, weight, price, and more";
+          : "Search fabrics...";
       });
     }
   }
