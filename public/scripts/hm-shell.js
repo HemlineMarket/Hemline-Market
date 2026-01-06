@@ -26,26 +26,6 @@ window.HM = window.HM || {};
         </svg>
       </a>
 
-      <a class="hm-icon" href="ThreadTalk.html" aria-label="ThreadTalk">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M4 6.5A4.5 4.5 0 0 1 8.5 2h7A4.5 4.5 0 0 1 20 6.5v5A4.5 4.5 0 0 1 15.5 16H12l-4 4v-4H8.5A4.5 4.5 0 0 1 4 11.5z"></path>
-        </svg>
-      </a>
-
-      <a class="hm-icon" href="favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
-        </svg>
-      </a>
-
-      <a class="hm-icon hm-notifications-icon" href="notifications.html" aria-label="Notifications">
-        <span class="hm-notifications-dot" aria-hidden="true"></span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-      </a>
-
       <a class="hm-icon" href="cart.html" aria-label="Cart" data-hm-cart-link>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9" cy="21" r="1"></circle>
@@ -93,14 +73,47 @@ window.HM = window.HM || {};
       </svg>
     </button>
   </header>
-  <nav>
-    <a href="account.html">Account</a>
-    <a href="atelier.html">My Atelier</a>
-    <a href="messages.html">Messages</a>
-    <a href="how.html">How It Works</a>
-    <a href="sell.html">Sell Fabric</a>
-    <a href="ThreadTalk.html">ThreadTalk</a>
-    <a href="contact.html">Contact</a>
+  <nav class="menu-nav-with-descriptions">
+    <a href="browse.html">
+      <span class="menu-item-title">Browse</span>
+      <span class="menu-item-desc">Search fabrics and sellers</span>
+    </a>
+    <a href="account.html">
+      <span class="menu-item-title">Account</span>
+      <span class="menu-item-desc">Your profile, settings, and order history</span>
+    </a>
+    <a href="atelier.html">
+      <span class="menu-item-title">My Atelier</span>
+      <span class="menu-item-desc">Your store and all your listings</span>
+    </a>
+    <a href="favorites.html">
+      <span class="menu-item-title">Favorites</span>
+      <span class="menu-item-desc">Fabrics you've saved for later</span>
+    </a>
+    <a href="messages.html">
+      <span class="menu-item-title">Messages</span>
+      <span class="menu-item-desc">Chat with buyers and sellers</span>
+    </a>
+    <a href="notifications.html">
+      <span class="menu-item-title">Notifications</span>
+      <span class="menu-item-desc">Order updates, messages, and alerts</span>
+    </a>
+    <a href="how.html">
+      <span class="menu-item-title">How It Works</span>
+      <span class="menu-item-desc">Learn about buying and selling</span>
+    </a>
+    <a href="sell.html">
+      <span class="menu-item-title">Sell Fabric</span>
+      <span class="menu-item-desc">List your fabric for sale</span>
+    </a>
+    <a href="ThreadTalk.html">
+      <span class="menu-item-title">ThreadTalk</span>
+      <span class="menu-item-desc">Community forum for sewists</span>
+    </a>
+    <a href="contact.html">
+      <span class="menu-item-title">Contact</span>
+      <span class="menu-item-desc">Get help or send feedback</span>
+    </a>
   </nav>
 </aside>
 `;
