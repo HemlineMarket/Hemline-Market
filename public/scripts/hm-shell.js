@@ -44,19 +44,13 @@ window.HM = window.HM || {};
       </button>
     </form>
 
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        var sel = document.getElementById('headerSearchType');
-        var inp = document.getElementById('headerSearchInput');
-        if (sel && inp) {
-          sel.addEventListener('change', function() {
-            inp.placeholder = sel.value === 'sellers' 
-              ? 'Search by store or seller name' 
-              : 'Search by color, type, weight, price, and more';
-          });
-        }
-      });
-    </script>
+    <!-- Mobile search icon (shows when search bar is hidden) -->
+    <a class="hm-icon hm-mobile-search" href="browse.html" aria-label="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="M21 21l-4.3-4.3"></path>
+      </svg>
+    </a>
 
     <div class="right">
       <a class="hm-icon" href="cart.html" aria-label="Cart" data-hm-cart-link>
@@ -214,6 +208,17 @@ window.HM = window.HM || {};
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeSheet();
     });
+    
+    // Dynamic search placeholder based on type selection
+    const searchType = document.getElementById("headerSearchType");
+    const searchInput = document.getElementById("headerSearchInput");
+    if (searchType && searchInput) {
+      searchType.addEventListener("change", function() {
+        searchInput.placeholder = searchType.value === "sellers"
+          ? "Search by store or seller name"
+          : "Search by color, type, weight, price, and more";
+      });
+    }
   }
 
   function getNotificationsElements() {
