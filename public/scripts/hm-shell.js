@@ -15,7 +15,7 @@ window.HM = window.HM || {};
   <div class="wrap">
     <a class="hm-brand" href="index.html">
       <img src="/images/logo.png" alt="" class="hm-brand-logo">
-      Hemline Market
+      <span class="hm-brand-text"><span>Hemline</span><span>Market</span></span>
     </a>
 
     <form class="hm-header-search" action="browse.html" method="get" role="search">
