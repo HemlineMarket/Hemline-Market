@@ -313,8 +313,8 @@
         <a class="listing-thumb-link" href="${href}">
           <div class="listing-thumb" aria-hidden="true">
             ${avatarUrl 
-              ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">` 
-              : `<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#f3f4f6;color:#9ca3af;font-size:48px;font-weight:600;">${storeName.charAt(0).toUpperCase()}</div>`
+              ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:center top;">` 
+              : ``
             }
           </div>
         </a>
