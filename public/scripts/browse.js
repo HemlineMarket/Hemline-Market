@@ -302,7 +302,7 @@
 
     filtered.forEach(p => {
       const card = document.createElement("article");
-      card.className = "listing-card";
+      card.className = "listing-card seller-card";
 
       const storeName = p.store_name || p.display_name || "Seller";
       const ownerName = ((p.first_name || "") + " " + (p.last_name || "")).trim();
@@ -312,8 +312,8 @@
       card.innerHTML = `
         ${avatarUrl ? `
         <a class="listing-thumb-link" href="${href}">
-          <div class="listing-thumb" aria-hidden="true" style="background:#fff;">
-            <img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%!important;height:100%!important;object-fit:contain!important;">
+          <div class="seller-avatar" style="aspect-ratio:1/1;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;">
+            <img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="max-width:100%;max-height:100%;object-fit:contain;">
           </div>
         </a>
         ` : ``}
