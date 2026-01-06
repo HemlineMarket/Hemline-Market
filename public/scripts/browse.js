@@ -753,35 +753,26 @@
     currentMode = urlMode;
 
     if (qInput) qInput.value = initialQ;
-    
-    // Set dropdown to match URL mode
-    if (searchModeSelect) {
-      searchModeSelect.value = currentMode === "ateliers" ? "sellers" : "fabrics";
-    }
+    if (searchModeSelect) searchModeSelect.value = currentMode === "ateliers" ? "sellers" : "fabrics";
 
-    // Update UI based on mode
     function updateModeUI() {
       if (currentMode === "ateliers") {
-        if (heading) heading.textContent = "Ateliers";
-        if (qInput) qInput.placeholder = "Search sellers by name…";
+        if (heading) heading.textContent = "Sellers";
+        if (qInput) qInput.placeholder = "Search sellers…";
         if (layout) layout.classList.add("filters-hidden");
         if (toggle) {
           toggle.textContent = "Show filters";
           toggle.setAttribute("aria-pressed", "false");
-          toggle.style.display = "none"; // Hide filter toggle for sellers
+          toggle.style.display = "none";
         }
       } else {
         if (heading) heading.textContent = "Browse";
         if (qInput) qInput.placeholder = "Search fabrics…";
-        if (toggle) {
-          toggle.style.display = ""; // Show filter toggle for fabrics
-        }
+        if (toggle) toggle.style.display = "";
       }
     }
-    
     updateModeUI();
 
-    // Handle mode dropdown change
     if (searchModeSelect) {
       searchModeSelect.addEventListener("change", () => {
         currentMode = searchModeSelect.value === "sellers" ? "ateliers" : "listings";
