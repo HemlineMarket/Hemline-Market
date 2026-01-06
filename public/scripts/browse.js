@@ -313,7 +313,7 @@
         <a class="listing-thumb-link" href="${href}">
           <div class="listing-thumb" aria-hidden="true" style="background:#fff;">
             ${avatarUrl 
-              ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%;height:100%;object-fit:contain;">` 
+              ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%!important;height:100%!important;object-fit:contain!important;">` 
               : ``
             }
           </div>
