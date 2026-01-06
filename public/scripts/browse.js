@@ -310,14 +310,13 @@
       const avatarUrl = p.avatar_url || "";
 
       card.innerHTML = `
+        ${avatarUrl ? `
         <a class="listing-thumb-link" href="${href}">
           <div class="listing-thumb" aria-hidden="true" style="background:#fff;">
-            ${avatarUrl 
-              ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%!important;height:100%!important;object-fit:contain!important;">` 
-              : ``
-            }
+            <img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%!important;height:100%!important;object-fit:contain!important;">
           </div>
         </a>
+        ` : ``}
         <div class="listing-body">
           <div class="listing-title-row">
             <a class="listing-title" href="${href}">${storeName}</a>
