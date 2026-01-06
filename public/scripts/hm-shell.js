@@ -18,14 +18,26 @@ window.HM = window.HM || {};
       Hemline Market
     </a>
 
-    <div class="right">
-      <a class="hm-icon" href="browse.html" aria-label="Browse &amp; search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <form class="hm-header-search" action="browse.html" method="get" role="search">
+      <select name="type" class="hm-header-search-type">
+        <option value="fabrics">Fabrics</option>
+        <option value="sellers">Sellers</option>
+      </select>
+      <input 
+        type="search" 
+        name="q" 
+        class="hm-header-search-input" 
+        placeholder="Search fabrics or sellers..."
+      />
+      <button type="submit" class="hm-header-search-btn" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="M21 21l-4.3-4.3"></path>
         </svg>
-      </a>
+      </button>
+    </form>
 
+    <div class="right">
       <a class="hm-icon" href="cart.html" aria-label="Cart" data-hm-cart-link>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9" cy="21" r="1"></circle>
