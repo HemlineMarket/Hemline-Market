@@ -235,6 +235,19 @@
     const countEl = document.getElementById("resultCount");
     const qInput = document.getElementById("q");
 
+    const searchTerm = (qInput?.value || "").trim().toLowerCase();
+
+    // Don't show anything until user searches
+    if (!searchTerm) {
+      if (grid) grid.innerHTML = "";
+      if (emptyEl) {
+        emptyEl.textContent = "Search for sellers by name above.";
+        emptyEl.style.display = "block";
+      }
+      if (countEl) countEl.textContent = "";
+      return;
+    }
+
     if (grid) {
       if (typeof window.generateSkeletonCards === 'function') {
         grid.innerHTML = window.generateSkeletonCards(6);
@@ -245,45 +258,41 @@
     if (emptyEl) emptyEl.style.display = "none";
     if (countEl) countEl.textContent = "";
 
-    const searchTerm = (qInput?.value || "").trim().toLowerCase();
-
     let profiles = [];
     try {
       const { data, error } = await supabaseClient
         .from("profiles")
-        .select("id, display_name, store_name, first_name, last_name, bio")
+        .select("id, display_name, store_name, first_name, last_name, bio, avatar_url")
         .order("store_name", { ascending: true });
 
       if (error) {
         console.error("Atelier fetch error", error);
-        if (countEl) countEl.textContent = "Error loading ateliers";
+        if (countEl) countEl.textContent = "Error loading sellers";
         return;
       }
       profiles = data || [];
     } catch (e) {
       console.error("Atelier fetch exception", e);
-      if (countEl) countEl.textContent = "Error loading ateliers";
+      if (countEl) countEl.textContent = "Error loading sellers";
       return;
     }
 
-    let filtered = profiles;
-    if (searchTerm) {
-      filtered = profiles.filter(p => {
-        const store = (p.store_name || "").toLowerCase();
-        const disp = (p.display_name || "").toLowerCase();
-        const full = ((p.first_name || "") + " " + (p.last_name || "")).trim().toLowerCase();
-        return store.includes(searchTerm) || disp.includes(searchTerm) || full.includes(searchTerm);
-      });
-    }
+    // Filter by search term
+    const filtered = profiles.filter(p => {
+      const store = (p.store_name || "").toLowerCase();
+      const disp = (p.display_name || "").toLowerCase();
+      const full = ((p.first_name || "") + " " + (p.last_name || "")).trim().toLowerCase();
+      return store.includes(searchTerm) || disp.includes(searchTerm) || full.includes(searchTerm);
+    });
 
     const total = filtered.length;
     if (countEl) {
-      countEl.textContent = total === 1 ? "1 atelier" : total + " ateliers";
+      countEl.textContent = total === 1 ? "1 seller" : total + " sellers";
     }
 
     if (!total) {
       if (emptyEl) {
-        emptyEl.textContent = "No ateliers match that search yet.";
+        emptyEl.textContent = "No sellers match that search.";
         emptyEl.style.display = "block";
       }
       return;
@@ -295,13 +304,19 @@
       const card = document.createElement("article");
       card.className = "listing-card";
 
-      const storeName = p.store_name || p.display_name || "Atelier";
+      const storeName = p.store_name || p.display_name || "Seller";
       const ownerName = ((p.first_name || "") + " " + (p.last_name || "")).trim();
       const href = "atelier.html?u=" + encodeURIComponent(p.id);
+      const avatarUrl = p.avatar_url || "";
 
       card.innerHTML = `
         <a class="listing-thumb-link" href="${href}">
-          <div class="listing-thumb" aria-hidden="true"></div>
+          <div class="listing-thumb" aria-hidden="true">
+            ${avatarUrl 
+              ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">` 
+              : `<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#f3f4f6;color:#9ca3af;font-size:48px;font-weight:600;">${storeName.charAt(0).toUpperCase()}</div>`
+            }
+          </div>
         </a>
         <div class="listing-body">
           <div class="listing-title-row">
