@@ -45,13 +45,6 @@ window.HM = window.HM || {};
     </form>
 
     <div class="right">
-      <a class="hm-icon hm-search-link" href="browse.html" aria-label="Search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="M21 21l-4.3-4.3"></path>
-        </svg>
-      </a>
-
       <a class="hm-icon" href="cart.html" aria-label="Cart" data-hm-cart-link>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="9" cy="21" r="1"></circle>
