@@ -311,7 +311,7 @@
 
       card.innerHTML = `
         <a class="listing-thumb-link" href="${href}">
-          <div class="listing-thumb" aria-hidden="true" style="background:#f3f4f6;">
+          <div class="listing-thumb" aria-hidden="true" style="background:#fff;">
             ${avatarUrl 
               ? `<img src="${avatarUrl}" alt="${storeName}" loading="lazy" style="width:100%;height:100%;object-fit:contain;">` 
               : ``
@@ -771,6 +771,7 @@
     if (searchModeSelect) searchModeSelect.value = currentMode === "ateliers" ? "sellers" : "fabrics";
 
     function updateModeUI() {
+      const sortByContainer = document.getElementById("sortBy")?.parentElement;
       if (currentMode === "ateliers") {
         if (heading) heading.textContent = "Sellers";
         if (qInput) qInput.placeholder = "Search sellers…";
@@ -780,10 +781,12 @@
           toggle.setAttribute("aria-pressed", "false");
           toggle.style.display = "none";
         }
+        if (sortByContainer) sortByContainer.style.display = "none";
       } else {
         if (heading) heading.textContent = "Browse";
         if (qInput) qInput.placeholder = "Search fabrics…";
         if (toggle) toggle.style.display = "";
+        if (sortByContainer) sortByContainer.style.display = "";
       }
     }
     updateModeUI();
