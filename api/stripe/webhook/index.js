@@ -378,6 +378,10 @@ export default async function handler(req, res) {
       } else {
         console.log(`Marked ${allListingIds.length} listing(s) as SOLD:`, allListingIds);
       }
+
+      // Clear checkout locks and cart holds for these items
+      await supabase.from("checkout_locks").delete().in("listing_id", allListingIds);
+      await supabase.from("cart_holds").delete().in("listing_id", allListingIds);
     }
 
     let labelResult = { success: false, reason: "No seller address configured" };
