@@ -960,11 +960,23 @@
 
         if (!resp.ok) {
           console.error("Stripe create_session error", resp.status, data);
-          const msg =
-            data.error ||
-            data.message ||
-            `Could not start payment (status ${resp.status}). Please try again.`;
-          showBanner(msg, "err");
+          
+          // Handle specific error cases with better UX
+          if (resp.status === 409 && data.locked_items) {
+            // Another buyer is checking out these items
+            showBanner("⏳ " + (data.message || "These items are being purchased by another buyer. Please try again in a few minutes."), "err");
+          } else if (data.unavailable || data.sold_items) {
+            // Items were sold
+            showBanner("😢 " + (data.message || "Some items in your cart have already sold."), "err");
+            // Refresh cart to remove sold items
+            setTimeout(() => {
+              cleanSoldFromCart({ silent: true }).then(() => renderCartSummary());
+            }, 1500);
+          } else {
+            const msg = data.message || data.error || `Could not start payment (status ${resp.status}). Please try again.`;
+            showBanner(msg, "err");
+          }
+          
           next.disabled = false;
           next.textContent = old;
           return;
