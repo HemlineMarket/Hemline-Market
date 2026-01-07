@@ -71,6 +71,28 @@ export default async function handler(req, res) {
       .map(item => item.listing_id || item.listingId || item.id)
       .filter(Boolean);
 
+    const now = new Date().toISOString();
+
+    // CHECK FOR CHECKOUT LOCKS (prevents race condition with other buyers)
+    if (listingIds.length > 0 && buyerId) {
+      const { data: existingLocks, error: lockError } = await supabase
+        .from("checkout_locks")
+        .select("listing_id, user_id, expires_at")
+        .in("listing_id", listingIds)
+        .gt("expires_at", now);
+
+      if (!lockError && existingLocks) {
+        const blockedBy = existingLocks.filter(lock => lock.user_id !== buyerId);
+        if (blockedBy.length > 0) {
+          return res.status(409).json({
+            error: "Items locked by another buyer",
+            locked_items: blockedBy.map(l => l.listing_id),
+            message: "One or more items are being purchased by another buyer. Please try again in a few minutes."
+          });
+        }
+      }
+    }
+
     // CHECK IF ITEMS ARE STILL AVAILABLE
     if (listingIds.length > 0) {
       const { data: listings, error: listingError } = await supabase
@@ -251,6 +273,21 @@ export default async function handler(req, res) {
       metadata,
       billing_address_collection: "auto",
     };
+
+    // CREATE CHECKOUT LOCK (10-minute hold while user is in Stripe)
+    if (listingIds.length > 0 && buyerId) {
+      const lockExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const locks = listingIds.map(listing_id => ({
+        listing_id,
+        user_id: buyerId,
+        expires_at: lockExpiresAt,
+        created_at: now
+      }));
+
+      await supabase
+        .from("checkout_locks")
+        .upsert(locks, { onConflict: "listing_id", ignoreDuplicates: false });
+    }
 
     // If we have shipping address from our checkout, use shipping_options instead of collection
     // This shows a fixed shipping rate and skips Stripe's address form
