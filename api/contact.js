@@ -2,29 +2,9 @@
 // Serverless function on Vercel to forward contact form messages to hello@hemlinemarket.com
 // Uses Resend's HTTP API. Also supports GET /api/contact?diag=1 to verify env is loaded.
 
+import { rateLimit } from "./_rateLimitDb.js";
+
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
-
-// Rate limiting - stricter for contact form to prevent spam
-// 5 requests per IP per minute
-const WINDOW_MS = 60 * 1000;
-const MAX_REQUESTS = 5;
-const rateBuckets = new Map();
-
-function checkRateLimit(req) {
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket?.remoteAddress || "unknown";
-  const now = Date.now();
-  const bucket = rateBuckets.get(ip) || { count: 0, expires: now + WINDOW_MS };
-
-  if (now > bucket.expires) {
-    bucket.count = 0;
-    bucket.expires = now + WINDOW_MS;
-  }
-
-  bucket.count++;
-  rateBuckets.set(ip, bucket);
-
-  return bucket.count <= MAX_REQUESTS;
-}
 
 // Basic email check (good enough for form validation)
 function looksLikeEmail(s) {
@@ -45,7 +25,7 @@ function setCors(res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   setCors(res);
 
   if (req.method === "OPTIONS") {
@@ -68,10 +48,9 @@ module.exports = async (req, res) => {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  // Rate limit check - prevent spam
-  if (!checkRateLimit(req)) {
-    return res.status(429).json({ ok: false, error: "Too many requests. Please try again later." });
-  }
+  // Rate limit check - 5 requests per minute per IP (stricter for contact form)
+  const allowed = await rateLimit(req, res, { maxRequests: 5, windowMs: 60000 });
+  if (!allowed) return; // Response already sent by rateLimit
 
   try {
     // Expecting JSON from the frontend
