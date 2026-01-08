@@ -1485,5 +1485,124 @@
     </svg>
   </button>
 
+  <!-- Invite Modal -->
+  <div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#fff;border-radius:16px;max-width:480px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.2);position:relative;">
+      <button id="inviteModalClose" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:24px;cursor:pointer;color:#6b7280;line-height:1;">&times;</button>
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#111827;">Invite a Sewist</h2>
+      <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Share this personal invitation with a fellow maker.</p>
+      <div id="invitePreview" style="background:#faf5f5;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:16px;font-size:14px;line-height:1.6;color:#374151;"></div>
+      <div style="display:flex;gap:10px;">
+        <button id="inviteCopyBtn" style="flex:1;padding:12px 16px;background:#991b1b;color:#fff;border:none;border-radius:999px;font-weight:700;font-size:14px;cursor:pointer;">Copy Invitation</button>
+        <button id="inviteEmailBtn" style="flex:1;padding:12px 16px;background:#fff;color:#991b1b;border:1px solid #991b1b;border-radius:999px;font-weight:700;font-size:14px;cursor:pointer;">Send via Email</button>
+      </div>
+      <p id="inviteCopiedMsg" style="display:none;margin:12px 0 0;text-align:center;color:#059669;font-size:13px;font-weight:600;">✓ Copied to clipboard!</p>
+    </div>
+  </div>
+
+  <!-- Invite Button Logic -->
+  <script>
+  (function() {
+    const heroBtn = document.getElementById('heroCreateAccountBtn');
+    const modal = document.getElementById('inviteModal');
+    const preview = document.getElementById('invitePreview');
+    const copyBtn = document.getElementById('inviteCopyBtn');
+    const emailBtn = document.getElementById('inviteEmailBtn');
+    const closeBtn = document.getElementById('inviteModalClose');
+    const copiedMsg = document.getElementById('inviteCopiedMsg');
+    
+    let inviteText = '';
+    let userName = '';
+    
+    async function checkAuthAndUpdateButton() {
+      if (!window.HM?.supabase) {
+        setTimeout(checkAuthAndUpdateButton, 200);
+        return;
+      }
+      
+      try {
+        const { data: { user } } = await window.HM.supabase.auth.getUser();
+        if (!user) return; // Not logged in, keep "Create Account"
+        
+        // Get user's name from profile
+        const { data: profile } = await window.HM.supabase
+          .from('profiles')
+          .select('first_name, store_name')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        userName = profile?.first_name || profile?.store_name || 'A fellow sewist';
+        
+        // Update button to "Invite a Sewist"
+        heroBtn.innerHTML = '<span>Invite a</span> <span>Sewist</span>';
+        heroBtn.href = '#';
+        heroBtn.addEventListener('click', openInviteModal);
+        
+      } catch (e) {
+        console.error('Auth check failed:', e);
+      }
+    }
+    
+    function buildInviteText() {
+      return `Invitation from ${userName}
+
+Join me on Hemline Market, a marketplace where sewists buy and sell fabric from their stash.
+
+Transparent pricing (no swatch bait and switch), shipping labels with tracking emailed to sellers, and secure checkout through Stripe with Apple Pay, Google Pay, and more. Payment is held until the fabric arrives as described.
+
+The more of us who join, the better it gets.
+
+https://hemlinemarket.com`;
+    }
+    
+    function openInviteModal(e) {
+      e.preventDefault();
+      inviteText = buildInviteText();
+      preview.textContent = inviteText;
+      modal.style.display = 'flex';
+      copiedMsg.style.display = 'none';
+    }
+    
+    function closeModal() {
+      modal.style.display = 'none';
+    }
+    
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+    
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(inviteText);
+        copiedMsg.style.display = 'block';
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy Invitation';
+          copiedMsg.style.display = 'none';
+        }, 2000);
+      } catch (e) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = inviteText;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        copiedMsg.style.display = 'block';
+      }
+    });
+    
+    emailBtn.addEventListener('click', () => {
+      const subject = encodeURIComponent(`${userName} invited you to Hemline Market`);
+      const body = encodeURIComponent(inviteText);
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    });
+    
+    // Check auth on load
+    checkAuthAndUpdateButton();
+  })();
+  </script>
+
 </body>
 </html>
