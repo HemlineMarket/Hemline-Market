@@ -352,12 +352,9 @@
       if (supabase) {
         const { data } = await supabase.auth.getSession();
         if (data?.session?.user) {
-          // Hide About card button
+          // Hide About card button (hero button is now handled by invite script in index.html)
           const btn = document.getElementById('createAccountBtn');
           if (btn) btn.style.display = 'none';
-          // Hide hero banner button
-          const heroBtn = document.getElementById('heroCreateAccountBtn');
-          if (heroBtn) heroBtn.style.display = 'none';
         }
       }
     } catch (_) {}
