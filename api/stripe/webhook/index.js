@@ -284,6 +284,18 @@ export default async function handler(req, res) {
     const session = event.data.object;
     const md = session.metadata || {};
 
+    // IDEMPOTENCY CHECK: Prevent duplicate orders if Stripe retries the webhook
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("stripe_checkout_session", session.id)
+      .maybeSingle();
+
+    if (existingOrder) {
+      console.log("Order already processed, skipping duplicate:", session.id);
+      return res.status(200).json({ received: true, duplicate: true });
+    }
+
     // FIX: Get ALL listing IDs from metadata (supports multi-item carts)
     const allListingIds = (md.listing_ids || md.listing_id || "")
       .split(",")
