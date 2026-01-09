@@ -114,4 +114,11 @@
 
           line.textContent = `${shipsText} · ${etaText}`;
         } catch (err) {
-          warn.textContent = 'Error: ' + (err.message || String(err
+          warn.textContent = 'Error: ' + (err.message || String(err));
+        }
+      });
+    }
+  };
+
+  window.EtaWidget = EtaWidget;
+})();
