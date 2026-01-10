@@ -1,7 +1,3 @@
-// api/wallet/credit.js
-// Add credit to seller's wallet after a sale
-// Called internally from Stripe webhook
-
 const { createClient } = require("@supabase/supabase-js");
 
 const supabaseAdmin = createClient(
@@ -18,7 +14,6 @@ module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    // Verify internal webhook secret
     const secret = req.headers["x-webhook-secret"];
     if (secret !== process.env.INTERNAL_WEBHOOK_SECRET) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -34,7 +29,6 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: "amount_cents must be positive" });
     }
 
-    // Add credit using database function
     const { data, error } = await supabaseAdmin.rpc("add_wallet_credit", {
       p_user_id: seller_id,
       p_amount_cents: amount_cents,
