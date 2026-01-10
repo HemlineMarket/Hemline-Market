@@ -12,6 +12,16 @@
     return;
   }
 
+  // Admin emails - can edit/delete any post
+  const ADMIN_EMAILS = [
+    "roza@hemlinemarket.com",
+    "hello@hemlinemarket.com"
+  ];
+
+  function isAdmin() {
+    return currentUser && currentUser.email && ADMIN_EMAILS.includes(currentUser.email.toLowerCase());
+  }
+
   // Optional per-page category filter: <body data-thread-category="showcase">
   const THREAD_CATEGORY_FILTER =
     document.body &&
@@ -1668,7 +1678,8 @@
     const thread = allThreads.find((t) => t.id === threadId);
     if (!thread) return;
 
-    if (!currentUser || thread.author_id !== currentUser.id) {
+    // Allow edit if user is author OR admin
+    if (!currentUser || (thread.author_id !== currentUser.id && !isAdmin())) {
       showToast("You can only edit your own posts.");
       return;
     }
@@ -1913,7 +1924,8 @@
           finalMediaType = newMediaType;
         }
 
-        const { error } = await supabase
+        // Build update query - admins can edit any post
+        let updateQuery = supabase
           .from("threadtalk_threads")
           .update({
             body,
@@ -1921,8 +1933,14 @@
             media_type: finalMediaType,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", threadId)
-          .eq("author_id", currentUser.id);
+          .eq("id", threadId);
+        
+        // Only add author filter if not admin (RLS will handle it, but this is extra safety)
+        if (!isAdmin()) {
+          updateQuery = updateQuery.eq("author_id", currentUser.id);
+        }
+
+        const { error } = await updateQuery;
 
         if (error) {
           console.error("[ThreadTalk] update error", error);
