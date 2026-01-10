@@ -1,24 +1,44 @@
 // FILE: api/stripe/transfer_now.js
-// REPLACE your existing file with this entire file
-//
-// FIXES:
-// - Changed Stripe API version from invalid '2025-07-30.basil' to '2024-06-20'
-// - Added authentication
+// Credits seller's wallet instead of direct Stripe transfer
+// Use this for manual payouts - credits wallet, seller can then withdraw
 
-import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20',
-});
 
 function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+// Credit seller's wallet using the wallet API
+async function creditSellerWallet(sellerId, amountCents, orderId, description) {
+  const baseUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : process.env.NEXT_PUBLIC_SITE_URL || 'https://hemlinemarket.com';
+  
+  const response = await fetch(`${baseUrl}/api/wallet/credit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Webhook-Secret': process.env.INTERNAL_WEBHOOK_SECRET
+    },
+    body: JSON.stringify({
+      seller_id: sellerId,
+      amount_cents: amountCents,
+      order_id: orderId,
+      description: description || 'Sale proceeds'
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Wallet credit failed: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 export default async function handler(req, res) {
@@ -47,10 +67,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { account, amount_cents, order_id, memo } = req.body || {};
+    const { seller_id, amount_cents, order_id, memo } = req.body || {};
     
-    if (!account || typeof account !== 'string' || !account.startsWith('acct_')) {
-      return res.status(400).json({ error: 'Invalid `account` (acct_...)' });
+    if (!seller_id) {
+      return res.status(400).json({ error: 'Missing seller_id' });
     }
 
     const amt = Number(amount_cents);
@@ -70,17 +90,13 @@ export default async function handler(req, res) {
       }
     }
 
-    const transfer = await stripe.transfers.create({
-      amount: Math.round(amt),
-      currency: 'usd',
-      destination: account,
-      metadata: {
-        source: 'hemline_market',
-        order_id: order_id || '',
-        memo: memo || '',
-        initiated_by: user.id,
-      },
-    });
+    // Credit wallet instead of direct Stripe transfer
+    const walletResult = await creditSellerWallet(
+      seller_id,
+      Math.round(amt),
+      order_id,
+      memo || 'Manual payout'
+    );
 
     if (order_id) {
       await supabase
@@ -88,19 +104,21 @@ export default async function handler(req, res) {
         .update({
           payout_at: new Date().toISOString(),
           payout_amount_cents: Math.round(amt),
+          wallet_transaction_id: walletResult.transaction_id,
         })
         .eq('id', order_id);
     }
 
     return res.status(200).json({
       ok: true,
-      id: transfer.id,
-      status: transfer.status,
-      amount: transfer.amount,
-      destination: transfer.destination,
+      id: walletResult.transaction_id,
+      status: 'completed',
+      amount: Math.round(amt),
+      destination: 'wallet',
+      new_balance_cents: walletResult.new_balance_cents,
     });
   } catch (err) {
     console.error('transfer_now error:', err);
-    return res.status(500).json({ error: 'Unable to create transfer' });
+    return res.status(500).json({ error: 'Unable to create transfer: ' + err.message });
   }
 }
