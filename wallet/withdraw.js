@@ -1,6 +1,3 @@
-// api/wallet/withdraw.js
-// Withdraw wallet balance to connected Stripe account
-
 const { createClient } = require("@supabase/supabase-js");
 const Stripe = require("stripe");
 
@@ -32,7 +29,6 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    // Get user's Stripe Connect account
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("stripe_account_id")
@@ -45,7 +41,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Get wallet balance
     const { data: wallet, error: walletError } = await supabaseAdmin
       .from("wallets")
       .select("id, balance_cents")
@@ -62,7 +57,6 @@ module.exports = async (req, res) => {
 
     const withdrawAmount = wallet.balance_cents;
 
-    // Create Stripe transfer to connected account
     const transfer = await stripe.transfers.create({
       amount: withdrawAmount,
       currency: "usd",
@@ -74,7 +68,6 @@ module.exports = async (req, res) => {
       }
     });
 
-    // Deduct from wallet
     const { error: updateError } = await supabaseAdmin
       .from("wallets")
       .update({ 
@@ -91,7 +84,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Record transaction
     await supabaseAdmin.from("wallet_transactions").insert({
       wallet_id: wallet.id,
       user_id: user.id,
