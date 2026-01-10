@@ -2,17 +2,14 @@
 // Vercel Cron Job - runs daily to:
 // 1. Send reminder emails to sellers who haven't shipped (Day 3)
 // 2. Notify buyers they can cancel if order not shipped (Day 5)
-// 3. Auto-release payment to seller 3 days after delivery confirmed
+// 3. Auto-release payment to seller's WALLET 3 days after delivery confirmed
 //
 // Add to vercel.json:
 // { "crons": [{ "path": "/api/cron/process-orders", "schedule": "0 9 * * *" }] }
 //
-// ENV: CRON_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, STRIPE_SECRET_KEY, POSTMARK_SERVER_TOKEN
+// ENV: CRON_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, POSTMARK_SERVER_TOKEN, INTERNAL_WEBHOOK_SECRET
 
-import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
 function getSupabaseAdmin() {
   return createClient(
@@ -32,6 +29,34 @@ async function sendEmail(to, subject, htmlBody, textBody) {
     headers: { "Content-Type": "application/json", "X-Postmark-Server-Token": POSTMARK },
     body: JSON.stringify({ From: FROM, To: to, Subject: subject, HtmlBody: htmlBody, TextBody: textBody, MessageStream: "outbound" }),
   });
+}
+
+// Credit seller's wallet using the wallet API
+async function creditSellerWallet(sellerId, amountCents, orderId, description) {
+  const baseUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : process.env.NEXT_PUBLIC_SITE_URL || 'https://hemlinemarket.com';
+  
+  const response = await fetch(`${baseUrl}/api/wallet/credit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Webhook-Secret': process.env.INTERNAL_WEBHOOK_SECRET
+    },
+    body: JSON.stringify({
+      seller_id: sellerId,
+      amount_cents: amountCents,
+      order_id: orderId,
+      description: description || 'Sale proceeds'
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Wallet credit failed: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 export default async function handler(req, res) {
@@ -119,7 +144,7 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // 3. AUTO-RELEASE PAYMENT 3 DAYS AFTER DELIVERY
+    // 3. AUTO-RELEASE PAYMENT TO WALLET 3 DAYS AFTER DELIVERY
     // =========================================================
     const threeDaysAfterDelivery = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
     const { data: deliveredOrders } = await supabase
@@ -131,21 +156,16 @@ export default async function handler(req, res) {
 
     for (const order of deliveredOrders || []) {
       try {
-        // Get seller's Stripe Connect account and fee rate
+        // Get seller's fee rate
         const { data: sellerProfile } = await supabase
           .from("profiles")
-          .select("stripe_account_id, fee_rate, founding_seller_number")
+          .select("fee_rate, founding_seller_number")
           .eq("id", order.seller_id)
           .maybeSingle();
 
-        if (!sellerProfile?.stripe_account_id) {
-          results.errors.push({ type: "payout", orderId: order.id, error: "No Stripe account" });
-          continue;
-        }
-
         // Use seller's fee rate (founding sellers = 9%, standard = 13%)
         // Default to 13% if fee_rate not set
-        const platformFeePercent = sellerProfile.fee_rate || 0.13;
+        const platformFeePercent = sellerProfile?.fee_rate || 0.13;
         const payoutAmount = Math.floor(order.items_cents * (1 - platformFeePercent));
 
         if (payoutAmount <= 0) {
@@ -153,21 +173,20 @@ export default async function handler(req, res) {
           continue;
         }
 
-        // Create Stripe Transfer to seller
-        const transfer = await stripe.transfers.create({
-          amount: payoutAmount,
-          currency: "usd",
-          destination: sellerProfile.stripe_account_id,
-          description: `Hemline order ${order.short_id || order.id}`,
-          transfer_group: order.id,
-        });
+        // Credit seller's wallet instead of Stripe transfer
+        const walletResult = await creditSellerWallet(
+          order.seller_id,
+          payoutAmount,
+          order.id,
+          `Sale: ${order.listing_title || 'Order'}`
+        );
 
         // Update order as paid out
         await supabase.from("orders").update({
           status: "COMPLETE",
           payout_at: now.toISOString(),
           payout_amount_cents: payoutAmount,
-          stripe_transfer_id: transfer.id,
+          wallet_transaction_id: walletResult.transaction_id,
           platform_fee_rate: platformFeePercent,
           platform_fee_cents: order.items_cents - payoutAmount,
         }).eq("id", order.id);
@@ -179,9 +198,10 @@ export default async function handler(req, res) {
             sellerEmail,
             "💰 Payment Released - Hemline Market",
             `<h2>You've been paid!</h2>
-            <p>Your payment of <strong>$${(payoutAmount / 100).toFixed(2)}</strong> for order "${order.listing_title}" has been released to your account.</p>
+            <p>Your earnings of <strong>$${(payoutAmount / 100).toFixed(2)}</strong> for order "${order.listing_title}" have been added to your Hemline balance.</p>
+            <p>You can use this balance to shop on Hemline Market or withdraw to your bank account from your <a href="https://hemlinemarket.com/account.html">Account page</a>.</p>
             <p>Thank you for selling on Hemline Market!</p>`,
-            `Payment of $${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" has been released.`
+            `Earnings of $${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" have been added to your Hemline balance. Visit your Account page to withdraw or shop.`
           );
         }
 
@@ -191,8 +211,8 @@ export default async function handler(req, res) {
           type: "payout",
           kind: "payout",
           title: "Payment released! 💰",
-          body: `$${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" has been sent to your account.`,
-          href: "/sales.html",
+          body: `$${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" has been added to your balance. Withdraw or shop anytime!`,
+          href: "/account.html",
         });
 
         results.payouts++;
