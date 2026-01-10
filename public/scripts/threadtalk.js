@@ -14,6 +14,7 @@
 
   // Admin emails - can edit/delete any post
   const ADMIN_EMAILS = [
+    "roza.amin@gmail.com",
     "roza@hemlinemarket.com",
     "hello@hemlinemarket.com"
   ];
