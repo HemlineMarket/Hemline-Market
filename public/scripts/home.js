@@ -133,7 +133,7 @@
         if (l.yards_available != null && l.yards_available <= 0) return false;
         if (l.published_at && new Date(l.published_at) > now) return false;
         return true;
-      }).slice(0, 12);
+      }).slice(0, 6);
 
     } catch (e) {
       console.error("Home listings exception", e);
@@ -269,6 +269,12 @@
 
       grid.appendChild(card);
     });
+
+    // Show "See More" button if we have listings
+    const seeMoreWrap = document.getElementById('seeMoreWrap');
+    if (seeMoreWrap && total > 0) {
+      seeMoreWrap.style.display = 'block';
+    }
   }
 
   /* ===== SEARCH FORM ===== */
