@@ -1,6 +1,3 @@
-// api/wallet/transactions.js
-// Get user's wallet transaction history
-
 const { createClient } = require("@supabase/supabase-js");
 
 const supabaseAdmin = createClient(
