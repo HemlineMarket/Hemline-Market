@@ -152,16 +152,27 @@ window.HM = window.HM || {};
       <span class="menu-item-title">ThreadTalk</span>
       <span class="menu-item-desc">Community forum for sewists</span>
     </a>
-    <a href="contact.html">
-      <span class="menu-item-title">Contact</span>
-      <span class="menu-item-desc">Get help or send feedback</span>
-    </a>
   </nav>
+  <div class="menu-divider"></div>
+  <nav class="menu-nav-simple">
+    <a href="about.html">About</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact</a>
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+  </nav>
+  <div class="menu-footer">© 2025 Hemline Market</div>
 </aside>
 `;
   }
 
   function footerHTML(currentPage) {
+    // Hide footer on infinite-scroll pages - links are in hamburger menu
+    const noFooterPages = ["home", "index", "browse", "threadtalk", "showcase", "cosplay", "stitch-school", "fabric-sos", "before-after", "pattern-hacks", "tailoring", "loose-threads"];
+    if (noFooterPages.includes(currentPage?.toLowerCase())) {
+      return "";
+    }
+
     function active(p) {
       return currentPage === p ? ' aria-current="page"' : "";
     }
