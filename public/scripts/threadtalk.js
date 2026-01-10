@@ -436,8 +436,10 @@
       const commentsHtml = renderCommentTree(thread.id, commentTree, 0);
 
       const isMine = currentUser && thread.author_id === currentUser.id;
+      const isFounder = currentUser && profilesCache[currentUser.id]?.is_founder;
+      const canEdit = isMine || isFounder;
 
-      const menuHtml = isMine
+      const menuHtml = canEdit
         ? `
         <div class="tt-menu">
           <button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>
@@ -511,7 +513,7 @@
             </div>
             ${title ? `<div class="card-title">${escapeHtml(title)}</div>` : ""}
           </div>
-          ${isMine ? `
+          ${canEdit ? `
             <div class="tt-menu">
               <button class="tt-menu-btn" type="button" data-tt-role="menu">···</button>
               <div class="tt-menu-pop" data-tt-role="menu-pop" hidden>
@@ -604,8 +606,11 @@
       ? `<div class="tt-react-summary tt-react-summary-comment">${chipsHtml}</div>`
       : "";
 
-    const deleteHtml =
-      currentUser && c.author_id === currentUser.id
+    const isMine = currentUser && c.author_id === currentUser.id;
+    const isFounder = currentUser && profilesCache[currentUser.id]?.is_founder;
+    const canEdit = isMine || isFounder;
+
+    const deleteHtml = canEdit
         ? `
       <div class="tt-menu tt-menu-comment">
         <button class="tt-menu-btn"
