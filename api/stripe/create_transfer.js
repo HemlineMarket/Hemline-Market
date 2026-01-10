@@ -1,19 +1,11 @@
 // FILE: api/stripe/create_transfer.js
-// REPLACE your existing file with this entire file
-//
-// FIXES:
-// - Changed Stripe API version from invalid '2025-07-30.basil' to '2024-06-20'
-// - Added authentication so only logged-in users can access
-// - Verifies order exists before allowing transfer
+// Credits seller's wallet instead of direct Stripe transfer
+// This is now a legacy endpoint - kept for backwards compatibility
+// The actual payout flow goes through wallet credit
 
-import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20',
-});
 
 function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL;
@@ -24,6 +16,34 @@ function getSupabaseAdmin() {
 
 function bad(res, code, msg) {
   return res.status(code).json({ error: msg });
+}
+
+// Credit seller's wallet using the wallet API
+async function creditSellerWallet(sellerId, amountCents, orderId, description) {
+  const baseUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : process.env.NEXT_PUBLIC_SITE_URL || 'https://hemlinemarket.com';
+  
+  const response = await fetch(`${baseUrl}/api/wallet/credit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Webhook-Secret': process.env.INTERNAL_WEBHOOK_SECRET
+    },
+    body: JSON.stringify({
+      seller_id: sellerId,
+      amount_cents: amountCents,
+      order_id: orderId,
+      description: description || 'Sale proceeds'
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Wallet credit failed: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 export default async function handler(req, res) {
@@ -52,11 +72,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { account, amount_cents, order_id, metadata = {} } = req.body || {};
+    const { amount_cents, order_id, metadata = {} } = req.body || {};
 
-    if (!account || typeof account !== 'string' || !account.startsWith('acct_')) {
-      return bad(res, 400, 'Invalid or missing "account" (acct_...)');
-    }
     const amount = Number(amount_cents);
     if (!Number.isInteger(amount) || amount <= 0) {
       return bad(res, 400, 'Invalid or missing "amount_cents" (> 0 integer)');
@@ -68,7 +85,7 @@ export default async function handler(req, res) {
     // Verify order exists and is delivered
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, status, seller_id, payout_at')
+      .select('id, status, seller_id, payout_at, listing_title')
       .eq('id', order_id)
       .maybeSingle();
 
@@ -84,22 +101,12 @@ export default async function handler(req, res) {
       return bad(res, 400, 'This order has already been paid out');
     }
 
-    const idemKey = `transfer:${order_id}:${account}:${amount}`;
-
-    const transfer = await stripe.transfers.create(
-      {
-        amount,
-        currency: 'usd',
-        destination: account,
-        description: `Hemline order ${order_id}`,
-        transfer_group: order_id,
-        metadata: {
-          ...metadata,
-          order_id,
-          initiated_by: user.id,
-        },
-      },
-      { idempotencyKey: idemKey }
+    // Credit seller's wallet instead of Stripe transfer
+    const walletResult = await creditSellerWallet(
+      order.seller_id,
+      amount,
+      order_id,
+      metadata.description || `Sale: ${order.listing_title || 'Order'}`
     );
 
     // Mark order as paid out
@@ -109,18 +116,20 @@ export default async function handler(req, res) {
         payout_at: new Date().toISOString(),
         payout_amount_cents: amount,
         status: 'COMPLETE',
+        wallet_transaction_id: walletResult.transaction_id,
       })
       .eq('id', order_id);
 
     return res.status(200).json({
-      id: transfer.id,
-      status: transfer.status,
-      amount: transfer.amount,
-      destination: transfer.destination,
-      created: transfer.created,
+      id: walletResult.transaction_id,
+      status: 'completed',
+      amount: amount,
+      destination: 'wallet',
+      wallet_id: walletResult.wallet_id,
+      new_balance_cents: walletResult.new_balance_cents,
     });
   } catch (err) {
     console.error('create_transfer error:', err);
-    return bad(res, 500, 'Unable to create transfer');
+    return bad(res, 500, 'Unable to create transfer: ' + err.message);
   }
 }
