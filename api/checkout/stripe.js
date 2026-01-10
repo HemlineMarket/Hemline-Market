@@ -1,13 +1,13 @@
 // api/checkout/stripe.js
 // Serverless endpoint for Stripe Checkout (Vercel /api route)
 
-const Stripe = require('stripe');
+import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
 });
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST');
@@ -57,4 +57,4 @@ module.exports = async function handler(req, res) {
     const msg = err?.message || 'Checkout error';
     return res.status(500).json({ error: msg });
   }
-};
+}
