@@ -194,14 +194,20 @@
 
   <script src="scripts/threadtalk.js"></script>
 
-  <!-- Floating Share Button -->
+  <!-- Floating Buttons -->
   <style>
-    #shareFab {
+    .floating-buttons {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      width: 56px;
-      height: 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 999;
+    }
+    .fab-btn {
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       background: #991b1b;
       color: #fff;
@@ -211,28 +217,62 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 999;
-      transition: background 0.2s;
+      transition: background 0.2s, transform 0.2s;
     }
-    #shareFab svg {
-      width: 24px;
-      height: 24px;
+    .fab-btn:hover {
+      transform: scale(1.1);
+    }
+    .fab-btn svg {
+      width: 22px;
+      height: 22px;
       stroke: currentColor;
       stroke-width: 2;
       fill: none;
     }
+    #backToTop {
+      display: none;
+    }
+    #backToTop.show {
+      display: flex;
+    }
   </style>
-  <button id="shareFab" aria-label="Share ThreadTalk">
-    <svg viewBox="0 0 24 24">
-      <circle cx="18" cy="5" r="3"></circle>
-      <circle cx="6" cy="12" r="3"></circle>
-      <circle cx="18" cy="19" r="3"></circle>
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-    </svg>
-  </button>
+  
+  <div class="floating-buttons">
+    <button id="backToTop" class="fab-btn" aria-label="Back to top">
+      <svg viewBox="0 0 24 24">
+        <path d="M18 15l-6-6-6 6"/>
+      </svg>
+    </button>
+    <button id="shareFab" class="fab-btn" aria-label="Share ThreadTalk">
+      <svg viewBox="0 0 24 24">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      </svg>
+    </button>
+  </div>
 
   <script>
+    // Back to top
+    (function() {
+      const btn = document.getElementById('backToTop');
+      if (!btn) return;
+      
+      window.addEventListener('scroll', function() {
+        if (window.scrollY > 400) {
+          btn.classList.add('show');
+        } else {
+          btn.classList.remove('show');
+        }
+      });
+      
+      btn.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    })();
+    
     // Share functionality - just copy link
     document.getElementById('shareFab').addEventListener('click', async () => {
       try {
