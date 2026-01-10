@@ -1,6 +1,6 @@
 // /api/stripe.js
 // Purpose: verify Stripe signature and log key fields for checkout.session.completed
-const Stripe = require('stripe');
+import Stripe from 'stripe';
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 
@@ -10,7 +10,7 @@ async function readRawBody(req) {
   return Buffer.concat(chunks);
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method === 'GET') {
     res.status(200).json({ ok: true, route: '/api/stripe' });
     return;
@@ -62,4 +62,4 @@ module.exports = async (req, res) => {
   }
 
   res.status(200).end(`Received ${event.type}`);
-};
+}
