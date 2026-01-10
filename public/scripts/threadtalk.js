@@ -314,6 +314,11 @@
         authorIds.push(r.user_id);
       });
 
+      // Always include current user so founder/edit checks work
+      if (currentUser?.id) {
+        authorIds.push(currentUser.id);
+      }
+
       await loadProfiles(authorIds);
       applySearchFilter();
     } catch (err) {
