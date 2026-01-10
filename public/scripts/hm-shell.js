@@ -53,6 +53,14 @@ window.HM = window.HM || {};
     </form>
 
     <div class="right">
+      <a class="hm-header-link" href="ThreadTalk.html" title="Community Forum">
+        <svg class="hm-header-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          <path d="M8 9h8M8 13h6"></path>
+        </svg>
+        <span class="hm-header-link-text">Forum</span>
+      </a>
+
       <a class="hm-icon hm-search-link" href="browse.html" aria-label="Search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
