@@ -1,5 +1,6 @@
 // FILE: api/cancel-order.js
 // FIX: Uses JWT to verify buyer instead of trusting body parameter (BUG #20)
+// FIX: Now restores ALL listings for multi-item orders (not just first one)
 // Buyer-initiated order cancellation (within 30 min window)
 //
 // CHANGE: Now requires valid JWT token, buyer_id derived from token (not body)
@@ -88,6 +89,59 @@ async function createNotification(supabase, userId, kind, title, body, href) {
   }
 }
 
+// Void Shippo label to get refund on shipping cost
+async function voidShippoLabel(supabase, orderId, shippoTransactionId) {
+  const SHIPPO_KEY = process.env.SHIPPO_API_KEY;
+  if (!SHIPPO_KEY) return;
+
+  // If no transaction ID on order, check db_shipments table
+  let transactionId = shippoTransactionId;
+  if (!transactionId) {
+    const { data: shipment } = await supabase
+      .from("db_shipments")
+      .select("shippo_transaction_id")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    transactionId = shipment?.shippo_transaction_id;
+  }
+
+  if (!transactionId) {
+    console.log("[cancel-order] No Shippo transaction ID found for order:", orderId);
+    return;
+  }
+
+  try {
+    // Shippo uses POST to /refunds endpoint to void/refund a label
+    const refundRes = await fetch("https://api.goshippo.com/refunds/", {
+      method: "POST",
+      headers: {
+        "Authorization": `ShippoToken ${SHIPPO_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ transaction: transactionId }),
+    });
+    
+    const refundData = await refundRes.json();
+    if (refundData.status === "QUEUED" || refundData.status === "SUCCESS") {
+      console.log(`[cancel-order] Shippo label refund requested: ${refundData.status}`);
+      
+      // Update db_shipments if exists
+      await supabase
+        .from("db_shipments")
+        .update({ status: "CANCELED", cancelled_at: new Date().toISOString() })
+        .eq("order_id", orderId);
+    } else {
+      console.error("[cancel-order] Shippo refund issue:", refundData);
+    }
+  } catch (shippoErr) {
+    // Log but don't fail the cancellation - the Stripe refund already went through
+    console.error("[cancel-order] Shippo void error:", shippoErr);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -129,11 +183,12 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3) Check if already canceled or shipped
-    if (order.status === "canceled" || order.status === "CANCELLED") {
+    // 3) Check if already canceled or shipped (case-insensitive)
+    const status = (order.status || "").toUpperCase();
+    if (status === "CANCELED" || status === "CANCELLED") {
       return res.status(400).json({ error: "Order already canceled." });
     }
-    if (order.status === "shipped" || order.status === "SHIPPED" || order.shipped_at) {
+    if (status === "SHIPPED" || status === "DELIVERED" || status === "COMPLETE" || order.shipped_at) {
       return res.status(400).json({
         error: "Order already shipped — cannot cancel.",
       });
@@ -164,42 +219,7 @@ export default async function handler(req, res) {
     });
 
     // 5b) Void Shippo shipping label if exists
-    const shippoTransactionId = order.shippo_transaction_id;
-    if (shippoTransactionId) {
-      const SHIPPO_KEY = process.env.SHIPPO_API_KEY;
-      if (SHIPPO_KEY) {
-        try {
-          const voidRes = await fetch(`https://api.goshippo.com/transactions/${shippoTransactionId}`, {
-            method: "PUT",
-            headers: {
-              "Authorization": `ShippoToken ${SHIPPO_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ is_return: false, async: false }),
-          });
-          
-          // Shippo uses POST to /refunds endpoint to void/refund a label
-          const refundRes = await fetch("https://api.goshippo.com/refunds/", {
-            method: "POST",
-            headers: {
-              "Authorization": `ShippoToken ${SHIPPO_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ transaction: shippoTransactionId }),
-          });
-          
-          const refundData = await refundRes.json();
-          if (refundData.status === "QUEUED" || refundData.status === "SUCCESS") {
-            console.log(`[cancel-order] Shippo label refund requested: ${refundData.status}`);
-          } else {
-            console.error("[cancel-order] Shippo refund issue:", refundData);
-          }
-        } catch (shippoErr) {
-          // Log but don't fail the cancellation - the Stripe refund already went through
-          console.error("[cancel-order] Shippo void error:", shippoErr);
-        }
-      }
-    }
+    await voidShippoLabel(supabase, order.id, order.shippo_transaction_id);
 
     // 6) Update order status
     await supabase
@@ -211,16 +231,41 @@ export default async function handler(req, res) {
       })
       .eq("id", order_id);
 
-    // 7) Re-open listing
-    if (order.listing_id) {
-      await supabase
+    // 7) FIX: Re-open ALL listings (handles multi-item orders)
+    let listingIdsToRestore = [];
+    
+    // Check for listing_ids array first (multi-item orders)
+    if (order.listing_ids && Array.isArray(order.listing_ids) && order.listing_ids.length > 0) {
+      listingIdsToRestore = order.listing_ids;
+    } else if (order.listing_id) {
+      // Fall back to single listing_id
+      listingIdsToRestore = [order.listing_id];
+    }
+
+    if (listingIdsToRestore.length > 0) {
+      console.log("[cancel-order] Restoring listings:", listingIdsToRestore);
+      
+      const { error: listingErr } = await supabase
         .from("listings")
-        .update({ status: "active", sold_at: null })
-        .eq("id", order.listing_id);
+        .update({ 
+          status: "ACTIVE",  // FIX: Use uppercase for consistency
+          sold_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .in("id", listingIdsToRestore);
+
+      if (listingErr) {
+        console.warn("[cancel-order] listing update error:", listingErr);
+      } else {
+        console.log(`[cancel-order] Successfully restored ${listingIdsToRestore.length} listing(s)`);
+      }
     }
 
     // Get the item name (support both field names)
-    const listingName = order.listing_title || order.listing_name || "your item";
+    const itemCount = listingIdsToRestore.length || 1;
+    const listingName = itemCount > 1 
+      ? `${itemCount} items`
+      : (order.listing_title || order.listing_name || "your item");
     const totalAmount = order.total_cents ? `$${(order.total_cents / 100).toFixed(2)}` : "your payment";
 
     // 8) Notify seller (in-app)
@@ -287,7 +332,10 @@ export default async function handler(req, res) {
       );
     }
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ 
+      success: true,
+      listings_restored: listingIdsToRestore.length
+    });
   } catch (err) {
     console.error("[cancel-order] error:", err);
     return res.status(500).json({ error: "server_error", detail: err.message });
