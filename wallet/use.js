@@ -1,6 +1,3 @@
-// api/wallet/use.js
-// Use wallet credit at checkout
-
 const { createClient } = require("@supabase/supabase-js");
 
 const supabaseAdmin = createClient(
@@ -35,7 +32,6 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: "Invalid amount" });
     }
 
-    // Use credit via database function
     const { data, error } = await supabaseAdmin.rpc("use_wallet_credit", {
       p_user_id: user.id,
       p_amount_cents: amount_cents,
