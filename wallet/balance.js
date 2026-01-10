@@ -1,6 +1,3 @@
-// api/wallet/balance.js
-// Get user's wallet balance
-
 const { createClient } = require("@supabase/supabase-js");
 
 const supabaseAdmin = createClient(
