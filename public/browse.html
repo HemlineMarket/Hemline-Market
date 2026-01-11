@@ -955,21 +955,26 @@
   </style>
 
   <script>
-    // Back to top - simple version using inline styles
+    // Back to top - with interval fallback
     (function() {
       var btn = document.getElementById('backToTop');
       console.log('Browse: Back to top button found:', btn);
       if (!btn) return;
       
-      function onScroll() {
-        if (window.scrollY > 300) {
+      function checkScroll() {
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        if (scrollTop > 300) {
           btn.style.display = 'flex';
         } else {
           btn.style.display = 'none';
         }
       }
       
-      window.addEventListener('scroll', onScroll);
+      window.addEventListener('scroll', checkScroll, { passive: true });
+      document.addEventListener('scroll', checkScroll, { passive: true });
+      
+      // Fallback: check every 500ms
+      setInterval(checkScroll, 500);
       
       btn.onclick = function() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
