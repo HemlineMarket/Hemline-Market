@@ -168,7 +168,7 @@ window.HM = window.HM || {};
 
   function footerHTML(currentPage) {
     // Hide footer on infinite-scroll pages - links are in hamburger menu
-    const noFooterPages = ["home", "index", "browse", "threadtalk", "showcase", "cosplay", "stitch-school", "fabric-sos", "before-after", "pattern-hacks", "tailoring", "loose-threads"];
+    const noFooterPages = ["browse", "threadtalk", "showcase", "cosplay", "stitch-school", "fabric-sos", "before-after", "pattern-hacks", "tailoring", "loose-threads"];
     if (noFooterPages.includes(currentPage?.toLowerCase())) {
       return "";
     }
