@@ -2636,4 +2636,34 @@
     tag.textContent = css;
     document.head.appendChild(tag);
   }
+
+  // ---------- Back to Top Button ----------
+  function initBackToTop() {
+    // Create button if it doesn't exist
+    let btn = document.getElementById('backToTop');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'backToTop';
+      btn.className = 'back-to-top-pill';
+      btn.setAttribute('aria-label', 'Back to top');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg> Back to top';
+      document.body.appendChild(btn);
+    }
+
+    function checkScroll() {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+      btn.style.display = scrollTop > 300 ? 'flex' : 'none';
+    }
+
+    window.addEventListener('scroll', checkScroll, { passive: true });
+    setInterval(checkScroll, 500);
+
+    btn.onclick = function(e) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+  }
+
+  // Initialize back to top
+  initBackToTop();
 })();
