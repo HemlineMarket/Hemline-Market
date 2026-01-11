@@ -249,21 +249,44 @@
   </div>
 
   <script>
-    // Back to top - simple version
+    // Back to top - with debug
     (function() {
       var btn = document.getElementById('backToTop');
       console.log('Back to top button found:', btn);
       if (!btn) return;
       
+      function showBtn() {
+        btn.style.display = 'flex';
+        console.log('Button shown');
+      }
+      
+      function hideBtn() {
+        btn.style.display = 'none';
+      }
+      
       function onScroll() {
-        if (window.scrollY > 300) {
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        console.log('Scroll:', scrollTop);
+        if (scrollTop > 300) {
+          showBtn();
+        } else {
+          hideBtn();
+        }
+      }
+      
+      // Try multiple scroll listeners
+      window.addEventListener('scroll', onScroll, { passive: true });
+      document.addEventListener('scroll', onScroll, { passive: true });
+      
+      // Also check periodically in case scroll events don't fire
+      setInterval(function() {
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        if (scrollTop > 300) {
           btn.style.display = 'flex';
         } else {
           btn.style.display = 'none';
         }
-      }
-      
-      window.addEventListener('scroll', onScroll);
+      }, 500);
       
       btn.onclick = function() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
