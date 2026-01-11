@@ -232,11 +232,6 @@
   </style>
   
   <div class="floating-buttons">
-    <button id="backToTop" class="fab-btn" aria-label="Back to top" style="display:none;">
-      <svg viewBox="0 0 24 24">
-        <path d="M18 15l-6-6-6 6"/>
-      </svg>
-    </button>
     <button id="shareFab" class="fab-btn" aria-label="Share ThreadTalk">
       <svg viewBox="0 0 24 24">
         <circle cx="18" cy="5" r="3"></circle>
@@ -248,48 +243,67 @@
     </button>
   </div>
 
+  <!-- Back to Top Button - Left side pill -->
+  <button id="backToTop" class="back-to-top-pill" aria-label="Back to top" style="display:none;">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M18 15l-6-6-6 6"/>
+    </svg>
+    Back to top
+  </button>
+
+  <style>
+    .back-to-top-pill {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      background: #991b1b;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(153, 27, 27, 0.4);
+      z-index: 99999;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .back-to-top-pill:hover {
+      transform: scale(1.05);
+      background: #7f1d1d;
+    }
+    .back-to-top-pill svg {
+      flex-shrink: 0;
+    }
+  </style>
+
   <script>
-    // Back to top - with debug
+    // Back to top - with interval fallback
     (function() {
       var btn = document.getElementById('backToTop');
       console.log('Back to top button found:', btn);
       if (!btn) return;
       
-      function showBtn() {
-        btn.style.display = 'flex';
-        console.log('Button shown');
-      }
-      
-      function hideBtn() {
-        btn.style.display = 'none';
-      }
-      
-      function onScroll() {
-        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-        console.log('Scroll:', scrollTop);
-        if (scrollTop > 300) {
-          showBtn();
-        } else {
-          hideBtn();
-        }
-      }
-      
-      // Try multiple scroll listeners
-      window.addEventListener('scroll', onScroll, { passive: true });
-      document.addEventListener('scroll', onScroll, { passive: true });
-      
-      // Also check periodically in case scroll events don't fire
-      setInterval(function() {
+      function checkScroll() {
         var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
         if (scrollTop > 300) {
           btn.style.display = 'flex';
         } else {
           btn.style.display = 'none';
         }
-      }, 500);
+      }
       
-      btn.onclick = function() {
+      window.addEventListener('scroll', checkScroll, { passive: true });
+      document.addEventListener('scroll', checkScroll, { passive: true });
+      setInterval(checkScroll, 500);
+      
+      btn.onclick = function(e) {
+        e.preventDefault();
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
       };
     })();
     
