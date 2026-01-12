@@ -1,6 +1,12 @@
 /**
- * HEMLINE MARKET - Browse Page JavaScript
+ * HEMLINE MARKET - Browse Page JavaScript (OPTIMIZED)
  * public/scripts/browse.js
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * 1. Server-side filtering instead of client-side
+ * 2. Only select needed columns
+ * 3. Pagination support
+ * 4. Profile caching
  * 
  * Handles browse page listings, filters, ateliers search.
  * Requires: hm-shell.js, browse-enhancements.js
@@ -17,6 +23,14 @@
 
   // "listings" (default) vs "ateliers"
   let currentMode = "listings";
+
+  // Pagination
+  const PAGE_SIZE = 30;
+  let currentPage = 0;
+  let totalCount = 0;
+
+  // Profile cache to avoid repeated lookups
+  const profileCache = new Map();
 
   /* ===== FILTER CONSTANTS ===== */
   const CONTENTS = [
@@ -81,6 +95,11 @@
 
   function thumbUrl(url, width = 400) {
     if (!url) return "";
+    // Optimize Supabase storage images
+    if (url.includes('supabase.co/storage')) {
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}width=${width}&quality=75`;
+    }
     return url;
   }
 
@@ -89,7 +108,7 @@
     return Number.isFinite(n) ? n : null;
   }
 
-  /* ===== PROFILE FETCHING ===== */
+  /* ===== PROFILE FETCHING (with cache) ===== */
   async function fetchProfilesForListings(listings) {
     const map = {};
     const ids = Array.from(new Set(
@@ -99,11 +118,23 @@
     ));
     if (!ids.length) return map;
 
+    // Check cache first
+    const uncachedIds = ids.filter(id => !profileCache.has(id));
+    
+    // Return cached results for already-fetched profiles
+    ids.forEach(id => {
+      if (profileCache.has(id)) {
+        map[id] = profileCache.get(id);
+      }
+    });
+
+    if (!uncachedIds.length) return map;
+
     try {
       const { data, error } = await supabaseClient
         .from("profiles")
         .select("id, display_name, store_name, first_name, last_name")
-        .in("id", ids);
+        .in("id", uncachedIds);
 
       if (error) {
         console.error("Profile fetch error", error);
@@ -111,6 +142,7 @@
       }
       (data || []).forEach(p => {
         map[p.id] = p;
+        profileCache.set(p.id, p); // Cache for future use
       });
     } catch (e) {
       console.error("Profile fetch exception", e);
@@ -157,6 +189,7 @@
         cb.addEventListener("change", () => {
           if (cb.checked) selectedContents.add(label);
           else selectedContents.delete(label);
+          currentPage = 0; // Reset to first page on filter change
           runSearch();
         });
         contentBox.appendChild(row);
@@ -179,6 +212,7 @@
         cb.addEventListener("change", () => {
           if (cb.checked) selectedFabricTypes.add(label);
           else selectedFabricTypes.delete(label);
+          currentPage = 0;
           runSearch();
         });
         fabricTypeBox.appendChild(row);
@@ -208,6 +242,7 @@
             selectedColors.add(name);
             sw.dataset.selected = "true";
           }
+          currentPage = 0;
           runSearch();
         });
         colorBox.appendChild(sw);
@@ -260,10 +295,13 @@
 
     let profiles = [];
     try {
+      // Server-side search using ilike
       const { data, error } = await supabaseClient
         .from("profiles")
         .select("id, display_name, store_name, first_name, last_name, bio, avatar_url")
-        .order("store_name", { ascending: true });
+        .or(`store_name.ilike.%${searchTerm}%,display_name.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
+        .order("store_name", { ascending: true })
+        .limit(50);
 
       if (error) {
         console.error("Atelier fetch error", error);
@@ -277,15 +315,7 @@
       return;
     }
 
-    // Filter by search term
-    const filtered = profiles.filter(p => {
-      const store = (p.store_name || "").toLowerCase();
-      const disp = (p.display_name || "").toLowerCase();
-      const full = ((p.first_name || "") + " " + (p.last_name || "")).trim().toLowerCase();
-      return store.includes(searchTerm) || disp.includes(searchTerm) || full.includes(searchTerm);
-    });
-
-    const total = filtered.length;
+    const total = profiles.length;
     if (countEl) {
       countEl.textContent = total === 1 ? "1 seller" : total + " sellers";
     }
@@ -300,7 +330,7 @@
 
     if (grid) grid.innerHTML = "";
 
-    filtered.forEach(p => {
+    profiles.forEach(p => {
       const card = document.createElement("article");
       card.className = "listing-card seller-card";
 
@@ -332,7 +362,7 @@
     });
   }
 
-  /* ===== LISTING SEARCH ===== */
+  /* ===== LISTING SEARCH (OPTIMIZED) ===== */
   async function runListingSearch() {
     const grid = document.getElementById("grid");
     const emptyEl = document.getElementById("empty");
@@ -365,12 +395,122 @@
     if (emptyFilteredEl) emptyFilteredEl.style.display = "none";
     if (countEl) countEl.textContent = "";
 
+    // Get filter values
+    const searchTerm = (qInput?.value || "").trim();
+    const minPrice = numeric(minPriceEl?.value);
+    const maxPrice = numeric(maxPriceEl?.value);
+    const minYards = numeric(minYardsEl?.value);
+    const minWidth = numeric(minWidthEl?.value);
+    const maxWidth = numeric(maxWidthEl?.value);
+    const minGsm = numeric(minGsmEl?.value);
+    const maxGsm = numeric(maxGsmEl?.value);
+    const deptVal = (deptEl?.value || "").trim();
+    const fiberVal = (fiberEl?.value || "").trim();
+    const patternVal = (patternEl?.value || "").trim();
+    const originVal = (originEl?.value || "").trim();
+    const designerVal = (designerEl?.value || "").trim();
+    const feelsVal = (feelsEl?.value || "").trim();
+    const burnTestVal = (burnTestEl?.value || "").trim();
+    const isCosplayFilterOn = document.getElementById("cosplayFilter")?.checked;
+
+    const now = new Date().toISOString();
+
     let listings = [];
     try {
-      const { data, error } = await supabaseClient
+      // ============================================================
+      // BUILD SERVER-SIDE QUERY (much faster than client-side filtering)
+      // ============================================================
+      let query = supabaseClient
         .from("listings")
-        .select("*")
-        .order("published_at", { ascending: false, nullsFirst: false });
+        .select("id, title, description, price_cents, orig_price_cents, yards_available, content, image_url_1, seller_id, status, published_at, color_family, fabric_type, feels_like, width_in, weight_gsm, dept, fiber_type, pattern, country_of_origin, origin, designer, burn_test, is_published", { count: 'exact' })
+        .eq("is_published", true)
+        .eq("status", "active")
+        .gt("yards_available", 0)
+        .lte("published_at", now);
+
+      // Apply text search
+      if (searchTerm) {
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+      }
+
+      // Apply price filters
+      if (minPrice != null) {
+        query = query.gte("price_cents", Math.round(minPrice * 100));
+      }
+      if (maxPrice != null) {
+        query = query.lte("price_cents", Math.round(maxPrice * 100));
+      }
+
+      // Apply yards filter
+      if (minYards != null) {
+        query = query.gte("yards_available", minYards);
+      }
+
+      // Apply width filters
+      if (minWidth != null) {
+        query = query.gte("width_in", minWidth);
+      }
+      if (maxWidth != null) {
+        query = query.lte("width_in", maxWidth);
+      }
+
+      // Apply GSM filters
+      if (minGsm != null) {
+        query = query.gte("weight_gsm", minGsm);
+      }
+      if (maxGsm != null) {
+        query = query.lte("weight_gsm", maxGsm);
+      }
+
+      // Apply dropdown filters
+      if (deptVal) {
+        query = query.eq("dept", deptVal);
+      }
+      if (fiberVal) {
+        query = query.eq("fiber_type", fiberVal);
+      }
+      if (patternVal) {
+        query = query.eq("pattern", patternVal);
+      }
+      if (originVal) {
+        query = query.or(`country_of_origin.eq.${originVal},origin.eq.${originVal}`);
+      }
+      if (designerVal) {
+        query = query.ilike("designer", `%${designerVal}%`);
+      }
+      if (burnTestVal) {
+        query = query.ilike("burn_test", burnTestVal);
+      }
+
+      // Apply color filter (if single color selected)
+      if (selectedColors.size === 1) {
+        const color = Array.from(selectedColors)[0];
+        query = query.eq("color_family", color);
+      }
+
+      // Get sort order
+      const sortBy = document.getElementById("sortBy")?.value || "newest";
+      switch (sortBy) {
+        case "price-low":
+          query = query.order("price_cents", { ascending: true });
+          break;
+        case "price-high":
+          query = query.order("price_cents", { ascending: false });
+          break;
+        case "yards-high":
+          query = query.order("yards_available", { ascending: false });
+          break;
+        case "newest":
+        default:
+          query = query.order("published_at", { ascending: false, nullsFirst: false });
+      }
+
+      // Pagination
+      const from = currentPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
 
       if (error) {
         console.error("Listings fetch error", error);
@@ -381,6 +521,7 @@
         return;
       }
       listings = data || [];
+      totalCount = count || 0;
     } catch (e) {
       console.error("Listings fetch exception", e);
       if (grid && typeof window.generateErrorState === 'function') {
@@ -390,107 +531,44 @@
       return;
     }
 
-    /* Client-side filtering */
-    const searchTerm = (qInput?.value || "").trim().toLowerCase();
-    const minPrice = numeric(minPriceEl?.value);
-    const maxPrice = numeric(maxPriceEl?.value);
-    const minYards = numeric(minYardsEl?.value);
-    const minWidth = numeric(minWidthEl?.value);
-    const maxWidth = numeric(maxWidthEl?.value);
-    const minGsm = numeric(minGsmEl?.value);
-    const maxGsm = numeric(maxGsmEl?.value);
+    // ============================================================
+    // CLIENT-SIDE FILTERING (only for complex filters not supported server-side)
+    // These are filters that need array/contains logic
+    // ============================================================
+    let filtered = listings;
 
-    const deptVal = (deptEl?.value || "").trim();
-    const fiberVal = (fiberEl?.value || "").trim();
-    const patternVal = (patternEl?.value || "").trim();
-    const originVal = (originEl?.value || "").trim();
-    const designerVal = (designerEl?.value || "").trim().toLowerCase();
-    const feelsVal = (feelsEl?.value || "").trim().toLowerCase();
-    const burnTestVal = (burnTestEl?.value || "").trim().toLowerCase();
+    // Content filter (multi-select with partial match)
+    if (selectedContents.size > 0 && !selectedContents.has("Any")) {
+      filtered = filtered.filter(l => {
+        const lc = (l.content || "").toLowerCase();
+        for (const v of selectedContents) {
+          if (lc.includes(v.toLowerCase())) return true;
+        }
+        return false;
+      });
+    }
 
-    const now = new Date();
-
-    let filtered = listings.filter(l => {
-      if (l.is_published !== true) return false;
-
-      const status = (l.status || "active").toLowerCase();
-      if (status === "sold") return false;
-      if (status !== "active") return false;
-
-      if (l.yards_available != null && Number(l.yards_available) <= 0) return false;
-      if (l.published_at && new Date(l.published_at) > now) return false;
-
-      if (searchTerm) {
-        const hay = ((l.title || "") + " " + (l.description || "")).toLowerCase();
-        if (!hay.includes(searchTerm)) return false;
-      }
-
-      if (minPrice != null && l.price_cents != null) {
-        if (l.price_cents < Math.round(minPrice * 100)) return false;
-      }
-      if (maxPrice != null && l.price_cents != null) {
-        if (l.price_cents > Math.round(maxPrice * 100)) return false;
-      }
-
-      if (minYards != null && l.yards_available != null) {
-        if (Number(l.yards_available) < minYards) return false;
-      }
-
-      if (minWidth != null && l.width_in != null) {
-        if (Number(l.width_in) < minWidth) return false;
-      }
-      if (maxWidth != null && l.width_in != null) {
-        if (Number(l.width_in) > maxWidth) return false;
-      }
-
-      if (minGsm != null && l.weight_gsm != null) {
-        if (Number(l.weight_gsm) < minGsm) return false;
-      }
-      if (maxGsm != null && l.weight_gsm != null) {
-        if (Number(l.weight_gsm) > maxGsm) return false;
-      }
-
-      if (deptVal && l.dept !== deptVal) return false;
-
-      if (selectedFabricTypes.size > 0) {
+    // Fabric type filter (multi-select)
+    if (selectedFabricTypes.size > 0) {
+      filtered = filtered.filter(l => {
         const listingFabricTypes = (l.fabric_type || "").split(",").map(s => s.trim().toLowerCase());
-        let fabricMatch = false;
         for (const selected of selectedFabricTypes) {
-          if (listingFabricTypes.some(ft => ft === selected.toLowerCase())) {
-            fabricMatch = true;
-            break;
-          }
+          if (listingFabricTypes.some(ft => ft === selected.toLowerCase())) return true;
         }
-        if (!fabricMatch) return false;
-      }
+        return false;
+      });
+    }
 
-      if (fiberVal && l.fiber_type !== fiberVal) return false;
-      if (patternVal && l.pattern !== patternVal) return false;
-      if (originVal) {
-        const listingOrigin = l.country_of_origin || l.origin;
-        if (listingOrigin !== originVal) return false;
-      }
+    // Color filter (multi-select - if more than one color)
+    if (selectedColors.size > 1) {
+      filtered = filtered.filter(l => {
+        return l.color_family && selectedColors.has(l.color_family);
+      });
+    }
 
-      if (designerVal) {
-        const dName = (l.designer || "").toLowerCase();
-        if (!dName.includes(designerVal)) return false;
-      }
-
-      if (selectedContents.size) {
-        if (!selectedContents.has("Any")) {
-          const lc = (l.content || "").toLowerCase();
-          let hit = false;
-          for (const v of selectedContents) {
-            if (lc.includes(v.toLowerCase())) {
-              hit = true;
-              break;
-            }
-          }
-          if (!hit) return false;
-        }
-      }
-
-      if (feelsVal) {
+    // Feels like filter
+    if (feelsVal) {
+      filtered = filtered.filter(l => {
         const src = l.feels_like;
         let arr = [];
         if (Array.isArray(src)) {
@@ -499,22 +577,13 @@
           arr = src.split(",").map(s => s.trim());
         }
         const lowerSet = new Set(arr.map(v => v.toLowerCase()));
-        if (!lowerSet.has(feelsVal)) return false;
-      }
+        return lowerSet.has(feelsVal.toLowerCase());
+      });
+    }
 
-      if (burnTestVal) {
-        const bt = (l.burn_test || "").toLowerCase();
-        if (bt !== burnTestVal) return false;
-      }
-
-      if (selectedColors.size > 0) {
-        if (!l.color_family || !selectedColors.has(l.color_family)) return false;
-      }
-
-      const cosplayFilterEl = document.getElementById("cosplayFilter");
-      const isCosplayFilterOn = cosplayFilterEl?.checked;
-
-      if (isCosplayFilterOn) {
+    // Cosplay filter
+    if (isCosplayFilterOn) {
+      filtered = filtered.filter(l => {
         const fabricTypeSrc = l.fabric_type || "";
         const content = (l.content || "").toLowerCase();
 
@@ -541,20 +610,22 @@
           content.includes(c)
         );
 
-        if (!matchesFabricType && !matchesFeelsLike && !matchesContent) {
-          return false;
-        }
+        return matchesFabricType || matchesFeelsLike || matchesContent;
+      });
+    }
+
+    const displayTotal = filtered.length;
+    const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fiberVal || patternVal || originVal || designerVal || feelsVal || burnTestVal || selectedColors.size > 0 || selectedContents.size > 0 || selectedFabricTypes.size > 0 || isCosplayFilterOn;
+
+    if (countEl) {
+      if (totalCount > PAGE_SIZE) {
+        countEl.textContent = `${displayTotal} of ${totalCount} listings`;
+      } else {
+        countEl.textContent = displayTotal === 1 ? "1 listing" : displayTotal + " listings";
       }
+    }
 
-      return true;
-    });
-
-    const total = filtered.length;
-
-    const isCosplayOn = document.getElementById("cosplayFilter")?.checked;
-    const hasFilters = searchTerm || minPrice || maxPrice || minYards || minWidth || maxWidth || minGsm || maxGsm || deptVal || fiberVal || patternVal || originVal || designerVal || feelsVal || burnTestVal || selectedColors.size > 0 || selectedContents.size > 0 || selectedFabricTypes.size > 0 || isCosplayOn;
-
-    if (!total) {
+    if (!displayTotal) {
       if (grid) grid.innerHTML = "";
       if (hasFilters) {
         if (emptyEl) emptyEl.style.display = "none";
@@ -568,22 +639,6 @@
       if (emptyEl) emptyEl.style.display = "none";
       if (emptyFilteredEl) emptyFilteredEl.style.display = "none";
     }
-
-    // Sort results
-    const sortBy = document.getElementById("sortBy")?.value || "newest";
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "price-low":
-          return (a.price_cents || 0) - (b.price_cents || 0);
-        case "price-high":
-          return (b.price_cents || 0) - (a.price_cents || 0);
-        case "yards-high":
-          return (b.yards_available || 0) - (a.yards_available || 0);
-        case "newest":
-        default:
-          return new Date(b.published_at || 0) - new Date(a.published_at || 0);
-      }
-    });
 
     const profileMap = await fetchProfilesForListings(filtered);
     const holdMap = await fetchCartHolds(filtered.map(l => l.id));
@@ -694,7 +749,58 @@
 
         grid.appendChild(card);
       });
+
+      // Add pagination controls if needed
+      if (totalCount > PAGE_SIZE) {
+        renderPagination(grid, totalCount);
+      }
     }
+  }
+
+  /* ===== PAGINATION UI ===== */
+  function renderPagination(grid, total) {
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    if (totalPages <= 1) return;
+
+    const paginationDiv = document.createElement("div");
+    paginationDiv.className = "pagination";
+    paginationDiv.style.cssText = "grid-column: 1 / -1; display: flex; justify-content: center; gap: 8px; padding: 24px 0;";
+
+    // Previous button
+    if (currentPage > 0) {
+      const prevBtn = document.createElement("button");
+      prevBtn.textContent = "← Previous";
+      prevBtn.className = "pagination-btn";
+      prevBtn.style.cssText = "padding: 8px 16px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer;";
+      prevBtn.addEventListener("click", () => {
+        currentPage--;
+        runSearch();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      paginationDiv.appendChild(prevBtn);
+    }
+
+    // Page info
+    const pageInfo = document.createElement("span");
+    pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    pageInfo.style.cssText = "padding: 8px 16px; display: flex; align-items: center;";
+    paginationDiv.appendChild(pageInfo);
+
+    // Next button
+    if (currentPage < totalPages - 1) {
+      const nextBtn = document.createElement("button");
+      nextBtn.textContent = "Next →";
+      nextBtn.className = "pagination-btn";
+      nextBtn.style.cssText = "padding: 8px 16px; border: 1px solid #e5e7eb; border-radius: 6px; background: white; cursor: pointer;";
+      nextBtn.addEventListener("click", () => {
+        currentPage++;
+        runSearch();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      paginationDiv.appendChild(nextBtn);
+    }
+
+    grid.appendChild(paginationDiv);
   }
 
   /* ===== MAIN SEARCH FUNCTION ===== */
@@ -740,6 +846,7 @@
       cosplayLabel.style.background = "#fff";
     }
 
+    currentPage = 0;
     window.history.replaceState({}, "", window.location.pathname);
 
     if (typeof runSearch === "function") runSearch();
@@ -793,6 +900,7 @@
     if (searchModeSelect) {
       searchModeSelect.addEventListener("change", () => {
         currentMode = searchModeSelect.value === "sellers" ? "ateliers" : "listings";
+        currentPage = 0;
         updateModeUI();
         runSearch();
       });
@@ -807,6 +915,7 @@
             toggle.setAttribute("aria-pressed", "false");
           }
         }
+        currentPage = 0;
         runSearch();
       });
     }
@@ -822,6 +931,7 @@
               toggle.setAttribute("aria-pressed", "false");
             }
           }
+          currentPage = 0;
           runSearch();
         }
       });
@@ -830,18 +940,27 @@
     runSearch();
 
     // Sort dropdown
-    document.getElementById("sortBy")?.addEventListener("change", runSearch);
+    document.getElementById("sortBy")?.addEventListener("change", () => {
+      currentPage = 0;
+      runSearch();
+    });
 
     // Filter dropdowns
     ["dept", "fiberType", "pattern", "origin", "feelsLike", "burnTest"].forEach(id => {
-      document.getElementById(id)?.addEventListener("change", runSearch);
+      document.getElementById(id)?.addEventListener("change", () => {
+        currentPage = 0;
+        runSearch();
+      });
     });
 
     // Numeric inputs with debounce
     let debounceTimer;
     const debounceSearch = () => {
       clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(runSearch, 400);
+      debounceTimer = setTimeout(() => {
+        currentPage = 0;
+        runSearch();
+      }, 400);
     };
 
     ["minPrice", "maxPrice", "minYards", "minWidth", "maxWidth", "minGsm", "maxGsm", "designer"].forEach(id => {
@@ -857,6 +976,7 @@
         label.style.borderColor = e.target.checked ? "var(--accent)" : "var(--border)";
         label.style.background = e.target.checked ? "#fef2f2" : "#fff";
       }
+      currentPage = 0;
       runSearch();
     });
   }
