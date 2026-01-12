@@ -989,20 +989,17 @@
       const now = new Date();
 
       // Filter listings based on whether viewing own shop or someone else's
-      // Own shop: show ACTIVE + NOT_FOR_SALE listings (excluding sold)
-      // Other shops: only show ACTIVE + is_published true
-      // NOTE: Sold items hidden for now during early launch phase
+      // Own shop: show ACTIVE + NOT_FOR_SALE + SOLD listings
+      // Other shops: only show ACTIVE + is_published true (no sold items)
+      // NOTE: Sold items hidden from public for now during early launch phase
       const rows = (data || []).filter(x => {
         const status = (x.status || "active").toLowerCase();
         
-        // Hide sold items from everyone for now
-        if (status === "sold") return false;
-        
         if (isOwn) {
-          // Owner sees active listings (published or not)
-          return status === "active";
+          // Owner sees active and sold listings
+          return status === "active" || status === "sold";
         } else {
-          // Public visitors only see published active listings
+          // Public visitors only see published active listings (no sold)
           return x.is_published === true && status === "active";
         }
       });
