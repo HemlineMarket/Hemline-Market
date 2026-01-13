@@ -20,7 +20,7 @@
 
   /* ===== FILTER CONSTANTS ===== */
   const CONTENTS = [
-    "Acetate", "Acrylic", "Alpaca", "Bamboo", "Camel", "Cashmere", "Cotton",
+    "Acetate", "Acrylic", "Alpaca", "Angora", "Bamboo", "Camel", "Cashmere", "Cotton",
     "Cupro", "Hemp", "Jute", "Leather", "Linen", "Lurex", "Lyocell", "Merino",
     "Modal", "Mohair", "Nylon", "Polyester", "Ramie", "Rayon", "Silk",
     "Spandex / Elastane", "Tencel", "Triacetate", "Viscose", "Wool", "Yak", "Other"
@@ -35,10 +35,10 @@
   const FABRIC_TYPES = [
     "Brocade", "Canvas", "Charmeuse", "Chiffon", "Corduroy", "Crepe",
     "Denim", "Double Knit", "Embroidered", "Eyelet", "Faux Fur", "Faux Leather", 
-    "Flannel", "Fleece", "Gabardine", "Jacquard", "Jersey", "Knit", "Lace", 
-    "Lining", "Mesh", "Metallic / Lame", "Minky", "Organza", "Ponte", "Satin", 
-    "Scuba", "Shirting", "Spandex / Lycra", "Suiting", "Tulle", "Tweed", "Twill", 
-    "Velvet", "Vinyl", "Voile", "Woven"
+    "Flannel", "Fleece", "Gabardine", "Georgette", "Interlock", "Jacquard", "Jersey",
+    "Lace", "Lawn", "Lining", "Mesh", "Metallic / Lame", "Minky", "Organza", "Ponte",
+    "Rib Knit", "Sateen", "Satin", "Scuba", "Shirting", "Suiting", "Tulle", "Tweed",
+    "Twill", "Velvet", "Vinyl", "Voile"
   ];
 
   // Cosplay-friendly fabric definitions
@@ -69,6 +69,29 @@
       .map(s => s.trim())
       .map(s => s === "Spandex / Elastane" ? "Elastane" : s)
       .join(", ");
+  }
+
+  /**
+   * Get the best label to display on listing cards
+   * Cascade: content → fabric_type → feels_like
+   * Skip "Not sure" and "Other" as they're not useful labels
+   */
+  function getListingBadgeLabel(listing) {
+    // Try content first (skip "Not sure" and "Other")
+    if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
+      return formatContentForDisplay(listing.content);
+    }
+    // Fall back to fabric type
+    if (listing.fabric_type) {
+      return listing.fabric_type;
+    }
+    // Fall back to feels like
+    if (listing.feels_like) {
+      // Capitalize first letter for display
+      const feels = listing.feels_like.split(",")[0].trim();
+      return feels.charAt(0).toUpperCase() + feels.slice(1);
+    }
+    return "";
   }
 
   /* ===== FILTER STATE ===== */
@@ -656,7 +679,7 @@
           <div class="listing-body">
             <div class="listing-title-row">
               <a class="listing-title" href="${href}">${safeTitle}</a>
-              ${l.fabric_type ? `<span class="listing-dept">${l.fabric_type}</span>` : (l.content ? `<span class="listing-dept">${formatContentForDisplay(l.content)}</span>` : "")}
+              ${getListingBadgeLabel(l) ? `<span class="listing-dept">${getListingBadgeLabel(l)}</span>` : ""}
             </div>
             ${yardsAvail != null ? `<div class="listing-yards">${yardsAvail} yards</div>` : ""}
             <div class="listing-cta-row">
