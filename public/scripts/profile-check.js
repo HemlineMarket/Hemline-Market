@@ -4,6 +4,20 @@
 
 window.HM = window.HM || {};
 
+// Check if this is a test/fake account that should bypass profile completion
+window.HM.isTestAccount = function(email) {
+  if (!email) return false;
+  const testPatterns = [
+    'hemline.seller',
+    'hemline.buyer',
+    'hemline.test',
+    'test@hemline',
+    '@hemlinemarket.com'
+  ];
+  const lowerEmail = email.toLowerCase();
+  return testPatterns.some(pattern => lowerEmail.includes(pattern));
+};
+
 window.HM.checkProfileComplete = function() {
   try {
     const raw = localStorage.getItem('hm_profile_complete');
@@ -29,6 +43,15 @@ window.HM.checkProfileCompleteAsync = async function() {
     if (!session?.user) return localStatus;
     
     const userId = session.user.id;
+    const userEmail = session.user.email || '';
+    
+    // Test accounts bypass profile completion requirements
+    if (window.HM.isTestAccount(userEmail)) {
+      const testStatus = { complete: true, hasRealName: true, hasAddress: true, hasContactEmail: true, userId, isTestAccount: true };
+      localStorage.setItem('hm_profile_complete', JSON.stringify(testStatus));
+      console.log('[profile-check] Test account bypass:', userEmail);
+      return testStatus;
+    }
     
     // Check profile from Supabase
     const { data: profileData } = await supabase
