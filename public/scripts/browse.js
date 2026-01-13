@@ -643,7 +643,7 @@
           <div class="listing-body">
             <div class="listing-title-row">
               <a class="listing-title" href="${href}">${safeTitle}</a>
-              ${l.content ? `<span class="listing-dept">${l.content}</span>` : ""}
+              ${l.fabric_type ? `<span class="listing-dept">${l.fabric_type}</span>` : (l.content ? `<span class="listing-dept">${l.content}</span>` : "")}
             </div>
             ${yardsAvail != null ? `<div class="listing-yards">${yardsAvail} yards</div>` : ""}
             <div class="listing-cta-row">
