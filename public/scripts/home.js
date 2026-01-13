@@ -47,6 +47,29 @@
       .join(", ");
   }
 
+  /**
+   * Get the best label to display on listing cards
+   * Cascade: content → fabric_type → feels_like
+   * Skip "Not sure" and "Other" as they're not useful labels
+   */
+  function getListingBadgeLabel(listing) {
+    // Try content first (skip "Not sure" and "Other")
+    if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
+      return formatContentForDisplay(listing.content);
+    }
+    // Fall back to fabric type
+    if (listing.fabric_type) {
+      return listing.fabric_type;
+    }
+    // Fall back to feels like
+    if (listing.feels_like) {
+      // Capitalize first letter for display
+      const feels = listing.feels_like.split(",")[0].trim();
+      return feels.charAt(0).toUpperCase() + feels.slice(1);
+    }
+    return "";
+  }
+
   /* ===== PROFILE FETCHING ===== */
   async function fetchProfilesForListings(listings, supabaseClient) {
     const map = {};
@@ -230,7 +253,7 @@
         <div class="listing-body">
           <div class="listing-title-row">
             <a class="listing-title" href="${href}">${safeTitle}</a>
-            ${item.fabric_type ? `<span class="listing-dept">${item.fabric_type}</span>` : (item.content ? `<span class="listing-dept">${formatContentForDisplay(item.content)}</span>` : "")}
+            ${getListingBadgeLabel(item) ? `<span class="listing-dept">${getListingBadgeLabel(item)}</span>` : ""}
           </div>
           ${yards != null ? `<div class="listing-yards">${yards} yards</div>` : ""}
           <div class="listing-cta-row">
