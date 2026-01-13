@@ -217,7 +217,7 @@
         <div class="listing-body">
           <div class="listing-title-row">
             <a class="listing-title" href="${href}">${safeTitle}</a>
-            ${item.content ? `<span class="listing-dept">${item.content}</span>` : ""}
+            ${item.fabric_type ? `<span class="listing-dept">${item.fabric_type}</span>` : (item.content ? `<span class="listing-dept">${item.content}</span>` : "")}
           </div>
           ${yards != null ? `<div class="listing-yards">${yards} yards</div>` : ""}
           <div class="listing-cta-row">
