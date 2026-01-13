@@ -387,6 +387,100 @@
       min-height:120px;
       resize:vertical;
     }
+    /* Description expand button */
+    .desc-expand-wrapper{
+      position:relative;
+    }
+    .desc-expand-btn{
+      position:absolute;
+      top:8px;
+      right:8px;
+      background:#f3f4f6;
+      border:1px solid var(--hm-border);
+      border-radius:6px;
+      padding:4px 8px;
+      font-size:11px;
+      color:var(--hm-muted);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      gap:4px;
+      z-index:2;
+    }
+    .desc-expand-btn:hover{
+      background:#e5e7eb;
+      color:var(--hm-text);
+    }
+    .desc-expand-btn svg{
+      width:14px;
+      height:14px;
+    }
+    /* Description modal */
+    .desc-modal-overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.5);
+      backdrop-filter:blur(4px);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      padding:20px;
+    }
+    .desc-modal{
+      background:#fff;
+      border-radius:16px;
+      max-width:700px;
+      width:100%;
+      max-height:90vh;
+      display:flex;
+      flex-direction:column;
+      box-shadow:0 20px 40px rgba(0,0,0,.2);
+    }
+    .desc-modal-header{
+      padding:16px 20px;
+      border-bottom:1px solid var(--hm-border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      font-weight:700;
+      font-size:16px;
+    }
+    .desc-modal-close{
+      background:none;
+      border:none;
+      cursor:pointer;
+      padding:8px;
+      color:var(--hm-muted);
+      border-radius:8px;
+    }
+    .desc-modal-close:hover{
+      background:#f3f4f6;
+      color:var(--hm-text);
+    }
+    .desc-modal-body{
+      padding:20px;
+      flex:1;
+      overflow:auto;
+    }
+    .desc-modal-body textarea{
+      width:100%;
+      min-height:400px;
+      padding:16px;
+      border:1px solid var(--hm-border);
+      border-radius:10px;
+      font-size:15px;
+      line-height:1.6;
+      resize:vertical;
+      font-family:inherit;
+    }
+    .desc-modal-footer{
+      padding:16px 20px;
+      border-top:1px solid var(--hm-border);
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+    }
     .invalid{
       border-color:var(--hm-danger)!important;
       box-shadow:0 0 0 3px rgba(185,28,28,.08);
@@ -644,7 +738,15 @@
 
           <div class="field">
             <label for="desc">Description</label>
-            <textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea>
+            <div class="desc-expand-wrapper">
+              <textarea id="desc" placeholder="Describe handfeel, drape, and best uses."></textarea>
+              <button type="button" class="desc-expand-btn" id="descExpandBtn" title="Expand description">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                </svg>
+                Expand
+              </button>
+            </div>
           </div>
 
           <div class="content-fabric-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
@@ -1046,6 +1148,69 @@
     const origPriceInp = document.getElementById('origPrice');
     const yardsInput   = document.getElementById('yards');
     const descInput    = document.getElementById('desc');
+    const descExpandBtn = document.getElementById('descExpandBtn');
+
+    // Description expand modal
+    function openDescModal() {
+      const overlay = document.createElement('div');
+      overlay.className = 'desc-modal-overlay';
+      overlay.innerHTML = `
+        <div class="desc-modal">
+          <div class="desc-modal-header">
+            <span>Edit Description</span>
+            <button type="button" class="desc-modal-close" aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="desc-modal-body">
+            <textarea id="descModalTextarea" placeholder="Describe handfeel, drape, and best uses.">${descInput.value}</textarea>
+          </div>
+          <div class="desc-modal-footer">
+            <button type="button" class="btn" id="descModalCancel">Cancel</button>
+            <button type="button" class="btn primary" id="descModalSave">Save</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      document.body.style.overflow = 'hidden';
+      
+      const modalTextarea = document.getElementById('descModalTextarea');
+      modalTextarea.focus();
+      modalTextarea.setSelectionRange(modalTextarea.value.length, modalTextarea.value.length);
+      
+      // Close modal handlers
+      function closeModal() {
+        overlay.remove();
+        document.body.style.overflow = '';
+      }
+      
+      overlay.querySelector('.desc-modal-close').onclick = closeModal;
+      document.getElementById('descModalCancel').onclick = closeModal;
+      
+      overlay.onclick = (e) => {
+        if (e.target === overlay) closeModal();
+      };
+      
+      document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape') {
+          closeModal();
+          document.removeEventListener('keydown', escHandler);
+        }
+      });
+      
+      // Save handler
+      document.getElementById('descModalSave').onclick = () => {
+        descInput.value = modalTextarea.value;
+        closeModal();
+      };
+    }
+    
+    if (descExpandBtn) {
+      descExpandBtn.onclick = openDescModal;
+    }
 
     const errTitle  = document.getElementById('err_title');
     const errPrice  = document.getElementById('err_price');
