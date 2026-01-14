@@ -1,7 +1,7 @@
 // File: /api/cancel_purchase.js
 // Cancels an order (within 30 minutes) and re-opens the listing(s).
 // Includes: Stripe refund, Shippo label void, email notifications, seller notification
-// FIXED: Now handles multi-item orders (restores all listings, not just the first one)
+// FIXED: Now handles multi-item orders (restores all listings with ORIGINAL yards)
 // SECURITY FIX: Now requires JWT authentication - buyer_id comes from token, not body
 //
 // Called from purchases.html via POST /api/cancel_purchase
@@ -265,8 +265,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Failed to cancel order" });
     }
 
-    // 2) Re-open ALL listings (supports multi-item orders)
-    // Build list of all listing IDs to restore
+    // 2) Re-open ALL listings with ORIGINAL yards (supports multi-item orders)
     let listingIdsToRestore = [];
     
     // Check for listing_ids array first (multi-item orders)
@@ -280,22 +279,42 @@ export default async function handler(req, res) {
     if (listingIdsToRestore.length > 0) {
       console.log("[cancel_purchase] Restoring listings:", listingIdsToRestore);
       
-      const { error: listingErr } = await supabaseAdmin
-        .from("listings")
-        .update({ 
-          status: "ACTIVE", 
-          yards_available: 1, // Default to 1 yard; could be enhanced to store original yards
-          sold_at: null,
-          updated_at: nowIso 
-        })
-        .in("id", listingIdsToRestore)
-        .is("deleted_at", null);
-
-      if (listingErr) {
-        console.warn("[cancel_purchase] listing update error:", listingErr);
-      } else {
-        console.log(`[cancel_purchase] Successfully restored ${listingIdsToRestore.length} listing(s)`);
+      // Parse original yards from order if available
+      let originalYardsMap = {};
+      try {
+        if (order.original_yards_json) {
+          originalYardsMap = JSON.parse(order.original_yards_json);
+        }
+      } catch (e) {
+        console.warn("[cancel_purchase] Could not parse original_yards_json:", e.message);
       }
+
+      // Restore each listing with its original yards
+      let restoredCount = 0;
+      for (const listingId of listingIdsToRestore) {
+        // Use original yards if we have them, otherwise default to 1
+        const originalYards = originalYardsMap[listingId] || 1;
+        
+        const { error: listingErr } = await supabaseAdmin
+          .from("listings")
+          .update({ 
+            status: "ACTIVE", 
+            yards_available: originalYards,
+            sold_at: null,
+            updated_at: nowIso 
+          })
+          .eq("id", listingId)
+          .is("deleted_at", null);
+
+        if (listingErr) {
+          console.warn("[cancel_purchase] listing update error for", listingId, ":", listingErr);
+        } else {
+          console.log(`[cancel_purchase] Restored listing ${listingId} with ${originalYards} yards`);
+          restoredCount++;
+        }
+      }
+      
+      console.log(`[cancel_purchase] Successfully restored ${restoredCount} of ${listingIdsToRestore.length} listing(s)`);
     }
 
     // Determine item count for notification text
@@ -316,117 +335,4 @@ export default async function handler(req, res) {
 
     // 4) Create in-app notification for seller
     if (order.seller_id) {
-      await supabaseAdmin.from("notifications").insert({
-        user_id: order.seller_id,
-        type: "cancelled",
-        kind: "cancelled",
-        title: "🚫 Order cancelled - DO NOT SHIP",
-        body: `The buyer cancelled ${itemText} within 30 minutes. ${labelVoidResult.voided ? 'Label has been voided.' : 'Do not use the shipping label.'} ${itemCount > 1 ? 'All listings' : 'Listing'} re-activated.`,
-        href: "/sales.html",
-      });
-    }
-
-    // 5) Email buyer confirmation
-    if (order.buyer_email) {
-      const totalDollars = ((order.total_cents || 0) / 100).toFixed(2);
-      const itemDescription = itemCount > 1 
-        ? `<strong>${itemCount} items</strong>` 
-        : `<strong>"${order.listing_title || 'this item'}"</strong>`;
-      
-      await sendEmail(
-        order.buyer_email,
-        "✅ Order Cancelled & Refund Initiated - Hemline Market",
-        `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
-          <h1 style="color:#991b1b;">Order Cancelled</h1>
-          <p>Your order for ${itemDescription} has been cancelled.</p>
-          
-          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
-            <h3 style="margin:0 0 8px;color:#166534;">💳 Refund Details</h3>
-            <p style="margin:0;">A full refund of <strong>$${totalDollars}</strong> is being processed to your original payment method.</p>
-            <p style="margin:8px 0 0;font-size:14px;color:#6b7280;">Refunds typically appear within 5-10 business days.</p>
-          </div>
-          
-          <p>We're sorry this order didn't work out. <a href="https://hemlinemarket.com/browse.html" style="color:#991b1b;">Continue shopping</a></p>
-          
-          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
-          <p style="color:#6b7280;font-size:14px;">Questions? <a href="https://hemlinemarket.com/contact.html" style="color:#991b1b;">Contact us</a><br><strong>Hemline Market</strong></p>
-        </div>`,
-        `Your order for ${itemCount > 1 ? itemCount + ' items' : '"' + (order.listing_title || 'this item') + '"'} has been cancelled. Refund of $${totalDollars} is being processed to your original payment method.`
-      );
-    }
-
-    // 6) Email seller notification
-    if (order.seller_id) {
-      const { data: sellerProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("contact_email")
-        .eq("id", order.seller_id)
-        .maybeSingle();
-
-      // Also try to get email from auth
-      let sellerEmail = sellerProfile?.contact_email;
-      if (!sellerEmail) {
-        const { data: sellerAuth } = await supabaseAdmin.auth.admin.getUserById(order.seller_id);
-        sellerEmail = sellerAuth?.user?.email;
-      }
-
-      if (sellerEmail) {
-        const labelMessage = labelVoidResult.voided 
-          ? `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
-              <h3 style="margin:0 0 8px;color:#166534;">🏷️ Shipping Label Voided</h3>
-              <p style="margin:0;color:#166534;">The prepaid shipping label has been automatically cancelled. You will not be charged for it.</p>
-            </div>`
-          : `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:20px 0;">
-              <h3 style="margin:0 0 8px;color:#92400e;">⚠️ About the Shipping Label</h3>
-              <p style="margin:0;color:#92400e;">If you printed a shipping label, please discard it — <strong>do not use it</strong>. We attempted to void it automatically.</p>
-            </div>`;
-
-        const itemDescription = itemCount > 1 
-          ? `<strong>${itemCount} items</strong>` 
-          : `<strong>"${order.listing_title || 'your item'}"</strong>`;
-        
-        const listingMessage = itemCount > 1 
-          ? "All your listings have been automatically re-activated"
-          : "Your listing has been automatically re-activated";
-
-        await sendEmail(
-          sellerEmail,
-          "📦 Order Cancelled - Do Not Ship - Hemline Market",
-          `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;">
-            <h1 style="color:#991b1b;">Order Cancelled</h1>
-            <p>The buyer cancelled their order for ${itemDescription} within the 30-minute cancellation window.</p>
-            
-            <div style="background:#dc2626;color:white;border-radius:8px;padding:16px;margin:20px 0;text-align:center;">
-              <h2 style="margin:0;font-size:20px;">🚫 DO NOT SHIP THIS ORDER</h2>
-            </div>
-            
-            ${labelMessage}
-            
-            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
-              <h3 style="margin:0 0 8px;color:#166534;">✅ ${itemCount > 1 ? 'Listings' : 'Listing'} Re-Activated</h3>
-              <p style="margin:0;color:#166534;">${listingMessage} and ${itemCount > 1 ? 'are' : 'is'} available for other buyers.</p>
-            </div>
-            
-            <p><strong>No further action needed.</strong></p>
-            
-            <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
-            <p style="color:#6b7280;font-size:14px;">Happy selling!<br><strong>Hemline Market</strong></p>
-          </div>`,
-          `CANCELLED: The buyer cancelled their order for ${itemCount > 1 ? itemCount + ' items' : '"' + (order.listing_title || 'your item') + '"'} within 30 minutes. DO NOT SHIP. ${listingMessage}.`
-        );
-      }
-    }
-
-    return res.status(200).json({ 
-      status: "CANCELED",
-      refund_id: refundId,
-      listings_restored: listingIdsToRestore.length
-    });
-
-  } catch (err) {
-    console.error("[cancel_purchase] handler error:", err);
-    return res
-      .status(500)
-      .json({ error: "Server error cancelling purchase" });
-  }
-}
+      await
