@@ -4,6 +4,7 @@
   'use strict';
 
   var saveBtn = null;
+  var wrapper = null;
   var isSaving = false;
 
   function init() {
@@ -13,6 +14,11 @@
     var topbar = document.querySelector('.topbar');
     if (!topbar) return;
 
+    // Create a wrapper for button + toast positioning
+    wrapper = document.createElement('div');
+    wrapper.id = 'saveSearchWrapper';
+    wrapper.style.cssText = 'position:relative;display:inline-block;';
+
     // Create the save search button
     saveBtn = document.createElement('button');
     saveBtn.type = 'button';
@@ -20,12 +26,14 @@
     saveBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg><span>Save search</span>';
     saveBtn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;border:2px solid #991b1b;background:#fff;color:#991b1b;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.15s ease;';
 
+    wrapper.appendChild(saveBtn);
+
     // Insert after the Hide filters button
     var hideFiltersBtn = document.getElementById('toggleFilters');
     if (hideFiltersBtn && hideFiltersBtn.parentNode) {
-      hideFiltersBtn.parentNode.insertBefore(saveBtn, hideFiltersBtn.nextSibling);
+      hideFiltersBtn.parentNode.insertBefore(wrapper, hideFiltersBtn.nextSibling);
     } else {
-      topbar.appendChild(saveBtn);
+      topbar.appendChild(wrapper);
     }
 
     saveBtn.addEventListener('click', handleSaveSearch);
@@ -227,34 +235,42 @@
     type = type || 'info';
 
     // Remove existing toast
-    var existing = document.querySelector('.hm-toast');
+    var existing = document.querySelector('.hm-save-toast');
     if (existing) existing.remove();
 
+    if (!wrapper) return;
+
     var toast = document.createElement('div');
-    toast.className = 'hm-toast';
+    toast.className = 'hm-save-toast';
 
     var bgColor = '#1e40af'; // info blue
     if (type === 'success') bgColor = '#065f46';
     if (type === 'error') bgColor = '#991b1b';
 
-    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:' + bgColor + ';color:#fff;padding:14px 24px;border-radius:12px;font-size:15px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:99999;animation:toastSlideUp 0.3s ease-out;';
+    toast.style.cssText = 'position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:' + bgColor + ';color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:99999;white-space:nowrap;animation:toastFadeIn 0.2s ease-out;';
     toast.textContent = message;
-    document.body.appendChild(toast);
+    
+    // Add arrow pointing up
+    var arrow = document.createElement('div');
+    arrow.style.cssText = 'position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:6px solid ' + bgColor + ';';
+    toast.appendChild(arrow);
+    
+    wrapper.appendChild(toast);
 
     // Add animation keyframes if not present
-    if (!document.getElementById('toast-styles')) {
+    if (!document.getElementById('toast-fade-style')) {
       var style = document.createElement('style');
-      style.id = 'toast-styles';
-      style.textContent = '@keyframes toastSlideUp{from{opacity:0;transform:translateX(-50%) translateY(20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}';
+      style.id = 'toast-fade-style';
+      style.textContent = '@keyframes toastFadeIn{from{opacity:0;transform:translateX(-50%) translateY(-4px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}';
       document.head.appendChild(style);
     }
 
-    // Auto-remove after 4 seconds
+    // Auto-remove after 3 seconds
     setTimeout(function() {
       toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.3s ease-out';
-      setTimeout(function() { toast.remove(); }, 300);
-    }, 4000);
+      toast.style.transition = 'opacity 0.2s ease-out';
+      setTimeout(function() { toast.remove(); }, 200);
+    }, 3000);
   }
 
   // Initialize when DOM is ready
