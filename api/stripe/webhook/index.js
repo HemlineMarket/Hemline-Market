@@ -9,6 +9,7 @@
 // 5. Creates in-app notifications
 // 6. Handles label creation failures gracefully
 // 7. FIX: Marks ALL listings as SOLD (not just first one)
+// 8. FIX: Stores original yards for proper restoration on cancellation
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -341,6 +342,22 @@ export default async function handler(req, res) {
       console.log("[webhook] Using shipping address from metadata");
     }
 
+    // FIX: Build original yards map from cart for restoration on cancellation
+    let originalYardsMap = {};
+    try {
+      const cartData = md.cart_json ? JSON.parse(md.cart_json) : [];
+      cartData.forEach(item => {
+        const itemId = item.listing_id || item.listingId || item.id;
+        const yards = Number(item.yards) || 1;
+        if (itemId) {
+          originalYardsMap[itemId] = yards;
+        }
+      });
+      console.log("[webhook] Built originalYardsMap:", originalYardsMap);
+    } catch (e) {
+      console.log("[webhook] Could not parse cart_json for yards:", e.message);
+    }
+
     // For multi-item orders, update the title to show count
     const displayTitle = itemCount > 1 
       ? `${listingTitle} + ${itemCount - 1} more item${itemCount > 2 ? 's' : ''}`
@@ -369,6 +386,8 @@ export default async function handler(req, res) {
       shipping_country: shipAddr.country || "US",
       cancel_eligible_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
       item_count: itemCount,
+      // FIX: Store original yards for proper restoration on cancellation
+      original_yards_json: Object.keys(originalYardsMap).length > 0 ? JSON.stringify(originalYardsMap) : null,
     };
 
     const { data: insertedOrder, error: insertErr } = await supabase.from("orders").insert(order).select().single();
