@@ -43,18 +43,17 @@
     .btn.danger:hover{background:#fef2f2;}
     .empty{border:2px dashed #e5e7eb;border-radius:12px;padding:20px;text-align:center;color:#374151;font-size:14px;margin-top:8px;background:rgba(255,255,255,.9);}
     .search-list{display:flex;flex-direction:column;gap:12px;}
-    .search-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:16px;}
+    .search-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:all 0.15s ease;}
+    .search-card:hover{border-color:var(--accent);box-shadow:0 4px 12px rgba(153,27,27,0.1);}
     .search-info{flex:1;min-width:0;}
-    .search-name{font-weight:700;font-size:15px;color:var(--ink);margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .search-name{font-weight:700;font-size:15px;color:var(--ink);margin:0 0 4px;}
     .search-filters{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .search-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
-    .search-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
-    .search-toggle input{width:16px;height:16px;}
     .search-btn{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;color:var(--ink);}
-    .search-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
     .search-btn.danger{color:#dc2626;border-color:#fecaca;}
     .search-btn.danger:hover{background:#fef2f2;}
-    @media(max-width:640px){.search-card{flex-direction:column;align-items:stretch;}.search-actions{justify-content:space-between;margin-top:8px;}}
+    .search-arrow{color:var(--muted);font-size:18px;}
+    @media(max-width:640px){.search-card{flex-direction:column;align-items:stretch;}.search-actions{justify-content:flex-end;margin-top:8px;}}
     @media(max-width:768px){body{background-position:20% center;}}
   </style>
 </head>
@@ -78,7 +77,7 @@
       <div id="searches-tab" class="tab-content">
         <div id="searches-empty" class="empty" style="display:none;">
           <p style="margin:0 0 12px;">No saved searches yet.</p>
-          <p style="margin:0;font-size:13px;color:#6b7280;">When you search for fabrics on the <a href="browse.html" style="color:#991b1b;">Browse</a> page, click "Save this search" to get email alerts when new listings match your criteria.</p>
+          <p style="margin:0;font-size:13px;color:#6b7280;">When you search for fabrics on the <a href="browse.html" style="color:#991b1b;">Browse</a> page, click "Save search" to save your filters for quick access.</p>
         </div>
         <div id="searches-list" class="search-list"></div>
       </div>
@@ -300,15 +299,27 @@
           var card = document.createElement('div');
           card.className = 'search-card';
           var filterSummary = buildFilterSummary(search.filters);
-          card.innerHTML = '<div class="search-info"><div class="search-name">' + escapeHtml(search.name) + '</div><div class="search-filters">' + filterSummary + '</div></div><div class="search-actions"><label class="search-toggle"><input type="checkbox" ' + (search.email_alerts ? 'checked' : '') + ' data-search-id="' + search.id + '"><span>Email alerts</span></label><a href="' + buildBrowseUrl(search.filters) + '" class="search-btn primary">Run search</a><button type="button" class="search-btn danger" data-delete-id="' + search.id + '">Delete</button></div>';
+          var browseUrl = buildBrowseUrl(search.filters);
+          
+          card.innerHTML = 
+            '<div class="search-info">' +
+              '<div class="search-name">' + escapeHtml(search.name) + '</div>' +
+              '<div class="search-filters">' + filterSummary + '</div>' +
+            '</div>' +
+            '<div class="search-actions">' +
+              '<button type="button" class="search-btn danger" data-delete-id="' + search.id + '">Delete</button>' +
+            '</div>' +
+            '<span class="search-arrow">→</span>';
 
-          var checkbox = card.querySelector('input[type="checkbox"]');
-          checkbox.addEventListener('change', async function(e) {
-            await toggleAlerts(search.id, e.target.checked);
+          // Click card to run search (but not if clicking delete)
+          card.addEventListener('click', function(e) {
+            if (e.target.closest('[data-delete-id]')) return;
+            window.location.href = browseUrl;
           });
 
           var deleteBtn = card.querySelector('[data-delete-id]');
-          deleteBtn.addEventListener('click', async function() {
+          deleteBtn.addEventListener('click', async function(e) {
+            e.stopPropagation();
             if (confirm('Delete this saved search?')) {
               await deleteSearch(search.id);
               loadSavedSearches();
@@ -320,16 +331,6 @@
       } catch (e) {
         console.error('Error loading saved searches:', e);
       }
-    }
-
-    async function toggleAlerts(id, enabled) {
-      try {
-        await fetch('/api/saved-searches/toggle-alerts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-          body: JSON.stringify({ id: id, enabled: enabled })
-        });
-      } catch (e) { console.error('Error toggling alerts:', e); }
     }
 
     async function deleteSearch(id) {
@@ -346,20 +347,20 @@
       if (!filters) return 'All fabrics';
       var parts = [];
       if (filters.q) parts.push('"' + filters.q + '"');
-      if (filters.content && filters.content.length) parts.push(filters.content.slice(0, 2).join(', '));
+      if (filters.content && filters.content.length) parts.push(filters.content.slice(0, 3).join(', '));
       if (filters.colors && filters.colors.length) parts.push(filters.colors.slice(0, 2).join(', '));
       if (filters.fabricTypes && filters.fabricTypes.length) parts.push(filters.fabricTypes.slice(0, 2).join(', '));
       if (filters.minPrice || filters.maxPrice) parts.push('$' + (filters.minPrice || 0) + '–$' + (filters.maxPrice || '∞'));
       if (filters.dept) parts.push(filters.dept);
+      if (filters.origin) parts.push(filters.origin);
       return parts.length > 0 ? parts.join(' · ') : 'All fabrics';
     }
 
     function buildBrowseUrl(filters) {
       if (!filters) return 'browse.html';
-      var params = new URLSearchParams();
-      if (filters.q) params.set('q', filters.q);
-      var qs = params.toString();
-      return 'browse.html' + (qs ? '?' + qs : '');
+      // For now just go to browse - the filters would need URL param support
+      // This could be enhanced to pass filter state via URL
+      return 'browse.html';
     }
 
     function escapeHtml(str) {
