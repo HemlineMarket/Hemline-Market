@@ -1,7 +1,10 @@
 // File: /public/scripts/saved-search.js
-// Adds "Save this search" button to browse page
+// Adds "Save search" button to browse page
 (function() {
   'use strict';
+
+  var saveBtn = null;
+  var isSaving = false;
 
   function init() {
     // Only run on browse page
@@ -11,11 +14,11 @@
     if (!topbar) return;
 
     // Create the save search button
-    var saveBtn = document.createElement('button');
+    saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.id = 'saveSearchBtn';
     saveBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg><span>Save search</span>';
-    saveBtn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;border:1px solid #991b1b;background:#fff;color:#991b1b;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;';
+    saveBtn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;border:2px solid #991b1b;background:#fff;color:#991b1b;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.15s ease;';
 
     // Insert after the Hide filters button
     var hideFiltersBtn = document.getElementById('toggleFilters');
@@ -26,9 +29,25 @@
     }
 
     saveBtn.addEventListener('click', handleSaveSearch);
+    
+    // Hover effect
+    saveBtn.addEventListener('mouseenter', function() {
+      if (!isSaving) {
+        saveBtn.style.background = '#991b1b';
+        saveBtn.style.color = '#fff';
+      }
+    });
+    saveBtn.addEventListener('mouseleave', function() {
+      if (!isSaving) {
+        saveBtn.style.background = '#fff';
+        saveBtn.style.color = '#991b1b';
+      }
+    });
   }
 
   async function handleSaveSearch() {
+    if (isSaving) return;
+    
     // Wait for HM.supabase
     var supabase = window.HM ? window.HM.supabase : null;
     if (!supabase) {
@@ -63,6 +82,23 @@
       return;
     }
 
+    // Show saving state
+    isSaving = true;
+    var originalHTML = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"></circle></svg><span>Saving...</span>';
+    saveBtn.style.background = '#f3f4f6';
+    saveBtn.style.color = '#6b7280';
+    saveBtn.style.borderColor = '#e5e7eb';
+    saveBtn.style.cursor = 'wait';
+
+    // Add spin animation
+    if (!document.getElementById('spin-style')) {
+      var style = document.createElement('style');
+      style.id = 'spin-style';
+      style.textContent = '@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}';
+      document.head.appendChild(style);
+    }
+
     // Save the search
     try {
       var res = await fetch('/api/saved-searches/save', {
@@ -78,14 +114,38 @@
 
       if (!res.ok) {
         showToast(data.message || data.error || 'Failed to save search', 'error');
+        resetButton(originalHTML);
         return;
       }
 
-      showToast('Search saved! Manage it in Favorites → Saved Searches', 'success');
+      // Success! Show very obvious feedback
+      saveBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Saved!</span>';
+      saveBtn.style.background = '#065f46';
+      saveBtn.style.color = '#fff';
+      saveBtn.style.borderColor = '#065f46';
+      
+      showToast('✓ Search saved! Find it in Favorites → Saved Searches', 'success');
+
+      // Reset after 3 seconds
+      setTimeout(function() {
+        resetButton(originalHTML);
+      }, 3000);
 
     } catch (e) {
       console.error('Error saving search:', e);
       showToast('Failed to save search. Please try again.', 'error');
+      resetButton(originalHTML);
+    }
+  }
+
+  function resetButton(originalHTML) {
+    isSaving = false;
+    if (saveBtn) {
+      saveBtn.innerHTML = originalHTML;
+      saveBtn.style.background = '#fff';
+      saveBtn.style.color = '#991b1b';
+      saveBtn.style.borderColor = '#991b1b';
+      saveBtn.style.cursor = 'pointer';
     }
   }
 
@@ -177,7 +237,7 @@
     if (type === 'success') bgColor = '#065f46';
     if (type === 'error') bgColor = '#991b1b';
 
-    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:' + bgColor + ';color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:99999;animation:toastSlideUp 0.3s ease-out;';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:' + bgColor + ';color:#fff;padding:14px 24px;border-radius:12px;font-size:15px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:99999;animation:toastSlideUp 0.3s ease-out;';
     toast.textContent = message;
     document.body.appendChild(toast);
 
