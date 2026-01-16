@@ -133,13 +133,31 @@ export default async function handler(req, res) {
       : (order.listing_id ? [order.listing_id] : []);
     
     if (listingIdsToRestore.length > 0) {
-      const { error: restoreError } = await supabase.from("listings").update({
-        status: "active",
-        sold_at: null,
-      }).in("id", listingIdsToRestore);
-      
-      if (restoreError) {
-        console.error("Failed to restore listings:", restoreError);
+      // FIX: Parse original yards from order if available (same as 30-min cancel)
+      let originalYardsMap = {};
+      try {
+        if (order.original_yards_json) {
+          originalYardsMap = JSON.parse(order.original_yards_json);
+        }
+      } catch (e) {
+        console.warn("[cancel] Could not parse original_yards_json:", e.message);
+      }
+
+      // FIX: Restore each listing with its original yards
+      for (const listingId of listingIdsToRestore) {
+        const originalYards = originalYardsMap[listingId] || 1;
+        
+        const { error: restoreError } = await supabase.from("listings").update({
+          status: "ACTIVE",  // FIX: Standardized to UPPERCASE
+          yards_available: originalYards,
+          sold_at: null,
+        }).eq("id", listingId);
+        
+        if (restoreError) {
+          console.error("Failed to restore listing:", listingId, restoreError);
+        } else {
+          console.log(`[cancel] Restored listing ${listingId} with ${originalYards} yards`);
+        }
       }
     }
 
