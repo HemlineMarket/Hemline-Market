@@ -23,10 +23,24 @@ function asInt(n, fallback = 0) {
   return Number.isFinite(x) ? Math.trunc(x) : fallback;
 }
 
-function safeJsonStringify(obj, maxLen = 450) {
+function safeJsonStringify(obj, maxLen = 500) {
+  // Stripe metadata values have a 500 character limit
+  // For larger carts, we store just essential data (listing IDs and yards)
   try {
     const s = JSON.stringify(obj ?? {});
-    return s.length > maxLen ? s.slice(0, maxLen) : s;
+    if (s.length <= maxLen) return s;
+    
+    // If full cart is too long, create a minimal version with just IDs and yards
+    if (Array.isArray(obj)) {
+      const minimal = obj.map(item => ({
+        id: item.listing_id || item.listingId || item.id,
+        y: item.yards || 1
+      }));
+      const minStr = JSON.stringify(minimal);
+      return minStr.length > maxLen ? minStr.slice(0, maxLen) : minStr;
+    }
+    
+    return s.slice(0, maxLen);
   } catch {
     return "";
   }
