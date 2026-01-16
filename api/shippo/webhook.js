@@ -54,6 +54,17 @@ function normalizeStatus(s = "") {
   return "IN_TRANSIT";
 }
 
+// HTML escape function to prevent XSS/injection in emails
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -133,13 +144,16 @@ export default async function handler(req, res) {
 
       // Email buyer
       if (order.buyer_email) {
+        const safeTitle = escapeHtml(order.listing_title);
+        const safeTracking = escapeHtml(trackingNumber);
+        const safeTrackingUrl = escapeHtml(order.tracking_url);
         await sendEmail(
           order.buyer_email,
           "📦 Your order has shipped! - Hemline Market",
           `<h2>Your order is on its way!</h2>
-          <p><strong>"${order.listing_title}"</strong> has shipped.</p>
-          <p><strong>Tracking:</strong> ${trackingNumber}</p>
-          ${order.tracking_url ? `<p><a href="${order.tracking_url}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Track Package</a></p>` : ''}
+          <p><strong>"${safeTitle}"</strong> has shipped.</p>
+          <p><strong>Tracking:</strong> ${safeTracking}</p>
+          ${order.tracking_url ? `<p><a href="${safeTrackingUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Track Package</a></p>` : ''}
           <p>Hemline Market</p>`,
           `Your order "${order.listing_title}" has shipped. Tracking: ${trackingNumber}`
         );
@@ -150,6 +164,8 @@ export default async function handler(req, res) {
     if (status === "DELIVERED" && order.status !== "DELIVERED") {
       updates.delivered_at = now.toISOString();
       updates.status = "DELIVERED";
+
+      const safeTitle = escapeHtml(order.listing_title);
 
       // Notify buyer
       if (order.buyer_id) {
@@ -169,7 +185,7 @@ export default async function handler(req, res) {
           order.buyer_email,
           "🎉 Your order was delivered! - Hemline Market",
           `<h2>Your order has arrived!</h2>
-          <p><strong>"${order.listing_title}"</strong> has been delivered.</p>
+          <p><strong>"${safeTitle}"</strong> has been delivered.</p>
           <p>We hope you love your new fabric!</p>
           <p>If there are any issues, please <a href="https://hemlinemarket.com/contact.html">contact us</a> within 3 days.</p>
           <p>The seller will receive payment in 3 days unless you report an issue.</p>
