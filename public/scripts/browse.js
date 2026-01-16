@@ -651,6 +651,12 @@
           cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
         }
 
+        // Relisted badge
+        let relistedBadgeHtml = '';
+        if (l.relisted_from_name) {
+          relistedBadgeHtml = `<span class="listing-relisted-badge">Relisted from ${l.relisted_from_name.substring(0, 15)}${l.relisted_from_name.length > 15 ? '…' : ''}</span>`;
+        }
+
         let totalCents = null;
         if (priceCents != null && yardsAvail != null) {
           totalCents = Math.round(priceCents * yardsAvail);
@@ -674,6 +680,7 @@
             <div class="listing-thumb" aria-hidden="true">
               ${l.image_url_1 ? `<img src="${thumbUrl(l.image_url_1, 400)}" alt="${safeAlt}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML+='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
               ${cartBadgeHtml}
+              ${relistedBadgeHtml}
             </div>
           </a>
           <div class="listing-body">
