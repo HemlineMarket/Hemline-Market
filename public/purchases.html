@@ -513,6 +513,12 @@ Please advise next steps.
                   <span>View listing</span>
                 </a>
               ` : ``}
+              ${(status === 'DELIVERED' || status === 'COMPLETE') && hasListing ? `
+                <button class="btn" data-relist-btn data-listing-id="${order.listing_id}" data-listing-title="${title.replace(/"/g, '&quot;')}">
+                  <span class="miniIcon">🔄</span>
+                  <span>Relist</span>
+                </button>
+              ` : ``}
 
               ${problemHtml}
 
@@ -561,6 +567,48 @@ Please advise next steps.
             cancelBtn.textContent = "Cancel";
             cancelBtn.disabled = false;
             alert("Could not cancel order. Please contact support.");
+          });
+        }
+
+        // Handle relist button (only exists for DELIVERED/COMPLETE orders)
+        const relistBtn = card.querySelector("[data-relist-btn]");
+        if(relistBtn){
+          relistBtn.addEventListener("click", async () => {
+            const listingId = relistBtn.dataset.listingId;
+            const listingTitle = relistBtn.dataset.listingTitle;
+            
+            if(!confirm(`Relist "${listingTitle}"?\n\nThis will create a draft listing based on this item. Images will display "Relisted from [original seller]" watermark.\n\nYou can edit all details before publishing.`)) return;
+            
+            relistBtn.disabled = true;
+            relistBtn.innerHTML = '<span class="miniIcon">⏳</span> <span>Creating...</span>';
+            
+            try {
+              const session = await supabase.auth.getSession();
+              const token = session?.data?.session?.access_token;
+              if(!token) throw new Error("Please sign in to relist");
+              
+              const res = await fetch("/api/listings/relist", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ listing_id: listingId })
+              });
+              
+              const data = await res.json();
+              
+              if(!res.ok) throw new Error(data.error || "Failed to create relist");
+              
+              alert("Relist created! Redirecting to edit...");
+              window.location.href = `/sell.html?edit=${data.listing.id}`;
+              
+            } catch(err) {
+              console.error("Relist error:", err);
+              alert(err.message || "Failed to create relist. Please try again.");
+              relistBtn.disabled = false;
+              relistBtn.innerHTML = '<span class="miniIcon">🔄</span> <span>Relist</span>';
+            }
           });
         }
 
