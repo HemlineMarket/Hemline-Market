@@ -191,6 +191,48 @@
       opacity:.6;
       cursor:not-allowed;
     }
+    .btn-secondary{
+      background:#f8fafc;
+      border-color:#d1d5db;
+      color:#374151;
+    }
+    .btn-secondary:hover:not([disabled]){
+      background:#f1f5f9;
+      border-color:#9ca3af;
+    }
+
+    /* Relisted from badge */
+    .relisted-badge{
+      position:absolute;
+      bottom:8px;
+      left:8px;
+      background:rgba(15,23,42,0.85);
+      color:#fff;
+      padding:4px 10px;
+      border-radius:6px;
+      font-size:11px;
+      font-weight:600;
+      backdrop-filter:blur(4px);
+      z-index:5;
+    }
+    .relisted-badge::before{
+      content:"🔄 ";
+    }
+    .media{
+      position:relative;
+    }
+    .thumb{
+      position:relative;
+    }
+    .thumb .relisted-badge{
+      font-size:8px;
+      padding:2px 4px;
+      bottom:2px;
+      left:2px;
+    }
+    .thumb .relisted-badge::before{
+      content:"";
+    }
 
     .icon-btn{
       width:36px;
@@ -642,6 +684,11 @@
           data-photo=""
         >Add to Cart</button>
 
+        <!-- Relist button - shown to buyers who have purchased and received this item -->
+        <button id="relistBtn" class="btn btn-secondary" type="button" style="display:none;">
+          🔄 Relist This Item
+        </button>
+
         <button id="favoriteBtn" class="icon-btn" type="button" aria-label="Save to favorites">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -936,9 +983,25 @@
       if(listing[key]) urls.push(listing[key]);
     }
 
+    // Check if this is a relisted item
+    const relistedFromName = listing.relisted_from_name;
+    
+    // Remove any existing relisted badges
+    const existingBadges = document.querySelectorAll('.relisted-badge');
+    existingBadges.forEach(b => b.remove());
+
     thumbs.innerHTML = "";
     if(urls.length){
       hero.src = urls[0];
+      
+      // Add relisted badge to hero image container if applicable
+      if(relistedFromName){
+        const heroBadge = document.createElement("div");
+        heroBadge.className = "relisted-badge";
+        heroBadge.textContent = `Relisted from ${relistedFromName}`;
+        hero.parentElement.appendChild(heroBadge);
+      }
+      
       urls.forEach((src, idx)=>{
         const btn = document.createElement("button");
         btn.type = "button";
@@ -954,6 +1017,15 @@
           btn.innerHTML = '<span style="font-size:9px;color:#9ca3af;">N/A</span>';
         };
         btn.appendChild(img);
+        
+        // Add small relisted badge to thumbnails too
+        if(relistedFromName){
+          const thumbBadge = document.createElement("div");
+          thumbBadge.className = "relisted-badge";
+          thumbBadge.textContent = "Relisted";
+          btn.appendChild(thumbBadge);
+        }
+        
         btn.addEventListener("click", ()=>{
           hero.src = src;
           hero.style.display = "block";
@@ -1341,7 +1413,106 @@
 
     initFavoriteButton();
     initShareButton();
+    initRelistButton(listing);
     showOwnerControls(listing);
+  }
+
+  /* Relist Button - for buyers who have purchased this item */
+  async function initRelistButton(listing) {
+    const relistBtn = document.getElementById("relistBtn");
+    if (!relistBtn || !listing) return;
+
+    // Only show for logged-in users
+    if (!currentSession?.user?.id) return;
+
+    const userId = currentSession.user.id;
+    const listingId = listing.id;
+    const sellerId = listing.seller_id;
+
+    // Don't show relist to the original seller
+    if (userId === sellerId) return;
+
+    // Check if user has a delivered/complete order containing this item
+    try {
+      const { data: orders, error } = await supabaseClient
+        .from("orders")
+        .select("id, status, listing_id, listing_ids")
+        .eq("buyer_id", userId)
+        .in("status", ["DELIVERED", "COMPLETE"]);
+
+      if (error || !orders || orders.length === 0) return;
+
+      // Check if any order contains this listing
+      const hasPurchased = orders.some(order => {
+        if (order.listing_id === listingId) return true;
+        if (order.listing_ids && Array.isArray(order.listing_ids)) {
+          return order.listing_ids.includes(listingId);
+        }
+        return false;
+      });
+
+      if (!hasPurchased) return;
+
+      // Show the relist button
+      relistBtn.style.display = "inline-flex";
+      relistBtn.onclick = () => handleRelist(listing);
+
+    } catch (e) {
+      console.warn("Could not check relist eligibility", e);
+    }
+  }
+
+  async function handleRelist(listing) {
+    const relistBtn = document.getElementById("relistBtn");
+    if (!relistBtn) return;
+
+    if (!currentSession?.access_token) {
+      showToast("Please sign in to relist this item", "error");
+      return;
+    }
+
+    // Confirm with user
+    const confirmed = confirm(
+      `Relist "${listing.title}"?\n\n` +
+      `This will create a draft listing based on this item. ` +
+      `Images will display "Relisted from [original seller]" watermark.\n\n` +
+      `You can edit all details before publishing.`
+    );
+
+    if (!confirmed) return;
+
+    relistBtn.disabled = true;
+    relistBtn.textContent = "Creating relist...";
+
+    try {
+      const response = await fetch("/api/listings/relist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${currentSession.access_token}`
+        },
+        body: JSON.stringify({ listing_id: listing.id })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create relist");
+      }
+
+      showToast("Relist created! Redirecting to edit...", "success");
+      
+      // Redirect to sell page with the new listing to edit
+      setTimeout(() => {
+        window.location.href = `/sell.html?edit=${result.listing.id}`;
+      }, 1500);
+
+    } catch (err) {
+      console.error("Relist error:", err);
+      showToast(err.message || "Failed to create relist", "error");
+      relistBtn.disabled = false;
+      relistBtn.textContent = "🔄 Relist This Item";
+    }
   }
 
   /* Favorites — local + bell */
