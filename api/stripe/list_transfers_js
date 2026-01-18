@@ -1,49 +1,74 @@
-// api/stripe/list_transfers.js
-// Returns recent Stripe Transfers sent from the platform to a given connected account.
-// GET /api/stripe/list_transfers?account=acct_123&limit=20
-// Env: STRIPE_SECRET_KEY
+// FILE: api/stripe/list_transfers.js
+// FIX: Renamed from list_transfers_js (was missing .js extension)
+// Lists Stripe transfers for the authenticated user's connected account
 
-import Stripe from 'stripe';
+import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-07-30.basil',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } }
+  );
+}
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET');
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const account = (req.query.account || '').toString();
-    const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 50);
-
-    if (!account || !account.startsWith('acct_')) {
-      return res.status(400).json({ error: 'Missing/invalid ?account=acct_…' });
+    // Verify JWT
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Transfers created from your platform to this destination account
+    const token = authHeader.replace("Bearer ", "");
+    const supabase = getSupabaseAdmin();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    // Get user's Stripe Connect account ID from profile
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("stripe_account_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError || !profile?.stripe_account_id) {
+      return res.status(400).json({ error: "No Stripe account connected" });
+    }
+
+    // List transfers to this connected account
     const transfers = await stripe.transfers.list({
-      destination: account,
-      limit,
+      destination: profile.stripe_account_id,
+      limit: 100,
     });
 
     return res.status(200).json({
-      account,
       transfers: transfers.data.map(t => ({
         id: t.id,
         amount: t.amount,
         currency: t.currency,
         created: t.created,
-        description: t.description || '',
-        destination: t.destination,
-        status: t.status, // paid | pending | failed
+        description: t.description,
+        reversed: t.reversed,
       })),
       has_more: transfers.has_more,
     });
+
   } catch (err) {
-    console.error('list_transfers error:', err);
-    return res.status(500).json({ error: 'Unable to list transfers' });
+    console.error("List transfers error:", err);
+    return res.status(500).json({ error: "Failed to fetch transfers" });
   }
 }
