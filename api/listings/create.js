@@ -1,5 +1,7 @@
 // FILE: api/listings/create.js
 // FIX: Added JWT authentication and seller_id validation (BUG #6)
+// FIX: Converted from CommonJS (module.exports) to ES modules (export default)
+// FIX: Added title length/character validation
 // Creates a listing in Supabase using the service role (server-only).
 // 
 // CHANGE: Now requires valid JWT token, and seller_id must match authenticated user
@@ -10,6 +12,10 @@
 // Saves required shipping fields: weight_oz, handling_days_min/max, and optional dims.
 
 import { createClient } from "@supabase/supabase-js";
+
+// Constants for validation
+const MAX_TITLE_LENGTH = 200;
+const MAX_DESCRIPTION_LENGTH = 5000;
 
 function getSupabaseAdmin() {
   return createClient(
@@ -65,6 +71,50 @@ function toNumber(x) {
   return Number.isFinite(n) ? n : NaN;
 }
 
+/**
+ * Sanitize and validate title
+ * - Trims whitespace
+ * - Enforces max length
+ * - Removes potentially dangerous characters for Stripe/emails
+ */
+function sanitizeTitle(title) {
+  if (!title) return { valid: false, error: "Title is required." };
+  
+  let sanitized = String(title).trim();
+  
+  // Remove null bytes and other control characters
+  sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
+  
+  // Check length
+  if (sanitized.length === 0) {
+    return { valid: false, error: "Title is required." };
+  }
+  
+  if (sanitized.length > MAX_TITLE_LENGTH) {
+    return { valid: false, error: `Title must be ${MAX_TITLE_LENGTH} characters or less.` };
+  }
+  
+  return { valid: true, value: sanitized };
+}
+
+/**
+ * Sanitize description
+ */
+function sanitizeDescription(description) {
+  if (!description) return { valid: true, value: "" };
+  
+  let sanitized = String(description).trim();
+  
+  // Remove null bytes and other control characters (keep newlines)
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  
+  if (sanitized.length > MAX_DESCRIPTION_LENGTH) {
+    return { valid: false, error: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` };
+  }
+  
+  return { valid: true, value: sanitized };
+}
+
 async function insertListing(supabaseUrl, serviceKey, row) {
   const url = `${supabaseUrl.replace(/\/+$/, "")}/rest/v1/listings`;
   const resp = await fetch(url, {
@@ -87,13 +137,14 @@ async function insertListing(supabaseUrl, serviceKey, row) {
   return Array.isArray(data) ? data[0] : data;
 }
 
-module.exports = async (req, res) => {
+// FIX: Changed from module.exports to export default for ES modules consistency
+export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return sendHTML(res, 405, "<h1>405</h1><p>POST only.</p>");
   }
 
-  // FIX: Require authentication
+  // Require authentication
   const user = await verifyAuth(req);
   if (!user) {
     const ct = String(req.headers["content-type"] || "").toLowerCase();
@@ -125,10 +176,29 @@ module.exports = async (req, res) => {
     return sendHTML(res, 400, "<h1>400</h1><p>Invalid request body.</p>");
   }
 
-  // Extract fields
+  // Extract and validate fields
   const seller_id = (body.seller_id || "").trim();
-  const title = (body.title || "").trim();
-  const description = (body.description || "").trim();
+  
+  // FIX: Sanitize and validate title
+  const titleResult = sanitizeTitle(body.title);
+  if (!titleResult.valid) {
+    if (ct.includes("application/json")) {
+      return sendJSON(res, 400, { ok: false, error: titleResult.error });
+    }
+    return sendHTML(res, 400, `<h1>400</h1><p>${titleResult.error}</p>`);
+  }
+  const title = titleResult.value;
+  
+  // FIX: Sanitize and validate description
+  const descResult = sanitizeDescription(body.description);
+  if (!descResult.valid) {
+    if (ct.includes("application/json")) {
+      return sendJSON(res, 400, { ok: false, error: descResult.error });
+    }
+    return sendHTML(res, 400, `<h1>400</h1><p>${descResult.error}</p>`);
+  }
+  const description = descResult.value;
+  
   const price = toNumber(body.price);
 
   const weight_oz = toNumber(body.weight_oz);
@@ -142,8 +212,11 @@ module.exports = async (req, res) => {
   const height_in = body.height_in == null || body.height_in === ""
     ? null : toNumber(body.height_in);
 
-  // FIX: Validate seller_id matches authenticated user
+  // Validate seller_id matches authenticated user
   if (!seller_id) {
+    if (ct.includes("application/json")) {
+      return sendJSON(res, 400, { ok: false, error: "Missing seller_id." });
+    }
     return sendHTML(res, 400, "<h1>400</h1><p>Missing seller_id.</p>");
   }
   if (seller_id !== user.id) {
@@ -153,21 +226,32 @@ module.exports = async (req, res) => {
     return sendHTML(res, 403, "<h1>403</h1><p>Cannot create listings for other users.</p>");
   }
 
-  if (!title) return sendHTML(res, 400, "<h1>400</h1><p>Title is required.</p>");
   if (!Number.isFinite(price) || price < 0) {
+    if (ct.includes("application/json")) {
+      return sendJSON(res, 400, { ok: false, error: "Price must be a non-negative number." });
+    }
     return sendHTML(res, 400, "<h1>400</h1><p>Price must be a non-negative number.</p>");
   }
 
   // Validate shipping fields
   if (!Number.isFinite(weight_oz) || weight_oz <= 0) {
+    if (ct.includes("application/json")) {
+      return sendJSON(res, 400, { ok: false, error: "Weight (oz) must be greater than 0." });
+    }
     return sendHTML(res, 400, "<h1>400</h1><p>Weight (oz) must be greater than 0.</p>");
   }
   if (!Number.isFinite(handling_days_min) || !Number.isFinite(handling_days_max)
       || handling_days_min < 0 || handling_days_max < handling_days_min) {
+    if (ct.includes("application/json")) {
+      return sendJSON(res, 400, { ok: false, error: "Handling days must be integers and max ≥ min." });
+    }
     return sendHTML(res, 400, "<h1>400</h1><p>Handling days must be integers and max ≥ min.</p>");
   }
   for (const [k, v] of Object.entries({ length_in, width_in, height_in })) {
     if (v != null && (!Number.isFinite(v) || v < 0)) {
+      if (ct.includes("application/json")) {
+        return sendJSON(res, 400, { ok: false, error: `${k} must be a non-negative number.` });
+      }
       return sendHTML(res, 400, `<h1>400</h1><p>${k} must be a non-negative number.</p>`);
     }
   }
@@ -190,12 +274,18 @@ module.exports = async (req, res) => {
       return sendJSON(res, 200, { ok: true, listing: inserted });
     }
 
+    // Escape title for HTML output
+    const safeTitle = (inserted?.title || title)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
     const html = `<!doctype html>
 <html><head><meta charset="utf-8"><title>Listing Created</title>
 <style>body{font-family:system-ui,sans-serif;margin:24px}a{color:#111}</style></head>
 <body>
   <h1>🎉 Listing Created</h1>
-  <p><strong>${inserted?.title || title}</strong> — $${(inserted?.price ?? price).toFixed(2)}</p>
+  <p><strong>${safeTitle}</strong> — $${(inserted?.price ?? price).toFixed(2)}</p>
   <p>Shipping: ${weight_oz} oz · ships in ${handling_days_min}${handling_days_min===handling_days_max ? "" : "–"+handling_days_max} business day(s)</p>
   <p>Your listing was created successfully.</p>
   <p><a href="/create-listing.html">Create another</a> • <a href="/public/listings.html">Back to listings</a></p>
@@ -211,4 +301,4 @@ module.exports = async (req, res) => {
     }
     return sendJSON(res, 400, { ok: false, error: msg });
   }
-};
+}
