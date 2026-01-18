@@ -6,6 +6,9 @@
 // - Buyer is the one canceling
 //
 // POST { order_id: "..." }
+//
+// FIX: Now uses actual business days (excludes weekends)
+// FIX: Sanitizes error messages to avoid leaking internal details
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -41,6 +44,90 @@ async function sendEmail(to, subject, htmlBody, textBody) {
     headers: { "Content-Type": "application/json", "X-Postmark-Server-Token": POSTMARK },
     body: JSON.stringify({ From: FROM, To: to, Subject: subject, HtmlBody: htmlBody, TextBody: textBody, MessageStream: "outbound" }),
   });
+}
+
+/**
+ * Calculate business days between two dates (excludes Saturdays and Sundays)
+ * @param {Date} startDate 
+ * @param {Date} endDate 
+ * @returns {number} Number of business days
+ */
+function getBusinessDaysBetween(startDate, endDate) {
+  let count = 0;
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
+  
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  
+  while (current < end) {
+    const dayOfWeek = current.getDay();
+    // 0 = Sunday, 6 = Saturday
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return count;
+}
+
+/**
+ * Calculate how many business days until a target number is reached
+ * @param {Date} startDate 
+ * @param {number} targetBusinessDays 
+ * @returns {number} Calendar days remaining (can be used for user display)
+ */
+function getBusinessDaysRemaining(startDate, targetBusinessDays) {
+  let businessDaysCount = 0;
+  let calendarDaysCount = 0;
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
+  
+  while (businessDaysCount < targetBusinessDays) {
+    current.setDate(current.getDate() + 1);
+    calendarDaysCount++;
+    const dayOfWeek = current.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      businessDaysCount++;
+    }
+  }
+  
+  // Now 'current' is the date when target business days will be reached
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  
+  const remainingCalendarDays = Math.ceil((current - now) / (1000 * 60 * 60 * 24));
+  return Math.max(0, remainingCalendarDays);
+}
+
+/**
+ * Sanitize error messages for client response
+ * Prevents leaking internal details like stack traces or sensitive info
+ */
+function sanitizeErrorMessage(error) {
+  const message = error?.message || String(error);
+  
+  // Known safe error patterns to pass through
+  const safePatterns = [
+    /^Missing order_id$/,
+    /^Order not found$/,
+    /^You can only cancel your own orders$/,
+    /^Cannot cancel order with status:/,
+    /^Cannot cancel.*shipped/,
+    /^Cannot cancel yet/,
+    /^No payment intent found/,
+  ];
+  
+  for (const pattern of safePatterns) {
+    if (pattern.test(message)) {
+      return message;
+    }
+  }
+  
+  // Log the full error server-side but return generic message to client
+  console.error("[cancel] Internal error:", message);
+  return "An error occurred while processing your cancellation. Please try again or contact support.";
 }
 
 export default async function handler(req, res) {
@@ -95,16 +182,20 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Cannot cancel - order has already shipped" });
     }
 
-    // Check if 5 days have passed
+    // FIX: Check if 5 BUSINESS days have passed (not calendar days)
     const orderDate = new Date(order.created_at);
     const now = new Date();
-    const daysSinceOrder = (now - orderDate) / (1000 * 60 * 60 * 24);
+    const businessDaysSinceOrder = getBusinessDaysBetween(orderDate, now);
+    const REQUIRED_BUSINESS_DAYS = 5;
 
-    if (daysSinceOrder < 5) {
-      const daysRemaining = Math.ceil(5 - daysSinceOrder);
+    if (businessDaysSinceOrder < REQUIRED_BUSINESS_DAYS) {
+      const businessDaysRemaining = REQUIRED_BUSINESS_DAYS - businessDaysSinceOrder;
+      const calendarDaysRemaining = getBusinessDaysRemaining(orderDate, REQUIRED_BUSINESS_DAYS);
+      
       return res.status(400).json({ 
-        error: `Cannot cancel yet. Seller has ${daysRemaining} more day(s) to ship.`,
-        days_remaining: daysRemaining
+        error: `Cannot cancel yet. Seller has ${businessDaysRemaining} more business day(s) to ship.`,
+        business_days_remaining: businessDaysRemaining,
+        calendar_days_remaining: calendarDaysRemaining
       });
     }
 
@@ -133,7 +224,7 @@ export default async function handler(req, res) {
       : (order.listing_id ? [order.listing_id] : []);
     
     if (listingIdsToRestore.length > 0) {
-      // FIX: Parse original yards from order if available (same as 30-min cancel)
+      // Parse original yards from order if available
       let originalYardsMap = {};
       try {
         if (order.original_yards_json) {
@@ -143,12 +234,12 @@ export default async function handler(req, res) {
         console.warn("[cancel] Could not parse original_yards_json:", e.message);
       }
 
-      // FIX: Restore each listing with its original yards
+      // Restore each listing with its original yards
       for (const listingId of listingIdsToRestore) {
         const originalYards = originalYardsMap[listingId] || 1;
         
         const { error: restoreError } = await supabase.from("listings").update({
-          status: "ACTIVE",  // FIX: Standardized to UPPERCASE
+          status: "ACTIVE",
           yards_available: originalYards,
           sold_at: null,
         }).eq("id", listingId);
@@ -178,7 +269,7 @@ export default async function handler(req, res) {
         type: "cancelled",
         kind: "cancelled",
         title: "Order cancelled",
-        body: `Order for "${order.listing_title}" was cancelled because it wasn't shipped within 5 days. The item has been relisted.`,
+        body: `Order for "${order.listing_title}" was cancelled because it wasn't shipped within 5 business days. The item has been relisted.`,
         href: "/sales.html",
       });
 
@@ -195,7 +286,7 @@ export default async function handler(req, res) {
           sellerProfile.contact_email,
           "⚠️ Order Cancelled - Hemline Market",
           `<h2>Order Cancelled</h2>
-          <p>Your order for <strong>"${safeTitle}"</strong> was cancelled because it wasn't shipped within 5 days.</p>
+          <p>Your order for <strong>"${safeTitle}"</strong> was cancelled because it wasn't shipped within 5 business days.</p>
           <p>The buyer has been refunded and your listing has been automatically relisted.</p>
           <p>To avoid cancellations, please ship orders within 5 business days of purchase.</p>
           <p>Hemline Market</p>`,
@@ -228,6 +319,6 @@ export default async function handler(req, res) {
 
   } catch (e) {
     console.error("Cancel order error:", e);
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: sanitizeErrorMessage(e) });
   }
 }
