@@ -1,10 +1,11 @@
-// FILE: api/stripe/create_session.js
-// REPLACE your existing file with this entire file
+// FILE: api/checkout/create-checkout-session.js
+// (previously api/stripe/create_session.js)
 //
 // FIXES:
 // - Checks if items are sold before allowing checkout
 // - Prevents two people buying same item at once
 // - Processes ALL items in cart (not just the first one)
+// - FIX: Sanitizes error messages to prevent leaking Stripe/internal details
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -37,6 +38,66 @@ function getSupabaseAdmin() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+/**
+ * Sanitize error messages for client response
+ * Maps known error types to user-friendly messages
+ * Logs full error server-side for debugging
+ */
+function sanitizeStripeError(error) {
+  const message = error?.message || String(error);
+  const code = error?.code || error?.type || "";
+  
+  // Log full error for debugging
+  console.error("[create_session] Full error:", {
+    message,
+    code,
+    type: error?.type,
+    statusCode: error?.statusCode,
+  });
+  
+  // Map Stripe error codes to user-friendly messages
+  const errorMap = {
+    'card_declined': 'Your card was declined. Please try a different payment method.',
+    'expired_card': 'Your card has expired. Please use a different card.',
+    'incorrect_cvc': 'The security code is incorrect. Please check and try again.',
+    'processing_error': 'An error occurred while processing your card. Please try again.',
+    'incorrect_number': 'The card number is incorrect. Please check and try again.',
+    'invalid_expiry_month': 'The expiration month is invalid.',
+    'invalid_expiry_year': 'The expiration year is invalid.',
+    'rate_limit': 'Too many requests. Please wait a moment and try again.',
+  };
+  
+  // Check if it's a known Stripe error
+  for (const [errorCode, friendlyMessage] of Object.entries(errorMap)) {
+    if (code.includes(errorCode) || message.toLowerCase().includes(errorCode.replace(/_/g, ' '))) {
+      return friendlyMessage;
+    }
+  }
+  
+  // Known safe error patterns from our own validation
+  const safePatterns = [
+    /^Cart is empty$/,
+    /^Cart total is invalid$/,
+    /^Missing STRIPE_SECRET_KEY$/,
+    /^Database connection failed$/,
+    /^Could not verify item availability$/,
+    /^Some items are no longer available/,
+    /^Some items were not found$/,
+    /^Items locked by another buyer$/,
+    /^Seller on vacation$/,
+    /^Unable to checkout:/,
+  ];
+  
+  for (const pattern of safePatterns) {
+    if (pattern.test(message)) {
+      return message;
+    }
+  }
+  
+  // Generic fallback - don't expose internal details
+  return "Unable to process checkout. Please try again or contact support.";
 }
 
 export default async function handler(req, res) {
@@ -221,13 +282,17 @@ export default async function handler(req, res) {
       const lineTotal = calcLineTotal(it);
       // Stripe wants unit_amount, so we divide by qty to get per-item price
       const unitAmount = Math.round(lineTotal / qty);
+      
+      // FIX: Truncate name safely for Stripe (max 127 chars for product name)
+      const safeName = name.length > 120 ? name.slice(0, 117) + "..." : name;
+      
       return {
         quantity: qty,
         price_data: {
           currency,
           unit_amount: unitAmount,
           product_data: {
-            name: name.length > 120 ? name.slice(0, 120) : name,
+            name: safeName,
           },
         },
       };
@@ -258,7 +323,7 @@ export default async function handler(req, res) {
       seller_ids: allSellerIds,
       listing_id: first.listing_id || first.listingId || first.id || "",
       seller_id: first.seller_id || first.sellerId || "",
-      title: (first.title || first.name || "").toString().trim(),
+      title: (first.title || first.name || "").toString().trim().slice(0, 100),
       image_url: (first.image_url || first.imageUrl || "").toString().trim(),
       cart_json: safeJsonStringify(cart),
       item_count: String(cart.length),
@@ -340,10 +405,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ url: session.url, id: session.id });
   } catch (err) {
-    console.error("[create_session] error", err);
+    // FIX: Sanitize error message before sending to client
+    const sanitizedError = sanitizeStripeError(err);
     return res.status(500).json({
-      error: "Stripe create_session failed",
-      message: err?.message || String(err),
+      error: "Checkout failed",
+      message: sanitizedError,
     });
   }
 }
