@@ -82,18 +82,37 @@
   ];
 
   const COSPLAY_FABRIC_TYPES = [
+    // Core cosplay fabrics
     "Brocade", "Charmeuse", "Chiffon", "Faux Fur", "Faux Leather", "Fleece", "Jersey", 
     "Lace", "Mesh", "Metallic", "Lamé", "Minky", "Organza", "Ponte", "Satin", "Scuba", 
-    "Spandex / Lycra", "Tulle", "Velvet", "Vinyl"
+    "Spandex / Lycra", "Tulle", "Velvet", "Vinyl",
+    // Velvet variants
+    "Stretch Velvet", "Crushed Velvet", "Panne Velvet", "Velour",
+    // Shiny/specialty fabrics
+    "Sequin", "Holographic", "Iridescent", "PVC", "Pleather", "Neoprene",
+    // Satin variants
+    "Stretch Satin", "Duchesse", "Duchess Satin", "Crepe Back Satin", "Bridal Satin",
+    // Stretch fabrics
+    "Spandex", "Lycra", "4-Way Stretch", "Milliskin", "Power Mesh", "Stretch Lace",
+    // Dance/performance
+    "Dance", "Costume", "Swimwear", "Athletic"
   ];
 
   const COSPLAY_FEELS_LIKE = [
+    // Core feels
     "brocade", "charmeuse", "chiffon", "faux fur", "faux leather", "fleece", "jersey knit", 
     "lace", "mesh", "metallic", "lame", "minky", "organza", "ponte", "satin", "scuba", 
-    "spandex / lycra", "tulle", "velvet / velour", "vinyl"
+    "spandex / lycra", "tulle", "velvet / velour", "vinyl",
+    // Additional feels
+    "stretch velvet", "crushed velvet", "panne", "velour", "sequin", "holographic", 
+    "iridescent", "pvc", "pleather", "neoprene", "stretch satin", "duchess", "bridal satin",
+    "spandex", "lycra", "4-way stretch", "milliskin", "power mesh", "stretch lace",
+    "dance", "costume", "swimwear", "athletic", "performance"
   ];
 
-  const COSPLAY_CONTENTS = ["lurex"];
+  const COSPLAY_CONTENTS = [
+    "lurex", "spandex", "elastane", "lycra", "nylon", "polyester"
+  ];
 
   /* ===== FILTER STATE ===== */
   const selectedContents = new Set();
