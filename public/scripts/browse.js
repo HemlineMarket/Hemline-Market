@@ -3,8 +3,7 @@
  * public/scripts/browse.js
  * 
  * Handles browse page listings, filters, ateliers search.
- * FIXED: Correct element IDs, filter initialization, mobile support
- * UPDATED: Added new fabric types, hide count under 1000, 8pm release time
+ * FIXED: Correct price handling, 8pm release time, badge on yards line
  */
 
 (function() {
@@ -70,7 +69,6 @@
     { name: "Silver", hex: "#c0c0c0" }
   ];
 
-  // UPDATED: Added new fabric types, split Metallic/Lame
   const FABRIC_TYPES = [
     "Broadcloth", "Brocade", "Canvas", "Challis", "Chambray", "Charmeuse", "Chiffon", 
     "Corduroy", "Crepe", "Crepe de Chine", "Denim", "Double Cloth", "Double Knit", 
@@ -294,7 +292,7 @@
 
     let query = client.from("listings").select("*", { count: "exact" }).eq("status", "ACTIVE").eq("is_published", true);
 
-    // RESTORED: 8pm release time filter
+    // 8pm release time filter
     const now = new Date();
     query = query.or('published_at.is.null,published_at.lte.' + now.toISOString());
 
@@ -348,17 +346,24 @@
 
   /* ===== RENDER FUNCTIONS ===== */
   function renderListingCard(listing, sellerProfile, holdMap, myCartIds) {
-    const price = listing.price != null ? Number(listing.price).toFixed(2) : null;
+    // FIXED: Get price from price_cents first, fall back to price field
+    const priceCents = listing.price_cents != null ? Number(listing.price_cents) : null;
+    const priceFromField = listing.price != null ? Number(listing.price) : null;
+    const price = priceCents != null ? (priceCents / 100).toFixed(2) : (priceFromField != null ? priceFromField.toFixed(2) : null);
+    const cents = priceCents != null ? priceCents : (priceFromField != null ? Math.round(priceFromField * 100) : null);
+    
     const yards = listing.yards_available;
     const badge = getListingBadgeLabel(listing);
     const sellerName = sellerProfile?.store_name || sellerProfile?.display_name || [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || "";
     const imageUrl = listing.image_url_1 || listing.image_urls?.[0] || listing.image_url || "/images/empty-state.svg";
-    const priceCents = listing.price_cents != null ? Number(listing.price_cents) : (price ? price * 100 : null);
-    const totalCents = (priceCents != null && yards != null) ? priceCents * yards : null;
+    
+    const totalCents = (cents != null && yards != null) ? cents * yards : null;
     const totalMoney = totalCents != null ? moneyFromCents(totalCents) : "";
     const status = (listing.status || "active").toLowerCase();
     const isSold = status === "sold" || (yards != null && yards <= 0);
-    const canBuy = !isSold && price != null && yards != null && yards > 0;
+    // FIXED: Use cents instead of price for canBuy check
+    const canBuy = !isSold && cents != null && yards != null && yards > 0;
+    
     const hold = holdMap[listing.id];
     const inMyCart = myCartIds.has(listing.id);
     const inSomeoneElsesCart = hold?.held && !inMyCart;
@@ -367,8 +372,7 @@
     else if (inSomeoneElsesCart) cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
     const href = "listing.html?id=" + encodeURIComponent(listing.id);
 
-    // UPDATED: Move badge to yards line instead of title line
-    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + (yards != null ? '<div class="listing-yards">' + yards + ' yards' + (badge ? ' <span class="listing-dept">' + escapeHtml(badge) + '</span>' : '') + '</div>' : '') + '<div class="listing-cta-row"><button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (priceCents != null ? String(priceCents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + (canBuy && totalMoney && yards ? 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd' : (isSold ? "Sold out" : "Add to Cart")) + '</button></div><div class="listing-price-row">' + (price ? '<span class="listing-price-main">$' + price + '/yd</span>' : "") + '</div>' + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
+    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + (yards != null ? '<div class="listing-yards">' + yards + ' yards' + (badge ? ' <span class="listing-dept">' + escapeHtml(badge) + '</span>' : '') + '</div>' : '') + '<div class="listing-cta-row"><button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (cents != null ? String(cents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + (canBuy && totalMoney && yards ? 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd' : (isSold ? "Sold out" : "Add to Cart")) + '</button></div><div class="listing-price-row">' + (price ? '<span class="listing-price-main">$' + price + '/yd</span>' : "") + '</div>' + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
   }
 
   function renderAtelierCard(profile) {
@@ -443,7 +447,7 @@
           if (countEl) countEl.textContent = "";
           return;
         }
-        // UPDATED: Hide count under 1000
+        // Hide count under 1000
         if (countEl) countEl.textContent = data.length >= 1000 ? data.length + ' seller' + (data.length !== 1 ? "s" : "") : "";
         grid.innerHTML = data.map(p => renderAtelierCard(p)).join("");
       } else {
@@ -461,7 +465,7 @@
         const myCart = JSON.parse(localStorage.getItem('hm_cart') || '[]');
         const myCartIds = new Set(myCart.map(it => it.id || it.listing_id));
         const totalCount = count || data.length;
-        // UPDATED: Hide count under 1000
+        // Hide count under 1000
         if (countEl) countEl.textContent = totalCount >= 1000 ? totalCount + ' fabric' + (totalCount !== 1 ? "s" : "") : "";
         grid.innerHTML = data.map(l => renderListingCard(l, profiles[l.seller_id], holdMap, myCartIds)).join("");
       }
