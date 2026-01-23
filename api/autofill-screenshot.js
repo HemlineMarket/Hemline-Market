@@ -1,7 +1,61 @@
 // api/autofill-screenshot.js
 // Extracts fabric details from a screenshot using Claude's vision
+// UPDATED: Strip retailer names from title, add extra details to description
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+
+// Retailer names to strip from titles
+const RETAILER_NAMES = [
+  "Mood Exclusive",
+  "Mood Fabrics",
+  "Mood",
+  "Fabric.com",
+  "Fabric Mart",
+  "FabricMart",
+  "JoAnn",
+  "JOANN",
+  "Jo-Ann",
+  "Hancock Fabrics",
+  "FeelGood Fibers",
+  "Michael Levine",
+  "B&J Fabrics",
+  "Britex Fabrics",
+  "Dharma Trading",
+  "Emma One Sock",
+  "Fashion Fabrics Club",
+  "Gorgeous Fabrics",
+  "LA Finch Fabrics",
+  "Marcy Tilton",
+  "Nick of Time Textiles",
+  "Stone Mountain & Daughter",
+  "Style Maker Fabrics",
+  "The Fabric Store",
+  "Vogue Fabrics"
+];
+
+function stripRetailerNames(title) {
+  if (!title) return title;
+  let cleaned = title;
+  for (const retailer of RETAILER_NAMES) {
+    // Remove retailer name with common separators
+    const patterns = [
+      new RegExp(`^${retailer}\\s*[-–—:]\\s*`, 'i'),
+      new RegExp(`\\s*[-–—:]\\s*${retailer}$`, 'i'),
+      new RegExp(`\\s*[-–—]\\s*${retailer}\\s*[-–—]\\s*`, 'gi'),
+      new RegExp(`^${retailer}\\s+`, 'i'),
+      new RegExp(`\\s+${retailer}$`, 'i'),
+      new RegExp(`\\(${retailer}\\)`, 'gi'),
+      new RegExp(`${retailer}'s\\s*`, 'gi'),
+    ];
+    for (const pattern of patterns) {
+      cleaned = cleaned.replace(pattern, ' ');
+    }
+  }
+  // Clean up extra spaces and dashes
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  cleaned = cleaned.replace(/^[-–—]\s*/, '').replace(/\s*[-–—]$/, '');
+  return cleaned;
+}
 
 export default async function handler(req, res) {
   // CORS
@@ -76,9 +130,11 @@ export default async function handler(req, res) {
 
 Extract ALL fabric details you can see across all images and return them as JSON. Be accurate - only include fields you can clearly see.
 
+IMPORTANT: Do NOT include retailer or store names in the title (like "Mood Exclusive", "Mood", "Fabric Mart", etc.). Extract only the fabric description itself.
+
 Return ONLY valid JSON in this format (include only fields you find):
 {
-  "title": "product name if visible",
+  "title": "product name WITHOUT store/retailer names",
   "content": ["Lurex", "Polyester"],
   "fabricType": ["Brocade", "Charmeuse"],
   "width": 60,
@@ -96,21 +152,27 @@ Return ONLY valid JSON in this format (include only fields you find):
   "origin": "Italy"
 }
 
-DESCRIPTION FIELD - CRITICAL COPYRIGHT REQUIREMENT:
+DESCRIPTION FIELD - CRITICAL:
 - Do NOT copy text from the screenshots verbatim
 - REWRITE the description in your own words while preserving all the key information
-- Include: hand feel, drape, weight, stretch, opacity, and best project uses
+- INCLUDE these details if visible: hand feel, drape, weight, stretch, opacity, pattern repeat, skill level, thickness, and best project uses
 - Make it sound natural and original, like a seller describing their own fabric
 - Keep it 3-5 sentences
 - Example input: "This luxurious brocade features ornate chandeliers with a tactile hand and voluminous drape"
 - Example output: "A stunning brocade with an intricate chandelier motif. The fabric has excellent body with a soft, textured hand and flows beautifully. No stretch, semi-sheer - consider lining for structured garments. Perfect for evening jackets, formal skirts, and statement pieces."
+
+TITLE FIELD - CRITICAL:
+- Remove any retailer/store names like "Mood Exclusive", "Mood", "Fabric Mart", "JoAnn", etc.
+- Keep only the actual fabric description
+- Example input: "Mood Exclusive - Italian Silk Charmeuse in Navy Blue"
+- Example output: "Italian Silk Charmeuse in Navy Blue"
 
 IMPORTANT FIELD MAPPINGS:
 - content: The fiber composition (e.g., "60% Lurex, 40% Polyester" → ["Lurex", "Polyester"])
   Valid: Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
 
 - fabricType: The type of weave/fabric
-  Valid: Brocade, Canvas, Charmeuse, Chiffon, Corduroy, Crepe, Denim, Double Knit, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Jersey, Knit, Lace, Mesh, Metallic / Lame, Minky, Organza, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
+  Valid: Broadcloth, Brocade, Canvas, Challis, Chambray, Charmeuse, Chiffon, Corduroy, Crepe, Crepe de Chine, Denim, Double Cloth, Double Knit, Duchesse, Dupioni, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Gauze, Gazar, Georgette, Habotai, Jersey, Knit, Lace, Lamé, Mesh, Metallic, Mikado, Minky, Muslin, Organza, Ottoman, Oxford, Peau de Soie, Poplin, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Taffeta, Terry / French Terry, Tropical, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
 
 - pattern: Use "Solid" only if explicitly solid. Everything else (geometric, floral, stripes, etc.) → "Printed"
 
@@ -179,7 +241,10 @@ Return ONLY the JSON object, no other text.`;
     // Clean up and validate the response
     const cleanResult = {};
     
-    if (fabricData.title) cleanResult.title = fabricData.title;
+    // UPDATED: Strip retailer names from title
+    if (fabricData.title) {
+      cleanResult.title = stripRetailerNames(fabricData.title);
+    }
     if (fabricData.description) cleanResult.description = fabricData.description;
     if (fabricData.designer) cleanResult.designer = fabricData.designer;
     
