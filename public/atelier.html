@@ -942,6 +942,29 @@
     return raw;
   }
 
+  function formatContentForDisplay(content) {
+    if (!content) return "";
+    return content
+      .split(",")
+      .map(s => s.trim())
+      .map(s => s === "Spandex / Elastane" ? "Elastane" : s)
+      .join(", ");
+  }
+
+  function getListingBadgeLabel(listing) {
+    if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
+      return formatContentForDisplay(listing.content);
+    }
+    if (listing.fabric_type) {
+      return listing.fabric_type;
+    }
+    if (listing.feels_like) {
+      const feels = listing.feels_like.split(",")[0].trim();
+      return feels.charAt(0).toUpperCase() + feels.slice(1);
+    }
+    return "";
+  }
+
   async function ensureSession({maxWaitMs=3000} = {}){
     let { data:{ session } } = await supabaseClient.auth.getSession();
     if(session?.user) return session;
@@ -1045,6 +1068,8 @@
         const safeTitle = item.title || "Untitled listing";
         const safeAlt = safeTitle.replace(/"/g,"&quot;");
 
+        const badgeLabel = getListingBadgeLabel(item);
+
         card.innerHTML = `
           <a class="listing-thumb-link" href="${href}">
             <div class="listing-thumb" aria-hidden="true">
@@ -1056,7 +1081,7 @@
             <div class="listing-title-row">
               <a class="listing-title" href="${href}">${safeTitle}</a>
             </div>
-            ${yards != null ? `<div class="listing-yards">${yards} yards${item.dept ? ` <span class="listing-dept">${item.dept}</span>` : ""}</div>` : ""}
+            ${yards != null ? `<div class="listing-yards">${yards} yards${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>` : ""}
             <div class="listing-cta-row">
               <button type="button" class="listing-add-btn add-to-cart" ${isNotForSale ? 'disabled' : ''}>
                 ${
