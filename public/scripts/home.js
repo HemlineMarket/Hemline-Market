@@ -4,6 +4,7 @@
  * 
  * Handles homepage listings, search form, and share button.
  * Requires: hm-shell.js to be loaded first
+ * UPDATED: Move content badge to yards line
  */
 
 (function() {
@@ -167,6 +168,7 @@
         if (status === "sold") return false;
         if (status !== "active") return false;
         if (l.yards_available != null && l.yards_available <= 0) return false;
+        // 8pm release time filter
         if (l.published_at && new Date(l.published_at) > now) return false;
         return true;
       }).slice(0, 6);
@@ -243,6 +245,9 @@
         : (prof.display_name || "");
       const storeName = prof.storeName || prof.store_name || displayName || "Hemline Market seller";
 
+      const badgeLabel = getListingBadgeLabel(item);
+
+      // UPDATED: Move badge to yards line instead of title row
       card.innerHTML = `
         <a class="listing-thumb-link" href="${href}">
           <div class="listing-thumb" aria-hidden="true">
@@ -253,9 +258,8 @@
         <div class="listing-body">
           <div class="listing-title-row">
             <a class="listing-title" href="${href}">${safeTitle}</a>
-            ${getListingBadgeLabel(item) ? `<span class="listing-dept">${getListingBadgeLabel(item)}</span>` : ""}
           </div>
-          ${yards != null ? `<div class="listing-yards">${yards} yards</div>` : ""}
+          ${yards != null ? `<div class="listing-yards">${yards} yards${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>` : ""}
           <div class="listing-cta-row">
             <button
               type="button"
