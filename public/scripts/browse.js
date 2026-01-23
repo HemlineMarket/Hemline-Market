@@ -4,6 +4,7 @@
  * 
  * Handles browse page listings, filters, ateliers search.
  * FIXED: Correct element IDs, filter initialization, mobile support
+ * UPDATED: Added new fabric types, hide count under 1000, 8pm release time
  */
 
 (function() {
@@ -69,24 +70,28 @@
     { name: "Silver", hex: "#c0c0c0" }
   ];
 
+  // UPDATED: Added new fabric types, split Metallic/Lame
   const FABRIC_TYPES = [
-    "Brocade", "Canvas", "Charmeuse", "Chiffon", "Corduroy", "Crepe",
-    "Denim", "Double Knit", "Embroidered", "Eyelet", "Faux Fur", "Faux Leather", 
-    "Flannel", "Fleece", "Gabardine", "Georgette", "Interlock", "Jacquard", "Jersey",
-    "Lace", "Lawn", "Lining", "Mesh", "Metallic / Lame", "Minky", "Organza", "Ponte",
-    "Rib Knit", "Sateen", "Satin", "Scuba", "Shirting", "Suiting", "Tulle", "Tweed",
-    "Twill", "Velvet", "Vinyl", "Voile"
+    "Broadcloth", "Brocade", "Canvas", "Challis", "Chambray", "Charmeuse", "Chiffon", 
+    "Corduroy", "Crepe", "Crepe de Chine", "Denim", "Double Cloth", "Double Knit", 
+    "Duchesse", "Dupioni", "Embroidered", "Eyelet", "Faux Fur", "Faux Leather", 
+    "Flannel", "Fleece", "Gabardine", "Gauze", "Gazar", "Georgette", "Habotai",
+    "Interlock", "Jacquard", "Jersey", "Knit", "Lace", "Lamé", "Lawn", "Lining", 
+    "Mesh", "Metallic", "Mikado", "Minky", "Muslin", "Organza", "Ottoman", "Oxford",
+    "Peau de Soie", "Ponte", "Poplin", "Rib Knit", "Sateen", "Satin", "Scuba", 
+    "Shirting", "Suiting", "Taffeta", "Terry / French Terry", "Tropical", "Tulle", 
+    "Tweed", "Twill", "Velvet", "Vinyl", "Voile", "Woven"
   ];
 
   const COSPLAY_FABRIC_TYPES = [
     "Brocade", "Charmeuse", "Chiffon", "Faux Fur", "Faux Leather", "Fleece", "Jersey", 
-    "Lace", "Mesh", "Metallic / Lame", "Minky", "Organza", "Ponte", "Satin", "Scuba", 
+    "Lace", "Mesh", "Metallic", "Lamé", "Minky", "Organza", "Ponte", "Satin", "Scuba", 
     "Spandex / Lycra", "Tulle", "Velvet", "Vinyl"
   ];
 
   const COSPLAY_FEELS_LIKE = [
     "brocade", "charmeuse", "chiffon", "faux fur", "faux leather", "fleece", "jersey knit", 
-    "lace", "mesh", "metallic / lame", "minky", "organza", "ponte", "satin", "scuba", 
+    "lace", "mesh", "metallic", "lame", "minky", "organza", "ponte", "satin", "scuba", 
     "spandex / lycra", "tulle", "velvet / velour", "vinyl"
   ];
 
@@ -289,6 +294,10 @@
 
     let query = client.from("listings").select("*", { count: "exact" }).eq("status", "ACTIVE").eq("is_published", true);
 
+    // RESTORED: 8pm release time filter
+    const now = new Date();
+    query = query.or('published_at.is.null,published_at.lte.' + now.toISOString());
+
     if (search) query = query.or('title.ilike.%' + search + '%,description.ilike.%' + search + '%');
     if (content.length > 0) query = query.or(content.map(c => 'content.ilike.%' + c + '%').join(","));
     if (color.length > 0) query = query.or(color.map(c => 'color.ilike.%' + c + '%').join(","));
@@ -358,7 +367,8 @@
     else if (inSomeoneElsesCart) cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
     const href = "listing.html?id=" + encodeURIComponent(listing.id);
 
-    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + (badge ? '<span class="listing-badge">' + escapeHtml(badge) + '</span>' : '') + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a>' + (badge ? '<span class="listing-dept">' + escapeHtml(badge) + '</span>' : '') + '</div>' + (yards != null ? '<div class="listing-yards">' + yards + ' yards</div>' : '') + '<div class="listing-cta-row"><button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (priceCents != null ? String(priceCents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + (canBuy && totalMoney && yards ? 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd' : (isSold ? "Sold out" : "Add to Cart")) + '</button></div><div class="listing-price-row">' + (price ? '<span class="listing-price-main">$' + price + '/yd</span>' : "") + '</div>' + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
+    // UPDATED: Move badge to yards line instead of title line
+    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + (yards != null ? '<div class="listing-yards">' + yards + ' yards' + (badge ? ' <span class="listing-dept">' + escapeHtml(badge) + '</span>' : '') + '</div>' : '') + '<div class="listing-cta-row"><button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (priceCents != null ? String(priceCents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + (canBuy && totalMoney && yards ? 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd' : (isSold ? "Sold out" : "Add to Cart")) + '</button></div><div class="listing-price-row">' + (price ? '<span class="listing-price-main">$' + price + '/yd</span>' : "") + '</div>' + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
   }
 
   function renderAtelierCard(profile) {
@@ -430,10 +440,11 @@
           grid.innerHTML = "";
           if (filtersActive && emptyFilteredEl) emptyFilteredEl.style.display = "flex";
           else if (emptyEl) emptyEl.style.display = "flex";
-          if (countEl) countEl.textContent = "0 sellers";
+          if (countEl) countEl.textContent = "";
           return;
         }
-        if (countEl) countEl.textContent = data.length + ' seller' + (data.length !== 1 ? "s" : "");
+        // UPDATED: Hide count under 1000
+        if (countEl) countEl.textContent = data.length >= 1000 ? data.length + ' seller' + (data.length !== 1 ? "s" : "") : "";
         grid.innerHTML = data.map(p => renderAtelierCard(p)).join("");
       } else {
         const { data, error, count } = await fetchListings(filters);
@@ -442,14 +453,16 @@
           grid.innerHTML = "";
           if (filtersActive && emptyFilteredEl) emptyFilteredEl.style.display = "flex";
           else if (emptyEl) emptyEl.style.display = "flex";
-          if (countEl) countEl.textContent = "0 fabrics";
+          if (countEl) countEl.textContent = "";
           return;
         }
         const profiles = await fetchProfilesForListings(data);
         const holdMap = await fetchCartHolds(data.map(l => l.id));
         const myCart = JSON.parse(localStorage.getItem('hm_cart') || '[]');
         const myCartIds = new Set(myCart.map(it => it.id || it.listing_id));
-        if (countEl) countEl.textContent = (count || data.length) + ' fabric' + ((count || data.length) !== 1 ? "s" : "");
+        const totalCount = count || data.length;
+        // UPDATED: Hide count under 1000
+        if (countEl) countEl.textContent = totalCount >= 1000 ? totalCount + ' fabric' + (totalCount !== 1 ? "s" : "") : "";
         grid.innerHTML = data.map(l => renderListingCard(l, profiles[l.seller_id], holdMap, myCartIds)).join("");
       }
       if (typeof window.renderAppliedFilters === 'function') window.renderAppliedFilters(runSearch);
