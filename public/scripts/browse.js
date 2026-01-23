@@ -3,42 +3,45 @@
  * public/scripts/browse.js
  * 
  * Handles browse page listings, filters, ateliers search.
- * Requires: supabase-config.js (must be loaded first), hm-shell.js, browse-enhancements.js
- * 
- * FIX: Now uses centralized Supabase config instead of hardcoded credentials
+ * FIXED: Correct element IDs, filter initialization, mobile support
  */
 
 (function() {
   'use strict';
 
   /* ===== SUPABASE CLIENT ===== */
-  // FIX: Use centralized config instead of hardcoding credentials
-  // This relies on supabase-config.js being loaded first
   let supabaseClient = null;
   
   function getClient() {
     if (supabaseClient) return supabaseClient;
     
-    // Try centralized config first
     if (typeof window.getSupabaseClient === 'function') {
       supabaseClient = window.getSupabaseClient();
       if (supabaseClient) return supabaseClient;
     }
     
-    // Fallback: use global config variables
+    if (window.HM && window.HM.supabase) {
+      supabaseClient = window.HM.supabase;
+      return supabaseClient;
+    }
+    
     if (window.HM_SUPABASE_URL && window.HM_SUPABASE_ANON_KEY && window.supabase?.createClient) {
+      supabaseClient = window.supabase.createClient(window.HM_SUPABASE_URL, window.HM_SUPABASE_ANON_KEY);
+      return supabaseClient;
+    }
+    
+    if (window.supabase?.createClient) {
       supabaseClient = window.supabase.createClient(
-        window.HM_SUPABASE_URL,
-        window.HM_SUPABASE_ANON_KEY
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
       );
       return supabaseClient;
     }
     
-    console.error('[browse.js] Supabase client not available. Ensure supabase-config.js is loaded first.');
+    console.error('[browse.js] Supabase client not available.');
     return null;
   }
 
-  // "listings" (default) vs "ateliers"
   let currentMode = "listings";
 
   /* ===== FILTER CONSTANTS ===== */
@@ -50,9 +53,20 @@
   ];
 
   const COLORS = [
-    "Black", "Grey", "White", "Cream", "Brown",
-    "Pink", "Red", "Orange", "Yellow", "Green",
-    "Blue", "Purple", "Gold", "Silver"
+    { name: "Black", hex: "#000000" },
+    { name: "Grey", hex: "#9ca3af" },
+    { name: "White", hex: "#ffffff" },
+    { name: "Cream", hex: "#fffdd0" },
+    { name: "Brown", hex: "#8B4513" },
+    { name: "Pink", hex: "#ec4899" },
+    { name: "Red", hex: "#ef4444" },
+    { name: "Orange", hex: "#f97316" },
+    { name: "Yellow", hex: "#eab308" },
+    { name: "Green", hex: "#22c55e" },
+    { name: "Blue", hex: "#3b82f6" },
+    { name: "Purple", hex: "#a855f7" },
+    { name: "Gold", hex: "#ffd700" },
+    { name: "Silver", hex: "#c0c0c0" }
   ];
 
   const FABRIC_TYPES = [
@@ -64,65 +78,24 @@
     "Twill", "Velvet", "Vinyl", "Voile"
   ];
 
-  // Cosplay-friendly fabric definitions
   const COSPLAY_FABRIC_TYPES = [
-    "Brocade", "Charmeuse", "Chiffon", "Faux Fur", "Faux Leather",
-    "Fleece", "Jersey", "Lace", "Mesh", "Metallic / Lame", "Minky",
-    "Organza", "Ponte", "Satin", "Scuba", "Spandex / Lycra", "Tulle",
-    "Velvet", "Vinyl"
+    "Brocade", "Charmeuse", "Chiffon", "Faux Fur", "Faux Leather", "Fleece", "Jersey", 
+    "Lace", "Mesh", "Metallic / Lame", "Minky", "Organza", "Ponte", "Satin", "Scuba", 
+    "Spandex / Lycra", "Tulle", "Velvet", "Vinyl"
   ];
 
   const COSPLAY_FEELS_LIKE = [
-    "brocade", "charmeuse", "chiffon", "faux fur", "faux leather",
-    "fleece", "jersey knit", "lace", "mesh", "metallic / lame", "minky",
-    "organza", "ponte", "satin", "scuba", "spandex / lycra", "tulle",
-    "velvet / velour", "vinyl"
+    "brocade", "charmeuse", "chiffon", "faux fur", "faux leather", "fleece", "jersey knit", 
+    "lace", "mesh", "metallic / lame", "minky", "organza", "ponte", "satin", "scuba", 
+    "spandex / lycra", "tulle", "velvet / velour", "vinyl"
   ];
 
   const COSPLAY_CONTENTS = ["lurex"];
-
-  /**
-   * Format content string for display on listing cards
-   * Shortens "Spandex / Elastane" to "Elastane" to save space
-   */
-  function formatContentForDisplay(content) {
-    if (!content) return "";
-    return content
-      .split(",")
-      .map(s => s.trim())
-      .map(s => s === "Spandex / Elastane" ? "Elastane" : s)
-      .join(", ");
-  }
-
-  /**
-   * Get the best label to display on listing cards
-   * Cascade: content → fabric_type → feels_like
-   * Skip "Not sure" and "Other" as they're not useful labels
-   */
-  function getListingBadgeLabel(listing) {
-    // Try content first (skip "Not sure" and "Other")
-    if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
-      return formatContentForDisplay(listing.content);
-    }
-    // Fall back to fabric type
-    if (listing.fabric_type) {
-      return listing.fabric_type;
-    }
-    // Fall back to feels like
-    if (listing.feels_like) {
-      // Capitalize first letter for display
-      const feels = listing.feels_like.split(",")[0].trim();
-      return feels.charAt(0).toUpperCase() + feels.slice(1);
-    }
-    return "";
-  }
 
   /* ===== FILTER STATE ===== */
   const selectedContents = new Set();
   const selectedColors = new Set();
   const selectedFabricTypes = new Set();
-
-  // Expose filter Sets globally so filter chips can modify them
   window.selectedContents = selectedContents;
   window.selectedColors = selectedColors;
   window.selectedFabricTypes = selectedFabricTypes;
@@ -130,183 +103,234 @@
   /* ===== HELPER FUNCTIONS ===== */
   function moneyFromCents(c) {
     if (c == null) return null;
-    const v = c / 100;
-    return v.toLocaleString("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
+    return (c / 100).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
   }
 
-  function thumbUrl(url, width = 400) {
-    if (!url) return "";
-    return url;
-  }
+  function thumbUrl(url) { return url || ""; }
 
   function numeric(val) {
     const n = parseFloat(val);
     return Number.isFinite(n) ? n : null;
   }
 
-  /* ===== PROFILE FETCHING ===== */
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+
+  function formatContentForDisplay(content) {
+    if (!content) return "";
+    return content.split(",").map(s => s.trim()).map(s => s === "Spandex / Elastane" ? "Elastane" : s).join(", ");
+  }
+
+  function getListingBadgeLabel(listing) {
+    if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
+      return formatContentForDisplay(listing.content);
+    }
+    if (listing.fabric_type) return listing.fabric_type;
+    if (listing.feels_like) {
+      const feels = listing.feels_like.split(",")[0].trim();
+      return feels.charAt(0).toUpperCase() + feels.slice(1);
+    }
+    return "";
+  }
+
+  /* ===== FILTER UI INITIALIZATION ===== */
+  function initFilters() {
+    initContentCheckboxes();
+    initFabricTypeCheckboxes();
+    initColorSwatches();
+    initFilterToggle();
+    initCosplayFilter();
+    initSearchAndSort();
+  }
+
+  function initContentCheckboxes() {
+    const container = document.getElementById('contentBox');
+    if (!container) return;
+    container.innerHTML = CONTENTS.map(content => 
+      '<div class="row"><input type="checkbox" id="content-' + content.replace(/[\s\/]+/g, '-') + '" name="content" value="' + content + '"><label for="content-' + content.replace(/[\s\/]+/g, '-') + '">' + content + '</label></div>'
+    ).join('');
+    container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', function() {
+        this.checked ? selectedContents.add(this.value) : selectedContents.delete(this.value);
+        runSearch();
+      });
+    });
+  }
+
+  function initFabricTypeCheckboxes() {
+    const container = document.getElementById('fabricTypeBox');
+    if (!container) return;
+    container.innerHTML = FABRIC_TYPES.map(type => 
+      '<div class="row"><input type="checkbox" id="fabricType-' + type.replace(/[\s\/]+/g, '-') + '" name="fabricType" value="' + type + '"><label for="fabricType-' + type.replace(/[\s\/]+/g, '-') + '">' + type + '</label></div>'
+    ).join('');
+    container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', function() {
+        this.checked ? selectedFabricTypes.add(this.value) : selectedFabricTypes.delete(this.value);
+        runSearch();
+      });
+    });
+  }
+
+  function initColorSwatches() {
+    const container = document.getElementById('colorBox');
+    if (!container) return;
+    container.innerHTML = COLORS.map(color => 
+      '<div class="sw" data-name="' + color.name + '" data-selected="false" style="background:' + color.hex + ';" title="' + color.name + '"><span class="tip">' + color.name + '</span></div>'
+    ).join('');
+    container.querySelectorAll('.sw').forEach(sw => {
+      sw.addEventListener('click', function() {
+        const colorName = this.dataset.name;
+        const isSelected = this.dataset.selected === 'true';
+        isSelected ? selectedColors.delete(colorName) : selectedColors.add(colorName);
+        this.dataset.selected = isSelected ? 'false' : 'true';
+        runSearch();
+      });
+    });
+  }
+
+  function initFilterToggle() {
+    const toggleBtn = document.getElementById('toggleFilters');
+    const layout = document.getElementById('layout');
+    if (!toggleBtn || !layout) return;
+
+    function checkMobileFilters() {
+      if (window.innerWidth <= 900) {
+        layout.classList.add('filters-hidden');
+        toggleBtn.textContent = 'Show filters';
+        toggleBtn.setAttribute('aria-pressed', 'false');
+      }
+    }
+    checkMobileFilters();
+
+    toggleBtn.addEventListener('click', function() {
+      const isHidden = layout.classList.toggle('filters-hidden');
+      this.textContent = isHidden ? 'Show filters' : 'Hide filters';
+      this.setAttribute('aria-pressed', !isHidden);
+    });
+
+    window.addEventListener('resize', checkMobileFilters);
+  }
+
+  function initCosplayFilter() {
+    const checkbox = document.getElementById('cosplayFilter');
+    const hint = document.getElementById('cosplayHint');
+    const label = document.getElementById('cosplayLabel');
+    if (!checkbox) return;
+    checkbox.addEventListener('change', function() {
+      if (hint) hint.style.display = this.checked ? 'block' : 'none';
+      if (label) {
+        label.style.borderColor = this.checked ? 'var(--accent)' : 'var(--border)';
+        label.style.background = this.checked ? '#fef2f2' : '#fff';
+      }
+      runSearch();
+    });
+  }
+
+  function initSearchAndSort() {
+    const searchBtn = document.getElementById('doSearch');
+    const searchInput = document.getElementById('q');
+    const sortSelect = document.getElementById('sortBy');
+    const modeSelect = document.getElementById('searchMode');
+
+    if (searchBtn) searchBtn.addEventListener('click', runSearch);
+    if (searchInput) searchInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } });
+    if (sortSelect) sortSelect.addEventListener('change', runSearch);
+    if (modeSelect) modeSelect.addEventListener('change', function() {
+      currentMode = this.value === 'sellers' ? 'ateliers' : 'listings';
+      if (searchInput) searchInput.placeholder = currentMode === 'ateliers' ? 'Search sellers...' : 'Search fabrics...';
+      runSearch();
+    });
+
+    ['minPrice', 'maxPrice', 'minYards', 'minWidth', 'maxWidth', 'minGsm', 'maxGsm'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', runSearch);
+    });
+
+    ['dept', 'fiberType', 'origin', 'designer', 'feelsLike', 'burnTest', 'pattern'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', runSearch);
+    });
+  }
+
+  /* ===== DATA FETCHING ===== */
   async function fetchProfilesForListings(listings) {
     const map = {};
-    const ids = Array.from(new Set(
-      (listings || [])
-        .map(l => l.seller_id)
-        .filter(Boolean)
-    ));
+    const ids = Array.from(new Set((listings || []).map(l => l.seller_id).filter(Boolean)));
     if (!ids.length) return map;
-
     const client = getClient();
     if (!client) return map;
-
     try {
-      const { data, error } = await client
-        .from("profiles")
-        .select("id, display_name, store_name, first_name, last_name")
-        .in("id", ids);
-
-      if (error) {
-        console.error("Profile fetch error", error);
-        return map;
-      }
-      (data || []).forEach(p => {
-        map[p.id] = p;
-      });
-    } catch (err) {
-      console.error("Profile fetch exception", err);
-    }
-
+      const { data } = await client.from("profiles").select("id, display_name, store_name, first_name, last_name").in("id", ids);
+      (data || []).forEach(p => { map[p.id] = p; });
+    } catch (err) { console.error("Profile fetch error", err); }
     return map;
   }
 
-  /* ===== LISTINGS FETCH ===== */
-  async function fetchListings(options = {}) {
+  async function fetchCartHolds(listingIds) {
+    const map = {};
+    if (!listingIds || !listingIds.length) return map;
+    try {
+      const res = await fetch('/api/cart/hold?listings=' + listingIds.join(','));
+      if (res.ok) {
+        const data = await res.json();
+        (data.holds || []).forEach(h => { map[h.listing_id] = h; });
+      }
+    } catch (e) { console.error('Cart hold fetch error', e); }
+    return map;
+  }
+
+  async function fetchListings(options) {
     const client = getClient();
-    if (!client) {
-      console.error('[browse.js] Cannot fetch listings: Supabase client not available');
-      return { data: [], error: new Error('Supabase client not available') };
-    }
+    if (!client) return { data: [], error: new Error('Supabase client not available') };
 
-    const {
-      search = "",
-      content = [],
-      color = [],
-      fabricType = [],
-      minPrice = null,
-      maxPrice = null,
-      minYards = null,
-      maxYards = null,
-      sortBy = "newest",
-      limit = 50,
-      offset = 0,
-      sellerId = null,
-      cosplayMode = false,
-    } = options;
+    const { search = "", content = [], color = [], fabricType = [], minPrice = null, maxPrice = null, minYards = null, sortBy = "newest", limit = 50, offset = 0, cosplayMode = false, dept = null, fiberType = null, origin = null, designer = null, feelsLike = null, burnTest = null, pattern = null, minWidth = null, maxWidth = null, minGsm = null, maxGsm = null } = options || {};
 
-    let query = client
-      .from("listings")
-      .select("*", { count: "exact" })
-      .eq("status", "ACTIVE");
+    let query = client.from("listings").select("*", { count: "exact" }).eq("status", "ACTIVE").eq("is_published", true);
 
-    // Search
-    if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
-    }
+    if (search) query = query.or('title.ilike.%' + search + '%,description.ilike.%' + search + '%');
+    if (content.length > 0) query = query.or(content.map(c => 'content.ilike.%' + c + '%').join(","));
+    if (color.length > 0) query = query.or(color.map(c => 'color.ilike.%' + c + '%').join(","));
+    if (fabricType.length > 0) query = query.or(fabricType.map(t => 'fabric_type.ilike.%' + t + '%,feels_like.ilike.%' + t + '%').join(","));
+    if (minPrice !== null) query = query.gte("price", minPrice);
+    if (maxPrice !== null) query = query.lte("price", maxPrice);
+    if (minYards !== null) query = query.gte("yards_available", minYards);
+    if (minWidth !== null) query = query.gte("width_inches", minWidth);
+    if (maxWidth !== null) query = query.lte("width_inches", maxWidth);
+    if (minGsm !== null) query = query.gte("gsm", minGsm);
+    if (maxGsm !== null) query = query.lte("gsm", maxGsm);
+    if (dept) query = query.eq("department", dept);
+    if (fiberType) query = query.eq("fiber_type", fiberType);
+    if (origin) query = query.eq("origin_country", origin);
+    if (designer) query = query.ilike("designer_mill", '%' + designer + '%');
+    if (feelsLike) query = query.ilike("feels_like", '%' + feelsLike + '%');
+    if (burnTest) query = query.eq("burn_test", burnTest);
+    if (pattern) query = query.eq("pattern", pattern);
 
-    // Content filter
-    if (content.length > 0) {
-      const contentFilters = content.map(c => `content.ilike.%${c}%`).join(",");
-      query = query.or(contentFilters);
-    }
-
-    // Color filter
-    if (color.length > 0) {
-      const colorFilters = color.map(c => `color.ilike.%${c}%`).join(",");
-      query = query.or(colorFilters);
-    }
-
-    // Fabric type filter
-    if (fabricType.length > 0) {
-      const typeFilters = fabricType.map(t => `fabric_type.ilike.%${t}%,feels_like.ilike.%${t}%`).join(",");
-      query = query.or(typeFilters);
-    }
-
-    // Price filters (price is in dollars in DB)
-    if (minPrice !== null) {
-      query = query.gte("price", minPrice);
-    }
-    if (maxPrice !== null) {
-      query = query.lte("price", maxPrice);
-    }
-
-    // Yards filters
-    if (minYards !== null) {
-      query = query.gte("yards_available", minYards);
-    }
-    if (maxYards !== null) {
-      query = query.lte("yards_available", maxYards);
-    }
-
-    // Seller filter
-    if (sellerId) {
-      query = query.eq("seller_id", sellerId);
-    }
-
-    // Cosplay mode - filter for cosplay-friendly fabrics
     if (cosplayMode) {
-      const cosplayFilters = [
-        ...COSPLAY_FABRIC_TYPES.map(t => `fabric_type.ilike.%${t}%`),
-        ...COSPLAY_FEELS_LIKE.map(f => `feels_like.ilike.%${f}%`),
-        ...COSPLAY_CONTENTS.map(c => `content.ilike.%${c}%`),
-      ].join(",");
+      const cosplayFilters = [...COSPLAY_FABRIC_TYPES.map(t => 'fabric_type.ilike.%' + t + '%'), ...COSPLAY_FEELS_LIKE.map(f => 'feels_like.ilike.%' + f + '%'), ...COSPLAY_CONTENTS.map(c => 'content.ilike.%' + c + '%')].join(",");
       query = query.or(cosplayFilters);
     }
 
-    // Sorting
     switch (sortBy) {
-      case "price_low":
-        query = query.order("price", { ascending: true });
-        break;
-      case "price_high":
-        query = query.order("price", { ascending: false });
-        break;
-      case "oldest":
-        query = query.order("created_at", { ascending: true });
-        break;
-      case "newest":
-      default:
-        query = query.order("created_at", { ascending: false });
-        break;
+      case "price-low": query = query.order("price", { ascending: true }); break;
+      case "price-high": query = query.order("price", { ascending: false }); break;
+      case "yards-high": query = query.order("yards_available", { ascending: false }); break;
+      default: query = query.order("created_at", { ascending: false });
     }
 
-    // Pagination
     query = query.range(offset, offset + limit - 1);
-
     const { data, error, count } = await query;
-
     return { data: data || [], error, count };
   }
 
-  /* ===== ATELIERS FETCH ===== */
-  async function fetchAteliers(searchTerm = "") {
+  async function fetchAteliers(searchTerm) {
     const client = getClient();
-    if (!client) {
-      console.error('[browse.js] Cannot fetch ateliers: Supabase client not available');
-      return { data: [], error: new Error('Supabase client not available') };
-    }
+    if (!client) return { data: [], error: new Error('Supabase client not available') };
 
-    let query = client
-      .from("profiles")
-      .select("id, display_name, store_name, first_name, last_name, bio, avatar_url, created_at")
-      .eq("is_seller", true);
-
-    if (searchTerm) {
-      query = query.or(`store_name.ilike.%${searchTerm}%,display_name.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%`);
-    }
-
+    let query = client.from("profiles").select("id, display_name, store_name, first_name, last_name, bio, avatar_url, created_at").eq("is_seller", true);
+    if (searchTerm) query = query.or('store_name.ilike.%' + searchTerm + '%,display_name.ilike.%' + searchTerm + '%,first_name.ilike.%' + searchTerm + '%');
     query = query.order("created_at", { ascending: false }).limit(50);
 
     const { data, error } = await query;
@@ -314,178 +338,167 @@
   }
 
   /* ===== RENDER FUNCTIONS ===== */
-  function renderListingCard(listing, sellerProfile = null) {
-    const price = listing.price != null ? `$${Number(listing.price).toFixed(2)}` : "";
-    const yards = listing.yards_available != null ? `${listing.yards_available} yd` : "";
+  function renderListingCard(listing, sellerProfile, holdMap, myCartIds) {
+    const price = listing.price != null ? Number(listing.price).toFixed(2) : null;
+    const yards = listing.yards_available;
     const badge = getListingBadgeLabel(listing);
-    const sellerName = sellerProfile?.store_name || sellerProfile?.display_name || 
-                       [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || "";
+    const sellerName = sellerProfile?.store_name || sellerProfile?.display_name || [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || "";
+    const imageUrl = listing.image_url_1 || listing.image_urls?.[0] || listing.image_url || "/images/empty-state.svg";
+    const priceCents = listing.price_cents != null ? Number(listing.price_cents) : (price ? price * 100 : null);
+    const totalCents = (priceCents != null && yards != null) ? priceCents * yards : null;
+    const totalMoney = totalCents != null ? moneyFromCents(totalCents) : "";
+    const status = (listing.status || "active").toLowerCase();
+    const isSold = status === "sold" || (yards != null && yards <= 0);
+    const canBuy = !isSold && price != null && yards != null && yards > 0;
+    const hold = holdMap[listing.id];
+    const inMyCart = myCartIds.has(listing.id);
+    const inSomeoneElsesCart = hold?.held && !inMyCart;
+    let cartBadgeHtml = '';
+    if (inMyCart) cartBadgeHtml = '<span class="cart-badge yours">✓ In your cart</span>';
+    else if (inSomeoneElsesCart) cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
+    const href = "listing.html?id=" + encodeURIComponent(listing.id);
 
-    const imageUrl = listing.image_urls?.[0] || listing.image_url || "/images/empty-state.svg";
-
-    return `
-      <a href="/listing.html?id=${listing.id}" class="listing-card" data-id="${listing.id}">
-        <div class="listing-thumb">
-          <img src="${thumbUrl(imageUrl)}" alt="${escapeHtml(listing.title)}" loading="lazy" />
-          ${badge ? `<span class="listing-badge">${escapeHtml(badge)}</span>` : ""}
-        </div>
-        <div class="listing-info">
-          <div class="listing-title">${escapeHtml(listing.title)}</div>
-          <div class="listing-meta">
-            ${price ? `<span class="listing-price">${price}/yd</span>` : ""}
-            ${yards ? `<span class="listing-yards">${yards}</span>` : ""}
-          </div>
-          ${sellerName ? `<div class="listing-seller">${escapeHtml(sellerName)}</div>` : ""}
-        </div>
-      </a>
-    `;
+    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + (badge ? '<span class="listing-badge">' + escapeHtml(badge) + '</span>' : '') + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a>' + (badge ? '<span class="listing-dept">' + escapeHtml(badge) + '</span>' : '') + '</div>' + (yards != null ? '<div class="listing-yards">' + yards + ' yards</div>' : '') + '<div class="listing-cta-row"><button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (priceCents != null ? String(priceCents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + (canBuy && totalMoney && yards ? 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd' : (isSold ? "Sold out" : "Add to Cart")) + '</button></div><div class="listing-price-row">' + (price ? '<span class="listing-price-main">$' + price + '/yd</span>' : "") + '</div>' + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
   }
 
   function renderAtelierCard(profile) {
-    const name = profile.store_name || profile.display_name || 
-                 [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unnamed Seller";
+    const name = profile.store_name || profile.display_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unnamed Seller";
     const avatarUrl = profile.avatar_url || "/images/empty-state.svg";
     const bio = profile.bio ? profile.bio.slice(0, 100) + (profile.bio.length > 100 ? "..." : "") : "";
-
-    return `
-      <a href="/seller/index.html?id=${profile.id}" class="atelier-card">
-        <img src="${avatarUrl}" alt="${escapeHtml(name)}" class="atelier-avatar" loading="lazy" />
-        <div class="atelier-info">
-          <div class="atelier-name">${escapeHtml(name)}</div>
-          ${bio ? `<div class="atelier-bio">${escapeHtml(bio)}</div>` : ""}
-        </div>
-      </a>
-    `;
+    return '<a href="/seller/index.html?id=' + profile.id + '" class="atelier-card listing-card"><div class="listing-thumb"><img src="' + avatarUrl + '" alt="' + escapeHtml(name) + '" loading="lazy" /></div><div class="listing-body"><div class="listing-title">' + escapeHtml(name) + '</div>' + (bio ? '<div class="listing-yards">' + escapeHtml(bio) + '</div>' : "") + '</div></a>';
   }
 
-  function escapeHtml(str) {
-    if (!str) return "";
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+  /* ===== MAIN SEARCH FUNCTION ===== */
+  function gatherFilterValues() {
+    return {
+      search: document.getElementById('q')?.value?.trim() || "",
+      sortBy: document.getElementById('sortBy')?.value || "newest",
+      content: Array.from(selectedContents),
+      color: Array.from(selectedColors),
+      fabricType: Array.from(selectedFabricTypes),
+      cosplayMode: document.getElementById('cosplayFilter')?.checked || false,
+      minPrice: numeric(document.getElementById('minPrice')?.value),
+      maxPrice: numeric(document.getElementById('maxPrice')?.value),
+      minYards: numeric(document.getElementById('minYards')?.value),
+      minWidth: numeric(document.getElementById('minWidth')?.value),
+      maxWidth: numeric(document.getElementById('maxWidth')?.value),
+      minGsm: numeric(document.getElementById('minGsm')?.value),
+      maxGsm: numeric(document.getElementById('maxGsm')?.value),
+      dept: document.getElementById('dept')?.value || null,
+      fiberType: document.getElementById('fiberType')?.value || null,
+      origin: document.getElementById('origin')?.value || null,
+      designer: document.getElementById('designer')?.value?.trim() || null,
+      feelsLike: document.getElementById('feelsLike')?.value || null,
+      burnTest: document.getElementById('burnTest')?.value || null,
+      pattern: document.getElementById('pattern')?.value || null,
+    };
   }
 
-  /* ===== MAIN RENDER ===== */
-  async function renderBrowsePage() {
-    const grid = document.getElementById("listingsGrid");
-    const countEl = document.getElementById("listingsCount");
-    const loadingEl = document.getElementById("loadingIndicator");
-    const emptyEl = document.getElementById("emptyState");
+  function hasAnyFilters(filters) {
+    return filters.search || filters.content.length > 0 || filters.color.length > 0 || filters.fabricType.length > 0 || filters.cosplayMode || filters.minPrice !== null || filters.maxPrice !== null || filters.minYards !== null || filters.minWidth !== null || filters.maxWidth !== null || filters.minGsm !== null || filters.maxGsm !== null || filters.dept || filters.fiberType || filters.origin || filters.designer || filters.feelsLike || filters.burnTest || filters.pattern;
+  }
 
-    if (!grid) return;
+  async function runSearch() {
+    const grid = document.getElementById("grid");
+    const countEl = document.getElementById("resultCount");
+    const emptyEl = document.getElementById("empty");
+    const emptyFilteredEl = document.getElementById("emptyFiltered");
+    const headingEl = document.getElementById("resultsHeading");
 
-    // Show loading
-    if (loadingEl) loadingEl.classList.remove("is-hidden");
-    if (emptyEl) emptyEl.classList.add("is-hidden");
-    grid.innerHTML = "";
+    if (!grid) { console.error('[browse.js] Grid element not found'); return; }
 
-    // Get filter values from URL or state
-    const params = new URLSearchParams(window.location.search);
-    const search = params.get("q") || "";
-    const cosplayMode = params.get("cosplay") === "1";
-    const sortBy = params.get("sort") || "newest";
-    const minPrice = numeric(params.get("minPrice"));
-    const maxPrice = numeric(params.get("maxPrice"));
-    const minYards = numeric(params.get("minYards"));
-    const maxYards = numeric(params.get("maxYards"));
+    if (typeof window.showSkeletonLoading === 'function') window.showSkeletonLoading(grid, 6);
+    else grid.innerHTML = '<p style="text-align:center;padding:40px;color:#6b7280;">Loading...</p>';
 
-    // Determine mode
-    currentMode = params.get("mode") === "ateliers" ? "ateliers" : "listings";
+    if (emptyEl) emptyEl.style.display = "none";
+    if (emptyFilteredEl) emptyFilteredEl.style.display = "none";
+
+    const filters = gatherFilterValues();
+    const filtersActive = hasAnyFilters(filters);
+
+    if (headingEl) {
+      if (filters.search) headingEl.textContent = 'Results for "' + filters.search + '"';
+      else if (filtersActive) headingEl.textContent = "Filtered Results";
+      else headingEl.textContent = "New Arrivals";
+    }
 
     try {
       if (currentMode === "ateliers") {
-        const { data, error } = await fetchAteliers(search);
-        if (loadingEl) loadingEl.classList.add("is-hidden");
-
-        if (error) {
-          console.error("Atelier fetch error", error);
-          grid.innerHTML = `<p class="error">Error loading ateliers</p>`;
-          return;
-        }
-
+        const { data, error } = await fetchAteliers(filters.search);
+        if (error) { grid.innerHTML = '<p style="text-align:center;padding:40px;">Error loading sellers.</p>'; return; }
         if (!data.length) {
-          if (emptyEl) emptyEl.classList.remove("is-hidden");
-          if (countEl) countEl.textContent = "0 ateliers";
+          grid.innerHTML = "";
+          if (filtersActive && emptyFilteredEl) emptyFilteredEl.style.display = "flex";
+          else if (emptyEl) emptyEl.style.display = "flex";
+          if (countEl) countEl.textContent = "0 sellers";
           return;
         }
-
-        if (countEl) countEl.textContent = `${data.length} atelier${data.length !== 1 ? "s" : ""}`;
+        if (countEl) countEl.textContent = data.length + ' seller' + (data.length !== 1 ? "s" : "");
         grid.innerHTML = data.map(p => renderAtelierCard(p)).join("");
       } else {
-        const { data, error, count } = await fetchListings({
-          search,
-          content: Array.from(selectedContents),
-          color: Array.from(selectedColors),
-          fabricType: Array.from(selectedFabricTypes),
-          minPrice,
-          maxPrice,
-          minYards,
-          maxYards,
-          sortBy,
-          cosplayMode,
-        });
-
-        if (loadingEl) loadingEl.classList.add("is-hidden");
-
-        if (error) {
-          console.error("Listings fetch error", error);
-          grid.innerHTML = `<p class="error">Error loading listings</p>`;
-          return;
-        }
-
+        const { data, error, count } = await fetchListings(filters);
+        if (error) { grid.innerHTML = '<p style="text-align:center;padding:40px;">Error loading fabrics.</p>'; return; }
         if (!data.length) {
-          if (emptyEl) emptyEl.classList.remove("is-hidden");
+          grid.innerHTML = "";
+          if (filtersActive && emptyFilteredEl) emptyFilteredEl.style.display = "flex";
+          else if (emptyEl) emptyEl.style.display = "flex";
           if (countEl) countEl.textContent = "0 fabrics";
           return;
         }
-
-        // Fetch seller profiles
         const profiles = await fetchProfilesForListings(data);
-
-        if (countEl) countEl.textContent = `${count || data.length} fabric${(count || data.length) !== 1 ? "s" : ""}`;
-        grid.innerHTML = data.map(l => renderListingCard(l, profiles[l.seller_id])).join("");
+        const holdMap = await fetchCartHolds(data.map(l => l.id));
+        const myCart = JSON.parse(localStorage.getItem('hm_cart') || '[]');
+        const myCartIds = new Set(myCart.map(it => it.id || it.listing_id));
+        if (countEl) countEl.textContent = (count || data.length) + ' fabric' + ((count || data.length) !== 1 ? "s" : "");
+        grid.innerHTML = data.map(l => renderListingCard(l, profiles[l.seller_id], holdMap, myCartIds)).join("");
       }
+      if (typeof window.renderAppliedFilters === 'function') window.renderAppliedFilters(runSearch);
     } catch (err) {
       console.error("Browse render error", err);
-      if (loadingEl) loadingEl.classList.add("is-hidden");
-      grid.innerHTML = `<p class="error">Error loading content</p>`;
+      grid.innerHTML = '<p style="text-align:center;padding:40px;">Something went wrong. Please refresh.</p>';
     }
   }
+
+  /* ===== CLEAR ALL FILTERS ===== */
+  window.clearAllFilters = function() {
+    document.querySelectorAll('#contentBox input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#fabricTypeBox input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#colorBox .sw').forEach(sw => sw.dataset.selected = 'false');
+    selectedContents.clear();
+    selectedColors.clear();
+    selectedFabricTypes.clear();
+    ['q', 'minPrice', 'maxPrice', 'minYards', 'minWidth', 'maxWidth', 'minGsm', 'maxGsm', 'designer'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    ['dept', 'fiberType', 'origin', 'feelsLike', 'burnTest', 'pattern', 'sortBy'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.selectedIndex = 0;
+    });
+    const cosplayFilter = document.getElementById('cosplayFilter');
+    const cosplayHint = document.getElementById('cosplayHint');
+    const cosplayLabel = document.getElementById('cosplayLabel');
+    if (cosplayFilter) cosplayFilter.checked = false;
+    if (cosplayHint) cosplayHint.style.display = 'none';
+    if (cosplayLabel) { cosplayLabel.style.borderColor = 'var(--border)'; cosplayLabel.style.background = '#fff'; }
+    runSearch();
+  };
+
+  window.runSearch = runSearch;
 
   /* ===== INITIALIZATION ===== */
   function init() {
-    // Wait for Supabase to be available
-    if (!getClient()) {
-      console.warn('[browse.js] Waiting for Supabase client...');
-      setTimeout(init, 100);
-      return;
-    }
-
-    renderBrowsePage();
-
-    // Listen for filter changes
-    window.addEventListener("filtersChanged", renderBrowsePage);
-    window.addEventListener("popstate", renderBrowsePage);
+    if (!getClient()) { console.warn('[browse.js] Waiting for Supabase...'); setTimeout(init, 100); return; }
+    console.log('[browse.js] Initializing...');
+    initFilters();
+    runSearch();
+    window.addEventListener("filtersChanged", runSearch);
+    window.addEventListener("popstate", runSearch);
   }
 
-  // Export for external use
   window.HM = window.HM || {};
-  window.HM.browse = {
-    fetchListings,
-    fetchAteliers,
-    renderBrowsePage,
-    CONTENTS,
-    COLORS,
-    FABRIC_TYPES,
-  };
+  window.HM.browse = { fetchListings, fetchAteliers, runSearch, CONTENTS, COLORS: COLORS.map(c => c.name), FABRIC_TYPES };
 
-  // Initialize when DOM is ready
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 })();
