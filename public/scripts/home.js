@@ -4,7 +4,7 @@
  * 
  * Handles homepage listings, search form, and share button.
  * Requires: hm-shell.js to be loaded first
- * UPDATED: Move content badge to yards line
+ * FIXED: Query filters match browse.js, badge on yards line
  */
 
 (function() {
@@ -35,10 +35,6 @@
     return raw;
   }
 
-  /**
-   * Format content string for display on listing cards
-   * Shortens "Spandex / Elastane" to "Elastane" to save space
-   */
   function formatContentForDisplay(content) {
     if (!content) return "";
     return content
@@ -48,23 +44,14 @@
       .join(", ");
   }
 
-  /**
-   * Get the best label to display on listing cards
-   * Cascade: content → fabric_type → feels_like
-   * Skip "Not sure" and "Other" as they're not useful labels
-   */
   function getListingBadgeLabel(listing) {
-    // Try content first (skip "Not sure" and "Other")
     if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
       return formatContentForDisplay(listing.content);
     }
-    // Fall back to fabric type
     if (listing.fabric_type) {
       return listing.fabric_type;
     }
-    // Fall back to feels like
     if (listing.feels_like) {
-      // Capitalize first letter for display
       const feels = listing.feels_like.split(",")[0].trim();
       return feels.charAt(0).toUpperCase() + feels.slice(1);
     }
@@ -141,11 +128,16 @@
 
     let listings = [];
     try {
+      // FIXED: Use same filters as browse.js for consistency
+      const now = new Date();
       const { data, error } = await supabaseClient
         .from("listings")
         .select("*")
+        .eq("status", "ACTIVE")
+        .eq("is_published", true)
+        .or('published_at.is.null,published_at.lte.' + now.toISOString())
         .order("published_at", { ascending: false, nullsFirst: false })
-        .limit(50);
+        .limit(6);
 
       if (error) {
         console.error("Home listings error", error);
@@ -161,17 +153,11 @@
         return;
       }
 
-      const now = new Date();
+      // Additional client-side filter for sold items
       listings = (data || []).filter(l => {
-        if (l.is_published !== true) return false;
-        const status = (l.status || "active").toLowerCase();
-        if (status === "sold") return false;
-        if (status !== "active") return false;
         if (l.yards_available != null && l.yards_available <= 0) return false;
-        // 8pm release time filter
-        if (l.published_at && new Date(l.published_at) > now) return false;
         return true;
-      }).slice(0, 6);
+      });
 
     } catch (e) {
       console.error("Home listings exception", e);
@@ -208,7 +194,10 @@
 
     listings.forEach(item => {
       const yards = computeYards(item);
-      const priceCents = item.price_cents != null ? Number(item.price_cents) : null;
+      // FIXED: Get price from price_cents first, fall back to price field
+      const priceCentsFromField = item.price_cents != null ? Number(item.price_cents) : null;
+      const priceFromField = item.price != null ? Number(item.price) : null;
+      const priceCents = priceCentsFromField != null ? priceCentsFromField : (priceFromField != null ? Math.round(priceFromField * 100) : null);
       const origPriceCents = item.orig_price_cents != null ? Number(item.orig_price_cents) : null;
 
       const perYdMoney = priceCents != null ? moneyFromCents(priceCents) : "";
@@ -247,7 +236,7 @@
 
       const badgeLabel = getListingBadgeLabel(item);
 
-      // UPDATED: Move badge to yards line instead of title row
+      // Badge on yards line, not title row
       card.innerHTML = `
         <a class="listing-thumb-link" href="${href}">
           <div class="listing-thumb" aria-hidden="true">
@@ -273,6 +262,7 @@
               data-amount="${priceCents != null ? String(priceCents) : "0"}"
               data-seller-id="${String(item.seller_id || "")}"
               data-seller-name="${String(storeName).replace(/"/g, '&quot;')}"
+              ${!canBuy ? 'disabled' : ''}
             >
               ${
                 canBuy && totalMoney && yards
@@ -298,14 +288,6 @@
           </div>
         </div>
       `;
-
-      const btn = card.querySelector(".listing-add-btn");
-      if (btn) {
-        if (!canBuy) {
-          btn.disabled = true;
-          btn.textContent = isSold ? "Sold out" : "Unavailable";
-        }
-      }
 
       grid.appendChild(card);
     });
@@ -398,7 +380,6 @@
       if (supabase) {
         const { data } = await supabase.auth.getSession();
         if (data?.session?.user) {
-          // Hide About card button (hero button is now handled by invite script in index.html)
           const btn = document.getElementById('createAccountBtn');
           if (btn) btn.style.display = 'none';
         }
@@ -414,18 +395,14 @@
     loadHomeListings();
   }
 
-  // Run on DOM ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
 
-  // Export for external use
   window.HMHome = {
     loadHomeListings,
-    setupSearchForm,
-    setupShareButton
+    setupSearchForm
   };
-
 })();
