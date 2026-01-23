@@ -838,6 +838,48 @@
     });
   }
 
+  /**
+   * Sort fiber content to display premium/natural fibers first
+   * Priority: Wool, Silk, Cotton, Linen, Cashmere, etc. before synthetics
+   */
+  function sortFiberContent(contentStr) {
+    if (!contentStr) return contentStr;
+    
+    // Priority order - lower number = higher priority (displayed first)
+    const fiberPriority = {
+      // Premium natural fibers - highest priority
+      'cashmere': 1, 'vicuna': 2, 'qiviut': 3,
+      'silk': 5, 'mulberry silk': 5,
+      'wool': 10, 'merino': 11, 'alpaca': 12, 'mohair': 13, 'angora': 14, 'camel': 15, 'yak': 16,
+      'linen': 20, 'flax': 20,
+      'cotton': 25, 'pima cotton': 24, 'egyptian cotton': 23, 'supima': 24,
+      // Other natural fibers
+      'hemp': 30, 'ramie': 31, 'jute': 32, 'bamboo': 35,
+      'leather': 40,
+      // Semi-synthetic (cellulose-based)
+      'viscose': 50, 'rayon': 51, 'modal': 52, 'lyocell': 53, 'tencel': 53, 'cupro': 54, 'acetate': 55, 'triacetate': 56,
+      // Synthetic fibers - lowest priority
+      'polyester': 70, 'nylon': 71, 'acrylic': 72,
+      'spandex': 80, 'elastane': 80, 'lycra': 80, 'spandex / elastane': 80,
+      'lurex': 85, 'metallic': 86,
+      'other': 99
+    };
+    
+    // Split by comma, clean up
+    const fibers = contentStr.split(',').map(f => f.trim()).filter(Boolean);
+    
+    // Sort by priority (unknown fibers get priority 60 - after natural, before synthetic)
+    fibers.sort((a, b) => {
+      const aLower = a.toLowerCase();
+      const bLower = b.toLowerCase();
+      const aPriority = fiberPriority[aLower] ?? 60;
+      const bPriority = fiberPriority[bLower] ?? 60;
+      return aPriority - bPriority;
+    });
+    
+    return fibers.join(', ');
+  }
+
   // Dynamically update meta tags for SEO and social sharing
   function updateMetaTags(listing) {
     if (!listing) return;
@@ -1060,7 +1102,7 @@
     else burnTestDisplay = 'No response';
     
     const rows = [
-      ["Fiber Content", listing.content, "What the fabric is made of (e.g., 100% Cotton, Silk/Wool blend)"],
+      ["Fiber Content", sortFiberContent(listing.content), "What the fabric is made of (e.g., 100% Cotton, Silk/Wool blend)"],
       ["Fabric Type", listing.fabric_type, "The weave or knit structure (e.g., Twill, Jersey, Satin)"],
       ["Color Family", listing.color_family, "Primary color(s) of the fabric"],
       ["Pattern", listing.pattern, "Solid, Printed, Striped, etc."],
