@@ -942,13 +942,36 @@
     return raw;
   }
 
+  /**
+   * Sort fiber content to display premium/natural fibers first
+   * Priority: Wool, Silk, Cotton, Linen before synthetics like Spandex
+   */
+  const FIBER_PRIORITY = {
+    'cashmere': 1, 'vicuna': 2, 'qiviut': 3,
+    'silk': 5, 'mulberry silk': 5,
+    'wool': 10, 'merino': 11, 'alpaca': 12, 'mohair': 13, 'angora': 14, 'camel': 15, 'yak': 16,
+    'linen': 20, 'flax': 20,
+    'cotton': 25, 'pima cotton': 24, 'egyptian cotton': 23, 'supima': 24,
+    'hemp': 30, 'ramie': 31, 'jute': 32, 'bamboo': 35,
+    'leather': 40,
+    'viscose': 50, 'rayon': 51, 'modal': 52, 'lyocell': 53, 'tencel': 53, 'cupro': 54, 'acetate': 55, 'triacetate': 56,
+    'polyester': 70, 'nylon': 71, 'acrylic': 72,
+    'spandex': 80, 'elastane': 80, 'lycra': 80, 'spandex / elastane': 80,
+    'lurex': 85, 'metallic': 86,
+    'other': 99
+  };
+
   function formatContentForDisplay(content) {
     if (!content) return "";
-    return content
-      .split(",")
-      .map(s => s.trim())
-      .map(s => s === "Spandex / Elastane" ? "Elastane" : s)
-      .join(", ");
+    const fibers = content.split(",").map(s => s.trim()).filter(Boolean);
+    // Sort by priority (natural fibers first)
+    fibers.sort((a, b) => {
+      const aPriority = FIBER_PRIORITY[a.toLowerCase()] ?? 60;
+      const bPriority = FIBER_PRIORITY[b.toLowerCase()] ?? 60;
+      return aPriority - bPriority;
+    });
+    // Shorten "Spandex / Elastane" to "Elastane" for display
+    return fibers.map(s => s === "Spandex / Elastane" ? "Elastane" : s).join(", ");
   }
 
   function getListingBadgeLabel(listing) {
