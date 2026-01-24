@@ -246,7 +246,34 @@ Return ONLY the JSON object, no other text.`;
       cleanResult.title = stripRetailerNames(fabricData.title);
     }
     if (fabricData.description) cleanResult.description = fabricData.description;
-    if (fabricData.designer) cleanResult.designer = fabricData.designer;
+    
+    // Designer logic: if designer is known, use it. If unknown but origin is known, use "Unknown [Country] Mill"
+    // If both unknown, leave blank (don't fake it)
+    if (fabricData.designer) {
+      cleanResult.designer = fabricData.designer;
+    } else if (fabricData.origin && fabricData.origin !== 'Other') {
+      // Map country codes to adjectives for natural phrasing
+      const countryAdjectives = {
+        'Italy': 'Italian',
+        'France': 'French', 
+        'Japan': 'Japanese',
+        'UK': 'British',
+        'USA': 'American',
+        'Spain': 'Spanish',
+        'Portugal': 'Portuguese',
+        'Germany': 'German',
+        'Belgium': 'Belgian',
+        'Switzerland': 'Swiss',
+        'Netherlands': 'Dutch',
+        'Korea': 'Korean',
+        'Australia': 'Australian',
+        'Canada': 'Canadian',
+        'Brazil': 'Brazilian'
+      };
+      const adjective = countryAdjectives[fabricData.origin] || fabricData.origin;
+      cleanResult.designer = `Unknown ${adjective} Mill`;
+    }
+    // If neither designer nor origin is known, leave designer blank
     
     if (fabricData.content && Array.isArray(fabricData.content)) {
       cleanResult.content = fabricData.content;
