@@ -367,9 +367,9 @@
     }
 
     switch (sortBy) {
-      case "price-low": query = query.order("price", { ascending: true }); break;
-      case "price-high": query = query.order("price", { ascending: false }); break;
-      case "yards-high": query = query.order("yards_available", { ascending: false }); break;
+      case "price-low": query = query.order("price_cents", { ascending: true, nullsFirst: false }); break;
+      case "price-high": query = query.order("price_cents", { ascending: false, nullsFirst: false }); break;
+      case "yards-high": query = query.order("yards_available", { ascending: false, nullsFirst: false }); break;
       default: query = query.order("created_at", { ascending: false });
     }
 
