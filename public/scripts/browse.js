@@ -180,11 +180,14 @@
       parts.push(formatContentForDisplay(listing.content));
     }
     
-    // Add fabric type (e.g., "Jersey", "Suiting")
-    if (listing.fabric_type) {
-      parts.push(listing.fabric_type);
-    } else if (listing.feels_like) {
-      const feels = listing.feels_like.split(",")[0].trim();
+    // Add fabric type (e.g., "Jersey", "Suiting") - check for non-empty string
+    const fabricType = listing.fabric_type?.trim();
+    const feelsLike = listing.feels_like?.trim();
+    
+    if (fabricType) {
+      parts.push(fabricType);
+    } else if (feelsLike) {
+      const feels = feelsLike.split(",")[0].trim();
       parts.push(feels.charAt(0).toUpperCase() + feels.slice(1));
     }
     
