@@ -81,6 +81,30 @@
     return "";
   }
 
+  /**
+   * Get fabric content and type info for display
+   * Returns { content, type } where either can be empty string
+   */
+  function getFabricInfo(listing) {
+    let content = "";
+    let type = "";
+    
+    // Get fiber content (e.g., "Wool, Silk")
+    if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
+      content = formatContentForDisplay(listing.content);
+    }
+    
+    // Get fabric type (e.g., "Jersey", "Suiting")
+    if (listing.fabric_type) {
+      type = listing.fabric_type;
+    } else if (listing.feels_like) {
+      const feels = listing.feels_like.split(",")[0].trim();
+      type = feels.charAt(0).toUpperCase() + feels.slice(1);
+    }
+    
+    return { content, type };
+  }
+
   /* ===== PROFILE FETCHING ===== */
   async function fetchProfilesForListings(listings, supabaseClient) {
     const map = {};
@@ -257,9 +281,22 @@
         : (prof.display_name || "");
       const storeName = prof.storeName || prof.store_name || displayName || "Hemline Market seller";
 
-      const badgeLabel = getListingBadgeLabel(item);
+      const fabricInfo = getFabricInfo(item);
+      
+      // Build fabric info line: "2 yards · Cotton, Silk · Jersey"
+      let fabricInfoHtml = '';
+      if (yards != null || fabricInfo.content || fabricInfo.type) {
+        const parts = [];
+        if (yards != null) parts.push(`<span class="fabric-yards">${yards} yards</span>`);
+        if (fabricInfo.content) parts.push(`<span class="fabric-content">${fabricInfo.content}</span>`);
+        if (fabricInfo.type) parts.push(`<span class="fabric-type">${fabricInfo.type}</span>`);
+        fabricInfoHtml = `<div class="listing-fabric-info">${parts.join('<span class="fabric-separator"> · </span>')}</div>`;
+      }
+      
+      // Check for discount
+      const hasDiscount = origPriceCents != null && priceCents != null && origPriceCents > priceCents;
 
-      // Badge on yards line, not title row
+      // Fabric info with content + type together
       card.innerHTML = `
         <a class="listing-thumb-link" href="${href}">
           <div class="listing-thumb" aria-hidden="true">
@@ -271,7 +308,7 @@
           <div class="listing-title-row">
             <a class="listing-title" href="${href}">${safeTitle}</a>
           </div>
-          ${yards != null ? `<div class="listing-yards">${yards} yards${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>` : ""}
+          ${fabricInfoHtml}
           <div class="listing-cta-row">
             <button
               type="button"
@@ -301,7 +338,7 @@
                 : `<span class="listing-price-main">Price coming soon</span>`
             }
             ${
-              origPerMoney
+              hasDiscount && origPerMoney
                 ? `<span class="listing-price-orig">${origPerMoney}/yard</span>`
                 : ""
             }
