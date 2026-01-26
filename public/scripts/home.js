@@ -68,41 +68,22 @@
   }
 
   function getListingBadgeLabel(listing) {
-    if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
-      return formatContentForDisplay(listing.content);
-    }
-    if (listing.fabric_type) {
-      return listing.fabric_type;
-    }
-    if (listing.feels_like) {
-      const feels = listing.feels_like.split(",")[0].trim();
-      return feels.charAt(0).toUpperCase() + feels.slice(1);
-    }
-    return "";
-  }
-
-  /**
-   * Get fabric content and type info for display
-   * Returns { content, type } where either can be empty string
-   */
-  function getFabricInfo(listing) {
-    let content = "";
-    let type = "";
+    const parts = [];
     
-    // Get fiber content (e.g., "Wool, Silk")
+    // Add fiber content (e.g., "Wool, Silk")
     if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
-      content = formatContentForDisplay(listing.content);
+      parts.push(formatContentForDisplay(listing.content));
     }
     
-    // Get fabric type (e.g., "Jersey", "Suiting")
+    // Add fabric type (e.g., "Jersey", "Suiting")
     if (listing.fabric_type) {
-      type = listing.fabric_type;
+      parts.push(listing.fabric_type);
     } else if (listing.feels_like) {
       const feels = listing.feels_like.split(",")[0].trim();
-      type = feels.charAt(0).toUpperCase() + feels.slice(1);
+      parts.push(feels.charAt(0).toUpperCase() + feels.slice(1));
     }
     
-    return { content, type };
+    return parts.join(" · ");
   }
 
   /* ===== PROFILE FETCHING ===== */
@@ -249,6 +230,7 @@
 
       const perYdMoney = priceCents != null ? moneyFromCents(priceCents) : "";
       const origPerMoney = origPriceCents != null ? moneyFromCents(origPriceCents) : "";
+      const hasDiscount = origPriceCents != null && priceCents != null && origPriceCents > priceCents;
 
       const totalCents = (priceCents != null && yards != null) ? priceCents * yards : null;
       const totalMoney = totalCents != null ? moneyFromCents(totalCents) : "";
@@ -281,22 +263,9 @@
         : (prof.display_name || "");
       const storeName = prof.storeName || prof.store_name || displayName || "Hemline Market seller";
 
-      const fabricInfo = getFabricInfo(item);
-      
-      // Build fabric info line: "2 yards · Cotton, Silk · Jersey"
-      let fabricInfoHtml = '';
-      if (yards != null || fabricInfo.content || fabricInfo.type) {
-        const parts = [];
-        if (yards != null) parts.push(`<span class="fabric-yards">${yards} yards</span>`);
-        if (fabricInfo.content) parts.push(`<span class="fabric-content">${fabricInfo.content}</span>`);
-        if (fabricInfo.type) parts.push(`<span class="fabric-type">${fabricInfo.type}</span>`);
-        fabricInfoHtml = `<div class="listing-fabric-info">${parts.join('<span class="fabric-separator"> · </span>')}</div>`;
-      }
-      
-      // Check for discount
-      const hasDiscount = origPriceCents != null && priceCents != null && origPriceCents > priceCents;
+      const badgeLabel = getListingBadgeLabel(item);
 
-      // Fabric info with content + type together
+      // Badge on yards line, not title row
       card.innerHTML = `
         <a class="listing-thumb-link" href="${href}">
           <div class="listing-thumb" aria-hidden="true">
@@ -308,7 +277,7 @@
           <div class="listing-title-row">
             <a class="listing-title" href="${href}">${safeTitle}</a>
           </div>
-          ${fabricInfoHtml}
+          ${yards != null ? `<div class="listing-yards">${yards} yards${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>` : ""}
           <div class="listing-cta-row">
             <button
               type="button"
