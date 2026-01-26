@@ -173,39 +173,22 @@
   }
 
   function getListingBadgeLabel(listing) {
-    if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
-      return formatContentForDisplay(listing.content);
-    }
-    if (listing.fabric_type) return listing.fabric_type;
-    if (listing.feels_like) {
-      const feels = listing.feels_like.split(",")[0].trim();
-      return feels.charAt(0).toUpperCase() + feels.slice(1);
-    }
-    return "";
-  }
-
-  /**
-   * Get fabric content and type info for display
-   * Returns { content, type } where either can be empty string
-   */
-  function getFabricInfo(listing) {
-    let content = "";
-    let type = "";
+    const parts = [];
     
-    // Get fiber content (e.g., "Wool, Silk")
+    // Add fiber content (e.g., "Wool, Silk")
     if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
-      content = formatContentForDisplay(listing.content);
+      parts.push(formatContentForDisplay(listing.content));
     }
     
-    // Get fabric type (e.g., "Jersey", "Suiting")
+    // Add fabric type (e.g., "Jersey", "Suiting")
     if (listing.fabric_type) {
-      type = listing.fabric_type;
+      parts.push(listing.fabric_type);
     } else if (listing.feels_like) {
       const feels = listing.feels_like.split(",")[0].trim();
-      type = feels.charAt(0).toUpperCase() + feels.slice(1);
+      parts.push(feels.charAt(0).toUpperCase() + feels.slice(1));
     }
     
-    return { content, type };
+    return parts.join(" · ");
   }
 
   /* ===== FILTER UI INITIALIZATION ===== */
@@ -428,7 +411,7 @@
     const hasDiscount = origPriceCents != null && cents != null && origPriceCents > cents;
     
     const yards = listing.yards_available;
-    const fabricInfo = getFabricInfo(listing);
+    const badge = getListingBadgeLabel(listing);
     const sellerName = sellerProfile?.store_name || sellerProfile?.display_name || [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || "";
     const imageUrl = listing.image_url_1 || listing.image_urls?.[0] || listing.image_url || "/images/empty-state.svg";
     
@@ -447,27 +430,17 @@
     else if (inSomeoneElsesCart) cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
     const href = "listing.html?id=" + encodeURIComponent(listing.id);
 
-    // Build fabric info line: "2 yards · Cotton, Silk · Jersey"
-    let fabricInfoHtml = '';
-    if (yards != null || fabricInfo.content || fabricInfo.type) {
-      const parts = [];
-      if (yards != null) parts.push('<span class="fabric-yards">' + yards + ' yards</span>');
-      if (fabricInfo.content) parts.push('<span class="fabric-content">' + escapeHtml(fabricInfo.content) + '</span>');
-      if (fabricInfo.type) parts.push('<span class="fabric-type">' + escapeHtml(fabricInfo.type) + '</span>');
-      fabricInfoHtml = '<div class="listing-fabric-info">' + parts.join('<span class="fabric-separator"> · </span>') + '</div>';
-    }
-
     // Build price row with optional strikethrough original
     let priceRowHtml = '<div class="listing-price-row">';
     if (price) {
       priceRowHtml += '<span class="listing-price-main">$' + price + '/yd</span>';
-      if (hasDiscount && origPrice) {
+      if (hasDiscount) {
         priceRowHtml += '<span class="listing-price-orig">$' + origPrice + '/yd</span>';
       }
     }
     priceRowHtml += '</div>';
 
-    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + fabricInfoHtml + '<div class="listing-cta-row"><button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (cents != null ? String(cents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + (canBuy && totalMoney && yards ? 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd' : (isSold ? "Sold out" : "Add to Cart")) + '</button></div>' + priceRowHtml + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
+    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + (yards != null ? '<div class="listing-yards">' + yards + ' yards' + (badge ? ' <span class="listing-dept">' + escapeHtml(badge) + '</span>' : '') + '</div>' : '') + '<div class="listing-cta-row"><button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (cents != null ? String(cents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + (canBuy && totalMoney && yards ? 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd' : (isSold ? "Sold out" : "Add to Cart")) + '</button></div>' + priceRowHtml + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
   }
 
   function renderAtelierCard(profile) {
