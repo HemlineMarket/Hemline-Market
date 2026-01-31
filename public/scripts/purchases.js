@@ -141,7 +141,7 @@
   // -------- render --------
   orders.forEach((o) => {
     const { itemsCents, shippingCents, totalCents } = getCentsBreakdown(o);
-    const listingHref = o.listing_id ? `listing.html?id=${encodeURIComponent(o.listing_id)}` : null;
+    const listingHref = o.listing_id ? `fabric/${encodeURIComponent(o.listing_id)}` : null;
 
     const card = document.createElement("div");
     card.className = "order-card";
