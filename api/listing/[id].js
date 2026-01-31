@@ -6,10 +6,6 @@ import supabaseAdmin from "../_supabaseAdmin.js";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-export const config = {
-  runtime: "nodejs18.x",
-};
-
 export default async function handler(req, res) {
   const { id } = req.query;
 
@@ -78,8 +74,6 @@ export default async function handler(req, res) {
     const priceDollars = listing.price_cents 
       ? (listing.price_cents / 100).toFixed(2) 
       : null;
-    const priceDisplay = priceDollars ? `$${priceDollars}/yard` : "";
-    const yardsDisplay = listing.yards_available ? `${listing.yards_available} yards available` : "";
 
     // Build JSON-LD structured data
     const jsonLd = buildProductSchema(listing, sellerName, priceDollars);
