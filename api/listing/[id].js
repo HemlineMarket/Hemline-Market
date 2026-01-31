@@ -3,14 +3,11 @@
 // This ensures search engines see correct titles, descriptions, and images
 
 import supabaseAdmin from "../_supabaseAdmin.js";
-import { readFileSync } from "fs";
-import { join } from "path";
 
 export default async function handler(req, res) {
   const { id } = req.query;
 
   if (!id) {
-    // Redirect to browse if no ID
     return res.redirect(302, "/browse.html");
   }
 
@@ -40,7 +37,6 @@ export default async function handler(req, res) {
 
     if (error || !listing) {
       console.error("Listing fetch error:", error);
-      // Redirect to 404 or browse
       return res.redirect(302, "/browse.html");
     }
 
@@ -79,12 +75,16 @@ export default async function handler(req, res) {
     const jsonLd = buildProductSchema(listing, sellerName, priceDollars);
     const jsonLdScript = `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`;
 
-    // Read the original listing.html template
+    // Fetch the listing.html template from the live site
     let html;
     try {
-      html = readFileSync(join(process.cwd(), "public", "listing.html"), "utf8");
+      const templateRes = await fetch("https://hemlinemarket.com/listing.html");
+      if (!templateRes.ok) {
+        throw new Error(`Failed to fetch template: ${templateRes.status}`);
+      }
+      html = await templateRes.text();
     } catch (e) {
-      console.error("Failed to read listing.html:", e);
+      console.error("Failed to fetch listing.html template:", e);
       return res.redirect(302, `/listing.html?id=${id}`);
     }
 
@@ -160,7 +160,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error("Listing SSR error:", err);
-    // Fall back to client-side rendering
     return res.redirect(302, `/listing.html?id=${id}`);
   }
 }
@@ -188,7 +187,6 @@ function buildProductSchema(listing, sellerName, priceDollars) {
     "image": [],
   };
 
-  // Add images
   if (listing.image_url_1) schema.image.push(listing.image_url_1);
   if (listing.image_url_2) schema.image.push(listing.image_url_2);
   if (listing.image_url_3) schema.image.push(listing.image_url_3);
@@ -196,12 +194,10 @@ function buildProductSchema(listing, sellerName, priceDollars) {
     schema.image = ["https://hemlinemarket.com/images/og-image.jpg"];
   }
 
-  // Add material/fiber content
   if (listing.content && listing.content !== "Not sure" && listing.content !== "Other") {
     schema.material = listing.content;
   }
 
-  // Add offer/pricing
   if (priceDollars) {
     schema.offers = {
       "@type": "Offer",
@@ -218,7 +214,6 @@ function buildProductSchema(listing, sellerName, priceDollars) {
     };
   }
 
-  // Add brand if designer is specified
   if (listing.designer) {
     schema.brand = {
       "@type": "Brand",
@@ -226,7 +221,6 @@ function buildProductSchema(listing, sellerName, priceDollars) {
     };
   }
 
-  // Add additional properties
   schema.additionalProperty = [];
   if (listing.yards_available) {
     schema.additionalProperty.push({
@@ -250,7 +244,6 @@ function buildProductSchema(listing, sellerName, priceDollars) {
     });
   }
 
-  // Add breadcrumb
   const breadcrumb = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
