@@ -141,7 +141,7 @@
         
         schema.offers = {
           "@type": "Offer",
-          "url": `https://hemlinemarket.com/listing.html?id=${listing.id}`,
+          "url": `https://hemlinemarket.com/fabric/${listing.id}`,
           "priceCurrency": "USD",
           "price": priceDollars,
           "priceValidUntil": new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -213,7 +213,7 @@
         "itemListElement": listings.slice(0, 10).map((listing, index) => ({
           "@type": "ListItem",
           "position": index + 1,
-          "url": `https://hemlinemarket.com/listing.html?id=${listing.id}`,
+          "url": `https://hemlinemarket.com/fabric/${listing.id}`,
           "name": listing.title
         }))
       };
