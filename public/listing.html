@@ -890,7 +890,8 @@
       ? listing.description.substring(0, 155) + (listing.description.length > 155 ? '...' : '')
       : `Buy ${title} on Hemline Market. Secure checkout and prepaid shipping.`;
     const imageUrl = listing.image_url_1 || 'https://hemlinemarket.com/images/og-image.jpg';
-    const pageUrl = `https://hemlinemarket.com/listing.html?id=${listing.id}`;
+    // Use SEO-friendly URL format
+    const pageUrl = `https://hemlinemarket.com/fabric/${listing.id}`;
     
     // Update page title
     document.title = fullTitle;
@@ -1744,7 +1745,7 @@
           const sellerId = currentListing && currentListing.seller_id;
           console.log("[Favorite] Attempting notification:", { buyerId, sellerId, listingId: currentListing?.id });
           if(buyerId && sellerId && buyerId !== sellerId){
-            const listingUrl = `listing.html?id=${encodeURIComponent(currentListing.id)}`;
+            const listingUrl = `fabric/${encodeURIComponent(currentListing.id)}`;
             const { data, error } = await supabaseClient.from("notifications").insert({
               user_id   : sellerId,
               actor_id  : buyerId,
@@ -2165,7 +2166,15 @@
   function getListingIdFromUrl(){
     try{
       const url = new URL(window.location.href);
-      return url.searchParams.get("id");
+      // First check query param (legacy: listing.html?id=xxx)
+      const queryId = url.searchParams.get("id");
+      if (queryId) return queryId;
+      
+      // Check for clean URL patterns: /fabric/xxx or /l/xxx
+      const pathMatch = url.pathname.match(/^\/(fabric|l)\/([a-zA-Z0-9_-]+)/);
+      if (pathMatch && pathMatch[2]) return pathMatch[2];
+      
+      return null;
     }catch(e){
       return null;
     }
