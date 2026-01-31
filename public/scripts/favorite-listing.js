@@ -43,8 +43,8 @@
         title: "Your listing was favorited",
         body: "Someone favorited your listing.",
         listing_id: listingId,
-        href: `listing.html?id=${listingId}`,
-        link: `listing.html?id=${listingId}`,
+        href: `fabric/${listingId}`,
+        link: `fabric/${listingId}`,
         is_read: false,
         read_at: null,
         metadata: { listing_id: listingId }
