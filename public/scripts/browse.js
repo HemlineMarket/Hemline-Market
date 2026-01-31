@@ -431,7 +431,7 @@
     let cartBadgeHtml = '';
     if (inMyCart) cartBadgeHtml = '<span class="cart-badge yours">✓ In your cart</span>';
     else if (inSomeoneElsesCart) cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
-    const href = "listing.html?id=" + encodeURIComponent(listing.id);
+    const href = "fabric/" + encodeURIComponent(listing.id);
 
     // Build price row with optional strikethrough original
     let priceRowHtml = '<div class="listing-price-row">';
