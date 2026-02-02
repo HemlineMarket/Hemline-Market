@@ -534,9 +534,10 @@
     if (grid) grid.parentNode.insertBefore(nav, grid.nextSibling);
   }
 
-  async function runSearch(fromPageNav) {
-    // Reset to page 1 when filters change (not when clicking pagination)
-    if (!fromPageNav) {
+  async function runSearch(e) {
+    // Reset to page 1 when filters/sort change
+    // Only keep page if this is initial load or popstate
+    if (e !== 'keepPage') {
       const params = new URLSearchParams(window.location.search);
       if (params.has('page')) {
         params.delete('page');
@@ -644,9 +645,9 @@
     if (!getClient()) { console.warn('[browse.js] Waiting for Supabase...'); setTimeout(init, 100); return; }
     console.log('[browse.js] Initializing...');
     initFilters();
-    runSearch();
+    runSearch('keepPage');
     window.addEventListener("filtersChanged", runSearch);
-    window.addEventListener("popstate", runSearch);
+    window.addEventListener("popstate", function() { runSearch('keepPage'); });
   }
 
   window.HM = window.HM || {};
