@@ -517,9 +517,8 @@
     const nextDisabled = currentPage >= totalPages;
     
     nav.innerHTML = 
-      '<a href="' + buildPageUrl(currentPage - 1) + '" class="page-btn' + (prevDisabled ? ' disabled' : '') + '"' + (prevDisabled ? ' aria-disabled="true"' : '') + '>Previous</a>' +
-      '<span class="page-info">' + currentPage + ' / ' + totalPages + '</span>' +
-      '<a href="' + buildPageUrl(currentPage + 1) + '" class="page-btn' + (nextDisabled ? ' disabled' : '') + '"' + (nextDisabled ? ' aria-disabled="true"' : '') + '>Next</a>';
+      (prevDisabled ? '' : '<a href="' + buildPageUrl(currentPage - 1) + '" class="page-btn">← Previous Page</a>') +
+      (nextDisabled ? '' : '<a href="' + buildPageUrl(currentPage + 1) + '" class="page-btn">Next Page →</a>');
     
     const grid = document.getElementById('grid');
     if (grid) grid.parentNode.insertBefore(nav, grid.nextSibling);
