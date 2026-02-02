@@ -347,7 +347,7 @@
 
     const { search = "", content = [], color = [], fabricType = [], minPrice = null, maxPrice = null, minYards = null, sortBy = "newest", limit = PAGE_SIZE, offset = 0, cosplayMode = false, dept = null, fiberType = null, origin = null, designer = null, feelsLike = null, burnTest = null, pattern = null, minWidth = null, maxWidth = null, minGsm = null, maxGsm = null } = options || {};
 
-    let query = client.from("listings").select("*", { count: "exact" }).eq("status", "ACTIVE").eq("is_published", true);
+    let query = client.from("listings").select("*", { count: "exact" }).eq("status", "ACTIVE").eq("is_published", true).gt("yards_available", 0);
 
     // 8pm release time filter
     const now = new Date();
