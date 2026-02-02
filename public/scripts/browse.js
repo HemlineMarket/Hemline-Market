@@ -43,10 +43,7 @@
   }
 
   let currentMode = "listings";
-  let currentOffset = 0;
   const PAGE_SIZE = 24;
-  let totalCount = 0;
-  let isLoadingMore = false;
 
   /* ===== FILTER CONSTANTS ===== */
   const CONTENTS = [
@@ -487,67 +484,48 @@
     return filters.search || filters.content.length > 0 || filters.color.length > 0 || filters.fabricType.length > 0 || filters.cosplayMode || filters.minPrice !== null || filters.maxPrice !== null || filters.minYards !== null || filters.minWidth !== null || filters.maxWidth !== null || filters.minGsm !== null || filters.maxGsm !== null || filters.dept || filters.fiberType || filters.origin || filters.designer || filters.feelsLike || filters.burnTest || filters.pattern;
   }
 
-  function renderLoadMoreButton() {
-    const existingBtn = document.getElementById('loadMoreBtn');
-    if (existingBtn) existingBtn.remove();
+  function getCurrentPage() {
+    const params = new URLSearchParams(window.location.search);
+    const page = parseInt(params.get('page'), 10);
+    return (page && page > 0) ? page : 1;
+  }
+
+  function buildPageUrl(page) {
+    const params = new URLSearchParams(window.location.search);
+    if (page > 1) {
+      params.set('page', page);
+    } else {
+      params.delete('page');
+    }
+    return window.location.pathname + '?' + params.toString();
+  }
+
+  function renderPagination(totalCount) {
+    const existingNav = document.getElementById('paginationNav');
+    if (existingNav) existingNav.remove();
+    
+    const currentPage = getCurrentPage();
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    
+    if (totalPages <= 1) return;
+    
+    const nav = document.createElement('nav');
+    nav.id = 'paginationNav';
+    nav.className = 'pagination-nav';
+    
+    const prevDisabled = currentPage <= 1;
+    const nextDisabled = currentPage >= totalPages;
+    
+    nav.innerHTML = 
+      '<a href="' + buildPageUrl(currentPage - 1) + '" class="page-btn' + (prevDisabled ? ' disabled' : '') + '"' + (prevDisabled ? ' aria-disabled="true"' : '') + '>← Previous</a>' +
+      '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
+      '<a href="' + buildPageUrl(currentPage + 1) + '" class="page-btn' + (nextDisabled ? ' disabled' : '') + '"' + (nextDisabled ? ' aria-disabled="true"' : '') + '>Next →</a>';
     
     const grid = document.getElementById('grid');
-    if (!grid) return;
-    
-    const loadedCount = currentOffset + PAGE_SIZE;
-    if (loadedCount >= totalCount) return; // No more to load
-    
-    const btn = document.createElement('button');
-    btn.id = 'loadMoreBtn';
-    btn.className = 'load-more-btn';
-    btn.innerHTML = 'Load More (' + (totalCount - loadedCount) + ' remaining)';
-    btn.addEventListener('click', loadMore);
-    
-    grid.parentNode.insertBefore(btn, grid.nextSibling);
+    if (grid) grid.parentNode.insertBefore(nav, grid.nextSibling);
   }
 
-  async function loadMore() {
-    if (isLoadingMore) return;
-    isLoadingMore = true;
-    
-    const btn = document.getElementById('loadMoreBtn');
-    if (btn) btn.innerHTML = 'Loading...';
-    
-    currentOffset += PAGE_SIZE;
-    const filters = gatherFilterValues();
-    filters.offset = currentOffset;
-    filters.limit = PAGE_SIZE;
-    
-    try {
-      const { data, error } = await fetchListings(filters);
-      if (error || !data.length) {
-        isLoadingMore = false;
-        if (btn) btn.remove();
-        return;
-      }
-      
-      const grid = document.getElementById('grid');
-      const profiles = await fetchProfilesForListings(data);
-      const holdMap = await fetchCartHolds(data.map(l => l.id));
-      const myCart = JSON.parse(localStorage.getItem('hm_cart') || '[]');
-      const myCartIds = new Set(myCart.map(it => it.id || it.listing_id));
-      
-      const newCards = data.map(l => renderListingCard(l, profiles[l.seller_id], holdMap, myCartIds)).join('');
-      grid.insertAdjacentHTML('beforeend', newCards);
-      
-      renderLoadMoreButton();
-    } catch (err) {
-      console.error('Load more error', err);
-    }
-    
-    isLoadingMore = false;
-  }
-
-  async function runSearch(resetPagination = true) {
-    if (resetPagination) {
-      currentOffset = 0;
-    }
-    
+  async function runSearch() {
     const grid = document.getElementById("grid");
     const countEl = document.getElementById("resultCount");
     const emptyEl = document.getElementById("empty");
@@ -556,9 +534,8 @@
 
     if (!grid) { console.error('[browse.js] Grid element not found'); return; }
 
-    // Remove existing load more button
-    const existingBtn = document.getElementById('loadMoreBtn');
-    if (existingBtn) existingBtn.remove();
+    const existingNav = document.getElementById('paginationNav');
+    if (existingNav) existingNav.remove();
 
     if (typeof window.showSkeletonLoading === 'function') window.showSkeletonLoading(grid, 6);
     else grid.innerHTML = '<p style="text-align:center;padding:40px;color:#6b7280;">Loading...</p>';
@@ -567,7 +544,8 @@
     if (emptyFilteredEl) emptyFilteredEl.style.display = "none";
 
     const filters = gatherFilterValues();
-    filters.offset = currentOffset;
+    const currentPage = getCurrentPage();
+    filters.offset = (currentPage - 1) * PAGE_SIZE;
     filters.limit = PAGE_SIZE;
     const filtersActive = hasAnyFilters(filters);
 
@@ -604,10 +582,10 @@
         const holdMap = await fetchCartHolds(data.map(l => l.id));
         const myCart = JSON.parse(localStorage.getItem('hm_cart') || '[]');
         const myCartIds = new Set(myCart.map(it => it.id || it.listing_id));
-        totalCount = count || data.length;
-        if (countEl) countEl.textContent = totalCount + ' fabric' + (totalCount !== 1 ? "s" : "");
+        const totalCount = count || data.length;
+        if (countEl) countEl.textContent = totalCount >= 1000 ? totalCount + ' fabric' + (totalCount !== 1 ? "s" : "") : "";
         grid.innerHTML = data.map(l => renderListingCard(l, profiles[l.seller_id], holdMap, myCartIds)).join("");
-        renderLoadMoreButton();
+        renderPagination(totalCount);
       }
       if (typeof window.renderAppliedFilters === 'function') window.renderAppliedFilters(runSearch);
     } catch (err) {
