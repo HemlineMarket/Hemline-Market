@@ -534,7 +534,16 @@
     if (grid) grid.parentNode.insertBefore(nav, grid.nextSibling);
   }
 
-  async function runSearch() {
+  async function runSearch(fromPageNav) {
+    // Reset to page 1 when filters change (not when clicking pagination)
+    if (!fromPageNav) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('page')) {
+        params.delete('page');
+        history.replaceState(null, '', window.location.pathname + '?' + params.toString());
+      }
+    }
+
     const grid = document.getElementById("grid");
     const countEl = document.getElementById("resultCount");
     const emptyEl = document.getElementById("empty");
