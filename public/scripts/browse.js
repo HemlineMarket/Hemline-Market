@@ -43,7 +43,7 @@
   }
 
   let currentMode = "listings";
-  const PAGE_SIZE = 24;
+  const PAGE_SIZE = 12;
 
   /* ===== FILTER CONSTANTS ===== */
   const CONTENTS = [
@@ -517,9 +517,9 @@
     const nextDisabled = currentPage >= totalPages;
     
     nav.innerHTML = 
-      '<a href="' + buildPageUrl(currentPage - 1) + '" class="page-btn' + (prevDisabled ? ' disabled' : '') + '"' + (prevDisabled ? ' aria-disabled="true"' : '') + '>← Previous</a>' +
-      '<span class="page-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
-      '<a href="' + buildPageUrl(currentPage + 1) + '" class="page-btn' + (nextDisabled ? ' disabled' : '') + '"' + (nextDisabled ? ' aria-disabled="true"' : '') + '>Next →</a>';
+      '<a href="' + buildPageUrl(currentPage - 1) + '" class="page-btn' + (prevDisabled ? ' disabled' : '') + '"' + (prevDisabled ? ' aria-disabled="true"' : '') + '>Previous</a>' +
+      '<span class="page-info">' + currentPage + ' / ' + totalPages + '</span>' +
+      '<a href="' + buildPageUrl(currentPage + 1) + '" class="page-btn' + (nextDisabled ? ' disabled' : '') + '"' + (nextDisabled ? ' aria-disabled="true"' : '') + '>Next</a>';
     
     const grid = document.getElementById('grid');
     if (grid) grid.parentNode.insertBefore(nav, grid.nextSibling);
