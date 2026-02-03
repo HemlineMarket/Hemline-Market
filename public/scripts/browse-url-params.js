@@ -151,13 +151,15 @@
       if (el) { el.checked = true; hasFilters = true; }
     }
 
-    // If we applied filters, trigger a search
+    // If we applied filters, trigger a search that preserves page
     if (hasFilters) {
-      console.log('[browse-url-params] Triggering search...');
+      console.log('[browse-url-params] Triggering search (keepPage)...');
       setTimeout(function() {
-        var searchBtn = document.getElementById('doSearch');
-        if (searchBtn) {
-          searchBtn.click();
+        if (typeof window.runSearch === 'function') {
+          window.runSearch('keepPage');
+        } else {
+          var searchBtn = document.getElementById('doSearch');
+          if (searchBtn) searchBtn.click();
         }
       }, 50);
     }
