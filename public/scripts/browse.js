@@ -537,6 +537,21 @@
       }
     }
 
+    // Sync sortBy into URL so pagination links preserve it
+    const sortVal = document.getElementById('sortBy')?.value || 'newest';
+    const urlParams = new URLSearchParams(window.location.search);
+    if (sortVal && sortVal !== 'newest') {
+      urlParams.set('sort', sortVal);
+    } else {
+      urlParams.delete('sort');
+    }
+    const newUrl = urlParams.toString()
+      ? window.location.pathname + '?' + urlParams.toString()
+      : window.location.pathname;
+    if (window.location.pathname + window.location.search !== newUrl) {
+      history.replaceState(null, '', newUrl);
+    }
+
     const grid = document.getElementById("grid");
     const countEl = document.getElementById("resultCount");
     const emptyEl = document.getElementById("empty");
