@@ -716,8 +716,11 @@
 
           <div class="field">
             <div class="label-row"><label for="title">Title</label><span class="req">Required</span></div>
-            <input id="title" type="text" placeholder="e.g., Italian Silk Twill — Navy">
-            <div id="err_title" class="help-error" style="display:none">Please add a title.</div>
+            <input id="title" type="text" maxlength="80" placeholder="e.g., Italian Silk Twill — Navy">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">
+              <div id="err_title" class="help-error" style="display:none">Please add a title.</div>
+              <span id="titleCharCount" style="font-size:11px;color:#9ca3af;margin-left:auto;">0 / 80</span>
+            </div>
           </div>
 
           <div class="field">
@@ -1189,6 +1192,16 @@
     const photoError   = document.getElementById('photoError');
 
     const titleInput   = document.getElementById('title');
+    const titleCharCount = document.getElementById('titleCharCount');
+    if (titleInput && titleCharCount) {
+      function updateTitleCount() {
+        const len = titleInput.value.length;
+        titleCharCount.textContent = len + ' / 80';
+        titleCharCount.style.color = len >= 75 ? '#991b1b' : '#9ca3af';
+      }
+      titleInput.addEventListener('input', updateTitleCount);
+      updateTitleCount();
+    }
     const priceInput   = document.getElementById('price');
     const origPriceInp = document.getElementById('origPrice');
     const yardsInput   = document.getElementById('yards');
@@ -2204,6 +2217,12 @@
 
       if(!title){
         errTitle.style.display = 'block';
+        errTitle.textContent = 'Please add a title.';
+        titleInput.classList.add('invalid');
+        ok = false;
+      } else if(title.length > 80){
+        errTitle.style.display = 'block';
+        errTitle.textContent = 'Title must be 80 characters or fewer.';
         titleInput.classList.add('invalid');
         ok = false;
       } else {
