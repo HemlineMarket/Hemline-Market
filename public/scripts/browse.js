@@ -516,18 +516,10 @@
     const prevDisabled = currentPage <= 1;
     const nextDisabled = currentPage >= totalPages;
     
-        var pageNums = '';
-    for (var p = 1; p <= totalPages; p++) {
-      if (p === currentPage) {
-        pageNums += '<span class="page-num active">' + p + '</span>';
-      } else {
-        pageNums += '<a href="' + buildPageUrl(p) + '" class="page-num">' + p + '</a>';
-      }
-    }
-    
     nav.innerHTML = 
+      (currentPage > 2 ? '<a href="' + buildPageUrl(1) + '" class="page-btn">« First</a>' : '') +
       (prevDisabled ? '' : '<a href="' + buildPageUrl(currentPage - 1) + '" class="page-btn">← Prev</a>') +
-      pageNums +
+      '<span class="page-num active">' + currentPage + '</span>' +
       (nextDisabled ? '' : '<a href="' + buildPageUrl(currentPage + 1) + '" class="page-btn">Next →</a>');
     
     const grid = document.getElementById('grid');
