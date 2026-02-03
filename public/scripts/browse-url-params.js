@@ -74,6 +74,16 @@
       }
     });
 
+    // Sort order (stored as 'sort' in URL, maps to #sortBy select)
+    var sort = params.get('sort');
+    if (sort) {
+      var sortEl = document.getElementById('sortBy');
+      if (sortEl) {
+        sortEl.value = sort;
+        console.log('[browse-url-params] Set sort to:', sort);
+      }
+    }
+
     // Content (fabric content checkboxes) - use value attribute
     var content = params.get('content');
     if (content) {
