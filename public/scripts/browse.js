@@ -294,6 +294,15 @@
     const sortSelect = document.getElementById('sortBy');
     const modeSelect = document.getElementById('searchMode');
 
+    // Restore sort from URL before first search runs
+    if (sortSelect) {
+      const urlSort = new URLSearchParams(window.location.search).get('sort');
+      if (urlSort) {
+        sortSelect.value = urlSort;
+        console.log('[browse.js] Restored sort from URL:', urlSort);
+      }
+    }
+
     if (searchBtn) searchBtn.addEventListener('click', runSearch);
     if (searchInput) searchInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } });
     if (sortSelect) sortSelect.addEventListener('change', runSearch);
