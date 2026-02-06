@@ -461,14 +461,21 @@
     // Yards display with optional cut-to-order badge
     let yardsHtml = '';
     if (yards != null) {
-      yardsHtml = '<div class="listing-yards">' + yards + ' yards';
       if (isCutToOrder) {
-        yardsHtml += ' <span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;vertical-align:middle;">✂️ By the yard</span>';
+        // Don't repeat yard count - it's on the image badge. Just show the cut badge + dept.
+        yardsHtml = '<div class="listing-yards">';
+        yardsHtml += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;vertical-align:middle;">✂️ By the yard</span>';
+        if (badge) {
+          yardsHtml += ' <span class="listing-dept">' + escapeHtml(badge) + '</span>';
+        }
+        yardsHtml += '</div>';
+      } else {
+        yardsHtml = '<div class="listing-yards">' + yards + ' yards';
+        if (badge) {
+          yardsHtml += ' <span class="listing-dept">' + escapeHtml(badge) + '</span>';
+        }
+        yardsHtml += '</div>';
       }
-      if (badge) {
-        yardsHtml += ' <span class="listing-dept">' + escapeHtml(badge) + '</span>';
-      }
-      yardsHtml += '</div>';
     }
 
     // For cut-to-order, button shows per-yard price instead of total
