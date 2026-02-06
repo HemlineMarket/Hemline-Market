@@ -241,6 +241,7 @@
       const status = (item.status || "active").toLowerCase();
       const isSold = status === "sold" || (yards != null && yards <= 0) || item.yards_available === 0;
       const canBuy = !isSold && priceCents != null && yards != null && yards > 0;
+      const isCutToOrder = item.sell_by_yard === true;
 
       const hold = holdMap[item.id];
       const inMyCart = myCartIds.has(item.id);
@@ -268,20 +269,18 @@
 
       const badgeLabel = getListingBadgeLabel(item);
 
-      // Badge on yards line, not title row
-      card.innerHTML = `
-        <a class="listing-thumb-link" href="${href}">
-          <div class="listing-thumb" aria-hidden="true">
-            ${item.image_url_1 ? `<img src="${thumbUrl(item.image_url_1, 400)}" alt="${safeAlt}" loading="lazy">` : ""}
-            ${cartBadgeHtml}
-          </div>
-        </a>
-        <div class="listing-body">
-          <div class="listing-title-row">
-            <a class="listing-title" href="${href}">${safeTitle}</a>
-          </div>
-          ${yards != null ? `<div class="listing-yards">${yards} yards${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>` : ""}
-          <div class="listing-cta-row">
+      // Cut-to-order badge in yards line
+      const cutBadgeHtml = isCutToOrder
+        ? ' <span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;vertical-align:middle;">✂️ By the yard</span>'
+        : '';
+
+      // Button: cut-to-order links to listing page, full lot adds to cart
+      let ctaHtml;
+      if (isCutToOrder && canBuy) {
+        const priceDisplay = priceCents != null ? (priceCents / 100).toFixed(2) : "0";
+        ctaHtml = `<a href="${href}" class="listing-add-btn" style="text-decoration:none;text-align:center;display:block;">View Listing \u2014 $${priceDisplay}/yd</a>`;
+      } else {
+        ctaHtml = `
             <button
               type="button"
               class="listing-add-btn add-to-cart"
@@ -298,10 +297,27 @@
             >
               ${
                 canBuy && totalMoney && yards
-                  ? `Add to Cart — ${totalMoney} for ${yards} yards`
+                  ? `Add to Cart \u2014 ${totalMoney} for ${yards} yards`
                   : (isSold ? "Sold out" : "Add to Cart")
               }
-            </button>
+            </button>`;
+      }
+
+      // Badge on yards line, not title row
+      card.innerHTML = `
+        <a class="listing-thumb-link" href="${href}">
+          <div class="listing-thumb" aria-hidden="true">
+            ${item.image_url_1 ? `<img src="${thumbUrl(item.image_url_1, 400)}" alt="${safeAlt}" loading="lazy">` : ""}
+            ${cartBadgeHtml}
+          </div>
+        </a>
+        <div class="listing-body">
+          <div class="listing-title-row">
+            <a class="listing-title" href="${href}">${safeTitle}</a>
+          </div>
+          ${yards != null ? `<div class="listing-yards">${yards} yards${cutBadgeHtml}${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>` : ""}
+          <div class="listing-cta-row">
+            ${ctaHtml}
           </div>
           <div class="listing-price-row">
             ${
