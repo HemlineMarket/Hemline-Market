@@ -1119,24 +1119,30 @@
         let ctaHtml;
         if (isCutToOrder && canBuy) {
           const priceDisplay = priceCents != null ? (priceCents / 100).toFixed(2) : "0";
-          ctaHtml = `<a href="${href}" class="listing-add-btn" style="text-decoration:none;text-align:center;display:block;">View Listing \u2014 $${priceDisplay}/yd</a>`;
+          ctaHtml = `<a href="${href}" class="listing-add-btn" style="text-decoration:none;text-align:center;display:block;">View Listing — $${priceDisplay}/yd</a>`;
         } else {
           ctaHtml = `<button type="button" class="listing-add-btn add-to-cart" ${isNotForSale ? 'disabled' : ''}>
                 ${
                   isNotForSale
                     ? "Not for Sale"
                     : (canBuy && totalMoney && yards
-                      ? `Add to Cart \u2014 ${totalMoney} for ${yards} yards`
+                      ? `Add to Cart — ${totalMoney} for ${yards} yards`
                       : (isSold ? "Sold out" : "Add to Cart"))
                 }
               </button>`;
         }
+
+        // Yards-available overlay for cut-to-order listings
+        const yardsAvailBadge = isCutToOrder && yards != null
+          ? `<span style="position:absolute;top:8px;right:8px;padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;z-index:2;background:#fff;color:#111827;border:1px solid #d1d5db;box-shadow:0 1px 3px rgba(0,0,0,.1);">${yards} yds available</span>`
+          : '';
 
         card.innerHTML = `
           <a class="listing-thumb-link" href="${href}">
             <div class="listing-thumb" aria-hidden="true">
               ${isNotForSale ? '<div class="not-for-sale-badge">Not for Sale</div>' : ''}
               ${item.image_url_1 ? `<img src="${item.image_url_1}" alt="${safeAlt}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;\\'>Image unavailable</div>';">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:12px;">No image</div>'}
+              ${yardsAvailBadge}
             </div>
           </a>
           <div class="listing-body">
