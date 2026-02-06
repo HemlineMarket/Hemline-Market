@@ -724,7 +724,7 @@
           </div>
 
           <div class="field">
-            <div class="label-row"><label for="price">Price ($/yd)</label><span class="req">Required</span></div>
+            <div class="label-row"><label for="price" id="priceLabelText">Price ($/yd)</label><span class="req">Required</span></div>
             <input id="price" type="number" min="0" step="0.01" placeholder="28.00">
             <div id="err_price" class="help-error" style="display:none">Enter a price greater than 0.</div>
           </div>
@@ -752,6 +752,19 @@
             </div>
             <div class="subtle" style="margin-top:4px;font-size:11px;">36 inches = 1 yard</div>
             <div id="err_yards" class="help-error" style="display:none">Enter yards greater than 0.</div>
+          </div>
+
+          <div class="field" id="sellByYardField">
+            <div class="label-row"><label>Willing to cut and sell by the yard?</label></div>
+            <div style="display:flex;gap:10px;margin-top:4px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:14px;font-weight:600;">
+                <input type="radio" name="sellByYard" value="yes" style="width:16px;height:16px;"> Yes
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-size:14px;font-weight:600;">
+                <input type="radio" name="sellByYard" value="no" checked style="width:16px;height:16px;"> No, full piece only
+              </label>
+            </div>
+            <div class="subtle" style="margin-top:4px;font-size:11px;" id="sellByYardHint">Buyers must purchase the entire piece.</div>
           </div>
 
           <div class="field">
@@ -1207,6 +1220,25 @@
     const yardsInput   = document.getElementById('yards');
     const descInput    = document.getElementById('desc');
     const descExpandBtn = document.getElementById('descExpandBtn');
+
+    // Sell-by-yard toggle logic
+    const sellByYardRadios = document.querySelectorAll('input[name="sellByYard"]');
+    const priceLabelText = document.getElementById('priceLabelText');
+    const sellByYardHint = document.getElementById('sellByYardHint');
+    
+    function updateSellByYardUI(){
+      const isByYard = document.querySelector('input[name="sellByYard"]:checked')?.value === 'yes';
+      if(priceLabelText){
+        priceLabelText.textContent = isByYard ? 'Price per yard ($)' : 'Price ($/yd)';
+      }
+      if(sellByYardHint){
+        sellByYardHint.textContent = isByYard
+          ? 'Buyers can purchase 1 yard or more. You will cut to order.'
+          : 'Buyers must purchase the entire piece.';
+      }
+    }
+    sellByYardRadios.forEach(r => r.addEventListener('change', updateSellByYardUI));
+    updateSellByYardUI();
 
     // Description expand modal
     function openDescModal() {
@@ -2271,6 +2303,7 @@
         price: priceInput.value ? parseFloat(priceInput.value) : null,
         origPrice: origPriceInp.value ? parseFloat(origPriceInp.value) : null,
         yards: yardsInput.value ? parseFloat(yardsInput.value) : null,
+        sellByYard: document.querySelector('input[name="sellByYard"]:checked')?.value === 'yes',
         desc: descInput.value.trim() || null,
         content: contents,
         fabric: fabricTypes.length > 0 ? fabricTypes.join(', ') : null,
@@ -2336,6 +2369,7 @@
       addRow('price', d.price !== null ? '$'+d.price : null);
       addRow('orig price', d.origPrice !== null ? '$'+d.origPrice : null);
       addRow('yards', d.yards);
+      addRow('sell by yard', d.sellByYard ? '✂️ Yes' : 'No, full piece only');
       addRow('description', d.desc);
       addRow('content', d.content);
       addRow('fabric', d.fabric);
@@ -2581,6 +2615,7 @@
           price_cents: priceCents,
           orig_price_cents: origPriceCents,
           yards_available: d.yards,
+          sell_by_yard: d.sellByYard || false,
           status: "ACTIVE",
           is_published: true,
 
@@ -2725,6 +2760,13 @@
         if(widthInput && data.width_in != null) widthInput.value = String(data.width_in);
         if(gsmInput && data.weight_gsm != null) gsmInput.value   = String(data.weight_gsm);
         if(designerInput) designerInput.value = data.designer || '';
+
+        // Sell by yard radio
+        if(data.sell_by_yard){
+          const yesRadio = document.querySelector('input[name="sellByYard"][value="yes"]');
+          if(yesRadio) yesRadio.checked = true;
+          updateSellByYardUI();
+        }
 
         // Color swatches (stored as comma-separated string)
         if(data.color_family){
