@@ -425,6 +425,7 @@
     
     const yards = listing.yards_available;
     const badge = getListingBadgeLabel(listing);
+    const isCutToOrder = listing.sell_by_yard === true;
     const sellerName = sellerProfile?.store_name || sellerProfile?.display_name || [sellerProfile?.first_name, sellerProfile?.last_name].filter(Boolean).join(" ") || "";
     const imageUrl = listing.image_url_1 || listing.image_urls?.[0] || listing.image_url || "/images/empty-state.svg";
     
@@ -453,7 +454,39 @@
     }
     priceRowHtml += '</div>';
 
-    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + (yards != null ? '<div class="listing-yards">' + yards + ' yards' + (badge ? ' <span class="listing-dept">' + escapeHtml(badge) + '</span>' : '') + '</div>' : '') + '<div class="listing-cta-row"><button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (cents != null ? String(cents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + (canBuy && totalMoney && yards ? 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd' : (isSold ? "Sold out" : "Add to Cart")) + '</button></div>' + priceRowHtml + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
+    // Yards display with optional cut-to-order badge
+    let yardsHtml = '';
+    if (yards != null) {
+      yardsHtml = '<div class="listing-yards">' + yards + ' yards';
+      if (isCutToOrder) {
+        yardsHtml += ' <span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;vertical-align:middle;">✂️ By the yard</span>';
+      }
+      if (badge) {
+        yardsHtml += ' <span class="listing-dept">' + escapeHtml(badge) + '</span>';
+      }
+      yardsHtml += '</div>';
+    }
+
+    // For cut-to-order, button shows per-yard price instead of total
+    let btnLabel;
+    if (canBuy) {
+      if (isCutToOrder && price) {
+        btnLabel = 'View Listing \u2014 $' + price + '/yd';
+      } else if (totalMoney && yards) {
+        btnLabel = 'Add to Cart \u2014 ' + totalMoney + ' for ' + yards + ' yd';
+      } else {
+        btnLabel = 'Add to Cart';
+      }
+    } else {
+      btnLabel = isSold ? "Sold out" : "Add to Cart";
+    }
+
+    // For cut-to-order listings, link to listing page instead of direct add-to-cart (buyer needs to pick yards)
+    const btnAction = isCutToOrder && canBuy
+      ? '<a href="' + href + '" class="listing-add-btn" style="text-decoration:none;text-align:center;display:block;">' + btnLabel + '</a>'
+      : '<button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (cents != null ? String(cents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + btnLabel + '</button>';
+
+    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + yardsHtml + '<div class="listing-cta-row">' + btnAction + '</div>' + priceRowHtml + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
   }
 
   function renderAtelierCard(profile) {
