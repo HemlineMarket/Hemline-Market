@@ -442,6 +442,10 @@
     let cartBadgeHtml = '';
     if (inMyCart) cartBadgeHtml = '<span class="cart-badge yours">✓ In your cart</span>';
     else if (inSomeoneElsesCart) cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
+    // Yards-available overlay for cut-to-order listings
+    const yardsAvailBadge = isCutToOrder && yards != null
+      ? '<span style="position:absolute;top:8px;right:8px;padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;z-index:2;background:#fff;color:#111827;border:1px solid #d1d5db;box-shadow:0 1px 3px rgba(0,0,0,.1);">' + yards + ' yds available</span>'
+      : '';
     const href = "listing.html?id=" + encodeURIComponent(listing.id);
 
     // Build price row with optional strikethrough original
@@ -471,9 +475,9 @@
     let btnLabel;
     if (canBuy) {
       if (isCutToOrder && price) {
-        btnLabel = 'View Listing \u2014 $' + price + '/yd';
+        btnLabel = 'View Listing — $' + price + '/yd';
       } else if (totalMoney && yards) {
-        btnLabel = 'Add to Cart \u2014 ' + totalMoney + ' for ' + yards + ' yd';
+        btnLabel = 'Add to Cart — ' + totalMoney + ' for ' + yards + ' yd';
       } else {
         btnLabel = 'Add to Cart';
       }
@@ -486,7 +490,7 @@
       ? '<a href="' + href + '" class="listing-add-btn" style="text-decoration:none;text-align:center;display:block;">' + btnLabel + '</a>'
       : '<button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (cents != null ? String(cents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + btnLabel + '</button>';
 
-    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + yardsHtml + '<div class="listing-cta-row">' + btnAction + '</div>' + priceRowHtml + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
+    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + yardsAvailBadge + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + yardsHtml + '<div class="listing-cta-row">' + btnAction + '</div>' + priceRowHtml + (sellerName ? '<div class="listing-seller-row"><span class="listing-seller-name">' + escapeHtml(sellerName) + '</span></div>' : "") + '</div></article>';
   }
 
   function renderAtelierCard(profile) {
