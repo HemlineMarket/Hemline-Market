@@ -253,6 +253,10 @@
       } else if (inSomeoneElsesCart) {
         cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
       }
+      // Yards-available overlay for cut-to-order listings
+      const yardsAvailBadge = isCutToOrder && yards != null
+        ? `<span style="position:absolute;top:8px;right:8px;padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;z-index:2;background:#fff;color:#111827;border:1px solid #d1d5db;box-shadow:0 1px 3px rgba(0,0,0,.1);">${yards} yds available</span>`
+        : '';
 
       const card = document.createElement("article");
       card.className = "listing-card";
@@ -278,7 +282,7 @@
       let ctaHtml;
       if (isCutToOrder && canBuy) {
         const priceDisplay = priceCents != null ? (priceCents / 100).toFixed(2) : "0";
-        ctaHtml = `<a href="${href}" class="listing-add-btn" style="text-decoration:none;text-align:center;display:block;">View Listing \u2014 $${priceDisplay}/yd</a>`;
+        ctaHtml = `<a href="${href}" class="listing-add-btn" style="text-decoration:none;text-align:center;display:block;">View Listing — $${priceDisplay}/yd</a>`;
       } else {
         ctaHtml = `
             <button
@@ -297,7 +301,7 @@
             >
               ${
                 canBuy && totalMoney && yards
-                  ? `Add to Cart \u2014 ${totalMoney} for ${yards} yards`
+                  ? `Add to Cart — ${totalMoney} for ${yards} yards`
                   : (isSold ? "Sold out" : "Add to Cart")
               }
             </button>`;
@@ -309,6 +313,7 @@
           <div class="listing-thumb" aria-hidden="true">
             ${item.image_url_1 ? `<img src="${thumbUrl(item.image_url_1, 400)}" alt="${safeAlt}" loading="lazy">` : ""}
             ${cartBadgeHtml}
+            ${yardsAvailBadge}
           </div>
         </a>
         <div class="listing-body">
