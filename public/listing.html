@@ -666,7 +666,22 @@
         <span class="peryd" id="tPerYd"></span>
         <span class="strike" id="tMsrp"></span>
       </div>
+      <div id="cutToOrderBadge" style="display:none;margin:6px 0 2px;">
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:600;">✂️ Sold by the yard</span>
+      </div>
       <div class="status-line" id="tStatusRow"></div>
+
+      <!-- Yard selector for cut-to-order listings -->
+      <div id="yardSelectorWrap" style="display:none;margin:10px 0 4px;">
+        <label for="yardSelector" style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">How many yards?</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" id="yardMinus" style="width:34px;height:34px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">-</button>
+          <input type="number" id="yardSelector" min="1" step="0.5" value="1" style="width:70px;text-align:center;padding:7px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;font-weight:600;">
+          <button type="button" id="yardPlus" style="width:34px;height:34px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+          <span id="yardMaxNote" style="font-size:12px;color:#6b7280;"></span>
+        </div>
+        <div id="yardSubtotal" style="margin-top:6px;font-size:14px;font-weight:700;color:#111827;"></div>
+      </div>
 
       <div class="cta">
         <button
@@ -707,7 +722,7 @@
         </button>
       </div>
 
-      <div class="mini-note">
+      <div class="mini-note" id="buyBoxNote">
         • Seller ships within <strong>5 business days</strong> • Buyer Protection • Price is for the entire lot.
       </div>
 
@@ -1316,18 +1331,29 @@
       : (listing.yardage != null ? Number(listing.yardage) : null);
     const priceCents = listing.price_cents != null ? Number(listing.price_cents) : null;
     const origPriceCents = listing.orig_price_cents != null ? Number(listing.orig_price_cents) : null;
+    const isCutToOrder = listing.sell_by_yard === true;
 
     if(titleEl) titleEl.textContent = listing.title || "Untitled listing";
+
+    // Show cut-to-order badge
+    const cutBadge = document.getElementById("cutToOrderBadge");
+    if(cutBadge) cutBadge.style.display = isCutToOrder ? "block" : "none";
 
     if(priceCents != null){
       const perYd = moneyFromCents(priceCents);
       let main = perYd || "$0.00";
-      if(yards != null && !isNaN(yards) && yards > 0){
-        const total = moneyFromCents(priceCents * yards);
-        if(total) main = `${total} for ${yards} yards`;
+      if(isCutToOrder){
+        // Show per-yard price prominently
+        main = `${perYd}/yard`;
+        if(perYdEl) perYdEl.textContent = yards != null ? `${yards} yards available` : "";
+      } else {
+        if(yards != null && !isNaN(yards) && yards > 0){
+          const total = moneyFromCents(priceCents * yards);
+          if(total) main = `${total} for ${yards} yards`;
+        }
+        if(perYdEl && perYd) perYdEl.textContent = `${perYd}/yard`;
       }
       if(priceMainEl) priceMainEl.textContent = main;
-      if(perYdEl && perYd) perYdEl.textContent = `${perYd}/yard`;
     }else{
       if(priceMainEl) priceMainEl.textContent = "Price coming soon";
       if(perYdEl) perYdEl.textContent = "";
@@ -1341,6 +1367,61 @@
       msrpEl.style.display = "none";
     }
 
+    // Yard selector for cut-to-order
+    const yardSelectorWrap = document.getElementById("yardSelectorWrap");
+    const yardSelector = document.getElementById("yardSelector");
+    const yardMinus = document.getElementById("yardMinus");
+    const yardPlus = document.getElementById("yardPlus");
+    const yardMaxNote = document.getElementById("yardMaxNote");
+    const yardSubtotal = document.getElementById("yardSubtotal");
+
+    if(isCutToOrder && yards != null && yards > 0 && priceCents != null){
+      if(yardSelectorWrap) yardSelectorWrap.style.display = "block";
+      if(yardSelector) yardSelector.max = String(yards);
+      if(yardMaxNote) yardMaxNote.textContent = `of ${yards} available`;
+
+      function updateYardSelection(){
+        let val = parseFloat(yardSelector.value) || 1;
+        val = Math.max(1, Math.min(val, yards));
+        // Round to nearest 0.5
+        val = Math.round(val * 2) / 2;
+        yardSelector.value = val;
+        const subtotalCents = priceCents * val;
+        const subtotalMoney = moneyFromCents(subtotalCents);
+        if(yardSubtotal) yardSubtotal.textContent = `Subtotal: ${subtotalMoney} for ${val} yard${val !== 1 ? 's' : ''}`;
+        // Update add-to-cart button
+        if(addBtn){
+          addBtn.dataset.yards = String(val);
+          addBtn.dataset.amount = String(subtotalCents);
+          addBtn.textContent = `Add to Cart \u2014 ${subtotalMoney}`;
+        }
+      }
+
+      if(yardMinus) yardMinus.addEventListener("click", () => {
+        let val = parseFloat(yardSelector.value) || 1;
+        yardSelector.value = Math.max(1, val - 0.5);
+        updateYardSelection();
+      });
+      if(yardPlus) yardPlus.addEventListener("click", () => {
+        let val = parseFloat(yardSelector.value) || 1;
+        yardSelector.value = Math.min(yards, val + 0.5);
+        updateYardSelection();
+      });
+      if(yardSelector) yardSelector.addEventListener("change", updateYardSelection);
+      if(yardSelector) yardSelector.addEventListener("input", updateYardSelection);
+
+      // Initialize
+      updateYardSelection();
+    }
+
+    // Update mini-note based on sell_by_yard
+    const buyBoxNote = document.getElementById("buyBoxNote");
+    if(buyBoxNote){
+      buyBoxNote.innerHTML = isCutToOrder
+        ? '\u2022 Seller ships within <strong>5 business days</strong> \u2022 Buyer Protection \u2022 ✂️ Seller will cut to your requested yardage.'
+        : '\u2022 Seller ships within <strong>5 business days</strong> \u2022 Buyer Protection \u2022 Price is for the entire lot.';
+    }
+
     const isPublished = listing.is_published !== false;
     const status = (listing.status || "active").toLowerCase();
     const isNotForSale = !isPublished && status === "active";
@@ -1348,7 +1429,7 @@
 
     if(statusRow){
       statusRow.textContent = (isPublished ? "Published" : "Draft") +
-        " · " + (isNotForSale ? "Not for Sale" : (isSold ? "Sold" : "Active"));
+        " \u00b7 " + (isNotForSale ? "Not for Sale" : (isSold ? "Sold" : "Active"));
       if(isSold){
         const pill = document.createElement("span");
         pill.className = "sold-pill";
@@ -1427,17 +1508,20 @@
 
     if(addBtn){
       const perYdDollars = priceCents != null ? (priceCents / 100) : 0;
-      const totalCents = (priceCents != null && yards != null && !isNaN(yards))
-        ? priceCents * yards
+      // For cut-to-order, default to 1 yard; otherwise full lot
+      const defaultYards = isCutToOrder ? 1 : (yards || 0);
+      const totalCents = (priceCents != null && defaultYards > 0)
+        ? priceCents * defaultYards
         : 0;
 
       addBtn.dataset.id = listing.id;
       addBtn.dataset.name = listing.title || "Fabric listing";
       addBtn.dataset.amount = String(totalCents);
       addBtn.dataset.price = perYdDollars.toFixed(2);
-      addBtn.dataset.yards = yards != null ? String(yards) : "0";
+      addBtn.dataset.yards = defaultYards != null ? String(defaultYards) : "0";
       addBtn.dataset.sellerId = sellerId;
       addBtn.dataset.sellerName = names.store || names.person || "Seller";
+      if(isCutToOrder) addBtn.dataset.sellByYard = "true";
       const firstImg = listing.image_url_1 || "";
       addBtn.dataset.photo = firstImg;
 
@@ -1450,7 +1534,7 @@
       }else{
         const totalMoney = moneyFromCents(totalCents);
         addBtn.disabled = false;
-        addBtn.textContent = totalMoney ? `Add to Cart — ${totalMoney}` : "Add to Cart";
+        addBtn.textContent = totalMoney ? `Add to Cart \u2014 ${totalMoney}` : "Add to Cart";
       }
     }
 
