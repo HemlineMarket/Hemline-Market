@@ -143,16 +143,13 @@
     .results.show { display: block; }
     .results-overview { font-size: 15px; color: #374151; line-height: 1.65; margin: 0 0 24px; }
 
-    /* Pieces */
-    .piece { margin-bottom: 28px; }
-    .piece:last-child { margin-bottom: 0; }
-    .piece-name { font-size: 17px; font-weight: 700; color: var(--hm-text); margin-bottom: 4px; }
-    .piece-looks-like { font-size: 13px; color: var(--hm-muted); font-style: italic; margin-bottom: 6px; }
-    .piece-yardage {
-      font-size: 13px; color: #166534; font-weight: 600;
-      background: #f0fdf4; border: 1px solid #bbf7d0;
-      padding: 4px 12px; border-radius: 999px; display: inline-block; margin-bottom: 8px;
+    /* Best Guess */
+    .best-guess {
+      font-size: 14px; color: #374151; line-height: 1.6; margin-bottom: 20px;
+      padding: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px;
     }
+    .best-guess strong { color: #166534; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; display: block; margin-bottom: 4px; }
+    .options-label { font-size: 14px; font-weight: 700; color: var(--hm-text); margin-bottom: 10px; }
 
     /* Options */
     .option {
@@ -179,9 +176,9 @@
     }
 
     /* Tip */
-    .piece-tip {
+    .concierge-tip {
       background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
-      padding: 12px 14px; margin-top: 12px; font-size: 13px; color: #92400e; line-height: 1.5;
+      padding: 12px 14px; margin-top: 16px; font-size: 13px; color: #92400e; line-height: 1.5;
     }
 
     /* Disclaimer */
@@ -441,13 +438,13 @@ function renderResults(data) {
     html += `<p class="results-overview">${esc(data.overview)}</p>`;
   }
 
-  (data.pieces || []).forEach(piece => {
-    html += `<div class="piece">`;
-    html += `<div class="piece-name">${esc(piece.name)}</div>`;
-    if (piece.looksLike) html += `<div class="piece-looks-like">Looks like: ${esc(piece.looksLike)}</div>`;
-    if (piece.estimatedYardage) html += `<div class="piece-yardage">${esc(piece.estimatedYardage)}</div>`;
+  if (data.bestGuess) {
+    html += `<div class="best-guess"><strong>Most likely fabric</strong>${esc(data.bestGuess)}</div>`;
+  }
 
-    (piece.options || []).forEach(opt => {
+  if (data.options && data.options.length) {
+    html += `<div class="options-label">It could also be</div>`;
+    data.options.forEach(opt => {
       const dc = (opt.difficulty || '').toLowerCase().includes('beginner') ? 'beginner'
         : (opt.difficulty || '').toLowerCase().includes('advanced') ? 'advanced' : 'intermediate';
 
@@ -465,10 +462,11 @@ function renderResults(data) {
         </div>
       </div>`;
     });
+  }
 
-    if (piece.tip) html += `<div class="piece-tip">${esc(piece.tip)}</div>`;
-    html += `</div>`;
-  });
+  if (data.tip) {
+    html += `<div class="concierge-tip">${esc(data.tip)}</div>`;
+  }
 
   if (data.disclaimer) {
     html += `<div class="disclaimer">${esc(data.disclaimer)}</div>`;
@@ -533,21 +531,24 @@ ttPostBtn.addEventListener('click', async () => {
       body += lastResultData.overview + '\n\n';
     }
 
-    (lastResultData.pieces || []).forEach(piece => {
-      body += `${piece.name}\n`;
-      if (piece.looksLike) body += `Looks like: ${piece.looksLike}\n`;
-      if (piece.estimatedYardage) body += `${piece.estimatedYardage}\n`;
-      body += '\nFabric options:\n';
-      (piece.options || []).forEach((opt, i) => {
+    if (lastResultData.bestGuess) {
+      body += `Most likely fabric: ${lastResultData.bestGuess}\n\n`;
+    }
+
+    if (lastResultData.options && lastResultData.options.length) {
+      body += 'It could also be:\n';
+      lastResultData.options.forEach((opt, i) => {
         body += `${i + 1}. ${opt.fabric} (${opt.price}, ${opt.difficulty})\n`;
         body += `   Pros: ${opt.pros}\n`;
         body += `   Cons: ${opt.cons}\n`;
       });
-      if (piece.tip) body += `\nTip: ${piece.tip}\n`;
-      body += '\n';
-    });
+    }
 
-    body += 'What do you think? Any fabric suggestions?';
+    if (lastResultData.tip) {
+      body += `\nTip: ${lastResultData.tip}\n`;
+    }
+
+    body += '\nWhat do you think? Any fabric suggestions?';
 
     // 3. Create the ThreadTalk thread
     const { data: threadData, error: threadError } = await sb
