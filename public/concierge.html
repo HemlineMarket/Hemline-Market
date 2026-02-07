@@ -153,24 +153,26 @@
 
     /* Options */
     .option {
-      background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 12px;
-      padding: 16px; margin-top: 10px; transition: all 0.15s;
+      background: #f9fafb; border-left: 4px solid #e5e7eb; border-radius: 4px;
+      padding: 14px 16px; margin-top: 10px; transition: all 0.15s;
     }
-    .option.tier-investment { border-color: #991b1b; background: #fef8f8; }
-    .option.tier-mid-range { border-color: #6b7280; background: #f9fafb; }
-    .option.tier-budget { border-color: #854d0e; background: #fffef5; }
+    .option.tier-investment { border-left-color: #991b1b; background: #fef8f8; }
+    .option.tier-mid-range { border-left-color: #6b7280; background: #f9fafb; }
+    .option.tier-budget { border-left-color: #854d0e; background: #fffef5; }
     .option:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
     .option-top {
       display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
+      margin-bottom: 6px;
     }
-    .option-name { font-size: 15px; font-weight: 700; color: var(--hm-text); }
+    .option-tier-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .tier-text-investment { color: #991b1b; }
+    .tier-text-mid-range { color: #6b7280; }
+    .tier-text-budget { color: #854d0e; }
+    .option-name { font-size: 15px; font-weight: 700; color: var(--hm-text); margin-bottom: 8px; }
     .option-tags { display: flex; gap: 6px; flex-wrap: wrap; }
     .option-tag { padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-    .option-tag.price { background: #f3f4f6; color: #374151; }
-    .option-tag.investment { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-    .option-tag.mid-range { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
-    .option-tag.budget { background: #fefce8; color: #854d0e; border: 1px solid #fde68a; }
     .option-tag.beginner { background: #d1fae5; color: #065f46; }
     .option-tag.intermediate { background: #fef3c7; color: #92400e; }
     .option-tag.advanced { background: #fecaca; color: #991b1b; }
@@ -447,22 +449,34 @@ function renderResults(data) {
   }
 
   if (data.options && data.options.length) {
+    // Sort: Investment first, Mid-range second, Budget last
+    const tierOrder = { 'investment': 0, 'mid-range': 1, 'budget': 2 };
+    const sorted = [...data.options].sort((a, b) => {
+      const aT = (a.price || '').toLowerCase().includes('investment') ? 'investment'
+        : (a.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
+      const bT = (b.price || '').toLowerCase().includes('investment') ? 'investment'
+        : (b.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
+      return (tierOrder[aT] || 1) - (tierOrder[bT] || 1);
+    });
+
     html += `<div class="options-label">It could also be</div>`;
-    data.options.forEach(opt => {
+    sorted.forEach(opt => {
       const dc = (opt.difficulty || '').toLowerCase().includes('beginner') ? 'beginner'
         : (opt.difficulty || '').toLowerCase().includes('advanced') ? 'advanced' : 'intermediate';
 
       const pc = (opt.price || '').toLowerCase().includes('investment') ? 'investment'
         : (opt.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
 
+      const tierLabel = pc === 'investment' ? 'Investment' : pc === 'budget' ? 'Budget' : 'Mid-range';
+
       html += `<div class="option tier-${pc}">
         <div class="option-top">
-          <span class="option-name">${esc(opt.fabric)}</span>
+          <span class="option-tier-label tier-text-${pc}">${tierLabel}</span>
           <div class="option-tags">
-            <span class="option-tag ${pc}">${esc(opt.price)}</span>
             <span class="option-tag ${dc}">${esc(opt.difficulty)}</span>
           </div>
         </div>
+        <div class="option-name">${esc(opt.fabric)}</div>
         <div class="option-row">
           <div class="option-pros"><strong>Pros</strong>${esc(opt.pros)}</div>
           <div class="option-cons"><strong>Cons</strong>${esc(opt.cons)}</div>
