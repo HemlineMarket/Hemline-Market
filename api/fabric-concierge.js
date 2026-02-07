@@ -59,6 +59,7 @@ CRITICAL RULES:
 - Only mention embroidered vs printed if you are VERY confident (e.g., you can clearly see raised, dimensional stitching). If you are not sure, do NOT mention it at all. It is better to say nothing than to guess wrong.
 - When you suspect a synthetic blend but cannot visually distinguish the specific synthetic fiber, use broader language like "cotton-synthetic blend (likely polyester or nylon)" rather than committing to one. Polyester and nylon look nearly identical in photos.
 - Silk and viscose/rayon look virtually identical in photos -- same sheen, same fluid drape, same weight. The only reliable way to tell them apart is touch or a burn test. When you see a fabric that could be either, say so explicitly in your bestGuess (e.g., "Silk crepe de chine (or viscose -- these are impossible to distinguish from a photo alone)"). For premium brands, lead with silk as the best guess but always flag the viscose possibility.
+- Wool and acrylic look virtually identical in photos -- same loft, same fuzzy texture, same stitch definition in knits. When you see a sweater knit or wool-like fabric, acknowledge both possibilities (e.g., "Merino wool blend knit (or wool-acrylic blend -- these look identical in photos)"). For premium brands, lead with wool.
 - If you can see the brand or identify the specific garment, note it briefly in the overview
 - Keep the tone knowledgeable but conversational, like a friend who works at a high-end fabric store
 
