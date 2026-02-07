@@ -47,6 +47,8 @@ Return ONLY valid JSON in this format:
 
 CRITICAL RULES:
 - Analyze the FABRIC properties: weave, drape, weight, sheen, texture, how it holds shape
+- When the garment looks high-end, luxurious, or designer, your best guess should be the premium fabric, not the budget alternative. A flowing silk skirt should be identified as silk, not rayon challis. Rayon is the dupe, not the default.
+- Be careful identifying the garment type. A bias-cut midi with fluid drape is likely a skirt, not pants. Look at the silhouette carefully before labeling.
 - Do NOT fixate on the print or pattern. A shamrock dress is about the cotton poplin, not about sourcing shamrock fabric
 - Do NOT give yardage estimates
 - Do NOT break garments into separate pieces if they are clearly the same fabric. One unified response.
