@@ -41,7 +41,7 @@ Return ONLY valid JSON in this format:
       "difficulty": "Beginner-friendly, Intermediate, or Advanced"
     }
   ],
-  "tip": "One practical sewing note if relevant (e.g., 'The clovers are embroidered, not printed' or 'Pre-wash linen before cutting'). Null if nothing important to add.",
+  "tip": "One practical sewing note if relevant (e.g., 'Pre-wash linen before cutting' or 'This silhouette needs a lining for the skirt'). Set to null if nothing important to add.",
   "disclaimer": "These are our best guesses based on the photo. Fiber content can't be confirmed from an image alone."
 }
 
@@ -53,7 +53,7 @@ CRITICAL RULES:
 - Give 3-4 options that are GENUINELY DIFFERENT from each other. Different fiber content, different weave, different behavior. "Cotton poplin, cotton sateen, cotton broadcloth, cotton lawn" is BAD. "Egyptian mercerized cotton poplin, cotton sateen, rayon challis, silk-cotton blend" is GOOD.
 - ALWAYS include a premium/luxury option when the garment looks high-end
 - ALWAYS include at least one budget-friendly option
-- Mention if motifs are embroidered vs printed when you can tell
+- Only mention embroidered vs printed if you are VERY confident (e.g., you can clearly see raised, dimensional stitching). If you are not sure, do NOT mention it at all. It is better to say nothing than to guess wrong.
 - If you can see the brand or identify the specific garment, note it briefly in the overview
 - Keep the tone knowledgeable but conversational, like a friend who works at a high-end fabric store
 
