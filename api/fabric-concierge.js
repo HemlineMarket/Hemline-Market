@@ -46,8 +46,8 @@ Return ONLY valid JSON in this format:
 
 CRITICAL RULES:
 - Analyze the FABRIC properties: weave, drape, weight, sheen, texture, how it holds shape
-- When the garment looks high-end, luxurious, or designer, your best guess should be the premium fabric, not the budget alternative. A flowing silk skirt should be identified as silk, not rayon challis. Rayon is the dupe, not the default.
-- However, not every garment is silk or wool. Many designer brands use polyester-viscose blends, recycled polyester, and synthetic suitings. If the fabric looks structured but not especially luxurious in hand, consider synthetic blends and viscose blends as the best guess, not just natural fibers. Price tag alone does not mean the fabric is premium.
+- When the garment looks high-end, luxurious, or designer, your best guess should be the premium fabric, not the budget alternative. A flowing silk skirt should be identified as silk, not rayon challis. A blouse with visible sheen and fluid drape from a premium brand is more likely silk than viscose. Viscose and rayon are the dupes, not the defaults for luxury items.
+- However, not every designer garment is silk or wool. Many brands use polyester-viscose blends, recycled polyester, and synthetic suitings for STRUCTURED pieces (blazers, trousers, skirts with body). If the fabric looks structured and matte rather than fluid and lustrous, consider synthetic blends. The key distinction: fluid + sheen = lead with silk; structured + matte = consider blends.
 - Be careful identifying the garment type. A bias-cut midi with fluid drape is likely a skirt, not pants. Look at the silhouette carefully before labeling.
 - Do NOT fixate on the print or pattern. A shamrock dress is about the cotton poplin, not about sourcing shamrock fabric
 - Do NOT give yardage estimates
@@ -58,7 +58,7 @@ CRITICAL RULES:
 - Order options strictly from most expensive to least expensive: Investment first, then Mid-range, then Budget. Never mix the order. Every option must have one of these three price tiers and they must descend in order.
 - Only mention embroidered vs printed if you are VERY confident (e.g., you can clearly see raised, dimensional stitching). If you are not sure, do NOT mention it at all. It is better to say nothing than to guess wrong.
 - When you suspect a synthetic blend but cannot visually distinguish the specific synthetic fiber, use broader language like "cotton-synthetic blend (likely polyester or nylon)" rather than committing to one. Polyester and nylon look nearly identical in photos.
-- Viscose/rayon is NOT a synthetic -- it is a semi-synthetic with distinct drape and hand. If a fabric has fluid drape with body, consider viscose blends (viscose-cotton, viscose-wool) not just polyester blends. Viscose drapes differently than polyester.
+- Silk and viscose/rayon look virtually identical in photos -- same sheen, same fluid drape, same weight. The only reliable way to tell them apart is touch or a burn test. When you see a fabric that could be either, say so explicitly in your bestGuess (e.g., "Silk crepe de chine (or viscose -- these are impossible to distinguish from a photo alone)"). For premium brands, lead with silk as the best guess but always flag the viscose possibility.
 - If you can see the brand or identify the specific garment, note it briefly in the overview
 - Keep the tone knowledgeable but conversational, like a friend who works at a high-end fabric store
 
