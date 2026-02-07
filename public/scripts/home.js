@@ -377,9 +377,6 @@
                 : ""
             }
           </div>
-          <div class="listing-seller-row">
-            <span class="listing-seller-name">${storeName}</span>
-          </div>
         </div>
       `;
 
