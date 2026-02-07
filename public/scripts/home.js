@@ -221,7 +221,7 @@
           const uniqueSellers = new Set((sellerData || []).map(r => r.seller_id)).size;
           
           if (totalListings > 0 && uniqueSellers > 0) {
-            statsEl.textContent = totalListings + '+ fabrics from ' + uniqueSellers + ' sellers';
+            statsEl.textContent = totalListings + ' fabrics from ' + uniqueSellers + ' sellers';
           }
         }
       } catch (statsErr) {
