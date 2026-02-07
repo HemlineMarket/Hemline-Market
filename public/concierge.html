@@ -513,19 +513,22 @@ async function postToThreadTalk(data) {
     // 2. Build thread body
     let body = '';
     if (data.overview) body += data.overview + '\n\n';
-    if (data.bestGuess) body += `Most likely fabric: ${data.bestGuess}\n\n`;
+
+    if (data.bestGuess) {
+      body += '🧵 Most likely fabric:\n' + data.bestGuess + '\n\n';
+    }
 
     if (data.options && data.options.length) {
-      body += 'It could also be:\n';
+      body += 'It could also be:\n\n';
       data.options.forEach((opt, i) => {
-        body += `${i + 1}. ${opt.fabric} (${opt.price}, ${opt.difficulty})\n`;
-        body += `   Pros: ${opt.pros}\n`;
-        body += `   Cons: ${opt.cons}\n`;
+        body += `${i + 1}. ${opt.fabric} (${opt.price})\n`;
+        body += `   ✓ ${opt.pros}\n`;
+        body += `   ✗ ${opt.cons}\n\n`;
       });
     }
 
-    if (data.tip) body += `\nTip: ${data.tip}\n`;
-    body += '\nWhat do you think? Any fabric suggestions?';
+    if (data.tip) body += '💡 ' + data.tip + '\n\n';
+    body += 'What do you think? Any fabric suggestions?';
 
     // 3. Create thread
     const { error: threadError } = await sb
