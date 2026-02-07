@@ -190,6 +190,44 @@
         return true;
       });
 
+      // Fetch marketplace stats for the counter
+      try {
+        const statsEl = document.getElementById('marketplaceStats');
+        if (statsEl) {
+          const now2 = new Date();
+          const [listingCount, sellerCount] = await Promise.all([
+            supabaseClient
+              .from("listings")
+              .select("id", { count: "exact", head: true })
+              .eq("status", "ACTIVE")
+              .eq("is_published", true)
+              .or('published_at.is.null,published_at.lte.' + now2.toISOString()),
+            supabaseClient
+              .from("listings")
+              .select("seller_id", { count: "exact", head: true })
+              .eq("status", "ACTIVE")
+              .eq("is_published", true)
+              .or('published_at.is.null,published_at.lte.' + now2.toISOString())
+          ]);
+          
+          const totalListings = listingCount.count || 0;
+          // For distinct sellers, query unique seller_ids
+          const { data: sellerData } = await supabaseClient
+            .from("listings")
+            .select("seller_id")
+            .eq("status", "ACTIVE")
+            .eq("is_published", true)
+            .or('published_at.is.null,published_at.lte.' + now2.toISOString());
+          const uniqueSellers = new Set((sellerData || []).map(r => r.seller_id)).size;
+          
+          if (totalListings > 0 && uniqueSellers > 0) {
+            statsEl.textContent = totalListings + '+ fabrics from ' + uniqueSellers + ' sellers';
+          }
+        }
+      } catch (statsErr) {
+        console.error("Stats error", statsErr);
+      }
+
     } catch (e) {
       console.error("Home listings exception", e);
       if (skeleton) skeleton.style.display = "none";
