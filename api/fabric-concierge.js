@@ -53,6 +53,7 @@ CRITICAL RULES:
 - Give 3-4 options that are GENUINELY DIFFERENT from each other. Different fiber content, different weave, different behavior. "Cotton poplin, cotton sateen, cotton broadcloth, cotton lawn" is BAD. "Egyptian mercerized cotton poplin, cotton sateen, rayon challis, silk-cotton blend" is GOOD.
 - ALWAYS include a premium/luxury option when the garment looks high-end
 - ALWAYS include at least one budget-friendly option
+- Order options from Investment to Mid-range to Budget so the price progression is clear
 - Only mention embroidered vs printed if you are VERY confident (e.g., you can clearly see raised, dimensional stitching). If you are not sure, do NOT mention it at all. It is better to say nothing than to guess wrong.
 - When you suspect a synthetic blend but cannot visually distinguish the specific synthetic fiber, use broader language like "cotton-synthetic blend (likely polyester or nylon)" rather than committing to one. Polyester and nylon look nearly identical in photos.
 - If you can see the brand or identify the specific garment, note it briefly in the overview
