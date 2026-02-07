@@ -507,7 +507,7 @@
       // author link → Atelier (using ?u= to match existing atelier.html)
       const badgeHtml = getBadgeHtml(thread.author_id);
       const authorHtml = thread.author_id
-        ? `<a class="card-author" href="atelier.html?u=${encodeURIComponent(thread.author_id)}">${escapeHtml(authorName)}</a>${badgeHtml}`
+        ? `<a class="card-author" href="atelier.html?u=${encodeURIComponent(thread.author_id)}">${escapeHtml(authorName)}</a> ${badgeHtml}`
         : `<span class="card-author">${escapeHtml(authorName)}</span>`;
 
       // Get user avatar (photo or initials)
@@ -539,7 +539,10 @@
             </div>` : ""}
         </div>
 
-        <div class="card-body">${linkify(thread.body || "")}</div>
+        <div class="card-body-wrap">
+          <div class="card-body card-body-collapsed">${linkify(thread.body || "")}</div>
+          <button class="card-read-more" type="button" data-tt-role="read-more">Read more</button>
+        </div>
         ${mediaHtml ? `<div class="card-media">${mediaHtml}</div>` : ""}
 
         ${reactionSummaryHtml ? `<div class="card-reactions">${reactionSummaryHtml}</div>` : ""}
@@ -593,6 +596,14 @@
       attachLinkPreview(card, thread);
 
       cardsEl.appendChild(card);
+
+      // Hide "Read more" if body content is short
+      const bodyEl = card.querySelector(".card-body");
+      const readMoreBtn = card.querySelector(".card-read-more");
+      if (bodyEl && readMoreBtn && bodyEl.scrollHeight <= 100) {
+        bodyEl.classList.remove("card-body-collapsed");
+        readMoreBtn.style.display = "none";
+      }
     });
   }
 
@@ -670,7 +681,7 @@
     // author link → Atelier for comments (using ?u=)
     const commentBadgeHtml = getBadgeHtml(c.author_id);
     const authorHtml = c.author_id
-      ? `<a class="comment-author" href="atelier.html?u=${encodeURIComponent(c.author_id)}">${escapeHtml(name)}</a>${commentBadgeHtml}`
+      ? `<a class="comment-author" href="atelier.html?u=${encodeURIComponent(c.author_id)}">${escapeHtml(name)}</a> ${commentBadgeHtml}`
       : `<span class="comment-author">${escapeHtml(name)}</span>`;
 
     // Get user avatar (photo or initials)
@@ -1169,6 +1180,15 @@
       const threadId = card ? Number(card.dataset.threadId) : null;
 
       switch (role) {
+        case "read-more": {
+          const wrap = roleEl.closest(".card-body-wrap");
+          if (wrap) {
+            const body = wrap.querySelector(".card-body");
+            body.classList.remove("card-body-collapsed");
+            roleEl.style.display = "none";
+          }
+          break;
+        }
         case "thread-like-toggle": {
           const ok = await ensureLoggedInFor("react");
           if (!ok) return;
