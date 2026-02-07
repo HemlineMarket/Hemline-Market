@@ -2270,6 +2270,8 @@
     }
 
     html += escapeHtml(str.slice(lastIndex));
+    // Convert newlines to <br> for readable formatting
+    html = html.replace(/\n/g, "<br>");
     return html;
   }
 
