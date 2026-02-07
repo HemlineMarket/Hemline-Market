@@ -178,7 +178,7 @@
     .option-cons { color: var(--hm-text); }
     .option-pros strong, .option-cons strong {
       font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; display: block; margin-bottom: 2px;
-      color: var(--hm-muted);
+      color: var(--hm-text);
     }
     }
 
@@ -517,19 +517,19 @@ async function postToThreadTalk(data) {
       mediaUrl = pub?.publicUrl || null;
     }
 
-    // 2. Build thread body -- keep it short for the feed
+    // 2. Build thread body -- short summary + structured data for rendering
     let body = '';
-    if (data.overview) body += data.overview + '\n\n';
+    if (data.overview) body += data.overview;
 
-    if (data.bestGuess) {
-      body += '🧵 The concierge thinks this is: ' + data.bestGuess.split('.')[0].split(' - ')[0].trim() + '\n\n';
-    }
+    // Append structured concierge data as JSON after delimiter
+    const conciergePayload = {
+      bestGuess: data.bestGuess ? data.bestGuess.split(' - ')[0].split('. ')[0].trim() : null,
+      options: (data.options || []).map(o => ({ fabric: o.fabric, price: o.price, pros: o.pros, cons: o.cons })),
+      tip: data.tip || null
+    };
+    body += '\n\n<!--concierge:' + JSON.stringify(conciergePayload) + '-->';
 
-    if (data.options && data.options.length) {
-      body += 'Alternatives: ' + data.options.map(o => o.fabric).join(', ') + '\n\n';
-    }
-
-    body += 'What fabric do you think this is? Any suggestions for recreating this look?';
+    body += '\n\nWhat fabric do you think this is? Any suggestions for recreating this look?';
 
     // 3. Create thread
     const { error: threadError } = await sb
