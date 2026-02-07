@@ -494,6 +494,20 @@
     pwInput.addEventListener('input', validatePassword);
     suEmail.addEventListener('input', validatePassword);
 
+    // Helper: get redirect URL from ?next= param, fallback to index.html
+    function getRedirectUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next');
+      if (next) {
+        try {
+          const url = new URL(next, window.location.origin);
+          // Only allow same-origin redirects
+          if (url.origin === window.location.origin) return url.pathname + url.search;
+        } catch (e) {}
+      }
+      return 'index.html';
+    }
+
     // Email + Password login → go to homepage
     const loginForm = document.getElementById("login");
     
@@ -560,7 +574,7 @@
             window.HM_announce('Login successful. Redirecting...', 'polite');
           }
           // Use replace to prevent back button issues
-          window.location.replace("index.html");
+          window.location.replace(getRedirectUrl());
         } else {
           alert("Login failed. Please try again.");
           btn.disabled = false;
