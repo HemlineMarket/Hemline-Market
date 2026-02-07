@@ -540,7 +540,7 @@
         </div>
 
         <div class="card-body-wrap">
-          <div class="card-body card-body-collapsed">${linkify(thread.body || "")}</div>
+          <div class="card-body card-body-collapsed">${renderCardBody(thread.body || "")}</div>
           <button class="card-read-more" type="button" data-tt-role="read-more">Read more</button>
         </div>
         ${mediaHtml ? `<div class="card-media">${mediaHtml}</div>` : ""}
@@ -2272,6 +2272,61 @@
   }
 
   // Turn raw text into safe HTML with clickable links, keeping all original text.
+  function renderCardBody(text) {
+    const str = String(text || "");
+    const conciergeMatch = str.match(/<!--concierge:(.*?)-->/);
+
+    if (!conciergeMatch) return linkify(str);
+
+    // Split body around the concierge data
+    const before = str.slice(0, conciergeMatch.index).trim();
+    const after = str.slice(conciergeMatch.index + conciergeMatch[0].length).trim();
+
+    let html = linkify(before);
+
+    try {
+      const d = JSON.parse(conciergeMatch[1]);
+
+      if (d.bestGuess) {
+        html += `<div class="tt-concierge-guess"><span class="tt-concierge-label">MOST LIKELY FABRIC</span>${escapeHtml(d.bestGuess)}</div>`;
+      }
+
+      if (d.options && d.options.length) {
+        const tierOrder = { 'investment': 0, 'mid-range': 1, 'budget': 2 };
+        const sorted = [...d.options].sort((a, b) => {
+          const aT = (a.price || '').toLowerCase().includes('investment') ? 'investment'
+            : (a.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
+          const bT = (b.price || '').toLowerCase().includes('investment') ? 'investment'
+            : (b.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
+          return (tierOrder[aT] || 1) - (tierOrder[bT] || 1);
+        });
+
+        sorted.forEach(opt => {
+          const pc = (opt.price || '').toLowerCase().includes('investment') ? 'investment'
+            : (opt.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
+          const tierLabel = pc === 'investment' ? 'Investment' : pc === 'budget' ? 'Budget' : 'Mid-range';
+          html += `<div class="tt-concierge-opt tt-tier-${pc}">
+            <span class="tt-concierge-tier tt-tier-text-${pc}">${tierLabel}</span>
+            <strong>${escapeHtml(opt.fabric)}</strong>
+            <div class="tt-concierge-row">
+              <div><b>Pros</b> ${escapeHtml(opt.pros)}</div>
+              <div><b>Cons</b> ${escapeHtml(opt.cons)}</div>
+            </div>
+          </div>`;
+        });
+      }
+
+      if (d.tip) {
+        html += `<div class="tt-concierge-tip">${escapeHtml(d.tip)}</div>`;
+      }
+    } catch (e) {
+      console.warn("[ThreadTalk] Could not parse concierge data", e);
+    }
+
+    if (after) html += `<br>${linkify(after)}`;
+    return html;
+  }
+
   function linkify(text) {
     const str = String(text || "");
     const urlRegex = /(https?:\/\/[^\s]+)/g;
