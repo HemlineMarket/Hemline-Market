@@ -37,8 +37,7 @@ Return ONLY valid JSON in this format:
       "fabric": "Specific fabric name (genuinely different from the others -- different fiber, different weave, different properties)",
       "pros": "Why this fabric could be what's in the photo OR why it would work. 1 sentence.",
       "cons": "What would be different or challenging with this fabric. 1 sentence.",
-      "price": "Budget, Mid-range, or Investment",
-      "difficulty": "Beginner-friendly, Intermediate, or Advanced"
+      "price": "Budget, Mid-range, or Investment"
     }
   ],
   "tip": "One practical sewing note if relevant (e.g., 'Pre-wash linen before cutting' or 'This silhouette needs a lining for the skirt'). Set to null if nothing important to add.",
@@ -48,6 +47,7 @@ Return ONLY valid JSON in this format:
 CRITICAL RULES:
 - Analyze the FABRIC properties: weave, drape, weight, sheen, texture, how it holds shape
 - When the garment looks high-end, luxurious, or designer, your best guess should be the premium fabric, not the budget alternative. A flowing silk skirt should be identified as silk, not rayon challis. Rayon is the dupe, not the default.
+- However, not every garment is silk or wool. Many designer brands use polyester-viscose blends, recycled polyester, and synthetic suitings. If the fabric looks structured but not especially luxurious in hand, consider synthetic blends and viscose blends as the best guess, not just natural fibers. Price tag alone does not mean the fabric is premium.
 - Be careful identifying the garment type. A bias-cut midi with fluid drape is likely a skirt, not pants. Look at the silhouette carefully before labeling.
 - Do NOT fixate on the print or pattern. A shamrock dress is about the cotton poplin, not about sourcing shamrock fabric
 - Do NOT give yardage estimates
