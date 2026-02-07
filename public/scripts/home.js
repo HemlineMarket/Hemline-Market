@@ -168,7 +168,7 @@
         .eq("is_published", true)
         .or('published_at.is.null,published_at.lte.' + now.toISOString())
         .order("published_at", { ascending: false, nullsFirst: false })
-        .limit(6);
+        .limit(8);
 
       if (error) {
         console.error("Home listings error", error);
