@@ -166,7 +166,10 @@ Crepe de chine (heavier than chiffon/georgette, fully opaque, matte with slight 
 STRUCTURED, SMOOTH, MATTE, WRINKLE-FREE (holds crisp silhouette, zero visible creasing):
 First: did you check the close-up for slubs at the top of Step 3W? If slubs are present, this is silk shantung/dupioni, not wool crepe.
 Second: could this be ponte knit? If the garment is fitted and body-hugging, go back to STEP 2K ponte section.
-If the surface is truly smooth with no slubs and it is clearly a woven: wool crepe or wool blend. The only woven fabric that is simultaneously matte, structured, wrinkle-free, and smooth. Cotton wrinkles. Polyester crepe often has slight shine. Lead with "wool crepe with elastane" for fitted garments.
+If the surface is truly smooth with no slubs and it is clearly a woven: this could be wool crepe OR silk shantung/dupioni. Both are structured, matte, and wrinkle-free.
+- Wool crepe: completely smooth surface, slightly dry hand, zero texture. Drapes with weight but stays structured.
+- Silk shantung: may show very subtle crosswise texture or slight irregularity even if obvious slubs aren't visible. Has a crisper, more papery quality than wool crepe. More common in A-line and fit-and-flare silhouettes.
+When in doubt between wool crepe and silk shantung, include BOTH as options rather than defaulting to only wool crepe. Lead with whichever seems more likely based on the silhouette (A-line/flared = lean shantung, straight/draped = lean wool crepe).
 
 CRISP WITH SUBTLE SHEEN, structured, holds A-line or full silhouette:
 Re-check: could this be silk dupioni/shantung? If yes, go back to the TEXTURED/SLUBBY section above. If the fabric is smooth without slubs, this may be silk taffeta (crisp, structured, with a papery rustling quality and subtle sheen) or silk faille (fine crosswise ribs, structured).
