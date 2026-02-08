@@ -50,7 +50,7 @@ Return ONLY valid JSON:
 {
   "overview": "2-3 sentences describing the garment: silhouette, construction details (fit, closures, gathers, structure). Conversational tone.",
   "bestGuess": "The most likely fabric with reasoning based on the decision tree below. Be specific (e.g., 'silk charmeuse' not 'silk'). When two fibers look identical in photos (silk/viscose, cashmere/merino, linen/hemp, wool/acrylic), name both possibilities.",
-  "caveat": "Optional (include ONLY when relevant). A short note when something makes identification harder than usual: heavy ruffles/tiers obscuring drape behavior, print obscuring weave texture, very dark or very light color washing out surface detail, low-resolution or distant photo, or multiple plausible fabric categories. Keep it to 1 sentence, conversational. Omit this field entirely when identification is straightforward.",
+  "caveat": "Optional (include ONLY when relevant). A short note when something makes identification harder than usual: heavy ruffles/tiers obscuring drape behavior, print obscuring weave texture, very dark or very light color washing out surface detail, low-resolution or distant photo, or multiple plausible fabric categories. ALSO include a caveat for ALL knits (except when a fuzzy mohair halo is clearly visible) because fiber content in knits is nearly impossible to determine from photos - wool, cotton, cashmere, alpaca, and synthetic blends can all look identical in a knit construction. Similarly, include a caveat for structured matte wovens where cotton and viscose are visually indistinguishable. Keep it to 1 sentence, conversational. Omit this field entirely only when identification is genuinely clear-cut (e.g., obvious denim, obvious lace, obvious velvet with pile visible).",
   "options": [
     {
       "fabric": "Specific fabric name (a different fiber/weave from the others)",
@@ -76,7 +76,11 @@ If BOTH conditions are met, go to STEP V. If only color depth is present but the
 
 CORDUROY: Visible vertical ridges (wales) running down the fabric. Wide wale = casual. Fine/pinwale = dressier. Go to STEP V.
 
-LEATHER / FAUX LEATHER / SUEDE: Smooth leather has a distinct surface sheen and visible grain. Suede has a matte, napped texture. Neither drapes like fabric - they hold stiff folds and creases. Go to STEP L.
+LEATHER / FAUX LEATHER / SUEDE: Check BEFORE assuming corduroy, cotton, or wool.
+- SUEDE: matte, velvety napped surface with NO weave structure visible. Unlike velvet, suede has a flat, uniform nap without individual pile fibers. Unlike cotton or corduroy, suede shows NO woven texture at all - the surface is completely smooth and uniform. Suede holds stiff, angular folds and creases rather than soft fabric drape. Common in pinafore dresses, jackets, and skirts in tan, camel, brown, and black. If the garment is structured with clean edges and shows a uniform matte napped surface with no visible weave or knit structure, this is likely suede.
+- SMOOTH LEATHER: visible surface grain or slight sheen, stiff drape, holds shape without wrinkling. Clean, precise edges.
+- FAUX LEATHER / FAUX SUEDE: similar appearance to real versions but more uniform surface, lighter weight.
+Go to STEP L.
 
 DENIM: Visible diagonal twill weave, indigo or washed blue color, often with contrast topstitching, rivets, or five-pocket construction. If you see denim indicators, go to STEP D.
 
@@ -128,7 +132,7 @@ STEP 2K (KNITS): WHAT DOES THE SURFACE LOOK LIKE?
 - Smooth, even, fine-gauge with no fuzz: cashmere, fine merino, or baby alpaca. These three look nearly identical in photos. Say "cashmere, fine merino, or alpaca blend knit" and acknowledge all three are possible.
 - Medium-gauge with visible stitch definition, no fuzz: merino wool, alpaca blend, or wool-acrylic blend. Alpaca has a slightly silkier sheen than wool. These are hard to distinguish in photos, so name all plausible fibers.
 - Chunky, lofty: wool, alpaca, or acrylic. Acknowledge ambiguity.
-- Flat, dense, no loft: cotton knit or cotton-modal blend.
+- Flat, dense, no loft: could be cotton knit, cotton-modal blend, or a fine wool blend. Without touching the fabric, these are very hard to distinguish. If the garment is casual/relaxed (t-shirts, basic sweaters), lean cotton. If it has a softer drape or more refined finish, consider wool or wool-blend.
 - STRUCTURED, THICK, BODY-HUGGING with smooth matte surface, no visible stitch loops: this is a double knit. Could be ponte, scuba, or a wool blend double knit. All look similar in photos.
   Options should span: merino wool or wool-blend double knit (Investment - natural fibers, breathable, holds shape beautifully), viscose-nylon-elastane ponte (Mid-range - the most common ponte composition, excellent recovery), polyester-rayon-spandex ponte or scuba (Budget - affordable, wrinkle-resistant but less breathable).
   Do NOT list three variations of synthetic ponte as different tiers. The Investment option should always be a wool or wool-blend knit.
