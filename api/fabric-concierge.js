@@ -112,13 +112,12 @@ Identify weight and stretch content.
 Provide 3 options spanning Investment to Budget.
 
 STEP E (EYELET / LACE / CUTWORK / LASER-CUT):
-Identify the construction type and base material:
-- Cotton eyelet (broderie anglaise): small embroidered holes in cotton fabric. Most common. Options: cotton eyelet (Investment), cotton-poly eyelet (Mid-range), polyester eyelet (Budget).
-- Allover lace: delicate openwork pattern. Options: cotton lace (Investment), nylon/cotton blend lace (Mid-range), polyester lace (Budget).
-- Laser-cut or die-cut fabric: geometric holes or strips cut from a solid base fabric. Identify the base: if thick/structured, likely polyester, scuba, or neoprene. If lightweight, could be cotton or rayon. Options should reflect the base material.
-- Crochet: visible yarn structure. Options: cotton crochet (Investment), cotton-acrylic blend (Mid-range), polyester crochet (Budget).
-The openwork construction IS the fabric type. Say "cotton eyelet" or "laser-cut polyester," not "crepe with cutwork decoration."
-Provide 3 options spanning Investment to Budget.
+Identify the construction type. EYELET and LACE are different fabrics:
+- ALLOVER LACE: the entire fabric is an intricate, continuous openwork pattern with no solid base visible. The pattern is created by the fabric construction itself (knitted or woven). Looks like a web or net with decorative motifs throughout. Common in fitted tops, overlay dresses, and lingerie. Options: cotton lace (Investment), cotton-poly blend lace (Mid-range), polyester lace (Budget). If the garment is fitted and stretchy, it is likely a stretch lace with elastane.
+- COTTON EYELET (broderie anglaise): a SOLID cotton base fabric with individual round or oval holes punched/cut into it, each hole finished with embroidered edges. The solid fabric between holes is clearly visible. Looks like polka-dot-sized holes in cotton. Common in summer blouses and dresses. Options: cotton eyelet (Investment), cotton-poly eyelet (Mid-range), polyester eyelet (Budget).
+- LASER-CUT or die-cut fabric: geometric holes or strips cut from a solid base. Clean edges without embroidered finishing. If cuts form strips or fringe-like elements, this is laser-cut construction.
+- CROCHET: visible yarn structure with distinct loops or knots. Heavier, more textural than lace.
+The openwork construction IS the fabric type. Provide 3 options spanning Investment to Budget.
 
 STEP 1: IS IT A KNIT OR A WOVEN?
 Knits stretch, conform to the body, and show visible stitch loops or a jersey-like surface. Wovens have a flat woven surface and behave differently at gathering/draping points. Note: some structured knits (ponte, scuba) can look like wovens because they hold shape - check STEP 2K before assuming woven. If knit, go to STEP 2K. If woven, go to STEP 2W.
