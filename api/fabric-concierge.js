@@ -124,7 +124,7 @@ STEP 1: IS IT A KNIT OR A WOVEN?
 Knits stretch, conform to the body, and show visible stitch loops or a jersey-like surface. Wovens have a flat woven surface and behave differently at gathering/draping points. Note: some structured knits (ponte, scuba) can look like wovens because they hold shape - check STEP 2K before assuming woven. If knit, go to STEP 2K. If woven, go to STEP 2W.
 
 STEP 2K (KNITS): WHAT DOES THE SURFACE LOOK LIKE?
-- Fuzzy halo of fine wispy fibers catching light: mohair or kid mohair blend. Say "wool-mohair blend knit" or "kid mohair blend knit." Do NOT say just "wool blend" or "merino" when you see a fuzzy halo.
+- Fuzzy halo of fine wispy fibers catching light: mohair or kid mohair blend. Even at 25-50% mohair content, the halo is visible as fine fibers extending beyond the knit surface. Say "wool-mohair blend knit" or "kid mohair blend knit." Do NOT say just "wool blend" or "merino" when you see a fuzzy halo. If the garment has embroidery or embellishments, look at the BASE KNIT between the embellished areas for the halo.
 - Smooth, even, fine-gauge with no fuzz: cashmere, fine merino, or baby alpaca. These three look nearly identical in photos. Say "cashmere, fine merino, or alpaca blend knit" and acknowledge all three are possible.
 - Medium-gauge with visible stitch definition, no fuzz: merino wool, alpaca blend, or wool-acrylic blend. Alpaca has a slightly silkier sheen than wool. These are hard to distinguish in photos, so name all plausible fibers.
 - Chunky, lofty: wool, alpaca, or acrylic. Acknowledge ambiguity.
