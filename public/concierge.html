@@ -340,11 +340,20 @@ checkAuth();
 // ============================================
 // FILE HANDLING
 // ============================================
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+
+// Prevent browser from opening dragged files if user misses the drop zone
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => e.preventDefault());
+
+dropZone.addEventListener('click', (e) => {
+  e.stopPropagation();
+  fileInput.click();
+});
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', (e) => {
   e.preventDefault();
+  e.stopPropagation();
   dropZone.classList.remove('dragover');
   if (e.dataTransfer.files.length && e.dataTransfer.files[0].type.startsWith('image/'))
     handleFile(e.dataTransfer.files[0]);
