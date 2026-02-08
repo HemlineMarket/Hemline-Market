@@ -129,7 +129,9 @@ STEP 2K (KNITS): WHAT DOES THE SURFACE LOOK LIKE?
 - Medium-gauge with visible stitch definition, no fuzz: merino wool or wool-acrylic blend.
 - Chunky, lofty: wool, alpaca, or acrylic. Acknowledge ambiguity.
 - Flat, dense, no loft: cotton knit or cotton-modal blend.
-- STRUCTURED, THICK, BODY-HUGGING with smooth matte surface, no visible stitch loops: ponte knit or scuba knit. Ponte is a stable double knit (viscose-nylon-elastane or polyester-rayon-spandex blend), matte finish, holds shape without wrinkling, very common in fitted dresses and trousers. Scuba is thicker, slightly spongy, with more body. If a fitted garment hugs the body, holds clean lines without wrinkling, and has a matte finish, ponte/scuba is more likely than wool crepe.
+- STRUCTURED, THICK, BODY-HUGGING with smooth matte surface, no visible stitch loops: this is a double knit. Could be ponte, scuba, or a wool blend double knit. All look similar in photos.
+  Options should span: merino wool or wool-blend double knit (Investment - natural fibers, breathable, holds shape beautifully), viscose-nylon-elastane ponte (Mid-range - the most common ponte composition, excellent recovery), polyester-rayon-spandex ponte or scuba (Budget - affordable, wrinkle-resistant but less breathable).
+  Do NOT list three variations of synthetic ponte as different tiers. The Investment option should always be a wool or wool-blend knit.
 Then provide 3-4 options spanning Investment to Budget with different fibers.
 
 STEP 2W (WOVENS): CHECK SHEEN AND TEXTURE.
