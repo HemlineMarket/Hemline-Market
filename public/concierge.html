@@ -275,7 +275,7 @@
       <input type="file" id="fileInput" accept="image/*">
       <div class="drop-zone-icon">📷</div>
       <div class="drop-zone-text">Drop a photo here or <span>click to upload</span></div>
-      <div class="drop-zone-hint">An outfit, a garment, a runway shot, a Pinterest save</div>
+      <div class="drop-zone-hint">A full outfit, a product shot, a runway photo, a Pinterest save</div>
     </div>
 
     <div class="preview-area" id="previewArea">
@@ -293,8 +293,8 @@
 
     <!-- Optional hint text -->
     <div class="hint-box" id="hintBox" style="display:none;">
-      <input type="text" id="hintInput" class="hint-input" placeholder="What do you know? e.g., &quot;fuzzy texture&quot; &quot;silk&quot; &quot;crisp cotton skirt&quot;" maxlength="200" autocomplete="off">
-      <div class="hint-help">Fabric, texture, or weight helps. Brand names don't.</div>
+      <input type="text" id="hintInput" class="hint-input" placeholder="How does it feel? e.g., &quot;soft and velvety&quot; &quot;stiff denim&quot; &quot;silky and thin&quot;" maxlength="200" autocomplete="off">
+      <div class="hint-help">Texture, weight, or stretch helps. Brand names don't.</div>
     </div>
 
     <button type="button" class="concierge-btn" id="goBtn" style="display:none;">Ask the Concierge</button>
@@ -710,13 +710,19 @@ async function postToThreadTalk(data) {
 
     // 2. Build thread body -- overview text + structured data for card rendering
     let body = '';
+
+    // Include the sewist's hint/description if provided
+    const hintText = (document.getElementById('hintInput').value || '').trim();
+    if (hintText) {
+      body += `**What it feels like:** ${hintText}\n\n`;
+    }
+
     if (data.overview) body += data.overview;
 
     // Embed structured concierge data as hidden JSON -- ThreadTalk renders this as styled cards
     const conciergePayload = {
       bestGuess: data.bestGuess || null,
-      options: (data.options || []).map(o => ({ fabric: o.fabric, price: o.price, pros: o.pros, cons: o.cons })),
-      tip: data.tip || null
+      options: (data.options || []).map(o => ({ fabric: o.fabric, price: o.price, pros: o.pros, cons: o.cons }))
     };
     body += '\n\n<!--concierge:' + JSON.stringify(conciergePayload) + '-->';
 
@@ -728,7 +734,9 @@ async function postToThreadTalk(data) {
       .insert({
         author_id: currentUser.id,
         category: 'fabric-sos',
-        title: 'Fabric Concierge: Help me recreate this look',
+        title: hintText
+          ? `Fabric Concierge: ${hintText.charAt(0).toUpperCase() + hintText.slice(1)}`
+          : 'Fabric Concierge: Help me recreate this look',
         body: body.trim(),
         media_url: mediaUrl,
         media_type: mediaUrl ? 'image' : null
@@ -745,7 +753,7 @@ async function postToThreadTalk(data) {
     }
 
     ttStatus.className = 'tt-post-status success';
-    ttStatus.innerHTML = 'Shared to ThreadTalk! <a href="fabric-sos.html" style="color:#059669;font-weight:600;">View post</a>';
+    ttStatus.innerHTML = 'Shared to ThreadTalk! <a href="fabric-concierge.html" style="color:#059669;font-weight:600;">View post</a>';
     ttStatus.style.display = 'block';
 
   } catch (err) {
