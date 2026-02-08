@@ -73,11 +73,12 @@ DENIM: Visible diagonal twill weave, indigo or washed blue color, often with con
 If none of these, proceed to STEP 1.
 
 STEP V (VELVET / CORDUROY):
-Identify the base fiber. Velvet can be silk, cotton, viscose/rayon, or polyester.
-- Silk velvet: the most luxurious drape, slight irregularity in pile, very fluid
-- Cotton velvet (velveteen): stiffer, more matte, holds structure, common in trousers and jackets
-- Viscose/rayon velvet: fluid like silk but more affordable, can look slightly shinier
-- Polyester velvet: very uniform pile, can look slightly plastic, most affordable
+Identify the base fiber. Use drape behavior as the primary indicator:
+- Silk velvet: extremely fluid drape, fabric pours and pools, slight irregularity in pile. The most luxurious option.
+- Viscose/rayon velvet: fluid and drapey (similar to silk), slightly more uniform pile, very common in modern garments. If the garment drapes softly and the sewist describes it as "soft", viscose velvet is more likely than cotton.
+- Cotton velvet (velveteen): noticeably STIFFER than silk or viscose velvet. Holds its shape, does not flow or drape against the body. Common in structured garments like blazers and stiff trousers. Only say cotton velveteen if the fabric clearly holds structure and does not drape.
+- Polyester velvet: very uniform pile, can look slightly plastic, most affordable, stretchy crushed velvet is usually polyester.
+CRITICAL: If the garment shows any fluid drape or soft gathering, it is NOT cotton velveteen. Cotton velveteen is stiff. Default to viscose velvet or silk velvet for drapey velvet garments.
 For corduroy: usually cotton or cotton-blend.
 Provide 3-4 options spanning Investment to Budget with different fibers.
 
