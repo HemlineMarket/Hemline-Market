@@ -4,535 +4,349 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Fabric Concierge — Hemline Market</title>
-
   <meta name="description" content="Upload a photo of any outfit or garment. Hemline Market's Fabric Concierge breaks down the fabrics and gives you options to recreate it."/>
   <link rel="canonical" href="https://hemlinemarket.com/concierge.html"/>
-
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://hemlinemarket.com/concierge.html"/>
   <meta property="og:title" content="Fabric Concierge — Hemline Market"/>
   <meta property="og:description" content="Upload a photo. We'll break down the fabrics and help you pick the right one to recreate it."/>
   <meta property="og:image" content="https://hemlinemarket.com/images/og-image.jpg"/>
-
   <link rel="icon" href="/favicon.ico" type="image/x-icon"/>
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png"/>
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png"/>
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="styles/hm-modern.css"/>
   <link rel="stylesheet" href="styles/hm-header.css"/>
   <link rel="stylesheet" href="styles/hm-mobile.css"/>
   <link rel="stylesheet" href="styles/hm-typography.css"/>
   <link rel="stylesheet" href="styles/hm-footer.css"/>
-
   <style>
-    :root {
-      --hm-accent: #991b1b;
-      --hm-accent-soft: #fef3f2;
-      --hm-border: #e5e7eb;
-      --hm-muted: #6b7280;
-      --hm-text: #111827;
-    }
-    body {
-      margin: 0; background: #f9f7f5; color: var(--hm-text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
-    .concierge-wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; }
-
-    /* HEADER */
-    .concierge-hero { text-align: center; margin-bottom: 24px; }
-    .concierge-hero h1 {
-      font-family: 'Playfair Display', Georgia, serif;
-      font-size: 32px; font-weight: 700; color: var(--hm-accent); margin: 0 0 8px;
-    }
-    .concierge-hero p {
-      color: var(--hm-muted); font-size: 15px; margin: 0 auto;
-      max-width: 420px; line-height: 1.5;
-    }
-
-    /* CARD */
-    .concierge-card {
-      background: #fff; border-radius: 16px; border: 1px solid var(--hm-border);
-      box-shadow: 0 4px 24px rgba(0,0,0,0.06); padding: 28px 24px; position: relative;
-    }
-
-    /* AUTH GATE - shown instead of drop zone, not as overlay */
-    .auth-gate {
-      display: none; flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center; padding: 48px 24px;
-    }
-    .auth-gate.show { display: flex; }
-    .auth-gate ~ .drop-zone { display: block; }
-    .auth-gate.show ~ .drop-zone { display: none !important; }
-    .auth-gate p {
-      font-size: 15px; color: #374151; margin: 0 0 16px; line-height: 1.5;
-    }
-    .auth-gate a {
-      display: inline-block; padding: 12px 28px; border-radius: 999px;
-      background: var(--hm-accent); color: #fff; font-weight: 600;
-      font-size: 14px; text-decoration: none; transition: all 0.15s;
-      box-shadow: 0 4px 12px rgba(153,27,27,0.25);
-    }
-    .auth-gate a:hover { filter: brightness(1.1); transform: translateY(-1px); }
-
-    /* DROP ZONE */
-    .drop-zone {
-      border: 2px dashed #d1d5db; border-radius: 14px; padding: 48px 24px;
-      text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa;
-    }
-    .drop-zone:hover, .drop-zone.dragover {
-      border-color: var(--hm-accent); background: var(--hm-accent-soft);
-    }
-    .drop-zone input { display: none; }
-    .drop-zone-icon { font-size: 36px; margin-bottom: 10px; }
-    .drop-zone-text { color: #374151; font-size: 15px; margin-bottom: 4px; }
-    .drop-zone-text span { color: var(--hm-accent); text-decoration: underline; cursor: pointer; }
-    .drop-zone-hint { color: #9ca3af; font-size: 13px; }
-
-    /* PREVIEW */
-    .preview-area { display: none; text-align: center; }
-    .preview-area.show { display: block; }
-    .preview-wrap { position: relative; display: inline-block; }
-    .preview-img {
-      max-width: 100%; max-height: 320px; border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-    }
-    .preview-remove {
-      position: absolute; top: -8px; right: -8px;
-      width: 28px; height: 28px; border-radius: 50%;
-      background: #dc2626; color: #fff; border: none; cursor: pointer;
-      font-size: 16px; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-
-    /* BUTTON */
-    .concierge-btn {
-      width: 100%; margin-top: 20px; padding: 14px 24px;
-      background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
-      color: #fff; border: none; border-radius: 12px;
-      font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-    }
-    .concierge-btn:hover:not(:disabled) {
-      transform: translateY(-1px); box-shadow: 0 4px 16px rgba(153,27,27,0.3);
-    }
-    .concierge-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* HINT INPUT */
-    .hint-box { margin: 12px 0 0; }
-    .hint-input {
-      width: 100%; box-sizing: border-box; padding: 10px 14px;
-      border: 1px solid var(--hm-border); border-radius: 8px;
-      font-size: 14px; color: var(--hm-text); background: #fff;
-      font-family: inherit; outline: none; transition: border-color 0.2s;
-    }
-    .hint-input:focus { border-color: var(--hm-accent); }
-    .hint-input::placeholder { color: #9ca3af; }
-    .hint-help { font-size: 12px; color: #9ca3af; margin-top: 4px; }
-
-    /* STATUS */
-    .status-msg { text-align: center; padding: 16px; font-size: 14px; color: var(--hm-muted); }
-    .status-msg.error { color: #dc2626; }
-
-    /* LOADING */
-    .loading-dots { display: inline-flex; gap: 4px; margin-left: 8px; }
-    .loading-dots span {
-      width: 6px; height: 6px; border-radius: 50%; background: #fff;
-      animation: dot-pulse 1.4s ease-in-out infinite;
-    }
-    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes dot-pulse {
-      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-      40% { opacity: 1; transform: scale(1); }
-    }
-
-    /* RESULTS */
-    .results { display: none; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--hm-border); }
-    .results.show { display: block; }
-    .results-overview { font-size: 15px; color: #374151; line-height: 1.65; margin: 0 0 24px; }
-
-    /* Best Guess */
-    .best-guess {
-      font-size: 14px; color: var(--hm-text); line-height: 1.6; margin-bottom: 20px;
-      padding: 16px; background: #fef8f8; border-left: 4px solid #991b1b; border-radius: 4px;
-    }
-    .best-guess strong { color: #991b1b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; display: block; margin-bottom: 4px; }
-    .options-label { font-size: 14px; font-weight: 700; color: var(--hm-text); margin-bottom: 10px; }
-
-    /* Options */
-    .option {
-      background: #f9fafb; border-left: 4px solid #e5e7eb; border-radius: 4px;
-      padding: 14px 16px; margin-top: 10px; transition: all 0.15s;
-    }
-    .option.tier-investment { border-left-color: #991b1b; background: #fef8f8; }
-    .option.tier-mid-range { border-left-color: #6b7280; background: #f9fafb; }
-    .option.tier-budget { border-left-color: #854d0e; background: #fffef5; }
-    .option:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
-    .option-top {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 6px;
-    }
-    .option-tier-label {
-      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .tier-text-investment { color: #991b1b; }
-    .tier-text-mid-range { color: #6b7280; }
-    .tier-text-budget { color: #854d0e; }
-    .option-name { font-size: 15px; font-weight: 700; color: var(--hm-text); margin-bottom: 8px; }
-    .option-tags { display: flex; gap: 6px; flex-wrap: wrap; }
-    .option-tag { padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-    .option-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; line-height: 1.45; }
-    .option-pros { color: var(--hm-text); }
-    .option-cons { color: var(--hm-text); }
-    .option-pros strong, .option-cons strong {
-      font-size: 12px; font-weight: 700; display: block; margin-bottom: 2px;
-      color: var(--hm-text);
-    }
-    }
-
-    /* Tip */
-    .concierge-tip {
-      background: #f9fafb; border-left: 3px solid #d1d5db; border-radius: 4px;
-      padding: 12px 14px; margin-top: 16px; font-size: 13px; color: var(--hm-text); line-height: 1.5;
-    }
-
-    /* Disclaimer */
-    .disclaimer {
-      margin-top: 24px; padding: 12px 16px; background: #f3f4f6;
-      border-radius: 8px; font-size: 12px; color: var(--hm-muted); line-height: 1.5;
-    }
-
-    /* MATCHING LISTINGS */
-    .matching-listings { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
-    .matching-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    @media(max-width:700px) { .matching-grid { grid-template-columns: repeat(2, 1fr); } }
-    .matching-card { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; transition: box-shadow 0.15s; }
-    .matching-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .matching-thumb { aspect-ratio: 1; overflow: hidden; background: #f3f4f6; }
-    .matching-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .matching-body { padding: 8px; }
-    .matching-title { font-size: 12px; font-weight: 600; color: #1f2937; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .matching-badge { font-size: 10px; color: #6b7280; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .matching-price { font-size: 12px; font-weight: 700; color: #991b1b; margin-top: 4px; }
-
-    /* THREADTALK INLINE CHECK */
-    .tt-inline-check {
-      display: flex; align-items: center; gap: 8px; margin-top: 14px;
-      padding: 10px 14px; background: linear-gradient(135deg, #3b1010, #991b1b);
-      border-radius: 10px; cursor: pointer; user-select: none;
-    }
-    .tt-inline-check input[type="checkbox"] {
-      width: 16px; height: 16px; accent-color: #fef3c7; flex-shrink: 0; cursor: pointer;
-    }
-    .tt-inline-check span { color: #fef9f5; font-size: 13px; line-height: 1.3; }
-    .tt-inline-check strong { color: #fef3c7; }
-
-    /* THREADTALK POST STATUS (shows in results) */
-    .tt-post-status {
-      text-align: center; margin-top: 16px; padding: 10px 16px;
-      border-radius: 10px; font-size: 13px; line-height: 1.4;
-    }
-    .tt-post-status.success { background: #f0fdf4; color: #059669; border: 1px solid #bbf7d0; }
-    .tt-post-status.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-
-    @media (max-width: 600px) {
-      .concierge-hero h1 { font-size: 24px; }
-      .concierge-card { padding: 20px 16px; }
-      .drop-zone { padding: 32px 16px; }
-      .option-row { grid-template-columns: 1fr; }
-    }
+    :root{--hm-accent:#991b1b;--hm-accent-soft:#fef3f2;--hm-border:#e5e7eb;--hm-muted:#6b7280;--hm-text:#111827}
+    body{margin:0;background:#f9f7f5;color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+    .concierge-wrap{max-width:720px;margin:0 auto;padding:24px 16px 60px}
+    .concierge-hero{text-align:center;margin-bottom:24px}
+    .concierge-hero h1{font-family:'Playfair Display',Georgia,serif;font-size:32px;font-weight:700;color:var(--hm-accent);margin:0 0 8px}
+    .concierge-hero p{color:var(--hm-muted);font-size:15px;margin:0 auto;max-width:420px;line-height:1.5}
+    .concierge-card{background:#fff;border-radius:16px;border:1px solid var(--hm-border);box-shadow:0 4px 24px rgba(0,0,0,0.06);padding:28px 24px;position:relative}
+    .auth-gate{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 24px}
+    .auth-gate.show{display:flex}
+    .auth-gate~.drop-zone{display:block}
+    .auth-gate.show~.drop-zone{display:none!important}
+    .auth-gate.show~.preview-area{display:none!important}
+    .auth-gate p{font-size:15px;color:#374151;margin:0 0 16px;line-height:1.5}
+    .auth-gate a{display:inline-block;padding:12px 28px;border-radius:999px;background:var(--hm-accent);color:#fff;font-weight:600;font-size:14px;text-decoration:none;transition:all .15s;box-shadow:0 4px 12px rgba(153,27,27,.25)}
+    .auth-gate a:hover{filter:brightness(1.1);transform:translateY(-1px)}
+    .drop-zone{border:2px dashed #d1d5db;border-radius:14px;padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa}
+    .drop-zone:hover,.drop-zone.dragover{border-color:var(--hm-accent);background:var(--hm-accent-soft)}
+    .drop-zone input{display:none}
+    .drop-zone-icon{font-size:36px;margin-bottom:10px}
+    .drop-zone-text{color:#374151;font-size:15px;margin-bottom:4px}
+    .drop-zone-text span{color:var(--hm-accent);text-decoration:underline;cursor:pointer}
+    .drop-zone-hint{color:#9ca3af;font-size:13px}
+    .preview-area{display:none}
+    .preview-area.show{display:block}
+    .preview-grid{display:flex;gap:12px;justify-content:center;align-items:flex-start}
+    .preview-slot{position:relative;flex:0 1 auto}
+    .preview-slot img{max-height:280px;max-width:100%;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.1);display:block}
+    .preview-slot .remove-img{position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;background:#dc2626;color:#fff;border:none;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2);line-height:1}
+    .preview-slot .img-label{text-align:center;font-size:11px;color:var(--hm-muted);margin-top:6px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+    .add-closeup{flex:0 0 120px;height:120px;border:2px dashed #d1d5db;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;background:#fafafa;align-self:center}
+    .add-closeup:hover{border-color:var(--hm-accent);background:var(--hm-accent-soft)}
+    .add-closeup input{display:none}
+    .add-closeup-icon{font-size:22px;margin-bottom:4px;color:#9ca3af}
+    .add-closeup-text{font-size:11px;color:var(--hm-muted);text-align:center;line-height:1.3;font-weight:500}
+    .concierge-btn{width:100%;margin-top:20px;padding:14px 24px;background:linear-gradient(135deg,#991b1b 0%,#7f1d1d 100%);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s}
+    .concierge-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 16px rgba(153,27,27,.3)}
+    .concierge-btn:disabled{opacity:.5;cursor:not-allowed}
+    .hint-box{margin:12px 0 0}
+    .hint-input{width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid var(--hm-border);border-radius:8px;font-size:14px;color:var(--hm-text);background:#fff;font-family:inherit;outline:none;transition:border-color .2s}
+    .hint-input:focus{border-color:var(--hm-accent)}
+    .hint-input::placeholder{color:#9ca3af}
+    .hint-help{font-size:12px;color:#9ca3af;margin-top:4px}
+    .status-msg{text-align:center;padding:16px;font-size:14px;color:var(--hm-muted)}
+    .status-msg.error{color:#dc2626}
+    .loading-dots{display:inline-flex;gap:4px;margin-left:8px}
+    .loading-dots span{width:6px;height:6px;border-radius:50%;background:#fff;animation:dot-pulse 1.4s ease-in-out infinite}
+    .loading-dots span:nth-child(2){animation-delay:.2s}
+    .loading-dots span:nth-child(3){animation-delay:.4s}
+    @keyframes dot-pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+    .results{display:none;margin-top:28px;padding-top:24px;border-top:1px solid var(--hm-border)}
+    .results.show{display:block}
+    .results-overview{font-size:15px;color:#374151;line-height:1.65;margin:0 0 24px}
+    .best-guess{font-size:14px;color:var(--hm-text);line-height:1.6;margin-bottom:20px;padding:16px;background:#fef8f8;border-left:4px solid #991b1b;border-radius:4px}
+    .best-guess strong{color:#991b1b;font-size:12px;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px}
+    .options-label{font-size:14px;font-weight:700;color:var(--hm-text);margin-bottom:10px}
+    .option{background:#f9fafb;border-left:4px solid #e5e7eb;border-radius:4px;padding:14px 16px;margin-top:10px;transition:all .15s}
+    .option.tier-investment{border-left-color:#991b1b;background:#fef8f8}
+    .option.tier-mid-range{border-left-color:#6b7280;background:#f9fafb}
+    .option.tier-budget{border-left-color:#854d0e;background:#fffef5}
+    .option:hover{box-shadow:0 3px 10px rgba(0,0,0,.08)}
+    .option-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+    .option-tier-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+    .tier-text-investment{color:#991b1b}
+    .tier-text-mid-range{color:#6b7280}
+    .tier-text-budget{color:#854d0e}
+    .option-name{font-size:15px;font-weight:700;color:var(--hm-text);margin-bottom:8px}
+    .option-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;line-height:1.45}
+    .option-pros,.option-cons{color:var(--hm-text)}
+    .option-pros strong,.option-cons strong{font-size:12px;font-weight:700;display:block;margin-bottom:2px;color:var(--hm-text)}
+    .disclaimer{margin-top:24px;padding:12px 16px;background:#f3f4f6;border-radius:8px;font-size:12px;color:var(--hm-muted);line-height:1.5}
+    .matching-listings{margin-top:20px;padding-top:20px;border-top:1px solid #e5e7eb}
+    .matching-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    @media(max-width:700px){.matching-grid{grid-template-columns:repeat(2,1fr)}}
+    .matching-card{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;transition:box-shadow .15s}
+    .matching-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1)}
+    .matching-thumb{aspect-ratio:1;overflow:hidden;background:#f3f4f6}
+    .matching-thumb img{width:100%;height:100%;object-fit:cover}
+    .matching-body{padding:8px}
+    .matching-title{font-size:12px;font-weight:600;color:#1f2937;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .matching-badge{font-size:10px;color:#6b7280;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .matching-price{font-size:12px;font-weight:700;color:#991b1b;margin-top:4px}
+    .tt-inline-check{display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px 14px;background:linear-gradient(135deg,#3b1010,#991b1b);border-radius:10px;cursor:pointer;user-select:none}
+    .tt-inline-check input[type="checkbox"]{width:16px;height:16px;accent-color:#fef3c7;flex-shrink:0;cursor:pointer}
+    .tt-inline-check span{color:#fef9f5;font-size:13px;line-height:1.3}
+    .tt-inline-check strong{color:#fef3c7}
+    .tt-post-status{text-align:center;margin-top:16px;padding:10px 16px;border-radius:10px;font-size:13px;line-height:1.4}
+    .tt-post-status.success{background:#f0fdf4;color:#059669;border:1px solid #bbf7d0}
+    .tt-post-status.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+    @media(max-width:600px){.concierge-hero h1{font-size:24px}.concierge-card{padding:20px 16px}.drop-zone{padding:32px 16px}.option-row{grid-template-columns:1fr}.preview-slot img{max-height:200px}.add-closeup{flex:0 0 100px;height:100px}}
   </style>
-
-  <script>
-    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-  </script>
+  <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 <div id="hm-shell-header"></div>
-
 <main class="concierge-wrap">
-
   <div class="concierge-hero">
     <h1>Fabric Concierge</h1>
     <p>Upload a photo. We'll break down the fabrics and help you pick the right one to recreate it.</p>
   </div>
-
   <div class="concierge-card">
-
-    <!-- AUTH GATE -->
     <div class="auth-gate" id="authGate">
       <p>Sign in to use the Fabric Concierge.</p>
       <a id="authGateLink" href="auth.html">Sign In or Create Account</a>
     </div>
-
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept="image/*">
       <div class="drop-zone-icon">📷</div>
       <div class="drop-zone-text">Drop a photo here or <span>click to upload</span></div>
       <div class="drop-zone-hint">A full outfit, a product shot, a runway photo, a Pinterest save</div>
     </div>
-
     <div class="preview-area" id="previewArea">
-      <div class="preview-wrap">
-        <img id="previewImg" class="preview-img" src="" alt="Preview">
-        <button type="button" class="preview-remove" id="removeBtn">&times;</button>
-      </div>
+      <div class="preview-grid" id="previewGrid"></div>
     </div>
-
-    <!-- ThreadTalk opt-in (shows with preview) -->
     <label class="tt-inline-check" id="ttInlineCheck" style="display:none;">
       <input type="checkbox" id="ttCheckbox" checked>
       <span>Share to <strong>ThreadTalk</strong> so sewists can weigh in</span>
     </label>
-
-    <!-- Optional hint text -->
     <div class="hint-box" id="hintBox" style="display:none;">
       <input type="text" id="hintInput" class="hint-input" placeholder="How does it feel? e.g., &quot;soft and velvety&quot; &quot;stiff denim&quot; &quot;silky and thin&quot;" maxlength="200" autocomplete="off">
       <div class="hint-help">Texture, weight, or stretch helps. Brand names don't.</div>
     </div>
-
     <button type="button" class="concierge-btn" id="goBtn" style="display:none;">Ask the Concierge</button>
-
     <div id="statusMsg" class="status-msg" style="display:none;"></div>
-
-    <!-- RESULTS -->
     <div class="results" id="results">
       <div id="resultsContent"></div>
       <div class="tt-post-status" id="ttStatus" style="display:none;"></div>
     </div>
-
   </div>
-
 </main>
-
 <div id="hm-shell-footer"></div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="scripts/hm-shell.js"></script>
-
 <script>
-try { window.HM && window.HM.renderShell({ currentPage: "concierge" }); } catch(e) { console.error('Shell error:', e); }
+try{window.HM&&window.HM.renderShell({currentPage:"concierge"})}catch(e){console.error('Shell error:',e)}
 
-const STORAGE_BUCKET = 'threadtalk-media';
+const STORAGE_BUCKET='threadtalk-media';
+const MAX_IMAGES=2;
+const dropZone=document.getElementById('dropZone');
+const fileInput=document.getElementById('fileInput');
+const previewArea=document.getElementById('previewArea');
+const previewGrid=document.getElementById('previewGrid');
+const goBtn=document.getElementById('goBtn');
+const statusMsg=document.getElementById('statusMsg');
+const resultsEl=document.getElementById('results');
+const resultsContent=document.getElementById('resultsContent');
+const authGate=document.getElementById('authGate');
+const ttInlineCheck=document.getElementById('ttInlineCheck');
+const ttCheckbox=document.getElementById('ttCheckbox');
+const ttStatus=document.getElementById('ttStatus');
 
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const previewArea = document.getElementById('previewArea');
-const previewImg = document.getElementById('previewImg');
-const removeBtn = document.getElementById('removeBtn');
-const goBtn = document.getElementById('goBtn');
-const statusMsg = document.getElementById('statusMsg');
-const resultsEl = document.getElementById('results');
-const resultsContent = document.getElementById('resultsContent');
-const authGate = document.getElementById('authGate');
-const ttInlineCheck = document.getElementById('ttInlineCheck');
-const ttCheckbox = document.getElementById('ttCheckbox');
-const ttStatus = document.getElementById('ttStatus');
+let currentImages=[];
+let currentUser=null;
+let lastResultData=null;
 
-let currentImage = null;    // base64
-let currentFile = null;     // original File object for upload
-let currentUser = null;
-let lastResultData = null;
-
-// ============================================
-// FILE HANDLING (registered first, before auth check)
-// ============================================
-document.addEventListener('dragover', (e) => e.preventDefault());
-document.addEventListener('drop', (e) => e.preventDefault());
-dropZone.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
-dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover');
-  if (e.dataTransfer.files.length && e.dataTransfer.files[0].type.startsWith('image/')) handleFile(e.dataTransfer.files[0]);
+// FILE HANDLING
+document.addEventListener('dragover',(e)=>e.preventDefault());
+document.addEventListener('drop',(e)=>e.preventDefault());
+dropZone.addEventListener('click',(e)=>{e.stopPropagation();fileInput.click()});
+dropZone.addEventListener('dragover',(e)=>{e.preventDefault();e.stopPropagation();dropZone.classList.add('dragover')});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop',(e)=>{
+  e.preventDefault();e.stopPropagation();dropZone.classList.remove('dragover');
+  if(e.dataTransfer.files.length&&e.dataTransfer.files[0].type.startsWith('image/'))addImage(e.dataTransfer.files[0]);
 });
-fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
+fileInput.addEventListener('change',(e)=>{if(e.target.files.length)addImage(e.target.files[0]);fileInput.value=''});
 
-// ============================================
-// AUTH CHECK - uses getSession (local) instead of getUser (network)
-// ============================================
-let authRetries = 0;
-async function checkAuth() {
-  const sb = window.HM?.supabase;
-  if (!sb) {
-    if (authRetries < 20) { authRetries++; setTimeout(checkAuth, 300); }
-    else { showAuthGate(); }
-    return;
-  }
-
-  // Listen for auth state changes (handles token refresh, sign-in from other tabs)
-  sb.auth.onAuthStateChange((event, session) => {
-    if (session?.user) {
-      currentUser = session.user;
-      authGate.classList.remove('show');
-    } else if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      showAuthGate();
-    }
+// AUTH CHECK
+let authRetries=0;
+async function checkAuth(){
+  const sb=window.HM?.supabase;
+  if(!sb){if(authRetries<20){authRetries++;setTimeout(checkAuth,300)}else{showAuthGate()}return}
+  sb.auth.onAuthStateChange((event,session)=>{
+    if(session?.user){currentUser=session.user;authGate.classList.remove('show')}
+    else if(event==='SIGNED_OUT'){currentUser=null;showAuthGate()}
   });
-
-  // Check local session first (no network call)
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session?.user) {
-      currentUser = session.user;
-      authGate.classList.remove('show');
-    } else {
-      showAuthGate();
-    }
-  } catch (e) {
-    console.error('Auth check failed:', e);
-    showAuthGate();
-  }
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(session?.user){currentUser=session.user;authGate.classList.remove('show')}
+    else{showAuthGate()}
+  }catch(e){console.error('Auth check failed:',e);showAuthGate()}
 }
-
-function showAuthGate() {
-  const returnUrl = encodeURIComponent(window.location.href);
-  document.getElementById('authGateLink').href = `auth.html?next=${returnUrl}`;
+function showAuthGate(){
+  const returnUrl=encodeURIComponent(window.location.href);
+  document.getElementById('authGateLink').href=`auth.html?next=${returnUrl}`;
   authGate.classList.add('show');
 }
-
 checkAuth();
 
-// ============================================
-// FILE HANDLING
-// ============================================
-
-// (file handlers registered above, before auth check)
-
-removeBtn.addEventListener('click', () => {
-  currentImage = null;
-  currentFile = null;
-  previewArea.classList.remove('show');
-  dropZone.style.display = 'block';
-  goBtn.style.display = 'none';
-  ttInlineCheck.style.display = 'none';
-  document.getElementById('hintBox').style.display = 'none';
-  document.getElementById('hintInput').value = '';
-  resultsEl.classList.remove('show');
-  ttStatus.style.display = 'none';
-  statusMsg.style.display = 'none';
-  fileInput.value = '';
-});
-
-function handleFile(file) {
-  currentFile = file;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const max = 1200;
-      let w = img.width, h = img.height;
-      if (w > max || h > max) {
-        if (w > h) { h = Math.round(h * max / w); w = max; }
-        else { w = Math.round(w * max / h); h = max; }
-      }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      currentImage = canvas.toDataURL('image/jpeg', 0.85);
-      previewImg.src = currentImage;
-      dropZone.style.display = 'none';
-      previewArea.classList.add('show');
-      goBtn.style.display = 'block';
-      ttInlineCheck.style.display = currentUser ? 'flex' : 'none';
-      document.getElementById('hintBox').style.display = 'block';
-      resultsEl.classList.remove('show');
-      ttStatus.style.display = 'none';
-      statusMsg.style.display = 'none';
+// IMAGE MANAGEMENT
+function addImage(file){
+  if(currentImages.length>=MAX_IMAGES)return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      const max=1200;
+      let w=img.width,h=img.height;
+      if(w>max||h>max){if(w>h){h=Math.round(h*max/w);w=max}else{w=Math.round(w*max/h);h=max}}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      currentImages.push(canvas.toDataURL('image/jpeg',0.85));
+      renderPreviews();
     };
-    img.src = e.target.result;
+    img.src=e.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-// ============================================
-// ASK THE CONCIERGE (+ auto ThreadTalk post)
-// ============================================
-goBtn.addEventListener('click', async () => {
-  if (!currentImage) return;
+function removeImage(index){
+  currentImages.splice(index,1);
+  if(currentImages.length===0)resetToDropZone();
+  else renderPreviews();
+}
 
-  goBtn.disabled = true;
-  goBtn.innerHTML = 'Thinking<span class="loading-dots"><span></span><span></span><span></span></span>';
-  statusMsg.style.display = 'block';
-  statusMsg.className = 'status-msg';
-  statusMsg.textContent = 'Our concierge is looking at your photo...';
+function resetToDropZone(){
+  currentImages=[];
+  previewArea.classList.remove('show');
+  dropZone.style.display='block';
+  goBtn.style.display='none';
+  ttInlineCheck.style.display='none';
+  document.getElementById('hintBox').style.display='none';
+  document.getElementById('hintInput').value='';
   resultsEl.classList.remove('show');
-  ttStatus.style.display = 'none';
+  ttStatus.style.display='none';
+  statusMsg.style.display='none';
+}
 
-  try {
-    const resp = await fetch('/api/fabric-concierge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: currentImage, hint: document.getElementById('hintInput').value.trim() })
+function renderPreviews(){
+  dropZone.style.display='none';
+  previewArea.classList.add('show');
+  goBtn.style.display='block';
+  ttInlineCheck.style.display=currentUser?'flex':'none';
+  document.getElementById('hintBox').style.display='block';
+  resultsEl.classList.remove('show');
+  ttStatus.style.display='none';
+  statusMsg.style.display='none';
+
+  let html='';
+  currentImages.forEach((src,i)=>{
+    const label=currentImages.length===1?'':(i===0?'Full view':'Close-up');
+    html+=`<div class="preview-slot">
+      <img src="${src}" alt="Photo ${i+1}">
+      <button type="button" class="remove-img" onclick="removeImage(${i})">&times;</button>
+      ${label?`<div class="img-label">${label}</div>`:''}
+    </div>`;
+  });
+
+  if(currentImages.length<MAX_IMAGES){
+    html+=`<div class="add-closeup" id="addCloseupZone">
+      <input type="file" id="closeupInput" accept="image/*" style="display:none;">
+      <div class="add-closeup-icon">+</div>
+      <div class="add-closeup-text">Add a<br>close-up</div>
+    </div>`;
+  }
+
+  previewGrid.innerHTML=html;
+
+  const addZone=document.getElementById('addCloseupZone');
+  const closeupInput=document.getElementById('closeupInput');
+  if(addZone&&closeupInput){
+    addZone.addEventListener('click',(e)=>{e.stopPropagation();closeupInput.click()});
+    closeupInput.addEventListener('change',(e)=>{if(e.target.files.length)addImage(e.target.files[0])});
+    addZone.addEventListener('dragover',(e)=>{e.preventDefault();e.stopPropagation();addZone.style.borderColor='#991b1b';addZone.style.background='#fef3f2'});
+    addZone.addEventListener('dragleave',()=>{addZone.style.borderColor='';addZone.style.background=''});
+    addZone.addEventListener('drop',(e)=>{
+      e.preventDefault();e.stopPropagation();addZone.style.borderColor='';addZone.style.background='';
+      if(e.dataTransfer.files.length&&e.dataTransfer.files[0].type.startsWith('image/'))addImage(e.dataTransfer.files[0]);
     });
+  }
+}
 
-    const data = await resp.json();
-    if (!resp.ok || data.error) throw new Error(data.error || 'Something went wrong');
+// ASK THE CONCIERGE
+goBtn.addEventListener('click',async()=>{
+  if(!currentImages.length)return;
+  goBtn.disabled=true;
+  goBtn.innerHTML='Thinking<span class="loading-dots"><span></span><span></span><span></span></span>';
+  statusMsg.style.display='block';
+  statusMsg.className='status-msg';
+  statusMsg.textContent=currentImages.length>1?'Our concierge is looking at your photos...':'Our concierge is looking at your photo...';
+  resultsEl.classList.remove('show');
+  ttStatus.style.display='none';
 
-    lastResultData = data;
+  try{
+    const resp=await fetch('/api/fabric-concierge',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({images:currentImages,hint:document.getElementById('hintInput').value.trim()})
+    });
+    const data=await resp.json();
+    if(!resp.ok||data.error)throw new Error(data.error||'Something went wrong');
+    lastResultData=data;
     renderResults(data);
-    statusMsg.style.display = 'none';
-
-    // Auto-post to ThreadTalk if checked and logged in
-    if (ttCheckbox.checked && currentUser) {
-      postToThreadTalk(data);
-    }
-
-  } catch (err) {
-    statusMsg.textContent = err.message || 'Something went wrong. Try again.';
-    statusMsg.className = 'status-msg error';
-  } finally {
-    goBtn.disabled = false;
-    goBtn.textContent = 'Ask the Concierge';
+    statusMsg.style.display='none';
+    if(ttCheckbox.checked&&currentUser)postToThreadTalk(data);
+  }catch(err){
+    statusMsg.textContent=err.message||'Something went wrong. Try again.';
+    statusMsg.className='status-msg error';
+  }finally{
+    goBtn.disabled=false;
+    goBtn.textContent='Ask the Concierge';
   }
 });
 
-function esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s || '';
-  return d.innerHTML;
-}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
 
-function renderResults(data) {
-  let html = '';
-
-  if (data.overview) {
-    html += `<p class="results-overview">${esc(data.overview)}</p>`;
-  }
-
-  if (data.bestGuess) {
-    html += `<div class="best-guess"><strong>Most likely fabric</strong>${esc(data.bestGuess)}</div>`;
-  }
-
-  if (data.options && data.options.length) {
-    // Sort: Investment first, Mid-range second, Budget last
-    const tierOrder = { 'investment': 0, 'mid-range': 1, 'budget': 2 };
-    const sorted = [...data.options].sort((a, b) => {
-      const aT = (a.price || '').toLowerCase().includes('investment') ? 'investment'
-        : (a.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
-      const bT = (b.price || '').toLowerCase().includes('investment') ? 'investment'
-        : (b.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
-      return (tierOrder[aT] || 1) - (tierOrder[bT] || 1);
+function renderResults(data){
+  let html='';
+  if(data.overview)html+=`<p class="results-overview">${esc(data.overview)}</p>`;
+  if(data.bestGuess)html+=`<div class="best-guess"><strong>Most likely fabric</strong>${esc(data.bestGuess)}</div>`;
+  if(data.options&&data.options.length){
+    const tierOrder={'investment':0,'mid-range':1,'budget':2};
+    const sorted=[...data.options].sort((a,b)=>{
+      const aT=(a.price||'').toLowerCase().includes('investment')?'investment':(a.price||'').toLowerCase().includes('budget')?'budget':'mid-range';
+      const bT=(b.price||'').toLowerCase().includes('investment')?'investment':(b.price||'').toLowerCase().includes('budget')?'budget':'mid-range';
+      return(tierOrder[aT]||1)-(tierOrder[bT]||1);
     });
-
-    html += `<div class="options-label">It could also be</div>`;
-    sorted.forEach(opt => {
-      const pc = (opt.price || '').toLowerCase().includes('investment') ? 'investment'
-        : (opt.price || '').toLowerCase().includes('budget') ? 'budget' : 'mid-range';
-
-      const tierLabel = pc === 'investment' ? 'Investment' : pc === 'budget' ? 'Budget' : 'Mid-range';
-
-      html += `<div class="option tier-${pc}">
-        <div class="option-top">
-          <span class="option-tier-label tier-text-${pc}">${tierLabel}</span>
-        </div>
+    html+=`<div class="options-label">It could also be</div>`;
+    sorted.forEach(opt=>{
+      const pc=(opt.price||'').toLowerCase().includes('investment')?'investment':(opt.price||'').toLowerCase().includes('budget')?'budget':'mid-range';
+      const tierLabel=pc==='investment'?'Investment':pc==='budget'?'Budget':'Mid-range';
+      html+=`<div class="option tier-${pc}">
+        <div class="option-top"><span class="option-tier-label tier-text-${pc}">${tierLabel}</span></div>
         <div class="option-name">${esc(opt.fabric)}</div>
         <div class="option-row">
           <div class="option-pros"><strong>Pros</strong>${esc(opt.pros)}</div>
@@ -541,226 +355,132 @@ function renderResults(data) {
       </div>`;
     });
   }
-
-  // Tip removed from display
-
-  if (data.disclaimer) {
-    html += `<div class="disclaimer">${esc(data.disclaimer)}</div>`;
-  }
-
-  resultsContent.innerHTML = html;
+  if(data.disclaimer)html+=`<div class="disclaimer">${esc(data.disclaimer)}</div>`;
+  resultsContent.innerHTML=html;
   resultsEl.classList.add('show');
-  resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  // Search for matching listings on Hemline
+  resultsEl.scrollIntoView({behavior:'smooth',block:'start'});
   loadMatchingListings(data);
 }
 
-async function loadMatchingListings(data) {
-  const sb = window.HM?.supabase;
-  if (!sb) return;
+async function loadMatchingListings(data){
+  const sb=window.HM?.supabase;
+  if(!sb)return;
+  const phrases=[];
+  if(data.options){data.options.forEach(opt=>{if(opt.fabric){const clean=opt.fabric.replace(/\s*\(.*?\)\s*/g,'').trim().toLowerCase();if(clean.length>2)phrases.push(clean)}})}
+  if(!phrases.length)return;
+  const uniquePhrases=[...new Set(phrases)];
+  let allListings=[];
+  const seenIds=new Set();
 
-  // Collect full fabric phrases from options (these are the specific fabrics identified)
-  const phrases = [];
-  if (data.options) {
-    data.options.forEach(opt => {
-      if (opt.fabric) {
-        // Remove parenthetical notes, trim
-        const clean = opt.fabric.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase();
-        if (clean.length > 2) phrases.push(clean);
-      }
-    });
+  for(const phrase of uniquePhrases.slice(0,6)){
+    try{
+      const orFilter=`title.ilike.%${phrase}%,content.ilike.%${phrase}%,fabric_type.ilike.%${phrase}%,feels_like.ilike.%${phrase}%`;
+      const{data:listings}=await sb.from('listings').select('*').eq('status','ACTIVE').eq('is_published',true).or(orFilter).order('published_at',{ascending:false}).limit(4);
+      (listings||[]).forEach(l=>{if(!seenIds.has(l.id)&&(l.yards_available==null||l.yards_available>0)){seenIds.add(l.id);allListings.push(l)}});
+    }catch(e){console.error('Listing search error:',e)}
   }
 
-  if (!phrases.length) return;
-
-  // Deduplicate phrases
-  const uniquePhrases = [...new Set(phrases)];
-
-  let allListings = [];
-  const seenIds = new Set();
-
-  for (const phrase of uniquePhrases.slice(0, 6)) {
-    try {
-      // Search using the FULL phrase (e.g., "wool crepe", "cotton sateen")
-      // This prevents "cotton sateen" from matching "cotton gauze"
-      const orFilter = `title.ilike.%${phrase}%,content.ilike.%${phrase}%,fabric_type.ilike.%${phrase}%,feels_like.ilike.%${phrase}%`;
-
-      const { data: listings } = await sb
-        .from('listings')
-        .select('*')
-        .eq('status', 'ACTIVE')
-        .eq('is_published', true)
-        .or(orFilter)
-        .order('published_at', { ascending: false })
-        .limit(4);
-
-      (listings || []).forEach(l => {
-        if (!seenIds.has(l.id) && (l.yards_available == null || l.yards_available > 0)) {
-          seenIds.add(l.id);
-          allListings.push(l);
-        }
-      });
-    } catch (e) {
-      console.error('Listing search error:', e);
+  if(!allListings.length){
+    const baseFabrics=new Set();
+    uniquePhrases.forEach(p=>{
+      const fabricTypes=['crepe','sateen','chiffon','georgette','charmeuse','satin','twill','voile','organza','taffeta','jersey','velvet','linen','denim','flannel','mohair','cashmere','silk','wool','cotton','corduroy','suede','leather'];
+      p.split(/\s+/).forEach(w=>{if(fabricTypes.includes(w))baseFabrics.add(w)});
+    });
+    for(const base of baseFabrics){
+      try{
+        const orFilter=`title.ilike.%${base}%,fabric_type.ilike.%${base}%`;
+        const{data:listings}=await sb.from('listings').select('*').eq('status','ACTIVE').eq('is_published',true).or(orFilter).order('published_at',{ascending:false}).limit(4);
+        (listings||[]).forEach(l=>{if(!seenIds.has(l.id)&&(l.yards_available==null||l.yards_available>0)){seenIds.add(l.id);allListings.push(l)}});
+      }catch(e){console.error('Listing fallback search error:',e)}
     }
   }
 
-  // If full-phrase search got nothing, try the base fabric type as fallback
-  // e.g., for "wool crepe with elastane", try just "crepe"
-  if (!allListings.length) {
-    const baseFabrics = new Set();
-    uniquePhrases.forEach(p => {
-      // Extract the core fabric word (last word that's a fabric type)
-      const fabricTypes = ['crepe', 'sateen', 'chiffon', 'georgette', 'charmeuse', 'satin',
-        'twill', 'voile', 'organza', 'taffeta', 'jersey', 'velvet', 'linen', 'denim',
-        'flannel', 'mohair', 'cashmere', 'silk', 'wool', 'cotton'];
-      const words = p.split(/\s+/);
-      for (const w of words) {
-        if (fabricTypes.includes(w)) baseFabrics.add(w);
-      }
-    });
-
-    for (const base of baseFabrics) {
-      try {
-        const orFilter = `title.ilike.%${base}%,fabric_type.ilike.%${base}%`;
-        const { data: listings } = await sb
-          .from('listings')
-          .select('*')
-          .eq('status', 'ACTIVE')
-          .eq('is_published', true)
-          .or(orFilter)
-          .order('published_at', { ascending: false })
-          .limit(4);
-
-        (listings || []).forEach(l => {
-          if (!seenIds.has(l.id) && (l.yards_available == null || l.yards_available > 0)) {
-            seenIds.add(l.id);
-            allListings.push(l);
-          }
-        });
-      } catch (e) {
-        console.error('Listing fallback search error:', e);
-      }
-    }
-  }
-
-  if (!allListings.length) return;
-
-  // Limit to 8 max
-  allListings = allListings.slice(0, 8);
-
-  // Render listing cards
-  let listingsHtml = `<div class="matching-listings">
-    <div style="font-size:16px;font-weight:700;color:#1f2937;margin-bottom:12px;">Shop these fabrics on Hemline</div>
-    <div class="matching-grid">`;
-
-  allListings.forEach(item => {
-    const priceCents = item.price_cents != null ? Number(item.price_cents) : (item.price != null ? Math.round(Number(item.price) * 100) : null);
-    const priceDisplay = priceCents != null ? '$' + (priceCents / 100).toFixed(2) + '/yd' : '';
-    const title = item.title || 'Untitled';
-    const img = item.image_url_1 || '';
-    const href = 'listing.html?id=' + encodeURIComponent(item.id);
-    const content = item.content && item.content !== 'Not sure' ? item.content : '';
-    const fabricType = item.fabric_type || '';
-    const badge = [content, fabricType].filter(Boolean).join(' · ');
-
-    listingsHtml += `<a href="${href}" class="matching-card" style="text-decoration:none;color:inherit;">
-      <div class="matching-thumb">${img ? `<img src="${img}" alt="${esc(title)}" loading="lazy">` : ''}</div>
-      <div class="matching-body">
-        <div class="matching-title">${esc(title)}</div>
-        ${badge ? `<div class="matching-badge">${esc(badge)}</div>` : ''}
-        ${priceDisplay ? `<div class="matching-price">${priceDisplay}</div>` : ''}
-      </div>
-    </a>`;
+  if(!allListings.length)return;
+  allListings=allListings.slice(0,8);
+  let listingsHtml=`<div class="matching-listings"><div style="font-size:16px;font-weight:700;color:#1f2937;margin-bottom:12px;">Shop these fabrics on Hemline</div><div class="matching-grid">`;
+  allListings.forEach(item=>{
+    const priceCents=item.price_cents!=null?Number(item.price_cents):(item.price!=null?Math.round(Number(item.price)*100):null);
+    const priceDisplay=priceCents!=null?'$'+(priceCents/100).toFixed(2)+'/yd':'';
+    const title=item.title||'Untitled';
+    const img=item.image_url_1||'';
+    const href='listing.html?id='+encodeURIComponent(item.id);
+    const content=item.content&&item.content!=='Not sure'?item.content:'';
+    const fabricType=item.fabric_type||'';
+    const badge=[content,fabricType].filter(Boolean).join(' \u00b7 ');
+    listingsHtml+=`<a href="${href}" class="matching-card" style="text-decoration:none;color:inherit;"><div class="matching-thumb">${img?`<img src="${img}" alt="${esc(title)}" loading="lazy">`:''}</div><div class="matching-body"><div class="matching-title">${esc(title)}</div>${badge?`<div class="matching-badge">${esc(badge)}</div>`:''}${priceDisplay?`<div class="matching-price">${priceDisplay}</div>`:''}</div></a>`;
   });
-
-  listingsHtml += `</div>
-    <a href="browse.html" style="display:inline-block;margin-top:10px;font-size:13px;font-weight:600;color:#991b1b;text-decoration:none;">Browse all fabrics →</a>
-  </div>`;
-
-  resultsContent.insertAdjacentHTML('beforeend', listingsHtml);
+  listingsHtml+=`</div><a href="browse.html" style="display:inline-block;margin-top:10px;font-size:13px;font-weight:600;color:#991b1b;text-decoration:none;">Browse all fabrics \u2192</a></div>`;
+  resultsContent.insertAdjacentHTML('beforeend',listingsHtml);
 }
 
-// ============================================
-// THREADTALK AUTO-POST
-// ============================================
-async function postToThreadTalk(data) {
-  const sb = window.HM?.supabase;
-  if (!sb || !currentUser) return;
-
-  try {
-    // 1. Upload image
-    let mediaUrl = null;
-    const base64Data = currentImage.split(',')[1];
-    const byteChars = atob(base64Data);
-    const byteArray = new Uint8Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
-    const blob = new Blob([byteArray], { type: 'image/jpeg' });
-
-    const filePath = `${currentUser.id}/concierge-${Date.now()}.jpg`;
-    const { data: uploadData, error: uploadError } = await sb.storage
-      .from(STORAGE_BUCKET)
-      .upload(filePath, blob, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' });
-
-    if (!uploadError && uploadData) {
-      const { data: pub } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(uploadData.path);
-      mediaUrl = pub?.publicUrl || null;
-    }
-
-    // 2. Build thread body -- overview text + structured data for card rendering
-    let body = '';
-
-    // Include the sewist's hint/description if provided
-    const hintText = (document.getElementById('hintInput').value || '').trim();
-    if (hintText) {
-      body += `**What it feels like:** ${hintText}\n\n`;
-    }
-
-    if (data.overview) body += data.overview;
-
-    // Embed structured concierge data as hidden JSON -- ThreadTalk renders this as styled cards
-    const conciergePayload = {
-      bestGuess: data.bestGuess || null,
-      options: (data.options || []).map(o => ({ fabric: o.fabric, price: o.price, pros: o.pros, cons: o.cons }))
+// RESIZE FOR THREADTALK (400px, low quality)
+function resizeForThreadTalk(dataUrl,maxPx){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>h){h=Math.round(h*maxPx/w);w=maxPx}else{w=Math.round(w*maxPx/h);h=maxPx}}
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      canvas.toBlob((blob)=>resolve(blob),'image/jpeg',0.70);
     };
-    body += '\n\n<!--concierge:' + JSON.stringify(conciergePayload) + '-->';
+    img.src=dataUrl;
+  });
+}
 
-    body += '\n\nWhat fabric do you think this is? Any suggestions for recreating this look?';
+// THREADTALK AUTO-POST
+async function postToThreadTalk(data){
+  const sb=window.HM?.supabase;
+  if(!sb||!currentUser)return;
+  try{
+    const mediaUrls=[];
+    for(let i=0;i<currentImages.length;i++){
+      try{
+        const ttBlob=await resizeForThreadTalk(currentImages[i],400);
+        const filePath=`${currentUser.id}/concierge-${Date.now()}-${i}.jpg`;
+        const{data:uploadData,error:uploadError}=await sb.storage.from(STORAGE_BUCKET).upload(filePath,ttBlob,{cacheControl:'3600',upsert:false,contentType:'image/jpeg'});
+        if(!uploadError&&uploadData){const{data:pub}=sb.storage.from(STORAGE_BUCKET).getPublicUrl(uploadData.path);if(pub?.publicUrl)mediaUrls.push(pub.publicUrl)}
+      }catch(e){console.error('Image upload error:',e)}
+    }
 
-    // 3. Create thread
-    const { error: threadError } = await sb
-      .from('threadtalk_threads')
-      .insert({
-        author_id: currentUser.id,
-        category: 'fabric-sos',
-        title: hintText
-          ? `Fabric Concierge: ${hintText.charAt(0).toUpperCase() + hintText.slice(1)}`
-          : 'Fabric Concierge: Help me recreate this look',
-        body: body.trim(),
-        media_url: mediaUrl,
-        media_type: mediaUrl ? 'image' : null
-      })
-      .select()
-      .single();
+    let body='';
+    const hintText=(document.getElementById('hintInput').value||'').trim();
+    if(hintText)body+=`**What it feels like:** ${hintText}\n\n`;
+    if(data.overview)body+=data.overview;
+    const conciergePayload={bestGuess:data.bestGuess||null,options:(data.options||[]).map(o=>({fabric:o.fabric,price:o.price,pros:o.pros,cons:o.cons}))};
+    body+='\n\n<!--concierge:'+JSON.stringify(conciergePayload)+'-->';
+    body+='\n\nWhat fabric do you think this is? Any suggestions for recreating this look?';
 
-    if (threadError) {
-      console.error('ThreadTalk post error:', threadError);
-      ttStatus.className = 'tt-post-status error';
-      ttStatus.textContent = 'Could not share to ThreadTalk.';
-      ttStatus.style.display = 'block';
+    let mediaUrl=null;
+    let mediaType=null;
+    if(mediaUrls.length>1){mediaUrl=JSON.stringify(mediaUrls);mediaType='images'}
+    else if(mediaUrls.length===1){mediaUrl=mediaUrls[0];mediaType='image'}
+
+    const{error:threadError}=await sb.from('threadtalk_threads').insert({
+      author_id:currentUser.id,
+      category:'fabric-sos',
+      title:hintText?`Fabric Concierge: ${hintText.charAt(0).toUpperCase()+hintText.slice(1)}`:'Fabric Concierge: Help me recreate this look',
+      body:body.trim(),
+      media_url:mediaUrl,
+      media_type:mediaType
+    }).select().single();
+
+    if(threadError){
+      console.error('ThreadTalk post error:',threadError);
+      ttStatus.className='tt-post-status error';
+      ttStatus.textContent='Could not share to ThreadTalk.';
+      ttStatus.style.display='block';
       return;
     }
-
-    ttStatus.className = 'tt-post-status success';
-    ttStatus.innerHTML = 'Shared to ThreadTalk! <a href="fabric-concierge.html" style="color:#059669;font-weight:600;">View post</a>';
-    ttStatus.style.display = 'block';
-
-  } catch (err) {
-    console.error('ThreadTalk post error:', err);
-    ttStatus.className = 'tt-post-status error';
-    ttStatus.textContent = 'Could not share to ThreadTalk.';
-    ttStatus.style.display = 'block';
+    ttStatus.className='tt-post-status success';
+    ttStatus.innerHTML='Shared to ThreadTalk! <a href="fabric-concierge.html" style="color:#059669;font-weight:600;">View post</a>';
+    ttStatus.style.display='block';
+  }catch(err){
+    console.error('ThreadTalk post error:',err);
+    ttStatus.className='tt-post-status error';
+    ttStatus.textContent='Could not share to ThreadTalk.';
+    ttStatus.style.display='block';
   }
 }
 </script>
