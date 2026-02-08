@@ -125,7 +125,7 @@ Knits stretch, conform to the body, and show visible stitch loops or a jersey-li
 
 STEP 2K (KNITS): WHAT DOES THE SURFACE LOOK LIKE?
 - Fuzzy halo of fine wispy fibers catching light: mohair or kid mohair blend. Say "wool-mohair blend knit" or "kid mohair blend knit." Do NOT say just "wool blend" or "merino" when you see a fuzzy halo.
-- Smooth, even, fine-gauge with no fuzz: cashmere or fine merino. These look identical in photos. Say "cashmere knit or fine merino wool knit."
+- Smooth, even, fine-gauge with no fuzz: cashmere, fine merino, or baby alpaca. These three look nearly identical in photos. Say "cashmere, fine merino, or alpaca blend knit" and acknowledge all three are possible.
 - Medium-gauge with visible stitch definition, no fuzz: merino wool or wool-acrylic blend.
 - Chunky, lofty: wool, alpaca, or acrylic. Acknowledge ambiguity.
 - Flat, dense, no loft: cotton knit or cotton-modal blend.
