@@ -79,6 +79,13 @@ LEATHER / FAUX LEATHER / SUEDE: Smooth leather has a distinct surface sheen and 
 
 DENIM: Visible diagonal twill weave, indigo or washed blue color, often with contrast topstitching, rivets, or five-pocket construction. If you see denim indicators, go to STEP D.
 
+EYELET / LACE / CUTWORK / LASER-CUT: If the fabric has visible holes, openwork patterns, or a perforated surface, this is an openwork fabric. This is the FABRIC ITSELF, not a decoration on top of another fabric. Do NOT describe it as "fringe" or "embroidery on crepe."
+- Eyelet (broderie anglaise): regular pattern of small holes with finished/stitched edges, usually cotton or cotton blend. Very common in blouses, dresses, and skirts.
+- Allover lace: intricate openwork pattern created by the weave/knit structure. Can be cotton, nylon, polyester, or silk.
+- Laser-cut fabric: clean-edged geometric cutouts or strips, often in neoprene, scuba, faux leather, or heavier wovens. Creates a modern, graphic look. If the cuts form strips or fringe-like elements, this is laser-cut construction, not actual fringe.
+- Crochet / macramé: visible yarn loops or knots forming an open structure.
+Go to STEP E.
+
 If none of these, proceed to STEP 1.
 
 STEP V (VELVET / CORDUROY):
@@ -102,6 +109,15 @@ Identify weight and stretch content.
 - Rigid/raw denim: no stretch, structured silhouette, classic stiff drape
 - Cotton denim with elastane (2-5%): slight stretch for comfort, most common modern denim
 - Cotton-polyester denim blend: lighter weight, budget-friendly
+Provide 3 options spanning Investment to Budget.
+
+STEP E (EYELET / LACE / CUTWORK / LASER-CUT):
+Identify the construction type and base material:
+- Cotton eyelet (broderie anglaise): small embroidered holes in cotton fabric. Most common. Options: cotton eyelet (Investment), cotton-poly eyelet (Mid-range), polyester eyelet (Budget).
+- Allover lace: delicate openwork pattern. Options: cotton lace (Investment), nylon/cotton blend lace (Mid-range), polyester lace (Budget).
+- Laser-cut or die-cut fabric: geometric holes or strips cut from a solid base fabric. Identify the base: if thick/structured, likely polyester, scuba, or neoprene. If lightweight, could be cotton or rayon. Options should reflect the base material.
+- Crochet: visible yarn structure. Options: cotton crochet (Investment), cotton-acrylic blend (Mid-range), polyester crochet (Budget).
+The openwork construction IS the fabric type. Say "cotton eyelet" or "laser-cut polyester," not "crepe with cutwork decoration."
 Provide 3 options spanning Investment to Budget.
 
 STEP 1: IS IT A KNIT OR A WOVEN?
@@ -167,7 +183,7 @@ SLUBBY TEXTURE, natural creasing, visible irregularity, MATTE:
 Linen or hemp (look identical in photos, name both).
 
 OUTPUT RULES:
-- If the garment has embroidery, cutwork, beading, sequins, or applique, analyze the BASE FABRIC underneath the decoration, not the decoration itself. Mention the decoration briefly in the overview, then focus entirely on the base fabric for bestGuess and options.
+- If the garment has embroidery, beading, sequins, or applique ON TOP OF a base fabric, analyze the BASE FABRIC underneath, not the decoration. But if the openwork IS the fabric (eyelet, lace, cutwork, laser-cut), use Step E instead -- the construction is the fabric type.
 - 3-4 options with different fibers. Not "cotton poplin, cotton sateen, cotton broadcloth."
 - Options ordered: Investment first, Mid-range, Budget last.
 - Price tier logic: pure natural fibers > synthetic blends. Silk > viscose. Wool > acrylic. Cotton > cotton-poly blend.
