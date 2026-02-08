@@ -122,6 +122,18 @@
     }
     .concierge-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    /* HINT INPUT */
+    .hint-box { margin: 12px 0 0; }
+    .hint-input {
+      width: 100%; box-sizing: border-box; padding: 10px 14px;
+      border: 1px solid var(--hm-border); border-radius: 8px;
+      font-size: 14px; color: var(--hm-text); background: #fff;
+      font-family: inherit; outline: none; transition: border-color 0.2s;
+    }
+    .hint-input:focus { border-color: var(--hm-accent); }
+    .hint-input::placeholder { color: #9ca3af; }
+    .hint-help { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+
     /* STATUS */
     .status-msg { text-align: center; padding: 16px; font-size: 14px; color: var(--hm-muted); }
     .status-msg.error { color: #dc2626; }
@@ -279,6 +291,12 @@
       <span>Share to <strong>ThreadTalk</strong> so sewists can weigh in</span>
     </label>
 
+    <!-- Optional hint text -->
+    <div class="hint-box" id="hintBox" style="display:none;">
+      <input type="text" id="hintInput" class="hint-input" placeholder="What do you know? e.g., &quot;fuzzy texture&quot; &quot;silk&quot; &quot;crisp cotton skirt&quot;" maxlength="200" autocomplete="off">
+      <div class="hint-help">Fabric, texture, or weight helps. Brand names don't.</div>
+    </div>
+
     <button type="button" class="concierge-btn" id="goBtn" style="display:none;">Ask the Concierge</button>
 
     <div id="statusMsg" class="status-msg" style="display:none;"></div>
@@ -395,6 +413,8 @@ removeBtn.addEventListener('click', () => {
   dropZone.style.display = 'block';
   goBtn.style.display = 'none';
   ttInlineCheck.style.display = 'none';
+  document.getElementById('hintBox').style.display = 'none';
+  document.getElementById('hintInput').value = '';
   resultsEl.classList.remove('show');
   ttStatus.style.display = 'none';
   statusMsg.style.display = 'none';
@@ -422,6 +442,7 @@ function handleFile(file) {
       previewArea.classList.add('show');
       goBtn.style.display = 'block';
       ttInlineCheck.style.display = currentUser ? 'flex' : 'none';
+      document.getElementById('hintBox').style.display = 'block';
       resultsEl.classList.remove('show');
       ttStatus.style.display = 'none';
       statusMsg.style.display = 'none';
@@ -449,7 +470,7 @@ goBtn.addEventListener('click', async () => {
     const resp = await fetch('/api/fabric-concierge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: currentImage })
+      body: JSON.stringify({ image: currentImage, hint: document.getElementById('hintInput').value.trim() })
     });
 
     const data = await resp.json();
