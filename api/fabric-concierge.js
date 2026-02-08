@@ -148,12 +148,12 @@ Flag silk vs viscose vs polyester ambiguity where relevant.
 STEP 3W (MATTE WOVENS): HOW DOES THE FABRIC BEHAVE?
 
 HOLDS VOLUME outward from body, crisp/defined gathers, fabric stands away from legs:
-Look at the surface more closely:
-- Smooth with NO texture, NO sheen, matte: cotton poplin or cotton broadcloth. Cotton has body and is the most common structured matte fabric.
-- Smooth with SUBTLE SHEEN: re-check Step 2W High Sheen section. This could be cotton sateen, silk taffeta, or silk faille.
-- Visible horizontal slubs or texture with sheen: silk dupioni/shantung (see TEXTURED/SLUBBY section in Step 2W).
-- Lightweight with volume but slightly translucent or airy: could be cotton voile/lawn (see Semi-Sheer in Step 2W) or silk organza (crisper, sheerer than chiffon with more body).
-- Pleated or gathered construction creating fullness: the fabric itself may actually be fluid (silk, viscose) but the construction technique is creating the volume. Check if individual fabric sections (between gathers) drape softly - if so, this is a FLUID fabric with structural sewing, not a stiff fabric. Consider silk crepe de chine, viscose, or silk habotai for garments where the fullness comes from generous gathering rather than fabric stiffness.
+FIRST check the close-up for texture:
+- Visible horizontal slubs, bumps, or irregular ridges across the surface: this is silk dupioni or silk shantung, even if it appears matte in the photo. Dark-colored shantung (navy, black, dark green) often shows minimal sheen in photos but the slubby crosswise texture is the giveaway. Options: silk dupioni (Investment), silk shantung (Mid-range), polyester dupioni (Budget).
+- Smooth with NO texture, NO sheen, completely matte and flat: cotton poplin or cotton broadcloth.
+- Smooth with SUBTLE SHEEN: re-check Step 2W High Sheen section. Could be cotton sateen, silk taffeta, or silk faille.
+- Lightweight with volume but slightly translucent or airy: could be cotton voile/lawn (see Semi-Sheer in Step 2W) or silk organza.
+- Pleated or gathered construction creating fullness: the fabric itself may actually be fluid (silk, viscose) but the construction technique is creating the volume. Check if individual fabric sections (between gathers) drape softly -- if so, this is a FLUID fabric with structural sewing, not a stiff fabric. Consider silk crepe de chine, viscose, or silk habotai.
 
 FLUID DRAPE against the body, soft movement, fabric flows with the body but is opaque and matte:
 Crepe de chine (heavier than chiffon/georgette, fully opaque, matte with slight pebbly texture) or viscose/rayon challis (soft, opaque, matte, lightweight, flows but does not float). Challis is lighter and softer, crepe de chine has more body and a subtle pebbly texture.
