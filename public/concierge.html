@@ -61,23 +61,7 @@
     }
 
     /* AUTH GATE OVERLAY */
-    .auth-gate {
-      position: absolute; inset: 0; background: rgba(255,255,255,0.92);
-      border-radius: 16px; display: none; flex-direction: column;
-      align-items: center; justify-content: center; z-index: 10;
-      text-align: center; padding: 24px;
-    }
-    .auth-gate.show { display: flex; }
-    .auth-gate p {
-      font-size: 15px; color: #374151; margin: 0 0 16px; line-height: 1.5;
-    }
-    .auth-gate a {
-      display: inline-block; padding: 12px 28px; border-radius: 999px;
-      background: var(--hm-accent); color: #fff; font-weight: 600;
-      font-size: 14px; text-decoration: none; transition: all 0.15s;
-      box-shadow: 0 4px 12px rgba(153,27,27,0.25);
-    }
-    .auth-gate a:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    /* AUTH GATE - removed, concierge is open to all */
 
     /* DROP ZONE */
     .drop-zone {
@@ -239,11 +223,7 @@
 
   <div class="concierge-card">
 
-    <!-- AUTH GATE -->
-    <div class="auth-gate" id="authGate">
-      <p>Sign in to use the Fabric Concierge.</p>
-      <a id="authGateLink" href="auth.html">Sign In or Create Account</a>
-    </div>
+    <!-- Auth checked silently for ThreadTalk posting only -->
 
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept="image/*">
@@ -298,7 +278,6 @@ const goBtn = document.getElementById('goBtn');
 const statusMsg = document.getElementById('statusMsg');
 const resultsEl = document.getElementById('results');
 const resultsContent = document.getElementById('resultsContent');
-const authGate = document.getElementById('authGate');
 const ttInlineCheck = document.getElementById('ttInlineCheck');
 const ttCheckbox = document.getElementById('ttCheckbox');
 const ttStatus = document.getElementById('ttStatus');
@@ -309,30 +288,27 @@ let currentUser = null;
 let lastResultData = null;
 
 // ============================================
-// AUTH CHECK
+// AUTH CHECK (silent - only needed for ThreadTalk posting)
 // ============================================
 let authRetries = 0;
 async function checkAuth() {
   const sb = window.HM?.supabase;
   if (!sb) {
     if (authRetries < 20) { authRetries++; setTimeout(checkAuth, 300); }
-    else { authGate.classList.add('show'); } // Only show gate after all retries exhausted
     return;
   }
-
   try {
     const { data: { user } } = await sb.auth.getUser();
     if (user) {
       currentUser = user;
-      // Gate stays hidden (default)
+      if (ttCheckbox) ttCheckbox.checked = true;
     } else {
-      const returnUrl = encodeURIComponent(window.location.href);
-      document.getElementById('authGateLink').href = `auth.html?next=${returnUrl}`;
-      authGate.classList.add('show');
+      // Not logged in - hide ThreadTalk option
+      if (ttCheckbox) ttCheckbox.checked = false;
+      if (ttInlineCheck) ttInlineCheck.style.display = 'none';
     }
   } catch (e) {
     console.error('Auth check failed:', e);
-    authGate.classList.add('show');
   }
 }
 checkAuth();
