@@ -539,41 +539,31 @@ async function loadMatchingListings(data) {
   const sb = window.HM?.supabase;
   if (!sb) return;
 
-  // Collect fabric keywords from bestGuess and options
-  const keywords = [];
-  if (data.bestGuess) {
-    // Extract fabric types from bestGuess (e.g., "Silk chiffon or viscose chiffon")
-    const parts = data.bestGuess.split(/\s+or\s+|\s*[,]\s*/i);
-    parts.forEach(p => {
-      const clean = p.replace(/^(premium|pure|lightweight|structured|heavy|medium)\s+/i, '').trim();
-      if (clean.length > 2) keywords.push(clean);
-    });
-  }
+  // Collect full fabric phrases from options (these are the specific fabrics identified)
+  const phrases = [];
   if (data.options) {
     data.options.forEach(opt => {
       if (opt.fabric) {
-        const clean = opt.fabric.replace(/\s*\(.*?\)\s*/g, '').trim();
-        if (clean.length > 2) keywords.push(clean);
+        // Remove parenthetical notes, trim
+        const clean = opt.fabric.replace(/\s*\(.*?\)\s*/g, '').trim().toLowerCase();
+        if (clean.length > 2) phrases.push(clean);
       }
     });
   }
 
-  if (!keywords.length) return;
+  if (!phrases.length) return;
 
-  // Search listings using ilike for each keyword
-  const now = new Date().toISOString();
+  // Deduplicate phrases
+  const uniquePhrases = [...new Set(phrases)];
+
   let allListings = [];
   const seenIds = new Set();
 
-  for (const kw of keywords.slice(0, 6)) {
+  for (const phrase of uniquePhrases.slice(0, 6)) {
     try {
-      const searchTerms = kw.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      if (!searchTerms.length) continue;
-
-      // Search title, content, fabric_type, feels_like
-      const orFilter = searchTerms.map(t =>
-        `title.ilike.%${t}%,content.ilike.%${t}%,fabric_type.ilike.%${t}%,feels_like.ilike.%${t}%`
-      ).join(',');
+      // Search using the FULL phrase (e.g., "wool crepe", "cotton sateen")
+      // This prevents "cotton sateen" from matching "cotton gauze"
+      const orFilter = `title.ilike.%${phrase}%,content.ilike.%${phrase}%,fabric_type.ilike.%${phrase}%,feels_like.ilike.%${phrase}%`;
 
       const { data: listings } = await sb
         .from('listings')
@@ -592,6 +582,45 @@ async function loadMatchingListings(data) {
       });
     } catch (e) {
       console.error('Listing search error:', e);
+    }
+  }
+
+  // If full-phrase search got nothing, try the base fabric type as fallback
+  // e.g., for "wool crepe with elastane", try just "crepe"
+  if (!allListings.length) {
+    const baseFabrics = new Set();
+    uniquePhrases.forEach(p => {
+      // Extract the core fabric word (last word that's a fabric type)
+      const fabricTypes = ['crepe', 'sateen', 'chiffon', 'georgette', 'charmeuse', 'satin',
+        'twill', 'voile', 'organza', 'taffeta', 'jersey', 'velvet', 'linen', 'denim',
+        'flannel', 'mohair', 'cashmere', 'silk', 'wool', 'cotton'];
+      const words = p.split(/\s+/);
+      for (const w of words) {
+        if (fabricTypes.includes(w)) baseFabrics.add(w);
+      }
+    });
+
+    for (const base of baseFabrics) {
+      try {
+        const orFilter = `title.ilike.%${base}%,fabric_type.ilike.%${base}%`;
+        const { data: listings } = await sb
+          .from('listings')
+          .select('*')
+          .eq('status', 'ACTIVE')
+          .eq('is_published', true)
+          .or(orFilter)
+          .order('published_at', { ascending: false })
+          .limit(4);
+
+        (listings || []).forEach(l => {
+          if (!seenIds.has(l.id) && (l.yards_available == null || l.yards_available > 0)) {
+            seenIds.add(l.id);
+            allListings.push(l);
+          }
+        });
+      } catch (e) {
+        console.error('Listing fallback search error:', e);
+      }
     }
   }
 
