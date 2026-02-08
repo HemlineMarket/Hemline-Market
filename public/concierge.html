@@ -286,7 +286,7 @@
 <script src="scripts/hm-shell.js"></script>
 
 <script>
-window.HM && window.HM.renderShell({ currentPage: "concierge" });
+try { window.HM && window.HM.renderShell({ currentPage: "concierge" }); } catch(e) { console.error('Shell error:', e); }
 
 const STORAGE_BUCKET = 'threadtalk-media';
 
@@ -308,6 +308,20 @@ let currentImage = null;    // base64
 let currentFile = null;     // original File object for upload
 let currentUser = null;
 let lastResultData = null;
+
+// ============================================
+// FILE HANDLING (registered first, before auth check)
+// ============================================
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => e.preventDefault());
+dropZone.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length && e.dataTransfer.files[0].type.startsWith('image/')) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
 
 // ============================================
 // AUTH CHECK - uses getSession (local) instead of getUser (network)
@@ -359,24 +373,7 @@ checkAuth();
 // FILE HANDLING
 // ============================================
 
-// Prevent browser from opening dragged files if user misses the drop zone
-document.addEventListener('dragover', (e) => e.preventDefault());
-document.addEventListener('drop', (e) => e.preventDefault());
-
-dropZone.addEventListener('click', (e) => {
-  e.stopPropagation();
-  fileInput.click();
-});
-dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  dropZone.classList.remove('dragover');
-  if (e.dataTransfer.files.length && e.dataTransfer.files[0].type.startsWith('image/'))
-    handleFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
+// (file handlers registered above, before auth check)
 
 removeBtn.addEventListener('click', () => {
   currentImage = null;
