@@ -180,6 +180,7 @@ FLUID DRAPE against the body, soft movement, fabric flows with the body but is o
 - Very soft, lightweight, no texture, fully opaque: viscose/rayon challis. Flows but doesn't float.
 - Very lightweight, smooth, slight natural sheen, almost papery: silk habotai (also called China silk). Common as lining but also used for lightweight blouses. Viscose equivalent is viscose lining.
 - Smooth with subtle diagonal twill texture, medium weight, slight drape: silk twill. Has more body than charmeuse but more drape than poplin. Think pajama-style blouses and Hermès-scarf weight. Options: silk twill (Investment), viscose twill (Mid-range), polyester twill (Budget).
+- Relaxed, slightly rumpled or lived-in quality, natural creasing visible even when the garment is hanging: washed linen or linen blend. Washed linen drapes more fluidly than crisp linen and can be mistaken for viscose crepe, but linen holds wrinkles and creases in a characteristic way that crepe does not. If the garment has a casual/relaxed/boho aesthetic with natural creasing, linen is more likely than crepe.
 
 STRUCTURED, SMOOTH, MATTE, WRINKLE-FREE (holds crisp silhouette, zero visible creasing):
 First: could this be ponte knit? If the garment is fitted and body-hugging, go back to STEP 2K ponte section.
