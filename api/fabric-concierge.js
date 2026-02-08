@@ -50,6 +50,7 @@ Return ONLY valid JSON:
 {
   "overview": "2-3 sentences describing the garment: silhouette, construction details (fit, closures, gathers, structure). Conversational tone.",
   "bestGuess": "The most likely fabric with reasoning based on the decision tree below. Be specific (e.g., 'silk charmeuse' not 'silk'). When two fibers look identical in photos (silk/viscose, cashmere/merino, linen/hemp, wool/acrylic), name both possibilities.",
+  "caveat": "Optional (include ONLY when relevant). A short note when something makes identification harder than usual: heavy ruffles/tiers obscuring drape behavior, print obscuring weave texture, very dark or very light color washing out surface detail, low-resolution or distant photo, or multiple plausible fabric categories. Keep it to 1 sentence, conversational. Omit this field entirely when identification is straightforward.",
   "options": [
     {
       "fabric": "Specific fabric name (a different fiber/weave from the others)",
