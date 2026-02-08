@@ -365,34 +365,43 @@ function renderResults(data){
 async function loadMatchingListings(data){
   const sb=window.HM?.supabase;
   if(!sb)return;
-  const phrases=[];
-  if(data.options){data.options.forEach(opt=>{if(opt.fabric){const clean=opt.fabric.replace(/\s*\(.*?\)\s*/g,'').trim().toLowerCase();if(clean.length>2)phrases.push(clean)}})}
-  if(!phrases.length)return;
-  const uniquePhrases=[...new Set(phrases)];
+
+  // Priority fabric types - search for these FIRST (the garment type matters more than fiber)
+  const priorityTypes=['velvet','velveteen','corduroy','denim','leather','suede','chiffon','georgette','charmeuse','satin','sateen','crepe','twill','voile','organza','taffeta','jersey','flannel','linen','chambray','gauze','lawn','poplin','broadcloth','muslin','tulle','chenille'];
+
+  // Extract the primary fabric type from bestGuess first, then options
+  const searchTerms=[];
+
+  // 1. Parse bestGuess for the fabric type
+  if(data.bestGuess){
+    const guessLower=data.bestGuess.toLowerCase();
+    for(const ft of priorityTypes){
+      if(guessLower.includes(ft)){searchTerms.push(ft);break}
+    }
+  }
+
+  // 2. Parse options for fabric types (only if different from bestGuess term)
+  if(data.options){
+    data.options.forEach(opt=>{
+      if(!opt.fabric)return;
+      const optLower=opt.fabric.replace(/\s*\(.*?\)\s*/g,'').trim().toLowerCase();
+      for(const ft of priorityTypes){
+        if(optLower.includes(ft)&&!searchTerms.includes(ft)){searchTerms.push(ft);break}
+      }
+    });
+  }
+
+  if(!searchTerms.length)return;
+
   let allListings=[];
   const seenIds=new Set();
 
-  for(const phrase of uniquePhrases.slice(0,6)){
+  for(const term of searchTerms.slice(0,4)){
     try{
-      const orFilter=`title.ilike.%${phrase}%,content.ilike.%${phrase}%,fabric_type.ilike.%${phrase}%,feels_like.ilike.%${phrase}%`;
-      const{data:listings}=await sb.from('listings').select('*').eq('status','ACTIVE').eq('is_published',true).or(orFilter).order('published_at',{ascending:false}).limit(4);
+      const orFilter=`title.ilike.%${term}%,content.ilike.%${term}%,fabric_type.ilike.%${term}%,feels_like.ilike.%${term}%`;
+      const{data:listings}=await sb.from('listings').select('*').eq('status','ACTIVE').eq('is_published',true).or(orFilter).order('published_at',{ascending:false}).limit(6);
       (listings||[]).forEach(l=>{if(!seenIds.has(l.id)&&(l.yards_available==null||l.yards_available>0)){seenIds.add(l.id);allListings.push(l)}});
     }catch(e){console.error('Listing search error:',e)}
-  }
-
-  if(!allListings.length){
-    const baseFabrics=new Set();
-    uniquePhrases.forEach(p=>{
-      const fabricTypes=['crepe','sateen','chiffon','georgette','charmeuse','satin','twill','voile','organza','taffeta','jersey','velvet','linen','denim','flannel','mohair','cashmere','silk','wool','cotton','corduroy','suede','leather'];
-      p.split(/\s+/).forEach(w=>{if(fabricTypes.includes(w))baseFabrics.add(w)});
-    });
-    for(const base of baseFabrics){
-      try{
-        const orFilter=`title.ilike.%${base}%,fabric_type.ilike.%${base}%`;
-        const{data:listings}=await sb.from('listings').select('*').eq('status','ACTIVE').eq('is_published',true).or(orFilter).order('published_at',{ascending:false}).limit(4);
-        (listings||[]).forEach(l=>{if(!seenIds.has(l.id)&&(l.yards_available==null||l.yards_available>0)){seenIds.add(l.id);allListings.push(l)}});
-      }catch(e){console.error('Listing fallback search error:',e)}
-    }
   }
 
   if(!allListings.length)return;
@@ -441,6 +450,8 @@ async function postToThreadTalk(data){
         const filePath=`${currentUser.id}/concierge-${Date.now()}-${i}.jpg`;
         const{data:uploadData,error:uploadError}=await sb.storage.from(STORAGE_BUCKET).upload(filePath,ttBlob,{cacheControl:'3600',upsert:false,contentType:'image/jpeg'});
         if(!uploadError&&uploadData){const{data:pub}=sb.storage.from(STORAGE_BUCKET).getPublicUrl(uploadData.path);if(pub?.publicUrl)mediaUrls.push(pub.publicUrl)}
+        // Small delay between uploads to avoid race conditions
+        if(i<currentImages.length-1)await new Promise(r=>setTimeout(r,500));
       }catch(e){console.error('Image upload error:',e)}
     }
 
@@ -467,11 +478,31 @@ async function postToThreadTalk(data){
     }).select().single();
 
     if(threadError){
-      console.error('ThreadTalk post error:',threadError);
-      ttStatus.className='tt-post-status error';
-      ttStatus.textContent='Could not share to ThreadTalk.';
-      ttStatus.style.display='block';
-      return;
+      // If multi-image failed, retry with just the first image
+      if(mediaUrls.length>1){
+        console.warn('Multi-image post failed, retrying with single image:', threadError);
+        const{error:retryError}=await sb.from('threadtalk_threads').insert({
+          author_id:currentUser.id,
+          category:'fabric-sos',
+          title:hintText?`Fabric Concierge: ${hintText.charAt(0).toUpperCase()+hintText.slice(1)}`:'Fabric Concierge: Help me recreate this look',
+          body:body.trim(),
+          media_url:mediaUrls[0],
+          media_type:'image'
+        }).select().single();
+        if(retryError){
+          console.error('ThreadTalk retry error:',retryError);
+          ttStatus.className='tt-post-status error';
+          ttStatus.textContent='Could not share to ThreadTalk.';
+          ttStatus.style.display='block';
+          return;
+        }
+      }else{
+        console.error('ThreadTalk post error:',threadError);
+        ttStatus.className='tt-post-status error';
+        ttStatus.textContent='Could not share to ThreadTalk.';
+        ttStatus.style.display='block';
+        return;
+      }
     }
     ttStatus.className='tt-post-status success';
     ttStatus.innerHTML='Shared to ThreadTalk! <a href="fabric-concierge.html" style="color:#059669;font-weight:600;">View post</a>';
