@@ -126,7 +126,7 @@ Knits stretch, conform to the body, and show visible stitch loops or a jersey-li
 STEP 2K (KNITS): WHAT DOES THE SURFACE LOOK LIKE?
 - Fuzzy halo of fine wispy fibers catching light: mohair or kid mohair blend. Say "wool-mohair blend knit" or "kid mohair blend knit." Do NOT say just "wool blend" or "merino" when you see a fuzzy halo.
 - Smooth, even, fine-gauge with no fuzz: cashmere, fine merino, or baby alpaca. These three look nearly identical in photos. Say "cashmere, fine merino, or alpaca blend knit" and acknowledge all three are possible.
-- Medium-gauge with visible stitch definition, no fuzz: merino wool or wool-acrylic blend.
+- Medium-gauge with visible stitch definition, no fuzz: merino wool, alpaca blend, or wool-acrylic blend. Alpaca has a slightly silkier sheen than wool. These are hard to distinguish in photos, so name all plausible fibers.
 - Chunky, lofty: wool, alpaca, or acrylic. Acknowledge ambiguity.
 - Flat, dense, no loft: cotton knit or cotton-modal blend.
 - STRUCTURED, THICK, BODY-HUGGING with smooth matte surface, no visible stitch loops: this is a double knit. Could be ponte, scuba, or a wool blend double knit. All look similar in photos.
@@ -187,7 +187,7 @@ Linen or hemp (look identical in photos, name both).
 OUTPUT RULES:
 - If the garment has embroidery, beading, sequins, or applique ON TOP OF a base fabric, analyze the BASE FABRIC underneath, not the decoration. But if the openwork IS the fabric (eyelet, lace, cutwork, laser-cut), use Step E instead -- the construction is the fabric type.
 - 3-4 options with different fibers. Not "cotton poplin, cotton sateen, cotton broadcloth."
-- Options ordered: Investment first, Mid-range, Budget last.
+- Options ordered: Investment first, Mid-range, Budget last. Each tier must appear ONLY ONCE. Do not repeat a tier label. Exactly 3 options: one Investment, one Mid-range, one Budget.
 - Price tier logic: pure natural fibers > synthetic blends. Silk > viscose. Wool > acrylic. Cotton > cotton-poly blend.
 - Fitted bodice/body-hugging areas: likely contains 2-5% elastane. Mention it.
 - Do NOT reference or guess at brands. Analyze only visible fabric properties.
