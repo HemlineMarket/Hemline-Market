@@ -63,11 +63,11 @@
     /* AUTH GATE OVERLAY */
     .auth-gate {
       position: absolute; inset: 0; background: rgba(255,255,255,0.92);
-      border-radius: 16px; display: flex; flex-direction: column;
+      border-radius: 16px; display: none; flex-direction: column;
       align-items: center; justify-content: center; z-index: 10;
       text-align: center; padding: 24px;
     }
-    .auth-gate.hidden { display: none; }
+    .auth-gate.show { display: flex; }
     .auth-gate p {
       font-size: 15px; color: #374151; margin: 0 0 16px; line-height: 1.5;
     }
@@ -311,22 +311,28 @@ let lastResultData = null;
 // ============================================
 // AUTH CHECK
 // ============================================
+let authRetries = 0;
 async function checkAuth() {
   const sb = window.HM?.supabase;
-  if (!sb) { setTimeout(checkAuth, 300); return; }
+  if (!sb) {
+    if (authRetries < 20) { authRetries++; setTimeout(checkAuth, 300); }
+    else { authGate.classList.add('show'); } // Only show gate after all retries exhausted
+    return;
+  }
 
   try {
     const { data: { user } } = await sb.auth.getUser();
     if (user) {
       currentUser = user;
-      authGate.classList.add('hidden');
+      // Gate stays hidden (default)
     } else {
-      // Set return URL so they come back after sign in
       const returnUrl = encodeURIComponent(window.location.href);
       document.getElementById('authGateLink').href = `auth.html?next=${returnUrl}`;
+      authGate.classList.add('show');
     }
   } catch (e) {
     console.error('Auth check failed:', e);
+    authGate.classList.add('show');
   }
 }
 checkAuth();
