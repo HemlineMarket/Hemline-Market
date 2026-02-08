@@ -124,15 +124,8 @@ FIRST: Re-check Step 0 - could this be velvet under bright lighting? Only if BOT
 If confirmed NOT velvet: Satin/charmeuse family. Fluid drape against the body with smooth liquid folds = silk charmeuse or viscose satin (flag both possibilities). Slightly plastic-looking shine = polyester satin. Subtle warm glow = cotton sateen.
 A fabric with sheen is NEVER wool crepe. NEVER matte crepe. NEVER cotton poplin.
 
-TEXTURED/SLUBBY WITH STRUCTURE AND SHEEN: This is silk dupioni or silk shantung. Key indicators:
-- Visible irregular horizontal slubs (small bumps/ridges across the fabric)
-- Crisp, structured drape - holds volume, does NOT drape fluidly against the body
-- Distinctive crosswise texture visible in close-ups
-- Often used in formal/cocktail dresses, bridal, and structured silhouettes
-- Has a subtle sheen but NOT the smooth mirror-like sheen of charmeuse
-- Silk dupioni is stiffer and crisper than silk charmeuse. If the fabric holds an A-line or structured silhouette without clinging, it is NOT charmeuse.
-Do NOT confuse with cotton poplin. Cotton poplin has no slubs and no sheen. Silk dupioni has both texture AND sheen.
-Options: silk dupioni (Investment), silk shantung (Mid-range - slightly lighter weight), polyester dupioni (Budget).
+TEXTURED OR STRUCTURED WITH SHEEN (fabric holds shape, does NOT drape fluidly, may have visible texture):
+This is likely an occasion/bridal silk such as dupioni, shantung, taffeta, mikado, or faille. These are structured silks that hold A-line and full silhouettes without clinging. Say "structured occasion silk (likely dupioni, shantung, or taffeta)" and flag that the exact weave is hard to determine from photos alone. Options: silk dupioni/taffeta (Investment), polyester occasion fabric (Mid-range), polyester duchess satin (Budget).
 
 NO SHEEN (completely matte, zero light reflection):
 Go to STEP 3W.
@@ -148,9 +141,9 @@ Flag silk vs viscose vs polyester ambiguity where relevant.
 STEP 3W (MATTE WOVENS): HOW DOES THE FABRIC BEHAVE?
 
 BEFORE ANYTHING ELSE - CHECK THE CLOSE-UP FOR SURFACE TEXTURE:
-If the close-up shows visible horizontal slubs, bumps, nubs, or irregular crosswise ridges: this is silk dupioni or silk shantung regardless of how the garment drapes or holds structure. Dark-colored shantung (navy, black, dark green, brown) often appears completely matte with zero sheen in photos. The slubby texture is the definitive identifier. Shantung can be structured (trench dresses, A-line skirts) or fluid (wrap dresses) depending on weight. Options: silk dupioni (Investment), silk shantung (Mid-range), polyester dupioni (Budget). Do NOT default to cotton poplin or wool crepe if slubs are visible.
+If the close-up shows visible horizontal slubs, bumps, or irregular crosswise ridges: this is a structured occasion silk (dupioni or shantung family), even in dark colors that show no sheen. Say "structured occasion silk" and provide silk vs polyester options.
 
-If the close-up shows visible DIAGONAL twill lines: this may be a twill weave. Check Step 0 for denim. If not denim, consider wool twill or cotton twill.
+If the close-up shows visible DIAGONAL twill lines: this may be a twill weave. Check Step 0 for denim. If not denim, consider wool twill or silk twill.
 
 If the surface is SMOOTH (no slubs, no diagonal lines, no pile), proceed to drape analysis below:
 
@@ -161,18 +154,14 @@ HOLDS VOLUME outward from body, crisp/defined gathers, fabric stands away from l
 - Pleated or gathered construction creating fullness: the fabric itself may actually be fluid (silk, viscose) but the construction technique is creating the volume. Check if individual fabric sections (between gathers) drape softly -- if so, this is a FLUID fabric with structural sewing, not a stiff fabric. Consider silk crepe de chine, viscose, or silk habotai.
 
 FLUID DRAPE against the body, soft movement, fabric flows with the body but is opaque and matte:
-Crepe de chine (heavier than chiffon/georgette, fully opaque, matte with slight pebbly texture) or viscose/rayon challis (soft, opaque, matte, lightweight, flows but does not float). Challis is lighter and softer, crepe de chine has more body and a subtle pebbly texture.
+- Slight pebbly texture, medium weight, fully opaque: crepe de chine. Heavier than chiffon/georgette. Silk crepe de chine vs viscose crepe (flag both).
+- Very soft, lightweight, no texture, fully opaque: viscose/rayon challis. Flows but doesn't float.
+- Very lightweight, smooth, slight natural sheen, almost papery: silk habotai (also called China silk). Common as lining but also used for lightweight blouses. Viscose equivalent is viscose lining.
+- Smooth with subtle diagonal twill texture, medium weight, slight drape: silk twill. Has more body than charmeuse but more drape than poplin. Think pajama-style blouses and Hermès-scarf weight. Options: silk twill (Investment), viscose twill (Mid-range), polyester twill (Budget).
 
 STRUCTURED, SMOOTH, MATTE, WRINKLE-FREE (holds crisp silhouette, zero visible creasing):
-First: did you check the close-up for slubs at the top of Step 3W? If slubs are present, this is silk shantung/dupioni, not wool crepe.
-Second: could this be ponte knit? If the garment is fitted and body-hugging, go back to STEP 2K ponte section.
-If the surface is truly smooth with no slubs and it is clearly a woven: this could be wool crepe OR silk shantung/dupioni. Both are structured, matte, and wrinkle-free.
-- Wool crepe: completely smooth surface, slightly dry hand, zero texture. Drapes with weight but stays structured.
-- Silk shantung: may show very subtle crosswise texture or slight irregularity even if obvious slubs aren't visible. Has a crisper, more papery quality than wool crepe. More common in A-line and fit-and-flare silhouettes.
-When in doubt between wool crepe and silk shantung, include BOTH as options rather than defaulting to only wool crepe. Lead with whichever seems more likely based on the silhouette (A-line/flared = lean shantung, straight/draped = lean wool crepe).
-
-CRISP WITH SUBTLE SHEEN, structured, holds A-line or full silhouette:
-Re-check: could this be silk dupioni/shantung? If yes, go back to the TEXTURED/SLUBBY section above. If the fabric is smooth without slubs, this may be silk taffeta (crisp, structured, with a papery rustling quality and subtle sheen) or silk faille (fine crosswise ribs, structured).
+First: could this be ponte knit? If the garment is fitted and body-hugging, go back to STEP 2K ponte section.
+If clearly a woven: wool crepe or wool blend. The only woven fabric that is simultaneously matte, structured, wrinkle-free, and smooth. Cotton wrinkles. Polyester crepe often has slight shine. Lead with "wool crepe with elastane" for fitted garments.
 
 SLUBBY TEXTURE, natural creasing, visible irregularity, MATTE:
 Linen or hemp (look identical in photos, name both).
