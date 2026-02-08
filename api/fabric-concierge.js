@@ -66,14 +66,12 @@ DECISION TREE - Follow these steps IN ORDER:
 STEP 0: CHECK FOR SPECIAL SURFACES FIRST.
 Before analyzing knit vs. woven, check if the fabric has one of these distinctive surfaces:
 
-VELVET / VELVETEEN: CRITICAL - Check for velvet BEFORE assuming satin or charmeuse. Velvet under studio lighting can appear shiny and be mistaken for satin. Key differences:
-- Velvet has DEPTH in its color - folds appear dramatically darker than highlights. Satin has surface-level brightness but no color depth.
-- Velvet in folds shows near-black shadow even in bright colors. Satin folds stay within the same color family.
-- Velvet has a plush, dimensional surface. Zoom in: velvet has pile texture (tiny fibers), satin has a flat, smooth, mirror-like surface.
-- If the sewist's hint mentions "soft", "velvety", "plush", "thick", or "pile", this is almost certainly velvet.
-- Deep jewel tones (burgundy, emerald, navy) with dramatic fold shadows are classic velvet indicators.
-- Velvet can look shiny in product photos due to pile reflecting light - this is NOT satin sheen. Satin sheen is flat and mirror-like. Velvet sheen has depth and changes with angle.
-If ANY of these velvet indicators are present, go to STEP V. Do NOT proceed to the satin/charmeuse path.
+VELVET / VELVETEEN: CRITICAL - Check for velvet BEFORE assuming satin or charmeuse. Velvet under studio lighting can appear shiny and be mistaken for satin. BUT also be careful not to over-identify velvet. Velvet requires TWO conditions:
+CONDITION 1 (color behavior): Deep color saturation with folds appearing dramatically darker than highlights. Near-black shadows even in bright colors. Rich, saturated jewel tones.
+CONDITION 2 (surface texture): A plush, pile surface - the fabric looks soft and dimensional, like tiny fibers standing up. Zoom in: velvet has a fuzzy/napped surface, NOT a smooth, flat, or slubby surface. If the surface looks smooth, crisp, or shows horizontal texture/slubs, this is NOT velvet - it may be silk dupioni, taffeta, or satin. A smooth fabric with deep color is just a dark fabric, not velvet.
+BOTH conditions must be present. Color depth alone is not enough. Many dark fabrics (dark silk, dark wool, dark cotton) show deep fold shadows without being velvet.
+If the sewist's hint mentions "velvety", "plush", "pile", or "fuzzy", this strongly supports velvet even if the photo is ambiguous.
+If BOTH conditions are met, go to STEP V. If only color depth is present but the surface is smooth/crisp/slubby, proceed to STEP 1.
 
 CORDUROY: Visible vertical ridges (wales) running down the fabric. Wide wale = casual. Fine/pinwale = dressier. Go to STEP V.
 
@@ -122,7 +120,7 @@ STEP 2W (WOVENS): CHECK SHEEN AND TEXTURE.
 Look at how light interacts with the fabric surface. This is the most important visual property.
 
 HIGH SHEEN (visible light reflection, luminous surface, bright highlights):
-FIRST: Re-check Step 0 - is this actually velvet under bright lighting? If the fabric shows deep color saturation with dramatic shadow variation in folds (folds go nearly black), this is velvet, not satin. Go back to STEP V.
+FIRST: Re-check Step 0 - could this be velvet under bright lighting? Only if BOTH conditions are met: (1) deep color saturation with near-black fold shadows AND (2) visible plush/pile surface texture. If the surface is smooth or slubby, this is NOT velvet even if the color is deep.
 If confirmed NOT velvet: Satin/charmeuse family. Fluid drape against the body with smooth liquid folds = silk charmeuse or viscose satin (flag both possibilities). Slightly plastic-looking shine = polyester satin. Subtle warm glow = cotton sateen.
 A fabric with sheen is NEVER wool crepe. NEVER matte crepe. NEVER cotton poplin.
 
