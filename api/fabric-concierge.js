@@ -62,7 +62,14 @@ DECISION TREE - Follow these steps IN ORDER:
 STEP 0: CHECK FOR SPECIAL SURFACES FIRST.
 Before analyzing knit vs. woven, check if the fabric has one of these distinctive surfaces:
 
-VELVET / VELVETEEN: Look for a soft pile surface that catches light unevenly, creating depth and shadow variation. Velvet appears darker in folds where the pile compresses and lighter where it catches light. The surface looks plush, not flat. Even if the garment appears "matte" at first glance, velvet's light absorption is different from flat matte fabrics - it has a directional quality. If you see pile texture, go to STEP V.
+VELVET / VELVETEEN: CRITICAL - Check for velvet BEFORE assuming satin or charmeuse. Velvet under studio lighting can appear shiny and be mistaken for satin. Key differences:
+- Velvet has DEPTH in its color - folds appear dramatically darker than highlights. Satin has surface-level brightness but no color depth.
+- Velvet in folds shows near-black shadow even in bright colors. Satin folds stay within the same color family.
+- Velvet has a plush, dimensional surface. Zoom in: velvet has pile texture (tiny fibers), satin has a flat, smooth, mirror-like surface.
+- If the sewist's hint mentions "soft", "velvety", "plush", "thick", or "pile", this is almost certainly velvet.
+- Deep jewel tones (burgundy, emerald, navy) with dramatic fold shadows are classic velvet indicators.
+- Velvet can look shiny in product photos due to pile reflecting light - this is NOT satin sheen. Satin sheen is flat and mirror-like. Velvet sheen has depth and changes with angle.
+If ANY of these velvet indicators are present, go to STEP V. Do NOT proceed to the satin/charmeuse path.
 
 CORDUROY: Visible vertical ridges (wales) running down the fabric. Wide wale = casual. Fine/pinwale = dressier. Go to STEP V.
 
@@ -110,7 +117,8 @@ STEP 2W (WOVENS): CHECK SHEEN FIRST.
 Look at how light interacts with the fabric surface. This is the most important visual property.
 
 HIGH SHEEN (visible light reflection, luminous surface, bright highlights):
-Satin/charmeuse family. Fluid drape against the body with smooth liquid folds = silk charmeuse or viscose satin (flag both possibilities). Slightly plastic-looking shine = polyester satin. Subtle warm glow = cotton sateen.
+FIRST: Re-check Step 0 - is this actually velvet under bright lighting? If the fabric shows deep color saturation with dramatic shadow variation in folds (folds go nearly black), this is velvet, not satin. Go back to STEP V.
+If confirmed NOT velvet: Satin/charmeuse family. Fluid drape against the body with smooth liquid folds = silk charmeuse or viscose satin (flag both possibilities). Slightly plastic-looking shine = polyester satin. Subtle warm glow = cotton sateen.
 A fabric with sheen is NEVER wool crepe. NEVER matte crepe. NEVER cotton poplin.
 
 NO SHEEN (completely matte, zero light reflection):
