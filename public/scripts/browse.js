@@ -75,7 +75,7 @@
     "Corduroy", "Crepe", "Crepe de Chine", "Denim", "Double Cloth", "Double Knit", 
     "Duchesse", "Dupioni", "Embroidered", "Eyelet", "Faux Fur", "Faux Leather", 
     "Flannel", "Fleece", "Gabardine", "Gauze", "Gazar", "Georgette", "Habotai",
-    "Interlock", "Jacquard", "Jersey", "Knit", "Lace", "Lamé", "Lawn", "Lining", 
+    "Interlock", "Jacquard", "Jersey", "Knit", "Lace", "Lamé", "Laser-Cut", "Lawn", "Lining", 
     "Mesh", "Metallic", "Mikado", "Minky", "Muslin", "Organza", "Ottoman", "Oxford",
     "Peau de Soie", "Ponte", "Poplin", "Rib Knit", "Sateen", "Satin", "Scuba", 
     "Shirting", "Suiting", "Taffeta", "Terry / French Terry", "Tropical", "Tulle", 
