@@ -1,5 +1,5 @@
 // api/fabric-concierge.js
-// Fabric Concierge - Upload a photo, get fabric identification and alternatives
+// Fabric Concierge - Upload photos, get fabric identification and alternatives
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
@@ -14,19 +14,33 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "AI service not configured" });
 
-  const { image, hint } = req.body || {};
-  if (!image) return res.status(400).json({ error: "Image is required" });
+  // Support both `images` (array) and legacy `image` (single string)
+  let { images, image, hint } = req.body || {};
+  if (!images && image) images = [image];
+  if (!images || !images.length) return res.status(400).json({ error: "At least one image is required" });
+  if (images.length > 2) images = images.slice(0, 2);
 
   try {
-    const matches = image.match(/^data:([^;,]+)[^,]*,(.+)$/);
-    if (!matches) return res.status(400).json({ error: "Invalid image format" });
+    // Build image content blocks
+    const imageBlocks = [];
+    for (const img of images) {
+      const matches = img.match(/^data:([^;,]+)[^,]*,(.+)$/);
+      if (!matches) continue;
+      imageBlocks.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: matches[1] || "image/jpeg",
+          data: matches[2]
+        }
+      });
+    }
 
-    const mediaType = matches[1] || "image/jpeg";
-    const base64Data = matches[2];
+    if (!imageBlocks.length) return res.status(400).json({ error: "Invalid image format" });
 
     const prompt = `You are Hemline Market's Fabric Concierge, an expert textile analyst who helps sewists identify fabrics from garment photos.
 
-A sewist uploaded a photo. Analyze the FABRIC, not the print or pattern.
+A sewist uploaded ${imageBlocks.length > 1 ? 'two photos - a full garment view and a close-up of the fabric texture. Use BOTH images together' : 'a photo'}. Analyze the FABRIC, not the print or pattern.
 
 Return ONLY valid JSON:
 {
@@ -136,6 +150,9 @@ Return ONLY the JSON object, no other text.`;
       ? prompt + `\n\nThe sewist provided this description: "${userHint}". Use this as additional context alongside your visual analysis.`
       : prompt;
 
+    // Build message content: all images first, then the text prompt
+    const content = [...imageBlocks, { type: "text", text: finalPrompt }];
+
     const claudeResp = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: {
@@ -148,17 +165,7 @@ Return ONLY the JSON object, no other text.`;
         max_tokens: 2048,
         messages: [{
           role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType,
-                data: base64Data
-              }
-            },
-            { type: "text", text: finalPrompt }
-          ]
+          content: content
         }]
       })
     });
