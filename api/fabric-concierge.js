@@ -59,6 +59,12 @@ Return ONLY valid JSON:
 
 DECISION TREE - Follow these steps IN ORDER:
 
+MANDATORY FIRST CHECK: IS THE PATTERN PRINTED OR WOVEN INTO THE FABRIC?
+Before doing ANYTHING else, determine how the color pattern was created:
+- PRINTED pattern: Color sits ON TOP of the fabric surface. The base fabric is uniform underneath the ink. Color transitions are sharp or blended but the fabric texture is the same everywhere regardless of color. Fabric surface is smooth and consistent across all colored areas.
+- WOVEN-IN pattern: Color changes are created BY DIFFERENT COLORED YARNS in the weave itself. Each color area may have slightly different texture because different yarns are used. In the close-up, you can see individual yarns/threads in different colors interlocking. The fabric has a chunky, nubby, or textured surface. Color blocks align with the weave grid. This is NEVER cotton poplin. This is NEVER a "print."
+If the pattern is woven-in (different colored yarns visible, textured surface, nubby hand), go directly to STEP T. Do not proceed to any other step. Woven-in colorblock patterns are characteristic of wool blanket weaves, tweeds, tapestry weaves, and similar textured woolens.
+
 STEP 0: CHECK FOR SPECIAL SURFACES FIRST.
 Before analyzing knit vs. woven, check if the fabric has one of these distinctive surfaces:
 
@@ -177,6 +183,7 @@ OUTPUT RULES:
 - Options ordered: Investment first, Mid-range, Budget last.
 - Price tier logic: pure natural fibers > synthetic blends. Silk > viscose. Wool > acrylic. Cotton > cotton-poly blend.
 - Fitted bodice/body-hugging areas: likely contains 2-5% elastane. Mention it.
+- Do NOT call a woven-in color pattern a "print." If the colors are created by the weave (different colored yarns), describe it as a "woven colorblock," "woven plaid," "woven geometric," etc.
 - Do NOT reference or guess at brands. Analyze only visible fabric properties.
 - Do NOT fixate on prints/patterns. Analyze the base fabric.
 - Do NOT give yardage estimates.
