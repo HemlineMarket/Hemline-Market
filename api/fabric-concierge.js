@@ -45,7 +45,7 @@ A sewist uploaded ${imageBlocks.length > 1 ? 'two photos - a full garment view a
 Return ONLY valid JSON:
 {
   "overview": "2-3 sentences describing the garment: silhouette, construction details (fit, closures, gathers, structure). Conversational tone.",
-  "bestGuess": "The most likely fabric with reasoning based on the decision tree below. Be specific (e.g., 'silk charmeuse' not 'silk'). When two fibers look identical in photos (silk/viscose, cashmere/merino, linen/hemp, wool/acrylic), name both possibilities. If the fabric does not clearly match any specific path in the decision tree and you are making your best educated guess, say so honestly. ALSO include a caveat for ALL knits (except when a fuzzy mohair halo is clearly visible) because fiber content in knits is nearly impossible to determine from photos - wool, cotton, cashmere, alpaca, and synthetic blends can all look identical in a knit construction. Similarly, include a caveat for structured matte wovens where cotton and viscose are visually indistinguishable. Keep it to 1 sentence, conversational. Omit this field entirely only when identification is genuinely clear-cut (e.g., obvious denim, obvious lace, obvious velvet with pile visible).",
+  "bestGuess": "The most likely fabric with brief reasoning. Be specific (e.g., 'silk charmeuse' not 'silk'). When two fibers look identical in photos (silk/viscose, cashmere/merino, linen/hemp, wool/acrylic), name both possibilities. 2-4 sentences max.",
   "options": [
     {
       "fabric": "Specific fabric name (a different fiber/weave from the others)",
@@ -60,7 +60,8 @@ Return ONLY valid JSON:
 DECISION TREE - Follow these steps IN ORDER:
 
 MANDATORY FIRST CHECK: IS THE PATTERN PRINTED OR WOVEN INTO THE FABRIC?
-Before doing ANYTHING else, determine how the color pattern was created:
+If the fabric is SOLID colored (one color, no pattern), skip this check and go to STEP 0.
+If there IS a color pattern, determine how it was created before doing anything else:
 - PRINTED pattern: Color sits ON TOP of the fabric surface. The base fabric is uniform underneath the ink. Color transitions are sharp or blended but the fabric texture is the same everywhere regardless of color. Fabric surface is smooth and consistent across all colored areas.
 - WOVEN-IN pattern: Color changes are created BY DIFFERENT COLORED YARNS in the weave itself. Each color area may have slightly different texture because different yarns are used. In the close-up, you can see individual yarns/threads in different colors interlocking. The fabric has a chunky, nubby, or textured surface. Color blocks align with the weave grid. This is NEVER cotton poplin. This is NEVER a "print."
 If the pattern is woven-in (different colored yarns visible, textured surface, nubby hand), go directly to STEP T. Do not proceed to any other step. Woven-in colorblock patterns are characteristic of wool blanket weaves, tweeds, tapestry weaves, and similar textured woolens.
@@ -79,6 +80,14 @@ DENIM: Visible diagonal twill weave, indigo or washed blue color, often with con
 TWEED / BLANKET WEAVE / BOUCLÉ / VISIBLE YARN STRUCTURE: If the close-up reveals individual yarn interlocking in a clearly visible weave pattern - where you can see distinct thick yarns crossing over and under each other - this is a textured wool or wool-blend woven. Key indicators: nubby or lofty surface, visible basket weave or plain weave with thick yarns, fuzzy or hairy yarn texture, often multicolored with color achieved through the weave itself (woven-in color blocks, not printed). Common in blanket skirts, vintage A-line skirts, oversized coats, and heritage outerwear. This is NOT cotton poplin (which is smooth and fine-grained) and NOT wool crepe (which is smooth and flat). Go to STEP T.
 
 LACE: Open, decorative fabric with visible holes forming a pattern. Can be allover or used as trim/overlay. Go to STEP LC.
+
+NEOPRENE / SCUBA: Thick (1-3mm), spongy, holds sculptural shapes without collapsing. Does NOT wrinkle. Does NOT drape like natural fibers -- it holds structured folds and 3D shapes. Surface is smooth and uniform, often with a slight sheen. Common in modern structured dresses, A-line skirts, bomber jackets. The fabric looks "inflated" or cushioned compared to regular wovens or knits. If you see this spongy, thick, wrinkle-free quality, go to STEP N.
+
+EYELET / BRODERIE ANGLAISE: Cotton fabric with punched-out decorative holes, often with embroidered edges around each hole. Different from lace -- eyelet has a solid cotton base with holes cut into it, while lace is an open construction throughout. Go to STEP EY.
+
+TULLE / MESH / NET: Very sheer, stiff or semi-stiff open mesh fabric. Individual holes are uniform and geometric (hexagonal or diamond-shaped). Much stiffer than chiffon. Used in skirts, overlays, veils. Go to STEP TU.
+
+FAUX FUR / SHERPA / TEDDY: Long pile fibers creating a furry or fluffy surface. Much longer pile than velvet. Often used in coats, jackets, linings. Go to STEP FF.
 
 If none of these, proceed to STEP 1.
 
@@ -120,6 +129,32 @@ STEP LC (LACE):
 - Guipure/chemical lace: heavier, no net background, stands alone
 Provide 3-4 options spanning Investment to Budget.
 
+STEP N (NEOPRENE / SCUBA):
+Neoprene and scuba knit are thick, spongy fabrics that hold structure without wrinkling. They are NOT crepe, NOT ponte, NOT wool.
+- Neoprene: actual neoprene foam laminated between knit layers. Thicker (1.5-3mm), truly spongy, holds dramatic sculptural shapes. Common in designer fashion (Balenciaga, COS).
+- Scuba knit: polyester-spandex double knit that mimics neoprene's behavior but is thinner and more common in everyday fashion. Smooth, thick, wrinkle-free, slight stretch.
+Options: designer neoprene (Investment), scuba knit (Mid-range), polyester scuba (Budget).
+
+STEP EY (EYELET / BRODERIE ANGLAISE):
+Cotton base with decorative punched holes and embroidered edges.
+- Cotton eyelet: classic, matte, crisp. Most common.
+- Cotton-linen eyelet: slightly more textured.
+- Polyester eyelet: cheaper, often shinier.
+Provide 3 options spanning Investment to Budget. Note that eyelet typically needs lining.
+
+STEP TU (TULLE / MESH / NET):
+- Silk tulle: softest drape, most expensive, used in bridal and couture
+- Nylon tulle: most common, available in many stiffnesses
+- Polyester tulle: stiffer, more budget-friendly, used in costume and craft
+Provide 3 options spanning Investment to Budget.
+
+STEP FF (FAUX FUR / SHERPA / TEDDY):
+- Real fur: irregular pile direction, visible leather backing (ethical concerns noted)
+- High-quality faux fur: realistic pile variation, soft backing
+- Sherpa/teddy fleece: shorter curly pile, polyester, very common in casual outerwear
+- Budget faux fur: uniform pile, can look matted or plastic
+Provide 3-4 options spanning Investment to Budget.
+
 STEP 1: IS IT A KNIT OR A WOVEN?
 Knits show visible stitch loops, stretch, and conform to the body. Wovens have a flat woven surface, may show weave texture, and behave differently at gathering/draping points. If knit, go to STEP 2K. If woven, go to STEP 2W.
 
@@ -130,6 +165,9 @@ STEP 2K (KNITS): WHAT DOES THE SURFACE LOOK LIKE?
 - Chunky, lofty: wool, alpaca, or acrylic. Acknowledge ambiguity.
 - Flat, dense, no loft: cotton knit or cotton-modal blend.
 - Ponte (double-knit): thick, structured, smooth both sides, holds shape. Common in pull-on pants, sheath dresses. Has body but slight stretch. Options: rayon-nylon-spandex ponte (most common), wool-blend ponte (Investment), polyester ponte (Budget).
+- French terry: smooth face, looped back (if you can see the inside). Medium weight, soft, common in sweatshirts, joggers, casual dresses. Options: cotton french terry (Investment), cotton-poly french terry (Mid-range), polyester french terry (Budget).
+- Sweatshirt fleece: smooth face, brushed/fuzzy back. Heavier than french terry. Common in hoodies and sweatshirts. Options: cotton fleece (Investment), cotton-poly fleece (Mid-range), polyester fleece (Budget).
+- Visible vertical ribs running parallel: rib knit. Common in fitted tops, turtlenecks, cuffs. Options: merino rib knit (Investment), cotton rib knit (Mid-range), polyester-blend rib knit (Budget).
 Then provide 3-4 options spanning Investment to Budget with genuinely different fibers.
 
 STEP 2W (WOVENS): CHECK SHEEN FIRST.
@@ -174,20 +212,25 @@ FLUID DRAPE against the body, soft movement, fabric flows with the body but is o
 STRUCTURED, SMOOTH, MATTE, WRINKLE-FREE (holds crisp silhouette, zero visible creasing):
 First: could this be ponte knit? If the garment is fitted and body-hugging, go back to STEP 2K ponte section.
 If clearly a woven: wool crepe or wool blend. The only woven fabric that is simultaneously matte, structured, wrinkle-free, and smooth. Cotton wrinkles. Polyester crepe often has slight shine. Lead with "wool crepe with elastane" for fitted garments.
+Could also be neoprene/scuba if the fabric looks spongy, thick, and holds sculptural shapes -- go to STEP N.
 
 SLUBBY TEXTURE, natural creasing, visible irregularity, MATTE:
-Linen or hemp (look identical in photos, name both).
+Linen, hemp, or silk noil (raw silk). All three look similar in photos: matte, textured, natural creasing. Silk noil is slightly smoother and drapier than linen. Linen and hemp are nearly identical. Name all possibilities if ambiguous.
+
+PUCKERED / CRINKLED surface texture:
+Seersucker (alternating puckered and flat stripes, always cotton or cotton blend), or crinkle cotton/gauze (allover crinkle texture, lightweight). If puckered in alternating stripes: seersucker. If allover crinkle: cotton gauze or crinkle rayon.
 
 OUTPUT RULES:
 - 3-4 options with different fibers. Not "cotton poplin, cotton sateen, cotton broadcloth."
 - Options ordered: Investment first, Mid-range, Budget last.
 - Price tier logic: pure natural fibers > synthetic blends. Silk > viscose. Wool > acrylic. Cotton > cotton-poly blend.
 - Fitted bodice/body-hugging areas: likely contains 2-5% elastane. Mention it.
+- HONESTY: If the fabric doesn't clearly match a decision tree path, say so. If fiber content is genuinely ambiguous (knits where wool/cotton/cashmere/acrylic look identical, or matte wovens where cotton and viscose are indistinguishable), include a brief caveat in bestGuess. Only skip the caveat when ID is clear-cut (obvious denim, obvious lace, obvious velvet).
 - Do NOT call a woven-in color pattern a "print." If the colors are created by the weave (different colored yarns), describe it as a "woven colorblock," "woven plaid," "woven geometric," etc.
 - Do NOT reference or guess at brands. Analyze only visible fabric properties.
-- Do NOT fixate on prints/patterns. Analyze the base fabric.
+- Do NOT fixate on prints/patterns. Analyze the base fabric underneath.
 - Do NOT give yardage estimates.
-- Do NOT break same-fabric garments into pieces.
+- Do NOT break same-fabric garments into pieces (e.g., don't analyze top and bottom separately if they're the same fabric).
 - Tone: knowledgeable but conversational, like a friend who works at a high-end fabric store.
 
 Return ONLY the JSON object, no other text.`;
