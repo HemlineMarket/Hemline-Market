@@ -65,7 +65,7 @@
     }
 
     // Dropdowns
-    var dropdowns = ['dept', 'fiberType', 'origin', 'designer', 'feelsLike', 'burnTest'];
+    var dropdowns = ['dept', 'fiberType', 'origin', 'designer', 'feelsLike', 'burnTest', 'pattern'];
     dropdowns.forEach(function(id) {
       var val = params.get(id);
       if (val) {
