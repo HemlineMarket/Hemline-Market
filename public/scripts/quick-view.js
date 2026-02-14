@@ -494,11 +494,11 @@
     const specs = [];
     if (listing.content && listing.content !== 'Not sure') specs.push(['Fiber Content', listing.content]);
     if (listing.fabric_type) specs.push(['Fabric Type', listing.fabric_type]);
-    if (listing.width_inches) specs.push(['Width', listing.width_inches + '"']);
-    if (listing.gsm) specs.push(['Weight', listing.gsm + ' GSM']);
+    if (listing.width_in) specs.push(['Width', listing.width_in + '"']);
+    if (listing.weight_gsm) specs.push(['Weight', listing.weight_gsm + ' GSM']);
     if (listing.fiber_type) specs.push(['Fiber Category', listing.fiber_type]);
-    if (listing.origin_country) specs.push(['Origin', listing.origin_country]);
-    if (listing.designer_mill) specs.push(['Designer / Mill', listing.designer_mill]);
+    if (listing.origin || listing.country_of_origin) specs.push(['Origin', listing.origin || listing.country_of_origin]);
+    if (listing.designer) specs.push(['Designer / Mill', listing.designer]);
 
     // Seller info
     const sellerName = seller?.store_name || seller?.display_name || [seller?.first_name, seller?.last_name].filter(Boolean).join(' ') || 'Seller';
