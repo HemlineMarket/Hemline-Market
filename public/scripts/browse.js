@@ -344,7 +344,8 @@
       const res = await fetch('/api/cart/hold?listings=' + listingIds.join(','));
       if (res.ok) {
         const data = await res.json();
-        (data.holds || []).forEach(h => { map[h.listing_id] = h; });
+        const holds = Array.isArray(data) ? data : (Array.isArray(data.holds) ? data.holds : []);
+        holds.forEach(h => { if (h && h.listing_id) map[h.listing_id] = h; });
       }
     } catch (e) { console.error('Cart hold fetch error', e); }
     return map;
@@ -364,7 +365,7 @@
 
     if (search) query = query.or('title.ilike.%' + search + '%,description.ilike.%' + search + '%');
     if (content.length > 0) query = query.or(content.map(c => 'content.ilike.%' + c + '%').join(","));
-    if (color.length > 0) query = query.or(color.map(c => 'color.ilike.%' + c + '%').join(","));
+    if (color.length > 0) query = query.or(color.map(c => 'color_family.ilike.%' + c + '%').join(","));
     if (fabricType.length > 0) query = query.or(fabricType.map(t => 'fabric_type.ilike.%' + t + '%,feels_like.ilike.%' + t + '%').join(","));
     if (minPrice !== null) query = query.gte("price_cents", Math.round(minPrice * 100));
     if (maxPrice !== null) query = query.lte("price_cents", Math.round(maxPrice * 100));
@@ -373,9 +374,9 @@
     if (maxWidth !== null) query = query.lte("width_in", maxWidth);
     if (minGsm !== null && minGsm > 0) query = query.gte("weight_gsm", minGsm);
     if (maxGsm !== null) query = query.lte("weight_gsm", maxGsm);
-    if (dept) query = query.eq("department", dept);
+    if (dept) query = query.eq("dept", dept);
     if (fiberType) query = query.eq("fiber_type", fiberType);
-    if (origin) query = query.eq("origin_country", origin);
+    if (origin) query = query.eq("country_of_origin", origin);
     if (designer) query = query.ilike("designer", '%' + designer + '%');
     if (feelsLike) query = query.ilike("feels_like", '%' + feelsLike + '%');
     if (burnTest) query = query.eq("burn_test", burnTest);
