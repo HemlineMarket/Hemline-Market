@@ -369,10 +369,10 @@
     if (minPrice !== null) query = query.gte("price", minPrice);
     if (maxPrice !== null) query = query.lte("price", maxPrice);
     if (minYards !== null) query = query.gte("yards_available", minYards);
-    if (minWidth !== null) query = query.gte("width_inches", minWidth);
-    if (maxWidth !== null) query = query.lte("width_inches", maxWidth);
-    if (minGsm !== null) query = query.gte("gsm", minGsm);
-    if (maxGsm !== null) query = query.lte("gsm", maxGsm);
+    if (minWidth !== null) query = query.or("width_inches.gte." + minWidth + ",width_inches.is.null");
+    if (maxWidth !== null) query = query.or("width_inches.lte." + maxWidth + ",width_inches.is.null");
+    if (minGsm !== null && minGsm > 0) query = query.or("gsm.gte." + minGsm + ",gsm.is.null");
+    if (maxGsm !== null) query = query.or("gsm.lte." + maxGsm + ",gsm.is.null");
     if (dept) query = query.eq("department", dept);
     if (fiberType) query = query.eq("fiber_type", fiberType);
     if (origin) query = query.eq("origin_country", origin);
@@ -534,7 +534,7 @@
   }
 
   function hasAnyFilters(filters) {
-    return filters.search || filters.content.length > 0 || filters.color.length > 0 || filters.fabricType.length > 0 || filters.cosplayMode || filters.minPrice !== null || filters.maxPrice !== null || filters.minYards !== null || filters.minWidth !== null || filters.maxWidth !== null || filters.minGsm !== null || filters.maxGsm !== null || filters.dept || filters.fiberType || filters.origin || filters.designer || filters.feelsLike || filters.burnTest || filters.pattern;
+    return filters.search || filters.content.length > 0 || filters.color.length > 0 || filters.fabricType.length > 0 || filters.cosplayMode || filters.minPrice !== null || filters.maxPrice !== null || filters.minYards !== null || filters.minWidth !== null || filters.maxWidth !== null || (filters.minGsm !== null && filters.minGsm > 0) || filters.maxGsm !== null || filters.dept || filters.fiberType || filters.origin || filters.designer || filters.feelsLike || filters.burnTest || filters.pattern;
   }
 
   function getCurrentPage() {
