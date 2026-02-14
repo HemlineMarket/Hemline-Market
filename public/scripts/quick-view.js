@@ -40,9 +40,8 @@
       bottom: 8px;
       right: 8px;
       z-index: 3;
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
+      padding: 5px 10px;
+      border-radius: 6px;
       background: rgba(255,255,255,0.92);
       backdrop-filter: blur(4px);
       border: 1px solid rgba(0,0,0,0.08);
@@ -55,11 +54,11 @@
       transform: translateY(4px);
       transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
       pointer-events: none;
-    }
-    .qv-trigger svg {
-      width: 18px;
-      height: 18px;
+      font-size: 11px;
+      font-weight: 600;
       color: #374151;
+      letter-spacing: 0.01em;
+      font-family: inherit;
     }
     .listing-card:hover .qv-trigger,
     .listing-card:focus-within .qv-trigger {
@@ -71,18 +70,13 @@
       background: #fff;
       box-shadow: 0 4px 12px rgba(0,0,0,0.18);
     }
-    /* Mobile: always show */
     @media (max-width: 768px) {
       .qv-trigger {
         opacity: 1;
         transform: translateY(0);
         pointer-events: auto;
-        width: 30px;
-        height: 30px;
-      }
-      .qv-trigger svg {
-        width: 16px;
-        height: 16px;
+        font-size: 10px;
+        padding: 4px 8px;
       }
     }
 
@@ -339,8 +333,8 @@
   `;
   document.head.appendChild(style);
 
-  // Eye icon SVG
-  const eyeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  // Quick View trigger content
+  const triggerContent = 'Quick View';
 
   // Attach quick view buttons to listing cards via event delegation
   function injectButtons() {
@@ -365,7 +359,7 @@
       btn.className = 'qv-trigger';
       btn.setAttribute('aria-label', 'Quick view');
       btn.setAttribute('title', 'Quick view');
-      btn.innerHTML = eyeSvg;
+      btn.innerHTML = triggerContent;
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
