@@ -366,18 +366,13 @@
     if (content.length > 0) query = query.or(content.map(c => 'content.ilike.%' + c + '%').join(","));
     if (color.length > 0) query = query.or(color.map(c => 'color.ilike.%' + c + '%').join(","));
     if (fabricType.length > 0) query = query.or(fabricType.map(t => 'fabric_type.ilike.%' + t + '%,feels_like.ilike.%' + t + '%').join(","));
-    if (minPrice !== null) query = query.gte("price", minPrice);
-    if (maxPrice !== null) query = query.lte("price", maxPrice);
+    if (minPrice !== null) query = query.gte("price_cents", Math.round(minPrice * 100));
+    if (maxPrice !== null) query = query.lte("price_cents", Math.round(maxPrice * 100));
     if (minYards !== null) query = query.gte("yards_available", minYards);
-    if (minWidth !== null) query = query.or("width_inches.gte." + minWidth + ",width_inches.is.null");
-    if (maxWidth !== null) query = query.or("width_inches.lte." + maxWidth + ",width_inches.is.null");
-    // When both min AND max GSM are set, user wants a specific weight range so exclude NULLs
-    if (minGsm !== null && minGsm > 0 && maxGsm !== null) {
-      query = query.gte("gsm", minGsm).lte("gsm", maxGsm);
-    } else {
-      if (minGsm !== null && minGsm > 0) query = query.or("gsm.gte." + minGsm + ",gsm.is.null");
-      if (maxGsm !== null) query = query.or("gsm.lte." + maxGsm + ",gsm.is.null");
-    }
+    if (minWidth !== null) query = query.gte("width_inches", minWidth);
+    if (maxWidth !== null) query = query.lte("width_inches", maxWidth);
+    if (minGsm !== null && minGsm > 0) query = query.gte("gsm", minGsm);
+    if (maxGsm !== null) query = query.lte("gsm", maxGsm);
     if (dept) query = query.eq("department", dept);
     if (fiberType) query = query.eq("fiber_type", fiberType);
     if (origin) query = query.eq("origin_country", origin);
@@ -685,7 +680,7 @@
         grid.innerHTML = data.map(p => renderAtelierCard(p)).join("");
       } else {
         const { data, error, count } = await fetchListings(filters);
-        if (error) { grid.innerHTML = '<p style="text-align:center;padding:40px;">Error loading fabrics.</p>'; return; }
+        if (error) { console.error('[browse.js] Supabase error:', error); grid.innerHTML = '<p style="text-align:center;padding:40px;">Error loading fabrics.</p>'; return; }
         if (!data.length) {
           grid.innerHTML = "";
           if (filtersActive && emptyFilteredEl) emptyFilteredEl.style.display = "flex";
