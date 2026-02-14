@@ -176,11 +176,11 @@
           "value": listing.yards_available
         }];
         
-        if (listing.width_inches) {
+        if (listing.width_in) {
           schema.additionalProperty.push({
             "@type": "PropertyValue",
             "name": "Width",
-            "value": listing.width_inches + " inches"
+            "value": listing.width_in + " inches"
           });
         }
       }
