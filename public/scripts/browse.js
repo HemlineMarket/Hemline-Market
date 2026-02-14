@@ -371,8 +371,13 @@
     if (minYards !== null) query = query.gte("yards_available", minYards);
     if (minWidth !== null) query = query.or("width_inches.gte." + minWidth + ",width_inches.is.null");
     if (maxWidth !== null) query = query.or("width_inches.lte." + maxWidth + ",width_inches.is.null");
-    if (minGsm !== null && minGsm > 0) query = query.or("gsm.gte." + minGsm + ",gsm.is.null");
-    if (maxGsm !== null) query = query.or("gsm.lte." + maxGsm + ",gsm.is.null");
+    // When both min AND max GSM are set, user wants a specific weight range so exclude NULLs
+    if (minGsm !== null && minGsm > 0 && maxGsm !== null) {
+      query = query.gte("gsm", minGsm).lte("gsm", maxGsm);
+    } else {
+      if (minGsm !== null && minGsm > 0) query = query.or("gsm.gte." + minGsm + ",gsm.is.null");
+      if (maxGsm !== null) query = query.or("gsm.lte." + maxGsm + ",gsm.is.null");
+    }
     if (dept) query = query.eq("department", dept);
     if (fiberType) query = query.eq("fiber_type", fiberType);
     if (origin) query = query.eq("origin_country", origin);
