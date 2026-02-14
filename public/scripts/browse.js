@@ -590,14 +590,45 @@
       }
     }
 
-    // Sync sortBy into URL so pagination links preserve it
+    // Sync all filters into URL so back-navigation restores them
+    const filters_ = gatherFilterValues();
+    const urlParams = new URLSearchParams();
+
+    // Preserve page
+    const pageParam = new URLSearchParams(window.location.search).get('page');
+    if (pageParam) urlParams.set('page', pageParam);
+
+    // Sort
     const sortVal = document.getElementById('sortBy')?.value || 'newest';
-    const urlParams = new URLSearchParams(window.location.search);
-    if (sortVal && sortVal !== 'newest') {
-      urlParams.set('sort', sortVal);
-    } else {
-      urlParams.delete('sort');
-    }
+    if (sortVal && sortVal !== 'newest') urlParams.set('sort', sortVal);
+
+    // Text search
+    if (filters_.search) urlParams.set('q', filters_.search);
+
+    // Numeric range filters
+    if (filters_.minPrice !== null) urlParams.set('minPrice', filters_.minPrice);
+    if (filters_.maxPrice !== null) urlParams.set('maxPrice', filters_.maxPrice);
+    if (filters_.minYards !== null) urlParams.set('minYards', filters_.minYards);
+    if (filters_.minWidth !== null) urlParams.set('minWidth', filters_.minWidth);
+    if (filters_.maxWidth !== null) urlParams.set('maxWidth', filters_.maxWidth);
+    if (filters_.minGsm !== null && filters_.minGsm > 0) urlParams.set('minGsm', filters_.minGsm);
+    if (filters_.maxGsm !== null) urlParams.set('maxGsm', filters_.maxGsm);
+    if (filters_.designer) urlParams.set('designer', filters_.designer);
+
+    // Dropdowns
+    if (filters_.dept) urlParams.set('dept', filters_.dept);
+    if (filters_.fiberType) urlParams.set('fiberType', filters_.fiberType);
+    if (filters_.origin) urlParams.set('origin', filters_.origin);
+    if (filters_.feelsLike) urlParams.set('feelsLike', filters_.feelsLike);
+    if (filters_.burnTest) urlParams.set('burnTest', filters_.burnTest);
+    if (filters_.pattern) urlParams.set('pattern', filters_.pattern);
+
+    // Multi-select: content, fabricTypes, colors, cosplay
+    if (filters_.content.length > 0) urlParams.set('content', filters_.content.join(','));
+    if (filters_.fabricType.length > 0) urlParams.set('fabricTypes', filters_.fabricType.join(','));
+    if (filters_.color.length > 0) urlParams.set('colors', filters_.color.join(','));
+    if (filters_.cosplayMode) urlParams.set('cosplay', '1');
+
     const newUrl = urlParams.toString()
       ? window.location.pathname + '?' + urlParams.toString()
       : window.location.pathname;
