@@ -4,11 +4,28 @@
 (function() {
   'use strict';
 
-  // Supabase client getter
+  // Supabase client getter - matches browse.js / home.js pattern
+  let supabaseClient = null;
   function getClient() {
-    if (window.hmSupabase) return window.hmSupabase;
+    if (supabaseClient) return supabaseClient;
+    if (typeof window.getSupabaseClient === 'function') {
+      supabaseClient = window.getSupabaseClient();
+      if (supabaseClient) return supabaseClient;
+    }
+    if (window.HM && window.HM.supabase) {
+      supabaseClient = window.HM.supabase;
+      return supabaseClient;
+    }
     if (window.HM_SUPABASE_URL && window.HM_SUPABASE_ANON_KEY && window.supabase?.createClient) {
-      return window.supabase.createClient(window.HM_SUPABASE_URL, window.HM_SUPABASE_ANON_KEY);
+      supabaseClient = window.supabase.createClient(window.HM_SUPABASE_URL, window.HM_SUPABASE_ANON_KEY);
+      return supabaseClient;
+    }
+    if (window.supabase?.createClient) {
+      supabaseClient = window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI"
+      );
+      return supabaseClient;
     }
     return null;
   }
@@ -548,7 +565,7 @@
         ${tagsHtml}
         ${specsHtml}
         ${listing.description ? '<div class="qv-desc">' + listing.description + '</div>' : ''}
-        <div class="qv-seller">Sold by <a href="' + sellerHref + '">${sellerName}</a></div>
+        <div class="qv-seller">Sold by <a href="${sellerHref}">${sellerName}</a></div>
         <div class="qv-actions">
           ${ctaHtml}
           <a href="${href}" class="qv-btn-secondary">Full details</a>
