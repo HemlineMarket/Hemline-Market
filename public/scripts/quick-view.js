@@ -3,6 +3,7 @@
 // Shows fabric details in an overlay without leaving the page
 (function() {
   'use strict';
+  console.log('[quick-view] Script loaded');
 
   // Supabase client getter - matches browse.js / home.js pattern
   let supabaseClient = null;
@@ -343,20 +344,22 @@
 
   // Attach quick view buttons to listing cards via event delegation
   function injectButtons() {
-    document.querySelectorAll('.listing-card').forEach(function(card) {
+    const cards = document.querySelectorAll('.listing-card');
+    console.log('[quick-view] injectButtons called, found', cards.length, 'cards');
+    cards.forEach(function(card) {
       if (card.dataset.qvInjected) return;
       card.dataset.qvInjected = '1';
 
       // Find the listing link to get the ID
       const link = card.querySelector('a[href*="listing.html?id="]');
-      if (!link) return;
+      if (!link) { console.log('[quick-view] No listing link found in card'); return; }
       const match = link.href.match(/[?&]id=([^&]+)/);
-      if (!match) return;
+      if (!match) { console.log('[quick-view] No id in link:', link.href); return; }
       const listingId = decodeURIComponent(match[1]);
 
       // Find the thumbnail container
       const thumb = card.querySelector('.listing-thumb');
-      if (!thumb) return;
+      if (!thumb) { console.log('[quick-view] No .listing-thumb in card'); return; }
 
       const btn = document.createElement('button');
       btn.className = 'qv-trigger';
@@ -369,6 +372,7 @@
         openQuickView(listingId);
       });
       thumb.appendChild(btn);
+      console.log('[quick-view] Injected button for listing:', listingId);
     });
   }
 
