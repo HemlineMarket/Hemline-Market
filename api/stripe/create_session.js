@@ -34,9 +34,15 @@ function safeJsonStringify(obj, maxLen = 500) {
     if (Array.isArray(obj)) {
       const minimal = obj.map(item => ({
         id: item.listing_id || item.listingId || item.id,
-        y: item.yards || 1
+        yards: item.yards || 1
       }));
-      const minStr = JSON.stringify(minimal);
+      let minStr = JSON.stringify(minimal);
+      // If still too long, drop items from the end until it fits
+      // (better to have partial data than broken JSON)
+      while (minStr.length > maxLen && minimal.length > 1) {
+        minimal.pop();
+        minStr = JSON.stringify(minimal);
+      }
       return minStr.length > maxLen ? minStr.slice(0, maxLen) : minStr;
     }
     
@@ -51,6 +57,20 @@ function getSupabaseAdmin() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+// Truncate a comma-separated ID list to fit within maxLen chars
+// without cutting a UUID in half
+function truncateIdList(idString, maxLen = 490) {
+  if (idString.length <= maxLen) return idString;
+  const ids = idString.split(",");
+  let result = "";
+  for (const id of ids) {
+    const candidate = result ? result + "," + id : id;
+    if (candidate.length > maxLen) break;
+    result = candidate;
+  }
+  return result;
 }
 
 export default async function handler(req, res) {
@@ -253,12 +273,12 @@ export default async function handler(req, res) {
       buyer_id: buyerId || "",
       shipping_cents: String(shippingCents),
       price_cents: String(itemsCents),
-      listing_ids: allListingIds,
-      seller_ids: allSellerIds,
+      listing_ids: truncateIdList(allListingIds, 490),
+      seller_ids: truncateIdList(allSellerIds, 490),
       listing_id: first.listing_id || first.listingId || first.id || "",
       seller_id: first.seller_id || first.sellerId || "",
-      title: (first.title || first.name || "").toString().trim(),
-      image_url: (first.image_url || first.imageUrl || "").toString().trim(),
+      title: (first.title || first.name || "").toString().trim().slice(0, 200),
+      image_url: (first.image_url || first.imageUrl || "").toString().trim().slice(0, 400),
       cart_json: safeJsonStringify(cart),
       item_count: String(cart.length),
     };
@@ -355,9 +375,19 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: session.url, id: session.id });
   } catch (err) {
     console.error("[create_session] error", err);
+    // Sanitize error - don't leak Stripe internals to client
+    const safeMessages = {
+      card_declined: "Your card was declined. Please try a different payment method.",
+      expired_card: "Your card has expired. Please use a different card.",
+      incorrect_cvc: "Incorrect CVC. Please check your card details.",
+      processing_error: "A processing error occurred. Please try again.",
+      rate_limit: "Too many requests. Please wait a moment and try again.",
+    };
+    const stripeCode = err?.code || err?.raw?.code || "";
+    const safeMsg = safeMessages[stripeCode] || "Could not start checkout. Please try again.";
     return res.status(500).json({
-      error: "Stripe create_session failed",
-      message: err?.message || String(err),
+      error: "Checkout failed",
+      message: safeMsg,
     });
   }
 }
