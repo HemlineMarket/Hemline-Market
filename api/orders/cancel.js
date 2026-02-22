@@ -204,17 +204,40 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No payment intent found for this order" });
     }
 
-    const refund = await stripe.refunds.create({
-      payment_intent: order.stripe_payment_intent,
-      reason: "requested_by_customer",
-    });
+    let refundId = null;
+    try {
+      // Check if already refunded first
+      const existingRefunds = await stripe.refunds.list({
+        payment_intent: order.stripe_payment_intent,
+        limit: 1,
+      });
+
+      if (existingRefunds.data.length > 0) {
+        refundId = existingRefunds.data[0].id;
+        console.log("[orders/cancel] Refund already exists:", refundId);
+      } else {
+        const refund = await stripe.refunds.create({
+          payment_intent: order.stripe_payment_intent,
+          reason: "requested_by_customer",
+        });
+        refundId = refund.id;
+        console.log("[orders/cancel] Stripe refund created:", refundId);
+      }
+    } catch (stripeErr) {
+      if (stripeErr.code === 'charge_already_refunded') {
+        console.log("[orders/cancel] Charge already refunded, continuing...");
+      } else {
+        console.error("[orders/cancel] Stripe refund error:", stripeErr);
+      }
+      // Continue with cancellation even if refund fails - admin can handle manually
+    }
 
     // Update order status
     await supabase.from("orders").update({
-      status: "CANCELLED",
+      status: "CANCELED",
       cancelled_at: now.toISOString(),
       cancelled_by: user.id,
-      stripe_refund_id: refund.id,
+      stripe_refund_id: refundId,
     }).eq("id", order_id);
 
     // Re-list ALL items if applicable (handles multi-item orders)
