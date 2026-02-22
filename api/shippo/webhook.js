@@ -75,11 +75,17 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  // ACK immediately so Shippo doesn't retry
-  res.status(200).json({ received: true });
+  // Read body FIRST before sending response
+  // (Vercel can terminate the function after res.json() is called)
+  let payload;
+  try {
+    payload = await readBody(req);
+  } catch (parseErr) {
+    console.error("Shippo webhook: failed to parse body", parseErr);
+    return res.status(400).json({ error: "Invalid payload" });
+  }
 
   try {
-    const payload = await readBody(req);
     const supabase = getSupabaseAdmin();
     const now = new Date();
 
@@ -95,7 +101,7 @@ export default async function handler(req, res) {
 
     if (!trackingNumber) {
       console.log("Shippo webhook: no tracking number found");
-      return;
+      return res.status(200).json({ received: true, skipped: "no tracking number" });
     }
 
     // Get tracking status
@@ -119,7 +125,7 @@ export default async function handler(req, res) {
 
     if (!order) {
       console.log(`Shippo webhook: no order found for ${trackingNumber}`);
-      return;
+      return res.status(200).json({ received: true, skipped: "no matching order" });
     }
 
     // Update order shipping status
@@ -210,7 +216,10 @@ export default async function handler(req, res) {
     // Apply updates
     await supabase.from("orders").update(updates).eq("id", order.id);
 
+    return res.status(200).json({ received: true, status });
   } catch (e) {
     console.error("Shippo webhook error:", e);
+    // Still return 200 to prevent Shippo retries - the error is logged for investigation
+    return res.status(200).json({ received: true, error: "processing failed" });
   }
 }
