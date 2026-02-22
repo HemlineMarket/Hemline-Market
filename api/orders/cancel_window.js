@@ -8,18 +8,19 @@ export const config = {
   api: { bodyParser: false },
 };
 
-const stripeSecret = process.env.STRIPE_SECRET_KEY;
-if (!stripeSecret) {
-  throw new Error("STRIPE_SECRET_KEY is missing");
-}
-
-const stripe = new Stripe(stripeSecret);
-
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method Not Allowed" });
   }
+
+  const stripeSecret = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecret) {
+    console.error("cancel_window: STRIPE_SECRET_KEY is missing");
+    return res.status(500).json({ error: "Server configuration error" });
+  }
+
+  const stripe = new Stripe(stripeSecret);
 
   const sessionId = (req.query.sid || "").trim();
   if (!sessionId) {
