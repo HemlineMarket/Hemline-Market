@@ -276,12 +276,13 @@ export default async function handler(req, res) {
     }
 
     // Notify buyer
+    const safeNotifTitle = escapeHtml(order.listing_title);
     await supabase.from("notifications").insert({
       user_id: order.buyer_id,
       type: "refund",
       kind: "refund",
       title: "Order cancelled & refunded",
-      body: `Your order for "${order.listing_title}" has been cancelled. Refund of $${(order.total_cents / 100).toFixed(2)} is being processed.`,
+      body: `Your order for "${safeNotifTitle}" has been cancelled. Refund of $${(order.total_cents / 100).toFixed(2)} is being processed.`,
       href: "/purchases.html",
     });
 
@@ -292,7 +293,7 @@ export default async function handler(req, res) {
         type: "cancelled",
         kind: "cancelled",
         title: "Order cancelled",
-        body: `Order for "${order.listing_title}" was cancelled because it wasn't shipped within 5 business days. The item has been relisted.`,
+        body: `Order for "${safeNotifTitle}" was cancelled because it wasn't shipped within 5 business days. The item has been relisted.`,
         href: "/sales.html",
       });
 
