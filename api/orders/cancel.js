@@ -46,6 +46,52 @@ async function sendEmail(to, subject, htmlBody, textBody) {
   });
 }
 
+// Void the Shippo label to recover label cost
+async function voidShippoLabel(supabase, orderId) {
+  const apiKey = process.env.SHIPPO_API_KEY;
+  if (!apiKey) return { voided: false, reason: "no_api_key" };
+
+  try {
+    const { data: shipment } = await supabase
+      .from("db_shipments")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!shipment?.shippo_transaction_id) return { voided: false, reason: "no_shipment" };
+    if (shipment.status === "CANCELED") return { voided: true, reason: "already_cancelled" };
+
+    const cancelRes = await fetch(
+      `https://api.goshippo.com/transactions/${shipment.shippo_transaction_id}/void/`,
+      {
+        method: "POST",
+        headers: { Authorization: `ShippoToken ${apiKey}`, "Content-Type": "application/json" },
+      }
+    );
+    const cancelData = await cancelRes.json();
+
+    if (!cancelRes.ok || (cancelData.status && cancelData.status.toUpperCase() !== "SUCCESS")) {
+      console.error("[cancel] Shippo void failed:", cancelData);
+      return { voided: false, reason: "shippo_error" };
+    }
+
+    await supabase.from("db_shipments").update({
+      status: "CANCELED", cancelled_at: new Date().toISOString(),
+    }).eq("order_id", orderId);
+
+    await supabase.from("orders").update({
+      label_url: null, tracking_number: null, tracking_url: null, shipping_status: "LABEL_VOIDED",
+    }).eq("id", orderId);
+
+    return { voided: true, reason: "success" };
+  } catch (err) {
+    console.error("[cancel] Shippo void exception:", err);
+    return { voided: false, reason: "exception" };
+  }
+}
+
 /**
  * Calculate business days between two dates (excludes Saturdays and Sundays)
  * @param {Date} startDate 
@@ -232,6 +278,10 @@ export default async function handler(req, res) {
       // Continue with cancellation even if refund fails - admin can handle manually
     }
 
+    // Void Shippo label to recover label cost
+    const labelVoidResult = await voidShippoLabel(supabase, order.id);
+    console.log("[cancel] Label void result:", labelVoidResult);
+
     // Update order status
     await supabase.from("orders").update({
       status: "CANCELED",
@@ -282,7 +332,7 @@ export default async function handler(req, res) {
       type: "refund",
       kind: "refund",
       title: "Order cancelled & refunded",
-      body: `Your order for "${safeNotifTitle}" has been cancelled. Refund of $${(order.total_cents / 100).toFixed(2)} is being processed.`,
+      body: `Your order for "${safeNotifTitle}" has been cancelled. Refund of $${((order.total_cents || 0) / 100).toFixed(2)} is being processed.`,
       href: "/purchases.html",
     });
 
@@ -327,11 +377,11 @@ export default async function handler(req, res) {
         "✅ Order Cancelled & Refunded - Hemline Market",
         `<h2>Order Cancelled</h2>
         <p>Your order for <strong>"${safeTitle}"</strong> has been cancelled.</p>
-        <p>A full refund of <strong>$${(order.total_cents / 100).toFixed(2)}</strong> is being processed to your original payment method.</p>
+        <p>A full refund of <strong>$${((order.total_cents || 0) / 100).toFixed(2)}</strong> is being processed to your original payment method.</p>
         <p>Refunds typically appear within 5-10 business days.</p>
         <p>We're sorry this order didn't work out. <a href="https://hemlinemarket.com/browse.html">Continue shopping</a></p>
         <p>Hemline Market</p>`,
-        `Your order for "${order.listing_title}" has been cancelled. Refund of $${(order.total_cents / 100).toFixed(2)} is being processed.`
+        `Your order for "${order.listing_title}" has been cancelled. Refund of $${((order.total_cents || 0) / 100).toFixed(2)} is being processed.`
       );
     }
 
