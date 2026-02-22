@@ -143,7 +143,7 @@ export default async function handler(req, res) {
           type: "shipped",
           kind: "shipped",
           title: "Your order has shipped! 📦",
-          body: `"${order.listing_title}" is on its way.`,
+          body: `"${escapeHtml(order.listing_title)}" is on its way.`,
           href: "/purchases.html",
         });
       }
@@ -180,7 +180,7 @@ export default async function handler(req, res) {
           type: "delivered",
           kind: "delivered",
           title: "Your order was delivered! 🎉",
-          body: `"${order.listing_title}" has been delivered. Enjoy your fabric!`,
+          body: `"${escapeHtml(order.listing_title)}" has been delivered. Enjoy your fabric!`,
           href: "/purchases.html",
         });
       }
@@ -207,7 +207,7 @@ export default async function handler(req, res) {
           type: "delivered",
           kind: "delivered",
           title: "Order delivered! 📬",
-          body: `"${order.listing_title}" was delivered. Payment will be released in 3 days.`,
+          body: `"${escapeHtml(order.listing_title)}" was delivered. Payment will be released in 3 days.`,
           href: "/sales.html",
         });
       }
