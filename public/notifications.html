@@ -291,6 +291,7 @@
 <div id="hm-shell-footer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scripts/escape-html.js"></script>
 <script src="scripts/hm-shell.js"></script>
 
 <script>
@@ -413,16 +414,22 @@
 
       const href = n.href || n.link || "#";
 
+      // Escape user-provided content to prevent stored XSS
+      const esc = window.escapeHtml || (s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
+      const safeTitle = esc(n.title || "Notification");
+      const safeBody = esc(n.body || "");
+      const safeHref = esc(href);
+
       li.innerHTML = `
         <div class="notif-dot"></div>
         <div class="notif-content">
           <div class="notif-title-row">
-            <span class="notif-title">${n.title || "Notification"}</span>
+            <span class="notif-title">${safeTitle}</span>
             <span class="notif-pill ${pillClass}">${typeLabel}</span>
           </div>
-          ${n.body ? `<div class="notif-body">${n.body}</div>` : ""}
+          ${n.body ? `<div class="notif-body">${safeBody}</div>` : ""}
           <div class="notif-meta">${formatWhen(n.created_at)}</div>
-          ${href !== "#" ? `<a class="notif-link" href="${href}">View →</a>` : ""}
+          ${href !== "#" ? `<a class="notif-link" href="${safeHref}">View →</a>` : ""}
         </div>
       `;
 
