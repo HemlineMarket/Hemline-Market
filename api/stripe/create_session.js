@@ -31,22 +31,21 @@ function safeJsonStringify(obj, maxLen = 500) {
     if (s.length <= maxLen) return s;
     
     // If full cart is too long, create a minimal version with just IDs and yards
-    if (Array.isArray(obj)) {
-      const minimal = obj.map(item => ({
-        id: item.listing_id || item.listingId || item.id,
-        yards: item.yards || 1
-      }));
-      let minStr = JSON.stringify(minimal);
-      // If still too long, drop items from the end until it fits
-      // (better to have partial data than broken JSON)
-      while (minStr.length > maxLen && minimal.length > 1) {
-        minimal.pop();
-        minStr = JSON.stringify(minimal);
-      }
-      return minStr.length > maxLen ? minStr.slice(0, maxLen) : minStr;
+    const items = Array.isArray(obj) ? obj : (obj ? [obj] : []);
+    const minimal = items.map(item => ({
+      id: item.listing_id || item.listingId || item.id,
+      yards: item.yards || 1
+    }));
+    let minStr = JSON.stringify(minimal);
+    // Drop items from the end until the string fits
+    // (better to have partial valid JSON than broken JSON from .slice)
+    while (minStr.length > maxLen && minimal.length > 1) {
+      minimal.pop();
+      minStr = JSON.stringify(minimal);
     }
-    
-    return s.slice(0, maxLen);
+    // If even a single item is too long, return empty string rather than broken JSON
+    if (minStr.length > maxLen) return "";
+    return minStr;
   } catch {
     return "";
   }
