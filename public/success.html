@@ -206,6 +206,9 @@
           cart = JSON.parse(localStorage.getItem("hm_cart") || "[]");
         } catch(_) {}
 
+        // Check if this was a per-seller checkout
+        const checkoutSeller = sessionStorage.getItem("hm_checkout_seller") || "";
+
         // Get user ID for hold deletion
         let userId = null;
         try {
@@ -216,8 +219,13 @@
           }
         } catch(_) {}
 
-        // Remove cart holds from database for all purchased items
-        for (const item of cart) {
+        // Determine which items were purchased
+        const purchasedItems = checkoutSeller
+          ? cart.filter(it => (it.sellerId || it.seller_id || it.seller || "") === checkoutSeller)
+          : cart;
+
+        // Remove cart holds from database for purchased items
+        for (const item of purchasedItems) {
           const listingId = item.listing_id || item.id;
           if (listingId) {
             try {
@@ -232,9 +240,19 @@
           }
         }
 
-        // Clear cart + shipping cache
-        localStorage.removeItem("hm_cart");
+        // Clear cart: if per-seller checkout, keep the other seller's items
+        if (checkoutSeller) {
+          const remaining = cart.filter(it => (it.sellerId || it.seller_id || it.seller || "") !== checkoutSeller);
+          if (remaining.length > 0) {
+            localStorage.setItem("hm_cart", JSON.stringify(remaining));
+          } else {
+            localStorage.removeItem("hm_cart");
+          }
+        } else {
+          localStorage.removeItem("hm_cart");
+        }
         localStorage.removeItem("hm_cart_shipping");
+        sessionStorage.removeItem("hm_checkout_seller");
 
         // Update header badge immediately if available
         if(window.HM_CART_BADGE_UPDATE){
