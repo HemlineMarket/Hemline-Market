@@ -244,21 +244,41 @@ export default async function handler(req, res) {
     if (listingIdsToRestore.length > 0) {
       console.log("[seller-cancel] Restoring listings:", listingIdsToRestore);
       
-      const { error: listingErr } = await supabase
-        .from("listings")
-        .update({ 
-          status: "ACTIVE", 
-          sold_at: null,
-          updated_at: now 
-        })
-        .in("id", listingIdsToRestore)
-        .is("deleted_at", null);
-
-      if (listingErr) {
-        console.warn("[seller-cancel] listing update error:", listingErr);
-      } else {
-        console.log(`[seller-cancel] Successfully restored ${listingIdsToRestore.length} listing(s)`);
+      // Parse original yards from order if available
+      let originalYardsMap = {};
+      try {
+        if (order.original_yards_json) {
+          originalYardsMap = JSON.parse(order.original_yards_json);
+        }
+      } catch (e) {
+        console.warn("[seller-cancel] Could not parse original_yards_json:", e.message);
       }
+
+      // Restore each listing with its original yards
+      let restoredCount = 0;
+      for (const listingId of listingIdsToRestore) {
+        const originalYards = originalYardsMap[listingId] || 1;
+        
+        const { error: listingErr } = await supabase
+          .from("listings")
+          .update({ 
+            status: "ACTIVE", 
+            yards_available: originalYards,
+            sold_at: null,
+            updated_at: now 
+          })
+          .eq("id", listingId)
+          .is("deleted_at", null);
+
+        if (listingErr) {
+          console.warn("[seller-cancel] listing update error for", listingId, ":", listingErr);
+        } else {
+          console.log(`[seller-cancel] Restored listing ${listingId} with ${originalYards} yards`);
+          restoredCount++;
+        }
+      }
+      
+      console.log(`[seller-cancel] Successfully restored ${restoredCount} of ${listingIdsToRestore.length} listing(s)`);
     }
 
     // Determine item count for notification text
