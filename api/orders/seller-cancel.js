@@ -305,7 +305,7 @@ export default async function handler(req, res) {
         type: "order_cancelled",
         kind: "cancelled",
         title: "Order Cancelled by Seller",
-        body: `Your order for ${itemText} has been cancelled by the seller. A refund of $${(order.total_cents / 100).toFixed(2)} will be processed to your original payment method.`,
+        body: `Your order for ${itemText} has been cancelled by the seller. A refund of $${((order.total_cents || 0) / 100).toFixed(2)} will be processed to your original payment method.`,
         href: "/purchases.html",
         created_at: now
       });
@@ -313,7 +313,7 @@ export default async function handler(req, res) {
 
     // Email buyer about cancellation
     if (order.buyer_email) {
-      const refundAmount = (order.total_cents / 100).toFixed(2);
+      const refundAmount = ((order.total_cents || 0) / 100).toFixed(2);
       const itemDescription = itemCount > 1 
         ? `<strong>${itemCount} items</strong>` 
         : `<strong>"${safeListingTitle}"</strong>`;
