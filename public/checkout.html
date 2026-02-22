@@ -444,8 +444,22 @@
     // ------------------------
     const CART_KEY = "hm_cart";
 
+    // If ?seller=xxx is in the URL, only checkout that seller's items
+    const __checkoutSellerParam = new URLSearchParams(window.location.search).get("seller") 
+      || sessionStorage.getItem("hm_checkout_seller") 
+      || "";
+
     function readCart() {
-      try { return JSON.parse(localStorage.getItem(CART_KEY) || "[]"); }
+      try {
+        let cart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+        // Filter to single seller if specified
+        if (__checkoutSellerParam) {
+          cart = cart.filter(it => 
+            (it.sellerId || it.seller_id || it.seller || "") === __checkoutSellerParam
+          );
+        }
+        return cart;
+      }
       catch (_) { return []; }
     }
 
