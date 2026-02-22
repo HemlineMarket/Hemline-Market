@@ -120,27 +120,30 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // 2. NOTIFY BUYERS THEY CAN CANCEL (Day 5, not shipped)
+    // 2. NOTIFY BUYERS THEY CAN CANCEL (after 5 business days, not shipped)
     // =========================================================
-    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+    // Use 7 calendar days to guarantee at least 5 business days have passed
+    // (worst case: order placed Saturday, 7 calendar days later = following Saturday = 5 weekdays)
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: unshippedOrders5Days } = await supabase
       .from("orders")
       .select("*")
       .eq("status", "PAID")
       .is("shipped_at", null)
-      .lt("created_at", fiveDaysAgo)
+      .lt("created_at", sevenDaysAgo)
       .is("buyer_cancel_notified_at", null);
 
     for (const order of unshippedOrders5Days || []) {
       try {
         if (order.buyer_id) {
+          const safeCronTitle = escapeHtml(order.listing_title);
           // In-app notification to buyer
           await supabase.from("notifications").insert({
             user_id: order.buyer_id,
             type: "order",
             kind: "order",
             title: "Your order hasn't shipped yet",
-            body: `"${order.listing_title}" hasn't shipped in 5 days. You can cancel for a full refund if you'd like.`,
+            body: `"${safeCronTitle}" hasn't shipped in 5 business days. You can cancel for a full refund if you'd like.`,
             href: `/order-buyer.html?id=${order.id}`,
           });
 
@@ -225,7 +228,7 @@ export default async function handler(req, res) {
           type: "payout",
           kind: "payout",
           title: "Payment released! 💰",
-          body: `$${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" has been added to your balance. Withdraw or shop anytime!`,
+          body: `$${(payoutAmount / 100).toFixed(2)} for "${escapeHtml(order.listing_title)}" has been added to your balance. Withdraw or shop anytime!`,
           href: "/account.html",
         });
 
