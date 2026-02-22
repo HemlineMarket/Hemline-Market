@@ -218,6 +218,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ status: "CANCELED" });
     }
 
+    // Safety check: don't cancel if somehow already shipped
+    if (order.shipped_at || order.status === "SHIPPED" || order.shipping_status === "IN_TRANSIT" || order.shipping_status === "DELIVERED") {
+      return res.status(400).json({ error: "Cannot cancel - order has already shipped." });
+    }
+
     // === STRIPE REFUND ===
     let refundId = null;
     if (order.stripe_payment_intent) {
