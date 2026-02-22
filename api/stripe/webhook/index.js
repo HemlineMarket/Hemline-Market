@@ -133,6 +133,7 @@ async function sendEmail(to, subject, htmlBody, textBody) {
 async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, shipTo, priceCents) {
   // Escape all user-provided content to prevent HTML injection
   const safeTitle = escapeHtml(itemTitle);
+  const safeLabelUrl = escapeHtml(labelUrl);
   const safeName = escapeHtml(shipTo.name);
   const safeLine1 = escapeHtml(shipTo.line1);
   const safeLine2 = escapeHtml(shipTo.line2 || '');
@@ -152,7 +153,7 @@ async function emailLabelToSeller(toEmail, labelUrl, trackingNumber, itemTitle, 
       
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;">
         <h2 style="margin:0 0 12px;color:#166534;">📦 Your Prepaid Shipping Label</h2>
-        <p><a href="${labelUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Label (PDF)</a></p>
+        <p><a href="${safeLabelUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Label (PDF)</a></p>
         <p style="margin-top:12px;">Tracking: <strong>${escapeHtml(trackingNumber)}</strong></p>
       </div>
       
@@ -384,7 +385,7 @@ export default async function handler(req, res) {
       shipping_state: shipAddr.state,
       shipping_postal_code: shipAddr.postal_code,
       shipping_country: shipAddr.country || "US",
-      cancel_eligible_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+      cancel_eligible_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 calendar days guarantees 5+ business days
       item_count: itemCount,
       // FIX: Store original yards for proper restoration on cancellation
       original_yards_json: Object.keys(originalYardsMap).length > 0 ? JSON.stringify(originalYardsMap) : null,
