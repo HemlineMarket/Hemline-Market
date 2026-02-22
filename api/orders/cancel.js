@@ -337,7 +337,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ 
       success: true, 
-      refund_id: refund.id,
+      refund_id: refundId,
       amount_refunded: order.total_cents
     });
 
