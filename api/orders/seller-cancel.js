@@ -20,6 +20,17 @@ function getSupabaseAdmin() {
   );
 }
 
+// HTML escape function to prevent XSS/injection in emails and notifications
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function sendEmail(to, subject, htmlBody, textBody) {
   const POSTMARK = process.env.POSTMARK_SERVER_TOKEN;
   const FROM = process.env.FROM_EMAIL || "orders@hemlinemarket.com";
@@ -283,10 +294,10 @@ export default async function handler(req, res) {
 
     // Determine item count for notification text
     const itemCount = listingIdsToRestore.length || 1;
+    const safeListingTitle = escapeHtml(order.listing_title || 'Fabric');
     const itemText = itemCount > 1 
       ? `${itemCount} items` 
-      : `"${order.listing_title || 'Fabric'}"`;
-
+      : `"${safeListingTitle}"`;
     // Create in-app notification for buyer
     if (order.buyer_id) {
       await supabase.from("notifications").insert({
@@ -305,7 +316,7 @@ export default async function handler(req, res) {
       const refundAmount = (order.total_cents / 100).toFixed(2);
       const itemDescription = itemCount > 1 
         ? `<strong>${itemCount} items</strong>` 
-        : `<strong>"${order.listing_title || 'Fabric'}"</strong>`;
+        : `<strong>"${safeListingTitle}"</strong>`;
       
       await sendEmail(
         order.buyer_email,
