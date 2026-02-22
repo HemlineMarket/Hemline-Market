@@ -19,6 +19,17 @@ function getSupabaseAdmin() {
   );
 }
 
+// HTML escape function to prevent injection in emails
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function sendEmail(to, subject, htmlBody, textBody) {
   const POSTMARK = process.env.POSTMARK_SERVER_TOKEN;
   const FROM = process.env.FROM_EMAIL || "orders@hemlinemarket.com";
@@ -87,13 +98,15 @@ export default async function handler(req, res) {
       try {
         const sellerEmail = order.seller?.contact_email;
         if (sellerEmail) {
+          const safeTitle = escapeHtml(order.listing_title);
+          const safeLabelUrl = escapeHtml(order.label_url);
           await sendEmail(
             sellerEmail,
             "⏰ Reminder: Please ship your order",
             `<h2>Shipping Reminder</h2>
-            <p>Your order for <strong>"${order.listing_title}"</strong> hasn't been shipped yet.</p>
+            <p>Your order for <strong>"${safeTitle}"</strong> hasn't been shipped yet.</p>
             <p>Please ship within <strong>2 more days</strong> to avoid the buyer being able to cancel.</p>
-            ${order.label_url ? `<p><a href="${order.label_url}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Shipping Label</a></p>` : ''}
+            ${order.label_url ? `<p><a href="${safeLabelUrl}" style="background:#991b1b;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Download Shipping Label</a></p>` : ''}
             <p>Thank you!<br>Hemline Market</p>`,
             `Reminder: Your order for "${order.listing_title}" hasn't been shipped. Please ship within 2 more days.`
           );
@@ -194,11 +207,12 @@ export default async function handler(req, res) {
         // Notify seller
         const sellerEmail = order.seller?.contact_email;
         if (sellerEmail) {
+          const safePayoutTitle = escapeHtml(order.listing_title);
           await sendEmail(
             sellerEmail,
             "💰 Payment Released - Hemline Market",
             `<h2>You've been paid!</h2>
-            <p>Your earnings of <strong>$${(payoutAmount / 100).toFixed(2)}</strong> for order "${order.listing_title}" have been added to your Hemline balance.</p>
+            <p>Your earnings of <strong>$${(payoutAmount / 100).toFixed(2)}</strong> for order "${safePayoutTitle}" have been added to your Hemline balance.</p>
             <p>You can use this balance to shop on Hemline Market or withdraw to your bank account from your <a href="https://hemlinemarket.com/account.html">Account page</a>.</p>
             <p>Thank you for selling on Hemline Market!</p>`,
             `Earnings of $${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" have been added to your Hemline balance. Visit your Account page to withdraw or shop.`
