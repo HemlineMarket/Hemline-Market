@@ -392,8 +392,10 @@ export default async function handler(req, res) {
 
     const { data: insertedOrder, error: insertErr } = await supabase.from("orders").insert(order).select().single();
     if (insertErr) {
-      console.error("Order insert failed:", insertErr);
-      return res.status(500).json({ error: "Order insert failed" });
+      console.error("CRITICAL: Order insert failed for session", session.id, ":", insertErr);
+      // Return 200 to prevent Stripe from retrying endlessly
+      // The payment succeeded but order wasn't created - needs manual investigation
+      return res.status(200).json({ received: true, error: "Order insert failed - needs manual review" });
     }
 
     // FIX: Mark ALL listings as SOLD (not just the first one)
@@ -494,10 +496,11 @@ export default async function handler(req, res) {
     }
 
     // In-app notifications
+    const safeDisplayTitle = escapeHtml(displayTitle);
     if (sellerId) {
       const notifBody = labelResult.success 
-        ? `"${displayTitle}" sold for $${(priceCents/100).toFixed(2)}. Check your email for the shipping label.`
-        : `"${displayTitle}" sold for $${(priceCents/100).toFixed(2)}. Action needed: Create your shipping label.`;
+        ? `"${safeDisplayTitle}" sold for $${(priceCents/100).toFixed(2)}. Check your email for the shipping label.`
+        : `"${safeDisplayTitle}" sold for $${(priceCents/100).toFixed(2)}. Action needed: Create your shipping label.`;
       
       await supabase.from("notifications").insert({
         user_id: sellerId, type: "sale", kind: "sale",
@@ -511,14 +514,16 @@ export default async function handler(req, res) {
       await supabase.from("notifications").insert({
         user_id: md.buyer_id, type: "order", kind: "order",
         title: "Order confirmed!",
-        body: `Your order for "${displayTitle}" is confirmed. The seller will ship it soon.`,
+        body: `Your order for "${safeDisplayTitle}" is confirmed. The seller will ship it soon.`,
         href: "/purchases.html",
       });
     }
 
     return res.status(200).json({ received: true });
   } catch (e) {
-    console.error("Webhook error:", e);
-    return res.status(500).json({ error: e.message });
+    console.error("CRITICAL: Webhook unhandled error:", e);
+    // Return 200 to prevent Stripe from retrying endlessly
+    // Payment succeeded but post-processing failed - needs manual investigation
+    return res.status(200).json({ received: true, error: "processing failed" });
   }
 }
