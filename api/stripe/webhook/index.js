@@ -348,7 +348,7 @@ export default async function handler(req, res) {
       const cartData = md.cart_json ? JSON.parse(md.cart_json) : [];
       cartData.forEach(item => {
         const itemId = item.listing_id || item.listingId || item.id;
-        const yards = Number(item.yards) || 1;
+        const yards = Number(item.yards) || Number(item.y) || 1;
         if (itemId) {
           originalYardsMap[itemId] = yards;
         }
