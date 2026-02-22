@@ -22,6 +22,17 @@ function getSupabaseAdmin() {
   );
 }
 
+// HTML escape function to prevent XSS/injection in emails
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export const config = {
   api: {
     bodyParser: {
@@ -319,9 +330,10 @@ export default async function handler(req, res) {
 
     // Determine item count for notification text
     const itemCount = listingIdsToRestore.length || 1;
+    const safeListingTitle = escapeHtml(order.listing_title || 'this item');
     const itemText = itemCount > 1 
       ? `${itemCount} items` 
-      : `"${order.listing_title || 'this item'}"`;
+      : `"${safeListingTitle}"`;
 
     // 3) Create in-app notification for buyer
     await supabaseAdmin.from("notifications").insert({
@@ -350,7 +362,7 @@ export default async function handler(req, res) {
       const totalDollars = ((order.total_cents || 0) / 100).toFixed(2);
       const itemDescription = itemCount > 1 
         ? `<strong>${itemCount} items</strong>` 
-        : `<strong>"${order.listing_title || 'this item'}"</strong>`;
+        : `<strong>"${safeListingTitle}"</strong>`;
       
       await sendEmail(
         order.buyer_email,
@@ -402,7 +414,7 @@ export default async function handler(req, res) {
 
         const itemDescription = itemCount > 1 
           ? `<strong>${itemCount} items</strong>` 
-          : `<strong>"${order.listing_title || 'your item'}"</strong>`;
+          : `<strong>"${escapeHtml(order.listing_title || 'your item')}"</strong>`;
         
         const listingMessage = itemCount > 1 
           ? "All your listings have been automatically re-activated"
