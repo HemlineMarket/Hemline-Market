@@ -107,23 +107,52 @@ export default async function handler(req, res) {
 
     const now = new Date().toISOString();
 
-    // CHECK FOR CHECKOUT LOCKS (prevents race condition with other buyers)
+    // ACQUIRE CHECKOUT LOCK FIRST (prevents race condition with other buyers)
+    // By creating the lock before checking availability, two simultaneous buyers
+    // can't both pass the check before either creates a lock.
     if (listingIds.length > 0 && buyerId) {
-      const { data: existingLocks, error: lockError } = await supabase
+      const lockExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const locks = listingIds.map(listing_id => ({
+        listing_id,
+        user_id: buyerId,
+        expires_at: lockExpiresAt,
+        created_at: now
+      }));
+
+      await supabase
+        .from("checkout_locks")
+        .upsert(locks, { onConflict: "listing_id", ignoreDuplicates: false });
+
+      // Now re-read locks to check if WE actually hold them
+      // (another buyer's upsert may have overwritten ours)
+      const { data: currentLocks } = await supabase
         .from("checkout_locks")
         .select("listing_id, user_id, expires_at")
         .in("listing_id", listingIds)
         .gt("expires_at", now);
 
-      if (!lockError && existingLocks) {
-        const blockedBy = existingLocks.filter(lock => lock.user_id !== buyerId);
+      if (currentLocks) {
+        const blockedBy = currentLocks.filter(lock => lock.user_id !== buyerId);
         if (blockedBy.length > 0) {
+          // Another buyer overwrote our lock -- clean up and reject
+          await supabase.from("checkout_locks").delete()
+            .in("listing_id", listingIds)
+            .eq("user_id", buyerId);
           return res.status(409).json({
             error: "Items locked by another buyer",
             locked_items: blockedBy.map(l => l.listing_id),
             message: "One or more items are being purchased by another buyer. Please try again in a few minutes."
           });
         }
+      }
+    }
+
+    // Helper to release our locks on early-exit failures
+    async function releaseLocks() {
+      if (listingIds.length > 0 && buyerId) {
+        await supabase.from("checkout_locks").delete()
+          .in("listing_id", listingIds)
+          .eq("user_id", buyerId);
       }
     }
 
@@ -136,6 +165,7 @@ export default async function handler(req, res) {
 
       if (listingError) {
         console.error("[create_session] Error checking listings:", listingError);
+        await releaseLocks();
         return res.status(500).json({ error: "Could not verify item availability" });
       }
 
@@ -154,6 +184,7 @@ export default async function handler(req, res) {
       }
 
       if (unavailable.length > 0) {
+        await releaseLocks();
         return res.status(400).json({
           error: "Some items are no longer available",
           unavailable: unavailable,
@@ -164,6 +195,7 @@ export default async function handler(req, res) {
       const foundIds = (listings || []).map(l => l.id);
       const missingIds = listingIds.filter(id => !foundIds.includes(id));
       if (missingIds.length > 0) {
+        await releaseLocks();
         return res.status(400).json({
           error: "Some items were not found",
           missing: missingIds
@@ -197,6 +229,7 @@ export default async function handler(req, res) {
             .map(s => s.store_name || `${s.first_name}'s Shop` || "This seller")
             .join(", ");
           
+          await releaseLocks();
           return res.status(400).json({ 
             error: "Seller on vacation",
             message: `Unable to checkout: ${sellerNames} ${vacationSellers.length === 1 ? "is" : "are"} currently on vacation.`
@@ -230,6 +263,7 @@ export default async function handler(req, res) {
     }
 
     if (itemsCents <= 0) {
+      await releaseLocks();
       return res.status(400).json({ error: "Cart total is invalid" });
     }
 
@@ -308,20 +342,7 @@ export default async function handler(req, res) {
       billing_address_collection: "auto",
     };
 
-    // CREATE CHECKOUT LOCK (10-minute hold while user is in Stripe)
-    if (listingIds.length > 0 && buyerId) {
-      const lockExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-      const locks = listingIds.map(listing_id => ({
-        listing_id,
-        user_id: buyerId,
-        expires_at: lockExpiresAt,
-        created_at: now
-      }));
-
-      await supabase
-        .from("checkout_locks")
-        .upsert(locks, { onConflict: "listing_id", ignoreDuplicates: false });
-    }
+    // Lock already acquired at the top of the handler
 
     // If we have shipping address from our checkout, use shipping_options instead of collection
     // This shows a fixed shipping rate and skips Stripe's address form
@@ -375,6 +396,16 @@ export default async function handler(req, res) {
     return res.status(200).json({ url: session.url, id: session.id });
   } catch (err) {
     console.error("[create_session] error", err);
+    // Release locks on any failure
+    try {
+      const cart = Array.isArray(req.body?.cart) ? req.body.cart : [];
+      const buyerId = (req.body?.buyer?.id || req.body?.buyer_id || "").toString().trim();
+      const ids = cart.map(item => item.listing_id || item.listingId || item.id).filter(Boolean);
+      if (ids.length > 0 && buyerId) {
+        const sb = getSupabaseAdmin();
+        if (sb) await sb.from("checkout_locks").delete().in("listing_id", ids).eq("user_id", buyerId);
+      }
+    } catch (_) {}
     // Sanitize error - don't leak Stripe internals to client
     const safeMessages = {
       card_declined: "Your card was declined. Please try a different payment method.",
