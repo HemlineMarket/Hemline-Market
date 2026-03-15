@@ -1,6 +1,7 @@
 // FILE: api/stripe/list_transfers.js
-// FIX: Renamed from list_transfers_js (was missing .js extension)
-// Lists Stripe transfers for the authenticated user's connected account
+// Lists Stripe transfers for the authenticated user's connected account.
+// NOTE: The file "list_transfers_js" (missing .js extension) in this same directory
+// is dead — Vercel won't route it. This file is the correct version.
 
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
