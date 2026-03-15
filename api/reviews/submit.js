@@ -88,6 +88,18 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Failed to submit review" });
     }
 
+    // Mark order as reviewed so the UI hides the form and shows the submitted review
+    await supabase
+      .from("orders")
+      .update({
+        reviewed: true,
+        review_rating: Math.round(rating),
+        review_comment: comment?.trim() || null,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq("id", order_id)
+      .eq("buyer_id", user.id);
+
     // Notify seller
     await supabase.from("notifications").insert({
       user_id: order.seller_id,
