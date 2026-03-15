@@ -27,11 +27,10 @@ const STATIC_PAGES = [
 export default async function handler(req, res) {
   const today = new Date().toISOString().split("T")[0];
 
-  // Fetch active listings
   let listings = [];
   try {
     const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/listings?select=id,updated_at&status=eq.active&order=updated_at.desc`,
+      `${SUPABASE_URL}/rest/v1/listings?select=id,updated_at&status=eq.ACTIVE&order=updated_at.desc`,
       {
         headers: {
           apikey: SUPABASE_ANON,
@@ -41,18 +40,15 @@ export default async function handler(req, res) {
     );
     if (r.ok) listings = await r.json();
   } catch (e) {
-    // If Supabase fails, still return static pages
     console.error("Supabase fetch failed:", e);
   }
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
 
-  // Static pages
   for (const page of STATIC_PAGES) {
     xml += `  <url>\n    <loc>${SITE_BASE}${page.url}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>\n`;
   }
 
-  // Individual listing pages
   for (const listing of listings) {
     const lastmod = listing.updated_at
       ? new Date(listing.updated_at).toISOString().split("T")[0]
