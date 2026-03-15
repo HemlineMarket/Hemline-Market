@@ -237,6 +237,34 @@
       return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
+    // Count business days (Mon-Fri) between a past ISO date and now
+    function businessDaysSince(iso) {
+      if (!iso) return 0;
+      const start = new Date(iso);
+      const end = new Date();
+      let count = 0;
+      const cur = new Date(start);
+      cur.setHours(0, 0, 0, 0);
+      const endDay = new Date(end);
+      endDay.setHours(0, 0, 0, 0);
+      while (cur < endDay) {
+        const dow = cur.getDay();
+        if (dow !== 0 && dow !== 6) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return count;
+    }
+
+    // Returns true when a buyer can use the 5-business-day late cancel
+    // (seller hasn't shipped after 5 business days)
+    function canLateCancel(order) {
+      const status = safeUpper(order.status || "");
+      if (status !== "PAID" && status !== "PENDING") return false;
+      if (order.shipped_at) return false;
+      if (minutesSince(order.created_at) <= 30) return false; // still in early-cancel window
+      return businessDaysSince(order.created_at) >= 5;
+    }
+
     function listingHref(listingId){
       return "fabric/" + encodeURIComponent(listingId);
     }
@@ -308,6 +336,38 @@ Please advise next steps.
       } catch(err){
         console.error("[purchases] cancel failed:", err);
         return { ok:false, error: err.message };
+      }
+    }
+
+    // Late cancel: seller didn't ship within 5 business days
+    // Calls /api/orders/cancel which enforces the 5-business-day rule server-side
+    async function lateBuyerCancelOrder(order) {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token) {
+        return { ok: false, error: "Please sign in to cancel orders" };
+      }
+
+      try {
+        const response = await fetch("/api/orders/cancel", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ order_id: order.id })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error("[purchases] late cancel API error:", data);
+          return { ok: false, error: data.error || "Cancel failed" };
+        }
+
+        return { ok: true, refund_id: data.refund_id };
+      } catch (err) {
+        console.error("[purchases] late cancel failed:", err);
+        return { ok: false, error: err.message };
       }
     }
 
@@ -461,6 +521,9 @@ Please advise next steps.
         let problemHtml = '';
         let noteHtml = '';
 
+        // Check late-cancel eligibility (5+ business days, seller hasn't shipped)
+        const showLateCancel = canLateCancel(order) && !isCancelled;
+
         if(isCancelled){
           cancelHtml = `<span class="note">Order cancelled</span>`;
           noteHtml = `<div class="note">Order cancelled.</div>`;
@@ -481,6 +544,11 @@ Please advise next steps.
             </select>
           `;
           cancelHtml = `<a class="btn" href="contact.html?subject=Order%20${orderShort}">Contact Support</a>`;
+          // Late cancel overrides the contact-support button when eligible
+          if(showLateCancel){
+            cancelHtml = `<button class="btn btn-danger" data-late-cancel-btn>Cancel — seller hasn't shipped</button>`;
+            noteHtml = `<div class="note warn">⚠️ It's been 5+ business days and your order hasn't shipped. You can cancel for a full refund.</div>`;
+          }
         }
 
         card.innerHTML = `
@@ -555,19 +623,29 @@ Please advise next steps.
         const cancelBtn = card.querySelector("[data-cancel-btn]");
         if(cancelBtn){
           cancelBtn.addEventListener("click", async () => {
-            // Simple confirmation
             if(!confirm("Cancel this order? You'll receive a full refund.")) return;
-            
             cancelBtn.disabled = true;
             cancelBtn.textContent = "Cancelling...";
             const res = await buyerCancelOrder(order, user);
-            if(res?.ok){
-              loadPurchases();
-              return;
-            }
+            if(res?.ok){ loadPurchases(); return; }
             cancelBtn.textContent = "Cancel";
             cancelBtn.disabled = false;
             alert("Could not cancel order. Please contact support.");
+          });
+        }
+
+        // Handle late-cancel button (only exists when 5+ business days have passed)
+        const lateCancelBtn = card.querySelector("[data-late-cancel-btn]");
+        if(lateCancelBtn){
+          lateCancelBtn.addEventListener("click", async () => {
+            if(!confirm("Cancel this order?\n\nThe seller hasn't shipped after 5 business days. You'll receive a full refund to your original payment method.")) return;
+            lateCancelBtn.disabled = true;
+            lateCancelBtn.textContent = "Cancelling...";
+            const res = await lateBuyerCancelOrder(order);
+            if(res?.ok){ loadPurchases(); return; }
+            lateCancelBtn.textContent = "Cancel — seller hasn't shipped";
+            lateCancelBtn.disabled = false;
+            alert(res?.error || "Could not cancel. Please contact support.");
           });
         }
 
