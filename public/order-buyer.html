@@ -252,6 +252,22 @@
       return (Date.now() - new Date(iso).getTime()) / 60000;
     }
 
+    // Count Mon-Fri business days between a past ISO timestamp and now
+    function businessDaysSince(iso) {
+      if (!iso) return 0;
+      const cur = new Date(iso);
+      cur.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(0, 0, 0, 0);
+      let count = 0;
+      while (cur < end) {
+        const dow = cur.getDay();
+        if (dow !== 0 && dow !== 6) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return count;
+    }
+
     async function loadOrder(){
       const params = new URLSearchParams(window.location.search);
       const orderId = params.get("id");
@@ -338,13 +354,11 @@
 
       const canCancel = order.status === "PAID" && minutesSince(order.created_at) < 30;
 
-      // 5-day cancel: order is PAID, past 30-min window, not shipped, and 5+ business days elapsed
-      // We check cancel_eligible_at (set to 7 calendar days = guaranteed 5 business days)
-      const pastCancelEligible = order.cancel_eligible_at && new Date(order.cancel_eligible_at) <= new Date();
+      // 5-day late cancel: PAID, past 30-min window, not shipped, 5+ business days elapsed
       const canCancelLate = order.status === "PAID"
         && !canCancel
         && !order.shipped_at
-        && pastCancelEligible;
+        && businessDaysSince(order.created_at) >= 5;
       
       // Buyer can accept delivery when status is DELIVERED and not yet accepted
       const canAcceptDelivery = order.status === "DELIVERED" && !order.buyer_accepted_at;
