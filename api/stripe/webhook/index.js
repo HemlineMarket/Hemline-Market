@@ -385,7 +385,6 @@ export default async function handler(req, res) {
       shipping_state: shipAddr.state,
       shipping_postal_code: shipAddr.postal_code,
       shipping_country: shipAddr.country || "US",
-      cancel_eligible_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 calendar days guarantees 5+ business days
       item_count: itemCount,
       // FIX: Store original yards for proper restoration on cancellation
       original_yards_json: Object.keys(originalYardsMap).length > 0 ? JSON.stringify(originalYardsMap) : null,
