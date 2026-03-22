@@ -6,7 +6,7 @@ import Stripe from 'stripe';
 export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
 
 function auth(req, res) {
-  const key = process.env.ADMIN_API_KEY || '';
+  const key = process.env.ADMIN_ACCESS_KEY || '';
   const got = (req.headers['x-admin-key'] || '').toString();
   if (!key || got !== key) {
     res.status(401).json({ error: 'Unauthorized' });
