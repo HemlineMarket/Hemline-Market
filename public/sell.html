@@ -1577,9 +1577,13 @@
         autofillStatus.style.display = 'block';
         
         try {
+          const { data: { session: autofillSession } } = await supabaseClient.auth.getSession();
           const resp = await fetch('/api/autofill-screenshot', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(autofillSession?.access_token ? { 'Authorization': `Bearer ${autofillSession.access_token}` } : {})
+            },
             body: JSON.stringify({ images: screenshots })
           });
           
@@ -1840,9 +1844,13 @@
       identifyResults.style.display = 'none';
       
       try {
+        const { data: { session: identifySession } } = await supabaseClient.auth.getSession();
         const resp = await fetch('/api/identify-fabric', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(identifySession?.access_token ? { 'Authorization': `Bearer ${identifySession.access_token}` } : {})
+          },
           body: JSON.stringify({ image: identifyImageBase64 })
         });
         
@@ -2561,6 +2569,21 @@
 
     async function publishListing(user){
       try{
+        // Block publishing if profile is incomplete (no name or no shipping address)
+        if (window.HM && window.HM.checkProfileCompleteAsync) {
+          const profileStatus = await window.HM.checkProfileCompleteAsync();
+          if (!profileStatus.complete) {
+            const missing = [];
+            if (!profileStatus.hasRealName) missing.push('your name');
+            if (!profileStatus.hasAddress) missing.push('a shipping address');
+            alert('Please complete your profile before listing items.\n\nMissing: ' + missing.join(' and ') + '.\n\nGo to Account to complete your profile.');
+            nextBtn.disabled = false;
+            nextBtn.textContent = isEditMode ? 'Save changes' : 'Publish listing';
+            backBtn.disabled = false;
+            return;
+          }
+        }
+
         // Check description for prohibited content
         const d = state.details;
         if(d.desc && window.HMContentFilter){
