@@ -308,9 +308,14 @@ goBtn.addEventListener('click',async()=>{
   ttStatus.style.display='none';
 
   try{
+    const sb=window.HM?.supabase;
+    const{data:{session:conciergeSession}}=sb ? await sb.auth.getSession() : {data:{session:null}};
     const resp=await fetch('/api/fabric-concierge',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        ...(conciergeSession?.access_token ? {'Authorization':`Bearer ${conciergeSession.access_token}`} : {})
+      },
       body:JSON.stringify({images:currentImages,hint:document.getElementById('hintInput').value.trim()})
     });
     const data=await resp.json();
