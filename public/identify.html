@@ -394,9 +394,14 @@ identifyBtn.addEventListener('click', async () => {
   resultsSection.classList.remove('show');
   
   try {
+    const sb = window.HM?.supabase;
+    const { data: { session: identifySession } } = sb ? await sb.auth.getSession() : { data: { session: null } };
     const resp = await fetch('/api/identify-fabric', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(identifySession?.access_token ? { 'Authorization': `Bearer ${identifySession.access_token}` } : {})
+      },
       body: JSON.stringify({ image: currentImageBase64 })
     });
     
