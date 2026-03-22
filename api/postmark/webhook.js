@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   const { secret } = req.query;
-  const expected = process.env.POSTMARK_WEBHOOK_SECRET;
+  const expected = process.env.POSTMARK_WEBHOOK_TOKEN;
   if (!expected) {
     return res.status(500).json({ error: 'Missing POSTMARK_WEBHOOK_SECRET' });
   }
