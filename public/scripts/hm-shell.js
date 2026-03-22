@@ -161,7 +161,7 @@ window.HM = window.HM || {};
     <a href="terms.html">Terms</a>
     <a href="privacy.html">Privacy</a>
   </nav>
-  <div class="menu-footer">© 2025 Hemline Market</div>
+  <div class="menu-footer">© 2025–2026 Hemline Market</div>
 </aside>
 `;
   }
@@ -180,7 +180,7 @@ window.HM = window.HM || {};
     return `
 <footer class="hm-footer" role="contentinfo">
   <div class="footer-wrap">
-    <div class="copy">© 2025 Hemline Market</div>
+    <div class="copy">© 2025–2026 Hemline Market</div>
     <nav class="footer-links" aria-label="Footer">
       <a href="about.html"${active("about")}>About</a>
       <a href="faq.html"${active("faq")}>FAQ</a>
