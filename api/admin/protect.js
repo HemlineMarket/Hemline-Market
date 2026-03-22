@@ -11,7 +11,7 @@ export default function protect(handler) {
     const headerToken = req.headers["x-admin-token"];
 
     const okBearer = process.env.HM_ADMIN_KEY && bearerKey === process.env.HM_ADMIN_KEY;
-    const okHeader = process.env.ADMIN_SECRET && headerToken === process.env.ADMIN_SECRET;
+    const okHeader = process.env.ADMIN_ACCESS_KEY && headerToken === process.env.ADMIN_ACCESS_KEY;
 
     if (!okBearer && !okHeader) {
       return res.status(401).json({ error: "Unauthorized" });
