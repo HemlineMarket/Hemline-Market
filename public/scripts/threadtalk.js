@@ -1241,8 +1241,21 @@
 
         case "show-all-comments":
           if (threadId) {
+            // In-place expand: do NOT re-render the entire feed (that would scroll to top)
             expandedCommentsThreads.add(threadId);
-            renderThreads();
+            const targetCard = cardsEl.querySelector('.card[data-thread-id="' + threadId + '"]');
+            if (targetCard) {
+              const comments = commentsByThread[threadId] || [];
+              const tree = buildCommentTree(comments);
+              const html = renderCommentTree(threadId, tree, 0);
+              const list = targetCard.querySelector('.comments-list');
+              if (list) list.innerHTML = html;
+              // Hide both possible "view all" buttons within this card
+              targetCard.querySelectorAll('[data-tt-role="show-all-comments"]').forEach(function(b){ b.style.display = 'none'; });
+            } else {
+              // Fallback: if we cant find the card for some reason, fall back to full re-render
+              renderThreads();
+            }
           }
           break;
 
