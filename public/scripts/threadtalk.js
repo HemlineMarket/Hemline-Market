@@ -607,10 +607,14 @@
       }
     });
 
-    // Restore scroll position so re-rendering does not jump to top
+    // Restore scroll position after re-render so the page does not jump to top
     if (__savedScrollY > 0) {
+      window.scrollTo(0, __savedScrollY);
       requestAnimationFrame(() => {
         window.scrollTo(0, __savedScrollY);
+        requestAnimationFrame(() => {
+          window.scrollTo(0, __savedScrollY);
+        });
       });
     }
   }
@@ -1182,6 +1186,8 @@
     cardsEl.addEventListener("click", async (e) => {
       const roleEl = e.target.closest("[data-tt-role]");
       if (!roleEl) return;
+      // Prevent any default button behavior that might cause scroll jump
+      e.preventDefault();
 
       const role = roleEl.dataset.ttRole;
       const card = roleEl.closest(".card");
