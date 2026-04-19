@@ -1241,8 +1241,10 @@
 
         case "show-all-comments":
           if (threadId) {
+            const scrollY = window.scrollY;
             expandedCommentsThreads.add(threadId);
             renderThreads();
+            requestAnimationFrame(() => window.scrollTo(0, scrollY));
           }
           break;
 
