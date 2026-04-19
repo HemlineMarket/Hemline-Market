@@ -420,7 +420,6 @@
   // ---------- Rendering ----------
   function renderThreads() {
     if (!cardsEl) return;
-    const __savedScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
     cardsEl.innerHTML = "";
     if (emptyStateEl) {
       emptyStateEl.style.display = threads.length ? "none" : "block";
@@ -606,17 +605,6 @@
         readMoreBtn.style.display = "none";
       }
     });
-
-    // Restore scroll position after re-render so the page does not jump to top
-    if (__savedScrollY > 0) {
-      window.scrollTo(0, __savedScrollY);
-      requestAnimationFrame(() => {
-        window.scrollTo(0, __savedScrollY);
-        requestAnimationFrame(() => {
-          window.scrollTo(0, __savedScrollY);
-        });
-      });
-    }
   }
 
   // ---------- Render each comment ----------
@@ -1186,8 +1174,6 @@
     cardsEl.addEventListener("click", async (e) => {
       const roleEl = e.target.closest("[data-tt-role]");
       if (!roleEl) return;
-      // Prevent any default button behavior that might cause scroll jump
-      e.preventDefault();
 
       const role = roleEl.dataset.ttRole;
       const card = roleEl.closest(".card");
