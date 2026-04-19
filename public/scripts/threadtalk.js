@@ -420,6 +420,7 @@
   // ---------- Rendering ----------
   function renderThreads() {
     if (!cardsEl) return;
+    const __savedScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
     cardsEl.innerHTML = "";
     if (emptyStateEl) {
       emptyStateEl.style.display = threads.length ? "none" : "block";
@@ -605,6 +606,13 @@
         readMoreBtn.style.display = "none";
       }
     });
+
+    // Restore scroll position so re-rendering does not jump to top
+    if (__savedScrollY > 0) {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, __savedScrollY);
+      });
+    }
   }
 
   // ---------- Render each comment ----------
@@ -1241,10 +1249,8 @@
 
         case "show-all-comments":
           if (threadId) {
-            const scrollY = window.scrollY;
             expandedCommentsThreads.add(threadId);
             renderThreads();
-            requestAnimationFrame(() => window.scrollTo(0, scrollY));
           }
           break;
 
