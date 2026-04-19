@@ -733,10 +733,100 @@
   window.runSearch = runSearch;
 
   /* ===== INITIALIZATION ===== */
+  function applyUrlParamsToFilters() {
+    var params = new URLSearchParams(window.location.search);
+    if (!params.toString()) return;
+
+    // Text search
+    var q = params.get('q');
+    if (q) {
+      var qInput = document.getElementById('q');
+      if (qInput) qInput.value = q;
+    }
+
+    // Sort
+    var sort = params.get('sort');
+    if (sort) {
+      var sortEl = document.getElementById('sortBy');
+      if (sortEl) sortEl.value = sort;
+    }
+
+    // Numeric inputs
+    var numericFields = ['minPrice','maxPrice','minYards','minWidth','maxWidth','minGsm','maxGsm','designer'];
+    numericFields.forEach(function(id) {
+      var v = params.get(id);
+      if (v) {
+        var el = document.getElementById(id);
+        if (el) el.value = v;
+      }
+    });
+
+    // Dropdowns
+    var dropdowns = ['dept','fiberType','origin','feelsLike','burnTest','pattern'];
+    dropdowns.forEach(function(id) {
+      var v = params.get(id);
+      if (v) {
+        var el = document.getElementById(id);
+        if (el) el.value = v;
+      }
+    });
+
+    // Content multi-select
+    var content = params.get('content');
+    if (content) {
+      content.split(',').forEach(function(c) {
+        var val = c.trim();
+        if (val) {
+          selectedContents.add(val);
+          var cb = document.querySelector('#contentBox input[type="checkbox"][value="' + val + '"]');
+          if (cb) cb.checked = true;
+        }
+      });
+    }
+
+    // Fabric types multi-select
+    var fabricTypes = params.get('fabricTypes');
+    if (fabricTypes) {
+      fabricTypes.split(',').forEach(function(t) {
+        var val = t.trim();
+        if (val) {
+          selectedFabricTypes.add(val);
+          var cb = document.querySelector('#fabricTypeBox input[type="checkbox"][value="' + val + '"]');
+          if (cb) cb.checked = true;
+        }
+      });
+    }
+
+    // Colors multi-select
+    var colors = params.get('colors');
+    if (colors) {
+      colors.split(',').forEach(function(c) {
+        var val = c.trim();
+        if (val) {
+          selectedColors.add(val);
+          var swatch = document.querySelector('#colorBox .sw[data-name="' + val + '"]');
+          if (swatch) {
+            swatch.setAttribute('data-selected', 'true');
+            swatch.style.outline = '2px solid #111';
+          }
+        }
+      });
+    }
+
+    // Cosplay
+    var cosplay = params.get('cosplay');
+    if (cosplay === '1') {
+      var el = document.getElementById('cosplayFilter');
+      if (el) el.checked = true;
+    }
+  }
+
   function init() {
     if (!getClient()) { console.warn('[browse.js] Waiting for Supabase...'); setTimeout(init, 100); return; }
     console.log('[browse.js] Initializing...');
     initFilters();
+    // Apply URL params to filter UI BEFORE first search so cotton is preserved on page navigation
+    applyUrlParamsToFilters();
     runSearch('keepPage');
     window.addEventListener("filtersChanged", runSearch);
     window.addEventListener("popstate", function() { runSearch('keepPage'); });
