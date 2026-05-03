@@ -2,10 +2,23 @@
 // Server-renders a ThreadTalk post as a full HTML page.
 // URL: /thread/123  → indexable by Google, shows real title/body/author
 // The client-side ThreadTalk page still works for logged-in interaction.
+//
+// Fixes Search Console errors on DiscussionForumPosting:
+//   1. "Invalid object type for field author" — was caused by microdata in the
+//      <article> body (itemprop="author" on a plain text node). Microdata
+//      attributes have been removed; JSON-LD is now the single source of truth.
+//   2. "Missing field url (in author)" — author.url now points to
+//      atelier.html?u={author_id} (the public seller storefront).
+//   3. "Missing field url" — JSON-LD url is set; conflicting microdata removed.
+//   4. "Missing field comment" — replies are now fetched and emitted as a
+//      nested Comment[] array (with parent_comment_id → nested .comment).
 
 const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
 const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
 const SITE_BASE = "https://hemlinemarket.com";
+
+// Cap the number of comments serialized into JSON-LD to keep the page light.
+const MAX_COMMENTS_IN_SCHEMA = 100;
 
 const CATEGORY_LABELS = {
   showcase: "Showcase",
@@ -59,6 +72,48 @@ async function supabaseFetch(path) {
   return res.json();
 }
 
+// ---------- JSON-LD helpers ----------
+
+function displayName(profile) {
+  if (!profile) return "Hemline Member";
+  if (profile.store_name && profile.store_name.trim()) return profile.store_name.trim();
+  const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+  return fullName || "Hemline Member";
+}
+
+function authorUrl(authorId) {
+  if (!authorId) return null;
+  // atelier.html?u={id} is the public seller storefront page on the site.
+  return `${SITE_BASE}/atelier.html?u=${encodeURIComponent(authorId)}`;
+}
+
+function buildPerson(profile, authorId) {
+  const person = {
+    "@type": "Person",
+    name: displayName(profile),
+  };
+  const url = authorUrl(authorId);
+  if (url) person.url = url;
+  return person;
+}
+
+// Recursively build a Comment node and any of its replies.
+function buildCommentNode(comment, allComments, profilesById) {
+  const node = {
+    "@type": "Comment",
+    text: comment.body || "",
+    datePublished: comment.created_at,
+    author: buildPerson(profilesById[comment.author_id], comment.author_id),
+  };
+  const replies = allComments.filter((c) => c.parent_comment_id === comment.id);
+  if (replies.length > 0) {
+    node.comment = replies.map((r) => buildCommentNode(r, allComments, profilesById));
+  }
+  return node;
+}
+
+// ---------- Handler ----------
+
 export default async function handler(req, res) {
   const { id } = req.query;
   if (!id || isNaN(Number(id))) {
@@ -74,26 +129,44 @@ export default async function handler(req, res) {
   }
   const thread = threads[0];
 
-  // Fetch author profile
-  let author = null;
+  // Fetch thread author profile
+  let threadAuthorProfile = null;
   if (thread.author_id) {
     const profiles = await supabaseFetch(
-      `profiles?id=eq.${thread.author_id}&select=store_name,first_name,last_name&limit=1`
+      `profiles?id=eq.${thread.author_id}&select=id,store_name,first_name,last_name&limit=1`
     );
-    if (profiles && profiles.length > 0) author = profiles[0];
+    if (profiles && profiles.length > 0) threadAuthorProfile = profiles[0];
   }
 
-  // Fetch comment count
-  const comments = await supabaseFetch(
-    `threadtalk_comments?thread_id=eq.${id}&is_deleted=eq.false&select=id`
+  // Fetch comments (full content, ordered, capped)
+  const commentRows = await supabaseFetch(
+    `threadtalk_comments?thread_id=eq.${id}&is_deleted=eq.false` +
+      `&select=id,author_id,body,created_at,parent_comment_id` +
+      `&order=created_at.asc&limit=${MAX_COMMENTS_IN_SCHEMA}`
   );
-  const commentCount = comments ? comments.length : 0;
+  const comments = commentRows || [];
+  const commentCount = comments.length;
 
-  const authorName =
-    author?.store_name ||
-    (author?.first_name ? `${author.first_name} ${author.last_name || ""}`.trim() : null) ||
-    "Hemline Member";
+  // Batch-fetch comment author profiles in a single query.
+  const commentAuthorIds = [
+    ...new Set(comments.map((c) => c.author_id).filter(Boolean)),
+  ];
+  const profilesById = {};
+  if (commentAuthorIds.length > 0) {
+    const idsParam = commentAuthorIds.map(encodeURIComponent).join(",");
+    const rows = await supabaseFetch(
+      `profiles?id=in.(${idsParam})&select=id,store_name,first_name,last_name`
+    );
+    (rows || []).forEach((p) => {
+      profilesById[p.id] = p;
+    });
+  }
+  // Make the thread author findable by the same map (used for breadcrumb display below).
+  if (threadAuthorProfile) {
+    profilesById[thread.author_id] = threadAuthorProfile;
+  }
 
+  const authorName = displayName(threadAuthorProfile);
   const categoryLabel = CATEGORY_LABELS[thread.category] || "ThreadTalk";
   const categoryPage = CATEGORY_PAGES[thread.category] || "ThreadTalk.html";
   const canonicalUrl = `${SITE_BASE}/thread/${id}`;
@@ -104,28 +177,40 @@ export default async function handler(req, res) {
   const isImage = thread.media_type === "image" && thread.media_url;
   const isVideo = thread.media_type === "video" && thread.media_url;
 
-  const jsonLd = JSON.stringify({
+  // Build top-level comment nodes (those with no parent), each with their reply tree.
+  const topLevelComments = comments
+    .filter((c) => !c.parent_comment_id)
+    .map((c) => buildCommentNode(c, comments, profilesById));
+
+  // Build the DiscussionForumPosting JSON-LD object.
+  const schema = {
     "@context": "https://schema.org",
     "@type": "DiscussionForumPosting",
-    "headline": thread.title,
-    "text": (thread.body || "").slice(0, 500),
-    "url": canonicalUrl,
-    "datePublished": thread.created_at,
-    "author": {
-      "@type": "Person",
-      "name": authorName,
-    },
-    "interactionStatistic": {
+    headline: thread.title,
+    text: thread.body || "",
+    url: canonicalUrl,
+    datePublished: thread.created_at,
+    author: buildPerson(threadAuthorProfile, thread.author_id),
+    interactionStatistic: {
       "@type": "InteractionCounter",
-      "interactionType": "https://schema.org/CommentAction",
-      "userInteractionCount": commentCount,
+      interactionType: "https://schema.org/CommentAction",
+      userInteractionCount: commentCount,
     },
-    "isPartOf": {
+    isPartOf: {
       "@type": "WebPage",
-      "url": `${SITE_BASE}/${categoryPage}`,
-      "name": `ThreadTalk — ${categoryLabel} • Hemline Market`,
+      url: `${SITE_BASE}/${categoryPage}`,
+      name: `ThreadTalk — ${categoryLabel} • Hemline Market`,
     },
-  });
+  };
+
+  if (isImage) {
+    schema.image = [thread.media_url];
+  }
+  if (topLevelComments.length > 0) {
+    schema.comment = topLevelComments;
+  }
+
+  const jsonLd = JSON.stringify(schema);
 
   const html = `<!doctype html>
 <html lang="en">
@@ -166,6 +251,8 @@ export default async function handler(req, res) {
     .tt-post-title { font-size: 24px; font-weight: 700; color: #1a1a1a; margin: 0 0 12px; line-height: 1.3; }
     .tt-post-meta { font-size: 13px; color: #888; margin-bottom: 20px; }
     .tt-post-meta strong { color: #444; }
+    .tt-post-meta a { color: inherit; text-decoration: none; }
+    .tt-post-meta a:hover { text-decoration: underline; }
     .tt-post-body { font-size: 16px; line-height: 1.7; color: #333; white-space: pre-wrap; word-break: break-word; }
     .tt-post-media { margin: 20px 0; }
     .tt-post-media img { max-width: 100%; border-radius: 8px; }
@@ -187,18 +274,23 @@ export default async function handler(req, res) {
       ${title}
     </nav>
 
-    <article class="tt-post-card" itemscope itemtype="https://schema.org/DiscussionForumPosting">
+    <article class="tt-post-card">
       <span class="tt-category-tag">${escapeHtml(categoryLabel)}</span>
-      <h1 class="tt-post-title" itemprop="headline">${title}</h1>
+      <h1 class="tt-post-title">${title}</h1>
       <p class="tt-post-meta">
-        Posted by <strong itemprop="author">${escapeHtml(authorName)}</strong>
-        on <time itemprop="datePublished" datetime="${escapeHtml(thread.created_at)}">${formatDate(thread.created_at)}</time>
+        Posted by
+        ${
+          thread.author_id
+            ? `<a href="/atelier.html?u=${escapeHtml(thread.author_id)}"><strong>${escapeHtml(authorName)}</strong></a>`
+            : `<strong>${escapeHtml(authorName)}</strong>`
+        }
+        on <time datetime="${escapeHtml(thread.created_at)}">${formatDate(thread.created_at)}</time>
       </p>
 
       ${isImage ? `<div class="tt-post-media"><img src="${escapeHtml(thread.media_url)}" alt="${title}" loading="lazy"/></div>` : ""}
       ${isVideo ? `<div class="tt-post-media"><video src="${escapeHtml(thread.media_url)}" controls playsinline></video></div>` : ""}
 
-      <div class="tt-post-body" itemprop="text">${bodyText}</div>
+      <div class="tt-post-body">${bodyText}</div>
 
       ${commentCount > 0 ? `<p class="tt-comment-count">💬 ${commentCount} comment${commentCount === 1 ? "" : "s"}</p>` : ""}
 
