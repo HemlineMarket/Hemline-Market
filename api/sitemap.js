@@ -1,12 +1,15 @@
 // api/sitemap.js
 // Dynamic sitemap covering static pages, all active listings (/fabric/:id),
-// and all public ThreadTalk posts (/thread/:id).
+// all public ThreadTalk posts (/thread/:id), and seller atelier pages
+// (/atelier/:id) for sellers who have at least one active listing.
 //
 // Changes from previous version:
 //   - Removed /seller/ (private seller dashboard, behind auth)
 //   - Removed fabric-sos.html (now a noindex redirect)
 //   - Added all individual ThreadTalk category pages with the proper
 //     priority/changefreq so they're discovered alongside ThreadTalk.html.
+//   - Added /atelier/:id seller pages (only sellers with at least one
+//     active listing — keeps low-value pages out of the index).
 
 const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
 const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
@@ -55,13 +58,24 @@ export default async function handler(req, res) {
 
   // Fetch active listings for /fabric/:id URLs
   const listings = await supabaseFetch(
-    "listings?select=id,updated_at&status=eq.ACTIVE&deleted_at=is.null&order=updated_at.desc"
+    "listings?select=id,seller_id,updated_at&status=eq.ACTIVE&deleted_at=is.null&order=updated_at.desc"
   );
 
   // Fetch public ThreadTalk posts for /thread/:id URLs
   const threads = await supabaseFetch(
     "threadtalk_threads?select=id,updated_at&is_deleted=eq.false&order=updated_at.desc"
   );
+
+  // Derive the unique set of sellers with at least one active listing for
+  // /atelier/:id URLs. Sellers with no live inventory aren't surfaced (keeps
+  // empty/low-value pages out of the index).
+  const sellerLastUpdated = new Map();
+  for (const l of listings) {
+    if (!l.seller_id) continue;
+    const ts = l.updated_at || "";
+    const prev = sellerLastUpdated.get(l.seller_id) || "";
+    if (ts > prev) sellerLastUpdated.set(l.seller_id, ts);
+  }
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
 
@@ -84,6 +98,13 @@ export default async function handler(req, res) {
       ? new Date(thread.updated_at).toISOString().split("T")[0]
       : today;
     xml += `  <url>\n    <loc>${SITE_BASE}/thread/${thread.id}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+  }
+
+  // Seller atelier pages — canonical URL is /atelier/:id (SSR route).
+  // Only sellers with at least one active listing are included.
+  for (const [sellerId, ts] of sellerLastUpdated.entries()) {
+    const lastmod = ts ? new Date(ts).toISOString().split("T")[0] : today;
+    xml += `  <url>\n    <loc>${SITE_BASE}/atelier/${encodeURIComponent(sellerId)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
   }
 
   xml += `</urlset>`;
