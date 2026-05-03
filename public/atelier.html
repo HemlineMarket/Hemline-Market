@@ -5,6 +5,26 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>Atelier — Hemline Market</title>
 
+  <!-- SEO defaults — JS below updates these once the seller profile loads.
+       The canonical points to the indexable SSR route /atelier/:id when a
+       seller is being viewed; we let Google index that version, not this
+       client-rendered shell. -->
+  <meta name="description" content="Browse fabric ateliers on Hemline Market. Each seller's storefront features their active listings, ratings, and shop details — all in one place."/>
+  <meta name="robots" content="index, follow"/>
+  <link rel="canonical" href="https://hemlinemarket.com/atelier.html"/>
+
+  <meta property="og:type" content="profile"/>
+  <meta property="og:url" content="https://hemlinemarket.com/atelier.html"/>
+  <meta property="og:title" content="Atelier — Hemline Market"/>
+  <meta property="og:description" content="Browse a sewist's fabric atelier on Hemline Market."/>
+  <meta property="og:image" content="https://hemlinemarket.com/images/og-image.jpg"/>
+  <meta property="og:site_name" content="Hemline Market"/>
+
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="Atelier — Hemline Market"/>
+  <meta name="twitter:description" content="Browse a sewist's fabric atelier on Hemline Market."/>
+  <meta name="twitter:image" content="https://hemlinemarket.com/images/og-image.jpg"/>
+
   <!-- Tell browsers not to aggressively cache this HTML -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
@@ -1368,6 +1388,49 @@
 
     titleEl.textContent="Atelier: "+shopDisplay;
     subEl.textContent= profileIncomplete ? "Complete your profile to set up your shop." : "";
+
+    // Update SEO meta tags now that we know which seller is being viewed.
+    // The canonical points at the indexable SSR route /atelier/:id so Google
+    // indexes the server-rendered version with full ProfilePage structured
+    // data, not this client-rendered shell.
+    (function updateSEO() {
+      try {
+        if (!sellerId) return;
+        const seoTitle = shopDisplay + " — Sewist's Atelier on Hemline Market";
+        const seoDesc =
+          (profile && profile.bio && profile.bio.trim().slice(0, 155)) ||
+          ("Shop fabric from " + shopDisplay + " on Hemline Market.");
+        const ssrUrl = "https://hemlinemarket.com/atelier/" + encodeURIComponent(sellerId);
+        const seoImage =
+          (profile && profile.avatar_url) ||
+          "https://hemlinemarket.com/images/og-image.jpg";
+
+        document.title = seoTitle;
+
+        const setMeta = function (selector, value) {
+          var el = document.querySelector(selector);
+          if (el) el.setAttribute("content", value);
+        };
+        setMeta('meta[name="description"]', seoDesc);
+        setMeta('meta[property="og:title"]', seoTitle);
+        setMeta('meta[property="og:description"]', seoDesc);
+        setMeta('meta[property="og:url"]', ssrUrl);
+        setMeta('meta[property="og:image"]', seoImage);
+        setMeta('meta[name="twitter:title"]', seoTitle);
+        setMeta('meta[name="twitter:description"]', seoDesc);
+        setMeta('meta[name="twitter:image"]', seoImage);
+
+        var canonical = document.querySelector('link[rel="canonical"]');
+        if (!canonical) {
+          canonical = document.createElement("link");
+          canonical.rel = "canonical";
+          document.head.appendChild(canonical);
+        }
+        canonical.href = ssrUrl;
+      } catch (e) {
+        // SEO updates are non-critical; never let them break the page.
+      }
+    })();
     ownerNameEl.textContent=fullName;
     
     // Render seller badges - only for verified sellers
