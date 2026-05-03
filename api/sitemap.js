@@ -1,6 +1,12 @@
 // api/sitemap.js
 // Dynamic sitemap covering static pages, all active listings (/fabric/:id),
 // and all public ThreadTalk posts (/thread/:id).
+//
+// Changes from previous version:
+//   - Removed /seller/ (private seller dashboard, behind auth)
+//   - Removed fabric-sos.html (now a noindex redirect)
+//   - Added all individual ThreadTalk category pages with the proper
+//     priority/changefreq so they're discovered alongside ThreadTalk.html.
 
 const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
 const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
@@ -14,20 +20,19 @@ const STATIC_PAGES = [
   { url: "/how.html", priority: "0.7", changefreq: "monthly" },
   { url: "/contact.html", priority: "0.6", changefreq: "monthly" },
   { url: "/faq.html", priority: "0.6", changefreq: "monthly" },
-  { url: "/auth.html", priority: "0.6", changefreq: "monthly" },
   { url: "/atelier.html", priority: "0.6", changefreq: "weekly" },
   { url: "/ThreadTalk.html", priority: "0.7", changefreq: "daily" },
-  { url: "/showcase.html", priority: "0.6", changefreq: "daily" },
-  { url: "/stitch-school.html", priority: "0.6", changefreq: "weekly" },
-  { url: "/pattern-hacks.html", priority: "0.6", changefreq: "weekly" },
-  { url: "/fabric-sos.html", priority: "0.6", changefreq: "weekly" },
-  { url: "/tailoring.html", priority: "0.6", changefreq: "weekly" },
-  { url: "/before-after.html", priority: "0.6", changefreq: "weekly" },
-  { url: "/loose-threads.html", priority: "0.6", changefreq: "weekly" },
+  { url: "/showcase.html", priority: "0.7", changefreq: "daily" },
+  { url: "/cosplay.html", priority: "0.7", changefreq: "daily" },
+  { url: "/stitch-school.html", priority: "0.7", changefreq: "weekly" },
+  { url: "/pattern-hacks.html", priority: "0.7", changefreq: "weekly" },
+  { url: "/tailoring.html", priority: "0.7", changefreq: "weekly" },
+  { url: "/before-after.html", priority: "0.7", changefreq: "weekly" },
+  { url: "/loose-threads.html", priority: "0.7", changefreq: "weekly" },
+  { url: "/fabric-concierge.html", priority: "0.6", changefreq: "monthly" },
   { url: "/privacy.html", priority: "0.4", changefreq: "monthly" },
   { url: "/terms.html", priority: "0.4", changefreq: "monthly" },
   { url: "/returns.html", priority: "0.5", changefreq: "monthly" },
-  { url: "/seller/", priority: "0.6", changefreq: "weekly" },
 ];
 
 async function supabaseFetch(path) {
