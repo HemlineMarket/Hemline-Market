@@ -71,6 +71,17 @@ async function supabaseFetch(path) {
   return null;
 }
 
+// Serialize an object as JSON-LD safe to embed inside an HTML <script> tag.
+// Escapes "<" so any user-supplied "</script>" inside titles/descriptions
+// can't break out of the script block. Also escapes line separators that
+// can break legacy JS parsers.
+function safeJsonLd(obj) {
+  return JSON.stringify(obj)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 // schema.org condition mapping
 function mapCondition(raw) {
   const c = String(raw || "").toLowerCase();
@@ -114,7 +125,7 @@ export default async function handler(req, res) {
 
   const sellerName = displayName(seller, listing.store_name);
   const sellerUrl = listing.seller_id
-    ? `${SITE_BASE}/atelier.html?u=${encodeURIComponent(listing.seller_id)}`
+    ? `${SITE_BASE}/atelier/${encodeURIComponent(listing.seller_id)}`
     : null;
 
   // Field name fallbacks — the listings table has gone through a schema
@@ -217,13 +228,14 @@ export default async function handler(req, res) {
   }
 
   // Return policy — per terms.html: 3-day return window for misrepresented items.
+  // returnFees is intentionally omitted because the published terms don't
+  // explicitly state who covers return shipping costs.
   offer.hasMerchantReturnPolicy = {
     "@type": "MerchantReturnPolicy",
     applicableCountry: "US",
     returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
     merchantReturnDays: 3,
     returnMethod: "https://schema.org/ReturnByMail",
-    returnFees: "https://schema.org/FreeReturn",
   };
 
   const productSchema = {
@@ -248,7 +260,6 @@ export default async function handler(req, res) {
     : { "@type": "Organization", name: "Hemline Market" };
 
   if (listing.fiber_content) productSchema.material = listing.fiber_content;
-  if (listing.fabric_type) productSchema.color = undefined; // no color field in DB
   if (weightOz) {
     productSchema.weight = {
       "@type": "QuantitativeValue",
@@ -317,8 +328,8 @@ export default async function handler(req, res) {
     ],
   };
 
-  const productJsonLd = JSON.stringify(productSchema);
-  const breadcrumbJsonLd = JSON.stringify(breadcrumbSchema);
+  const productJsonLd = safeJsonLd(productSchema);
+  const breadcrumbJsonLd = safeJsonLd(breadcrumbSchema);
 
   // ---------- Image gallery markup (no microdata) ----------
   const imageGallery = images
@@ -397,7 +408,7 @@ export default async function handler(req, res) {
         ${details ? `<p class="fabric-details">${escapeHtml(details)}</p>` : ""}
         <p class="fabric-seller">Sold by ${
           sellerUrl
-            ? `<a href="/atelier.html?u=${escapeHtml(listing.seller_id)}">${escapeHtml(sellerName)}</a>`
+            ? `<a href="/atelier/${escapeHtml(listing.seller_id)}">${escapeHtml(sellerName)}</a>`
             : `<strong>${escapeHtml(sellerName)}</strong>`
         }</p>
         ${listing.description ? `<div class="fabric-description">${escapeHtml(listing.description)}</div>` : ""}
