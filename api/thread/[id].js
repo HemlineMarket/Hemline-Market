@@ -12,6 +12,10 @@
 //   3. "Missing field url" — JSON-LD url is set; conflicting microdata removed.
 //   4. "Missing field comment" — replies are now fetched and emitted as a
 //      nested Comment[] array (with parent_comment_id → nested .comment).
+//
+// Also adds:
+//   - BreadcrumbList JSON-LD (Home → ThreadTalk → Category → Thread).
+//   - image[] in the JSON-LD when the post has a photo attachment.
 
 const SUPABASE_URL = "https://clkizksbvxjkoatdajgd.supabase.co";
 const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI";
@@ -72,6 +76,17 @@ async function supabaseFetch(path) {
   return res.json();
 }
 
+// Serialize an object as JSON-LD safe to embed inside an HTML <script> tag.
+// Escapes "<" so any user-supplied "</script>" inside titles/bodies/comments
+// can't break out of the script block. Also escapes line separators that
+// can break legacy JS parsers.
+function safeJsonLd(obj) {
+  return JSON.stringify(obj)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 // ---------- JSON-LD helpers ----------
 
 function displayName(profile) {
@@ -83,8 +98,8 @@ function displayName(profile) {
 
 function authorUrl(authorId) {
   if (!authorId) return null;
-  // atelier.html?u={id} is the public seller storefront page on the site.
-  return `${SITE_BASE}/atelier.html?u=${encodeURIComponent(authorId)}`;
+  // /atelier/:id is the canonical SSR seller storefront page.
+  return `${SITE_BASE}/atelier/${encodeURIComponent(authorId)}`;
 }
 
 function buildPerson(profile, authorId) {
@@ -110,6 +125,39 @@ function buildCommentNode(comment, allComments, profilesById) {
     node.comment = replies.map((r) => buildCommentNode(r, allComments, profilesById));
   }
   return node;
+}
+
+function buildBreadcrumbs(categoryLabel, categoryPage, threadTitle, canonicalUrl) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Hemline Market",
+        item: SITE_BASE + "/",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "ThreadTalk",
+        item: `${SITE_BASE}/ThreadTalk.html`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: categoryLabel,
+        item: `${SITE_BASE}/${categoryPage}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: threadTitle,
+        item: canonicalUrl,
+      },
+    ],
+  };
 }
 
 // ---------- Handler ----------
@@ -161,7 +209,6 @@ export default async function handler(req, res) {
       profilesById[p.id] = p;
     });
   }
-  // Make the thread author findable by the same map (used for breadcrumb display below).
   if (threadAuthorProfile) {
     profilesById[thread.author_id] = threadAuthorProfile;
   }
@@ -182,8 +229,8 @@ export default async function handler(req, res) {
     .filter((c) => !c.parent_comment_id)
     .map((c) => buildCommentNode(c, comments, profilesById));
 
-  // Build the DiscussionForumPosting JSON-LD object.
-  const schema = {
+  // Build the DiscussionForumPosting JSON-LD.
+  const postingSchema = {
     "@context": "https://schema.org",
     "@type": "DiscussionForumPosting",
     headline: thread.title,
@@ -202,15 +249,19 @@ export default async function handler(req, res) {
       name: `ThreadTalk — ${categoryLabel} • Hemline Market`,
     },
   };
+  if (isImage) postingSchema.image = [thread.media_url];
+  if (topLevelComments.length > 0) postingSchema.comment = topLevelComments;
 
-  if (isImage) {
-    schema.image = [thread.media_url];
-  }
-  if (topLevelComments.length > 0) {
-    schema.comment = topLevelComments;
-  }
+  // Build BreadcrumbList JSON-LD.
+  const breadcrumbSchema = buildBreadcrumbs(
+    categoryLabel,
+    categoryPage,
+    thread.title || "ThreadTalk Post",
+    canonicalUrl
+  );
 
-  const jsonLd = JSON.stringify(schema);
+  const postingJsonLd = safeJsonLd(postingSchema);
+  const breadcrumbJsonLd = safeJsonLd(breadcrumbSchema);
 
   const html = `<!doctype html>
 <html lang="en">
@@ -233,7 +284,8 @@ export default async function handler(req, res) {
   <meta name="twitter:title" content="${title} — Hemline Market"/>
   <meta name="twitter:description" content="${escapeHtml(description)}"/>
 
-  <script type="application/ld+json">${jsonLd}</script>
+  <script type="application/ld+json">${postingJsonLd}</script>
+  <script type="application/ld+json">${breadcrumbJsonLd}</script>
 
   <link rel="icon" href="/favicon.ico"/>
   <link rel="stylesheet" href="/styles/hm-modern.css"/>
@@ -281,7 +333,7 @@ export default async function handler(req, res) {
         Posted by
         ${
           thread.author_id
-            ? `<a href="/atelier.html?u=${escapeHtml(thread.author_id)}"><strong>${escapeHtml(authorName)}</strong></a>`
+            ? `<a href="/atelier/${escapeHtml(thread.author_id)}"><strong>${escapeHtml(authorName)}</strong></a>`
             : `<strong>${escapeHtml(authorName)}</strong>`
         }
         on <time datetime="${escapeHtml(thread.created_at)}">${formatDate(thread.created_at)}</time>
