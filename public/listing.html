@@ -1021,6 +1021,49 @@
     }
   }
 
+  // Track the inline video element so we can clean it up when switching back
+  // to an image. The hero <img> is hidden (not removed) so we can restore it.
+  function swapHeroToVideo(videoUrl, posterUrl) {
+    const hero = document.getElementById("hero");
+    if (!hero) return;
+    const container = hero.parentElement;
+
+    // Hide the hero <img> rather than replacing it, so we can restore it
+    // when the user clicks back to a photo.
+    hero.style.display = "none";
+
+    // Remove any existing inline video player.
+    let existing = container.querySelector("video.hero-video");
+    if (existing) existing.remove();
+
+    const vid = document.createElement("video");
+    vid.className = "hero-video";
+    vid.controls = true;
+    vid.playsInline = true;
+    vid.preload = "metadata";
+    if (posterUrl) vid.poster = posterUrl;
+    vid.src = videoUrl;
+    vid.style.cssText = "width:100%;max-height:600px;background:#000;border-radius:8px;display:block;";
+    container.appendChild(vid);
+
+    // Try autoplay (muted so browsers allow it). Failures are non-fatal.
+    vid.muted = true;
+    const p = vid.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  }
+
+  function swapHeroToImage() {
+    const hero = document.getElementById("hero");
+    if (!hero) return;
+    const container = hero.parentElement;
+    const existing = container.querySelector("video.hero-video");
+    if (existing) {
+      existing.pause();
+      existing.remove();
+    }
+    hero.style.display = "block";
+  }
+
   function buildMedia(listing){
     const hero = document.getElementById("hero");
     const thumbs = document.getElementById("thumbs");
@@ -1085,6 +1128,8 @@
         }
         
         btn.addEventListener("click", ()=>{
+          // Switch hero back to image mode if a video was being shown.
+          swapHeroToImage();
           hero.src = src;
           hero.style.display = "block";
           // Remove any error placeholder
@@ -1095,6 +1140,41 @@
         });
         thumbs.appendChild(btn);
       });
+
+      // ---------- Video thumbnail (if listing has a video) ----------
+      // The video plays inline when its thumbnail is clicked. We render a
+      // placeholder thumb with a ▶ play badge that uses the cover image
+      // as a poster so it visually fits with the photo thumbs.
+      if (listing.video_url) {
+        const vbtn = document.createElement("button");
+        vbtn.type = "button";
+        vbtn.className = "thumb thumb-video";
+        vbtn.title = "Play video";
+
+        const vimg = document.createElement("img");
+        vimg.src = urls[0] || "";
+        vimg.alt = "Video";
+        vimg.loading = "lazy";
+        vimg.onerror = function() {
+          this.style.display = "none";
+          vbtn.style.background = "#1f2937";
+        };
+        vbtn.appendChild(vimg);
+
+        // Play-button overlay
+        const playOverlay = document.createElement("div");
+        playOverlay.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);color:#fff;font-size:18px;pointer-events:none;border-radius:inherit;";
+        playOverlay.textContent = "▶";
+        vbtn.style.position = "relative";
+        vbtn.appendChild(playOverlay);
+
+        vbtn.addEventListener("click", () => {
+          swapHeroToVideo(listing.video_url, urls[0]);
+          thumbs.querySelectorAll(".thumb").forEach(el => el.classList.remove("active"));
+          vbtn.classList.add("active");
+        });
+        thumbs.appendChild(vbtn);
+      }
     }else{
       hero.alt = "Listing photo placeholder";
       hero.src = "";
