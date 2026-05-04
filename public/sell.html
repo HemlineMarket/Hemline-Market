@@ -35,9 +35,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   <!-- heic-to: converts iPhone HEIC photos to JPEG client-side before upload.
-       Browsers can't render HEIC, so without this iPhone uploads show as broken
-       images. Uses libheif 1.21.2 internally — supports modern iPhone HEIC
-       (the older heic2any library fails with ERR_LIBHEIF on iOS 11+ files). -->
+       Browsers can't render HEIC, so without this iPhone uploads show as
+       broken images. Uses libheif 1.21.2 — supports modern iPhone HEIC. -->
   <script src="https://cdn.jsdelivr.net/npm/heic-to@1.4.2/dist/iife/heic-to.js"></script>
 
   <!-- Shared styles (universal stack) -->
@@ -659,10 +658,10 @@
           <div class="drop" id="videoDrop" style="margin-top:14px">
             <strong>Drop one video here</strong> or
             <label class="btn" style="margin-left:6px">
-              <input id="videoInput" type="file" accept="video/mp4,video/webm" hidden>
+              <input id="videoInput" type="file" accept="video/mp4,video/webm,video/quicktime,video/*" hidden>
               choose a video
             </label>
-            <div class="subtle" style="margin-top:6px">MP4 or WebM, up to ~60s recommended (optional).</div>
+            <div class="subtle" style="margin-top:6px">MP4, WebM, or MOV. After selecting, you can trim it inline. (Optional.)</div>
           </div>
           <div class="thumbs" id="videoThumb" style="grid-template-columns:1fr;margin-top:10px"></div>
         </div>
@@ -2212,26 +2211,407 @@
       handlePhotoFiles(e.dataTransfer.files);
     });
 
+    // ============================================================
+    // VIDEO TRIM UI
+    // ============================================================
+    // When a video is selected, we render a trim UI inline below the upload
+    // drop zone. The seller drags two handles to select start/end times,
+    // previews the trimmed segment, and clicks "Apply trim" to re-encode.
+    //
+    // Trimming uses the MediaRecorder API + a hidden <video> + <canvas>:
+    //   1. Seek the source video to startTime.
+    //   2. Pipe the video element's captured stream + audio track into
+    //      MediaRecorder.
+    //   3. Stop recording at endTime.
+    //   4. Save the resulting WebM blob as the new state.video.file.
+    //
+    // Browser support: Chrome/Edge/Firefox all good. iOS Safari 14.4+ supports
+    // captureStream() (we feature-detect; if missing we just hide the trim UI
+    // and the seller can manually trim on their phone before re-uploading).
+    //
+    // The full original video is kept in `state.video.originalFile` so the
+    // seller can re-trim with different bounds without re-uploading.
+
+    let trimState = null; // { duration, start, end, draggingHandle, encoding }
+
     function renderVideo(){
       videoThumb.innerHTML = '';
       if(!state.video) return;
-      const div = document.createElement('div');
-      div.className = 'ph';
-      const vid = document.createElement('video');
-      vid.src = state.video.url;
-      vid.controls = true;
-      div.appendChild(vid);
-      videoThumb.appendChild(div);
+
+      // Show the full trim UI for newly-uploaded videos. For videos already
+      // saved on the server (edit mode, no local File object), we just show
+      // a player — re-trimming an already-uploaded video would require
+      // downloading it back, which isn't worth the complexity.
+      const isNewLocalFile = !!(state.video.file);
+      if (!isNewLocalFile) {
+        const div = document.createElement('div');
+        div.className = 'ph';
+        const vid = document.createElement('video');
+        vid.src = state.video.url;
+        vid.controls = true;
+        vid.style.maxWidth = '100%';
+        div.appendChild(vid);
+        videoThumb.appendChild(div);
+        return;
+      }
+
+      // Build the trim UI markup (constructed via DOM rather than innerHTML
+      // so we don't have to worry about escaping).
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'background:#fafafa;border:1px solid #e8e0d5;border-radius:12px;padding:14px;';
+
+      const sizeBadge = document.createElement('div');
+      sizeBadge.style.cssText = 'font-size:12px;color:#666;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;';
+      sizeBadge.innerHTML = `
+        <span><strong>Trim your video</strong> — drag the handles to choose the segment buyers will see.</span>
+        <span id="trimSizeInfo" style="color:#888;"></span>
+      `;
+      wrap.appendChild(sizeBadge);
+
+      // Hidden source video used for both preview and trimming
+      const srcVideo = document.createElement('video');
+      srcVideo.id = 'trimSrcVideo';
+      srcVideo.src = state.video.url;
+      srcVideo.controls = false;
+      srcVideo.playsInline = true;
+      srcVideo.preload = 'metadata';
+      srcVideo.style.cssText = 'width:100%;max-height:360px;background:#000;border-radius:8px;display:block;';
+      wrap.appendChild(srcVideo);
+
+      // Time labels
+      const timeRow = document.createElement('div');
+      timeRow.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;color:#666;margin-top:8px;font-variant-numeric:tabular-nums;';
+      timeRow.innerHTML = `
+        <span>Start: <strong id="trimStartLabel">0.0s</strong></span>
+        <span id="trimDurLabel" style="color:#888;"></span>
+        <span>End: <strong id="trimEndLabel">0.0s</strong></span>
+      `;
+      wrap.appendChild(timeRow);
+
+      // Dual-handle slider
+      const slider = document.createElement('div');
+      slider.id = 'trimSlider';
+      slider.style.cssText = 'position:relative;height:34px;margin:14px 4px 8px;touch-action:none;';
+      slider.innerHTML = `
+        <div style="position:absolute;top:14px;left:0;right:0;height:6px;background:#e2d8c8;border-radius:3px;"></div>
+        <div id="trimRangeFill" style="position:absolute;top:14px;height:6px;background:#7a1f1f;border-radius:3px;left:0;right:0;"></div>
+        <div id="trimHandleStart" class="trim-handle" data-handle="start" style="position:absolute;top:6px;width:22px;height:22px;background:#7a1f1f;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.3);left:0;cursor:grab;transform:translateX(-50%);touch-action:none;"></div>
+        <div id="trimHandleEnd" class="trim-handle" data-handle="end" style="position:absolute;top:6px;width:22px;height:22px;background:#7a1f1f;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.3);left:100%;cursor:grab;transform:translateX(-50%);touch-action:none;"></div>
+      `;
+      wrap.appendChild(slider);
+
+      // Action buttons row
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center;';
+      actions.innerHTML = `
+        <button type="button" id="trimPreviewBtn" class="btn">Preview trim</button>
+        <button type="button" id="trimApplyBtn" class="btn primary">Apply trim</button>
+        <button type="button" id="trimResetBtn" class="btn">Reset</button>
+        <button type="button" id="trimRemoveBtn" class="btn" style="margin-left:auto;color:#a00;">Remove video</button>
+      `;
+      wrap.appendChild(actions);
+
+      // Status line
+      const status = document.createElement('div');
+      status.id = 'trimStatus';
+      status.style.cssText = 'margin-top:10px;font-size:13px;color:#666;min-height:18px;';
+      wrap.appendChild(status);
+
+      videoThumb.appendChild(wrap);
+
+      // Wire up the UI now that nodes are in the DOM.
+      initTrimUI(srcVideo);
     }
+
+    // Initialize the trim UI for the freshly-rendered source video.
+    function initTrimUI(srcVideo) {
+      const startLabel = document.getElementById('trimStartLabel');
+      const endLabel = document.getElementById('trimEndLabel');
+      const durLabel = document.getElementById('trimDurLabel');
+      const sizeInfo = document.getElementById('trimSizeInfo');
+      const slider = document.getElementById('trimSlider');
+      const rangeFill = document.getElementById('trimRangeFill');
+      const handleStart = document.getElementById('trimHandleStart');
+      const handleEnd = document.getElementById('trimHandleEnd');
+      const previewBtn = document.getElementById('trimPreviewBtn');
+      const applyBtn = document.getElementById('trimApplyBtn');
+      const resetBtn = document.getElementById('trimResetBtn');
+      const removeBtn = document.getElementById('trimRemoveBtn');
+      const statusEl = document.getElementById('trimStatus');
+
+      const fileSizeMB = (state.video.file.size / 1024 / 1024).toFixed(1);
+      sizeInfo.textContent = `${fileSizeMB}MB`;
+      if (state.video.file.size > 100 * 1024 * 1024) {
+        sizeInfo.style.color = '#a00';
+        sizeInfo.textContent += ' — too big, trim before publishing';
+      }
+
+      // Wait for metadata so we know duration.
+      const onMeta = () => {
+        const duration = srcVideo.duration;
+        if (!isFinite(duration) || duration <= 0) {
+          statusEl.textContent = 'Could not read video duration. The browser may not support this format.';
+          return;
+        }
+        trimState = {
+          duration,
+          start: 0,
+          end: duration,
+          draggingHandle: null,
+          encoding: false,
+        };
+        updateLabels();
+      };
+      if (srcVideo.readyState >= 1) onMeta();
+      else srcVideo.addEventListener('loadedmetadata', onMeta, { once: true });
+
+      function fmt(t) { return (Math.round(t * 10) / 10).toFixed(1) + 's'; }
+
+      function updateLabels() {
+        if (!trimState) return;
+        startLabel.textContent = fmt(trimState.start);
+        endLabel.textContent = fmt(trimState.end);
+        durLabel.textContent = `Selected: ${fmt(trimState.end - trimState.start)} / Total: ${fmt(trimState.duration)}`;
+        const startPct = (trimState.start / trimState.duration) * 100;
+        const endPct = (trimState.end / trimState.duration) * 100;
+        handleStart.style.left = startPct + '%';
+        handleEnd.style.left = endPct + '%';
+        rangeFill.style.left = startPct + '%';
+        rangeFill.style.right = (100 - endPct) + '%';
+      }
+
+      // Handle drag — works for mouse and touch.
+      function clientXFromEvent(e) {
+        if (e.touches && e.touches[0]) return e.touches[0].clientX;
+        return e.clientX;
+      }
+      function onPointerDown(e) {
+        if (!trimState) return;
+        const which = e.target.dataset.handle;
+        if (!which) return;
+        e.preventDefault();
+        trimState.draggingHandle = which;
+        e.target.style.cursor = 'grabbing';
+      }
+      function onPointerMove(e) {
+        if (!trimState || !trimState.draggingHandle) return;
+        e.preventDefault();
+        const rect = slider.getBoundingClientRect();
+        const x = clientXFromEvent(e) - rect.left;
+        const pct = Math.max(0, Math.min(1, x / rect.width));
+        const t = pct * trimState.duration;
+        if (trimState.draggingHandle === 'start') {
+          // Keep at least 0.5s between handles.
+          trimState.start = Math.min(t, trimState.end - 0.5);
+          if (trimState.start < 0) trimState.start = 0;
+          // Scrub the preview to the new start.
+          srcVideo.currentTime = trimState.start;
+        } else {
+          trimState.end = Math.max(t, trimState.start + 0.5);
+          if (trimState.end > trimState.duration) trimState.end = trimState.duration;
+          srcVideo.currentTime = trimState.end;
+        }
+        updateLabels();
+      }
+      function onPointerUp() {
+        if (!trimState) return;
+        trimState.draggingHandle = null;
+        handleStart.style.cursor = 'grab';
+        handleEnd.style.cursor = 'grab';
+      }
+
+      handleStart.addEventListener('mousedown', onPointerDown);
+      handleEnd.addEventListener('mousedown', onPointerDown);
+      handleStart.addEventListener('touchstart', onPointerDown, { passive: false });
+      handleEnd.addEventListener('touchstart', onPointerDown, { passive: false });
+      window.addEventListener('mousemove', onPointerMove);
+      window.addEventListener('touchmove', onPointerMove, { passive: false });
+      window.addEventListener('mouseup', onPointerUp);
+      window.addEventListener('touchend', onPointerUp);
+
+      previewBtn.addEventListener('click', () => {
+        if (!trimState) return;
+        srcVideo.currentTime = trimState.start;
+        srcVideo.play().catch(() => {});
+        // Auto-stop at end.
+        const stopAt = () => {
+          if (srcVideo.currentTime >= trimState.end) {
+            srcVideo.pause();
+            srcVideo.removeEventListener('timeupdate', stopAt);
+          }
+        };
+        srcVideo.addEventListener('timeupdate', stopAt);
+      });
+
+      resetBtn.addEventListener('click', () => {
+        if (!trimState) return;
+        trimState.start = 0;
+        trimState.end = trimState.duration;
+        updateLabels();
+        statusEl.textContent = '';
+      });
+
+      removeBtn.addEventListener('click', () => {
+        if (!confirm('Remove the video from this listing?')) return;
+        if (state.video && state.video.url && state.video.file) {
+          URL.revokeObjectURL(state.video.url);
+        }
+        state.video = null;
+        trimState = null;
+        videoThumb.innerHTML = '';
+      });
+
+      applyBtn.addEventListener('click', async () => {
+        if (!trimState || trimState.encoding) return;
+        const segLength = trimState.end - trimState.start;
+        if (segLength < 0.5) {
+          statusEl.textContent = 'Selection is too short. Pick at least 0.5 seconds.';
+          return;
+        }
+        trimState.encoding = true;
+        applyBtn.disabled = true;
+        applyBtn.textContent = 'Encoding...';
+        statusEl.textContent = `Encoding ${fmt(segLength)} clip — this may take up to ${Math.ceil(segLength)}s.`;
+
+        try {
+          const trimmedFile = await encodeTrimmedSegment(srcVideo, trimState.start, trimState.end);
+          if (!trimmedFile) {
+            throw new Error('Encoding returned no output.');
+          }
+
+          // Replace state.video with the trimmed file. Keep the original around
+          // (originalFile) so the user can re-trim differently without re-uploading.
+          if (state.video && state.video.url) URL.revokeObjectURL(state.video.url);
+          const newUrl = URL.createObjectURL(trimmedFile);
+          const original = state.video.originalFile || state.video.file;
+          state.video = {
+            file: trimmedFile,
+            originalFile: original,
+            url: newUrl,
+          };
+          statusEl.style.color = '#1a7f37';
+          statusEl.textContent = `✓ Trimmed to ${(trimmedFile.size/1024/1024).toFixed(1)}MB. You can re-trim or click "Publish listing" when ready.`;
+          // Re-render with the trimmed file so the seller can adjust further.
+          renderVideo();
+        } catch (e) {
+          console.error('[trim] encoding failed:', e);
+          statusEl.style.color = '#a00';
+          statusEl.textContent = 'Could not trim the video in your browser. You can still upload as-is, or trim it on your phone first (Photos app → Edit → drag the trim handles).';
+        } finally {
+          if (trimState) trimState.encoding = false;
+          if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.textContent = 'Apply trim';
+          }
+        }
+      });
+    }
+
+    // Use MediaRecorder + captureStream to re-encode the [start, end] segment
+    // as a WebM blob. Returns a File on success, null on failure.
+    async function encodeTrimmedSegment(srcVideo, startSec, endSec) {
+      // Feature-detect: captureStream is required.
+      const hasCapture =
+        typeof srcVideo.captureStream === 'function' ||
+        typeof srcVideo.mozCaptureStream === 'function';
+      if (!hasCapture || typeof window.MediaRecorder !== 'function') {
+        throw new Error('Browser does not support in-browser video trimming.');
+      }
+
+      // Pick a MediaRecorder mime type the browser supports.
+      const candidateTypes = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm',
+        'video/mp4',
+      ];
+      let mime = '';
+      for (const t of candidateTypes) {
+        if (MediaRecorder.isTypeSupported(t)) { mime = t; break; }
+      }
+      if (!mime) throw new Error('No supported MediaRecorder mime type.');
+
+      // Mute the source video during encoding so the seller doesn't hear it
+      // play through their speakers — but DON'T strip the audio track from
+      // the captureStream (we still want audio in the output).
+      const wasMuted = srcVideo.muted;
+      srcVideo.muted = true;
+
+      // Seek to start and wait.
+      await seekVideoTo(srcVideo, startSec);
+
+      // Capture the stream once playback is going.
+      const stream = (srcVideo.captureStream || srcVideo.mozCaptureStream).call(srcVideo);
+      const chunks = [];
+      const recorder = new MediaRecorder(stream, { mimeType: mime });
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      const recordingDone = new Promise((resolve, reject) => {
+        recorder.onstop = () => resolve();
+        recorder.onerror = (e) => reject(e.error || new Error('Recorder error'));
+      });
+
+      recorder.start(250); // collect data every 250ms
+      try {
+        await srcVideo.play();
+      } catch (e) {
+        recorder.stop();
+        srcVideo.muted = wasMuted;
+        throw e;
+      }
+
+      // Stop when we've reached the end of the segment.
+      await new Promise((resolve) => {
+        const onTime = () => {
+          if (srcVideo.currentTime >= endSec) {
+            srcVideo.removeEventListener('timeupdate', onTime);
+            resolve();
+          }
+        };
+        srcVideo.addEventListener('timeupdate', onTime);
+      });
+
+      srcVideo.pause();
+      recorder.stop();
+      await recordingDone;
+
+      // Stop all tracks so the recorder fully releases the stream.
+      stream.getTracks().forEach((t) => t.stop());
+      srcVideo.muted = wasMuted;
+
+      if (chunks.length === 0) return null;
+      const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(chunks, { type: mime.split(';')[0] });
+      return new File([blob], `trimmed.${ext}`, {
+        type: mime.split(';')[0],
+        lastModified: Date.now(),
+      });
+    }
+
+    function seekVideoTo(video, time) {
+      return new Promise((resolve) => {
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          resolve();
+        };
+        video.addEventListener('seeked', onSeeked);
+        video.currentTime = time;
+      });
+    }
+    // ============================================================
+    // END VIDEO TRIM UI
+    // ============================================================
 
     function handleVideoFile(file){
       if(!file) return;
       if(!file.type.startsWith('video/')) return;
-      if(state.video && state.video.url){
+      if(state.video && state.video.url && state.video.file){
         URL.revokeObjectURL(state.video.url);
       }
       const url = URL.createObjectURL(file);
-      state.video = { file, url };
+      state.video = { file, originalFile: file, url };
       renderVideo();
     }
 
@@ -2478,11 +2858,10 @@
 
     // Convert a HEIC/HEIF file to JPEG using the heic-to library.
     // Returns a new File with .jpg extension and image/jpeg type.
-    // Falls back to the original file if conversion fails (will show as broken
-    // image, but at least the upload itself won't error out).
+    // Falls back to the original file if conversion fails (will show as
+    // broken image, but at least the upload itself won't error out).
     async function convertHeicToJpeg(file) {
       try {
-        // The IIFE bundle exposes a global `HeicTo` (function) and `HeicTo.isHeic`.
         if (typeof window.HeicTo !== 'function') {
           console.warn('[heic] heic-to library not loaded; skipping conversion');
           return file;
@@ -2501,7 +2880,7 @@
         return out;
       } catch (e) {
         console.error('[heic] conversion failed:', e);
-        alert('Could not convert this HEIC photo. Please change your iPhone camera setting (Settings → Camera → Formats → Most Compatible) and re-take the photo, or convert it to JPEG before uploading.');
+        alert('Could not convert this HEIC photo. Please change your iPhone camera setting (Settings → Camera → Formats → Most Compatible) and re-take, or convert it to JPEG before uploading.');
         return file;
       }
     }
@@ -2638,11 +3017,11 @@
         return { videoUrl: null, error: null };
       }
 
-      const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50 MB
+      const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100 MB after trim
       if (v.file.size > MAX_VIDEO_BYTES) {
         return {
           videoUrl: null,
-          error: `Video is ${(v.file.size/1024/1024).toFixed(1)}MB; the limit is 50MB. Please use a shorter clip.`
+          error: `Video is ${(v.file.size/1024/1024).toFixed(1)}MB; the limit is 100MB. Please trim it shorter using the trim tool above.`
         };
       }
 
@@ -2778,8 +3157,7 @@
           // IMAGES
           ...imageFields,
 
-          // VIDEO (optional). null when no video, edit mode w/ video removed,
-          // or upload skipped.
+          // VIDEO (optional)
           video_url: videoUrl || null,
         };
 
