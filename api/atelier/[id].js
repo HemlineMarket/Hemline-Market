@@ -109,7 +109,7 @@ export default async function handler(req, res) {
     (await supabaseFetch(
       `listings?seller_id=eq.${encodeURIComponent(id)}` +
         `&status=eq.ACTIVE&is_published=eq.true&deleted_at=is.null&yards_available=gt.0` +
-        `&select=id,title,price_cents,cover_image_url,image_url_1,yards_available,fiber_content,fabric_type,updated_at` +
+        `&select=id,title,price_cents,image_url_1,yards_available,fiber_content,fabric_type,updated_at` +
         `&order=updated_at.desc&limit=${MAX_LISTINGS_IN_GRID}`
     )) || [];
 
@@ -206,7 +206,7 @@ export default async function handler(req, res) {
   // ---------- Render listings grid ----------
   const listingsHtml = listings
     .map((l) => {
-      const img = l.cover_image_url || l.image_url_1 || "";
+      const img = l.image_url_1 || "";
       const price = formatPrice(l.price_cents);
       const yards = l.yards_available
         ? `${l.yards_available} yd${l.yards_available === 1 ? "" : "s"}`
