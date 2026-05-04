@@ -165,8 +165,9 @@ export default async function handler(req, res) {
   if (listing.fabric_type) detailParts.push(listing.fabric_type);
   const details = detailParts.join(" · ");
 
+  // The listings table stores up to 8 image URLs in image_url_1..8.
+  // (No separate cover_image_url column exists; the cover is image_url_1.)
   const images = [
-    listing.cover_image_url,
     listing.image_url_1,
     listing.image_url_2,
     listing.image_url_3,
@@ -177,7 +178,6 @@ export default async function handler(req, res) {
     listing.image_url_8,
   ].filter(Boolean);
 
-  // De-duplicate (cover_image_url is often the same as image_url_1).
   const uniqueImages = [...new Set(images)];
 
   const ogImage = uniqueImages[0] || `${SITE_BASE}/images/og-image.jpg`;
