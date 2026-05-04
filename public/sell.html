@@ -34,9 +34,11 @@
   <!-- Cropper.js for image editing -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-  <!-- heic2any: converts iPhone HEIC photos to JPEG client-side before upload.
-       Browsers can't render HEIC, so without this iPhone uploads show as broken images. -->
-  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+  <!-- heic-to: converts iPhone HEIC photos to JPEG client-side before upload.
+       Browsers can't render HEIC, so without this iPhone uploads show as broken
+       images. Uses libheif 1.21.2 internally — supports modern iPhone HEIC
+       (the older heic2any library fails with ERR_LIBHEIF on iOS 11+ files). -->
+  <script src="https://cdn.jsdelivr.net/npm/heic-to@1.4.2/dist/iife/heic-to.js"></script>
 
   <!-- Shared styles (universal stack) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
@@ -2474,24 +2476,22 @@
       return n.endsWith('.heic') || n.endsWith('.heif');
     }
 
-    // Convert a HEIC/HEIF file to JPEG using the heic2any library.
+    // Convert a HEIC/HEIF file to JPEG using the heic-to library.
     // Returns a new File with .jpg extension and image/jpeg type.
-    // Falls back to the original file if conversion fails (will likely show
-    // as broken image, but at least the upload itself won't error out).
+    // Falls back to the original file if conversion fails (will show as broken
+    // image, but at least the upload itself won't error out).
     async function convertHeicToJpeg(file) {
       try {
-        if (typeof window.heic2any !== 'function') {
-          console.warn('[heic] heic2any not loaded; skipping conversion');
+        // The IIFE bundle exposes a global `HeicTo` (function) and `HeicTo.isHeic`.
+        if (typeof window.HeicTo !== 'function') {
+          console.warn('[heic] heic-to library not loaded; skipping conversion');
           return file;
         }
-        const blob = await window.heic2any({
+        const outBlob = await window.HeicTo({
           blob: file,
-          toType: 'image/jpeg',
+          type: 'image/jpeg',
           quality: 0.92,
         });
-        // heic2any returns a Blob (or sometimes an array of Blobs for multi-image
-        // HEIC containers — we just take the first one).
-        const outBlob = Array.isArray(blob) ? blob[0] : blob;
         const newName = (file.name || 'photo').replace(/\.(heic|heif)$/i, '') + '.jpg';
         const out = new File([outBlob], newName, {
           type: 'image/jpeg',
@@ -2501,6 +2501,7 @@
         return out;
       } catch (e) {
         console.error('[heic] conversion failed:', e);
+        alert('Could not convert this HEIC photo. Please change your iPhone camera setting (Settings → Camera → Formats → Most Compatible) and re-take the photo, or convert it to JPEG before uploading.');
         return file;
       }
     }
@@ -2625,11 +2626,6 @@
 
     // Upload the optional video to Supabase storage.
     // Returns { videoUrl: string|null, error: string|null }.
-    // - Validates max size (50MB) — larger files are rejected up front instead
-    //   of failing mid-upload with a confusing error.
-    // - Skips upload if state.video already has a publicUrl (edit mode where
-    //   the video wasn't changed).
-    // - Reuses the same listing-media bucket as photos.
     async function uploadListingVideo(user){
       const v = state.video;
       if (!v) return { videoUrl: null, error: null };
@@ -2669,7 +2665,6 @@
         const { data: pubData } = bucket.getPublicUrl(path);
         const videoUrl = pubData?.publicUrl || null;
 
-        // Cache on state so edit-mode resaves don't re-upload.
         v.storagePath = path;
         v.publicUrl = videoUrl;
 
@@ -2784,7 +2779,7 @@
           ...imageFields,
 
           // VIDEO (optional). null when no video, edit mode w/ video removed,
-          // or upload skipped. Same row gets cleared on edit if user removed it.
+          // or upload skipped.
           video_url: videoUrl || null,
         };
 
@@ -2974,8 +2969,7 @@
         }
         renderPhotoThumbs();
 
-        // Load existing video so edit mode shows it (and re-saves work without
-        // requiring the user to re-upload).
+        // Load existing video so edit mode shows it.
         if (data.video_url) {
           state.video = {
             file: null,
