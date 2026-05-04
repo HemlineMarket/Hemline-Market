@@ -104,8 +104,12 @@ export default async function handler(req, res) {
   const { id } = req.query;
   if (!id) return res.redirect(302, "/browse.html");
 
+  // We don't filter on `deleted_at` because the column isn't reliably set on
+  // newly-inserted rows — sell.html doesn't write it, so requiring IS NULL
+  // can spuriously 404 brand-new listings. We instead handle deletion with
+  // status checks below if needed.
   const listings = await supabaseFetch(
-    `listings?id=eq.${encodeURIComponent(id)}&deleted_at=is.null&limit=1`
+    `listings?id=eq.${encodeURIComponent(id)}&limit=1`
   );
 
   if (!listings || listings.length === 0) {
@@ -113,6 +117,11 @@ export default async function handler(req, res) {
   }
 
   const listing = listings[0];
+
+  // If the listing has been soft-deleted, don't render it.
+  if (listing.deleted_at) {
+    return res.status(404).send("Listing not found");
+  }
 
   // Fetch seller profile
   let seller = null;
@@ -161,9 +170,17 @@ export default async function handler(req, res) {
     listing.image_url_1,
     listing.image_url_2,
     listing.image_url_3,
+    listing.image_url_4,
+    listing.image_url_5,
+    listing.image_url_6,
+    listing.image_url_7,
+    listing.image_url_8,
   ].filter(Boolean);
 
-  const ogImage = images[0] || `${SITE_BASE}/images/og-image.jpg`;
+  // De-duplicate (cover_image_url is often the same as image_url_1).
+  const uniqueImages = [...new Set(images)];
+
+  const ogImage = uniqueImages[0] || `${SITE_BASE}/images/og-image.jpg`;
 
   const metaDescription = [
     title,
@@ -247,7 +264,7 @@ export default async function handler(req, res) {
     description: listing.description || title,
     sku: id,
     productID: id,
-    image: images,
+    image: uniqueImages,
     category: "Fabric",
     offers: offer,
   };
@@ -332,7 +349,7 @@ export default async function handler(req, res) {
   const breadcrumbJsonLd = safeJsonLd(breadcrumbSchema);
 
   // ---------- Image gallery markup (no microdata) ----------
-  const imageGallery = images
+  const imageGallery = uniqueImages
     .map(
       (url, i) =>
         `<img src="${escapeHtml(url)}" alt="${escapeHtml(title)}" loading="${i === 0 ? "eager" : "lazy"}" class="listing-photo"/>`
@@ -425,6 +442,8 @@ export default async function handler(req, res) {
 </html>`;
 
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=86400");
+  // Short cache so newly-published listings appear quickly. Longer
+  // stale-while-revalidate keeps things fast for repeat visitors.
+  res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=86400");
   res.status(200).send(html);
 }
