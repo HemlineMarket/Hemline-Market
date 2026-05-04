@@ -2623,6 +2623,63 @@
       };
     }
 
+    // Upload the optional video to Supabase storage.
+    // Returns { videoUrl: string|null, error: string|null }.
+    // - Validates max size (50MB) — larger files are rejected up front instead
+    //   of failing mid-upload with a confusing error.
+    // - Skips upload if state.video already has a publicUrl (edit mode where
+    //   the video wasn't changed).
+    // - Reuses the same listing-media bucket as photos.
+    async function uploadListingVideo(user){
+      const v = state.video;
+      if (!v) return { videoUrl: null, error: null };
+
+      // Edit mode: video was already uploaded previously, no new file to upload.
+      if (!v.file && v.publicUrl) {
+        return { videoUrl: v.publicUrl, error: null };
+      }
+      if (!v.file) {
+        return { videoUrl: null, error: null };
+      }
+
+      const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50 MB
+      if (v.file.size > MAX_VIDEO_BYTES) {
+        return {
+          videoUrl: null,
+          error: `Video is ${(v.file.size/1024/1024).toFixed(1)}MB; the limit is 50MB. Please use a shorter clip.`
+        };
+      }
+
+      try {
+        const bucket = supabaseClient.storage.from(MEDIA_BUCKET);
+        const ext = (v.file.name && v.file.name.split('.').pop()) || 'mp4';
+        const safeExt = /^[a-z0-9]+$/i.test(ext) ? ext.toLowerCase() : 'mp4';
+        const path = `${user.id}/${Date.now()}_video.${safeExt}`;
+
+        const { error: upErr } = await bucket.upload(path, v.file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: v.file.type || 'video/mp4',
+        });
+        if (upErr) {
+          console.error('[uploadListingVideo] upload failed:', upErr);
+          return { videoUrl: null, error: 'Video upload failed. Please try again.' };
+        }
+
+        const { data: pubData } = bucket.getPublicUrl(path);
+        const videoUrl = pubData?.publicUrl || null;
+
+        // Cache on state so edit-mode resaves don't re-upload.
+        v.storagePath = path;
+        v.publicUrl = videoUrl;
+
+        return { videoUrl, error: null };
+      } catch (e) {
+        console.error('[uploadListingVideo] threw:', e);
+        return { videoUrl: null, error: 'Video upload failed. Please try again.' };
+      }
+    }
+
     async function publishListing(user){
       try{
         // Block publishing if profile is incomplete (no name or no shipping address)
@@ -2661,6 +2718,16 @@
         const origPriceCents  = d.origPrice != null ? Math.round(d.origPrice * 100) : null;
 
         const { coverUrl, items } = await uploadListingPhotos(user);
+
+        // Upload the optional video (no-op if no video selected).
+        const { videoUrl, error: videoError } = await uploadListingVideo(user);
+        if (videoError) {
+          alert(videoError);
+          nextBtn.disabled = false;
+          nextBtn.textContent = isEditMode ? 'Save changes' : 'Publish listing';
+          backBtn.disabled = false;
+          return;
+        }
 
         // Build image_url fields for up to 8 images
         // Preserve order from state.photos (existing + new)
@@ -2714,7 +2781,11 @@
           burn_test: d.burnTest === '' ? 'not_performed' : (d.burnTest || null),
 
           // IMAGES
-          ...imageFields
+          ...imageFields,
+
+          // VIDEO (optional). null when no video, edit mode w/ video removed,
+          // or upload skipped. Same row gets cleared on edit if user removed it.
+          video_url: videoUrl || null,
         };
 
         if(isEditMode && editId){
@@ -2902,6 +2973,18 @@
           }
         }
         renderPhotoThumbs();
+
+        // Load existing video so edit mode shows it (and re-saves work without
+        // requiring the user to re-upload).
+        if (data.video_url) {
+          state.video = {
+            file: null,
+            url: data.video_url,
+            publicUrl: data.video_url,
+            existing: true,
+          };
+          if (typeof renderVideo === 'function') renderVideo();
+        }
       }catch(e){
         console.error('edit load exception', e);
         alert('Unexpected error loading your listing.');
