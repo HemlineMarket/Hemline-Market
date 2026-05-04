@@ -34,6 +34,9 @@
   <!-- Cropper.js for image editing -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <!-- heic2any: converts iPhone HEIC photos to JPEG client-side before upload.
+       Browsers can't render HEIC, so without this iPhone uploads show as broken images. -->
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 
   <!-- Shared styles (universal stack) -->
   <link rel="stylesheet" href="styles/hm-modern.css"/>
@@ -2165,7 +2168,11 @@
       const remaining = Math.max(0, 8 - state.photos.length);
       const slice = list.slice(0, remaining);
 
-      slice.forEach(file=>{
+      slice.forEach(async (rawFile)=>{
+        // Convert iPhone HEIC photos to JPEG up front so the preview thumbnail
+        // and the upload both work. (Browsers can't render HEIC.)
+        const file = isHeicFile(rawFile) ? await convertHeicToJpeg(rawFile) : rawFile;
+
         const reader = new FileReader();
         reader.onload = (e)=>{
           const previewUrl = e.target.result;
@@ -2455,7 +2462,56 @@
     }
 
     // Compress and resize image before upload
+    // Detect whether a File object is HEIC/HEIF (iPhone's default camera format).
+    // Browsers can't render HEIC images, so we convert them to JPEG client-side
+    // before upload. Some iOS pickers report type as '' instead of 'image/heic',
+    // so we also fall back to checking the file extension.
+    function isHeicFile(file) {
+      if (!file) return false;
+      const t = (file.type || '').toLowerCase();
+      if (t === 'image/heic' || t === 'image/heif' || t === 'image/heic-sequence' || t === 'image/heif-sequence') return true;
+      const n = (file.name || '').toLowerCase();
+      return n.endsWith('.heic') || n.endsWith('.heif');
+    }
+
+    // Convert a HEIC/HEIF file to JPEG using the heic2any library.
+    // Returns a new File with .jpg extension and image/jpeg type.
+    // Falls back to the original file if conversion fails (will likely show
+    // as broken image, but at least the upload itself won't error out).
+    async function convertHeicToJpeg(file) {
+      try {
+        if (typeof window.heic2any !== 'function') {
+          console.warn('[heic] heic2any not loaded; skipping conversion');
+          return file;
+        }
+        const blob = await window.heic2any({
+          blob: file,
+          toType: 'image/jpeg',
+          quality: 0.92,
+        });
+        // heic2any returns a Blob (or sometimes an array of Blobs for multi-image
+        // HEIC containers — we just take the first one).
+        const outBlob = Array.isArray(blob) ? blob[0] : blob;
+        const newName = (file.name || 'photo').replace(/\.(heic|heif)$/i, '') + '.jpg';
+        const out = new File([outBlob], newName, {
+          type: 'image/jpeg',
+          lastModified: Date.now(),
+        });
+        console.log(`[heic] converted ${file.name}: ${(file.size/1024).toFixed(0)}KB HEIC → ${(out.size/1024).toFixed(0)}KB JPEG`);
+        return out;
+      } catch (e) {
+        console.error('[heic] conversion failed:', e);
+        return file;
+      }
+    }
+
     async function compressImage(file, maxWidth = 1200, quality = 0.8) {
+      // Convert HEIC/HEIF to JPEG before anything else, since canvas/img tags
+      // can't decode HEIC in most browsers.
+      if (isHeicFile(file)) {
+        file = await convertHeicToJpeg(file);
+      }
+
       return new Promise((resolve) => {
         // If not an image, return original
         if (!file.type.startsWith('image/')) {
