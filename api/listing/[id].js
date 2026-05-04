@@ -180,6 +180,9 @@ export default async function handler(req, res) {
 
   const uniqueImages = [...new Set(images)];
 
+  // Optional video for the listing.
+  const videoUrl = listing.video_url || null;
+
   const ogImage = uniqueImages[0] || `${SITE_BASE}/images/og-image.jpg`;
 
   const metaDescription = [
