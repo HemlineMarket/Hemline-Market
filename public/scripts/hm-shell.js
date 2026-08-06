@@ -76,9 +76,15 @@ window.HM = window.HM || {};
         </svg>
       </a>
 
+      <div class="hm-auth" id="headerAuthLinks">
+        <a class="hm-login-link" href="auth.html?view=login">Log in</a>
+        <a class="hm-signup-btn" href="auth.html?view=signup">Sign up</a>
+      </div>
+
       <a class="hm-icon hm-account is-logged-out"
         id="headerAccountLink"
         href="auth.html?view=login"
+        style="display:none"
         aria-label="Sign in or manage your account">
         <span class="hm-account-badge" id="headerAccountBadge"></span>
         <span class="hm-avatar" id="headerAvatar"></span>
@@ -98,7 +104,7 @@ window.HM = window.HM || {};
         </svg>
       </span>
 
-      <a class="hm-btn-primary" href="sell.html">Sell</a>
+      <a class="hm-btn-primary" id="headerSellBtn" href="sell.html">Sell</a>
     </div>
   </div>
 </header>
@@ -343,9 +349,16 @@ window.HM = window.HM || {};
     const accountLink = document.getElementById("headerAccountLink");
     const accountBadge = document.getElementById("headerAccountBadge");
     const headerAvatar = document.getElementById("headerAvatar");
+    const authLinks = document.getElementById("headerAuthLinks");
 
     async function applyAccount(session) {
       if (session && session.user) {
+        // Logged in: hide Log in / Sign up, show the avatar (unchanged behavior)
+        if (authLinks) authLinks.style.display = "none";
+        accountLink.style.display = "";
+        document.body.classList.add("hm-auth-in");
+        document.body.classList.remove("hm-auth-out");
+
         accountLink.href = "account.html";
         accountLink.classList.add("is-logged-in");
         accountLink.classList.remove("is-logged-out");
@@ -403,6 +416,12 @@ window.HM = window.HM || {};
           }
         }
       } else {
+        // Logged out: show Log in / Sign up, hide the avatar
+        if (authLinks) authLinks.style.display = "flex";
+        accountLink.style.display = "none";
+        document.body.classList.add("hm-auth-out");
+        document.body.classList.remove("hm-auth-in");
+
         accountLink.href = "auth.html?view=login";
         accountLink.classList.remove("is-logged-in");
         accountLink.classList.remove("has-avatar");
