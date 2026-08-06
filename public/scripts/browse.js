@@ -581,7 +581,24 @@
     if (grid) grid.parentNode.insertBefore(nav, grid.nextSibling);
   }
 
+  // Show the right heading + hide fabric filters when browsing sewists
+  function applyModeUI() {
+    const heading = document.getElementById('resultsHeading');
+    const layout = document.getElementById('layout');
+    const toggleBtn = document.getElementById('toggleFilters');
+    if (currentMode === 'ateliers') {
+      if (heading) heading.textContent = 'Sewists';
+      if (layout) layout.classList.add('filters-hidden');
+      if (toggleBtn) toggleBtn.style.display = 'none';
+    } else {
+      if (heading) heading.textContent = 'New Arrivals';
+      if (toggleBtn) toggleBtn.style.display = '';
+      if (layout && window.innerWidth > 900) layout.classList.remove('filters-hidden');
+    }
+  }
+
   async function runSearch(e) {
+    applyModeUI();
     // Reset to page 1 when filters/sort change
     // Only keep page if this is initial load or popstate
     if (e !== 'keepPage') {
