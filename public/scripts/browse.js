@@ -502,47 +502,37 @@
     return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + yardsAvailBadge + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + yardsHtml + '<div class="listing-cta-row">' + btnAction + '</div>' + priceRowHtml + '</div></article>';
   }
 
-  // Line-art sewing icons + soft background tints for sewists with no photo.
-  // 14 icons x 8 tints = 112 distinct, consistent avatars (same sewist always gets the same one).
-  const SEWIST_ICONS = [
-    '<line x1="6" y1="5" x2="18" y2="5"/><line x1="6" y1="19" x2="18" y2="19"/><rect x="8" y="5" width="8" height="14"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/>',
-    '<circle cx="12" cy="12" r="7"/><circle cx="9.7" cy="9.7" r="1"/><circle cx="14.3" cy="9.7" r="1"/><circle cx="9.7" cy="14.3" r="1"/><circle cx="14.3" cy="14.3" r="1"/>',
-    '<circle cx="7" cy="7" r="2.3"/><circle cx="7" cy="17" r="2.3"/><line x1="8.8" y1="8.4" x2="19" y2="16"/><line x1="8.8" y1="15.6" x2="19" y2="8"/>',
-    '<line x1="6" y1="18" x2="17" y2="7"/><circle cx="18" cy="6" r="1.4"/><path d="M6 18c-2.4-.6-1.8 3 .6 2.4"/>',
-    '<line x1="6" y1="18" x2="16.5" y2="7.5"/><circle cx="17.5" cy="6.5" r="1.7"/>',
-    '<rect x="4" y="9" width="16" height="6" rx="1"/><line x1="7" y1="9" x2="7" y2="12"/><line x1="10" y1="9" x2="10" y2="12"/><line x1="13" y1="9" x2="13" y2="12"/><line x1="16" y1="9" x2="16" y2="12"/>',
-    '<circle cx="12" cy="6" r="1.6"/><path d="M12 7.6V10"/><path d="M12 10 5 16.5h14z"/>',
-    '<path d="M9.5 4 8 7l1 1-2 12h10l-2-12 1-1-1.5-3"/><path d="M9.5 4 12 6l2.5-2"/>',
-    '<path d="M12 4.5l2.2 4.6 5 .5-3.7 3.3 1.1 4.9L12 15.8 7.4 17.8l1.1-4.9L4.8 9.6l5-.5z"/>',
-    '<path d="M12 19.5s-6.5-4.2-6.5-9A3.3 3.3 0 0 1 12 7.5a3.3 3.3 0 0 1 6.5 3c0 4.8-6.5 9-6.5 9z"/>',
-    '<path d="M8 20v-8a4 4 0 0 1 8 0v8z"/><line x1="8" y1="16.5" x2="16" y2="16.5"/>',
-    '<circle cx="12" cy="12" r="8"/><path d="M6.2 9c3.8 1.8 7.8 1.8 11.6 0"/><path d="M5 13c4.6 1.8 8.6 1.6 13-1.2"/><path d="M9.2 4.6c-2 3.8-2 9.6 1 13.8"/><path d="M14.5 4.8c2 3.6 2 9.4-.6 13.6"/>',
-    '<path d="M9.5 5h5l2 14H7.5z"/><line x1="8.3" y1="9" x2="15.7" y2="9"/><line x1="7.9" y1="13" x2="16.1" y2="13"/><ellipse cx="12" cy="5" rx="2.5" ry="1"/>',
-    '<line x1="7" y1="6" x2="17" y2="6"/><line x1="7" y1="18" x2="17" y2="18"/><path d="M9 6v12"/><path d="M15 6v12"/><line x1="9" y1="12" x2="15" y2="12"/>'
-  ];
+  // Soft background tints for sewists with no photo. Same sewist always gets the same tint.
   const SEWIST_BGS = [
     { bg: '#f6e7e3', fg: '#a35c4d' }, { bg: '#e8efe6', fg: '#5f7a58' },
     { bg: '#f6efdd', fg: '#a5822f' }, { bg: '#e6edf2', fg: '#4e6f88' },
     { bg: '#f0e7f0', fg: '#7d5c82' }, { bg: '#f7e8df', fg: '#b06a45' },
     { bg: '#e2efec', fg: '#3f7c72' }, { bg: '#eeeae6', fg: '#6b625a' }
   ];
-  function sewistAvatarHTML(seed) {
+  function sewistTint(seed) {
     const s = String(seed || '');
     let h = 0;
     for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    const icon = SEWIST_ICONS[h % SEWIST_ICONS.length];
-    const c = SEWIST_BGS[Math.floor(h / SEWIST_ICONS.length) % SEWIST_BGS.length];
-    return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:' + c.bg + ';color:' + c.fg + ';">' +
-      '<svg viewBox="0 0 24 24" width="48%" height="48%" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg></div>';
+    return SEWIST_BGS[h % SEWIST_BGS.length];
+  }
+  function sewistNameTile(seed, label) {
+    const c = sewistTint(seed);
+    return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;box-sizing:border-box;background:' + c.bg + ';color:' + c.fg + ';font-weight:700;font-size:21px;line-height:1.25;word-break:break-word;">' + escapeHtml(label) + '</div>';
   }
 
   function renderAtelierCard(profile) {
     const name = profile.store_name || profile.display_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unnamed Seller";
     const bio = profile.bio ? profile.bio.slice(0, 100) + (profile.bio.length > 100 ? "..." : "") : "";
-    const thumb = profile.avatar_url
-      ? '<div class="listing-thumb"><img src="' + profile.avatar_url + '" alt="' + escapeHtml(name) + '" loading="lazy" /></div>'
-      : '<div class="listing-thumb" style="padding:0;overflow:hidden;">' + sewistAvatarHTML(profile.id) + '</div>';
-    return '<a href="/seller/index.html?id=' + profile.id + '" class="atelier-card listing-card">' + thumb + '<div class="listing-body"><div class="listing-title">' + escapeHtml(name) + '</div>' + (bio ? '<div class="listing-yards">' + escapeHtml(bio) + '</div>' : "") + '</div></a>';
+    let thumb, bodyName;
+    if (profile.avatar_url) {
+      thumb = '<div class="listing-thumb"><img src="' + profile.avatar_url + '" alt="' + escapeHtml(name) + '" loading="lazy" /></div>';
+      bodyName = '<div class="listing-title">' + escapeHtml(name) + '</div>';
+    } else {
+      // Name centered on a soft color tile; skip repeating it below.
+      thumb = '<div class="listing-thumb" style="padding:0;overflow:hidden;">' + sewistNameTile(profile.id, name) + '</div>';
+      bodyName = '';
+    }
+    return '<a href="/seller/index.html?id=' + profile.id + '" class="atelier-card listing-card">' + thumb + '<div class="listing-body">' + bodyName + (bio ? '<div class="listing-yards">' + escapeHtml(bio) + '</div>' : "") + '</div></a>';
   }
 
   /* ===== MAIN SEARCH FUNCTION ===== */
