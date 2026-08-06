@@ -29,7 +29,7 @@ window.HM = window.HM || {};
     <form class="hm-header-search" action="browse.html" method="get" role="search">
       <select name="type" class="hm-header-search-type" id="headerSearchType">
         <option value="fabrics">Fabrics</option>
-        <option value="sellers">Sellers</option>
+        <option value="sellers">Sewists</option>
       </select>
       <div class="hm-header-search-input-wrap">
         <svg class="hm-header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
