@@ -532,7 +532,7 @@
       thumb = '<div class="listing-thumb" style="padding:0;overflow:hidden;">' + sewistNameTile(profile.id, name) + '</div>';
       bodyName = '';
     }
-    return '<a href="/seller/index.html?id=' + profile.id + '" class="atelier-card listing-card">' + thumb + '<div class="listing-body">' + bodyName + (bio ? '<div class="listing-yards">' + escapeHtml(bio) + '</div>' : "") + '</div></a>';
+    return '<a href="/atelier.html?u=' + profile.id + '" class="atelier-card listing-card">' + thumb + '<div class="listing-body">' + bodyName + (bio ? '<div class="listing-yards">' + escapeHtml(bio) + '</div>' : "") + '</div></a>';
   }
 
   /* ===== MAIN SEARCH FUNCTION ===== */
