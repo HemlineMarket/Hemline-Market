@@ -504,9 +504,13 @@
 
   function renderAtelierCard(profile) {
     const name = profile.store_name || profile.display_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unnamed Seller";
-    const avatarUrl = profile.avatar_url || "/images/empty-state.svg";
     const bio = profile.bio ? profile.bio.slice(0, 100) + (profile.bio.length > 100 ? "..." : "") : "";
-    return '<a href="/seller/index.html?id=' + profile.id + '" class="atelier-card listing-card"><div class="listing-thumb"><img src="' + avatarUrl + '" alt="' + escapeHtml(name) + '" loading="lazy" /></div><div class="listing-body"><div class="listing-title">' + escapeHtml(name) + '</div>' + (bio ? '<div class="listing-yards">' + escapeHtml(bio) + '</div>' : "") + '</div></a>';
+    // Real photo if they have one, otherwise a clean initials tile (no more search-spool placeholder)
+    const initials = name.trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2);
+    const thumb = profile.avatar_url
+      ? '<div class="listing-thumb"><img src="' + profile.avatar_url + '" alt="' + escapeHtml(name) + '" loading="lazy" /></div>'
+      : '<div class="listing-thumb" style="display:flex;align-items:center;justify-content:center;background:#991b1b;color:#fff;font-size:40px;font-weight:700;letter-spacing:1px;">' + escapeHtml(initials) + '</div>';
+    return '<a href="/seller/index.html?id=' + profile.id + '" class="atelier-card listing-card">' + thumb + '<div class="listing-body"><div class="listing-title">' + escapeHtml(name) + '</div>' + (bio ? '<div class="listing-yards">' + escapeHtml(bio) + '</div>' : "") + '</div></a>';
   }
 
   /* ===== MAIN SEARCH FUNCTION ===== */
@@ -682,7 +686,9 @@
     const filtersActive = hasAnyFilters(filters);
 
     if (headingEl) {
-      if (filters.search) headingEl.textContent = 'Results for "' + filters.search + '"';
+      if (currentMode === 'ateliers') {
+        headingEl.textContent = filters.search ? 'Results for "' + filters.search + '"' : 'Sewists';
+      } else if (filters.search) headingEl.textContent = 'Results for "' + filters.search + '"';
       else if (filtersActive) headingEl.textContent = "Filtered Results";
       else headingEl.textContent = "New Arrivals";
     }
