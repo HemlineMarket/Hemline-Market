@@ -604,6 +604,9 @@
     const sortVal = document.getElementById('sortBy')?.value || 'newest';
     if (sortVal && sortVal !== 'newest') urlParams.set('sort', sortVal);
 
+    // Keep Sewists mode in the URL so a refresh stays on sewists, not fabrics
+    if (currentMode === 'ateliers') urlParams.set('type', 'sellers');
+
     // Text search
     if (filters_.search) urlParams.set('q', filters_.search);
 
