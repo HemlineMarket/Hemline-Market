@@ -500,7 +500,7 @@
 
     // Seller info
     const sellerName = seller?.store_name || seller?.display_name || [seller?.first_name, seller?.last_name].filter(Boolean).join(' ') || 'Seller';
-    const sellerHref = seller ? '/seller/index.html?id=' + seller.id : '#';
+    const sellerHref = seller ? '/atelier.html?u=' + seller.id : '#';
 
     const href = 'listing.html?id=' + encodeURIComponent(listing.id);
 
