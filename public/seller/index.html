@@ -103,37 +103,22 @@
         .join("").toUpperCase().slice(0, 2);
     }
 
-    // Same line-art sewing avatars as the Sewists page (consistent per sewist).
-    var SEWIST_ICONS = [
-      '<line x1="6" y1="5" x2="18" y2="5"/><line x1="6" y1="19" x2="18" y2="19"/><rect x="8" y="5" width="8" height="14"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/>',
-      '<circle cx="12" cy="12" r="7"/><circle cx="9.7" cy="9.7" r="1"/><circle cx="14.3" cy="9.7" r="1"/><circle cx="9.7" cy="14.3" r="1"/><circle cx="14.3" cy="14.3" r="1"/>',
-      '<circle cx="7" cy="7" r="2.3"/><circle cx="7" cy="17" r="2.3"/><line x1="8.8" y1="8.4" x2="19" y2="16"/><line x1="8.8" y1="15.6" x2="19" y2="8"/>',
-      '<line x1="6" y1="18" x2="17" y2="7"/><circle cx="18" cy="6" r="1.4"/><path d="M6 18c-2.4-.6-1.8 3 .6 2.4"/>',
-      '<line x1="6" y1="18" x2="16.5" y2="7.5"/><circle cx="17.5" cy="6.5" r="1.7"/>',
-      '<rect x="4" y="9" width="16" height="6" rx="1"/><line x1="7" y1="9" x2="7" y2="12"/><line x1="10" y1="9" x2="10" y2="12"/><line x1="13" y1="9" x2="13" y2="12"/><line x1="16" y1="9" x2="16" y2="12"/>',
-      '<circle cx="12" cy="6" r="1.6"/><path d="M12 7.6V10"/><path d="M12 10 5 16.5h14z"/>',
-      '<path d="M9.5 4 8 7l1 1-2 12h10l-2-12 1-1-1.5-3"/><path d="M9.5 4 12 6l2.5-2"/>',
-      '<path d="M12 4.5l2.2 4.6 5 .5-3.7 3.3 1.1 4.9L12 15.8 7.4 17.8l1.1-4.9L4.8 9.6l5-.5z"/>',
-      '<path d="M12 19.5s-6.5-4.2-6.5-9A3.3 3.3 0 0 1 12 7.5a3.3 3.3 0 0 1 6.5 3c0 4.8-6.5 9-6.5 9z"/>',
-      '<path d="M8 20v-8a4 4 0 0 1 8 0v8z"/><line x1="8" y1="16.5" x2="16" y2="16.5"/>',
-      '<circle cx="12" cy="12" r="8"/><path d="M6.2 9c3.8 1.8 7.8 1.8 11.6 0"/><path d="M5 13c4.6 1.8 8.6 1.6 13-1.2"/><path d="M9.2 4.6c-2 3.8-2 9.6 1 13.8"/><path d="M14.5 4.8c2 3.6 2 9.4-.6 13.6"/>',
-      '<path d="M9.5 5h5l2 14H7.5z"/><line x1="8.3" y1="9" x2="15.7" y2="9"/><line x1="7.9" y1="13" x2="16.1" y2="13"/><ellipse cx="12" cy="5" rx="2.5" ry="1"/>',
-      '<line x1="7" y1="6" x2="17" y2="6"/><line x1="7" y1="18" x2="17" y2="18"/><path d="M9 6v12"/><path d="M15 6v12"/><line x1="9" y1="12" x2="15" y2="12"/>'
-    ];
+    // Soft color tile with the sewist's initials (matches the Sewists page tints).
     var SEWIST_BGS = [
       { bg: '#f6e7e3', fg: '#a35c4d' }, { bg: '#e8efe6', fg: '#5f7a58' },
       { bg: '#f6efdd', fg: '#a5822f' }, { bg: '#e6edf2', fg: '#4e6f88' },
       { bg: '#f0e7f0', fg: '#7d5c82' }, { bg: '#f7e8df', fg: '#b06a45' },
       { bg: '#e2efec', fg: '#3f7c72' }, { bg: '#eeeae6', fg: '#6b625a' }
     ];
-    function sewistAvatarHTML(seed) {
+    function sewistTint(seed) {
       var s = String(seed || '');
       var h = 0;
       for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-      var icon = SEWIST_ICONS[h % SEWIST_ICONS.length];
-      var c = SEWIST_BGS[Math.floor(h / SEWIST_ICONS.length) % SEWIST_BGS.length];
-      return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:' + c.bg + ';color:' + c.fg + ';">' +
-        '<svg viewBox="0 0 24 24" width="48%" height="48%" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg></div>';
+      return SEWIST_BGS[h % SEWIST_BGS.length];
+    }
+    function sewistAvatarHTML(seed, label) {
+      var c = sewistTint(seed);
+      return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:' + c.bg + ';color:' + c.fg + ';font-weight:700;font-size:34px;letter-spacing:1px;">' + esc(initials(label)) + '</div>';
     }
 
     function priceStr(l) {
@@ -152,7 +137,7 @@
       document.title = name + " — Hemline Market";
       var avatarHtml = p.avatar_url
         ? '<div class="sp-avatar" style="background-image:url(\'' + esc(p.avatar_url) + '\');"></div>'
-        : '<div class="sp-avatar">' + sewistAvatarHTML(p.id) + '</div>';
+        : '<div class="sp-avatar">' + sewistAvatarHTML(p.id, name) + '</div>';
       var since = '';
       if (p.created_at) {
         var d = new Date(p.created_at);
