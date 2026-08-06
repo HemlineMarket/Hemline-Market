@@ -223,17 +223,24 @@
       }
       renderHero(profileRes.data);
 
-      // Their active, published listings
+      // Their listings. Fetch all for this seller, then filter in JS so we match
+      // the data the way the rest of the site does (status is lowercase "active",
+      // is_published may be unset on older listings).
       var listRes = await supabaseClient
         .from("listings")
         .select("id, title, price, price_cents, yards_available, image_url_1, image_urls, image_url, status, is_published, created_at")
         .eq("seller_id", id)
-        .eq("status", "ACTIVE")
-        .eq("is_published", true)
-        .gt("yards_available", 0)
         .order("created_at", { ascending: false });
 
-      renderListings(listRes.error ? [] : listRes.data);
+      var rows = (listRes.error ? [] : (listRes.data || [])).filter(function (l) {
+        var status = String(l.status || "active").toLowerCase();
+        var forSale = status === "active";
+        var notHidden = l.is_published !== false;              // show unless explicitly unpublished
+        var hasYards = l.yards_available == null || l.yards_available > 0;
+        return forSale && notHidden && hasYards;
+      });
+
+      renderListings(rows);
     }
 
     load();
