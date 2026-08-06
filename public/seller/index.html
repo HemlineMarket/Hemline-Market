@@ -1,275 +1,204 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Seller Dashboard — Hemline Market</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- This page lives in /seller/, so base makes the shared header's links resolve from the site root -->
+  <base href="/" />
+  <title>Sewist — Hemline Market</title>
+  <meta name="description" content="View this sewist's shop and fabrics on Hemline Market." />
 
-  <!-- Shared site styles (match homepage) -->
-  <link rel="stylesheet" href="../styles/hm-modern.css"/>
-  <link rel="stylesheet" href="../styles/hem-header.css"/>
-  <link rel="stylesheet" href="../styles/hm-typography.css"/>
-  <link rel="stylesheet" href="../styles/hm-footer.css"/>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles/hm-header.css" />
+  <link rel="stylesheet" href="/styles/hm-footer.css" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
 
   <style>
-    :root{
-      --hm-accent:#991b1b;
-      --hm-text:#111827;
-      --hm-muted:#6b7280;
-      --hm-border:#e5e7eb;
-      --hm-bg:#fafafa;
+    .sp-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    /* Profile hero */
+    .sp-hero {
+      display: flex; align-items: center; gap: 20px;
+      background: #fff; border: 1px solid #eaeaea; border-radius: 16px;
+      padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,.04); margin-bottom: 28px;
     }
-    body{margin:0;background:var(--hm-bg);color:var(--hm-text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+    .sp-avatar {
+      width: 96px; height: 96px; border-radius: 999px; flex: 0 0 auto;
+      background: #991b1b center/cover no-repeat; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px; font-weight: 700; letter-spacing: 1px;
+    }
+    .sp-id { min-width: 0; }
+    .sp-name { font-size: 26px; font-weight: 800; color: #1f2937; margin: 0 0 4px; }
+    .sp-sub { color: #6b7280; font-size: 14px; margin: 0 0 10px; }
+    .sp-bio { color: #374151; font-size: 15px; line-height: 1.5; margin: 0; max-width: 640px; }
 
-    /* Page shell */
-    .wrap{max-width:1200px;margin:12px auto;padding:0 12px}
+    .sp-section-title { font-size: 20px; font-weight: 800; color: #1f2937; margin: 0 0 16px; }
 
-    /* ===== DASHBOARD UI ===== */
-    .dash-head{display:flex;align-items:center;justify-content:space-between;margin:8px 0 12px}
-    .dash-head h1{margin:0;font-size:22px}
-    .actions{display:flex;gap:8px}
-    .btn{padding:10px 14px;border:1px solid var(--hm-border);border-radius:10px;background:#fff;font-weight:700;cursor:pointer;text-decoration:none;color:#111827}
-    .btn-primary{background:var(--hm-accent);border-color:var(--hm-accent);color:#fff;box-shadow:0 2px 8px rgba(153,27,27,.25)}
-    .btn-ghost{background:#fff}
+    /* Listings grid */
+    .sp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    @media (max-width: 900px) { .sp-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .sp-grid { grid-template-columns: 1fr; } }
 
-    /* Stats */
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
-    @media (max-width:900px){ .stats{grid-template-columns:repeat(2,1fr)} }
-    @media (max-width:520px){ .stats{grid-template-columns:1fr} }
-    .stat{background:#fff;border:1px solid var(--hm-border);border-radius:12px;padding:12px}
-    .stat .k{font-size:12px;color:var(--hm-muted);margin-bottom:4px}
-    .stat .v{font-size:22px;font-weight:800}
+    .sp-card {
+      display: block; text-decoration: none; color: inherit;
+      background: #fff; border: 1px solid #eaeaea; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 1px 6px rgba(0,0,0,.05); transition: box-shadow .15s, transform .15s;
+    }
+    .sp-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.12); transform: translateY(-2px); }
+    .sp-thumb { width: 100%; aspect-ratio: 1 / 1; background: #f3f4f6 center/cover no-repeat; }
+    .sp-cbody { padding: 12px 14px 16px; }
+    .sp-ctitle { font-size: 14px; font-weight: 600; color: #1f2937; margin: 0 0 6px; line-height: 1.35; }
+    .sp-cmeta { font-size: 13px; color: #6b7280; }
+    .sp-price { color: #991b1b; font-weight: 700; }
 
-    /* Two-column layout */
-    .grid{display:grid;grid-template-columns:2fr 1fr;gap:12px}
-    @media (max-width:980px){ .grid{grid-template-columns:1fr} }
-
-    /* Cards */
-    .card{background:#fff;border:1px solid var(--hm-border);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
-    .card h2{margin:0;padding:12px 12px 4px 12px;font-size:18px}
-    .card .body{padding:10px 12px 12px}
-
-    /* Listings table */
-    .table{width:100%;border-collapse:separate;border-spacing:0}
-    .table th,.table td{padding:10px;border-top:1px solid var(--hm-border);text-align:left;font-size:14px}
-    .table th{background:#fafafa;color:#374151;border-top:0;font-weight:700}
-    .table tr:first-of-type td{border-top:0}
-    .badge{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid var(--hm-border);font-size:12px;background:#fff;color:#374151}
-    .row-actions{display:flex;gap:8px}
-    .row-actions a{font-size:13px;text-decoration:none;color:#374151;border:1px solid var(--hm-border);border-radius:8px;padding:6px 8px;background:#fff}
-
-    /* Sidebar bits */
-    .note{color:var(--hm-muted);font-size:14px;line-height:1.5}
-    .list{display:grid;gap:8px}
-    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--hm-border);border-radius:999px;padding:6px 10px;background:#fff;font-size:13px}
-
-    /* Header/Footer overrides are handled by shared CSS files */
+    .sp-empty, .sp-loading {
+      text-align: center; color: #6b7280; padding: 48px 16px; font-size: 15px;
+    }
   </style>
-  <!-- Vercel Web Analytics -->
-  <script>
-    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-  </script>
-  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
+  <div id="hm-shell-header"></div>
 
-<!-- ===== HEADER (canonical) ===== -->
-<header class="hm-header" role="banner">
-  <div class="wrap">
-    <div class="left">
-      <button class="hamburger" id="openMenu" aria-label="Open menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6"  x2="20" y2="6"></line>
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
-        </svg>
-      </button>
-      <a class="hm-brand" href="../index.html">Hemline Market</a>
-    </div>
-    <div class="right">
-      <!-- Search → browse.html -->
-      <a class="hm-icon" href="../browse.html" aria-label="Browse & search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="M21 21l-4.3-4.3"></path>
-        </svg>
-      </a>
-      <!-- Favorites -->
-      <a class="hm-icon" href="../favorites.html" aria-label="Favorites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
-        </svg>
-      </a>
-      <!-- Notifications -->
-      <a class="hm-icon" href="../notifications.html" aria-label="Notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-      </a>
-      <!-- Cart -->
-      <a class="hm-icon" href="../cart.html" aria-label="Cart">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="9"  cy="21" r="1"></circle>
-          <circle cx="18" cy="21" r="1"></circle>
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-        </svg>
-      </a>
-      <!-- Avatar & Sell -->
-      <a class="hm-avatar" id="avatar" href="../account.html" title="Your profile">AA</a>
-      <a class="hm-btn-primary" href="../sell.html">Sell</a>
-    </div>
-  </div>
-</header>
+  <main class="sp-wrap">
+    <div id="spHero" class="sp-loading">Loading sewist…</div>
+    <h2 class="sp-section-title" id="spListingsTitle" style="display:none;">Fabrics for sale</h2>
+    <div id="spListings" class="sp-grid"></div>
+  </main>
 
-<!-- ===== LEFT MENU (canonical) ===== -->
-<aside class="sheet" id="menuSheet" aria-hidden="true">
-  <header>
-    <strong>Menu</strong>
-    <button class="close" id="closeMenu" aria-label="Close menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
-    </button>
-  </header>
-  <nav>
-    <a href="../dashboard.html">Dashboard</a>
-    <a href="../atelier.html">My Atelier</a>
-    <a href="../how.html">How It Works</a>
-    <a href="./index.html?list=new">Sell Fabric</a>
-    <a href="../contact.html">Contact</a>
-  </nav>
-</aside>
+  <div id="hm-shell-footer"></div>
 
-<!-- ===== CONTENT ===== -->
-<main class="wrap" role="main">
-  <div class="dash-head">
-    <h1>Seller Dashboard</h1>
-    <div class="actions">
-      <a class="btn" href="../how.html">How it works</a>
-      <a class="btn btn-primary" href="./index.html?list=new">+ Add new listing</a>
-    </div>
-  </div>
+  <!-- Supabase + shared header/footer -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/scripts/hm-shell.js"></script>
 
-  <!-- Stats -->
-  <section class="stats" aria-label="Quick stats">
-    <div class="stat">
-      <div class="k">Active listings</div>
-      <div class="v">3</div>
-    </div>
-    <div class="stat">
-      <div class="k">Orders pending</div>
-      <div class="v">1</div>
-    </div>
-    <div class="stat">
-      <div class="k">Units sold (30d)</div>
-      <div class="v">5</div>
-    </div>
-    <div class="stat">
-      <div class="k">Payouts (30d)</div>
-      <div class="v">$142.00</div>
-    </div>
-  </section>
+  <script>
+    // 1) Render the shared header/footer (also creates the shared Supabase client)
+    window.HM && window.HM.renderShell && window.HM.renderShell({ currentPage: "seller" });
 
-  <div class="grid">
-    <!-- Listings -->
-    <section class="card">
-      <h2>Your listings</h2>
-      <div class="body" style="overflow:auto">
-        <table class="table" aria-label="Listings">
-          <thead>
-            <tr>
-              <th style="min-width:180px">Title</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Status</th>
-              <th style="min-width:220px">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Italian Silk Twill — Navy</td>
-              <td>1.5 yards</td>
-              <td>$28.00/yd</td>
-              <td><span class="badge">Active</span></td>
-              <td class="row-actions">
-                <a href="../listing.html">View</a>
-                <a href="./index.html?list=edit&id=1">Edit</a>
-                <a href="./index.html?list=duplicate&id=1">Duplicate</a>
-              </td>
-            </tr>
-            <tr>
-              <td>Wool Crepe — Saffron</td>
-              <td>1 yard</td>
-              <td>$42.00/yd</td>
-              <td><span class="badge">Active</span></td>
-              <td class="row-actions">
-                <a href="../listing.html">View</a>
-                <a href="./index.html?list=edit&id=2">Edit</a>
-                <a href="./index.html?list=duplicate&id=2">Duplicate</a>
-              </td>
-            </tr>
-            <tr>
-              <td>Cotton Poplin — Moss</td>
-              <td>2 yards</td>
-              <td>$14.00/yd</td>
-              <td><span class="badge">Draft</span></td>
-              <td class="row-actions">
-                <a href="../listing.html">Preview</a>
-                <a href="./index.html?list=edit&id=3">Edit</a>
-                <a href="./index.html?list=publish&id=3">Publish</a>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    var supabaseClient = window.supabase_client || (window.HM && window.HM.supabase);
+    if (!supabaseClient && window.supabase) {
+      supabaseClient = window.supabase.createClient(
+        "https://clkizksbvxjkoatdajgd.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsa2l6a3Nidnhqa29hdGRhamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODAyMDUsImV4cCI6MjA3MDI1NjIwNX0.m3wd6UAuqxa7BpcQof9mmzd8zdsmadwGDO0x7-nyBjI",
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+      );
+      window.supabase_client = supabaseClient;
+    }
 
-    <!-- Right rail -->
-    <aside class="card" aria-label="Shortcuts">
-      <h2>Shortcuts</h2>
-      <div class="body">
-        <div class="list" style="margin-bottom:10px">
-          <a class="pill" href="./index.html?list=new">+ Add new listing</a>
-          <a class="pill" href="../orders.html">View orders</a>
-          <a class="pill" href="../settings.html">Payout settings</a>
-        </div>
-        <p class="note">Tip: great photos and clear yardage details help your listings sell faster.</p>
-      </div>
-    </aside>
-  </div>
-</main>
+    function esc(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
 
-<!-- ===== FOOTER (canonical) ===== -->
-<footer class="hm-footer" role="contentinfo">
-  <div class="footer-wrap">
-    <div class="copy">© 2025 Hemline Market</div>
-    <nav class="footer-links" aria-label="Footer">
-      <a href="../about.html">About</a>
-      <a href="../faq.html">FAQ</a>
-      <a href="../contact.html">Contact</a>
-      <a href="../terms.html">Terms</a>
-      <a href="../privacy.html">Privacy</a>
-    </nav>
-  </div>
-</footer>
+    function displayName(p) {
+      return p.store_name || p.display_name ||
+        [p.first_name, p.last_name].filter(Boolean).join(" ") || "Sewist";
+    }
 
-<script>
-/* Header sheet + avatar (canonical behavior) */
-(function(){
-  const sheet=document.getElementById('menuSheet');
-  const openBtn=document.getElementById('openMenu');
-  const closeBtn=document.getElementById('closeMenu');
-  function openSheet(){ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); }
-  function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); }
-  openBtn.addEventListener('click',e=>{e.preventDefault();openSheet();});
-  closeBtn.addEventListener('click',e=>{e.preventDefault();closeSheet();});
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
+    function initials(name) {
+      return String(name || "S").trim().split(/\s+/).map(function (n) { return n[0]; })
+        .join("").toUpperCase().slice(0, 2);
+    }
 
-  const avatar=document.getElementById('avatar');
-  try{ const url=localStorage.getItem('avatarUrl'); if(url){ avatar.textContent=''; avatar.style.backgroundImage="url('"+url+"')"; } }catch(e){}
-})();
-</script>
+    function priceStr(l) {
+      if (l.price_cents != null) return (Number(l.price_cents) / 100).toFixed(2);
+      if (l.price != null) return Number(l.price).toFixed(2);
+      return null;
+    }
+
+    function listingImage(l) {
+      return l.image_url_1 || (l.image_urls && l.image_urls[0]) || l.image_url || "/images/empty-state.svg";
+    }
+
+    function renderHero(p) {
+      var hero = document.getElementById("spHero");
+      var name = displayName(p);
+      document.title = name + " — Hemline Market";
+      var avatarStyle = p.avatar_url
+        ? ' style="background-image:url(\'' + esc(p.avatar_url) + '\');"'
+        : "";
+      var avatarInner = p.avatar_url ? "" : esc(initials(name));
+      hero.className = "sp-hero";
+      hero.innerHTML =
+        '<div class="sp-avatar"' + avatarStyle + '>' + avatarInner + '</div>' +
+        '<div class="sp-id">' +
+          '<h1 class="sp-name">' + esc(name) + '</h1>' +
+          '<p class="sp-sub">Sewist on Hemline Market</p>' +
+          (p.bio ? '<p class="sp-bio">' + esc(p.bio) + '</p>' : '') +
+        '</div>';
+    }
+
+    function renderListings(rows) {
+      var wrap = document.getElementById("spListings");
+      var title = document.getElementById("spListingsTitle");
+      title.style.display = "";
+      if (!rows || !rows.length) {
+        title.textContent = "Fabrics for sale";
+        wrap.innerHTML = '<div class="sp-empty">This sewist has not listed any fabrics yet.</div>';
+        return;
+      }
+      title.textContent = "Fabrics for sale (" + rows.length + ")";
+      wrap.innerHTML = rows.map(function (l) {
+        var price = priceStr(l);
+        var yards = l.yards_available;
+        var meta = "";
+        if (price) meta += '<span class="sp-price">$' + price + '/yd</span>';
+        if (yards != null) meta += (price ? " · " : "") + yards + " yd";
+        return '<a class="sp-card" href="/listing.html?id=' + encodeURIComponent(l.id) + '">' +
+          '<div class="sp-thumb" style="background-image:url(\'' + esc(listingImage(l)) + '\');"></div>' +
+          '<div class="sp-cbody">' +
+            '<p class="sp-ctitle">' + esc(l.title || "Untitled fabric") + '</p>' +
+            '<div class="sp-cmeta">' + meta + '</div>' +
+          '</div>' +
+        '</a>';
+      }).join("");
+    }
+
+    async function load() {
+      var id = new URLSearchParams(window.location.search).get("id");
+      var hero = document.getElementById("spHero");
+
+      if (!id) {
+        hero.className = "sp-empty";
+        hero.textContent = "No sewist selected.";
+        return;
+      }
+      if (!supabaseClient) {
+        hero.className = "sp-empty";
+        hero.textContent = "Could not connect. Please refresh.";
+        return;
+      }
+
+      // Profile
+      var profileRes = await supabaseClient
+        .from("profiles")
+        .select("id, display_name, store_name, first_name, last_name, bio, avatar_url, created_at")
+        .eq("id", id)
+        .single();
+
+      if (profileRes.error || !profileRes.data) {
+        hero.className = "sp-empty";
+        hero.textContent = "Sewist not found.";
+        return;
+      }
+      renderHero(profileRes.data);
+
+      // Their active, published listings
+      var listRes = await supabaseClient
+        .from("listings")
+        .select("id, title, price, price_cents, yards_available, image_url_1, image_urls, image_url, status, is_published, created_at")
+        .eq("seller_id", id)
+        .eq("status", "ACTIVE")
+        .eq("is_published", true)
+        .gt("yards_available", 0)
+        .order("created_at", { ascending: false });
+
+      renderListings(listRes.error ? [] : listRes.data);
+    }
+
+    load();
+  </script>
 </body>
 </html>
