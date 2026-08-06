@@ -308,7 +308,7 @@
     if (sortSelect) sortSelect.addEventListener('change', runSearch);
     if (modeSelect) modeSelect.addEventListener('change', function() {
       currentMode = this.value === 'sellers' ? 'ateliers' : 'listings';
-      if (searchInput) searchInput.placeholder = currentMode === 'ateliers' ? 'Search sellers...' : 'Search fabrics...';
+      if (searchInput) searchInput.placeholder = currentMode === 'ateliers' ? 'Search sewists...' : 'Search fabrics...';
       runSearch();
     });
 
@@ -403,7 +403,8 @@
     const client = getClient();
     if (!client) return { data: [], error: new Error('Supabase client not available') };
 
-    let query = client.from("profiles").select("id, display_name, store_name, first_name, last_name, bio, avatar_url, created_at").eq("is_seller", true);
+    // Sewists = all users, whether or not they have started selling
+    let query = client.from("profiles").select("id, display_name, store_name, first_name, last_name, bio, avatar_url, created_at");
     if (searchTerm) query = query.or('store_name.ilike.%' + searchTerm + '%,display_name.ilike.%' + searchTerm + '%,first_name.ilike.%' + searchTerm + '%');
     query = query.order("created_at", { ascending: false }).limit(50);
 
@@ -669,7 +670,7 @@
     try {
       if (currentMode === "ateliers") {
         const { data, error } = await fetchAteliers(filters.search);
-        if (error) { grid.innerHTML = '<p style="text-align:center;padding:40px;">Error loading sellers.</p>'; return; }
+        if (error) { grid.innerHTML = '<p style="text-align:center;padding:40px;">Error loading sewists.</p>'; return; }
         if (!data.length) {
           grid.innerHTML = "";
           if (filtersActive && emptyFilteredEl) emptyFilteredEl.style.display = "flex";
@@ -821,12 +822,26 @@
     }
   }
 
+  // Honor ?type=sellers (or ?type=sewists) from the top search bar so the page
+  // opens in sewist mode. With an empty search box this lists every sewist.
+  function applySearchTypeFromUrl() {
+    var type = new URLSearchParams(window.location.search).get('type');
+    if (type === 'sellers' || type === 'sewists') {
+      currentMode = 'ateliers';
+      var modeSelect = document.getElementById('searchMode');
+      if (modeSelect) modeSelect.value = 'sellers';
+      var qInput = document.getElementById('q');
+      if (qInput) qInput.placeholder = 'Search sewists...';
+    }
+  }
+
   function init() {
     if (!getClient()) { console.warn('[browse.js] Waiting for Supabase...'); setTimeout(init, 100); return; }
     console.log('[browse.js] Initializing...');
     initFilters();
     // Apply URL params to filter UI BEFORE first search so cotton is preserved on page navigation
     applyUrlParamsToFilters();
+    applySearchTypeFromUrl();
     runSearch('keepPage');
     window.addEventListener("filtersChanged", runSearch);
     window.addEventListener("popstate", function() { runSearch('keepPage'); });
