@@ -263,6 +263,7 @@
 
     listings.forEach(item => {
       const yards = computeYards(item);
+      const yardWord = (yards === 1 || yards === "1") ? "yard" : "yards";
       // FIXED: Get price from price_cents first, fall back to price field
       const priceCentsFromField = item.price_cents != null ? Number(item.price_cents) : null;
       const priceFromField = item.price != null ? Number(item.price) : null;
@@ -339,7 +340,7 @@
             >
               ${
                 canBuy && totalMoney && yards
-                  ? `Add to Cart — ${totalMoney} for ${yards} yards`
+                  ? `Add to Cart — ${totalMoney} for ${yards} ${yardWord}`
                   : (isSold ? "Sold out" : "Add to Cart")
               }
             </button>`;
@@ -360,7 +361,7 @@
           </div>
           ${yards != null ? (isCutToOrder
             ? `<div class="listing-yards"><span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;vertical-align:middle;">✂️ By the yard</span>${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>`
-            : `<div class="listing-yards">${yards} yards${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>`
+            : `<div class="listing-yards">${yards} ${yardWord}${badgeLabel ? ` <span class="listing-dept">${badgeLabel}</span>` : ""}</div>`
           ) : ""}
           <div class="listing-cta-row">
             ${ctaHtml}
@@ -370,11 +371,6 @@
               perYdMoney
                 ? `<span class="listing-price-main">${perYdMoney}/yard</span>`
                 : `<span class="listing-price-main">Price coming soon</span>`
-            }
-            ${
-              hasDiscount && origPerMoney
-                ? `<span class="listing-price-orig">${origPerMoney}/yard</span>`
-                : ""
             }
           </div>
         </div>
