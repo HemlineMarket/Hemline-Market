@@ -34,7 +34,7 @@
         "@type": "WebSite",
         "name": "Hemline Market",
         "url": "https://hemlinemarket.com",
-        "description": "Buy and sell fabric from fellow sewists. Secure checkout, prepaid shipping labels, and a community forum.",
+        "description": "Buy and sell fabric from fellow sewists. Secure checkout and prepaid shipping labels.",
         "potentialAction": {
           "@type": "SearchAction",
           "target": {
