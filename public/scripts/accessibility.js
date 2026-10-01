@@ -43,7 +43,7 @@
     skip.textContent = 'Skip to main content';
     skip.style.cssText = `
       position: absolute;
-      top: -40px;
+      top: -100px;
       left: 0;
       background: #991b1b;
       color: #fff;
@@ -60,7 +60,7 @@
     });
     
     skip.addEventListener('blur', () => {
-      skip.style.top = '-40px';
+      skip.style.top = '-100px';
     });
     
     document.body.insertBefore(skip, document.body.firstChild);
