@@ -1,6 +1,6 @@
 // api/sitemap.js
 // Dynamic sitemap covering static pages, all active listings (/fabric/:id),
-// all public ThreadTalk posts (/thread/:id), and seller atelier pages
+// and seller atelier pages
 // (/atelier/:id) for sellers who have at least one active listing.
 //
 // Changes from previous version:
@@ -24,15 +24,6 @@ const STATIC_PAGES = [
   { url: "/contact.html", priority: "0.6", changefreq: "monthly" },
   { url: "/faq.html", priority: "0.6", changefreq: "monthly" },
   { url: "/atelier.html", priority: "0.6", changefreq: "weekly" },
-  { url: "/ThreadTalk.html", priority: "0.7", changefreq: "daily" },
-  { url: "/showcase.html", priority: "0.7", changefreq: "daily" },
-  { url: "/cosplay.html", priority: "0.7", changefreq: "daily" },
-  { url: "/stitch-school.html", priority: "0.7", changefreq: "weekly" },
-  { url: "/pattern-hacks.html", priority: "0.7", changefreq: "weekly" },
-  { url: "/tailoring.html", priority: "0.7", changefreq: "weekly" },
-  { url: "/before-after.html", priority: "0.7", changefreq: "weekly" },
-  { url: "/loose-threads.html", priority: "0.7", changefreq: "weekly" },
-  { url: "/fabric-concierge.html", priority: "0.6", changefreq: "monthly" },
   { url: "/privacy.html", priority: "0.4", changefreq: "monthly" },
   { url: "/terms.html", priority: "0.4", changefreq: "monthly" },
   { url: "/returns.html", priority: "0.5", changefreq: "monthly" },
@@ -61,11 +52,6 @@ export default async function handler(req, res) {
     "listings?select=id,seller_id,updated_at&status=eq.ACTIVE&deleted_at=is.null&order=updated_at.desc"
   );
 
-  // Fetch public ThreadTalk posts for /thread/:id URLs
-  const threads = await supabaseFetch(
-    "threadtalk_threads?select=id,updated_at&is_deleted=eq.false&order=updated_at.desc"
-  );
-
   // Derive the unique set of sellers with at least one active listing for
   // /atelier/:id URLs. Sellers with no live inventory aren't surfaced (keeps
   // empty/low-value pages out of the index).
@@ -90,14 +76,6 @@ export default async function handler(req, res) {
       ? new Date(listing.updated_at).toISOString().split("T")[0]
       : today;
     xml += `  <url>\n    <loc>${SITE_BASE}/fabric/${encodeURIComponent(listing.id)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
-  }
-
-  // ThreadTalk posts — canonical URL is /thread/:id (SSR route)
-  for (const thread of threads) {
-    const lastmod = thread.updated_at
-      ? new Date(thread.updated_at).toISOString().split("T")[0]
-      : today;
-    xml += `  <url>\n    <loc>${SITE_BASE}/thread/${thread.id}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
   }
 
   // Seller atelier pages — canonical URL is /atelier/:id (SSR route).
