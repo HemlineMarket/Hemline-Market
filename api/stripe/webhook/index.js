@@ -311,7 +311,7 @@ export default async function handler(req, res) {
       listing = data;
     }
 
-    const sellerId = md.seller_id || listing?.seller_id;
+    const sellerId = listing?.seller_id || md.seller_id;
     const listingTitle = md.title || listing?.title || "Fabric";
     const listingImage = md.image_url || listing?.image_url_1 || "";
     const priceCents = Number(md.price_cents) || 0;
@@ -349,7 +349,7 @@ export default async function handler(req, res) {
       const cartData = md.cart_json ? JSON.parse(md.cart_json) : [];
       cartData.forEach(item => {
         const itemId = item.listing_id || item.listingId || item.id;
-        const yards = Number(item.yards) || Number(item.y) || 1;
+        const yards = Number(item.__yards) || Number(item.yards) || Number(item.y) || 1;
         if (itemId) {
           originalYardsMap[itemId] = yards;
         }
@@ -398,18 +398,29 @@ export default async function handler(req, res) {
       return res.status(200).json({ received: true, error: "Order insert failed - needs manual review" });
     }
 
-    // FIX: Mark ALL listings as SOLD (not just the first one)
+    // Mark listings sold. Whole cuts go to SOLD/0. Sell-by-the-yard listings
+    // lose only the yards purchased and stay ACTIVE until they run out.
     if (allListingIds.length > 0) {
-      const { error: updateErr } = await supabase.from("listings").update({ 
-        status: "SOLD", 
-        yards_available: 0,
-        sold_at: new Date().toISOString() 
-      }).in("id", allListingIds);
+      const { data: soldListings } = await supabase
+        .from("listings")
+        .select("id, sell_by_yard, yards_available")
+        .in("id", allListingIds);
+      let updateErr = null;
+      for (const l of soldListings || []) {
+        const purchased = Number(originalYardsMap[l.id]) || 0;
+        const avail = Number(l.yards_available) || 0;
+        const remaining = l.sell_by_yard === true ? Math.max(0, avail - purchased) : 0;
+        const patch = remaining > 0
+          ? { yards_available: remaining }
+          : { status: "SOLD", yards_available: 0, sold_at: new Date().toISOString() };
+        const { error } = await supabase.from("listings").update(patch).eq("id", l.id);
+        if (error) updateErr = error;
+      }
       
       if (updateErr) {
         console.error("Failed to mark listings as SOLD:", updateErr);
       } else {
-        console.log(`Marked ${allListingIds.length} listing(s) as SOLD:`, allListingIds);
+        console.log(`Updated ${allListingIds.length} listing(s) after sale:`, allListingIds);
       }
 
       // Clear checkout locks and cart holds for these items
