@@ -245,7 +245,9 @@ export default async function handler(req, res) {
                 description: `Hemline Market sale: ${order.listing_title || "Order"}`,
                 metadata: { order_id: order.id, seller_id: order.seller_id },
               },
-              { idempotencyKey: `payout_${order.id}_${now.toISOString().slice(0, 10)}` }
+              // One key per order. If the transfer succeeded but the order update
+              // failed, tomorrow's retry replays the same transfer instead of a new one.
+              { idempotencyKey: `payout_${order.id}` }
             );
             transferred = true;
           } catch (transferErr) {
