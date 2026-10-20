@@ -192,6 +192,17 @@
       }
     });
 
+    // Availability (default is "available", so only Sold / All get a chip)
+    const avail = document.getElementById('availability');
+    if (avail && avail.value && avail.value !== 'available') {
+      filters.push({
+        type: 'availability',
+        label: avail.value === 'sold' ? 'Sold' : 'All listings',
+        value: avail.value,
+        clear: () => { avail.value = 'available'; }
+      });
+    }
+
     // Designer input
     const designer = document.getElementById('designer');
     if (designer && designer.value.trim()) {
