@@ -1280,11 +1280,20 @@
           .maybeSingle();
         profile = data;
       }else if(shopSlugParam){
-        const normalized = shopSlugParam.replace(/-/g," ").trim();
-        const { data } = await supabaseClient
+        const slug = shopSlugParam.trim().toLowerCase();
+        let { data } = await supabaseClient
           .from("profiles")
           .select("*")
-          .ilike("store_name", normalized);
+          .eq("store_slug", slug)
+          .limit(1);
+        if(!data || !data.length){
+          const normalized = slug.replace(/-/g," ").trim();
+          const res = await supabaseClient
+            .from("profiles")
+            .select("*")
+            .ilike("store_name", normalized);
+          data = res.data;
+        }
         if(data && data.length){
           profile = data[0];
           sellerId = profile.id;
