@@ -372,6 +372,17 @@
       </div>
     </div>
 
+    <div class="auth-container hidden" id="card-newpass">
+      <h1>Choose a new password</h1>
+      <p class="muted">At least 8 characters.</p>
+      <form id="newpass">
+        <input type="password" id="np-pass" placeholder="New password" minlength="8" required autocomplete="new-password">
+        <input type="password" id="np-pass2" placeholder="Repeat new password" minlength="8" required autocomplete="new-password">
+        <button class="primary" type="submit">Save password</button>
+      </form>
+      <p class="muted" id="np-msg" role="status"></p>
+    </div>
+
     <div class="auth-container hidden" id="card-otp">
       <h1>Email a sign-in code</h1>
       <p class="muted">Quick like a running stitch — no password needed.</p>
@@ -434,6 +445,34 @@
     // Card toggles
     const show = id => document.getElementById(id).classList.remove('hidden');
     const hide = id => document.getElementById(id).classList.add('hidden');
+
+    // Password recovery: the reset link lands here with a recovery session.
+    function showNewPasswordCard(){
+      ['card-login','card-signup','card-forgot','card-otp'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.add('hidden');
+      });
+      show('card-newpass');
+    }
+    const isRecoveryUrl = /[?&]recovery=1/.test(location.search) || /type=recovery/.test(location.hash);
+    if (isRecoveryUrl) showNewPasswordCard();
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') showNewPasswordCard();
+    });
+    document.getElementById('newpass').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const p1 = document.getElementById('np-pass').value;
+      const p2 = document.getElementById('np-pass2').value;
+      const msg = document.getElementById('np-msg');
+      if (p1.length < 8) { msg.textContent = 'Use at least 8 characters.'; return; }
+      if (p1 !== p2) { msg.textContent = 'Passwords do not match.'; return; }
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Saving...';
+      const { error } = await supabase.auth.updateUser({ password: p1 });
+      btn.disabled = false; btn.textContent = 'Save password';
+      if (error) { msg.textContent = error.message; return; }
+      msg.textContent = 'Password saved. Taking you to your account...';
+      setTimeout(() => { location.href = 'account.html'; }, 900);
+    });
 
     document.getElementById('link-signup').onclick = (e)=>{
       e.preventDefault(); hide('card-login'); show('card-signup');
@@ -548,6 +587,19 @@
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         
         if (error) {
+          if (/not confirmed/i.test(error.message || "")) {
+            btn.disabled = false;
+            btn.textContent = origText;
+            if (confirm("Your email isn't confirmed yet. Send a new confirmation email to " + email + "?")) {
+              const { error: resendErr } = await supabase.auth.resend({
+                type: "signup",
+                email,
+                options: { emailRedirectTo: location.origin + "/auth.html" }
+              });
+              alert(resendErr ? resendErr.message : "Confirmation email sent. Check your inbox, then sign in.");
+            }
+            return false;
+          }
           // Record failed attempt for rate limiting
           if (window.HM_recordFailedAttempt) {
             window.HM_recordFailedAttempt();
@@ -635,7 +687,7 @@
       
       const email = document.getElementById("rp-email").value.trim();
       const { error } = await supabase.auth.resetPasswordForEmail(email,{
-        redirectTo: location.origin + "/auth.html"
+        redirectTo: location.origin + "/auth.html?recovery=1"
       });
       
       btn.disabled = false;
