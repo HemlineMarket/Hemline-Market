@@ -645,6 +645,7 @@
           shippedBtn.textContent = "Updating...";
 
           try {
+            const tn = trackingNumber || order.tracking_number || "";
             // Update order in database
             const { error } = await supabaseClient
               .from("orders")
@@ -669,7 +670,7 @@
                 type: "shipped",
                 kind: "shipped",
                 title: "Your order has shipped! 📦",
-                body: `"${order.listing_title || 'Your order'}" is on its way.${trackingNumber ? ' Tracking: ' + trackingNumber : ''}`,
+                body: `"${order.listing_title || 'Your order'}" is on its way.${tn ? ' Tracking: ' + tn : ''}`,
                 href: "/purchases.html",
                 link: "/purchases.html"
               });
@@ -684,8 +685,8 @@
                   order_id: order.id,
                   buyer_email: order.buyer_email,
                   listing_title: order.listing_title,
-                  tracking_number: trackingNumber || null,
-                  tracking_url: trackingNumber ? `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}` : null
+                  tracking_number: tn || null,
+                  tracking_url: tn ? `https://tools.usps.com/go/TrackConfirmAction?tLabels=${tn}` : null
                 })
               }).catch(e => console.warn("Shipped email notification failed:", e));
             }
