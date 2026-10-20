@@ -32,16 +32,8 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  // Safe diagnostic without creating another function:
   if (req.method === "GET") {
-    const key = process.env.RESEND_API_KEY || "";
-    return res.status(200).json({
-      ok: true,
-      vercelEnv: process.env.VERCEL_ENV || null, // expect "production"
-      hasKey: key.length > 0,
-      keyStartsWith: key.slice(0, 3), // expect "re_"
-      keyLength: key.length          // should be > 20
-    });
+    return res.status(200).json({ ok: true });
   }
 
   if (req.method !== "POST") {
@@ -95,30 +87,35 @@ Subject: ${subjectLine}
 ${cleanMsg}
 `;
 
-    // Send the email through Resend
-    const r = await fetch(RESEND_ENDPOINT, {
+    // Send through Postmark, same as every other email the site sends.
+    const POSTMARK = process.env.POSTMARK_SERVER_TOKEN;
+    const FROM = process.env.FROM_EMAIL || "orders@hemlinemarket.com";
+    const TO = process.env.SUPPORT_EMAIL || "hello@hemlinemarket.com";
+    if (!POSTMARK) {
+      return res.status(500).json({ ok: false, error: "Email is not configured" });
+    }
+    const r = await fetch("https://api.postmarkapp.com/email", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.RESEND_API_KEY || ""}`,
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json", "X-Postmark-Server-Token": POSTMARK },
       body: JSON.stringify({
-        from: "Hemline Market Contact <onboarding@resend.dev>",
-        to: ["hello@hemlinemarket.com"],
-        reply_to: [cleanEmail],
-        subject: subjectLine,
-        html,
-        text
+        From: FROM,
+        To: TO,
+        ReplyTo: cleanEmail,
+        Subject: subjectLine,
+        HtmlBody: html,
+        TextBody: text,
+        MessageStream: "outbound"
       })
     });
 
-    const data = await r.json();
+    const data = await r.json().catch(() => ({}));
 
     if (!r.ok) {
-      return res.status(500).json({ ok: false, error: "Email send failed", detail: data });
+      console.error("[contact] Postmark error:", data);
+      return res.status(500).json({ ok: false, error: "Email send failed" });
     }
 
-    return res.status(200).json({ ok: true, id: data.id || null });
+    return res.status(200).json({ ok: true, id: data.MessageID || null });
   } catch (err) {
     return res.status(500).json({ ok: false, error: "Server error", detail: String(err) });
   }
