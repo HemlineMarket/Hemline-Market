@@ -169,7 +169,7 @@ export default async function handler(req, res) {
     }
 
     // === DELIVERED ===
-    if (status === "DELIVERED" && order.status !== "DELIVERED") {
+    if (status === "DELIVERED" && !["DELIVERED", "COMPLETE"].includes(order.status)) {
       updates.delivered_at = now.toISOString();
       updates.status = "DELIVERED";
 
