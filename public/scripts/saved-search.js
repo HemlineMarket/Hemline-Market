@@ -69,7 +69,7 @@
     if (!session || !session.user) {
       showToast('Please sign in to save searches', 'error');
       setTimeout(function() {
-        window.location.href = 'auth.html?view=login&redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = 'auth.html?view=login&next=' + encodeURIComponent(window.location.pathname + window.location.search);
       }, 1500);
       return;
     }
