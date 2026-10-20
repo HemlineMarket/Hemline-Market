@@ -10,6 +10,9 @@
 // ENV: CRON_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, POSTMARK_SERVER_TOKEN, INTERNAL_WEBHOOK_SECRET
 
 import { createClient } from "@supabase/supabase-js";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 function getSupabaseAdmin() {
   return createClient(
@@ -160,22 +163,25 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // 3. AUTO-RELEASE PAYMENT TO WALLET 3 DAYS AFTER DELIVERY
+    // 3. PAY THE SELLER
+    //    Released when the buyer confirms receipt (status COMPLETE,
+    //    buyer_accepted_at set) OR 3 days after tracking shows
+    //    delivered. Paid by Stripe transfer to the seller's
+    //    connected account; Stripe pays out to their bank from there.
     // =========================================================
     const threeDaysAfterDelivery = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
     const { data: deliveredOrders } = await supabase
       .from("orders")
       .select("*, seller:profiles!seller_id(first_name, last_name, contact_email)")
-      .eq("status", "DELIVERED")
       .is("payout_at", null)
-      .lt("delivered_at", threeDaysAfterDelivery);
+      .or(`and(status.eq.COMPLETE,buyer_accepted_at.not.is.null),and(status.eq.DELIVERED,delivered_at.lt.${threeDaysAfterDelivery})`);
 
     for (const order of deliveredOrders || []) {
       try {
-        // Get seller's fee rate
+        // Seller's fee rate and Stripe account
         const { data: sellerProfile } = await supabase
           .from("profiles")
-          .select("fee_rate")
+          .select("fee_rate, stripe_account_id, payouts_enabled")
           .eq("id", order.seller_id)
           .maybeSingle();
 
@@ -189,20 +195,39 @@ export default async function handler(req, res) {
           continue;
         }
 
-        // Credit seller's wallet instead of Stripe transfer
-        const walletResult = await creditSellerWallet(
-          order.seller_id,
-          payoutAmount,
-          order.id,
-          `Sale: ${order.listing_title || 'Order'}`
-        );
+        // Pay the seller. Stripe transfer to their connected account
+        // (idempotent per order), falling back to the wallet only if the
+        // seller somehow has no payable Stripe account.
+        let walletTransactionId = null;
+        let paidVia = "stripe";
+        if (sellerProfile?.stripe_account_id && sellerProfile?.payouts_enabled !== false) {
+          await stripe.transfers.create(
+            {
+              amount: payoutAmount,
+              currency: "usd",
+              destination: sellerProfile.stripe_account_id,
+              description: `Hemline Market sale: ${order.listing_title || "Order"}`,
+              metadata: { order_id: order.id, seller_id: order.seller_id },
+            },
+            { idempotencyKey: `payout_${order.id}` }
+          );
+        } else {
+          paidVia = "wallet";
+          const walletResult = await creditSellerWallet(
+            order.seller_id,
+            payoutAmount,
+            order.id,
+            `Sale: ${order.listing_title || "Order"}`
+          );
+          walletTransactionId = walletResult.transaction_id;
+        }
 
         // Update order as paid out
         await supabase.from("orders").update({
           status: "COMPLETE",
           payout_at: now.toISOString(),
           payout_amount_cents: payoutAmount,
-          wallet_transaction_id: walletResult.transaction_id,
+          wallet_transaction_id: walletTransactionId,
           platform_fee_rate: platformFeePercent,
           platform_fee_cents: order.items_cents - payoutAmount,
         }).eq("id", order.id);
@@ -214,11 +239,15 @@ export default async function handler(req, res) {
           await sendEmail(
             sellerEmail,
             "💰 Payment Released - Hemline Market",
-            `<h2>You've been paid!</h2>
-            <p>Your earnings of <strong>$${(payoutAmount / 100).toFixed(2)}</strong> for order "${safePayoutTitle}" have been added to your Hemline balance.</p>
-            <p>You can use this balance to shop on Hemline Market or withdraw to your bank account from your <a href="https://hemlinemarket.com/account.html">Account page</a>.</p>
-            <p>Thank you for selling on Hemline Market!</p>`,
-            `Earnings of $${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" have been added to your Hemline balance. Visit your Account page to withdraw or shop.`
+            paidVia === "stripe"
+              ? `<h2>You've been paid!</h2>
+            <p>Your earnings of <strong>$${(payoutAmount / 100).toFixed(2)}</strong> for order "${safePayoutTitle}" have been sent to your bank through Stripe. They usually arrive in 2 to 3 business days.</p>
+            <p>Thank you for selling on Hemline Market!</p>`
+              : `<h2>You've been paid!</h2>
+            <p>Your earnings of <strong>$${(payoutAmount / 100).toFixed(2)}</strong> for order "${safePayoutTitle}" have been added to your Hemline balance. Withdraw to your bank from your <a href="https://hemlinemarket.com/account.html">Account page</a>.</p>`,
+            paidVia === "stripe"
+              ? `Earnings of $${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" have been sent to your bank through Stripe. They usually arrive in 2 to 3 business days.`
+              : `Earnings of $${(payoutAmount / 100).toFixed(2)} for "${order.listing_title}" have been added to your Hemline balance. Visit your Account page to withdraw.`
           );
         }
 
@@ -228,7 +257,9 @@ export default async function handler(req, res) {
           type: "payout",
           kind: "payout",
           title: "Payment released! 💰",
-          body: `$${(payoutAmount / 100).toFixed(2)} for "${escapeHtml(order.listing_title)}" has been added to your balance. Withdraw or shop anytime!`,
+          body: paidVia === "stripe"
+            ? `$${(payoutAmount / 100).toFixed(2)} for "${escapeHtml(order.listing_title)}" is on its way to your bank. Usually 2 to 3 business days.`
+            : `$${(payoutAmount / 100).toFixed(2)} for "${escapeHtml(order.listing_title)}" has been added to your balance. Withdraw anytime.`,
           href: "/account.html",
         });
 
