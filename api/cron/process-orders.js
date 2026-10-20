@@ -175,11 +175,11 @@ export default async function handler(req, res) {
         // Get seller's fee rate
         const { data: sellerProfile } = await supabase
           .from("profiles")
-          .select("fee_rate, founding_seller_number")
+          .select("fee_rate")
           .eq("id", order.seller_id)
           .maybeSingle();
 
-        // Use seller's fee rate (founding sellers = 9%, standard = 13%)
+        // Platform fee rate from the seller profile
         // Default to 13% if fee_rate not set
         const platformFeePercent = sellerProfile?.fee_rate || 0.13;
         const payoutAmount = Math.floor(order.items_cents * (1 - platformFeePercent));
