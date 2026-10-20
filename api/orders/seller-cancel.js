@@ -268,7 +268,11 @@ export default async function handler(req, res) {
       // Restore each listing with its original yards
       let restoredCount = 0;
       for (const listingId of listingIdsToRestore) {
-        const originalYards = originalYardsMap[listingId] || 1;
+        const purchasedYards = originalYardsMap[listingId] || 1;
+        const { data: cur } = await supabase.from("listings").select("sell_by_yard, yards_available").eq("id", listingId).maybeSingle();
+        const originalYards = cur?.sell_by_yard === true
+          ? (Number(cur.yards_available) || 0) + purchasedYards
+          : purchasedYards;
         
         const { error: listingErr } = await supabase
           .from("listings")
