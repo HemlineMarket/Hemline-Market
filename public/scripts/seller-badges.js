@@ -24,14 +24,8 @@
       badges.push(`<span class="badge-founder${sizeClass}${iconClass}">${iconOnly ? '' : 'Founder'}</span>`);
     }
     
-    // Early seller badge
-    if(profile.is_early_seller && profile.seller_number){
-      const text = iconOnly ? '' : `OG Seller #${profile.seller_number}`;
-      badges.push(`<span class="badge-early-seller${sizeClass}${iconClass}">${text}</span>`);
-    }
-    
-    // Verified seller badge (only if not founder or early seller)
-    if(profile.stripe_account_id && !profile.is_founder && !profile.is_early_seller){
+    // Verified seller badge (only if not founder)
+    if(profile.stripe_account_id && !profile.is_founder){
       badges.push(`<span class="badge-verified${sizeClass}${iconClass}">${iconOnly ? '' : 'Verified'}</span>`);
     }
     
