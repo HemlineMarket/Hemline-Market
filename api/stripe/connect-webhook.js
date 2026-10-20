@@ -1,7 +1,6 @@
 // File: api/stripe/connect-webhook.js
 // Handles Stripe Connect account updates
 // Marks seller as verified when charges_enabled becomes true
-// This triggers the founding seller number assignment
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -64,7 +63,7 @@ export default async function handler(req, res) {
         // Find the user with this Stripe account
         const { data: profile, error: findError } = await supabase
           .from('profiles')
-          .select('id, stripe_connect_verified, founding_seller_number')
+          .select('id, stripe_connect_verified')
           .eq('stripe_account_id', accountId)
           .maybeSingle();
 
@@ -84,7 +83,7 @@ export default async function handler(req, res) {
           return res.status(200).json({ received: true, message: 'Already verified' });
         }
 
-        // Mark as verified - the database trigger will assign founding number and fee rate
+        // Mark as verified
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ 
@@ -98,21 +97,9 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: 'Failed to update profile' });
         }
 
-        // Fetch the updated profile to get the assigned number
-        const { data: updated } = await supabase
-          .from('profiles')
-          .select('founding_seller_number, fee_rate')
-          .eq('id', profile.id)
-          .single();
+        console.log(`Seller verified! Profile: ${profile.id}`);
 
-        console.log(`Seller verified! Profile: ${profile.id}, Founding #: ${updated?.founding_seller_number}, Fee: ${updated?.fee_rate}`);
-
-        return res.status(200).json({ 
-          received: true, 
-          verified: true,
-          founding_seller_number: updated?.founding_seller_number,
-          fee_rate: updated?.fee_rate
-        });
+        return res.status(200).json({ received: true, verified: true });
 
       } catch (err) {
         console.error('Error processing account.updated:', err);
