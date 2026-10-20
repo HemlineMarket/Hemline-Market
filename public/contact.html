@@ -174,7 +174,7 @@
     <!-- Right: contact form -->
     <section class="card" aria-label="Send a message">
       <h2>Send a message</h2>
-      <form action="mailto:hello@hemlinemarket.com" method="post" enctype="text/plain">
+      <form id="contactForm" novalidate>
         <div class="form-group">
           <label for="name">Your name</label>
           <input id="name" name="name" type="text" placeholder="Your name"/>
@@ -191,11 +191,60 @@
           <label for="message">Message</label>
           <textarea id="message" name="message" placeholder="How can we help?"></textarea>
         </div>
+        <input type="text" name="honeypot" id="honeypot" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;" aria-hidden="true"/>
         <div class="form-footer">
-          <button type="submit" class="btn-primary">Send</button>
+          <button type="submit" class="btn-primary" id="contactSend">Send</button>
           <span>or email directly: <a class="email-link" href="mailto:hello@hemlinemarket.com">hello@hemlinemarket.com</a></span>
         </div>
+        <p id="contactStatus" role="status" style="margin:12px 0 0;font-size:14px;"></p>
       </form>
+      <script>
+      (function(){
+        var form = document.getElementById('contactForm');
+        var btn = document.getElementById('contactSend');
+        var status = document.getElementById('contactStatus');
+        // Pre-fill subject from ?subject= (Purchases page links here with the order id)
+        try {
+          var qs = new URLSearchParams(location.search).get('subject');
+          if (qs) document.getElementById('subject').value = qs;
+        } catch (e) {}
+        form.addEventListener('submit', async function(e){
+          e.preventDefault();
+          var name = document.getElementById('name').value.trim();
+          var email = document.getElementById('email').value.trim();
+          var subject = document.getElementById('subject').value.trim();
+          var message = document.getElementById('message').value.trim();
+          var honeypot = document.getElementById('honeypot').value;
+          if (!name || !email || !message) {
+            status.style.color = '#991b1b';
+            status.textContent = 'Please add your name, email, and a message.';
+            return;
+          }
+          btn.disabled = true; btn.textContent = 'Sending...';
+          status.textContent = '';
+          try {
+            var r = await fetch('/api/contact', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: name, email: email, subject: subject, message: message, honeypot: honeypot })
+            });
+            var data = await r.json().catch(function(){ return {}; });
+            if (r.ok && data.ok) {
+              status.style.color = '#047857';
+              status.textContent = 'Sent. We usually reply within 1 to 2 weekdays.';
+              form.reset();
+            } else {
+              throw new Error(data.error || 'Send failed');
+            }
+          } catch (err) {
+            status.style.color = '#991b1b';
+            status.textContent = 'Could not send. Please email hello@hemlinemarket.com directly.';
+          } finally {
+            btn.disabled = false; btn.textContent = 'Send';
+          }
+        });
+      })();
+      </script>
     </section>
   </div>
 </main>
