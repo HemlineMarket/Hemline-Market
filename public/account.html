@@ -858,18 +858,21 @@
     ];
 
     function containsBlockedWord(text) {
-      const lower = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+      // Whole-word match only, so "Classic Cottons" and "Peacock Fabrics" pass.
+      const words = text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+      const joined = text.toLowerCase().replace(/[^a-z0-9]/g, '');
       for (const word of BLOCKED_STORE_WORDS) {
-        if (lower.includes(word.replace(/[^a-z0-9]/g, ''))) {
-          return true;
-        }
+        const w = word.replace(/[^a-z0-9]/g, '');
+        if (words.includes(w)) return true;
+        // Platform impersonation also blocked when run together ("hemlinemarket")
+        if (w.startsWith('hemline') && joined.includes(w)) return true;
       }
       return false;
     }
 
     function containsContactInfo(text) {
-      // Check for phone numbers (3+ consecutive digits)
-      if (/\d{3,}/.test(text)) return 'phone number';
+      // Check for phone numbers (7+ digits, allowing separators)
+      if (/(?:\d[\s.-]?){7,}/.test(text)) return 'phone number';
       // Check for email pattern
       if (/@/.test(text)) return 'email address';
       // Check for URLs
