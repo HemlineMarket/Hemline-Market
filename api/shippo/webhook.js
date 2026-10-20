@@ -49,9 +49,11 @@ async function sendEmail(to, subject, htmlBody, textBody) {
 function normalizeStatus(s = "") {
   const up = s.toUpperCase();
   if (up.includes("DELIVER")) return "DELIVERED";
+  // Label printed but not yet scanned by the carrier: nothing has shipped.
+  if (up.includes("PRE_TRANSIT") || up === "UNKNOWN" || up === "") return "LABEL_CREATED";
   if (up.includes("TRANSIT") || up.includes("ACCEPTED")) return "IN_TRANSIT";
   if (up.includes("FAIL") || up.includes("EXCEPT") || up.includes("RETURN")) return "EXCEPTION";
-  return "IN_TRANSIT";
+  return "LABEL_CREATED";
 }
 
 // HTML escape function to prevent XSS/injection in emails
