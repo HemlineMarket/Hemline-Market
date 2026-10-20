@@ -89,7 +89,23 @@ export default async function handler(req, res) {
           existing: true,
         });
       } catch (loginErr) {
-        console.log('Login link failed, will create new onboarding link');
+        // Account exists but onboarding was never finished: resume it.
+        console.log('Login link failed, resuming onboarding for existing account');
+        try {
+          const resume = await stripe.accountLinks.create({
+            account: profile.stripe_account_id,
+            refresh_url,
+            return_url,
+            type: 'account_onboarding',
+          });
+          return res.status(200).json({
+            url: resume.url,
+            accountId: profile.stripe_account_id,
+            existing: true,
+          });
+        } catch (resumeErr) {
+          console.log('Could not resume onboarding, creating a new account:', resumeErr.message);
+        }
       }
     }
 
