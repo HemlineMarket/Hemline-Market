@@ -103,6 +103,7 @@ export default async function handler(req, res) {
     const listingIds = cart
       .map(item => item.listing_id || item.listingId || item.id)
       .filter(Boolean);
+    const listingById = new Map();
 
     const now = new Date().toISOString();
 
@@ -159,7 +160,7 @@ export default async function handler(req, res) {
     if (listingIds.length > 0) {
       const { data: listings, error: listingError } = await supabase
         .from("listings")
-        .select("id, status, yards_available, title")
+        .select("id, status, yards_available, title, price_cents, sell_by_yard, seller_id")
         .in("id", listingIds);
 
       if (listingError) {
@@ -198,6 +199,19 @@ export default async function handler(req, res) {
         return res.status(400).json({
           error: "Some items were not found",
           missing: missingIds
+        });
+      }
+
+      // Prices come from the database, never from the browser.
+      for (const l of listings || []) listingById.set(String(l.id), l);
+
+      // One seller per order. The webhook, label, and payout all assume a single seller.
+      const distinctSellers = [...new Set((listings || []).map(l => l.seller_id).filter(Boolean))];
+      if (distinctSellers.length > 1) {
+        await releaseLocks();
+        return res.status(400).json({
+          error: "One seller per checkout",
+          message: "These fabrics come from different sellers. Please check out with one seller at a time."
         });
       }
     }
@@ -242,23 +256,33 @@ export default async function handler(req, res) {
     const currency = "usd";
     let itemsCents = 0;
 
-    // Helper to calculate line total for an item
+    // Line total from the listing's own price. The cart may only choose yardage
+    // (and only on sell-by-the-yard listings); it never chooses the price.
     const calcLineTotal = (it) => {
-      const qty = Math.max(1, asInt(it?.qty, 1));
-      const amount = Math.max(0, asInt(it?.amount, 0)); // cents per yard
-      const yards = Math.max(1, parseFloat(it?.yards) || 1);
-      
-      // If price_total is explicitly set, use it
-      if (it?.price_total && asInt(it.price_total, 0) > 0) {
-        return asInt(it.price_total, 0) * qty;
+      const id = String(it?.listing_id || it?.listingId || it?.id || "");
+      const listing = listingById.get(id);
+      if (!listing) return 0;
+      const perYard = Math.max(0, asInt(listing.price_cents, 0));
+      const available = Math.max(0, parseFloat(listing.yards_available) || 0);
+      let yards;
+      if (listing.sell_by_yard === true) {
+        yards = parseFloat(it?.yards) || 0;
+        if (yards <= 0 || yards > available) return -1; // invalid yardage request
+      } else {
+        yards = available; // whole cut, always the full yardage
       }
-      
-      // Otherwise: amount (cents/yd) × yards × qty
-      return Math.round(amount * yards * qty);
+      it.__yards = yards;
+      it.__perYard = perYard;
+      return Math.round(perYard * yards);
     };
 
     for (const it of cart) {
-      itemsCents += calcLineTotal(it);
+      const line = calcLineTotal(it);
+      if (line < 0) {
+        await releaseLocks();
+        return res.status(400).json({ error: "Requested yardage is not available" });
+      }
+      itemsCents += line;
     }
 
     if (itemsCents <= 0) {
@@ -266,18 +290,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Cart total is invalid" });
     }
 
-    // Build Stripe line_items
+    // Build Stripe line_items (one line per listing, quantity 1)
     const line_items = cart.map((it) => {
-      const qty = Math.max(1, asInt(it?.qty, 1));
-      const name = (it?.name || it?.title || "Fabric").toString();
-      const lineTotal = calcLineTotal(it);
-      // Stripe wants unit_amount, so we divide by qty to get per-item price
-      const unitAmount = Math.round(lineTotal / qty);
+      const id = String(it?.listing_id || it?.listingId || it?.id || "");
+      const listing = listingById.get(id);
+      const name = (listing?.title || it?.name || it?.title || "Fabric").toString();
+      const lineTotal = Math.round((it.__perYard || 0) * (it.__yards || 0));
       return {
-        quantity: qty,
+        quantity: 1,
         price_data: {
           currency,
-          unit_amount: unitAmount,
+          unit_amount: lineTotal,
           product_data: {
             name: name.length > 120 ? name.slice(0, 120) : name,
           },
