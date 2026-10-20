@@ -777,8 +777,11 @@
               <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
             </svg>
           </div>
-          <div class="profile-name" id="atelierOwnerName" style="font-size:18px;font-weight:600;">Hemline member</div>
-          <div id="atelierBadges" class="seller-badges" style="margin-top:8px;"></div>
+          <div>
+            <div class="profile-name" id="atelierOwnerName" style="font-size:18px;font-weight:600;">Hemline member</div>
+            <div id="atelierStats" style="display:none;margin-top:4px;font-size:14px;color:#44403c;"></div>
+            <div id="atelierBadges" class="seller-badges" style="margin-top:8px;"></div>
+          </div>
         </div>
         
         <!-- Bio section -->
@@ -1454,6 +1457,21 @@
       }
     }
     
+    // Sold count and rating. Silent below one sale; "0 sold" hurts more than nothing.
+    const statsEl = document.getElementById("atelierStats");
+    if (statsEl && profile) {
+      const sold = Number(profile.completed_sales || 0);
+      const ratingCount = Number(profile.rating_count || 0);
+      const rating = profile.rating_average != null ? Number(profile.rating_average) : null;
+      const parts = [];
+      if (sold >= 1) parts.push(sold + (sold === 1 ? " sold" : " sold"));
+      if (ratingCount >= 1 && rating) parts.push(rating.toFixed(1) + " \u2605 (" + ratingCount + ")");
+      if (parts.length) {
+        statsEl.textContent = parts.join(" \u00b7 ");
+        statsEl.style.display = "block";
+      }
+    }
+
     // Display bio if available
     const bioSection = document.getElementById("atelierBioSection");
     const bioText = document.getElementById("atelierBioText");
