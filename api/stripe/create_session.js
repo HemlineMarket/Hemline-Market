@@ -120,12 +120,17 @@ export default async function handler(req, res) {
         created_at: now
       }));
 
+      // Clear only our own old locks and anyone's expired ones, then insert.
+      // ignoreDuplicates keeps another buyer's live lock in place instead of
+      // overwriting it, so the re-read below is a real ownership check.
+      await supabase.from("checkout_locks").delete()
+        .in("listing_id", listingIds)
+        .or(`user_id.eq.${buyerId},expires_at.lt.${now}`);
       await supabase
         .from("checkout_locks")
-        .upsert(locks, { onConflict: "listing_id", ignoreDuplicates: false });
+        .upsert(locks, { onConflict: "listing_id", ignoreDuplicates: true });
 
       // Now re-read locks to check if WE actually hold them
-      // (another buyer's upsert may have overwritten ours)
       const { data: currentLocks } = await supabase
         .from("checkout_locks")
         .select("listing_id, user_id, expires_at")
