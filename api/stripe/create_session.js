@@ -34,7 +34,7 @@ function safeJsonStringify(obj, maxLen = 500) {
     const items = Array.isArray(obj) ? obj : (obj ? [obj] : []);
     const minimal = items.map(item => ({
       id: item.listing_id || item.listingId || item.id,
-      yards: item.yards || 1
+      yards: item.__yards ?? item.yards ?? 1
     }));
     let minStr = JSON.stringify(minimal);
     // Drop items from the end until the string fits
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
     const cart = Array.isArray(body.cart) ? body.cart : [];
     const buyerEmail = (body?.buyer?.email || body?.buyer_email || "").toString().trim();
     const buyerId = (body?.buyer?.id || body?.buyer_id || "").toString().trim();
-    const shippingCents = Math.max(0, asInt(body?.shipping_cents, 0));
+    let shippingCents = Math.max(0, asInt(body?.shipping_cents, 0)); // replaced below by the server tier
 
     if (!process.env.STRIPE_SECRET_KEY) {
       return res.status(500).json({ error: "Missing STRIPE_SECRET_KEY" });
@@ -104,6 +104,7 @@ export default async function handler(req, res) {
       .map(item => item.listing_id || item.listingId || item.id)
       .filter(Boolean);
     const listingById = new Map();
+    let distinctSellers = [];
 
     const now = new Date().toISOString();
 
@@ -206,7 +207,7 @@ export default async function handler(req, res) {
       for (const l of listings || []) listingById.set(String(l.id), l);
 
       // One seller per order. The webhook, label, and payout all assume a single seller.
-      const distinctSellers = [...new Set((listings || []).map(l => l.seller_id).filter(Boolean))];
+      distinctSellers = [...new Set((listings || []).map(l => l.seller_id).filter(Boolean))];
       if (distinctSellers.length > 1) {
         await releaseLocks();
         return res.status(400).json({
@@ -216,15 +217,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // VACATION CHECK
-    const sellerIds = cart
-      .map(item => item.seller_id || item.sellerId)
-      .filter(Boolean);
-    
-    const bodySellerId = (body.seller_id || "").toString().trim();
-    if (bodySellerId && !sellerIds.includes(bodySellerId)) {
-      sellerIds.push(bodySellerId);
-    }
+    // VACATION CHECK (sellers come from the listings table, not the cart)
+    const sellerIds = [...distinctSellers];
 
     if (sellerIds.length > 0) {
       const uniqueSellerIds = [...new Set(sellerIds)];
@@ -290,6 +284,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Cart total is invalid" });
     }
 
+    // Shipping tier from total yards, same tiers the cart shows. Never from the client.
+    const totalYards = cart.reduce((sum, it) => sum + (it.__yards || 0), 0);
+    shippingCents = totalYards < 3 ? 500 : totalYards <= 10 ? 800 : 1500;
+
     // Build Stripe line_items (one line per listing, quantity 1)
     const line_items = cart.map((it) => {
       const id = String(it?.listing_id || it?.listingId || it?.id || "");
@@ -319,20 +317,15 @@ export default async function handler(req, res) {
       .filter(Boolean)
       .join(",");
     
-    const allSellerIds = [...new Set(cart
-      .map(item => item.seller_id || item.sellerId)
-      .filter(Boolean)
-    )].join(",");
-
     const metadata = {
       buyer_email: buyerEmail || "",
       buyer_id: buyerId || "",
       shipping_cents: String(shippingCents),
       price_cents: String(itemsCents),
       listing_ids: truncateIdList(allListingIds, 490),
-      seller_ids: truncateIdList(allSellerIds, 490),
+      seller_ids: distinctSellers.join(","),
       listing_id: first.listing_id || first.listingId || first.id || "",
-      seller_id: first.seller_id || first.sellerId || "",
+      seller_id: distinctSellers[0] || "",
       title: (first.title || first.name || "").toString().trim().slice(0, 200),
       image_url: (first.image_url || first.imageUrl || "").toString().trim().slice(0, 400),
       cart_json: safeJsonStringify(cart),
