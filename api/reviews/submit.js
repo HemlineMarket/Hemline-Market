@@ -100,6 +100,24 @@ export default async function handler(req, res) {
       .eq("id", order_id)
       .eq("buyer_id", user.id);
 
+    // Keep the seller's profile totals current so the atelier page can show them.
+    try {
+      const { data: allReviews } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("seller_id", order.seller_id);
+      const ratings = (allReviews || []).map(r => Number(r.rating)).filter(n => n > 0);
+      if (ratings.length) {
+        const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+        await supabase
+          .from("profiles")
+          .update({ rating_average: Number(avg.toFixed(2)), rating_count: ratings.length })
+          .eq("id", order.seller_id);
+      }
+    } catch (e) {
+      console.warn("Could not update seller rating totals:", e?.message || e);
+    }
+
     // Notify seller
     await supabase.from("notifications").insert({
       user_id: order.seller_id,
