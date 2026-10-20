@@ -427,7 +427,7 @@
         if (q) params.set("q", q);
 
         if (type === "sellers") {
-          params.set("mode", "ateliers");
+          params.set("type", "sellers");
         }
 
         const qs = params.toString();
