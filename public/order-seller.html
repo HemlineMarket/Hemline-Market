@@ -359,9 +359,12 @@
       const tax = order.tax_cents || 0;
       const total = order.total_cents || (subtotal + shipping + tax);
       
-      // Calculate seller earnings (simple: item price minus platform fee)
-      const platformFee = Math.round(subtotal * 0.10); // 10% platform fee example
-      const sellerEarnings = subtotal - platformFee;
+      // Seller earnings: use what the payout actually recorded when available,
+      // otherwise the standard 13% service fee.
+      const feeRate = order.platform_fee_rate != null ? Number(order.platform_fee_rate) : 0.13;
+      const platformFee = order.platform_fee_cents != null ? Number(order.platform_fee_cents) : Math.round(subtotal * feeRate);
+      const sellerEarnings = order.payout_amount_cents != null ? Number(order.payout_amount_cents) : (subtotal - platformFee);
+      const feePct = Math.round(feeRate * 100);
 
       // Check if within 30-minute buyer cancel window
       const orderCreatedMs = new Date(order.created_at).getTime();
@@ -431,7 +434,7 @@
                     <span>${fmtPrice(sellerEarnings)}</span>
                   </div>
                   <div class="detail">
-                    Item price minus 10% platform fee
+                    Item price minus ${feePct}% service fee
                   </div>
                 </div>
               </div>
