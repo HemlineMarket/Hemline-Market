@@ -84,6 +84,9 @@ export default async function handler(req, res) {
     const cart = Array.isArray(body.cart) ? body.cart : [];
     const buyerEmail = (body?.buyer?.email || body?.buyer_email || "").toString().trim();
     const buyerId = (body?.buyer?.id || body?.buyer_id || "").toString().trim();
+    if (buyerId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(buyerId)) {
+      return res.status(400).json({ error: "Invalid buyer id" });
+    }
     let shippingCents = Math.max(0, asInt(body?.shipping_cents, 0)); // replaced below by the server tier
 
     if (!process.env.STRIPE_SECRET_KEY) {
