@@ -47,9 +47,11 @@ async function sendEmail(to, subject, htmlBody, textBody) {
 
 // Credit seller's wallet using the wallet API
 async function creditSellerWallet(sellerId, amountCents, orderId, description) {
-  const baseUrl = process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}` 
-    : process.env.NEXT_PUBLIC_SITE_URL || 'https://hemlinemarket.com';
+  // Use the public domain. VERCEL_URL is a per-deployment host that can sit
+  // behind deployment protection and answer 401 to server-to-server calls.
+  const baseUrl = process.env.SITE_URL
+    || process.env.NEXT_PUBLIC_SITE_URL
+    || 'https://hemlinemarket.com';
   
   const response = await fetch(`${baseUrl}/api/wallet/credit`, {
     method: 'POST',
@@ -206,7 +208,23 @@ export default async function handler(req, res) {
         let walletTransactionId = null;
         let paidVia = "stripe";
         let transferred = false;
-        if (sellerProfile?.stripe_account_id && sellerProfile?.payouts_enabled === true) {
+
+        // Sellers onboarded before the Connect webhook existed have payouts_enabled null.
+        // Ask Stripe for the live flag and remember it.
+        let canPayout = sellerProfile?.payouts_enabled === true;
+        if (sellerProfile?.stripe_account_id && !canPayout) {
+          try {
+            const acct = await stripe.accounts.retrieve(sellerProfile.stripe_account_id);
+            canPayout = acct?.payouts_enabled === true;
+            if (canPayout) {
+              await supabase.from("profiles").update({ payouts_enabled: true }).eq("id", order.seller_id);
+            }
+          } catch (acctErr) {
+            console.error(`[payout] Could not read Stripe account for seller ${order.seller_id}:`, acctErr.message);
+          }
+        }
+
+        if (sellerProfile?.stripe_account_id && canPayout) {
           try {
             await stripe.transfers.create(
               {
