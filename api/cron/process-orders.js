@@ -170,11 +170,16 @@ export default async function handler(req, res) {
     //    connected account; Stripe pays out to their bank from there.
     // =========================================================
     const threeDaysAfterDelivery = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: deliveredOrders } = await supabase
+    const { data: deliveredOrders, error: payoutQueryError } = await supabase
       .from("orders")
       .select("*, seller:profiles!seller_id(first_name, last_name, contact_email)")
       .is("payout_at", null)
       .or(`and(status.eq.COMPLETE,buyer_accepted_at.not.is.null),and(status.eq.DELIVERED,delivered_at.lt.${threeDaysAfterDelivery})`);
+
+    if (payoutQueryError) {
+      console.error("[payout] query failed:", payoutQueryError);
+      results.errors.push({ type: "payoutQuery", error: payoutQueryError.message });
+    }
 
     for (const order of deliveredOrders || []) {
       try {
@@ -200,18 +205,28 @@ export default async function handler(req, res) {
         // seller somehow has no payable Stripe account.
         let walletTransactionId = null;
         let paidVia = "stripe";
-        if (sellerProfile?.stripe_account_id && sellerProfile?.payouts_enabled !== false) {
-          await stripe.transfers.create(
-            {
-              amount: payoutAmount,
-              currency: "usd",
-              destination: sellerProfile.stripe_account_id,
-              description: `Hemline Market sale: ${order.listing_title || "Order"}`,
-              metadata: { order_id: order.id, seller_id: order.seller_id },
-            },
-            { idempotencyKey: `payout_${order.id}` }
-          );
-        } else {
+        let transferred = false;
+        if (sellerProfile?.stripe_account_id && sellerProfile?.payouts_enabled === true) {
+          try {
+            await stripe.transfers.create(
+              {
+                amount: payoutAmount,
+                currency: "usd",
+                destination: sellerProfile.stripe_account_id,
+                description: `Hemline Market sale: ${order.listing_title || "Order"}`,
+                metadata: { order_id: order.id, seller_id: order.seller_id },
+              },
+              { idempotencyKey: `payout_${order.id}` }
+            );
+            transferred = true;
+          } catch (transferErr) {
+            // Stripe refused (account incomplete, balance not yet available, etc).
+            // Fall back to the wallet so the seller is never left unpaid.
+            console.error(`[payout] Stripe transfer failed for order ${order.id}:`, transferErr.message);
+            results.errors.push({ type: "transfer", orderId: order.id, error: transferErr.message });
+          }
+        }
+        if (!transferred) {
           paidVia = "wallet";
           const walletResult = await creditSellerWallet(
             order.seller_id,
