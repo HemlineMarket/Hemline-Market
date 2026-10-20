@@ -309,11 +309,16 @@ export default async function handler(req, res) {
 
       // Restore each listing with its original yards
       for (const listingId of listingIdsToRestore) {
-        const originalYards = originalYardsMap[listingId] || 1;
+        const purchasedYards = originalYardsMap[listingId] || 1;
+        // Sell-by-the-yard listings get the purchased yards added back; whole cuts get them back as-is.
+        const { data: cur } = await supabase.from("listings").select("sell_by_yard, yards_available, status").eq("id", listingId).maybeSingle();
+        const restoredYards = cur?.sell_by_yard === true
+          ? (Number(cur.yards_available) || 0) + purchasedYards
+          : purchasedYards;
         
         const { error: restoreError } = await supabase.from("listings").update({
           status: "ACTIVE",
-          yards_available: originalYards,
+          yards_available: restoredYards,
           sold_at: null,
         }).eq("id", listingId);
         
