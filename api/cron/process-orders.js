@@ -45,6 +45,17 @@ async function sendEmail(to, subject, htmlBody, textBody) {
   });
 }
 
+// Seller email: profile contact_email, else the auth account email.
+async function resolveSellerEmail(supabase, order) {
+  if (order?.seller?.contact_email) return order.seller.contact_email;
+  try {
+    const { data } = await supabase.auth.admin.getUserById(order.seller_id);
+    return data?.user?.email || null;
+  } catch {
+    return null;
+  }
+}
+
 // Credit seller's wallet using the wallet API
 async function creditSellerWallet(sellerId, amountCents, orderId, description) {
   // Use the public domain. VERCEL_URL is a per-deployment host that can sit
@@ -101,7 +112,7 @@ export default async function handler(req, res) {
 
     for (const order of unshippedOrders3Days || []) {
       try {
-        const sellerEmail = order.seller?.contact_email;
+        const sellerEmail = await resolveSellerEmail(supabase, order);
         if (sellerEmail) {
           const safeTitle = escapeHtml(order.listing_title);
           const safeLabelUrl = escapeHtml(order.label_url);
@@ -234,14 +245,19 @@ export default async function handler(req, res) {
                 description: `Hemline Market sale: ${order.listing_title || "Order"}`,
                 metadata: { order_id: order.id, seller_id: order.seller_id },
               },
-              { idempotencyKey: `payout_${order.id}` }
+              { idempotencyKey: `payout_${order.id}_${now.toISOString().slice(0, 10)}` }
             );
             transferred = true;
           } catch (transferErr) {
-            // Stripe refused (account incomplete, balance not yet available, etc).
-            // Fall back to the wallet so the seller is never left unpaid.
             console.error(`[payout] Stripe transfer failed for order ${order.id}:`, transferErr.message);
             results.errors.push({ type: "transfer", orderId: order.id, error: transferErr.message });
+            // Card funds take ~2 business days to settle. If the platform balance
+            // is simply not available yet, leave the order unpaid and try again
+            // tomorrow rather than parking the money in the wallet.
+            if (transferErr?.code === "balance_insufficient") {
+              continue;
+            }
+            // Any other refusal (account incomplete, disabled): fall back to the wallet.
           }
         }
         if (!transferred) {
@@ -266,7 +282,7 @@ export default async function handler(req, res) {
         }).eq("id", order.id);
 
         // Notify seller
-        const sellerEmail = order.seller?.contact_email;
+        const sellerEmail = await resolveSellerEmail(supabase, order);
         if (sellerEmail) {
           const safePayoutTitle = escapeHtml(order.listing_title);
           await sendEmail(
