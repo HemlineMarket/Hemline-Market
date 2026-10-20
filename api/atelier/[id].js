@@ -328,11 +328,8 @@ export default async function handler(req, res) {
             : ""
         }
         ${
-          profile.is_founder || profile.is_early_seller
-            ? `<div class="atl-badges">
-                ${profile.is_founder ? '<span class="atl-badge founder">★ Founding seller</span>' : ""}
-                ${profile.is_early_seller ? '<span class="atl-badge early">Early seller</span>' : ""}
-              </div>`
+          profile.is_founder
+            ? `<div class="atl-badges"><span class="atl-badge founder">★ Founder</span></div>`
             : ""
         }
         ${profile.bio ? `<p class="atl-bio">${escapeHtml(profile.bio)}</p>` : ""}
