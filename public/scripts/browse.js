@@ -317,7 +317,7 @@
       if (el) el.addEventListener('change', runSearch);
     });
 
-    ['dept', 'fiberType', 'origin', 'designer', 'feelsLike', 'burnTest', 'pattern'].forEach(id => {
+    ['dept', 'fiberType', 'origin', 'designer', 'feelsLike', 'burnTest', 'pattern', 'availability'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('change', runSearch);
     });
@@ -355,9 +355,17 @@
     const client = getClient();
     if (!client) return { data: [], error: new Error('Supabase client not available') };
 
-    const { search = "", content = [], color = [], fabricType = [], minPrice = null, maxPrice = null, minYards = null, sortBy = "newest", limit = PAGE_SIZE, offset = 0, cosplayMode = false, dept = null, fiberType = null, origin = null, designer = null, feelsLike = null, burnTest = null, pattern = null, minWidth = null, maxWidth = null, minGsm = null, maxGsm = null } = options || {};
+    const { search = "", content = [], color = [], fabricType = [], minPrice = null, maxPrice = null, minYards = null, sortBy = "newest", limit = PAGE_SIZE, offset = 0, cosplayMode = false, dept = null, fiberType = null, origin = null, designer = null, feelsLike = null, burnTest = null, pattern = null, minWidth = null, maxWidth = null, minGsm = null, maxGsm = null, availability = "available" } = options || {};
 
-    let query = client.from("listings").select("*", { count: "exact" }).eq("status", "ACTIVE").eq("is_published", true).gt("yards_available", 0);
+    let query = client.from("listings").select("*", { count: "exact" }).eq("is_published", true);
+    // Availability: Available (default) = active with yards left; Sold = sold or run out; All = both.
+    if (availability === "sold") {
+      query = query.or("status.ilike.sold,yards_available.lte.0");
+    } else if (availability === "all") {
+      query = query.or("status.ilike.active,status.ilike.sold");
+    } else {
+      query = query.ilike("status", "active").gt("yards_available", 0);
+    }
 
     // 8pm release time filter
     const now = new Date();
@@ -445,8 +453,11 @@
     if (inMyCart) cartBadgeHtml = '<span class="cart-badge yours">✓ In your cart</span>';
     else if (inSomeoneElsesCart) cartBadgeHtml = '<span class="cart-badge others">🔥 In someone\'s cart</span>';
     // Yards-available overlay for cut-to-order listings
-    const yardsAvailBadge = isCutToOrder && yards != null
+    const yardsAvailBadge = isCutToOrder && yards != null && !isSold
       ? '<span style="position:absolute;top:8px;right:8px;padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;z-index:2;background:#fff;color:#111827;border:1px solid #d1d5db;box-shadow:0 1px 3px rgba(0,0,0,.1);">' + yards + ' yds available</span>'
+      : '';
+    const soldBand = isSold
+      ? '<span class="sold-band" aria-label="Sold">Sold</span>'
       : '';
     const href = "listing.html?id=" + encodeURIComponent(listing.id);
 
@@ -491,15 +502,17 @@
         btnLabel = 'Add to Cart';
       }
     } else {
-      btnLabel = isSold ? "Sold out" : "Add to Cart";
+      btnLabel = isSold ? "Sold" : "Add to Cart";
     }
 
     // For cut-to-order listings, link to listing page instead of direct add-to-cart (buyer needs to pick yards)
-    const btnAction = isCutToOrder && canBuy
+    const btnAction = isSold
+      ? '<a href="' + href + '" class="listing-add-btn listing-sold-btn" style="text-decoration:none;text-align:center;display:block;">Sold' + (price ? ' at $' + price + '/yd' : '') + '</a>'
+      : isCutToOrder && canBuy
       ? '<a href="' + href + '" class="listing-add-btn" style="text-decoration:none;text-align:center;display:block;">' + btnLabel + '</a>'
       : '<button type="button" class="listing-add-btn add-to-cart" data-add-to-cart="1" data-listing-id="' + String(listing.id) + '" data-name="' + escapeHtml(listing.title) + '" data-photo="' + escapeHtml(imageUrl) + '" data-yards="' + (yards != null ? String(yards) : "0") + '" data-price="' + (price != null ? price : "0") + '" data-amount="' + (cents != null ? String(cents) : "0") + '" data-seller-id="' + String(listing.seller_id || "") + '" data-seller-name="' + escapeHtml(sellerName) + '"' + (!canBuy ? ' disabled' : '') + '>' + btnLabel + '</button>';
 
-    return '<article class="listing-card"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + cartBadgeHtml + yardsAvailBadge + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + yardsHtml + '<div class="listing-cta-row">' + btnAction + '</div>' + priceRowHtml + '</div></article>';
+    return '<article class="listing-card' + (isSold ? ' is-sold' : '') + '"><a class="listing-thumb-link" href="' + href + '"><div class="listing-thumb"><img src="' + thumbUrl(imageUrl) + '" alt="' + escapeHtml(listing.title) + '" loading="lazy" />' + (isSold ? soldBand : cartBadgeHtml + yardsAvailBadge) + '</div></a><div class="listing-body"><div class="listing-title-row"><a class="listing-title" href="' + href + '">' + escapeHtml(listing.title) + '</a></div>' + yardsHtml + '<div class="listing-cta-row">' + btnAction + '</div>' + priceRowHtml + '</div></article>';
   }
 
   // Soft background tints for sewists with no photo. Same sewist always gets the same tint.
@@ -544,6 +557,7 @@
       color: Array.from(selectedColors),
       fabricType: Array.from(selectedFabricTypes),
       cosplayMode: document.getElementById('cosplayFilter')?.checked || false,
+      availability: document.getElementById('availability')?.value || "available",
       minPrice: numeric(document.getElementById('minPrice')?.value),
       maxPrice: numeric(document.getElementById('maxPrice')?.value),
       minYards: numeric(document.getElementById('minYards')?.value),
@@ -769,7 +783,7 @@
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
-    ['dept', 'fiberType', 'origin', 'feelsLike', 'burnTest', 'pattern', 'sortBy'].forEach(id => {
+    ['dept', 'fiberType', 'origin', 'feelsLike', 'burnTest', 'pattern', 'sortBy', 'availability'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.selectedIndex = 0;
     });
