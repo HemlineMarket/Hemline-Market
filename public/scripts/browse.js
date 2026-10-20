@@ -344,8 +344,11 @@
       const res = await fetch('/api/cart/hold?listings=' + listingIds.join(','));
       if (res.ok) {
         const data = await res.json();
-        const holds = Array.isArray(data) ? data : (Array.isArray(data.holds) ? data.holds : []);
-        holds.forEach(h => { if (h && h.listing_id) map[h.listing_id] = h; });
+        if (Array.isArray(data)) {
+          data.forEach(h => { if (h && h.listing_id) map[h.listing_id] = h; });
+        } else if (data && data.holds && typeof data.holds === 'object') {
+          Object.keys(data.holds).forEach(id => { map[id] = data.holds[id]; });
+        }
       }
     } catch (e) { console.error('Cart hold fetch error', e); }
     return map;
@@ -371,7 +374,8 @@
     const now = new Date();
     query = query.or('published_at.is.null,published_at.lte.' + now.toISOString());
 
-    if (search) query = query.or('title.ilike.%' + search + '%,description.ilike.%' + search + '%');
+    const safeSearch = String(search || '').replace(/[,()\\"']/g, ' ').replace(/\s+/g, ' ').trim();
+    if (safeSearch) query = query.or('title.ilike.%' + safeSearch + '%,description.ilike.%' + safeSearch + '%');
     if (content.length > 0) query = query.or(content.map(c => 'content.ilike.%' + c + '%').join(","));
     if (color.length > 0) query = query.or(color.map(c => 'color_family.ilike.%' + c + '%').join(","));
     if (fabricType.length > 0) query = query.or(fabricType.map(t => 'fabric_type.ilike.%' + t + '%,feels_like.ilike.%' + t + '%').join(","));
@@ -576,7 +580,7 @@
   }
 
   function hasAnyFilters(filters) {
-    return filters.search || filters.content.length > 0 || filters.color.length > 0 || filters.fabricType.length > 0 || filters.cosplayMode || filters.minPrice !== null || filters.maxPrice !== null || filters.minYards !== null || filters.minWidth !== null || filters.maxWidth !== null || (filters.minGsm !== null && filters.minGsm > 0) || filters.maxGsm !== null || filters.dept || filters.fiberType || filters.origin || filters.designer || filters.feelsLike || filters.burnTest || filters.pattern;
+    return filters.search || filters.content.length > 0 || filters.color.length > 0 || filters.fabricType.length > 0 || filters.cosplayMode || filters.minPrice !== null || filters.maxPrice !== null || filters.minYards !== null || filters.minWidth !== null || filters.maxWidth !== null || (filters.minGsm !== null && filters.minGsm > 0) || filters.maxGsm !== null || filters.dept || filters.fiberType || filters.origin || filters.designer || filters.feelsLike || filters.burnTest || filters.pattern || (filters.availability && filters.availability !== 'available');
   }
 
   function getCurrentPage() {
@@ -682,6 +686,7 @@
 
     // Dropdowns
     if (filters_.dept) urlParams.set('dept', filters_.dept);
+    if (filters_.availability && filters_.availability !== 'available') urlParams.set('availability', filters_.availability);
     if (filters_.fiberType) urlParams.set('fiberType', filters_.fiberType);
     if (filters_.origin) urlParams.set('origin', filters_.origin);
     if (filters_.feelsLike) urlParams.set('feelsLike', filters_.feelsLike);
@@ -828,7 +833,7 @@
     });
 
     // Dropdowns
-    var dropdowns = ['dept','fiberType','origin','feelsLike','burnTest','pattern'];
+    var dropdowns = ['dept','fiberType','origin','feelsLike','burnTest','pattern','availability'];
     dropdowns.forEach(function(id) {
       var v = params.get(id);
       if (v) {
