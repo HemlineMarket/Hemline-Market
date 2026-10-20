@@ -584,7 +584,7 @@ function senderDisplayName(){
 async function initMessagesPage(){
   const session = await ensureSession();
   if(!session?.user){
-    window.location.href = "auth.html";
+    window.location.href = "auth.html?next=" + encodeURIComponent(location.pathname + location.search);
     return;
   }
   currentUser = session.user;
@@ -990,7 +990,7 @@ async function handleSend(){
 
   sendBtnEl.disabled = true;
 
-  const { data:inserted } = await supabaseClient
+  const { data:inserted, error:sendErr } = await supabaseClient
     .from("messages")
     .insert({
       thread_id: currentThreadId,
@@ -999,6 +999,13 @@ async function handleSend(){
     })
     .select("*")
     .single();
+
+  if (sendErr || !inserted) {
+    console.error("Message send failed:", sendErr);
+    sendBtnEl.disabled = false;
+    alert("Your message didn't send. Please try again.");
+    return;
+  }
 
   // append bubble
   const b = document.createElement("div");
@@ -1024,19 +1031,22 @@ async function handleSend(){
     })
     .eq("id", currentThreadId);
 
-  // notification
+  // notification (best effort; a failure here must not block the chat)
   if(currentOtherUserId && currentOtherUserId !== currentUser.id){
-    await supabaseClient.from("notifications").insert({
-      user_id: currentOtherUserId,
-      type: "message",
-      kind: "message",
-      title: "New message from " + senderDisplayName(),
-      body: preview,
-      href: `messages.html?thread=${currentThreadId}`,
-      link: `messages.html?thread=${currentThreadId}`,
-      message_thread_id: currentThreadId,
-      message_id: inserted.id
-    });
+    try {
+      const { error: notifErr } = await supabaseClient.from("notifications").insert({
+        user_id: currentOtherUserId,
+        type: "message",
+        kind: "message",
+        title: "New message from " + senderDisplayName(),
+        body: preview,
+        href: `messages.html?thread=${currentThreadId}`,
+        link: `messages.html?thread=${currentThreadId}`
+      });
+      if (notifErr) console.warn("Message notification failed:", notifErr);
+    } catch (e) {
+      console.warn("Message notification failed:", e);
+    }
   }
 
   sendBtnEl.disabled = false;
