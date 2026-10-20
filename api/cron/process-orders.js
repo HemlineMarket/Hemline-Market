@@ -271,6 +271,18 @@ export default async function handler(req, res) {
           walletTransactionId = walletResult.transaction_id;
         }
 
+        // Seller's completed-sales count (shown on the atelier page)
+        try {
+          const { count: completedCount } = await supabase
+            .from("orders")
+            .select("id", { count: "exact", head: true })
+            .eq("seller_id", order.seller_id)
+            .not("payout_at", "is", null);
+          await supabase.from("profiles").update({ completed_sales: (completedCount || 0) + 1 }).eq("id", order.seller_id);
+        } catch (e) {
+          console.warn("[payout] could not update completed_sales:", e?.message || e);
+        }
+
         // Update order as paid out
         await supabase.from("orders").update({
           status: "COMPLETE",
