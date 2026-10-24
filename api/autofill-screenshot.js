@@ -206,7 +206,12 @@ IMPORTANT FIELD MAPPINGS:
 
 - width: Just the number in inches (e.g., 60 not "60 inches")
 
-- gsm: Just the number (e.g., 62 not "62 GSM"). Only use a value explicitly labeled GSM or g/m². If the page gives oz/yd², multiply by 33.9. Never use a SKU, item number, or price as the weight. Typical ranges: chiffon 30-80, shirting 90-150, suiting 200-350, coating 400-700.
+- gsm: Just the number (e.g., 62 not "62 GSM"). Never use a SKU, item number, price, or Pantone code as the weight. Rules by unit shown on the page:
+  * "GSM" or "g/m²": use as-is.
+  * "oz/yd²", "oz/sq yd", "oz per square yard": gsm = oz × 33.9.
+  * "Oz/Yd", "oz/yard", "oz per yard", or Mood's "Industry Weight" with no ² symbol: this is per LINEAR yard and depends on width. gsm = oz × 33.9 × 36 ÷ width_in_inches. Example: 18.5 Oz/Yd at 62" wide = 18.5 × 33.9 × 36 ÷ 62 = 364 GSM, NOT 627. If the width is not visible, omit gsm rather than guess.
+  * momme (mm): gsm = mm × 4.25.
+  Sanity ranges: chiffon 30-80, shirting 90-150, suiting 200-350, coating 350-700. If your result falls far outside the range for the fabric type, recheck the unit.
 
 - origPrice: The retail price per yard as a number (e.g., 49.99 not "$49.99/yard")
 
