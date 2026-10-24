@@ -108,8 +108,10 @@ export default async function handler(req, res) {
   // newly-inserted rows — sell.html doesn't write it, so requiring IS NULL
   // can spuriously 404 brand-new listings. We instead handle deletion with
   // status checks below if needed.
+  // Accept a uuid or a slug.
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   const listings = await supabaseFetch(
-    `listings?id=eq.${encodeURIComponent(id)}&limit=1`
+    `listings?${isUuid ? "id" : "slug"}=eq.${encodeURIComponent(id)}&limit=1`
   );
 
   if (!listings || listings.length === 0) {
@@ -156,7 +158,7 @@ export default async function handler(req, res) {
   const title = listing.title || listing.name || "Fabric Listing";
   const status = String(listing.status || "").toUpperCase();
   const isSold = status === "SOLD";
-  const canonicalUrl = `${SITE_BASE}/fabric/${id}`;
+  const canonicalUrl = `${SITE_BASE}/fabric/${listing.slug || listing.id}`;
 
   const detailParts = [];
   if (yards) detailParts.push(`${yards} yards`);
@@ -432,7 +434,7 @@ export default async function handler(req, res) {
             : `<strong>${escapeHtml(sellerName)}</strong>`
         }</p>
         ${listing.description ? `<div class="fabric-description">${escapeHtml(listing.description)}</div>` : ""}
-        <a href="/listing.html?id=${encodeURIComponent(id)}" class="fabric-cta${isSold ? " fabric-cta-sold" : ""}">
+        <a href="/l/${encodeURIComponent(listing.slug || listing.id)}" class="fabric-cta${isSold ? " fabric-cta-sold" : ""}">
           ${isSold ? "This listing has sold" : "View listing &amp; buy →"}
         </a>
       </div>
