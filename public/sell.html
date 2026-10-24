@@ -2635,13 +2635,38 @@
     // END VIDEO TRIM UI
     // ============================================================
 
-    function handleVideoFile(file){
+    function looksLikeVideo(file){
+      if(!file) return false;
+      if(file.type && file.type.startsWith('video/')) return true;
+      if(/\.(mp4|m4v|webm|mov|qt)$/i.test(file.name || '')) return true;
+      return false;
+    }
+
+    // Some sources (macOS Photos, iCloud, some browsers) hand over a file with
+    // an empty type and no extension. Ask a <video> element whether it can play it.
+    function probeVideo(file){
+      return new Promise(resolve=>{
+        const url = URL.createObjectURL(file);
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        const done = ok=>{ URL.revokeObjectURL(url); v.src=''; resolve(ok); };
+        v.onloadedmetadata = ()=>done(true);
+        v.onerror = ()=>done(false);
+        setTimeout(()=>done(false), 4000);
+        v.src = url;
+      });
+    }
+
+    async function handleVideoFile(file){
       const videoErr = document.getElementById('videoError');
       if(!file){
         if(videoErr){ videoErr.textContent = 'No video file found. If you dragged from the Photos app, export the video to a folder first, then drag or choose it.'; videoErr.style.display='block'; }
         return;
       }
-      const isVideo = file.type.startsWith('video/') || /\.(mp4|m4v|webm|mov|qt)$/i.test(file.name);
+      let isVideo = looksLikeVideo(file);
+      if(!isVideo && (!file.type || file.type === 'application/octet-stream')){
+        isVideo = await probeVideo(file);
+      }
       if(!isVideo){
         if(videoErr){ videoErr.textContent = 'That is not a video file. Use MP4, WebM, or MOV.'; videoErr.style.display='block'; }
         return;
@@ -2674,12 +2699,17 @@
       });
     });
     videoDrop.addEventListener('drop', e=>{
-      let file = e.dataTransfer.files && e.dataTransfer.files[0];
-      if(!file && e.dataTransfer.items){
+      // Collect every file in the drop, then prefer the first one that is a video.
+      const files = [];
+      if(e.dataTransfer.files && e.dataTransfer.files.length){
+        for(const f of e.dataTransfer.files) files.push(f);
+      }
+      if(!files.length && e.dataTransfer.items){
         for(const it of e.dataTransfer.items){
-          if(it.kind === 'file'){ file = it.getAsFile(); if(file) break; }
+          if(it.kind === 'file'){ const f = it.getAsFile(); if(f) files.push(f); }
         }
       }
+      const file = files.find(looksLikeVideo) || files[0] || null;
       handleVideoFile(file);
     });
 
