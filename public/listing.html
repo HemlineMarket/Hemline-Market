@@ -978,12 +978,22 @@
     return currentSession;
   }
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // Short share link for a listing: /l/<slug>, falling back to the id.
+  function listingShareUrl(listing){
+    const key = (listing && listing.slug) ? listing.slug : listingId;
+    return `${window.location.origin}/l/${encodeURIComponent(key)}`;
+  }
+
   async function fetchListing(id){
     try{
+      // Accept either a uuid (legacy ?id= links) or a slug (/l/<slug> links).
+      const col = UUID_RE.test(String(id)) ? "id" : "slug";
       const { data, error } = await supabaseClient
         .from("listings")
         .select("*")
-        .eq("id", id)
+        .eq(col, id)
         .maybeSingle();
       if(error){
         console.error("Listing fetch error", error);
@@ -1941,14 +1951,14 @@
     if(!btn) return;
 
     btn.onclick = async ()=>{
-      const url = window.location.href;
+      const url = listingShareUrl(currentListing);
       const title = currentListing?.title || document.title || "Hemline Market listing";
 
-      // Try native share first on mobile (better UX)
-      if(navigator.share){
+      // Phones: native share sheet (it has its own Copy). Desktop: just copy.
+      const isTouch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+      if(isTouch && navigator.share){
         try{
           await navigator.share({ title, url });
-          showToast("Shared successfully");
           return;
         }catch(e){
           if(e && e.name === "AbortError") return;
@@ -1956,7 +1966,7 @@
         }
       }
 
-      // Fallback to clipboard
+      // Copy to clipboard
       if(navigator.clipboard && window.isSecureContext){
         try{
           await navigator.clipboard.writeText(url);
@@ -2357,6 +2367,9 @@
 
     const listing = await fetchListing(listingId);
     if(!listing) return;
+    if(listing.slug && UUID_RE.test(String(listingId))){
+      try{ history.replaceState(null, "", `/l/${encodeURIComponent(listing.slug)}`); }catch(e){}
+    }
 
     const sellerProfile = await fetchProfile(listing.seller_id);
     renderListing(listing, sellerProfile);
