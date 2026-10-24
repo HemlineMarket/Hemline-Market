@@ -57,7 +57,8 @@
     { name: "Black", hex: "#000000" },
     { name: "Grey", hex: "#9ca3af" },
     { name: "White", hex: "#ffffff" },
-    { name: "Cream", hex: "#fffdd0" },
+    { name: "Cream", hex: "#fdf6e3" },
+    { name: "Beige", hex: "#d9c3a5" },
     { name: "Brown", hex: "#8B4513" },
     { name: "Pink", hex: "#ec4899" },
     { name: "Red", hex: "#ef4444" },
@@ -71,7 +72,7 @@
   ];
 
   const FABRIC_TYPES = [
-    "Broadcloth", "Brocade", "Canvas", "Challis", "Chambray", "Charmeuse", "Chiffon", 
+    "Broadcloth", "Brocade", "Canvas", "Challis", "Chambray", "Charmeuse", "Chiffon", "Coating",
     "Corduroy", "Crepe", "Crepe de Chine", "Denim", "Double Cloth", "Double Knit", 
     "Duchesse", "Dupioni", "Embroidered", "Eyelet", "Faux Fur", "Faux Leather", 
     "Flannel", "Fleece", "Gabardine", "Gauze", "Gazar", "Georgette", "Habotai",
