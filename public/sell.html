@@ -540,7 +540,7 @@
     }
     /* Set row counts for each grid to enable column flow */
     #contentGroup{grid-template-rows:repeat(16, auto);}
-    #fabricTypeGroup{grid-template-rows:repeat(31, auto);}
+    #fabricTypeGroup{grid-template-rows:repeat(32, auto);}
     #feelsLikeGroup{grid-template-rows:repeat(19, auto);}
     .feels-grid label{
       display:flex;
@@ -662,6 +662,7 @@
               choose a video
             </label>
             <div class="subtle" style="margin-top:6px">MP4, WebM, or MOV. After selecting, you can trim it inline. (Optional.)</div>
+            <div id="videoError" class="help-error" style="margin-top:6px;display:none"></div>
           </div>
           <div class="thumbs" id="videoThumb" style="grid-template-columns:1fr;margin-top:10px"></div>
         </div>
@@ -745,16 +746,17 @@
           <div class="field">
             <div class="label-row"><label for="yards">Yards</label><span class="req">Required</span></div>
             <input id="yards" type="number" min="0" step="0.25" placeholder="1.5">
+            <div class="subtle" style="margin-top:8px;font-size:12px;font-weight:600;color:#374151;">Optional calculators <span style="font-weight:400;">(skip these if you already know the yardage; they just fill in the box above)</span></div>
             <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-              <input id="yardsInches" type="number" min="0" step="1" placeholder="inches" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
+              <input id="yardsInches" type="number" min="0" step="1" placeholder="total length in inches" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
               <button type="button" class="btn" id="convertInchesBtn" style="padding:8px 12px;font-size:12px;">in → yards</button>
             </div>
             <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-              <input id="panelSize" type="number" min="0" step="0.5" placeholder="panel (in)" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
+              <input id="panelSize" type="number" min="0" step="0.5" placeholder="each panel, inches" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
               <input id="panelCount" type="number" min="1" step="1" placeholder="# panels" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
               <button type="button" class="btn" id="convertPanelsBtn" style="padding:8px 12px;font-size:12px;">panels → yd</button>
             </div>
-            <div class="subtle" style="margin-top:4px;font-size:11px;">36 inches = 1 yard</div>
+            <div class="subtle" style="margin-top:4px;font-size:11px;">36 inches = 1 yard. Measure along the selvage.</div>
             <div id="err_yards" class="help-error" style="display:none">Enter yards greater than 0.</div>
           </div>
 
@@ -841,6 +843,7 @@
                 <label title="Cotton with white weft"><input type="checkbox" name="fabricTypeTag" value="Chambray"> Chambray</label>
                 <label title="Silky satin-weave, lustrous"><input type="checkbox" name="fabricTypeTag" value="Charmeuse"> Charmeuse</label>
                 <label title="Sheer, floaty, matte"><input type="checkbox" name="fabricTypeTag" value="Chiffon"> Chiffon</label>
+                <label title="Heavy woven for coats and outerwear"><input type="checkbox" name="fabricTypeTag" value="Coating"> Coating</label>
                 <label title="Ridged pile fabric"><input type="checkbox" name="fabricTypeTag" value="Corduroy"> Corduroy</label>
                 <label title="Pebbly texture, good drape"><input type="checkbox" name="fabricTypeTag" value="Crepe"> Crepe</label>
                 <label title="Lightweight silk crepe"><input type="checkbox" name="fabricTypeTag" value="Crepe de Chine"> Crepe de Chine</label>
@@ -1329,10 +1332,11 @@
 
     // Color swatches
     const COLORS = [
-      "Black","Grey","White","Cream","Brown",
+      "Black","Grey","White","Cream","Beige","Brown",
       "Pink","Red","Orange","Yellow","Green",
       "Blue","Purple","Gold","Silver"
     ];
+    const COLOR_HEX = { Cream: "#fdf6e3", Beige: "#d9c3a5", Grey: "#9ca3af", Brown: "#8B4513" };
     const selectedColors = new Set();
 
     function buildColorSwatches(){
@@ -1350,7 +1354,7 @@
         tip.textContent = name;
         sw.appendChild(tip);
         if(name !== "Gold" && name !== "Silver" && name !== "Multicolor"){
-          sw.style.backgroundColor = name.toLowerCase();
+          sw.style.backgroundColor = COLOR_HEX[name] || name.toLowerCase();
         }
         sw.addEventListener("click", () => {
           if(selectedColors.has(name)){
@@ -2605,8 +2609,17 @@
     // ============================================================
 
     function handleVideoFile(file){
-      if(!file) return;
-      if(!file.type.startsWith('video/')) return;
+      const videoErr = document.getElementById('videoError');
+      if(!file){
+        if(videoErr){ videoErr.textContent = 'No video file found. If you dragged from the Photos app, export the video to a folder first, then drag or choose it.'; videoErr.style.display='block'; }
+        return;
+      }
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|m4v|webm|mov|qt)$/i.test(file.name);
+      if(!isVideo){
+        if(videoErr){ videoErr.textContent = 'That is not a video file. Use MP4, WebM, or MOV.'; videoErr.style.display='block'; }
+        return;
+      }
+      if(videoErr) videoErr.style.display='none';
       if(state.video && state.video.url && state.video.file){
         URL.revokeObjectURL(state.video.url);
       }
@@ -2634,7 +2647,12 @@
       });
     });
     videoDrop.addEventListener('drop', e=>{
-      const file = e.dataTransfer.files[0];
+      let file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if(!file && e.dataTransfer.items){
+        for(const it of e.dataTransfer.items){
+          if(it.kind === 'file'){ file = it.getAsFile(); if(file) break; }
+        }
+      }
       handleVideoFile(file);
     });
 
