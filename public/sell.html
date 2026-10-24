@@ -977,15 +977,21 @@
             <div class="field">
               <label for="gsm">Weight (GSM)</label>
               <input id="gsm" type="number" min="0" step="1" placeholder="GSM">
+              <div class="subtle" style="margin-top:8px;font-size:12px;font-weight:600;color:#374151;">Optional converters <span style="font-weight:400;">(fill in the GSM box above)</span></div>
               <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-                <input id="weightOz" type="number" min="0" step="0.1" placeholder="oz/yd²" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
-                <button type="button" class="btn" id="convertOzBtn" style="padding:8px 12px;font-size:12px;">oz → GSM</button>
+                <input id="weightOz" type="number" min="0" step="0.1" placeholder="oz/yd² (per square yard)" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
+                <button type="button" class="btn" id="convertOzBtn" style="padding:8px 12px;font-size:12px;">oz/yd² → GSM</button>
               </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+                <input id="weightOzLinear" type="number" min="0" step="0.1" placeholder="oz per linear yard (Mood 'Oz/Yd')" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
+                <button type="button" class="btn" id="convertOzLinearBtn" style="padding:8px 12px;font-size:12px;">oz/yd → GSM</button>
+              </div>
+              <div id="ozLinearHint" class="subtle" style="font-size:11px;display:none;color:#b91c1c;">Enter the fabric width first; linear-yard weight depends on it.</div>
               <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
                 <input id="weightMomme" type="number" min="0" step="1" placeholder="momme (MM)" style="flex:1;padding:10px;border:1px solid var(--hm-border);border-radius:10px;">
                 <button type="button" class="btn" id="convertMommeBtn" style="padding:8px 12px;font-size:12px;">MM → GSM</button>
               </div>
-              <div class="subtle" style="margin-top:4px;font-size:11px;">1 oz/yd² ≈ 33.9 GSM • 1 momme ≈ 4.25 GSM</div>
+              <div class="subtle" style="margin-top:4px;font-size:11px;">1 oz/yd² ≈ 33.9 GSM • 1 momme ≈ 4.25 GSM • Mood's "Industry Weight Oz/Yd" is per linear yard, use the second converter.</div>
             </div>
           </div>
 
@@ -1377,6 +1383,27 @@
         if(!isNaN(ozVal) && ozVal > 0){
           gsmInput.value = Math.round(ozVal * 33.906);
           weightOzInput.value = '';
+        }
+      });
+    }
+
+    // oz per LINEAR yard to GSM (depends on width): gsm = oz * 33.906 * 36 / width_in
+    const convertOzLinearBtn = document.getElementById('convertOzLinearBtn');
+    const weightOzLinearInput = document.getElementById('weightOzLinear');
+    const ozLinearHint = document.getElementById('ozLinearHint');
+    if(convertOzLinearBtn && weightOzLinearInput && gsmInput){
+      convertOzLinearBtn.addEventListener('click', ()=>{
+        const ozVal = parseFloat(weightOzLinearInput.value);
+        const w = parseFloat(widthInput && widthInput.value);
+        if(!(w > 0)){
+          if(ozLinearHint) ozLinearHint.style.display = 'block';
+          if(widthInput) widthInput.focus();
+          return;
+        }
+        if(ozLinearHint) ozLinearHint.style.display = 'none';
+        if(!isNaN(ozVal) && ozVal > 0){
+          gsmInput.value = Math.round(ozVal * 33.906 * 36 / w);
+          weightOzLinearInput.value = '';
         }
       });
     }
