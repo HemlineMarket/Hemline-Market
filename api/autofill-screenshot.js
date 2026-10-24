@@ -191,7 +191,8 @@ IMPORTANT FIELD MAPPINGS:
   Valid: Acetate, Acrylic, Alpaca, Bamboo, Camel, Cashmere, Cotton, Cupro, Hemp, Jute, Leather, Linen, Lurex, Lyocell, Merino, Modal, Mohair, Nylon, Polyester, Ramie, Rayon, Silk, Spandex / Elastane, Tencel, Triacetate, Viscose, Wool, Yak
 
 - fabricType: The type of weave/fabric
-  Valid: Broadcloth, Brocade, Canvas, Challis, Chambray, Charmeuse, Chiffon, Corduroy, Crepe, Crepe de Chine, Denim, Double Cloth, Double Knit, Duchesse, Dupioni, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Gauze, Gazar, Georgette, Habotai, Jersey, Knit, Lace, Lamé, Mesh, Metallic, Mikado, Minky, Muslin, Organza, Ottoman, Oxford, Peau de Soie, Poplin, Ponte, Satin, Scuba, Shirting, Spandex / Lycra, Suiting, Taffeta, Terry / French Terry, Tropical, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
+  Valid: Brocade, Broadcloth, Canvas, Challis, Chambray, Charmeuse, Chiffon, Coating, Corduroy, Crepe, Crepe de Chine, Denim, Double Cloth, Double Knit, Duchesse, Dupioni, Embroidered, Eyelet, Faux Fur, Faux Leather, Flannel, Fleece, Gabardine, Gauze, Gazar, Georgette, Habotai, Interlock, Jacquard, Jersey, Knit, Lace, Laser-Cut, Lamé, Lawn, Lining, Mesh, Metallic, Mikado, Minky, Muslin, Organza, Ottoman, Oxford, Peau de Soie, Ponte, Poplin, Rib Knit, Sateen, Satin, Scuba, Shirting, Suiting, Taffeta, Terry / French Terry, Tropical, Tulle, Tweed, Twill, Velvet, Vinyl, Voile, Woven
+  Use Coating for any fabric the page calls coating, overcoating, or melton; it can be combined with another type (e.g., Coating + Tweed).
 
 - pattern: Use "Solid" only if explicitly solid. Everything else (geometric, floral, stripes, etc.) → "Printed"
 
@@ -199,13 +200,13 @@ IMPORTANT FIELD MAPPINGS:
 
 - fiberType: Natural, Modified Natural (rayon/viscose/modal/tencel), Synthetic, or Blend
 
-- colorFamily: Valid values are Black, Grey, White, Cream, Brown, Pink, Red, Orange, Yellow, Green, Blue, Purple, Gold, Silver
+- colorFamily: Valid values are Black, Grey, White, Cream, Beige, Brown, Pink, Red, Orange, Yellow, Green, Blue, Purple, Gold, Silver. Use Beige for tan, camel, sand, oatmeal, or khaki; Cream for ivory, off-white, or ecru.
 
 - origin: Valid values are Italy, France, Japan, UK, USA, Spain, Portugal, Germany, Belgium, Switzerland, Netherlands, Korea, Australia, Canada, Brazil, Other
 
 - width: Just the number in inches (e.g., 60 not "60 inches")
 
-- gsm: Just the number (e.g., 62 not "62 GSM")
+- gsm: Just the number (e.g., 62 not "62 GSM"). Only use a value explicitly labeled GSM or g/m². If the page gives oz/yd², multiply by 33.9. Never use a SKU, item number, or price as the weight. Typical ranges: chiffon 30-80, shirting 90-150, suiting 200-350, coating 400-700.
 
 - origPrice: The retail price per yard as a number (e.g., 49.99 not "$49.99/yard")
 
