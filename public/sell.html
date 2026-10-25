@@ -1066,6 +1066,29 @@
               </label>
             </div>
           </div>
+
+          <div class="field">
+            <div class="label-row">
+              <label>Washed / pre-shrunk</label>
+              <span class="subtle" style="font-size:12px">
+                (has this fabric been laundered already?)
+              </span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:8px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="washed" value="" checked> Not specified
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="washed" value="unwashed"> Unwashed
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="washed" value="washed"> Washed / pre-shrunk
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="radio" name="washed" value="dry_cleaned"> Dry cleaned
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- STEP 3 -->
@@ -2771,6 +2794,9 @@
       const burnTestRadio = document.querySelector('input[name="burnTest"]:checked');
       const burnTest = burnTestRadio ? burnTestRadio.value : null;
 
+      const washedRadio = document.querySelector('input[name="washed"]:checked');
+      const washed = washedRadio ? washedRadio.value : null;
+
       state.details = {
         title: titleInput.value.trim(),
         price: priceInput.value ? parseFloat(priceInput.value) : null,
@@ -2789,7 +2815,8 @@
         gsm:   gsmInput.value ? parseFloat(gsmInput.value)     : null,
         designer: designerInput.value.trim() || null,
         feelsLike: feels,
-        burnTest: burnTest || null
+        burnTest: burnTest || null,
+        washed: washed || null
       };
     }
 
@@ -2856,6 +2883,7 @@
       addRow('designer', d.designer);
       addRow('feels like', d.feelsLike);
       addRow('burn test', d.burnTest === 'melts' ? 'Melts (synthetic)' : d.burnTest === 'burns' ? 'Burns (natural)' : null);
+      addRow('washed', d.washed === 'washed' ? 'Washed / pre-shrunk' : d.washed === 'unwashed' ? 'Unwashed' : d.washed === 'dry_cleaned' ? 'Dry cleaned' : null);
     }
 
     backBtn.addEventListener('click', ()=>{
@@ -3234,6 +3262,7 @@
           designer: d.designer,
           feels_like: d.feelsLike?.join(", ") || null,
           burn_test: d.burnTest === '' ? 'not_performed' : (d.burnTest || null),
+          washed: d.washed || null,
 
           // IMAGES
           ...imageFields,
@@ -3395,6 +3424,12 @@
           document.querySelectorAll('#feelsLikeGroup input[name="feelsLike"]').forEach(cb=>{
             cb.checked = selectedFeels.includes(cb.value);
           });
+        }
+
+        // Washed radio buttons
+        if(data.washed){
+          const wRadio = document.querySelector(`input[name="washed"][value="${data.washed}"]`);
+          if(wRadio) wRadio.checked = true;
         }
 
         // Burn test radio buttons
