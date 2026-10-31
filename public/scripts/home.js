@@ -300,7 +300,7 @@
       const card = document.createElement("article");
       card.className = "listing-card";
 
-      const href = "listing.html?id=" + encodeURIComponent(item.id);
+      const href = "/fabric/" + encodeURIComponent(item.id);
       const safeTitle = item.title || "Untitled listing";
       const safeAlt = safeTitle.replace(/"/g, "&quot;");
 
