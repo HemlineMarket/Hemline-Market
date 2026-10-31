@@ -464,7 +464,7 @@
     const soldBand = isSold
       ? '<span class="sold-band" aria-label="Sold">Sold</span>'
       : '';
-    const href = "listing.html?id=" + encodeURIComponent(listing.id);
+    const href = "/fabric/" + encodeURIComponent(listing.id);
 
     // Build price row with optional strikethrough original
     let priceRowHtml = '<div class="listing-price-row">';
