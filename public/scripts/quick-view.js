@@ -345,9 +345,9 @@
       card.dataset.qvInjected = '1';
 
       // Find the listing link to get the ID
-      const link = card.querySelector('a[href*="listing.html?id="]');
+      const link = card.querySelector('a[href*="/fabric/"], a[href*="listing.html?id="]');
       if (!link) { console.log('[quick-view] No listing link found in card'); return; }
-      const match = link.href.match(/[?&]id=([^&]+)/);
+      const match = link.href.match(/\/fabric\/([^?#\/]+)/) || link.href.match(/[?&]id=([^&]+)/);
       if (!match) { console.log('[quick-view] No id in link:', link.href); return; }
       const listingId = decodeURIComponent(match[1]);
 
@@ -502,7 +502,7 @@
     const sellerName = seller?.store_name || seller?.display_name || [seller?.first_name, seller?.last_name].filter(Boolean).join(' ') || 'Seller';
     const sellerHref = seller ? '/atelier.html?u=' + seller.id : '#';
 
-    const href = 'listing.html?id=' + encodeURIComponent(listing.id);
+    const href = '/fabric/' + encodeURIComponent(listing.id);
 
     // Image nav dots
     const dotsHtml = currentImages.length > 1
